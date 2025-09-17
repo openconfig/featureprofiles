@@ -218,6 +218,7 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	}
 }
 
+// ConfigureDUTIntf - configure DUT interfaces
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
@@ -238,6 +239,7 @@ type bgpNeighbor struct {
 	PeerGroupName string
 }
 
+// ConfigureBgp configure BGP in dut
 func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
@@ -307,6 +309,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
+// ConfigureQoS configure qos configuration
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
@@ -466,8 +469,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		action := term.GetOrCreateActions()
 		action.SetTargetGroup(tc.targetGroup)
 
-		// remark := action.GetOrCreateRemark()
-		// remark.SetDscp = ygot.Uint8(0)
+		if !deviations.QosRemarkOCUnsupported(dut) {
+			remark := action.GetOrCreateRemark()
+			remark.SetDscp = ygot.Uint8(0)
+		}
 
 		condition := term.GetOrCreateConditions()
 		if tc.name == "dscp_based_classifier_ipv4" {
@@ -501,12 +506,16 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	t.Logf("qos input remark config: %v", classifierIntfs)
 	if deviations.QosRemarkOCUnsupported(dut) {
-		configureRemarkIpv4(t, dut)
-		configureRemarkIpv6(t, dut)
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			aristaConfigureRemarkIpv4(t, dut)
+			aristaConfigureRemarkIpv6(t, dut)
+		}
 	}
 }
 
-func configureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
+// aristaConfigureRemarkIpv4 configure remark for ipv4 through CLI
+func aristaConfigureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
 	jsonConfig := `
     policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
 	class __yang_[dscp_based_classifier_ipv4]_[0]
@@ -525,7 +534,8 @@ func configureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
 	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
 
-func configureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
+// aristaConfigureRemarkIpv6 configure remark for ipv6 through CLI
+func aristaConfigureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
 	jsonConfig := `
     policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
    class __yang_[dscp_based_classifier_ipv6]_[0]
@@ -600,6 +610,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	return topo
 }
 
+// rewriteIpv6PktsWithDscp testcase validation for ipv6 rewrite
 func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, enableMpls bool, enableGre bool, enableGue bool) {
 
 	topo.Flows().Clear()
@@ -693,12 +704,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureDutWithGreDecap(t, dut, "ipv6", atePort2.IPv4)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	intialpacket1 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	intialpacket2 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	intialpacket3 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	intialpacket4 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	intialpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	intialpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, dut, ate, topo)
@@ -716,12 +727,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 	verifyIpv6DscpCapture(t, ate, "port2", enableGue, enableGre)
 
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	finalpacket1 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	finalpacket2 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	finalpacket3 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	finalpacket4 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	finalpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	finalpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -732,6 +743,7 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 }
 
+// rewriteIpv4PktsWithDscp testcase validation for ipv4 rewrite
 func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, enableMpls bool, enableGre bool, enableGue bool) {
 	topo.Flows().Clear()
 	trafficFlows := []struct {
@@ -821,12 +833,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureDutWithGreDecap(t, dut, "ipv4", atePort2.IPv4)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	intialpacket1 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	intialpacket2 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	intialpacket3 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	intialpacket4 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	intialpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	intialpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, dut, ate, topo)
@@ -842,12 +854,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 	verifyIpv4DscpCapture(t, ate, "port2", enableGue, enableGre)
 
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	finalpacket1 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	finalpacket2 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	finalpacket3 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	finalpacket4 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	finalpacket5 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	finalpacket6 := verfiyClassifierPackets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -858,6 +870,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 }
 
+// trafficStartStop start and stop traffic in ATE
 func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
@@ -869,6 +882,7 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 }
 
+// verifyTrafficFlow validate traffic tx and rx frame counters with ATE statistics
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
 	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 
@@ -901,14 +915,14 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	otg.SetControlState(t, cs)
 }
 
+// enableCapture enable capture for the particular port
 func enableCapture(t *testing.T, config gosnappi.Config, port string) {
-
 	config.Captures().Clear()
 	t.Log("Enabling capture on ", port)
 	config.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
-
 }
 
+// processCapture process capture and return a capture file
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
@@ -924,6 +938,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
+// verifyIpv4DscpCapture validate DSCP values for ipv4 header
 func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableGue bool, enableGre bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
@@ -960,6 +975,7 @@ func verifyIpv4DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, en
 
 }
 
+// verifyIpv4DscpCapture validate TOS values for ipv6 header
 func verifyIpv6DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, enableGue bool, enableGre bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
@@ -996,7 +1012,8 @@ func verifyIpv6DscpCapture(t *testing.T, ate *ondatra.ATEDevice, port string, en
 	}
 }
 
-func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
+// verfiyClassifierPackets validate packets based on classifier with the DUT statistics
+func verfiyClassifierPackets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
 	dp1 := dut.Port(t, "port1")
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
@@ -1009,6 +1026,7 @@ func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier 
 	return matchpackets
 }
 
+// compare before and after classifier counters
 func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
 	t.Logf("Classifier counters Before Traffic %v", intialpacket)
 	t.Logf("Classifier counters After Traffic %v", finalpacket)
@@ -1019,6 +1037,7 @@ func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
 	}
 }
 
+// configureDutWithGueDecap configure GUE decapsulation
 func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType string, ipAddr string) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut, guePort, ipType, ipAddr, "dcap-policy-Gue")
@@ -1026,6 +1045,7 @@ func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 }
 
+// configureDutWithGreDecap configure GRE decapsulation
 func configureDutWithGreDecap(t *testing.T, dut *ondatra.DUTDevice, ipType string, ipAddr string) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	ocPFParams := GetDefaultOcPolicyForwardingParams(t, dut, 47, ipType, ipAddr, "dcap-policy-Gre")
@@ -1047,6 +1067,7 @@ func GetDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 	}
 }
 
+// waitForBGPSession wait untill BGP sessions ESTABLISHED
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
@@ -1078,6 +1099,7 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
+// verifyBGPTelemetry validate BGP session is ESTABLISHED
 func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Waiting for BGPv4 neighbor to establish...")
 	waitForBGPSession(t, dut, true)
