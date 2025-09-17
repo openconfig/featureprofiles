@@ -1627,3 +1627,9 @@ func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
 func LinePortUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLinePortUnsupported()
 }
+
+// UseBgpSetCommunityOptionTypeReplace returns true if BGP community set REPLACE
+// option is required
+func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
+}
