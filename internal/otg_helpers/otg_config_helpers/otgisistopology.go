@@ -10,7 +10,7 @@ import (
 
 	"github.com/open_traffic_generator/gosnappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
-	"github.com/openconfig/ondatra/ondatra"
+	"github.com/openconfig/ondatra"
 )
 
 // AteEmulatedRouterData is the data structure for an emulated router in the ATE.
