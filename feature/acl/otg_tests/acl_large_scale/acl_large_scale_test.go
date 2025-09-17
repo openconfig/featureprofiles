@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package acl_large_scale_test
+package acllargescale_test
 
 import (
 	"fmt"
@@ -36,8 +36,7 @@ import (
 )
 
 const (
-	noOfPackets      = 500
-	trafficFrameSize = 512
+	trafficFrameSize = 10000
 	trafficPps       = 100
 	sleepTime        = time.Duration(trafficFrameSize / trafficPps)
 
@@ -202,7 +201,7 @@ var (
 	}
 )
 
-type BGPNeighbor struct {
+type bgpNeighbor struct {
 	as         uint32
 	neighborip string
 	isV4       bool
@@ -223,7 +222,17 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureACL)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
+	configureHardwareInit(t, dut)
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
@@ -254,7 +263,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
 
 	if configBgp {
 		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-		bgpNbrs := []*BGPNeighbor{
+		bgpNbrs := []*bgpNeighbor{
 			{as: atePort1AS, neighborip: atePort1.IPv4, isV4: true},
 			{as: atePort1AS, neighborip: atePort1.IPv6, isV4: false},
 			{as: atePort2AS, neighborip: atePort2.IPv4, isV4: true},
@@ -410,28 +419,66 @@ func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
 	t.Log("ACL configuration applied.")
 }
 
+func createIPList(aclType oc.E_Acl_ACL_TYPE) []string {
+	var allSrcIPs []string
+	var PrefixIPs []struct {
+		startIP string
+		count   int
+	}
+
+	switch aclType {
+	case aclTypeIPv4:
+		PrefixIPs = []struct {
+			startIP string
+			count   int
+		}{
+			{"100.1.%d.%d/22", 100},
+			{"50.1.%d.%d/24", 97},
+			{"200.1.%d.%d/30", 2},
+			{"210.1.%d.%d/32", 1},
+		}
+	case aclTypeIPv6:
+		PrefixIPs = []struct {
+			startIP string
+			count   int
+		}{
+			{"1000:1:%d::%d/48", 100},
+			{"5000:1:%d::%d/96", 97},
+			{"1500:1:%d::%d/126", 2},
+			{"2000:1:%d::%d/128", 1},
+		}
+	}
+	for _, prefixIPs := range PrefixIPs {
+		for i := 0; i < prefixIPs.count; i++ {
+			allSrcIPs = append(allSrcIPs, fmt.Sprintf(prefixIPs.startIP, i/256, i%256))
+		}
+	}
+
+	return allSrcIPs
+}
+
 // TODO: Raised issue  416164360 for unsupport of logging
 func configHighScaleACL(t *testing.T, dut *ondatra.DUTDevice, name string, startCount int, lastCount int, action string, log bool, aclType oc.E_Acl_ACL_TYPE) {
 	if deviations.ConfigACLValueAnyOcUnsupported(dut) {
-		cliConfig := ""
+		ipType := ""
+		src_ip := []string{}
+		switch aclType {
+		case aclTypeIPv4:
+			ipType = "ip"
+			src_ip = createIPList(aclType)
+		case aclTypeIPv6:
+			ipType = "ipv6"
+			src_ip = createIPList(aclType)
+		}
+		cliConfig := fmt.Sprintf("%s access-list %s\n", ipType, name)
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			for i := startCount; i <= lastCount; i++ {
-				if aclType == aclTypeIPv4 {
-					cliConfig = fmt.Sprintf(`
-					ip access-list %s
-					%d permit ip any any
-					`, name, i)
-				} else {
-					cliConfig = fmt.Sprintf(`
-					ipv6 access-list %s
-					%d permit ipv6 any any
-					`, name, i)
-				}
-				helpers.GnmiCLIConfig(t, dut, cliConfig)
+				cliConfig += fmt.Sprintf("%d permit %s %s any\n", i, ipType, src_ip[i-1])
 			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
-			t.Errorf("ACL CLI is not handled for the dut: %v", dut.Vendor())
+			t.Errorf("acl cli is not handled for the dut: %v", dut.Vendor())
 		}
 	} else {
 		aclRoot := &oc.Root{}
@@ -494,7 +541,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-func createBGPNeighbor(localAs uint32, bgpNbrs []*BGPNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func createBGPNeighbor(localAs uint32, bgpNbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
@@ -555,14 +602,14 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 		portAttrs.AddToOTG(otgConfig, port, dutPort)
 	}
 
-	bgpv4Devices := []*BGPNeighbor{
+	bgpv4Devices := []*bgpNeighbor{
 		{neighborip: atePort1.IPv4, as: atePort1AS, name: atePort1.Name, isV4: true},
 		{neighborip: atePort2.IPv4, as: atePort2AS, name: atePort2.Name, isV4: true},
 		{neighborip: atePort3.IPv4, as: atePort3AS, name: atePort3.Name, isV4: true},
 		{neighborip: atePort4.IPv4, as: atePort4AS, name: atePort4.Name, isV4: true},
 	}
 
-	bgpv6Devices := []*BGPNeighbor{
+	bgpv6Devices := []*bgpNeighbor{
 		{neighborip: atePort1.IPv6, as: atePort1AS, name: atePort1.Name, isV4: false},
 		{neighborip: atePort2.IPv6, as: atePort2AS, name: atePort2.Name, isV4: false},
 		{neighborip: atePort3.IPv6, as: atePort3AS, name: atePort3.Name, isV4: false},
@@ -699,7 +746,7 @@ func configureTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 			traffic-policy input %s
 			`, policyName, protocolType, strings.Join(srcAddress, " "), dstAddress, srcPort, dstPort, intfName, policyName)
 		default:
-			t.Errorf("Traffic policy CLI is not handled for the dut: %v", dut.Vendor())
+			t.Errorf("traffic policy CLI is not handled for the dut: %v", dut.Vendor())
 		}
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	} else {
@@ -719,7 +766,6 @@ func createFlow(flowName string, srcPort []string, dstPort []string, srcAddress 
 	flow.TxRx().Device().SetTxNames(srcPort).SetRxNames(dstPort)
 	flow.Size().SetFixed(trafficFrameSize)
 	flow.Rate().SetPps(trafficPps)
-	// flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(noOfPackets))
 
 	flow.Packet().Add().Ethernet()
 
@@ -1013,10 +1059,10 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 300)
+		time.Sleep(time.Second * 30)
 
 		t.Logf("Verify OTG BGP sessions up")
-		cfgplugins.VerifyOTGBGPEstablished(t, ate)
+		cfgplugins.VerifyOTGBGPEstablished(t, ate, 4*time.Minute)
 
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
@@ -1024,7 +1070,8 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		withdrawBGPRoutes(t, config, flows.withdrawBGPRoutes)
 
 		otgConfig.StartTraffic(t)
-		time.Sleep(time.Second * 60)
+		// time.Sleep(time.Second * 60)
+		time.Sleep(sleepTime)
 		otgConfig.StopTraffic(t)
 
 		// Verify Traffic
@@ -1359,6 +1406,12 @@ func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgutils.WaitForARP(t, otgConfig, configV4, "IPv4")
 	otgutils.WaitForARP(t, otgConfig, configV4, "IPv6")
 
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
 	otgConfig.StartTraffic(t)
 	time.Sleep(time.Second * 60)
 	otgConfig.StopTraffic(t)
@@ -1477,8 +1530,11 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 
 	otgConfig.StartProtocols(t)
 
-	otgutils.WaitForARP(t, otgConfig, configV6, "IPv4")
-	otgutils.WaitForARP(t, otgConfig, configV6, "IPv6")
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
 	otgConfig.StartTraffic(t)
 	time.Sleep(time.Second * 60)
