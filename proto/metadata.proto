@@ -933,6 +933,10 @@ message Metadata {
     // Arista b/443044881
     bool use_bgp_set_community_option_type_replace = 323;
 
+    // Devices that do not support global max ecmp paths
+    // Arista b/445097297
+    bool global_max_ecmp_paths_unsupported = 324;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }

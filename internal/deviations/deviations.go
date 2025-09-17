@@ -1633,3 +1633,8 @@ func LinePortUnsupported(dut *ondatra.DUTDevice) bool {
 func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
 }
+
+// MaxEcmpPaths path on global level is unsupported
+func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGlobalMaxEcmpPathsUnsupported()
+}
