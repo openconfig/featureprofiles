@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -686,7 +685,7 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	i := a.NewOCInterface(p.Name(), dut)
 	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
+		s4.SetEnabled(true)
 	}
 	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 
@@ -774,19 +773,19 @@ func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, bgpNbr [
 	bgp := niProto.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.RouterId = ygot.String(dutloopback0.IPv4)
-	global.As = ygot.Uint32(localAs)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	global.SetRouterId(dutloopback0.IPv4)
+	global.SetAs(localAs)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 
 	for _, nbr := range bgpNbr {
 		pg1 := bgp.GetOrCreatePeerGroup(nbr.peerGrpName)
-		pg1.PeerAs = ygot.Uint32(nbr.peerAs)
+		pg1.SetPeerAs(nbr.peerAs)
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrIp)
-		bgpNbr.PeerGroup = ygot.String(nbr.peerGrpName)
-		bgpNbr.PeerAs = ygot.Uint32(nbr.peerAs)
-		bgpNbr.Enabled = ygot.Bool(true)
+		bgpNbr.SetPeerGroup(nbr.peerGrpName)
+		bgpNbr.SetPeerAs(nbr.peerAs)
+		bgpNbr.SetEnabled(true)
 		bgpNbrT := bgpNbr.GetOrCreateTransport()
 
 		localAddressLeaf = nbr.srcIp
@@ -794,11 +793,11 @@ func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, bgpNbr [
 		if dut.Vendor() == ondatra.CISCO {
 			localAddressLeaf = dutloopback0.Name
 		}
-		bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
+		bgpNbrT.SetLocalAddress(localAddressLeaf)
 		af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		af4.Enabled = ygot.Bool(true)
+		af4.SetEnabled(true)
 		af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		af6.Enabled = ygot.Bool(true)
+		af6.SetEnabled(true)
 	}
 
 	gnmi.Replace(t, dut, dutConfPath.Config(), niProto)
@@ -1219,51 +1218,51 @@ func TestStaticGue(t *testing.T) {
 			Description: "Validate traffic with basic config",
 			testFunc:    testBaselineTraffic,
 		},
-		// 	{
-		// 		Name:        "Testcase: Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
-		// 		Description: "Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
-		// 		testFunc:    testBE1TrafficMigration,
-		// 	},
-		// 	{
-		// 		Name:        "Testcase: Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
-		// 		Description: "Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
-		// 		testFunc:    testAF1TrafficMigration,
-		// 	},
-		// 	{
-		// 		Name:        "Testcase: Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
-		// 		Description: "Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
-		// 		testFunc:    testAF2TrafficMigration,
-		// 	},
-		// 	{
-		// 		Name:        "Testcase: Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
-		// 		Description: "Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
-		// 		testFunc:    testAF3TrafficMigration,
-		// 	},
-		// 	{
-		// 		Name:        "Testcase: Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
-		// 		Description: "Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
-		// 		testFunc:    testAF4TrafficMigration,
-		// 	},
-		// 	// {
-		// 	// 	Name:        "Testcase: DUT as a GUE Decap Node",
-		// 	// 	Description: "Verify DUT as a GUE Decap Node",
-		// 	// 	testFunc:    testDUTDecapNode,
-		// 	// },
-		// 	{
-		// 		Name:        "Testcase: Negative Scenario - EBGP Route for remote tunnel endpoints Removed",
-		// 		Description: "Verify EBGP Route for remote tunnel endpoints Removed",
-		// 		testFunc:    testTunnelEndpointRemoved,
-		// 	},
-		// 	// {
-		// 	// 	Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	// 	Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	// 	testFunc:    testIbgpTunnelEndpointRemoved,
-		// 	// },
-		// 	{
-		// 		Name:        "Testcase: Establish IBGP Peering over EBGP",
-		// 		Description: "Verify Establish IBGP Peering over EBGP",
-		// 		testFunc:    testEstablishIBGPoverEBGP,
-		// 	},
+		{
+			Name:        "Testcase: Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
+			Description: "Verify BE1 Traffic Migrated from being routed over the DUT_Port2",
+			testFunc:    testBE1TrafficMigration,
+		},
+		{
+			Name:        "Testcase: Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
+			Description: "Verify AF1 Traffic Migrated from being routed over the DUT_Port2",
+			testFunc:    testAF1TrafficMigration,
+		},
+		{
+			Name:        "Testcase: Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
+			Description: "Verify AF2 Traffic Migrated from being routed over the DUT_Port2",
+			testFunc:    testAF2TrafficMigration,
+		},
+		{
+			Name:        "Testcase: Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
+			Description: "Verify AF3 Traffic Migrated from being routed over the DUT_Port2",
+			testFunc:    testAF3TrafficMigration,
+		},
+		{
+			Name:        "Testcase: Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
+			Description: "Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
+			testFunc:    testAF4TrafficMigration,
+		},
+		// {
+		// 	Name:        "Testcase: DUT as a GUE Decap Node",
+		// 	Description: "Verify DUT as a GUE Decap Node",
+		// 	testFunc:    testDUTDecapNode,
+		// },
+		{
+			Name:        "Testcase: Negative Scenario - EBGP Route for remote tunnel endpoints Removed",
+			Description: "Verify EBGP Route for remote tunnel endpoints Removed",
+			testFunc:    testTunnelEndpointRemoved,
+		},
+		// {
+		// 	Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
+		// 	Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
+		// 	testFunc:    testIbgpTunnelEndpointRemoved,
+		// },
+		{
+			Name:        "Testcase: Establish IBGP Peering over EBGP",
+			Description: "Verify Establish IBGP Peering over EBGP",
+			testFunc:    testEstablishIBGPoverEBGP,
+		},
 	}
 
 	// Run the test cases.
