@@ -256,6 +256,30 @@ func (a *testArgs) interfaceaction(t *testing.T, port string, action bool) {
 	}
 }
 
+// func enableInterfaces(t *testing.T, dut *ondatra.DUTDevice, action bool) {
+// 	portlist := []string{"port1", "port2", "port3", "port4", "port5", "port6", "port7", "port8"}
+// 	for _, port := range portlist {
+// 		dutP := dut.Port(t, port)
+// 		//n := &oc.NetworkInstance{Name: ygot.String("DEFAULT")}
+// 		c := gnmi.OC().Interface(dutP.Name())
+
+// 		if action {
+// 			//gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), true)
+// 			// 	gnmi.Await(t, a.dut, gnmi.OC().Interface(a.dut.Port(t, port).Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+// 			gnmi.Update(t, dut, c.Config(), &oc.Interface{
+// 				Name:    ygot.String(dutP.Name()),
+// 				Enabled: ygot.Bool(true),
+// 			})
+// 		} else {
+// 			// 	gnmi.Update(t, a.dut, gnmi.OC().Interface(dutP.Name()).Subinterface(0).Enabled().Config(), false)
+// 			gnmi.Update(t, dut, c.Config(), &oc.Interface{
+// 				Name:    ygot.String(dutP.Name()),
+// 				Enabled: ygot.Bool(false),
+// 			})
+// 		}
+// 	}
+// }
+
 // configureDUT configures port1, port2 and port3 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()

@@ -121,6 +121,16 @@ func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
+func removeStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").
+		Static("0.0.0.0/0").Config())
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).
+		Static("::/0").Config())
+}
+
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
@@ -1245,7 +1255,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 	// Elect client as leader and flush all the past entries
 	dut := ondatra.DUT(t, "dut")
 	baseconfig(t)
-	config.TextWithGNMI(args.ctx, t, args.dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
+	config.TextWithGNMI(ctx, t, dut, "vrf ENCAP_TE_VRF_A fallback-vrf default")
 
 	// Configure the gRIBI client
 	client := gribi.Client{
@@ -1278,6 +1288,8 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		addDefaultRouteviaGRIBI(t, args)
 	}
 	addStaticRoute(t, dut)
+
+	defer removeStaticRoute(t, dut)
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(atePort6.IPv4, int(ipv4PrefixLen))).Config())
 	defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(atePort6.IPv6, int(ipv6PrefixLen))).Config())
 
