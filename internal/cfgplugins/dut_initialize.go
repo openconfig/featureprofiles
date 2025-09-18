@@ -31,6 +31,7 @@ const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
 	FeaturePolicyForwarding
+	FeatureQOSCounters
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -362,6 +363,25 @@ hardware tcam
     hardware counter feature nexthop
     !
     `
+
+	aristaTcamProfileQOSCounters = `
+      hardware tcam
+      profile qosCounter copy qos
+      feature qos ip
+      no action set-dscp
+      action count
+      feature qos mac
+      no action set-dscp
+      action count
+      feature qos ipv6
+      no action set-dscp
+      action count
+      !
+      system profile qosCounter
+      !
+      hardware counter feature qos in
+      !
+   `
 )
 
 var (
@@ -369,6 +389,7 @@ var (
 		FeatureMplsTracking:         aristaTcamProfileMplsTracking,
 		FeatureVrfSelectionExtended: aristaTcamProfileVrfSelectionExtended,
 		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
+		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
 	}
 )
 
