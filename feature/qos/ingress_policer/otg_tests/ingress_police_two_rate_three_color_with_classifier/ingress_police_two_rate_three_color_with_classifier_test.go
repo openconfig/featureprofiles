@@ -280,12 +280,6 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 }
 
 func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, droppedPackets uint64) {
-	if deviations.QosSchedulerIngressPolicer(dut) {
-		policyOutputCli := cfgplugins.GetPolicyCLICounters(t, dut, schedulerName)
-		t.Log(policyOutputCli)
-		t.Error("Scheduler counters are not supported in OC")
-		return
-	}
 	scheduler := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Input().SchedulerPolicy().Scheduler(sequenceNumber).State())
 	t.Logf("Scheduler counters for %s at %.1fGbps: conforming=%d, exceeding=%d, violating=%d", intf, float64(tc.flowRate/1000), *scheduler.ConformingPkts, *scheduler.ExceedingPkts, *scheduler.ViolatingPkts)
 	if *scheduler.ViolatingPkts != droppedPackets {
@@ -294,10 +288,6 @@ func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string
 }
 
 func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, expectedPackets uint64) {
-	if deviations.QosClassificationOCUnsupported(dut) {
-		t.Error("Classifier counters are not supported in OC")
-		return
-	}
 	classifier := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Input().Classifier(inputClassifierType).Term(targetClass).State())
 	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), *classifier.MatchedPackets)
 	if *classifier.MatchedPackets != expectedPackets {
