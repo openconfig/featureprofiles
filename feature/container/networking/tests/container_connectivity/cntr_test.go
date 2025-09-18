@@ -28,6 +28,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -44,9 +45,7 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-var (
-	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
-)
+var containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 
 const (
 	imageName    = "cntrsrv"
@@ -89,6 +88,34 @@ func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientC
 	return conn
 }
 
+// The container can be in a RUNNING state before the gRPC server inside is
+// ready to accept connections. We retry the Ping RPC to handle this race
+// condition.
+func waitForCntrReady(t testing.TB, client cpb.CntrClient, dut string, timeout time.Duration, retryEvery time.Duration) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	var lastErr error
+	ticker := time.NewTicker(retryEvery)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			t.Fatalf("%s: Ping failed after %v, last error: %v", dut, timeout, lastErr)
+		case <-ticker.C:
+			_, err := client.Ping(context.Background(), &cpb.PingRequest{})
+			if err == nil {
+				t.Logf("%s: Successfully pinged cntrsrv.", dut)
+				return
+			}
+			lastErr = err
+			t.Logf("%s: Ping failed, retrying in %v... (error: %v)", dut, retryEvery, err)
+		}
+	}
+}
+
 // TestDial implements CNTR-2, validating that it is possible for an external caller to dial into a service
 // running in a container on a DUT. The service used is the cntr service defined by cntr.proto.
 func TestDial(t *testing.T) {
@@ -96,32 +123,11 @@ func TestDial(t *testing.T) {
 	cleanup := setupContainer(t, dut)
 	defer cleanup()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 	conn := dialContainer(t, dut, cntrPort)
+	defer conn.Close()
 
 	client := cpb.NewCntrClient(conn)
-
-	// The container can be in a RUNNING state before the gRPC server inside is
-	// ready to accept connections. We retry the Ping RPC to handle this race
-	// condition.
-	var lastErr error
-	for {
-		select {
-		case <-ctx.Done():
-			t.Fatalf("Ping failed after timeout, last error: %v", lastErr)
-		default:
-		}
-
-		_, err := client.Ping(context.Background(), &cpb.PingRequest{})
-		if err == nil {
-			t.Log("Successfully pinged cntrsrv.")
-			return // Success
-		}
-		lastErr = err
-		t.Logf("Ping failed, retrying in 2 seconds... (error: %v)", err)
-		time.Sleep(2 * time.Second)
-	}
+	waitForCntrReady(t, client, dut.Name(), 30*time.Second, 2*time.Second)
 }
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -143,19 +149,7 @@ func TestDialLocal(t *testing.T) {
 	client := cpb.NewCntrClient(conn)
 
 	// Wait for the container's gRPC server to be ready before running sub-tests.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	var lastErr error
-	for {
-		if ctx.Err() != nil {
-			t.Fatalf("Timed out waiting for container gRPC server to be ready, last error: %v", lastErr)
-		}
-		_, lastErr = client.Ping(context.Background(), &cpb.PingRequest{})
-		if lastErr == nil {
-			break // Success
-		}
-		time.Sleep(2 * time.Second)
-	}
+	waitForCntrReady(t, client, dut.Name(), 30*time.Second, 2*time.Second)
 
 	var creds DUTCredentialer
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
@@ -253,6 +247,9 @@ func TestConnectRemote(t *testing.T) {
 		a.PrefixLength = ygot.Uint8(64)
 		a.Type = oc.IfIp_Ipv6AddressType_LINK_LOCAL_UNICAST
 		gnmi.Replace(t, dut, gnmi.OC().Interface(pn).Config(), d)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, d.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		}
 
 		time.Sleep(1 * time.Second)
 	}
@@ -267,7 +264,6 @@ func TestConnectRemote(t *testing.T) {
 
 	configureIPv6Addr(r0, "port1", "fe80::cafe:1")
 	configureIPv6Addr(r1, "port1", "fe80::cafe:2")
-
 	validateIPv6Present := func(dut *ondatra.DUTDevice, name string) {
 		// Check that there is a configured IPv6 address on the interface.
 		t.Helper()
@@ -282,9 +278,6 @@ func TestConnectRemote(t *testing.T) {
 	validateIPv6Present(r0, "port1")
 	validateIPv6Present(r1, "port1")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
 	containerInterfaceName := func(t *testing.T, d *ondatra.DUTDevice, port *ondatra.Port) string {
 		switch d.Vendor() {
 		case ondatra.ARISTA:
@@ -292,6 +285,15 @@ func TestConnectRemote(t *testing.T) {
 			case strings.HasPrefix(port.Name(), "Ethernet"):
 				num, _ := strings.CutPrefix(port.Name(), "Ethernet")
 				return fmt.Sprintf("eth%s", num)
+			}
+		case ondatra.NOKIA:
+			switch {
+			case strings.HasPrefix(port.Name(), "ethernet-"):
+				rest := strings.TrimPrefix(port.Name(), "ethernet-")
+				parts := strings.Split(rest, "/")
+				if len(parts) == 2 {
+					return fmt.Sprintf("e%s-%s.0", parts[0], parts[1])
+				}
 			}
 		}
 		t.Fatalf("cannot resolve interface name into Linux interface name, %s -> %s", d.Vendor(), port.Name())
@@ -315,20 +317,10 @@ func TestConnectRemote(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
 			conn := dialContainer(t, tt.inDialer, cntrPort)
-			dialAddr := fmt.Sprintf("[%s%%25%s]:%d", tt.inRemoteAddr, containerInterfaceName(t, tt.inDialer, tt.inDialer.Port(t, "port1")), cntrPort)
+			dialAddr := fmt.Sprintf("[%s%25%%s]:%d", tt.inRemoteAddr, containerInterfaceName(t, tt.inDialer, tt.inDialer.Port(t, "port1")), cntrPort)
 			t.Logf("dialing remote address %s", dialAddr)
-
 			client := cpb.NewCntrClient(conn)
-			got, err := client.Dial(ctx, &cpb.DialRequest{
-				Addr: dialAddr,
-				Request: &cpb.DialRequest_Ping{
-					Ping: &cpb.PingRequest{},
-				},
-			})
-			if err != nil {
-				t.Fatalf("could not make request to remote device, got err: %v", err)
-			}
-			t.Logf("got response, %s", prototext.Format(got))
+			waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", tt.inDialer.Name(), tt.desc), 30*time.Second, 2*time.Second)
 		})
 	}
 }
