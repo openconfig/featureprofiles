@@ -586,7 +586,7 @@ func validateDUTCounters(t *testing.T, flowCount int, dutP1InCountersBefore, dut
 		}
 		// Check if DUT egress counters reflect ATE Rx.
 		if float64(outPktsDelta) < float64(totalRxAtATE)*0.98 {
-			return fmt.Errorf("dut Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d) - potential drop in DUT. expected approx %d", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
+			return fmt.Errorf("dut Port2 OutUnicastPkts delta (%d) is significantly less than ATE Rx (%d) - potential drop in DUT, expected approx %d", outPktsDelta, totalRxAtATE, expectedTotalTraffic)
 		}
 	case expectedTotalTraffic > 0:
 		return fmt.Errorf("traffic was not reported as transmitted by ATE flows, but %d total packets were expected", expectedTotalTraffic)
