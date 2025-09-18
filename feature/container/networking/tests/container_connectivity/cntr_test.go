@@ -316,11 +316,30 @@ func TestConnectRemote(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
+			// Since there are two containers on different devices,
+			// Ensure container readiness on both devices before proceeding.
+			if tt.inDialer == r1 {
+				conn := dialContainer(t, r0, cntrPort)
+				client := cpb.NewCntrClient(conn)
+				waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", r0.Name(), tt.desc), 30*time.Second, 2*time.Second)
+
+			}
 			conn := dialContainer(t, tt.inDialer, cntrPort)
-			dialAddr := fmt.Sprintf("[%s%25%%s]:%d", tt.inRemoteAddr, containerInterfaceName(t, tt.inDialer, tt.inDialer.Port(t, "port1")), cntrPort)
+			dialAddr := fmt.Sprintf("[%s%%25%s]:%d", tt.inRemoteAddr, containerInterfaceName(t, tt.inDialer, tt.inDialer.Port(t, "port1")), cntrPort)
 			t.Logf("dialing remote address %s", dialAddr)
 			client := cpb.NewCntrClient(conn)
 			waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", tt.inDialer.Name(), tt.desc), 30*time.Second, 2*time.Second)
+			ctx := context.Background()
+			got, err := client.Dial(ctx, &cpb.DialRequest{
+				Addr: dialAddr,
+				Request: &cpb.DialRequest_Ping{
+					Ping: &cpb.PingRequest{},
+				},
+			})
+			if err != nil {
+				t.Fatalf("could not make request to remote device, got err: %v", err)
+			}
+			t.Logf("got response, %s", prototext.Format(got))
 		})
 	}
 }
