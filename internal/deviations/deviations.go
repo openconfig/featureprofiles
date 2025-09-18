@@ -724,11 +724,6 @@ func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
 }
 
-// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
-func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
-}
-
 // SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
 func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
