@@ -81,7 +81,7 @@ vvlakshmanamurthy marked this conversation as resolved.
 
 ### BMP-1.3.1: Verify route monitoring with post-policy and exclude-noneligible
 
-1)  Configure an import policy on the DUT to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32 from ATE port-1
+1)  On the DUT, configure `/routing-policy` to reject prefixes matching 172.16.0.0/16 and 2001:DB8::/32 and apply it as an import-policy on the BGP neighbor for ATE port-1
 2)  Have ATE port-1 advertise prefixes 15mil IPv4(the routes should include prefixes in range 172.16.0.0/16 ) and 5mil IPv6 (the routes should include prefixes in range 2001:DB8::/32) to the DUT
 3)  Verify that the BMP station doesnt receive route monitoring messages for routes excluded by the import policy and receives remaining routes at BMP station, i.e. BMP station should receive all routes except for the routes in range 172.16.0.0/16 and 2001:DB8::/32 . 
 
