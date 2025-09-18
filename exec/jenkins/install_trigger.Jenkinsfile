@@ -1,5 +1,5 @@
 def global_parameters = []
-def image_path, image_version, image_lineup, image_efr
+def image_path, image_version, image_full_version, image_lineup, image_efr
 
 pipeline {
     agent { label "ads" }
@@ -33,7 +33,7 @@ pipeline {
         stage('Image Info') {
             steps {
                 script {
-                    (image_path, image_lineup, image_efr, image_version) = getImageInfo(params['Upgrade Image'])
+                    (image_path, image_lineup, image_efr, image_version, image_full_version) = getImageInfo(params['Upgrade Image'])
     
                     global_parameters += [
                         string(name: 'Image Path', value: "${params['Boot Image']}"),
@@ -48,7 +48,8 @@ pipeline {
                 script {
                     def test_env = [
                         "UPGRADE_IMAGE_PATH: ${image_path}", 
-                        "UPGRADE_IMAGE_VERSION: ${image_version}", 
+                        "UPGRADE_IMAGE_VERSION: ${image_version}",
+                        "UPGRADE_IMAGE_VERSION_FULL: ${image_full_version}", 
                         "UPGRADE_IMAGE_LINEUP: ${image_lineup}", 
                         "UPGRADE_IMAGE_EFR: ${image_efr}", 
                         "BOOT_IMAGE_PATH: ${params['Boot Image']}", 
@@ -73,7 +74,7 @@ def getImageInfo(String imagePath) {
         returnStdout: true
     ).trim()
     
-    def lineup, efr, version
+    def lineup, efr, version, fullVersion
     for(line in imageInfo.split('\n')) {
         if(line.startsWith("Lineup")) {
             def (k,v) = line.split('=')
@@ -83,8 +84,9 @@ def getImageInfo(String imagePath) {
         }
         else if(line.startsWith("XR version")) {
             def (k,v) = line.split('=')
+            fullVersion = v.trim()
             version = v.split('-')[0].trim()
         }
     }
-    return [imagePath, lineup, efr, version]
+    return [imagePath, lineup, efr, version, fullVersion]
 }
