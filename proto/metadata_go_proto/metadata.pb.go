@@ -1143,9 +1143,15 @@ type Metadata_Deviations struct {
 	// routing-policy bgp community needs to use REPLACE option
 	// Arista b/443044881
 	UseBgpSetCommunityOptionTypeReplace bool `protobuf:"varint,323,opt,name=use_bgp_set_community_option_type_replace,json=useBgpSetCommunityOptionTypeReplace,proto3" json:"use_bgp_set_community_option_type_replace,omitempty"`
+	// Devices that do not support global max ecmp paths
+	// Arista b/445097297
+	GlobalMaxEcmpPathsUnsupported bool `protobuf:"varint,324,opt,name=global_max_ecmp_paths_unsupported,json=globalMaxEcmpPathsUnsupported,proto3" json:"global_max_ecmp_paths_unsupported,omitempty"`
+	// Devices that do not support configuring a two rate three color policer through OC
+	// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+	QosTwoRateThreeColorPolicerOcUnsupported bool `protobuf:"varint,325,opt,name=qos_two_rate_three_color_policer_oc_unsupported,json=qosTwoRateThreeColorPolicerOcUnsupported,proto3" json:"qos_two_rate_three_color_policer_oc_unsupported,omitempty"`
 	// Devices that do not support load balance policies
 	// Arista b/445043741
-	LoadBalancePolicyOcUnsupported bool `protobuf:"varint,324,opt,name=load_balance_policy_oc_unsupported,json=loadBalancePolicyOcUnsupported,proto3" json:"load_balance_policy_oc_unsupported,omitempty"`
+	LoadBalancePolicyOcUnsupported bool `protobuf:"varint,326,opt,name=load_balance_policy_oc_unsupported,json=loadBalancePolicyOcUnsupported,proto3" json:"load_balance_policy_oc_unsupported,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -3224,6 +3230,20 @@ func (x *Metadata_Deviations) GetUseBgpSetCommunityOptionTypeReplace() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetGlobalMaxEcmpPathsUnsupported() bool {
+	if x != nil {
+		return x.GlobalMaxEcmpPathsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosTwoRateThreeColorPolicerOcUnsupported() bool {
+	if x != nil {
+		return x.QosTwoRateThreeColorPolicerOcUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetLoadBalancePolicyOcUnsupported() bool {
 	if x != nil {
 		return x.LoadBalancePolicyOcUnsupported
@@ -3287,7 +3307,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf5\xb1\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa4\xb3\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3299,7 +3319,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x96\xa8\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aũ\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3596,8 +3616,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
 	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
 	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
-	")use_bgp_set_community_option_type_replace\x18\xc3\x02 \x01(\bR#useBgpSetCommunityOptionTypeReplace\x12K\n" +
-	"\"load_balance_policy_oc_unsupported\x18\xc4\x02 \x01(\bR\x1eloadBalancePolicyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	")use_bgp_set_community_option_type_replace\x18\xc3\x02 \x01(\bR#useBgpSetCommunityOptionTypeReplace\x12I\n" +
+	"!global_max_ecmp_paths_unsupported\x18\xc4\x02 \x01(\bR\x1dglobalMaxEcmpPathsUnsupported\x12b\n" +
+	"/qos_two_rate_three_color_policer_oc_unsupported\x18\xc5\x02 \x01(\bR(qosTwoRateThreeColorPolicerOcUnsupported\x12K\n" +
+	"\"load_balance_policy_oc_unsupported\x18\xc6\x02 \x01(\bR\x1eloadBalancePolicyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

@@ -351,8 +351,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	aggIDsList = append(aggIDsList, aggID1)
 	cfgplugins.DeleteAggregate(t, dut, aggID1, dutAggPorts1)
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, dutAggPorts1, aggID1, dutLag1)
-
+	aggrBatch := &gnmi.SetBatch{}
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID1, DutLag: dutLag1, AggPorts: dutAggPorts1})
 	// Ports 5 and 6 will be part of LAG
 	dutAggPorts2 := []*ondatra.Port{
 		dut.Port(t, "port5"),
@@ -360,12 +360,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 	aggIDsList = append(aggIDsList, aggID2)
 	cfgplugins.DeleteAggregate(t, dut, aggID2, dutAggPorts2)
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, dutAggPorts2, aggID2, dutLag2)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID2, DutLag: dutLag2, AggPorts: dutAggPorts2})
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	cfgplugins.ConfigureLoadbalance(t, dut)
 	// ISIS Configuration
-	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	cfg := cfgplugins.ISISConfig{
+	cfgISIS := cfgplugins.ISISConfig{
 		InstanceName: isisInstance,
 		AreaAddress:  dutAreaAddress,
 		SystemID:     dutSysID,
@@ -373,11 +372,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		Ports:        []*ondatra.Port{p1, p2},
 		LoopbackIntf: dutLoopbackName,
 	}
-	batch := &gnmi.SetBatch{}
-	dutConf := cfgplugins.NewISIS(t, batch, dut, cfg)
-	batch.Set(t, dut)
-	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-	cfgplugins.ConfigureDUTBGP(t, dut, dutAS, ate1AS, ate2AS, ate3AS, ate4AS, ate5AS, ecmpMaxPath, dutP1, dutP2, dutP7, ateP1, ateP2, ateP7, dutLag1, dutLag2, ateLag1, ateLag2)
+	cfgplugins.NewISIS(t, aggrBatch, dut, cfgISIS)
+	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, ECMPMaxPath: ecmpMaxPath}
+	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, aggrBatch, cfgBGP)
+	configureDUTBGPNeighbors(t, dut, aggrBatch, dutBgpConf.Bgp)
+	aggrBatch.Set(t, dut)
 
 	return aggIDsList
 }
@@ -390,8 +389,53 @@ func configureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, ipType strin
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
 }
 
-// defaultOcPolicyForwardingParams provides default parameters for the generator,
-// matching the values in the provided JSON example.
+// configureDUTBGPNeighbors appends multiple BGP neighbor configurations to an existing BGP protocol on the DUT. Instead of calling AppendBGPNeighbor repeatedly in the test, this helper iterates over a slice of BGPNeighborConfig and applies each neighbor configuration into the given gnmi.SetBatch.
+func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, bgp *oc.NetworkInstance_Protocol_Bgp) {
+	t.Helper()
+	// Add BGP neighbors
+	neighbors := []cfgplugins.BGPNeighborConfig{
+		{
+			AteAS:        ate1AS,
+			PortName:     dutP1.Name,
+			NeighborIPv4: ateP1.IPv4,
+			NeighborIPv6: ateP1.IPv6,
+			IsLag:        false,
+		},
+		{
+			AteAS:        ate5AS,
+			PortName:     dutP7.Name,
+			NeighborIPv4: ateP7.IPv4,
+			NeighborIPv6: ateP7.IPv6,
+			IsLag:        false,
+		},
+		{
+			AteAS:        ate2AS,
+			PortName:     dutP2.Name,
+			NeighborIPv4: ateP2.IPv4,
+			NeighborIPv6: ateP2.IPv6,
+			IsLag:        false,
+		},
+		{
+			AteAS:        ate3AS,
+			PortName:     dutLag1.Name,
+			NeighborIPv4: ateLag1.IPv4,
+			NeighborIPv6: ateLag1.IPv6,
+			IsLag:        true,
+		},
+		{
+			AteAS:        ate4AS,
+			PortName:     dutLag2.Name,
+			NeighborIPv4: ateLag2.IPv4,
+			NeighborIPv6: ateLag2.IPv6,
+			IsLag:        true,
+		},
+	}
+	for _, n := range neighbors {
+		cfgplugins.AppendBGPNeighbor(t, dut, batch, bgp, n)
+	}
+}
+
+// defaultOcPolicyForwardingParams provides default parameters for the generator, matching the values in the provided JSON example.
 func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipType string) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
@@ -754,6 +798,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) bool {
 	t.Helper()
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
+	otgutils.LogLAGMetrics(t, ate.OTG(), config)
 	countersPath := gnmi.OTG().Flow(flowName).Counters()
 	txRate := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
 	isWithinTolerance := func(v uint64) bool {
