@@ -1638,3 +1638,9 @@ func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
 func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGlobalMaxEcmpPathsUnsupported()
 }
+
+// QosTwoRateThreeColorPolicerOCUnsupported returns true if the device does not support QoS two-rate-three-color policer.
+// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosTwoRateThreeColorPolicerOcUnsupported()
+}
