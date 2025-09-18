@@ -20,13 +20,19 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	systempb "github.com/openconfig/gnoi/system"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -44,6 +50,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -169,12 +176,19 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring role: %v", err)
 		}
-
-		failUser.SetRole(oc.UnionString(failRoleName))
+		if !deviations.OCAAAYUserRoleLeafStringTypeUnsupported(dut) {
+			failUser.SetRole(oc.UnionString(failRoleName))
+		}
 	}
 	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
 	setupUserPassword(t, dut, successUsername, successPassword)
 	setupUserPassword(t, dut, failUsername, failPassword)
+
+	//Configuring as taskgroup which implicit denies all commands except show interface , which is attached to the failRoleName and then failUsername.
+	if deviations.OCAAAYUserRoleLeafStringTypeUnsupported(dut) {
+		taskUserGroupCLI := fmt.Sprintf("taskgroup %v \n task read interface \n task execute interface \n usergroup %v taskgroup %v \n username %v \n group %v \n no group root-lr \n no group cisco-support", failRoleName, failRoleName, failRoleName, failUsername, failRoleName)
+		helpers.GnmiCLIConfig(t, dut, taskUserGroupCLI)
+	}
 }
 
 func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
@@ -187,33 +201,54 @@ func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Serv
 	return resolvedTarget.String()
 }
 
-func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
-	var serviceDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
+func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
 
-	var target string
-	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
-	if err != nil {
-		t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
-
-		// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
-		dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
-		resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
-		if err != nil {
-			t.Fatalf("Failed resolving ssh target %s", dialTarget)
+	if staticBinding {
+		bindingFile := flag.Lookup("binding").Value.String()
+		in, _ := os.ReadFile(bindingFile)
+		b := &bindpb.Binding{}
+		if err := prototext.Unmarshal(in, b); err != nil {
+			t.Fatalf("unable to parse binding file")
 		}
-		target = resolvedTarget.String()
+		var target string
+		for _, dut := range b.Duts {
+			sshTarget := strings.Split(dut.Ssh.Target, ":")
+			sshIp := sshTarget[0]
+			sshPort := "22"
+			if len(sshTarget) > 1 {
+				sshPort = sshTarget[1]
+			}
+			target = fmt.Sprintf("%s:%s", sshIp, sshPort)
+		}
+		return target
 	} else {
-		dutSSHService, err := serviceDUT.Service("ssh")
-		if err != nil {
-			t.Fatal(err)
+		var serviceDUT interface {
+			Service(string) (*tpb.Service, error)
 		}
-		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
-	}
 
-	t.Logf("Target for ssh service: %s", target)
-	return target
+		var target string
+		err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
+		if err != nil {
+			t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
+
+			// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
+			dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+			resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
+			if err != nil {
+				t.Fatalf("Failed resolving ssh target %s", dialTarget)
+			}
+			target = resolvedTarget.String()
+		} else {
+			dutSSHService, err := serviceDUT.Service("ssh")
+			if err != nil {
+				t.Fatal(err)
+			}
+			target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
+		}
+
+		t.Logf("Target for ssh service: %s", target)
+		return target
+	}
 }
 
 func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
@@ -832,11 +867,11 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 }
 
 // SendSuccessCliCommand Setup test CLI command (successful) to be used in the acctz client tests.
-func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -859,6 +894,25 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
 	localIP, localPort := getHostPortInfo(t, target)
 
+	var authnField *acctzpb.AuthnDetail
+
+	if deviations.AcctzRecordsAuthnFieldUnsupported(dut) {
+		authnField = nil
+	} else {
+		authnField = &acctzpb.AuthnDetail{
+			Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+			Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+			Cause:  "authentication_method: local",
+		}
+	}
+
+	var userRole string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		userRole = "root-lr, cisco-support"
+	default:
+		userRole = ""
+	}
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
 			CmdService: &acctzpb.CommandService{
@@ -876,13 +930,10 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 			RemoteAddress: remoteIP,
 			RemotePort:    remotePort,
 			IpProto:       ipProto,
-			Authn: &acctzpb.AuthnDetail{
-				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
-				Cause:  "authentication_method: local",
-			},
+			Authn:         authnField,
 			User: &acctzpb.UserDetail{
 				Identity: successUsername,
+				Role:     userRole,
 			},
 		},
 	})
@@ -891,11 +942,11 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 }
 
 // SendFailCliCommand Setup test CLI command (failed) to be used in the acctz client tests.
-func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	sshConn, w := dialSSH(t, failUsername, failPassword, target)
@@ -918,14 +969,35 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
 	localIP, localPort := getHostPortInfo(t, target)
 
+	var authnField *acctzpb.AuthnDetail
+
+	if deviations.AcctzRecordsAuthnFieldUnsupported(dut) {
+		authnField = nil
+	} else {
+		authnField = &acctzpb.AuthnDetail{
+			Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+			Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+			Cause:  "authentication_method: local",
+		}
+	}
+
+	var authzStatusField *acctzpb.AuthzDetail
+	if deviations.AcctzRecordsAuthzStatusDenyUnsupported(dut) {
+		authzStatusField = &acctzpb.AuthzDetail{
+			Status: acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED,
+		}
+	} else {
+		authzStatusField = &acctzpb.AuthzDetail{
+			Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+		}
+	}
+
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
 			CmdService: &acctzpb.CommandService{
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
 				Cmd:         failCliCommand,
-				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
-				},
+				Authz:       authzStatusField,
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
@@ -935,11 +1007,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 			RemoteAddress: remoteIP,
 			RemotePort:    remotePort,
 			IpProto:       ipProto,
-			Authn: &acctzpb.AuthnDetail{
-				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
-				Cause:  "authentication_method: local",
-			},
+			Authn:         authnField,
 			User: &acctzpb.UserDetail{
 				Identity: failUsername,
 				Role:     failRoleName,
@@ -951,11 +1019,11 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 }
 
 // SendShellCommand Setup test shell command (successful) to be used in the acctz client tests.
-func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	shellUsername := successUsername

@@ -1644,3 +1644,23 @@ func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
 func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosTwoRateThreeColorPolicerOcUnsupported()
 }
+
+// OCAAAYUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
+func OCAAAYUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordsAuthnFieldUnsupported()
+}
+
+// AcctZRecordsAuthnFieldUnsupported returns true if the device not support Authn field in SessionInfo for AcctZ records.
+func AcctzRecordsAuthnFieldUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordsAuthnFieldUnsupported()
+}
+
+// AcctzShellCmdAccountingUnsupported returns true if the device does not support shell cmd accounting records.
+func AcctzShellCmdAccountingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzShellCmdAccountingUnsupported()
+}
+
+// AcctzRecordsAuthzStatusDenyUnsupported returns true if the device does not support AuthZ status field with 'Deny' in CMD service in AcctZ records.
+func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordsAuthzStatusDenyUnsupported()
+}
