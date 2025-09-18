@@ -69,6 +69,20 @@ type staticDUT struct {
 	dev *bindpb.Device
 }
 
+// RPCUsername returns the username for RPC connections to the DUT.
+func (d *staticDUT) RPCUsername() string {
+	// Return the device-specific username, or the global username.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetUsername()
+}
+
+// RPCPassword returns the password for RPC connections to the DUT.
+func (d *staticDUT) RPCPassword() string {
+	// Return the device-specific password, or the global password.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetPassword()
+}
+
 var _ introspect.Introspector = (*staticDUT)(nil)
 
 type staticATE struct {
@@ -194,6 +208,21 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 		return nil, err
 	}
 	return p4pb.NewP4RuntimeClient(conn), nil
+}
+
+func (d *staticDUT) DialGRPCWithPort(ctx context.Context, port int, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	params := &svcParams{
+		port: port,
+		optsFn: func(_ *bindpb.Device) *bindpb.Options {
+			return nil // No service-specific options for a generic call.
+		},
+	}
+	bopts := d.r.grpc(d.dev, params)
+	dialer, err := makeDialer(params, bopts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC dialer: %w", err)
+	}
+	return dialer.Dial(ctx, opts...)
 }
 
 func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
@@ -617,7 +646,7 @@ type creds struct {
 }
 
 func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
+	md, ok := metadata.FromOutgoingContext(ctx)
 	var username, password string
 	if ok {
 		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
