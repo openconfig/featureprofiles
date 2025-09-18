@@ -868,13 +868,11 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 		innerIpHdr.Protocol().SetValue(flowValues.proto)
 		innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 		innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
-		innerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 	} else {
 		if flowValues.isInnHdrV4 {
 			innerIpHdr := flow.Packet().Add().Ipv4()
 			innerIpHdr.Src().SetValue(flowValues.InnHdrSrcIP)
 			innerIpHdr.Dst().SetValue(flowValues.InnHdrDstIP)
-			innerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 			innerIpHdr.Priority().Raw().SetValue(innerTrafficClass)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -884,7 +882,6 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
 			innerIpv6Hdr.TrafficClass().SetValue(innerTrafficClass)
-			innerIpv6Hdr.HopLimit().SetValue(uint32(correspondingTTL))
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
