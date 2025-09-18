@@ -736,7 +736,7 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 
 // SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
 func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggrBatch *gnmi.SetBatch, cfg StaticAggregateConfig) *oc.Interface {
-	t.Helper()	
+	t.Helper()
 	// Create LAG
 	agg := cfg.DutLag.NewOCInterface(cfg.AggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
