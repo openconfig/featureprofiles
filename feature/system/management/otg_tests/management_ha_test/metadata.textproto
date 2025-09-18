@@ -25,7 +25,6 @@ platform_exceptions:  {
   deviations:  {
     interface_enabled:  true
     static_protocol_name: "static"
-    skip_set_rp_match_set_options:  true
     skip_prefix_set_mode: true
     table_connections_unsupported: true
   }
