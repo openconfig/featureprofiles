@@ -15,7 +15,7 @@ pipeline {
         stage('Validate') {
             steps {
                 script {
-                    for(p in ['Boot Image', 'Upgrade Image', 'Jenkins job path']) {
+                    for(p in ['Upgrade Image', 'Jenkins job path']) {
                         if(!params[p]) {
                             error "Parameter '${p}' is required."
                         }
@@ -34,11 +34,18 @@ pipeline {
             steps {
                 script {
                     (image_path, image_lineup, image_efr, image_version, image_full_version) = getImageInfo(params['Upgrade Image'])
-    
-                    global_parameters += [
-                        string(name: 'Image Path', value: "${params['Boot Image']}"),
-                        booleanParam(name: 'Install Image', value: true)
-                    ]
+
+                    if(params['Boot Image']) {
+                        global_parameters += [
+                            string(name: 'Image Path', value: "${params['Boot Image']}"),
+                            booleanParam(name: 'Install Image', value: true)
+                        ]
+                    } else {
+                        global_parameters += [
+                            string(name: 'Image Path', value: ""),
+                            booleanParam(name: 'Install Image', value: false)
+                        ]
+                    }
                 }
             }
         }
