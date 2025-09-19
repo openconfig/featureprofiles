@@ -23,7 +23,7 @@ type ISISConfigBasic struct {
 }
 
 // NewISISBasic configures ISIS on the DUT using OpenConfig. It enables ISIS globally, sets AFs, and applies interface-level config.
-func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg ISISConfig) *oc.NetworkInstance_Protocol {
+func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg ISISConfigBasic) *oc.NetworkInstance_Protocol {
 	t.Helper()
 
 	d := &oc.Root{}
