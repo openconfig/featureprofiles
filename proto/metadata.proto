@@ -939,10 +939,10 @@ message Metadata {
     bool qos_two_rate_three_color_policer_oc_unsupported = 325;
 
     // b/443044887
-    bool extended_route_retention_oc_unsupported = 323;
+    bool extended_route_retention_oc_unsupported = 326;
 
     // b/439825838
-    bool exrr_stale_route_time_unsupported = 324;
+    bool exrr_stale_route_time_unsupported = 327;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 146;
