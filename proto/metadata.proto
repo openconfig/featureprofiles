@@ -929,6 +929,13 @@ message Metadata {
     // components for Nokia and Arista.
     bool line_port_unsupported = 322;
 
+    // b/443044887
+    bool extended_route_retention_oc_unsupported = 323;
+
+    // b/439825838
+    bool exrr_stale_route_time_unsupported = 324;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }

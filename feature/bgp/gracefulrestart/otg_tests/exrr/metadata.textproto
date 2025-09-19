@@ -18,5 +18,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     bgp_set_med_action_unsupported: true
+    extended_route_retention_oc_unsupported: true
+    exrr_stale_route_time_unsupported: true
   }
 }
