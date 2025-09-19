@@ -32,9 +32,6 @@ const (
 type testData struct {
 	dutData                  *dutData
 	ateData                  *otgconfighelpers.ATEData
-	correctLSPCount          int
-	correctIPv4RouteCount    int
-	correctIPv6RouteCount    int
 	correctAggInterfaceCount int
 	correctISISAdjCount      int
 }
