@@ -724,11 +724,6 @@ func SkipIsisSetMetricStyleType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipIsisSetMetricStyleType()
 }
 
-// SkipSetRpMatchSetOptions return true if device needs to skip setting match-prefix-set match-set-options while configuring routing-policy statement condition
-func SkipSetRpMatchSetOptions(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSetRpMatchSetOptions()
-}
-
 // SkipSettingDisableMetricPropagation return true if device needs to skip setting disable-metric-propagation while configuring table-connection
 func SkipSettingDisableMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSettingDisableMetricPropagation()
@@ -1637,6 +1632,12 @@ func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
 // MaxEcmpPaths path on global level is unsupported
 func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGlobalMaxEcmpPathsUnsupported()
+}
+
+// QosTwoRateThreeColorPolicerOCUnsupported returns true if the device does not support QoS two-rate-three-color policer.
+// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosTwoRateThreeColorPolicerOcUnsupported()
 }
 
 // P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
