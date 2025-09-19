@@ -689,9 +689,6 @@ type Metadata_Deviations struct {
 	// Skip setting isis-actions set-metric-style-type while configuring
 	// routing-policy statement action
 	SkipIsisSetMetricStyleType bool `protobuf:"varint,145,opt,name=skip_isis_set_metric_style_type,json=skipIsisSetMetricStyleType,proto3" json:"skip_isis_set_metric_style_type,omitempty"`
-	// Skip setting match-prefix-set match-set-options while configuring
-	// routing-policy statement condition
-	SkipSetRpMatchSetOptions bool `protobuf:"varint,146,opt,name=skip_set_rp_match_set_options,json=skipSetRpMatchSetOptions,proto3" json:"skip_set_rp_match_set_options,omitempty"`
 	// Skip setting disable-metric-propagation while configuring
 	// table-connection
 	SkipSettingDisableMetricPropagation bool `protobuf:"varint,147,opt,name=skip_setting_disable_metric_propagation,json=skipSettingDisableMetricPropagation,proto3" json:"skip_setting_disable_metric_propagation,omitempty"`
@@ -1150,7 +1147,7 @@ type Metadata_Deviations struct {
 	// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
 	QosTwoRateThreeColorPolicerOcUnsupported bool `protobuf:"varint,325,opt,name=qos_two_rate_three_color_policer_oc_unsupported,json=qosTwoRateThreeColorPolicerOcUnsupported,proto3" json:"qos_two_rate_three_color_policer_oc_unsupported,omitempty"`
 	// Devices that do not support load balance policies
-	// Arista b/445043741
+	// Arista: https://partnerissuetracker.corp.google.com/issues/445043741
 	LoadBalancePolicyOcUnsupported bool `protobuf:"varint,326,opt,name=load_balance_policy_oc_unsupported,json=loadBalancePolicyOcUnsupported,proto3" json:"load_balance_policy_oc_unsupported,omitempty"`
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
@@ -2008,13 +2005,6 @@ func (x *Metadata_Deviations) GetSkipIsisSetLevel() bool {
 func (x *Metadata_Deviations) GetSkipIsisSetMetricStyleType() bool {
 	if x != nil {
 		return x.SkipIsisSetMetricStyleType
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetSkipSetRpMatchSetOptions() bool {
-	if x != nil {
-		return x.SkipSetRpMatchSetOptions
 	}
 	return false
 }
@@ -3307,7 +3297,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa4\xb3\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe2\xb2\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3319,7 +3309,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aũ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x83\xa9\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3441,8 +3431,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1eskip_setting_allow_multiple_as\x18\x8c\x01 \x01(\bR\x1askipSettingAllowMultipleAs\x12K\n" +
 	"\"gribi_decap_mixed_plen_unsupported\x18\x8f\x01 \x01(\bR\x1egribiDecapMixedPlenUnsupported\x12.\n" +
 	"\x13skip_isis_set_level\x18\x90\x01 \x01(\bR\x10skipIsisSetLevel\x12D\n" +
-	"\x1fskip_isis_set_metric_style_type\x18\x91\x01 \x01(\bR\x1askipIsisSetMetricStyleType\x12@\n" +
-	"\x1dskip_set_rp_match_set_options\x18\x92\x01 \x01(\bR\x18skipSetRpMatchSetOptions\x12U\n" +
+	"\x1fskip_isis_set_metric_style_type\x18\x91\x01 \x01(\bR\x1askipIsisSetMetricStyleType\x12U\n" +
 	"'skip_setting_disable_metric_propagation\x18\x93\x01 \x01(\bR#skipSettingDisableMetricPropagation\x12b\n" +
 	".bgp_conditions_match_community_set_unsupported\x18\x94\x01 \x01(\bR)bgpConditionsMatchCommunitySetUnsupported\x12A\n" +
 	"\x1dpf_require_match_default_rule\x18\x95\x01 \x01(\bR\x19pfRequireMatchDefaultRule\x12g\n" +
