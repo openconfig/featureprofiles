@@ -878,6 +878,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 
 	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
 		if !deviations.InterfaceEnabled(dut) {
+			// TODO : Need to investigate if this a real diviation or not as it is not clear openconfig
 			agg.DeleteSubinterface(0)
 			gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 		}
