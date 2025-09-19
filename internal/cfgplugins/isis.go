@@ -13,13 +13,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 // ISISGlobalParams is the data structure for the DUT data.
 type ISISGlobalParams struct {
-	DUTArea                string
-	DUTSysID               string
+	DUTArea             string
+	DUTSysID            string
 	NetworkInstanceName string
-	ISISInterfaceNames     []string
+	ISISInterfaceNames  []string
 }
 
 // NewISIS configures the DUT with ISIS protocol.
