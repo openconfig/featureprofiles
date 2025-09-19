@@ -405,9 +405,6 @@ message Metadata {
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
     bool skip_isis_set_metric_style_type = 145;
-    // Skip setting match-prefix-set match-set-options while configuring
-    // routing-policy statement condition
-    bool skip_set_rp_match_set_options = 146;
     // Skip setting disable-metric-propagation while configuring
     // table-connection
     bool skip_setting_disable_metric_propagation = 147;
@@ -929,15 +926,26 @@ message Metadata {
     // components for Nokia and Arista.
     bool line_port_unsupported = 322;
 
+    // routing-policy bgp community needs to use REPLACE option
+    // Arista b/443044881
+    bool use_bgp_set_community_option_type_replace = 323;
+
+    // Devices that do not support global max ecmp paths
+    // Arista b/445097297
+    bool global_max_ecmp_paths_unsupported = 324;
+
+    // Devices that do not support configuring a two rate three color policer through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+    bool qos_two_rate_three_color_policer_oc_unsupported = 325;
+
     // b/443044887
     bool extended_route_retention_oc_unsupported = 323;
 
     // b/439825838
     bool exrr_stale_route_time_unsupported = 324;
 
-
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 146;
   }
 
   message PlatformExceptions {
