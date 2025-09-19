@@ -1005,6 +1005,10 @@ tests:
     owners:
       - mastarke
     mustpass: true
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7    
   - name: RT-5.5 (Interface hold-times)
     path: feature/interface/holdtime/otg_tests/holdtime_test
     owners:
