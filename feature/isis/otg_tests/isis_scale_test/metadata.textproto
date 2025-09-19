@@ -1,0 +1,52 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "50e9e4ce-ab83-4f61-9521-35a760ab2aff"
+plan_id: "RT-2.14"
+description: "Scale for IS-IS"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    explicit_port_speed: true
+    isis_mpls_unsupported: true
+    aft_summary_oc_unsupported: true
+    isis_lsp_tlvs_oc_unsupported: true
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    explicit_interface_in_default_vrf: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_instance_enabled_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_isis_interface_afi_safi_enable: true
+    explicit_interface_in_default_vrf: true
+    isis_mpls_unsupported: true
+    ipv4_missing_enabled: true
+  }
+}
