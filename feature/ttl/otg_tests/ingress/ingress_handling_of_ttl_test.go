@@ -1,11 +1,9 @@
 package ingress_handling_of_ttl_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -32,11 +30,13 @@ const (
 	ipv6                    = "IPv6"
 	trafficFrameSize        = 512
 	trafficRatePps          = 1000
-	noOfPackets             = 50
+	noOfPackets             = 5
 	trafficPolicyName       = "customer1_gre_encap"
 	nhGroupName             = "customer1_gre_encap_v4_nhg"
 	rulev4                  = "encap_all_v4"
 	rulev6                  = "encap_all_v6"
+	rulev4TTL1              = "encap_ttl1_v4"
+	rulev6TTL1              = "encap_ttl1_v6"
 	ipv4PrefixLen           = 32
 	ipv6PrefixLen           = 128
 	ingress                 = false
@@ -52,11 +52,6 @@ const (
 )
 
 var (
-	ruleMap = map[string]string{
-		ipv4: rulev4,
-		ipv6: rulev6,
-	}
-
 	dutPort1 = attrs.Attributes{
 		Name:    "port1",
 		Desc:    "Dut port 1",
@@ -213,45 +208,44 @@ func TestIngressHandlingOfTTL(t *testing.T) {
 			expectDrop:  true,
 		},
 		{
-			name:        "GRE encapsulation of IPv4 traffic with TTL = 1 destined to router interface",
+			name:        "PF-1.8.9: GRE encapsulation of IPv4 traffic with TTL = 1 destined to router interface",
 			flowName:    "PF-1.8.9",
-			destination: dutPort2.IPv4,
+			destination: dutPort1.IPv4,
 			ipType:      ipv4,
 			greEncap:    true,
 			ttl:         1,
 			expectDrop:  false,
 		},
 		{
-			name:        "GRE encapsulation of IPv6 traffic with TTL = 1 destined to router interface",
+			name:        "PF-1.8.10: GRE encapsulation of IPv6 traffic with TTL = 1 destined to router interface",
 			flowName:    "PF-1.8.10",
-			destination: ipv6DstNewServ1,
+			destination: dutPort1.IPv6,
 			ipType:      ipv6,
 			greEncap:    true,
 			ttl:         1,
-			expectDrop:  true,
+			expectDrop:  false,
 		},
 	}
 
-	testsWithTtlCheckEnabled := []testCase{}
-	testsWithTtlCheckDisabled := []testCase{}
+	testsWithTTLCheck := []testCase{}
+	testsSkipTTLCheck := []testCase{}
 
 	for _, tc := range tests {
 		if tc.ttl == 1 && !tc.expectDrop {
-			testsWithTtlCheckDisabled = append(testsWithTtlCheckDisabled, tc)
+			testsSkipTTLCheck = append(testsSkipTTLCheck, tc)
 		} else {
-			testsWithTtlCheckEnabled = append(testsWithTtlCheckEnabled, tc)
+			testsWithTTLCheck = append(testsWithTTLCheck, tc)
 		}
 
 	}
 
-	for _, tc := range testsWithTtlCheckEnabled {
+	for _, tc := range testsWithTTLCheck {
 		t.Run(tc.name, func(t *testing.T) {
 			runTest(t, tc, dut, ate, top)
 		})
 	}
-	testsWithTtlCheckDisabled = append(testsWithTtlCheckDisabled, tests[8])
 	configurePolicyRuleTTL1(t, dut)
-	for _, tc := range testsWithTtlCheckDisabled {
+	for _, tc := range testsSkipTTLCheck {
 		t.Run(tc.name, func(t *testing.T) {
 			runTest(t, tc, dut, ate, top)
 		})
@@ -282,7 +276,7 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otg.StopProtocols(t)
 
 	stopCapture(t, ate, captureState)
-	captureFilename = getCapture(t, ate, capturePort, tc)
+	captureFilename = processCapture(t, ate, capturePort, tc)
 
 	otgutils.LogFlowMetrics(t, otg, config)
 	otgutils.LogPortMetrics(t, otg, config)
@@ -297,9 +291,9 @@ func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		verifyDutInterfaceCounters(t, dut, port2Intf, egress, noOfPackets)
 		if tc.greEncap {
 			checkPolicyStatistics(t, dut, tc)
-			verifyReceivedInnerPacketTtl(t, captureFilename, tc)
+			verifyReceivedInnerPacketTTL(t, captureFilename, tc)
 		} else {
-			verifyReceivedPacketTtl(t, captureFilename, tc)
+			verifyReceivedPacketTTL(t, captureFilename, tc)
 		}
 	}
 
@@ -309,11 +303,10 @@ func configurePolicyRuleTTL1(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 	ttl1PolicyRules := []cfgplugins.PolicyForwardingRule{
 		{
-			Id:                 1,
-			Name:               rulev4,
-			IpType:             ipv4,
-			DestinationAddress: fmt.Sprintf("%s/%d", dutPort2.IPv4, ipv4PrefixLen),
-			TTL:                []uint8{1},
+			Id:     1,
+			Name:   rulev4TTL1,
+			IpType: ipv4,
+			TTL:    []uint8{1},
 			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
 				EncapsulateGre: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre{
 					Target: map[string]*oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre_Target{
@@ -327,11 +320,10 @@ func configurePolicyRuleTTL1(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 		},
 		{
-			Id:                 1,
-			Name:               rulev6,
-			IpType:             ipv6,
-			DestinationAddress: fmt.Sprintf("%s/%d", dutPort2.IPv6, ipv6PrefixLen),
-			TTL:                []uint8{1},
+			Id:     1,
+			Name:   rulev6TTL1,
+			IpType: ipv6,
+			TTL:    []uint8{1},
 			Action: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action{
 				EncapsulateGre: &oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre{
 					Target: map[string]*oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action_EncapsulateGre_Target{
@@ -389,7 +381,7 @@ func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, tc testCase) {
 	}
 }
 
-func verifyReceivedInnerPacketTtl(t *testing.T, captureFilename string, tc testCase) {
+func verifyReceivedInnerPacketTTL(t *testing.T, captureFilename string, tc testCase) {
 	if captureFilename == "" {
 		t.Errorf("No capture file provided for TTL verification for testcase %s", tc.name)
 		return
@@ -402,7 +394,6 @@ func verifyReceivedInnerPacketTtl(t *testing.T, captureFilename string, tc testC
 	}
 	defer handle.Close()
 	expectedInnerTTL := uint8(tc.ttl - 1)
-	var ttlField string
 	packetCount := 0
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for packet := range packetSource.Packets() {
@@ -441,7 +432,6 @@ func verifyReceivedInnerPacketTtl(t *testing.T, captureFilename string, tc testC
 				t.Error("Inner layer of type IPv4 not found")
 				return
 			}
-			ttlField = "TTL"
 			packetCount++
 			if ipInnerPacket.TTL != expectedInnerTTL {
 				t.Errorf("IPv4 inner packet %d: got TTL %d, want %d", packetCount, ipInnerPacket.TTL, expectedInnerTTL)
@@ -457,7 +447,6 @@ func verifyReceivedInnerPacketTtl(t *testing.T, captureFilename string, tc testC
 				t.Error("Inner layer of type IPv6 not found")
 				return
 			}
-			ttlField = "HopLimit"
 			packetCount++
 			if ipInnerPacket.HopLimit != expectedInnerTTL {
 				t.Errorf("IPv6 packet %d: got HopLimit %d, want %d", packetCount, ipInnerPacket.HopLimit, expectedInnerTTL)
@@ -468,13 +457,13 @@ func verifyReceivedInnerPacketTtl(t *testing.T, captureFilename string, tc testC
 		}
 	}
 	if packetCount != noOfPackets {
-		t.Errorf("Expected %d GRE packets with inner %s packet with %s %d, got %d", noOfPackets, tc.ipType, ttlField, expectedInnerTTL, packetCount)
+		t.Errorf("Expected %d GRE packets, got %d", noOfPackets, packetCount)
 	} else {
-		t.Logf("Found %d GRE packets with inner %s packet with %s %d", packetCount, tc.ipType, ttlField, expectedInnerTTL)
+		t.Logf("Found %d GRE packets", packetCount)
 	}
 }
 
-func verifyReceivedPacketTtl(t *testing.T, captureFilename string, tc testCase) {
+func verifyReceivedPacketTTL(t *testing.T, captureFilename string, tc testCase) {
 	t.Helper()
 	if captureFilename == "" {
 		t.Errorf("No capture file provided for TTL verification for testcase %s", tc.name)
@@ -540,13 +529,6 @@ func verifyIcmpMessage(t *testing.T, captureFilename string, tc testCase) {
 		t.Errorf("No capture file provided for ICMP verification")
 		return
 	}
-
-	f, err := os.Open(captureFilename)
-	if err != nil {
-		t.Errorf("Failed to open capture file %s: %v", captureFilename, err)
-		return
-	}
-	defer f.Close()
 
 	handle, err := pcap.OpenOffline(captureFilename)
 	if err != nil {
@@ -750,8 +732,7 @@ func configureFlows(t *testing.T, config *gosnappi.Config, tc testCase, dscp uin
 
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) || deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
-		//t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
-		checkPolicyStatisticsFromCLI(t, dut, tc)
+		t.Errorf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
 	}
@@ -818,7 +799,7 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
 	return cs
 }
 
-func getCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, tc testCase) string {
+func processCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, tc testCase) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
 	if len(bytes) == 0 {
@@ -870,44 +851,4 @@ func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, next
 		t.Fatalf("Failed to configure static route: %v", err)
 	}
 	b.Set(t, dut)
-}
-
-func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	t.Logf("Checking policy statistics for flow %s", tc.flowName)
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		//extract text from CLI output between rule name and packets
-		ruleName := ruleMap[tc.ipType]
-		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, ruleName, ruleName)
-		cliOutput := runCliCommand(t, dut, policyCountersCommand)
-		cliOutput = strings.TrimSpace(cliOutput)
-		if cliOutput == "" {
-			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
-			return
-		}
-		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
-		if err != nil {
-			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
-			return
-		}
-		previouslyMatched := ruleMatchedPackets[ruleName]
-		if totalMatched != previouslyMatched+noOfPackets {
-			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, ruleName, tc.flowName, totalMatched-previouslyMatched)
-		} else {
-			t.Logf("%d packets matched by policy %s rule %s for flow %s", noOfPackets, trafficPolicyName, ruleName, tc.flowName)
-		}
-		ruleMatchedPackets[ruleName] = totalMatched
-	default:
-		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
-	}
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
 }

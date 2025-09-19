@@ -338,14 +338,14 @@ hardware tcam
          sequence 45
          key size limit 160
          key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
-         action count drop redirect set-dscp set-tc
+         action count drop redirect set-dscp set-tc set-ttl
          packet ipv4 forwarding routed
       !
       feature traffic-policy port ipv6
          sequence 25
          key size limit 160
          key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
-         action count drop redirect set-dscp set-tc
+         action count drop redirect set-dscp set-tc set-ttl
          packet ipv6 forwarding routed
       !
    system profile tcam-policy-forwarding
