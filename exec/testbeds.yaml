@@ -67,6 +67,7 @@ testbeds:
     dhcp:
       host: ott-ucs4-b4
       api_port: 8001
+      gateway: 5.78.11.49
 
   8808-FOX2508P0JU_MGMT_GRPC:
     << : *8808_FOX2508P0JU_DEFAULTS
@@ -116,6 +117,7 @@ testbeds:
     dhcp:
       host: ott-ucs4-b4
       api_port: 8001
+      gateway: 5.78.11.49
 
   8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
     hw: 8808_FOX2625PLW8

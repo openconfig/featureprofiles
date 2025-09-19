@@ -1780,6 +1780,7 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
 def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, unconfig=False):
     dhcp_host = ""
     dhcp_api_port = 8001
+    dhcp_gw = ""
 
     if reserved_testbed.get('sim', False):
         vxr_ports_file = os.path.join(test_log_directory_path, "testbed_logs", "bringup_success", "sim-ports.yaml")
@@ -1803,6 +1804,7 @@ def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_lo
             raise Exception("No dhcp configuration found in reserved testbed...")
         dhcp_host = dhcp_conf['host']
         dhcp_api_port = dhcp_conf.get('api_port', dhcp_api_port)
+        dhcp_gw = dhcp_conf.get('gateway', dhcp_gw)
 
     test_to_run = "TestAddDHCPEntry"
     if unconfig: test_to_run = "TestDeleteDHCPEntry"
@@ -1816,7 +1818,8 @@ def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_lo
             f'-test.run {test_to_run} ' \
             f'-addr http://{dhcp_host}:{dhcp_api_port} ' \
             f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
-            f'-binding {reserved_testbed["noate_binding_file"]}'
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
+            f'-dhcp_gw {dhcp_gw}'
 
     env = dict(os.environ)
     env.update(_get_go_env(ws))
