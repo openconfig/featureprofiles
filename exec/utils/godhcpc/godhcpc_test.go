@@ -21,7 +21,8 @@ import (
 )
 
 var (
-	addr = flag.String("addr", "", "godhcpd server address")
+	addr    = flag.String("addr", "", "godhcpd server address")
+	gateway = flag.String("dhcp_gw", "", "dhcp gateway")
 
 	chassisType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
@@ -64,47 +65,53 @@ func TestAddDHCPEntry(t *testing.T) {
 	}
 	t.Logf("Management IP address: %s", mgmtIpAddress)
 
-	gw := ""
-	sm := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).StaticMap().State())
-
-	longestPrefix := ""
-	bestMask := -1
-	var bestStatic *oc.NetworkInstance_Protocol_Static
-
-	ip := net.ParseIP(mgmtIpAddress)
-	if ip == nil {
-		t.Logf("Management IP not found or invalid; skipping longest prefix search")
-		return
-	}
-	for prefix, st := range sm {
-		_, ipnet, err := net.ParseCIDR(prefix)
-		if err != nil {
-			continue
-		}
-		if ipnet.Contains(ip) {
-			ones, _ := ipnet.Mask.Size()
-			if ones > bestMask {
-				bestMask = ones
-				longestPrefix = prefix
-				bestStatic = st
-			}
-		}
-	}
-
-	if bestStatic != nil {
-		for _, nh := range bestStatic.GetOrCreateNextHopMap() {
-			switch v := nh.GetNextHop().(type) {
-			case oc.UnionString:
-				gw = string(v)
-			}
-			if gw != "" {
-				break
-			}
-		}
-		t.Logf("Mgmt IP %s longest match %s (mask %d) gateway %s", mgmtIpAddress, longestPrefix, bestMask, gw)
+	gw := *gateway
+	if gw != "" {
+		t.Logf("Using configured gateway: %s", gw)
 	} else {
-		t.Fatalf("No static route matched management IP %s", mgmtIpAddress)
+		t.Logf("No gateway configured, searching for longest prefix match")
+
+		sm := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).StaticMap().State())
+
+		longestPrefix := ""
+		bestMask := -1
+		var bestStatic *oc.NetworkInstance_Protocol_Static
+
+		ip := net.ParseIP(mgmtIpAddress)
+		if ip == nil {
+			t.Logf("Management IP not found or invalid; skipping longest prefix search")
+			return
+		}
+		for prefix, st := range sm {
+			_, ipnet, err := net.ParseCIDR(prefix)
+			if err != nil {
+				continue
+			}
+			if ipnet.Contains(ip) {
+				ones, _ := ipnet.Mask.Size()
+				if ones > bestMask {
+					bestMask = ones
+					longestPrefix = prefix
+					bestStatic = st
+				}
+			}
+		}
+
+		if bestStatic != nil {
+			for _, nh := range bestStatic.GetOrCreateNextHopMap() {
+				switch v := nh.GetNextHop().(type) {
+				case oc.UnionString:
+					gw = string(v)
+				}
+				if gw != "" {
+					break
+				}
+			}
+			t.Logf("Mgmt IP %s longest match %s (mask %d) gateway %s", mgmtIpAddress, longestPrefix, bestMask, gw)
+		} else {
+			t.Fatalf("No static route matched management IP %s", mgmtIpAddress)
+		}
 	}
 
 	localIp := util.GetOutboundIP(t)
