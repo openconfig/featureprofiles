@@ -15,6 +15,7 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     bgp_extended_community_index_unsupported:  true
+    use_bgp_set_community_option_type_replace: true
   }
 }
 platform_exceptions:  {
