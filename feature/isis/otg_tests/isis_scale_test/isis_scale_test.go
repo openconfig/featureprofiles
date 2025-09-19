@@ -272,6 +272,6 @@ func TestISISScaleStatic(t *testing.T) {
 	// Configure DUT
 	dut := ondatra.DUT(t, "dut")
 	defaultNetworkInstance = deviations.DefaultNetworkInstance(dut)
-	testInfo.dutData.isisData.DefaultNetworkInstance = defaultNetworkInstance
+	testInfo.dutData.isisData.NetworkInstanceName = defaultNetworkInstance
 	configureDUT(t, dut, testInfo.dutData)
 }
