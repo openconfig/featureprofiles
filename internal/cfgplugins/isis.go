@@ -13,6 +13,16 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// ISISConfigBasic holds all parameters needed for configuring ISIS on the DUT.
+type ISISConfigBasic struct {
+	InstanceName string
+	AreaAddress  string
+	SystemID     string
+	AggID        string
+	Ports        []*ondatra.Port
+	LoopbackIntf string
+}
+
 // ISISGlobalParams is the data structure for the DUT data.
 type ISISGlobalParams struct {
 	DUTArea             string
@@ -22,7 +32,7 @@ type ISISGlobalParams struct {
 }
 
 // NewISIS configures the DUT with ISIS protocol.
-func NewISISComplex(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams) *oc.Root {
+func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams) *oc.Root {
 	t.Helper()
 	rootPath := &oc.Root{}
 	// Create network instance "Default"
@@ -84,15 +94,6 @@ func NewISISComplex(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalPa
 		}
 	}
 	return rootPath
-}
-
-type ISISConfigBasic struct {
-	InstanceName string
-	AreaAddress  string
-	SystemID     string
-	AggID        string
-	Ports        []*ondatra.Port
-	LoopbackIntf string
 }
 
 // NewISISBasic configures ISIS on the DUT using OpenConfig. It enables ISIS globally, sets AFs, and applies interface-level config.
