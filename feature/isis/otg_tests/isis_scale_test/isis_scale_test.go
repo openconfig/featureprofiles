@@ -108,7 +108,7 @@ var (
 			DUTSysID: "1920.0000.2001",
 		},
 		lags: []*cfgplugins.DUTAggData{
-			&cfgplugins.DUTAggData{
+			{
 				Attributes: dutagg21,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 					{
@@ -123,7 +123,7 @@ var (
 				LacpParams:      lacpParams,
 				AggType:         lagType,
 			},
-			&cfgplugins.DUTAggData{
+			{
 				Attributes: dutagg22,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 					{
@@ -195,13 +195,13 @@ var (
 	ate2Data = otgconfighelpers.ATEData{
 		ConfigureISIS: true,
 		Lags: []*otgconfighelpers.ATELagData{
-			&otgconfighelpers.ATELagData{
+			{
 				Name:     "lag1",
 				Mac:      "02:55:10:10:10:01",
 				Ports:    []otgconfighelpers.ATEPortData{{Name: "port1", Mac: "02:55:10:10:10:03", OndatraPortIdx: 0}},
 				Erouters: []*otgconfighelpers.AteEmulatedRouterData{r21},
 			},
-			&otgconfighelpers.ATELagData{
+			{
 				Name:     "lag2",
 				Mac:      "02:55:20:20:20:01",
 				Ports:    []otgconfighelpers.ATEPortData{{Name: "port2", Mac: "02:55:20:20:20:03", OndatraPortIdx: 1}},
