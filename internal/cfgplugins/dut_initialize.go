@@ -19,6 +19,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 )
@@ -432,5 +434,30 @@ func PushDUTHardwareInitConfig(t *testing.T, dut *ondatra.DUTDevice, hardwareIni
 	gpbSetRequest := buildCliSetRequest(hardwareInitConf)
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("Failed to set hardware init config: %v", err)
+	}
+}
+
+// ConfigureLoadbalance configures baseline DUT settings across all platforms.
+func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if deviations.LoadBalancePolicyOCUnsupported(dut) {
+			loadBalanceCliConfig := `
+			load-balance policies
+         load-balance sand profile default
+            fields ipv6 outer dst-ip flow-label next-header src-ip
+            fields l4 outer dst-port src-port
+            no fields mpls
+            packet-type gue outer-ip
+			`
+			helpers.GnmiCLIConfig(t, dut, loadBalanceCliConfig)
+		} else {
+			// TODO: Implement OC commands once Load Balance Policy configuration is supported.
+			// Currently, OC does not provide support for configuring Load Balance Policies.
+			t.Log("Falling back to CLI since OC does not support Load Balance Policy configuration yet.")
+		}
+	default:
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
