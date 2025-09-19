@@ -240,7 +240,7 @@ mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypas
 mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
 `
 
-	decapGroupGreAristaMplsTemplate = `
+	decapGroupGREAristaMPLSTemplate = `
 ip decap-group %s
   tunnel type gre
   tunnel decap-ip %s
@@ -248,7 +248,7 @@ ip decap-group %s
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
 
-	decapGroupGueAristaMplsTemplate = `
+	decapGroupGUEAristaMPLSTemplate = `
 ip decap-group type udp destination port %v payload ip
 ip decap-group %s
 tunnel type udp
@@ -295,7 +295,7 @@ func InterfacePolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, a *at
 		switch dut.Vendor() {
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Format and apply the CLI command for traffic policy input.
-			cliConfig := ""
+			var cliConfig string
 			if params.Dynamic && a == nil && aggID == "" && params.AppliedPolicyName != "" && params.InterfaceID != "" {
 				cliConfig = fmt.Sprintf("interface %s \n traffic-policy input %s \n", params.InterfaceID, params.AppliedPolicyName)
 			} else {
@@ -572,7 +572,7 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	var cliConfig string
 	if params.HasMpls {
-		cliConfig = fmt.Sprintf(decapGroupGueAristaMplsTemplate, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+		cliConfig = fmt.Sprintf(decapGroupGUEAristaMPLSTemplate, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	} else {
 		cliConfig = fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
@@ -591,7 +591,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	var cliConfig string
 	if params.HasMpls {
-		cliConfig = fmt.Sprintf(decapGroupGreAristaMplsTemplate, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+		cliConfig = fmt.Sprintf(decapGroupGREAristaMPLSTemplate, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	} else {
 		cliConfig = fmt.Sprintf(`
 			ip decap-group %s
