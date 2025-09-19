@@ -56,19 +56,20 @@ type LACPParams struct {
 	Period   *oc.E_Lacp_LacpPeriodType
 }
 
-// DUTLagData is the data structure for a LAG in the DUT.
-type DUTLagData struct {
+// DUTAggData is the data structure for a LAG in the DUT.
+type DUTAggData struct {
 	attrs.Attributes
 	SubInterfaces   []*DUTSubInterfaceData
 	OndatraPortsIdx []int
 	OndatraPorts    []*ondatra.Port
 	LagName         string
 	LacpParams      *LACPParams
+	AggType         oc.E_IfAggregate_AggregationType
 }
 
 // PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
 // field.
-func (d *DUTLagData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
+func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, v := range d.OndatraPortsIdx {
 		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
 	}
@@ -808,13 +809,14 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	gnmi.BatchReplace(b, gnmi.OC().Interface(i.GetName()).Subinterface(uint32(s.VlanID)).Config(), sub)
 }
 
+
 // NewAggregateInterface creates the below configuration for the aggregate interface:
 // 1. Create a new aggregate interface
 // 2. LACP configuration
 // 3. Adds member Ports configuration to an aggregate interface
 // 4. Subinterface configuration including thier IP address and VLAN ID
 // Note that you will still need to push the batch config to the DUT in your code.
-func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTLagData, aggID string) *oc.Interface {
+func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTAggData, aggID string) *oc.Interface {
 	l.LagName = aggID
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -822,7 +824,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.GetOrCreateAggregation().LagType = l.AggType
 
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
