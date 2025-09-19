@@ -11,10 +11,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra"
 )
 
 func TestBook(t *testing.T) {
@@ -114,7 +114,7 @@ var (
 			&cfgplugins.DUTLagData{
 				Attributes: dutagg21,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
-					&cfgplugins.DUTSubInterfaceData{
+					{
 						VlanID:        100,
 						IPv4Address:   net.ParseIP("192.0.2.13"),
 						IPv6Address:   net.ParseIP("2003:db8::1"),
@@ -128,14 +128,14 @@ var (
 			&cfgplugins.DUTLagData{
 				Attributes: dutagg22,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
-					&cfgplugins.DUTSubInterfaceData{
+					{
 						VlanID:        101,
 						IPv4Address:   net.ParseIP("192.0.2.17"),
 						IPv6Address:   net.ParseIP("2004:db8::1"),
 						IPv4PrefixLen: linkIpv4PLen,
 						IPv6PrefixLen: linkIpv6PLen,
 					},
-					&cfgplugins.DUTSubInterfaceData{
+					{
 						VlanID:        102,
 						IPv4Address:   net.ParseIP("192.0.2.21"),
 						IPv6Address:   net.ParseIP("2005:db8::1"),
@@ -199,20 +199,20 @@ var (
 			&otgconfighelpers.ATELagData{
 				Name:     "lag1",
 				Mac:      "02:55:10:10:10:01",
-				Ports:    []otgconfighelpers.ATEPortData{otgconfighelpers.ATEPortData{Name: "port1", Mac: "02:55:10:10:10:03", OndatraPortIdx: 0}},
+				Ports:    []otgconfighelpers.ATEPortData{{Name: "port1", Mac: "02:55:10:10:10:03", OndatraPortIdx: 0}},
 				Erouters: []*otgconfighelpers.AteEmulatedRouterData{r21},
 			},
 			&otgconfighelpers.ATELagData{
 				Name:     "lag2",
 				Mac:      "02:55:20:20:20:01",
-				Ports:    []otgconfighelpers.ATEPortData{otgconfighelpers.ATEPortData{Name: "port2", Mac: "02:55:20:20:20:03", OndatraPortIdx: 1}},
+				Ports:    []otgconfighelpers.ATEPortData{{Name: "port2", Mac: "02:55:20:20:20:03", OndatraPortIdx: 1}},
 				Erouters: []*otgconfighelpers.AteEmulatedRouterData{r22, r23},
 			},
 		},
 		TrafficFlowsMap: map[*otgconfighelpers.AteEmulatedRouterData][]*otgconfighelpers.AteEmulatedRouterData{
-			r21: []*otgconfighelpers.AteEmulatedRouterData{r22, r23},
-			r22: []*otgconfighelpers.AteEmulatedRouterData{r21},
-			r23: []*otgconfighelpers.AteEmulatedRouterData{r21},
+			r21: {r22, r23},
+			r22: {r21},
+			r23: {r21},
 		},
 	}
 )
