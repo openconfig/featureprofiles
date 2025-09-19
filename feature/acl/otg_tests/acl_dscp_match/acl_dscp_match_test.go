@@ -299,6 +299,7 @@ func configureAclInterface(t *testing.T, dut *ondatra.DUTDevice, acl *oc.Acl, tc
 
 	iFace.GetOrCreateInterfaceRef().Interface = existingIface.Name
 	iFace.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	gnmi.Replace(t, dut, gnmi.OC().Acl().Interface(ifName).Config(), iFace)
 }
 
 func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
@@ -339,7 +340,6 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	if tc.ipType == IPv6 {
 		// Adding allow rule for IPV6 ND packets
 		aclARPEntry := aclSet.GetOrCreateAclEntry(15)
-		aclARPEntry.Description = ygot.String("allow ND packets")
 		aclMatchipv6 := aclARPEntry.GetOrCreateIpv6()
 		aclMatchipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
 		aclARPEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
@@ -349,7 +349,6 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	aclDropEntry := aclSet.GetOrCreateAclEntry(20)
 	aclDropEntry.Description = ygot.String("dscp mismatch drop")
 	aclDropEntry.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
-
+	gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclName, aclSet.GetType()).Config(), aclSet)
 	configureAclInterface(t, dut, acl, tc)
-	gnmi.Replace(t, dut, gnmi.OC().Acl().Config(), acl)
 }
