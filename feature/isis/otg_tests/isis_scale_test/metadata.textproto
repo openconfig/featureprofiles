@@ -15,8 +15,6 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     explicit_port_speed: true
     isis_mpls_unsupported: true
-    aft_summary_oc_unsupported: true
-    isis_lsp_tlvs_oc_unsupported: true
     ipv4_missing_enabled: true
   }
 }
