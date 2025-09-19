@@ -26,6 +26,7 @@ const (
 	linkIpv6PLen   = 126
 	dutAreaAddress = "49.0001"
 	dutSysID       = "1920.0000.2001"
+	lagType        = oc.IfAggregate_AggregationType_LACP
 )
 
 type testData struct {
@@ -40,7 +41,7 @@ type testData struct {
 
 type dutData struct {
 	isisData *cfgplugins.ISISGlobalParams
-	lags     []*cfgplugins.DUTLagData
+	lags     []*cfgplugins.DUTAggData
 }
 
 var (
@@ -106,8 +107,8 @@ var (
 			DUTArea:  "49.0001",
 			DUTSysID: "1920.0000.2001",
 		},
-		lags: []*cfgplugins.DUTLagData{
-			&cfgplugins.DUTLagData{
+		lags: []*cfgplugins.DUTAggData{
+			&cfgplugins.DUTAggData{
 				Attributes: dutagg21,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 					{
@@ -122,7 +123,7 @@ var (
 				LacpParams:      lacpParams,
 				AggType:         lagType,
 			},
-			&cfgplugins.DUTLagData{
+			&cfgplugins.DUTAggData{
 				Attributes: dutagg22,
 				SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 					{
