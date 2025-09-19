@@ -124,6 +124,7 @@ var (
 				},
 				OndatraPortsIdx: []int{0},
 				LacpParams:      lacpParams,
+				AggType:         lagType,
 			},
 			&cfgplugins.DUTLagData{
 				Attributes: dutagg22,
@@ -145,6 +146,7 @@ var (
 				},
 				OndatraPortsIdx: []int{1},
 				LacpParams:      lacpParams,
+				AggType:         lagType,
 			},
 		},
 	}
