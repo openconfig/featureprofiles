@@ -17,10 +17,6 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 )
 
-func TestBook(t *testing.T) {
-	ondatra.Debug().Breakpoint(t)
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
