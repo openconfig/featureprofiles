@@ -1217,10 +1217,6 @@ func validateRedistributeIPv6RoutePolicy(t *testing.T, dut *ondatra.DUTDevice, a
 func validatePrefixASN(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, bgpPeerName, subnet string, wantASPath []uint32) {
 
 	foundPrefix := false
-	dut := ondatra.DUT(t, "dut")
-	if deviations.BgpAsPathPrependOrderMismtach(dut) && isV4 {
-		wantASPath = []uint32{65499, 65499, 65499, 64512}
-	}
 
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
