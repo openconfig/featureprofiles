@@ -942,6 +942,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
     bool load_balance_policy_oc_unsupported = 326;
 
+    //Device that do not support BGP Graceful restart for Peer Group
+    bool bgp_graceful_restart_peer_group_unsupported = 327;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }

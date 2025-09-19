@@ -1644,3 +1644,8 @@ func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
+
+// BgpGracefulRestartPeerGroupUnsupported returns true if BGP graceful restart for Peer Group is not supported
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
