@@ -839,7 +839,6 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	gnmi.BatchReplace(b, gnmi.OC().Interface(i.GetName()).Subinterface(uint32(s.VlanID)).Config(), sub)
 }
 
-
 // NewAggregateInterface creates the below configuration for the aggregate interface:
 // 1. Create a new aggregate interface
 // 2. LACP configuration
@@ -891,4 +890,3 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	}
 	return agg
 }
-    
