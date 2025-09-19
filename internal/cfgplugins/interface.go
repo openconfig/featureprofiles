@@ -95,6 +95,13 @@ func init() {
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
 
+// StaticAggregateConfig defines the parameters for configuring a static LAG.
+type StaticAggregateConfig struct {
+	AggID    string
+	DutLag   attrs.Attributes
+	AggPorts []*ondatra.Port
+}
+
 // String returns the string representation of the list of operational modes.
 func (om *OperationalModeList) String() string {
 	var s []string
@@ -762,6 +769,29 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 	}
 }
 
+// SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
+func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggrBatch *gnmi.SetBatch, cfg StaticAggregateConfig) *oc.Interface {
+	t.Helper()
+	// Create LAG
+	agg := cfg.DutLag.NewOCInterface(cfg.AggID, dut)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(cfg.AggID).Config(), agg)
+
+	// Create all member ports
+	for _, port := range cfg.AggPorts {
+		d := &oc.Root{}
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(cfg.AggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+		gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+	return agg
+}
+
 // AddPortToAggregate adds an Ondatra port as a member to the aggregate interface.
 func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port, b *gnmi.SetBatch, op *ondatra.Port) {
 	gnmi.BatchDelete(b, gnmi.OC().Interface(op.Name()).Ethernet().AggregateId().Config())
@@ -860,3 +890,4 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	}
 	return agg
 }
+    
