@@ -177,20 +177,20 @@ func ConfigureATE(t *testing.T, ate *ondatra.ATEDevice, ateData *ATEData) gosnap
 	top := gosnappi.NewConfig()
 
 	var pmd100GFRPorts []string
-	for _, l := range ateData.Lags {
+	for i, l := range ateData.Lags {
 		// Create LAG interface
 		agg := top.Lags().Add().SetName(l.Name)
 		agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId(l.Mac)
 		for _, p := range l.Ports {
-			op := ate.Ports()[p.OndatraPortIdx]
+			op := ate.Port(t, "port"+strconv.Itoa(p.OndatraPortIdx+1))
 			top.Ports().Add().SetName(op.ID())
 			if op.PMD() == ondatra.PMD100GBASEFR {
 				pmd100GFRPorts = append(pmd100GFRPorts, op.ID())
 			}
 			// Create Physical port member of the LAG
-			aggPort := agg.Ports().Add().SetPortName(op.ID())
-			aggPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(1)).SetActorPortPriority(1).SetLacpduTimeout(0)
-			aggPort.Ethernet().SetMac(p.Mac).SetName(l.Name + ".1")
+			aggMemberPort := agg.Ports().Add().SetPortName(op.ID())
+			aggMemberPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(1)).SetActorPortPriority(1).SetLacpduTimeout(0)
+			aggMemberPort.Ethernet().SetMac(p.Mac).SetName(l.Name + "." + strconv.Itoa(i+1))
 		}
 
 		for _, er := range l.Erouters {
