@@ -241,7 +241,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
 	}
 	dutData.isisData.ISISInterfaceNames = createISISInterfaceNames(t, dut, dutData)
-	rootPath := cfgplugins.NewISIS(t, dut, dutData.isisData)
+	rootPath := cfgplugins.NewISISComplex(t, dut, dutData.isisData)
 	gnmi.Update(t, dut, gnmi.OC().Config(), rootPath)
 }
 
