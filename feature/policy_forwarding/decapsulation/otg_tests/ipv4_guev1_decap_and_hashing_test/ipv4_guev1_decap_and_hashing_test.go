@@ -364,7 +364,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	cfgplugins.ConfigureLoadbalance(t, dut)
 	// ISIS Configuration
-	cfgISIS := cfgplugins.ISISConfig{
+	cfgISIS := cfgplugins.ISISConfigBasic{
 		InstanceName: isisInstance,
 		AreaAddress:  dutAreaAddress,
 		SystemID:     dutSysID,
