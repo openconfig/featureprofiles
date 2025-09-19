@@ -372,7 +372,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		Ports:        []*ondatra.Port{p1, p2},
 		LoopbackIntf: dutLoopbackName,
 	}
-	cfgplugins.NewISIS(t, aggrBatch, dut, cfgISIS)
+	cfgplugins.NewISISBasic(t, aggrBatch, dut, cfgISIS)
 	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, ECMPMaxPath: ecmpMaxPath}
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, aggrBatch, cfgBGP)
 	configureDUTBGPNeighbors(t, dut, aggrBatch, dutBgpConf.Bgp)
