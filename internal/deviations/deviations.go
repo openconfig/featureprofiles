@@ -1644,3 +1644,13 @@ func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
+
+// RotateAuthenticationArtifactsListUnsupported returns true if the device does not support the list of authentication artifacts in the gNOI Rotate RPC.
+func RotateAuthenticationArtifactsListUnsupported(dut *ondatra.DUTDevice) bool {
+       return lookupDUTDeviations(dut).GetRotateAuthenticationArtifactsListUnsupported()
+}
+
+// HostCertificateCreatedOnInSeconds returns true if the device supports seconds for host certificate created on and not nano seconds as per proto.
+func HostCertificateCreatedOnInSeconds(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetHostCertificateCreatedOnInSeconds()
+}

@@ -942,6 +942,14 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
     bool load_balance_policy_oc_unsupported = 326;
 
+    // Devices does not support public key and certificate in credz artifacts list
+    // Cisco b/445304668
+     bool rotate_authentication_artifacts_list_unsupported = 327;
+
+    // Devices support seconds for host certificate created on and not nano seconds as per proto
+    // Cisco https://partnerissuetracker.corp.google.com/issues/442291970
+     bool host_certificate_created_on_in_seconds = 328;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
