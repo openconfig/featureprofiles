@@ -8,9 +8,9 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	bpb "github.com/openconfig/gnoi/bgp"
 	"github.com/openconfig/ondatra"
@@ -436,7 +436,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	setMEDstmtCommunitySet := setMEDstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 	setMEDstmtCommunitySet.SetCommunitySet("TEST-EBGP")
 	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(50))
-	if !deviations.BGPSetMedActionUnsupported(dut) {
+	if deviations.BGPSetMedActionUnsupported(dut) {
 		setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
 
@@ -1210,6 +1210,13 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		ateEBGP.Name + ".BGP6.peer",
 	}
 
+	bgpNeighbors := []string{
+		ateIBGP.IPv4,
+		ateEBGP.IPv4,
+		ateIBGP.IPv6,
+		ateEBGP.IPv6,
+	}
+
 	flowsWithNoLoss :=  []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix5, ipv4Prefix2),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix3, ipv4Prefix6),
@@ -1232,35 +1239,10 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
 		validateTrafficFlows(t, ate, config, true)
 
-		if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-			exrrConfig := `router bgp 100
-					neighbor 192.0.2.2 graceful-restart-helper restart-time 15552000  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-					neighbor 192.0.2.6 graceful-restart-helper restart-time 15552000  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		} else {
-			t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-		}
+		cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 15552000, bgpNeighbors)
 	})
 
-	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-		exrrConfig := `router bgp 100
-				neighbor 192.0.2.2 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-		helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		exrrConfig = `router bgp 100
-				neighbor 192.0.2.6 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-		helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		exrrConfig = `router bgp 100
-				neighbor 2001:db8::192:0:2:2 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-		helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		exrrConfig = `router bgp 100
-				neighbor 2001:db8::192:0:2:6 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-		helpers.GnmiCLIConfig(t, dut, exrrConfig)
-	} else {
-		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-
-	}
+	cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
 	t.Run("2_DUT_as_Helper_for_a_(gracefully)_Restarting_Peer", func(t *testing.T) {
 
@@ -1374,7 +1356,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
 		setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
 		setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(150))
-		if !deviations.BGPSetMedActionUnsupported(dut) {
+		if deviations.BGPSetMedActionUnsupported(dut) {
 			setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 		}
 
@@ -1392,38 +1374,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	})
 
 	t.Run("9_Default_Reject_Behavior", func(t *testing.T) {
-		t.Skip("Skipping this subtest for now")
-		t.Logf("This test is failing because ipv4 routes are not withdrawn after GR timer expires. Skipping for now.")
-		if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-			exrrConfig := `router bgp 100
-				no neighbor 192.0.2.2 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				no neighbor 192.0.2.6 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				no neighbor 2001:db8::192:0:2:2 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				no neighbor 2001:db8::192:0:2:6 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-
-			exrrConfig = `router bgp 100
-				neighbor 192.0.2.2 graceful-restart-helper restart-time 300`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				neighbor 192.0.2.6 graceful-restart-helper restart-time 300`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				neighbor 2001:db8::192:0:2:2 graceful-restart-helper restart-time 300`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				neighbor 2001:db8::192:0:2:6 graceful-restart-helper restart-time 300`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		} else {
-			t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-
-		}
+		// t.Skip("Skipping this subtest for now")
+		// t.Logf("This test is failing because ipv4 routes are not withdrawn after GR timer expires. Skipping for now.")
+		cfgplugins.DeleteExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
 		t.Logf("Stop BGP on the ATE Peer")
 		stopBgp := gosnappi.NewControlState()
@@ -1441,17 +1394,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 	t.Run("10_Consecutive_BGP_Restarts", func(t *testing.T) {
 
-		if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-			exrrConfig := `router bgp 100
-				neighbor 192.0.2.2 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-			exrrConfig = `router bgp 100
-				neighbor 192.0.2.6 graceful-restart-helper restart-time 300  stale-route route-map STALE-ROUTE-POLICY`
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
-		} else {
-			t.Log("Add OC path when available:/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-
-		}
+		cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
 		ate.OTG().StartTraffic(t)
 

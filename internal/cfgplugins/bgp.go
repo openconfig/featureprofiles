@@ -15,6 +15,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"sort"
 	"strconv"
 	"testing"
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
@@ -621,4 +623,31 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.Enabled = ygot.Bool(true)
 	nAfiSafi.GetOrCreateAddPaths().Receive = ygot.Bool(sendReceivePaths)
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
+}
+
+
+func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
+    t.Helper()
+	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
+        for _, nbr := range neighbors {
+            exrrConfig := fmt.Sprintf(`router bgp %d
+    neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, dutAS, nbr, restartTime)
+            helpers.GnmiCLIConfig(t, dut, exrrConfig)
+        }
+    } else {
+        t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
+    }
+}
+
+func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
+    t.Helper()
+	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
+        for _, nbr := range neighbors {
+            exrrConfig := fmt.Sprintf(`router bgp %d
+    no neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, dutAS, nbr, restartTime)
+            helpers.GnmiCLIConfig(t, dut, exrrConfig)
+        }
+    } else {
+        t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
+    }
 }
