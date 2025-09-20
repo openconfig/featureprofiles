@@ -963,93 +963,101 @@ func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay 
 
 func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixattrs []prefixAttributes) {
 
-	for _, ep := range prefixattrs {
-		bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv4Prefix(ep.prefix, 32, otgtelemetry.UnicastIpv4Prefix_Origin_IGP, 0).State())
+    for _, ep := range prefixattrs {
+        bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv4Prefix(ep.prefix, 32, otgtelemetry.UnicastIpv4Prefix_Origin_IGP, 0).State())
 
-		// Validate Communities
-		if len(ep.expectedCommunities) > 0 {
-			for _, expectedComm := range ep.expectedCommunities {
-				found := false
-				for _, actualComm := range bgpPrefix.Community {
-					if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
-						actualComm.GetCustomAsValue() == expectedComm.Value {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
-				}
-			}
-		}
+        // Validate Communities
+        if len(ep.expectedCommunities) > 0 {
+            for _, expectedComm := range ep.expectedCommunities {
+                found := false
+                for _, actualComm := range bgpPrefix.Community {
+                    if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
+                        actualComm.GetCustomAsValue() == expectedComm.Value {
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
+                }
+            }
+        }
 
-		// Validate AS Path
-		if len(ep.expectedasPath) > 0 {
-			for i, as := range bgpPrefix.AsPath {
-				if len(as.AsNumbers) != len(ep.expectedasPath) {
-					t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(bgpPrefix.AsPath), len(ep.expectedasPath))
-				} else {
-					if as.AsNumbers[i] != ep.expectedasPath[i] {
-						t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, as.AsNumbers[i], ep.expectedasPath[i])
-					}
-				}
-			}
-		}
+        // Validate AS Path
+        if len(ep.expectedasPath) > 0 {
+            actualAS := make([]uint32, 0)
+            for _, seg := range bgpPrefix.AsPath {
+                actualAS = append(actualAS, seg.AsNumbers...)
+            }
+            if len(actualAS) != len(ep.expectedasPath) {
+                t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
+            } else {
+                for i := range actualAS {
+                    if actualAS[i] != ep.expectedasPath[i] {
+                        t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
+                    }
+                }
+            }
+        }
 
-		// Validate MED
-		if ep.expectedmed != nil {
-			actualMED := bgpPrefix.GetMultiExitDiscriminator()
-			if actualMED != *ep.expectedmed {
-				t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
-			}
-		}
-	}
+        // Validate MED
+        if ep.expectedmed != nil {
+            actualMED := bgpPrefix.GetMultiExitDiscriminator()
+            if actualMED != *ep.expectedmed {
+                t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
+            }
+        }
+    }
 
 }
 
 func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixattrs []prefixAttributes) {
 
-	for _, ep := range prefixattrs {
-		bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv6Prefix(ep.prefix, 128, otgtelemetry.UnicastIpv6Prefix_Origin_IGP, 0).State())
+    for _, ep := range prefixattrs {
+        bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv6Prefix(ep.prefix, 128, otgtelemetry.UnicastIpv6Prefix_Origin_IGP, 0).State())
 
-		// Validate Communities
-		if len(ep.expectedCommunities) > 0 {
-			for _, expectedComm := range ep.expectedCommunities {
-				found := false
-				for _, actualComm := range bgpPrefix.Community {
-					if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
-						actualComm.GetCustomAsValue() == expectedComm.Value {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
-				}
-			}
-		}
+        // Validate Communities
+        if len(ep.expectedCommunities) > 0 {
+            for _, expectedComm := range ep.expectedCommunities {
+                found := false
+                for _, actualComm := range bgpPrefix.Community {
+                    if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
+                        actualComm.GetCustomAsValue() == expectedComm.Value {
+                        found = true
+                        break
+                    }
+                }
+                if !found {
+                    t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
+                }
+            }
+        }
 
-		// Validate AS Path
-		if len(ep.expectedasPath) > 0 {
-			for i, as := range bgpPrefix.AsPath {
-				if len(as.AsNumbers) != len(ep.expectedasPath) {
-					t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(bgpPrefix.AsPath), len(ep.expectedasPath))
-				} else {
-					if as.AsNumbers[i] != ep.expectedasPath[i] {
-						t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, as.AsNumbers[i], ep.expectedasPath[i])
-					}
-				}
-			}
-		}
+        // Validate AS Path
+        if len(ep.expectedasPath) > 0 {
+            actualAS := make([]uint32, 0)
+            for _, seg := range bgpPrefix.AsPath {
+                actualAS = append(actualAS, seg.AsNumbers...)
+            }
+            if len(actualAS) != len(ep.expectedasPath) {
+                t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
+            } else {
+                for i := range actualAS {
+                    if actualAS[i] != ep.expectedasPath[i] {
+                        t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
+                    }
+                }
+            }
+        }
 
-		// Validate MED
-		if ep.expectedmed != nil {
-			actualMED := bgpPrefix.GetMultiExitDiscriminator()
-			if actualMED != *ep.expectedmed {
-				t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
-			}
-		}
-	}
+        // Validate MED
+        if ep.expectedmed != nil {
+            actualMED := bgpPrefix.GetMultiExitDiscriminator()
+            if actualMED != *ep.expectedmed {
+                t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
+            }
+        }
+    }
 
 }
 
