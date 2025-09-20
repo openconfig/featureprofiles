@@ -5,3 +5,11 @@ uuid: "91120b0a-91ea-493c-8046-f52176ec2029"
 plan_id: "Credentialz-3"
 description: "Host Certificates"
 testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    host_certificate_created_on_in_seconds: true
+  }
+}
