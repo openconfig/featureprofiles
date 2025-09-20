@@ -18,7 +18,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -494,20 +493,21 @@ func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(as)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	g.RouterId = ygot.String(dutEBGP.IPv4)
+
+	g.SetAs(as)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+	g.SetRouterId(dutEBGP.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
-	bgpgr.Enabled = ygot.Bool(true)
+	bgpgr.SetEnabled(true)
 	bgpgr.SetRestartTime(grRestartTime)
 	bgpgr.SetStaleRoutesTime(grStaleRouteTime)
 
 	pg := bgp.GetOrCreatePeerGroup(epeerv4GrpName)
-	pg.PeerGroupName = ygot.String(epeerv4GrpName)
+	pg.SetPeerGroupName(epeerv4GrpName)
 
 	pgV6 := bgp.GetOrCreatePeerGroup(epeerv6GrpName)
-	pgV6.PeerGroupName = ygot.String(epeerv6GrpName)
+	pgV6.SetPeerGroupName(epeerv6GrpName)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
@@ -519,14 +519,14 @@ func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 
 	} else {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		pg1af4.Enabled = ygot.Bool(true)
+		pg1af4.SetEnabled(true)
 
 		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
 		pg1rpl4.SetExportPolicy([]string{"APPENDAS"})
 		pg1rpl4.SetImportPolicy([]string{"SET-MED"})
 
 		pg1af6 := pgV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		pg1af6.Enabled = ygot.Bool(true)
+		pg1af6.SetEnabled(true)
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"APPENDAS"})
 		pg1rpl6.SetImportPolicy([]string{"SET-MED"})
@@ -535,25 +535,24 @@ func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(epeerv4GrpName)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
+			nv4.SetPeerGroup(epeerv4GrpName)
+			nv4.SetPeerAs(nbr.as)
+			nv4.SetEnabled(true)
 			nv4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
+			af4.SetEnabled(true)
 			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(false)
+			af6.SetEnabled(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerGroup = ygot.String(epeerv6GrpName)
-			nv6.PeerAs = ygot.Uint32(nbr.as)
-			nv6.Enabled = ygot.Bool(true)
+			nv6.SetPeerGroup(epeerv6GrpName)
+			nv6.SetPeerAs(nbr.as)
+			nv6.SetEnabled(true)
 			nv6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
+			af6.SetEnabled(true)
 			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(false)
+			af4.SetEnabled(false)
 		}
 	}
 	return niProto
@@ -566,18 +565,18 @@ func ibgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(as)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	g.RouterId = ygot.String(dutEBGP.IPv4)
+	g.SetAs(as)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+	g.SetRouterId(dutEBGP.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
-	bgpgr.Enabled = ygot.Bool(true)
+	bgpgr.SetEnabled(true)
 
 	pg := bgp.GetOrCreatePeerGroup(ipeerv4GrpName)
-	pg.PeerGroupName = ygot.String(ipeerv4GrpName)
+	pg.SetPeerGroupName(ipeerv4GrpName)
 
 	pgV6 := bgp.GetOrCreatePeerGroup(ipeerv6GrpName)
-	pgV6.PeerGroupName = ygot.String(ipeerv6GrpName)
+	pgV6.SetPeerGroupName(ipeerv6GrpName)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
@@ -589,14 +588,14 @@ func ibgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 
 	} else {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-		pg1af4.Enabled = ygot.Bool(true)
+		pg1af4.SetEnabled(true)
 
 		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
 		pg1rpl4.SetExportPolicy([]string{"NEW-IBGP"})
 		pg1rpl4.SetImportPolicy([]string{"SET-LP"})
 
 		pg1af6 := pgV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-		pg1af6.Enabled = ygot.Bool(true)
+		pg1af6.SetEnabled(true)
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
 		pg1rpl6.SetExportPolicy([]string{"NEW-IBGP"})
 		pg1rpl6.SetImportPolicy([]string{"SET-LP"})
@@ -605,25 +604,24 @@ func ibgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	for _, nbr := range nbrs {
 		if nbr.isV4 {
 			nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv4.PeerGroup = ygot.String(ipeerv4GrpName)
-			nv4.PeerAs = ygot.Uint32(nbr.as)
-			nv4.Enabled = ygot.Bool(true)
+			nv4.SetPeerGroup(ipeerv4GrpName)
+			nv4.SetPeerAs(nbr.as)
+			nv4.SetEnabled(true)
 			nv4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
 			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
+			af4.SetEnabled(true)
 			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(false)
+			af6.SetEnabled(false)
 		} else {
 			nv6 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-			nv6.PeerGroup = ygot.String(ipeerv6GrpName)
-			nv6.PeerAs = ygot.Uint32(nbr.as)
-			nv6.Enabled = ygot.Bool(true)
+			nv6.SetPeerGroup(ipeerv6GrpName)
+			nv6.SetPeerAs(nbr.as)
+			nv6.SetEnabled(true)
 			nv6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
-			nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
+			af6.SetEnabled(true)
 			af4 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(false)
+			af4.SetEnabled(false)
 		}
 	}
 	return niProto
@@ -949,15 +947,14 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay uint32, notification string) gosnappi.ControlAction {
 	t.Helper()
 	grAction := gosnappi.NewControlAction()
-	if notification == "soft" {
+	switch notification {
+	case "soft":
 		grAction.Protocol().Bgp().InitiateGracefulRestart().
 			SetPeerNames(peerNames).SetRestartDelay(restartDelay).Notification().Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.ADMIN_RESET_CODE6_SUBCODE4)
-	}
-	if notification == "hard" {
+	case "hard":
 		grAction.Protocol().Bgp().InitiateGracefulRestart().
 			SetPeerNames(peerNames).SetRestartDelay(restartDelay).Notification().Cease().SetSubcode(gosnappi.DeviceBgpCeaseErrorSubcode.HARD_RESET_CODE6_SUBCODE9)
-	}
-	if notification == "none" {
+	default:
 		grAction.Protocol().Bgp().InitiateGracefulRestart().
 			SetPeerNames(peerNames).SetRestartDelay(restartDelay)
 	}
@@ -1247,7 +1244,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 	cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-	t.Run("2_DUT_as_Helper_for_a_(gracefully)_Restarting_Peer", func(t *testing.T) {
+	t.Run("2_DUT_as_Helper_for_graceful_Restart", func(t *testing.T) {
 
 		ate.OTG().StartTraffic(t)
 
@@ -1416,5 +1413,4 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
 	})
-
 }

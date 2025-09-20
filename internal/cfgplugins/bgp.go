@@ -625,7 +625,9 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
 }
 
-
+// This function configures extended route retention on the DUT for the
+// provided BGP neighbors. When the OC path is unsupported on the DUT, this function
+// applies vendor CLI using helpers.GnmiCLIConfig.
 func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
     t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
@@ -639,6 +641,9 @@ func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, re
     }
 }
 
+// This function removes extended route retention configuration on the DUT
+// for the provided BGP neighbors. When the OC path is unsupported on the DUT, this
+// function removes the configuration via vendor CLI using helpers.GnmiCLIConfig.
 func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
     t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
