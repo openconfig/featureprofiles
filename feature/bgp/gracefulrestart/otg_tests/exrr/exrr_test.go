@@ -343,6 +343,7 @@ var prefixv6attrs = []prefixAttributes{
 }
 
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 
@@ -849,7 +850,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 func configureFlow(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
-
+	t.Helper()
 	// ATE Traffic Configuration
 	t.Logf("start ate Traffic config")
 	t.Logf("Creating the traffic flow with source %s and destination %s", src.IPv4, dstip)
@@ -868,7 +869,7 @@ func configureFlow(t *testing.T, src, dst attrs.Attributes, srcip string, dstip 
 }
 
 func configureFlowV6(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
-
+	t.Helper()
 	// ATE Traffic Configuration
 	t.Logf("start ate Traffic config")
 	t.Logf("Creating the traffic flow with source %s and destination %s", src.IPv6, dstip)
@@ -887,6 +888,7 @@ func configureFlowV6(t *testing.T, src, dst attrs.Attributes, srcip string, dsti
 }
 
 func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
+	t.Helper()
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
 	otgutils.LogFlowMetrics(t, otg, c)
@@ -895,7 +897,7 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 		for _, f := range c.Flows().Items() {
 			flows = append(flows, f.Name())
 		}
-	} 
+	}
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
@@ -1054,7 +1056,7 @@ func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, pref
 
 }
 
-func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, match bool) {
+func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, match bool) error {
 	t.Logf("=== TRAFFIC FLOW VALIDATION START (expecting match=%v) ===", match)
 
 	otg := ate.OTG()
@@ -1074,25 +1076,24 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 		t.Logf("Flow %s: OutPkts=%v, InPkts=%v, LossPct=%v", flow.Name(), outPkts, inPkts, lossPct)
 
 		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow.Name())
+			return fmt.Errorf("outpkts for flow %s is 0, want > 0", flow.Name())
 		}
 
 		if match {
 			// Expecting traffic to pass (0% loss)
 			if got := lossPct; got > 0 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
+				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
 			}
+			t.Logf("Traffic validation PASSED: Flow %s has 0%% packet loss", flow.Name())
 		} else {
 			// Expecting traffic to fail (100% loss)
 			if got := lossPct; got != 100 {
-				t.Fatalf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
-			} else {
-				t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
+				return fmt.Errorf("traffic validation FAILED: Flow %s has %v%% packet loss, want 100%%", flow.Name(), got)
 			}
+			t.Logf("Traffic validation PASSED: Flow %s has 100%% packet loss", flow.Name())
 		}
 	}
+	return nil
 }
 
 func ptrToUint32(val uint32) *uint32 {
@@ -1217,7 +1218,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		ateEBGP.IPv6,
 	}
 
-	flowsWithNoLoss :=  []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
+	flowsWithNoLoss := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix5, ipv4Prefix2),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix3, ipv4Prefix6),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix6, ipv4Prefix3),
@@ -1226,7 +1227,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix3, ipv6Prefix6),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix6, ipv6Prefix3)}
 
-	t.Run("Check BGP status", func(t *testing.T) {
+	t.Run("CheckBGPStatus", func(t *testing.T) {
 		t.Log("Check BGP status")
 		checkBgpStatus(t, dut, 3)
 	})
@@ -1237,7 +1238,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 		validatePrefixesWithAttributes(t, ate, prefixattrs)
 		validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
-		validateTrafficFlows(t, ate, config, true)
+		if err := validateTrafficFlows(t, ate, config, true); err != nil {
+			t.Fatalf("validateTrafficFlows failed: %v", err)
+		}
 
 		cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 15552000, bgpNeighbors)
 	})
