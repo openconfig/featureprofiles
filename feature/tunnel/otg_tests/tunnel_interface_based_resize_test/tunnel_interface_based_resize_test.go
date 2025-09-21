@@ -26,7 +26,6 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 )
 
@@ -239,8 +238,8 @@ func TestSetup(t *testing.T) {
 func TestTunnelBaselineStats(t *testing.T) {
 	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
 	ate := ondatra.ATE(t, "ate")
-	createflow(t, top, flowIPv4, true)
-	createflow(t, top, flowIPv6, false)
+	createflow(top, flowIPv4, true)
+	createflow(top, flowIPv6, false)
 	sendTraffic(t, ate)
 	time.Sleep(20 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -482,7 +481,7 @@ func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	gnmi.Replace(t, dut, niPath, ni)
 }
 
-func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
+func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
 	}

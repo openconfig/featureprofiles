@@ -3,6 +3,7 @@ package otgvalidationhelpers
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -35,13 +36,14 @@ type OTGValidation struct {
 	Flow      *FlowParams
 }
 
-// PortWeightage is a struct to hold Port weightage parameters
+// PortWeightage represents an OTG port's expected traffic share as a percentage.
 type PortWeightage struct {
 	PortName  string
 	Weightage float64
 }
 
-// OTGECMPValidation is a struct to hold OTG ecmp Validation parameters
+// OTGECMPValidation validates ECMP traffic distribution across OTG ports.
+// TolerancePct is fractional (e.g.±10%).
 type OTGECMPValidation struct {
 	PortWeightages []PortWeightage
 	Flows          []string
@@ -177,17 +179,27 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
 	}
 
+	var validationErrors []string
+
 	for _, p := range ev.PortWeightages {
-		t.Log(gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State()))
-		actualPkts := gnmi.Get[uint64](t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
+		t.Log(gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State()))
+		actualPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
 		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
 
 		t.Logf("port: %s, Packets Received: %d", p.PortName, actualPkts)
 
-		if float64(actualPkts) < expectedPkts*(1-ev.TolerancePct) || float64(actualPkts) > expectedPkts*(1+ev.TolerancePct) {
-			t.Errorf("port %s: Actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, expectedPkts*(1-ev.TolerancePct), expectedPkts*(1+ev.TolerancePct))
+		lowerBound := expectedPkts * (1 - ev.TolerancePct)
+		upperBound := expectedPkts * (1 + ev.TolerancePct)
+
+		if float64(actualPkts) < lowerBound || float64(actualPkts) > upperBound {
+			validationErrors = append(validationErrors,
+				fmt.Sprintf("port %s: Actual packets %d out of expected range [%.0f - %.0f]",
+					p.PortName, actualPkts, lowerBound, upperBound))
 		}
 
+		if len(validationErrors) > 0 {
+			return fmt.Errorf("ECMP validation failed:\n%s", strings.Join(validationErrors, "\n"))
+		}
 	}
 
 	return nil

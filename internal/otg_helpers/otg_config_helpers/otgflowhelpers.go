@@ -259,33 +259,52 @@ func (f *Flow) AddIPv4Header() {
 
 // AddIPv6Header adds an IPv6 header to the flow.
 func (f *Flow) AddIPv6Header() {
-	ipv6Hdr := f.flow.Packet().Add().Ipv6()
-	if f.IPv6Flow.IPv6SrcCount != 0 {
-		ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount)
-		if f.IPv6Flow.IPv6SrcStep != "" {
-			ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount).SetStep(f.IPv6Flow.IPv6SrcStep)
-		}
-	} else {
-		ipv6Hdr.Src().SetValue(f.IPv6Flow.IPv6Src)
-	}
-	if f.IPv6Flow.IPv6DstCount != 0 {
-		ipv6Hdr.Dst().Increment().SetStart(f.IPv6Flow.IPv6Dst).SetCount(f.IPv6Flow.IPv6DstCount)
-		if f.IPv6Flow.IPv6DstStep != "" {
-			ipv6Hdr.Src().Increment().SetStart(f.IPv6Flow.IPv6Src).SetCount(f.IPv6Flow.IPv6SrcCount).SetStep(f.IPv6Flow.IPv6DstStep)
-		}
-	} else {
-		ipv6Hdr.Dst().SetValue(f.IPv6Flow.IPv6Dst)
-	}
-	if f.IPv6Flow.HopLimit != 0 {
-		ipv6Hdr.HopLimit().SetValue(f.IPv6Flow.HopLimit)
-	}
-	if f.IPv6Flow.TrafficClass != 0 || f.IPv6Flow.TrafficClassCount != 0 {
-		if f.IPv6Flow.TrafficClassCount != 0 {
-			ipv6Hdr.TrafficClass().Increment().SetStart(f.IPv6Flow.TrafficClass).SetCount(f.IPv6Flow.TrafficClassCount)
-		} else {
-			ipv6Hdr.TrafficClass().SetValue(f.IPv6Flow.TrafficClass)
-		}
-	}
+    ipv6Hdr := f.flow.Packet().Add().Ipv6()
+
+    // IPv6 Source
+    switch {
+    case f.IPv6Flow.IPv6SrcCount != 0 && f.IPv6Flow.IPv6SrcStep != "":
+        ipv6Hdr.Src().Increment().
+            SetStart(f.IPv6Flow.IPv6Src).
+            SetCount(f.IPv6Flow.IPv6SrcCount).
+            SetStep(f.IPv6Flow.IPv6SrcStep)
+    case f.IPv6Flow.IPv6SrcCount != 0:
+        ipv6Hdr.Src().Increment().
+            SetStart(f.IPv6Flow.IPv6Src).
+            SetCount(f.IPv6Flow.IPv6SrcCount)
+    default:
+        ipv6Hdr.Src().SetValue(f.IPv6Flow.IPv6Src)
+    }
+
+    // IPv6 Destination
+    switch {
+    case f.IPv6Flow.IPv6DstCount != 0 && f.IPv6Flow.IPv6DstStep != "":
+        ipv6Hdr.Dst().Increment().
+            SetStart(f.IPv6Flow.IPv6Dst).
+            SetCount(f.IPv6Flow.IPv6DstCount).
+            SetStep(f.IPv6Flow.IPv6DstStep)
+    case f.IPv6Flow.IPv6DstCount != 0:
+        ipv6Hdr.Dst().Increment().
+            SetStart(f.IPv6Flow.IPv6Dst).
+            SetCount(f.IPv6Flow.IPv6DstCount)
+    default:
+        ipv6Hdr.Dst().SetValue(f.IPv6Flow.IPv6Dst)
+    }
+
+    // Hop Limit
+    if f.IPv6Flow.HopLimit != 0 {
+        ipv6Hdr.HopLimit().SetValue(f.IPv6Flow.HopLimit)
+    }
+
+    // Traffic Class
+    switch {
+    case f.IPv6Flow.TrafficClassCount != 0:
+        ipv6Hdr.TrafficClass().Increment().
+            SetStart(f.IPv6Flow.TrafficClass).
+            SetCount(f.IPv6Flow.TrafficClassCount)
+    case f.IPv6Flow.TrafficClass != 0:
+        ipv6Hdr.TrafficClass().SetValue(f.IPv6Flow.TrafficClass)
+    }
 }
 
 // AddTCPHeader adds a TCP header to the flow.

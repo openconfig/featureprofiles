@@ -14,9 +14,15 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+
+
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficTypeV4                  = "v4"
+	trafficTypeV6                  = "v6"
+	trafficTypeDS                  = "dualstack"
+	trafficTypeMCV4                = "multicloudv4"
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -57,7 +63,7 @@ type OcPolicyForwardingParams struct {
 var (
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
-	PolicyForwardingConfigv4Arista = `
+	PolicyForwardingConfigV4Arista = `
 Traffic-policies
    traffic-policy tp_cloud_id_3_20
       match bgpsetttlv4 ipv4
@@ -76,7 +82,7 @@ Traffic-policies
    !
 	 `
 	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
-	PolicyForwardingConfigv6Arista = `
+	PolicyForwardingConfigV6Arista = `
 Traffic-policies
     traffic-policy tp_cloud_id_3_21
     match bgpsetttlv6 ipv6
@@ -149,7 +155,7 @@ Traffic-policies
           set traffic class 3
  !`
 	// PolicyForwardingConfigMulticloudAristav4 configuration for policy-forwarding for multicloud ipv4.
-	PolicyForwardingConfigMulticloudAristav4 = `
+	PolicyForwardingConfigMultiCloudV4Arista = `
  Traffic-policies
  counter interface per-interface ingress
  !
@@ -322,40 +328,40 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		case ondatra.ARISTA:
 			if params.AppliedPolicyName == "gre_encap" {
 				if traffictype == "dualstack" {
-					var PolicyForwardingGreConfig string
-					PolicyForwardingGreConfig += fmt.Sprintf(`
-                    traffic-policies
-                    traffic-policy tp_gre_encap
-                        match ipv4-all-default ipv4
-                            actions
-                                count
-                                redirect next-hop group %s
-                                set traffic class 3
-                        !
-                        match ipv6-all-default ipv6
-                            actions
-                                count
-                                redirect next-hop group %s
-                                set traffic class 3
-                        !
-                    !
-                    interface %s
-                    traffic-policy input tp_gre_encap
-                    !
-                `, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
-
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingGreConfig)
+					policyForwardingGREConfigTemplate := `  
+                    traffic-policies  
+                      traffic-policy tp_gre_encap  
+                          match ipv4-all-default ipv4  
+                              actions  
+                                  count  
+                                  redirect next-hop group %s  
+                                  set traffic class 3  
+                          !  
+                          match ipv6-all-default ipv6  
+                              actions  
+                                  count  
+                                  redirect next-hop group %s  
+                                  set traffic class 3  
+                          !  
+                      !  
+                    !  
+                    interface %s  
+                      traffic-policy input tp_gre_encap  
+                    !  
+`
+					policyForwardingGREConfig := fmt.Sprintf(policyForwardingGREConfigTemplate, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
+					helpers.GnmiCLIConfig(t, dut, policyForwardingGREConfig)
 				}
 			} else {
 				switch traffictype {
-				case "v4":
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
-				case "v6":
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
-				case "dualstack":
+				case trafficTypeV4:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV4Arista)
+				case trafficTypeV6:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV6Arista)
+				case trafficTypeDS:
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-				case "multicloudv4":
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
+				case trafficTypeMCV4:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMultiCloudV4Arista)
 				}
 			}
 		default:
