@@ -17,15 +17,13 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
-
 const (
-	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	trafficTypeV4                  = "v4"
-	trafficTypeV6                  = "v6"
-	trafficTypeDS                  = "dualstack"
-	trafficTypeMCV4                = "multicloudv4"
+	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficTypeV4   = "v4"
+	trafficTypeV6   = "v6"
+	trafficTypeDS   = "dualstack"
+	trafficTypeMCV4 = "multicloudv4"
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.

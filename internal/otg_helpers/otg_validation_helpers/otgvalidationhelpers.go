@@ -199,7 +199,7 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 	}
 
 	if len(validationErrors) > 0 {
-		return fmt.Errorf("ECMP validation failed:\n%s", strings.Join(validationErrors, "\n"))
+		return fmt.Errorf("ecmp validation failed:\n%s", strings.Join(validationErrors, "\n"))
 	}
 
 	return nil

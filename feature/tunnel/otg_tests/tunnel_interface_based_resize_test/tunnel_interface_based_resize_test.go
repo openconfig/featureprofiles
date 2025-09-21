@@ -26,7 +26,7 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	trafficDuration = 20 * time.Second
 )
 
@@ -227,7 +227,7 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 // matching the values in the provided JSON example.
 func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 
-	nhipaddrs := []string{}
+	var nhipaddrs []string
 
 	for i := 1; i <= 32; i++ {
 		nhipaddrs = append(nhipaddrs, fmt.Sprintf("10.99.%d.1", i))
@@ -264,7 +264,7 @@ func encapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_Pol
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
-	dutAggPorts := []*ondatra.Port{}
+	var dutAggPorts []*ondatra.Port
 	for _, port := range dutPorts {
 		dutAggPorts = append(dutAggPorts, dut.Port(t, port))
 	}
@@ -434,13 +434,13 @@ func TestTunnelBaselineStats(t *testing.T) {
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
 	}
 
 }
@@ -470,13 +470,13 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
 	}
 }
 
@@ -503,13 +503,12 @@ func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
 	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
 	}
 }
-
