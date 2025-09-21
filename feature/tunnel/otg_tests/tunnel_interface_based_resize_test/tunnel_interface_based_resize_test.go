@@ -223,108 +223,6 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 
 }
 
-func TestSetup(t *testing.T) {
-	t.Log("TUN:1.6.1-Setup Tunnels as per requirements")
-	dut := ondatra.DUT(t, "dut")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	// Get default parameters for OC Policy Forwarding
-	ocPFParams := fetchDefaultOCPolicyForwardingParams(t, dut)
-	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
-
-	// Pass ocPFParams to ConfigureDut
-	configureDut(t, dut, ocPFParams, ocNHGParams)
-	configureOTG(t)
-}
-
-func TestTunnelBaselineStats(t *testing.T) {
-	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
-	ate := ondatra.ATE(t, "ate")
-	createFlow(top, flowIPv4, true)
-	createFlow(top, flowIPv6, false)
-	sendTraffic(t, ate)
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
-	}
-
-}
-
-func TestTunnelInterfaceBasedResize(t *testing.T) {
-	t.Log("TUN:1.6.3-Removal of static routes to prevent using some of the tunnels")
-	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
-	sendTraffic(t, ate)
-	t.Log("Reduce number of Tunnels by deleting static routes")
-	deleteStaticRoutes(t, dut)
-
-	// Verify the entry for static route is not active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		ipv4Entry, present := val.Val()
-		if !present && ipv4Entry == nil {
-			return true
-		}
-		return false
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
-	} else {
-		t.Logf("Prefix %s not installed in DUT as static Route", staticRoute)
-	}
-
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
-	}
-}
-
-func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
-	t.Log("TUN:1.6.4-Restore static routes to start using all 32 tunnels")
-	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
-	sendTraffic(t, ate)
-	t.Log("Restore static routes to start using all 32 tunnels")
-	configureStaticRoutes(t, dut)
-
-	// Verify the entry for static Route is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		ipv4Entry, present := val.Val()
-		t.Log(ipv4Entry.GetPrefix())
-		return present && ipv4Entry.GetPrefix() == fmt.Sprintf("%s/24", staticRoute)
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
-	} else {
-		t.Logf("Prefix %s installed in DUT as static...", staticRoute)
-	}
-
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
-	}
-}
-
 // fetchDefaultStaticNextHopGroupParams provides default parameters for the generator.
 // matching the values in the provided JSON example.
 func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
@@ -512,3 +410,106 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
 	ate.OTG().StartTraffic(t)
 }
+
+func TestSetup(t *testing.T) {
+	t.Log("TUN:1.6.1-Setup Tunnels as per requirements")
+	dut := ondatra.DUT(t, "dut")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+	// Get default parameters for OC Policy Forwarding
+	ocPFParams := fetchDefaultOCPolicyForwardingParams(t, dut)
+	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
+
+	// Pass ocPFParams to ConfigureDut
+	configureDut(t, dut, ocPFParams, ocNHGParams)
+	configureOTG(t)
+}
+
+func TestTunnelBaselineStats(t *testing.T) {
+	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
+	ate := ondatra.ATE(t, "ate")
+	createFlow(top, flowIPv4, true)
+	createFlow(top, flowIPv6, false)
+	sendTraffic(t, ate)
+	time.Sleep(trafficDuration)
+	ate.OTG().StopTraffic(t)
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
+		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+	}
+
+}
+
+func TestTunnelInterfaceBasedResize(t *testing.T) {
+	t.Log("TUN:1.6.3-Removal of static routes to prevent using some of the tunnels")
+	ate := ondatra.ATE(t, "ate")
+	dut := ondatra.DUT(t, "dut")
+	sendTraffic(t, ate)
+	t.Log("Reduce number of Tunnels by deleting static routes")
+	deleteStaticRoutes(t, dut)
+
+	// Verify the entry for static route is not active through AFT Telemetry.
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		if !present && ipv4Entry == nil {
+			return true
+		}
+		return false
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
+	} else {
+		t.Logf("Prefix %s not installed in DUT as static Route", staticRoute)
+	}
+
+	time.Sleep(trafficDuration)
+	ate.OTG().StopTraffic(t)
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
+		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+	}
+}
+
+func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
+	t.Log("TUN:1.6.4-Restore static routes to start using all 32 tunnels")
+	ate := ondatra.ATE(t, "ate")
+	dut := ondatra.DUT(t, "dut")
+	sendTraffic(t, ate)
+	t.Log("Restore static routes to start using all 32 tunnels")
+	configureStaticRoutes(t, dut)
+
+	// Verify the entry for static Route is active through AFT Telemetry.
+	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
+	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		ipv4Entry, present := val.Val()
+		t.Log(ipv4Entry.GetPrefix())
+		return present && ipv4Entry.GetPrefix() == fmt.Sprintf("%s/24", staticRoute)
+	}).Await(t); !ok {
+		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
+	} else {
+		t.Logf("Prefix %s installed in DUT as static...", staticRoute)
+	}
+
+	time.Sleep(trafficDuration)
+	ate.OTG().StopTraffic(t)
+	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
+	}
+	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
+		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
+	}
+}
+
