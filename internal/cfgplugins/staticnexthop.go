@@ -223,6 +223,7 @@ func configureNextHopGroups(t *testing.T, ni *oc.NetworkInstance, params StaticN
 
 // NextHopGroupConfigForMulticloud configures the interface next-hop-group config for multicloud.
 func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:

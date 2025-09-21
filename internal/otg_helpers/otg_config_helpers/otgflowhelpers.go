@@ -220,41 +220,52 @@ func (f *Flow) AddMPLSHeader() {
 
 // AddIPv4Header adds an IPv4 header to the flow.
 func (f *Flow) AddIPv4Header() {
-	ipv4Hdr := f.flow.Packet().Add().Ipv4()
-	if f.IPv4Flow.IPv4SrcCount != 0 {
-		ipv4Hdr.Src().Increment().SetStart(f.IPv4Flow.IPv4Src).SetCount(f.IPv4Flow.IPv4SrcCount)
-	} else {
-		ipv4Hdr.Src().SetValue(f.IPv4Flow.IPv4Src)
-	}
-	if f.IPv4Flow.IPv4DstCount != 0 {
-		ipv4Hdr.Dst().Increment().SetStart(f.IPv4Flow.IPv4Dst).SetCount(f.IPv4Flow.IPv4DstCount)
-	} else {
-		ipv4Hdr.Dst().SetValue(f.IPv4Flow.IPv4Dst)
-	}
-	if f.IPv4Flow.TTL != 0 {
-		ipv4Hdr.TimeToLive().SetValue(f.IPv4Flow.TTL)
-	}
-	if f.IPv4Flow.DSCP != 0 || f.IPv4Flow.DSCPCount != 0 {
-		if f.IPv4Flow.DSCPCount != 0 {
-			ipv4Hdr.Priority().Dscp().Phb().Increment().SetStart(f.IPv4Flow.DSCP).SetCount(f.IPv4Flow.DSCPCount)
-		} else {
-			ipv4Hdr.Priority().Dscp().Phb().SetValue(f.IPv4Flow.DSCP)
-		}
-	}
-	if f.IPv4Flow.TOS != 0 || f.IPv4Flow.TOSCount != 0 {
-		if f.IPv4Flow.TOSCount != 0 {
-			ipv4Hdr.Priority().Tos().Precedence().Increment().SetStart(f.IPv4Flow.TOS).SetCount(f.IPv4Flow.TOSCount)
-		} else {
-			ipv4Hdr.Priority().Tos().Precedence().SetValue(f.IPv4Flow.TOS)
-		}
-	}
-	if f.IPv4Flow.RawPriority != 0 || f.IPv4Flow.RawPriorityCount != 0 {
-		if f.IPv4Flow.RawPriorityCount != 0 {
-			ipv4Hdr.Priority().Raw().Increment().SetStart(f.IPv4Flow.RawPriority).SetCount(f.IPv4Flow.RawPriorityCount)
-		} else {
-			ipv4Hdr.Priority().Raw().SetValue(f.IPv4Flow.RawPriority)
-		}
-	}
+    ipv4Hdr := f.flow.Packet().Add().Ipv4()
+
+	// IPv4 Source
+    switch {
+    case f.IPv4Flow.IPv4SrcCount != 0:
+        ipv4Hdr.Src().Increment().SetStart(f.IPv4Flow.IPv4Src).SetCount(f.IPv4Flow.IPv4SrcCount)
+    default:
+        ipv4Hdr.Src().SetValue(f.IPv4Flow.IPv4Src)
+    }
+
+	// IPv4 Destination
+    switch {
+    case f.IPv4Flow.IPv4DstCount != 0:
+        ipv4Hdr.Dst().Increment().SetStart(f.IPv4Flow.IPv4Dst).SetCount(f.IPv4Flow.IPv4DstCount)
+    default:
+        ipv4Hdr.Dst().SetValue(f.IPv4Flow.IPv4Dst)
+    }
+
+	// IPv4 TTL
+    if f.IPv4Flow.TTL != 0 {
+        ipv4Hdr.TimeToLive().SetValue(f.IPv4Flow.TTL)
+    }
+
+	// IPv4 DSCP
+    switch {
+    case f.IPv4Flow.DSCPCount != 0:
+        ipv4Hdr.Priority().Dscp().Phb().Increment().SetStart(f.IPv4Flow.DSCP).SetCount(f.IPv4Flow.DSCPCount)
+    case f.IPv4Flow.DSCP != 0:
+        ipv4Hdr.Priority().Dscp().Phb().SetValue(f.IPv4Flow.DSCP)
+    }
+
+	// IPv4 TOS
+    switch {
+    case f.IPv4Flow.TOSCount != 0:
+        ipv4Hdr.Priority().Tos().Precedence().Increment().SetStart(f.IPv4Flow.TOS).SetCount(f.IPv4Flow.TOSCount)
+    case f.IPv4Flow.TOS != 0:
+        ipv4Hdr.Priority().Tos().Precedence().SetValue(f.IPv4Flow.TOS)
+    }
+
+	// IPv4 Priority
+    switch {
+    case f.IPv4Flow.RawPriorityCount != 0:
+        ipv4Hdr.Priority().Raw().Increment().SetStart(f.IPv4Flow.RawPriority).SetCount(f.IPv4Flow.RawPriorityCount)
+    case f.IPv4Flow.RawPriority != 0:
+        ipv4Hdr.Priority().Raw().SetValue(f.IPv4Flow.RawPriority)
+    }
 }
 
 // AddIPv6Header adds an IPv6 header to the flow.

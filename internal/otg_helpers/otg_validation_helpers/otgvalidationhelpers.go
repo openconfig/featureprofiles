@@ -174,6 +174,7 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 
 // ValidateECMP validates if equal number of packets shared across the interfaces given
 func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) error {
+	t.Helper()
 	totalPkts := uint64(0)
 	for _, fName := range ev.Flows {
 		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
@@ -182,7 +183,6 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 	var validationErrors []string
 
 	for _, p := range ev.PortWeightages {
-		t.Log(gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State()))
 		actualPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
 		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
 
@@ -196,10 +196,10 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 				fmt.Sprintf("port %s: Actual packets %d out of expected range [%.0f - %.0f]",
 					p.PortName, actualPkts, lowerBound, upperBound))
 		}
+	}
 
-		if len(validationErrors) > 0 {
-			return fmt.Errorf("ECMP validation failed:\n%s", strings.Join(validationErrors, "\n"))
-		}
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("ECMP validation failed:\n%s", strings.Join(validationErrors, "\n"))
 	}
 
 	return nil

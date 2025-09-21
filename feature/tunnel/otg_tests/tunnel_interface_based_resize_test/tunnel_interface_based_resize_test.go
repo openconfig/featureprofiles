@@ -27,6 +27,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	trafficDuration = 20 * time.Second
 )
 
 var (
@@ -35,7 +36,8 @@ var (
 	egressLag1Ports = []string{"port2", "port3"}
 	egressLag2Ports = []string{"port4", "port5"}
 	staticRoute     = "10.99.20.0"
-	ingressIntf     = attrs.Attributes{
+
+	ingressIntf = attrs.Attributes{
 		Desc:    "ingress_interface",
 		IPv4:    "194.0.2.1",
 		IPv4Len: 30,
@@ -66,33 +68,6 @@ var (
 		MTU:     9202,
 		IPv4Len: 30,
 		IPv6Len: 126,
-	}
-
-	otgingress = &otgconfighelpers.Port{
-		Name:       "port1",
-		Interfaces: []*otgconfighelpers.InterfaceProperties{interface1},
-	}
-
-	otgagg1 = &otgconfighelpers.Port{
-		Name:        "Port-Channel1",
-		AggMAC:      "02:00:01:01:01:07",
-		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface2},
-		MemberPorts: []string{"port2", "port3"},
-		LagID:       1,
-		IsLag:       true,
-	}
-	otgagg2 = &otgconfighelpers.Port{
-		Name:        "Port-Channel2",
-		AggMAC:      "02:00:01:01:01:01",
-		MemberPorts: []string{"port4", "port5"},
-		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface3},
-		LagID:       2,
-		IsLag:       true,
-	}
-
-	otgegress = &otgconfighelpers.Port{
-		Name:       "port6",
-		Interfaces: []*otgconfighelpers.InterfaceProperties{interface4},
 	}
 
 	interface1 = &otgconfighelpers.InterfaceProperties{
@@ -136,6 +111,33 @@ var (
 		IPv6Gateway: "2000:0:0:1::9",
 		IPv4Len:     30,
 		IPv6Len:     126,
+	}
+
+	otgingress = &otgconfighelpers.Port{
+		Name:       "port1",
+		Interfaces: []*otgconfighelpers.InterfaceProperties{interface1},
+	}
+
+	otgagg1 = &otgconfighelpers.Port{
+		Name:        "Port-Channel1",
+		AggMAC:      "02:00:01:01:01:07",
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface2},
+		MemberPorts: []string{"port2", "port3"},
+		LagID:       1,
+		IsLag:       true,
+	}
+	otgagg2 = &otgconfighelpers.Port{
+		Name:        "Port-Channel2",
+		AggMAC:      "02:00:01:01:01:01",
+		MemberPorts: []string{"port4", "port5"},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface3},
+		LagID:       2,
+		IsLag:       true,
+	}
+
+	otgegress = &otgconfighelpers.Port{
+		Name:       "port6",
+		Interfaces: []*otgconfighelpers.InterfaceProperties{interface4},
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
@@ -227,7 +229,7 @@ func TestSetup(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// Get default parameters for OC Policy Forwarding
-	ocPFParams := fetchDefaultOcPolicyForwardingParams(t, dut)
+	ocPFParams := fetchDefaultOCPolicyForwardingParams(t, dut)
 	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
 
 	// Pass ocPFParams to ConfigureDut
@@ -238,10 +240,10 @@ func TestSetup(t *testing.T) {
 func TestTunnelBaselineStats(t *testing.T) {
 	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
 	ate := ondatra.ATE(t, "ate")
-	createflow(top, flowIPv4, true)
-	createflow(top, flowIPv6, false)
+	createFlow(top, flowIPv4, true)
+	createFlow(top, flowIPv6, false)
 	sendTraffic(t, ate)
-	time.Sleep(20 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
@@ -277,7 +279,7 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 		t.Logf("Prefix %s not installed in DUT as static Route", staticRoute)
 	}
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
@@ -310,7 +312,7 @@ func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
 		t.Logf("Prefix %s installed in DUT as static...", staticRoute)
 	}
 
-	time.Sleep(20 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
@@ -339,9 +341,9 @@ func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams 
 	}
 }
 
-// fetchDefaultOcPolicyForwardingParams provides default parameters for the generator,
+// fetchDefaultOCPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
-func fetchDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
+func fetchDefaultOCPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
@@ -448,6 +450,7 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 }
 
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	b := &gnmi.SetBatch{}
 	for i := 1; i <= 32; i++ {
 		sV4 := &cfgplugins.StaticRouteCfg{
@@ -467,6 +470,7 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func deleteStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	b := &gnmi.SetBatch{}
 	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 	for i := 17; i <= 32; i++ {
@@ -481,11 +485,11 @@ func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	gnmi.Replace(t, dut, niPath, ni)
 }
 
-func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
+func createFlow(cfg gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
-		top.Flows().Clear()
+		cfg.Flows().Clear()
 	}
-	params.CreateFlow(top)
+	params.CreateFlow(cfg)
 	params.AddEthHeader()
 	if params.IPv4Flow != nil {
 		params.AddIPv4Header()
@@ -502,6 +506,7 @@ func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows b
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
