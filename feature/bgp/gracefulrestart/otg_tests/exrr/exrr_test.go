@@ -850,7 +850,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 func configureFlow(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
 	t.Helper()
 	// ATE Traffic Configuration
-	t.Logf("start ate Traffic config")
+	t.Log("start ate Traffic config")
 	t.Logf("Creating the traffic flow with source %s and destination %s", src.IPv4, dstip)
 	flowipv4 := config.Flows().Add().SetName(srcip + "-" + dstip + "-Ipv4")
 	flowipv4.Metrics().SetEnable(true)
@@ -869,7 +869,7 @@ func configureFlow(t *testing.T, src, dst attrs.Attributes, srcip string, dstip 
 func configureFlowV6(t *testing.T, src, dst attrs.Attributes, srcip string, dstip string, config gosnappi.Config) {
 	t.Helper()
 	// ATE Traffic Configuration
-	t.Logf("start ate Traffic config")
+	t.Log("start ate Traffic config")
 	t.Logf("Creating the traffic flow with source %s and destination %s", src.IPv6, dstip)
 	flowipv6 := config.Flows().Add().SetName(srcip + "-" + dstip + "-Ipv6")
 	flowipv6.Metrics().SetEnable(true)
@@ -890,12 +890,7 @@ func verifyNoPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 	otg := ate.OTG()
 	c := otg.FetchConfig(t)
 	otgutils.LogFlowMetrics(t, otg, c)
-	if flows == nil {
-		flows = make([]string, 0, len(c.Flows().Items()))
-		for _, f := range c.Flows().Items() {
-			flows = append(flows, f.Name())
-		}
-	}
+
 	for _, f := range flows {
 		t.Logf("Verifying flow metrics for flow %s\n", f)
 		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(f).State())
@@ -936,10 +931,10 @@ func confirmPacketLoss(t *testing.T, ate *ondatra.ATEDevice, flows []string) {
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
-	t.Logf("Starting traffic")
+	t.Log("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
-	t.Logf("Stop traffic")
+	t.Log("Stop traffic")
 	ate.OTG().StopTraffic(t)
 }
 
@@ -963,101 +958,101 @@ func createGracefulRestartAction(t *testing.T, peerNames []string, restartDelay 
 
 func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixattrs []prefixAttributes) {
 
-    for _, ep := range prefixattrs {
-        bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv4Prefix(ep.prefix, 32, otgtelemetry.UnicastIpv4Prefix_Origin_IGP, 0).State())
+	for _, ep := range prefixattrs {
+		bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv4Prefix(ep.prefix, 32, otgtelemetry.UnicastIpv4Prefix_Origin_IGP, 0).State())
 
-        // Validate Communities
-        if len(ep.expectedCommunities) > 0 {
-            for _, expectedComm := range ep.expectedCommunities {
-                found := false
-                for _, actualComm := range bgpPrefix.Community {
-                    if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
-                        actualComm.GetCustomAsValue() == expectedComm.Value {
-                        found = true
-                        break
-                    }
-                }
-                if !found {
-                    t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
-                }
-            }
-        }
+		// Validate Communities
+		if len(ep.expectedCommunities) > 0 {
+			for _, expectedComm := range ep.expectedCommunities {
+				found := false
+				for _, actualComm := range bgpPrefix.Community {
+					if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
+						actualComm.GetCustomAsValue() == expectedComm.Value {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
+				}
+			}
+		}
 
-        // Validate AS Path
-        if len(ep.expectedasPath) > 0 {
-            actualAS := make([]uint32, 0)
-            for _, seg := range bgpPrefix.AsPath {
-                actualAS = append(actualAS, seg.AsNumbers...)
-            }
-            if len(actualAS) != len(ep.expectedasPath) {
-                t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
-            } else {
-                for i := range actualAS {
-                    if actualAS[i] != ep.expectedasPath[i] {
-                        t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
-                    }
-                }
-            }
-        }
+		// Validate AS Path
+		if len(ep.expectedasPath) > 0 {
+			actualAS := make([]uint32, 0)
+			for _, seg := range bgpPrefix.AsPath {
+				actualAS = append(actualAS, seg.AsNumbers...)
+			}
+			if len(actualAS) != len(ep.expectedasPath) {
+				t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
+			} else {
+				for i := range actualAS {
+					if actualAS[i] != ep.expectedasPath[i] {
+						t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
+					}
+				}
+			}
+		}
 
-        // Validate MED
-        if ep.expectedmed != nil {
-            actualMED := bgpPrefix.GetMultiExitDiscriminator()
-            if actualMED != *ep.expectedmed {
-                t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
-            }
-        }
-    }
+		// Validate MED
+		if ep.expectedmed != nil {
+			actualMED := bgpPrefix.GetMultiExitDiscriminator()
+			if actualMED != *ep.expectedmed {
+				t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
+			}
+		}
+	}
 
 }
 
 func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixattrs []prefixAttributes) {
 
-    for _, ep := range prefixattrs {
-        bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv6Prefix(ep.prefix, 128, otgtelemetry.UnicastIpv6Prefix_Origin_IGP, 0).State())
+	for _, ep := range prefixattrs {
+		bgpPrefix := gnmi.Get(t, ate.OTG(), gnmi.OTG().BgpPeer(ep.bgpPeer).UnicastIpv6Prefix(ep.prefix, 128, otgtelemetry.UnicastIpv6Prefix_Origin_IGP, 0).State())
 
-        // Validate Communities
-        if len(ep.expectedCommunities) > 0 {
-            for _, expectedComm := range ep.expectedCommunities {
-                found := false
-                for _, actualComm := range bgpPrefix.Community {
-                    if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
-                        actualComm.GetCustomAsValue() == expectedComm.Value {
-                        found = true
-                        break
-                    }
-                }
-                if !found {
-                    t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
-                }
-            }
-        }
+		// Validate Communities
+		if len(ep.expectedCommunities) > 0 {
+			for _, expectedComm := range ep.expectedCommunities {
+				found := false
+				for _, actualComm := range bgpPrefix.Community {
+					if actualComm.GetCustomAsNumber() == expectedComm.ASNumber &&
+						actualComm.GetCustomAsValue() == expectedComm.Value {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("Prefix %s: Expected community (%d,%d) not found", ep.prefix, expectedComm.ASNumber, expectedComm.Value)
+				}
+			}
+		}
 
-        // Validate AS Path
-        if len(ep.expectedasPath) > 0 {
-            actualAS := make([]uint32, 0)
-            for _, seg := range bgpPrefix.AsPath {
-                actualAS = append(actualAS, seg.AsNumbers...)
-            }
-            if len(actualAS) != len(ep.expectedasPath) {
-                t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
-            } else {
-                for i := range actualAS {
-                    if actualAS[i] != ep.expectedasPath[i] {
-                        t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
-                    }
-                }
-            }
-        }
+		// Validate AS Path
+		if len(ep.expectedasPath) > 0 {
+			actualAS := make([]uint32, 0)
+			for _, seg := range bgpPrefix.AsPath {
+				actualAS = append(actualAS, seg.AsNumbers...)
+			}
+			if len(actualAS) != len(ep.expectedasPath) {
+				t.Errorf("Prefix %s: AS Path length mismatch. Got %d, want %d", ep.prefix, len(actualAS), len(ep.expectedasPath))
+			} else {
+				for i := range actualAS {
+					if actualAS[i] != ep.expectedasPath[i] {
+						t.Errorf("Prefix %s: ASPath[%d] mismatch. Got %d, want %d", ep.prefix, i, actualAS[i], ep.expectedasPath[i])
+					}
+				}
+			}
+		}
 
-        // Validate MED
-        if ep.expectedmed != nil {
-            actualMED := bgpPrefix.GetMultiExitDiscriminator()
-            if actualMED != *ep.expectedmed {
-                t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
-            }
-        }
-    }
+		// Validate MED
+		if ep.expectedmed != nil {
+			actualMED := bgpPrefix.GetMultiExitDiscriminator()
+			if actualMED != *ep.expectedmed {
+				t.Errorf("Prefix %s: MED mismatch. Got %d, want %d", ep.prefix, actualMED, *ep.expectedmed)
+			}
+		}
+	}
 
 }
 
@@ -1119,10 +1114,10 @@ func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []strin
 	dut := ondatra.DUT(t, "dut")
 
 	if deviations.ExrrStaleRouteTimeUnsupported(dut) {
-		t.Logf("Skipping verification of No traffic loss during stale route time expiration as stale route time is not supported")
-		// verifyNoPacketLoss(t, ate)
+		t.Log("Skipping verification of No traffic loss during stale route time expiration as stale route time is not supported")
+		// verifyNoPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
 	} else {
-		verifyNoPacketLoss(t, ate, []string{})
+		verifyNoPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
 	}
 
 	t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
@@ -1152,8 +1147,6 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	// ATE Configuration.
 	t.Log("Start ATE Config")
 	config := configureATE(t, ate)
-
-	// ate.OTG().PushConfig(t, config)
 
 	// Configure interface on the DUT
 	t.Log("Start DUT interface Config")
@@ -1204,6 +1197,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
+	checkBgpStatus(t, dut, 3)
+
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix4, ipv4Prefix1),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix1, ipv6Prefix4),
@@ -1232,193 +1227,215 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix3, ipv6Prefix6),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix6, ipv6Prefix3)}
 
-	t.Run("CheckBGPStatus", func(t *testing.T) {
-		t.Log("Check BGP status")
-		checkBgpStatus(t, dut, 3)
-	})
+	type testCase struct {
+		name string
+		fn   func(t *testing.T)
+	}
 
-	t.Run("1_BaseLine_Validation", func(t *testing.T) {
-		t.Log("verify BGP Graceful Restart settings")
-		checkBgpGRConfig(t, dut)
+	cases := []testCase{
+		{
+			name: "1_BaseLine_Validation",
+			fn: func(t *testing.T) {
+				t.Log("verify BGP Graceful Restart settings")
+				checkBgpGRConfig(t, dut)
 
-		validatePrefixesWithAttributes(t, ate, prefixattrs)
-		validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
-		if err := validateTrafficFlows(t, ate, config, true); err != nil {
-			t.Fatalf("validateTrafficFlows failed: %v", err)
-		}
+				validatePrefixesWithAttributes(t, ate, prefixattrs)
+				validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
+				if err := validateTrafficFlows(t, ate, config, true); err != nil {
+					t.Fatalf("validateTrafficFlows failed: %v", err)
+				}
 
-		cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 15552000, bgpNeighbors)
-	})
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 15552000, bgpNeighbors)
+			},
+		},
+		{
+			name: "2_DUT_as_Helper_for_graceful_Restart",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				ate.OTG().StartTraffic(t)
 
-	cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				t.Log("Send Graceful Restart Trigger from OTG to DUT")
+				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
 
-	t.Run("2_DUT_as_Helper_for_graceful_Restart", func(t *testing.T) {
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		ate.OTG().StartTraffic(t)
+				// Check Routes are re-learnt after graceful-restart completes
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "3_ATE_Peer_Abrupt_Termination",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				ate.OTG().StartTraffic(t)
 
-		t.Log("Send Graceful Restart Trigger from OTG to DUT")
-		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
+				t.Log("Stop BGP on the ATE Peer")
+				stopBgp := gosnappi.NewControlState()
+				stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
+					SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
+				ate.OTG().SetControlState(t, stopBgp)
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		// Check Routes are re-learnt after graceful-restart completes
-		checkBgpStatus(t, dut, 3)
+				t.Log("Start BGP on the ATE Peer")
+				startBgp := gosnappi.NewControlState()
+				startBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
+					SetState(gosnappi.StateProtocolBgpPeersState.UP)
+				ate.OTG().SetControlState(t, startBgp)
 
-	})
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "4_Administrative_Reset_Notification_Sent_By_DUT_Graceful",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
+				t.Skip("Skipping this subtest for now")
 
-	t.Run("3_ATE_Peer_Abrupt_Termination", func(t *testing.T) {
+				ate.OTG().StartTraffic(t)
 
-		ate.OTG().StartTraffic(t)
+				gnoiClient := dut.RawAPIs().GNOI(t)
+				bgpReq := &bpb.ClearBGPNeighborRequest{
+					Mode: bpb.ClearBGPNeighborRequest_SOFT,
+				}
+				gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
 
-		t.Logf("Stop BGP on the ATE Peer")
-		stopBgp := gosnappi.NewControlState()
-		stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
-			SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
-		ate.OTG().SetControlState(t, stopBgp)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "5_Administrative_Reset_Notification_Received_By_DUT_Graceful",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				ate.OTG().StartTraffic(t)
 
-		t.Logf("Start BGP on the ATE Peer")
-		startBgp := gosnappi.NewControlState()
-		startBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
-			SetState(gosnappi.StateProtocolBgpPeersState.UP)
-		ate.OTG().SetControlState(t, startBgp)
+				t.Log("Send Graceful Restart Trigger from OTG to DUT")
+				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
 
-		checkBgpStatus(t, dut, 3)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-	})
+				// Check Routes are re-learnt after graceful-restart completes
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "6_Administrative_Reset_Notification_Sent_By_DUT_Hard_Reset",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
+				t.Skip("Skipping this subtest for now")
 
-	t.Run("4_Administrative_Reset_Notification_Sent_By_DUT_Graceful", func(t *testing.T) {
-		// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
-		t.Skip("Skipping this subtest for now")
+				ate.OTG().StartTraffic(t)
 
-		ate.OTG().StartTraffic(t)
+				gnoiClient := dut.RawAPIs().GNOI(t)
+				bgpReq := &bpb.ClearBGPNeighborRequest{
+					Mode: bpb.ClearBGPNeighborRequest_HARD,
+				}
+				gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
 
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		bgpReq := &bpb.ClearBGPNeighborRequest{
-			Mode: bpb.ClearBGPNeighborRequest_SOFT,
-		}
-		gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "7_Administrative_Reset_Notification_Received_By_DUT_Hard_Reset",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				ate.OTG().StartTraffic(t)
 
-		checkBgpStatus(t, dut, 3)
-	})
+				t.Log("Send Graceful Restart Trigger from OTG to DUT")
+				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "hard"))
 
-	t.Run("5_Administrative_Reset_Notification_Received_By_DUT_Graceful", func(t *testing.T) {
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		ate.OTG().StartTraffic(t)
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "8_Additive_Policy_Application",
+			fn: func(t *testing.T) {
+				d := &oc.Root{}
+				rp := d.GetOrCreateRoutingPolicy()
 
-		t.Log("Send Graceful Restart Trigger from OTG to DUT")
-		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
+				setLP := rp.GetOrCreatePolicyDefinition("SET-LP")
+				setLPstmt, err := setLP.AppendNewStatement("10")
+				if err != nil {
+					t.Errorf("Error while creating new statement %v", err)
+				}
+				setLPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+				setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+				setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
+				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
+				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(150))
+				if deviations.BGPSetMedActionUnsupported(dut) {
+					setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+				}
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-		// Check Routes are re-learnt after graceful-restart completes
-		checkBgpStatus(t, dut, 3)
-	})
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-	t.Run("6_Administrative_Reset_Notification_Sent_By_DUT_Hard_Reset", func(t *testing.T) {
-		// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
-		t.Skip("Skipping this subtest for now")
+				ate.OTG().StartTraffic(t)
 
-		ate.OTG().StartTraffic(t)
+				t.Log("Send Graceful Restart Trigger from OTG to DUT")
+				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
 
-		gnoiClient := dut.RawAPIs().GNOI(t)
-		bgpReq := &bpb.ClearBGPNeighborRequest{
-			Mode: bpb.ClearBGPNeighborRequest_HARD,
-		}
-		gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				checkBgpStatus(t, dut, 3)
+			},
+		},
+		{
+			name: "9_Default_Reject_Behavior",
+			fn: func(t *testing.T) {
+				cfgplugins.DeleteExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-		checkBgpStatus(t, dut, 3)
+				t.Log("Stop BGP on the ATE Peer")
+				stopBgp := gosnappi.NewControlState()
+				stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
+					SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
+				ate.OTG().SetControlState(t, stopBgp)
 
-	})
+				checkBgpStatusDown(t, dut)
 
-	t.Run("7_Administrative_Reset_Notification_Received_By_DUT_Hard_Reset", func(t *testing.T) {
+				time.Sleep(triggerGrTimer)
 
-		ate.OTG().StartTraffic(t)
+				sendTraffic(t, ate)
+				confirmPacketLoss(t, ate, flowsWithNoERR)
+			},
+		},
+		{
+			name: "10_Consecutive_BGP_Restarts",
+			fn: func(t *testing.T) {
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-		t.Log("Send Graceful Restart Trigger from OTG to DUT")
-		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "hard"))
+				ate.OTG().StartTraffic(t)
 
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				for i := 0; i < 3; i++ {
+					ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
+					time.Sleep(60 * time.Second)
+				}
 
-		checkBgpStatus(t, dut, 3)
+				t.Log("Stop BGP on the ATE Peer")
+				stopBgp := gosnappi.NewControlState()
+				stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
+					SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
 
-	})
+				ate.OTG().SetControlState(t, stopBgp)
 
-	t.Run("8_Additive_Policy_Application", func(t *testing.T) {
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+			},
+		},
+	}
 
-		d := &oc.Root{}
-		rp := d.GetOrCreateRoutingPolicy()
-
-		setLP := rp.GetOrCreatePolicyDefinition("SET-LP")
-		setLPstmt, err := setLP.AppendNewStatement("10")
-		if err != nil {
-			t.Errorf("Error while creating new statement %v", err)
-		}
-		setLPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-		setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-		setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
-		setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
-		setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(150))
-		if deviations.BGPSetMedActionUnsupported(dut) {
-			setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
-		}
-
-		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
-
-		ate.OTG().StartTraffic(t)
-
-		t.Log("Send Graceful Restart Trigger from OTG to DUT")
-		ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
-
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
-
-		checkBgpStatus(t, dut, 3)
-
-	})
-
-	t.Run("9_Default_Reject_Behavior", func(t *testing.T) {
-		// t.Skip("Skipping this subtest for now")
-		// t.Logf("This test is failing because ipv4 routes are not withdrawn after GR timer expires. Skipping for now.")
-		cfgplugins.DeleteExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
-
-		t.Logf("Stop BGP on the ATE Peer")
-		stopBgp := gosnappi.NewControlState()
-		stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
-			SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
-		ate.OTG().SetControlState(t, stopBgp)
-
-		checkBgpStatusDown(t, dut)
-
-		time.Sleep(triggerGrTimer)
-
-		sendTraffic(t, ate)
-		confirmPacketLoss(t, ate, flowsWithNoERR)
-	})
-
-	t.Run("10_Consecutive_BGP_Restarts", func(t *testing.T) {
-
-		cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
-
-		ate.OTG().StartTraffic(t)
-
-		for i := 0; i < 3; i++ {
-			ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
-			time.Sleep(60 * time.Second)
-		}
-
-		t.Logf("Stop BGP on the ATE Peer")
-		stopBgp := gosnappi.NewControlState()
-		stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
-			SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
-
-		ate.OTG().SetControlState(t, stopBgp)
-
-		validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
-
-	})
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			tc.fn(t)
+		})
+	}
 }
