@@ -12,8 +12,8 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// ISISConfig holds all parameters needed for configuring ISIS on the DUT.
-type ISISConfig struct {
+// ISISConfigBasic holds all parameters needed for configuring ISIS on the DUT.
+type ISISConfigBasic struct {
 	InstanceName string
 	AreaAddress  string
 	SystemID     string
@@ -22,8 +22,8 @@ type ISISConfig struct {
 	LoopbackIntf string
 }
 
-// NewISIS configures ISIS on the DUT using OpenConfig. It enables ISIS globally, sets AFs, and applies interface-level config.
-func NewISIS(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg ISISConfig) *oc.NetworkInstance_Protocol {
+// NewISISBasic configures ISIS on the DUT using OpenConfig. It enables ISIS globally, sets AFs, and applies interface-level config.
+func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg ISISConfigBasic) *oc.NetworkInstance_Protocol {
 	t.Helper()
 
 	d := &oc.Root{}
