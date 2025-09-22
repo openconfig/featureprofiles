@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	cpb "github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
@@ -276,6 +277,8 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 // RotateAuthenticationArtifacts read dut key/certificate contents from the specified directory & apply it as host authentication artifacts on the dut.
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
+	var privateKeyData []byte
+	var certData []byte
 
 	if keyDir != "" {
 		data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
@@ -285,6 +288,7 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
 			PrivateKey: data,
 		})
+		privateKeyData = data
 	}
 
 	if certDir != "" {
@@ -295,6 +299,26 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
 			Certificate: data,
 		})
+		certData = data
+	}
+
+	// Deviation: Always include both Certificate and PrivateKey together
+	if deviations.RotateAuthenticationArtifactsListUnsupported(dut) {
+		artifactContents = []*cpb.ServerKeysRequest_AuthenticationArtifacts{}
+		if len(certData) > 0 && len(privateKeyData) > 0 {
+			artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+				Certificate: certData,
+				PrivateKey:  privateKeyData,
+			})
+		} else if len(certData) > 0 {
+			artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+				Certificate: certData,
+			})
+		} else if len(privateKeyData) > 0 {
+			artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+				PrivateKey: privateKeyData,
+			})
+		}
 	}
 
 	request := &cpb.RotateHostParametersRequest{

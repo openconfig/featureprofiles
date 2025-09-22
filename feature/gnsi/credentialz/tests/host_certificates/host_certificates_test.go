@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
@@ -103,11 +104,15 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
-			t.Errorf(
-				"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
-				want, got,
+		if deviations.HostCertificateCreatedOnInSeconds(dut) {
+			gotHostCertificateCreatedOn = gotHostCertificateCreatedOn * 1e9
+		}
+		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(int64(hostCertificateCreatedOn), 0)) {
+			t.Fatalf(
+				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
+				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
 			)
 		}
+
 	})
 }
