@@ -23,36 +23,36 @@ func TestFibChains(t *testing.T) {
 		fn        func(t *testing.T, args *testArgs)
 		chainType string
 	}{
-		// {
-		// 	name:      "TestEncapDcgateOptimized",
-		// 	desc:      "Verify TTL and DSCP values in Encap Dcgate Optimized chain with triggers",
-		// 	fn:        testEncapDcgateOptimized,
-		// 	chainType: "dcgate_cluster_optimized",
-		// },
-		// {
-		// 	name:      "TestTransitDcgateOptimized",
-		// 	desc:      "Verify TTL and DSCP values in Transit Dcgate Optimized chain with triggers",
-		// 	fn:        testTransitDcgateOptimized,
-		// 	chainType: "dcgate_wan_optimized",
-		// },
+		{
+			name:      "TestEncapDcgateOptimized",
+			desc:      "Verify TTL and DSCP values in Encap Dcgate Optimized chain with triggers",
+			fn:        testEncapDcgateOptimized,
+			chainType: "dcgate_cluster_optimized",
+		},
+		{
+			name:      "TestTransitDcgateOptimized",
+			desc:      "Verify TTL and DSCP values in Transit Dcgate Optimized chain with triggers",
+			fn:        testTransitDcgateOptimized,
+			chainType: "dcgate_wan_optimized",
+		},
 		{
 			name:      "TestTransitDcgateUnoptimized",
 			desc:      "Verify TTL and DSCP values in Transit Dcgate UnOptimized chain with triggers",
 			fn:        testTransitDcgateUnoptimized,
 			chainType: "dcgate_wan_unoptimized",
 		},
-		// {
-		// 	name:      "TestPopGateOptimized",
-		// 	desc:      "Verify TTL and DSCP values in PopGate Optimized chain with triggers",
-		// 	fn:        testPopGateOptimized,
-		// 	chainType: "popgate_optimized",
-		// },
-		// {
-		// 	name:      "TestPopGateUnOptimized",
-		// 	desc:      "Verify TTL and DSCP values in PopGate UnOptimized chain with triggers",
-		// 	fn:        testPopGateUnOptimized,
-		// 	chainType: "popgate_unoptimized",
-		// },
+		{
+			name:      "TestPopGateOptimized",
+			desc:      "Verify TTL and DSCP values in PopGate Optimized chain with triggers",
+			fn:        testPopGateOptimized,
+			chainType: "popgate_optimized",
+		},
+		{
+			name:      "TestPopGateUnOptimized",
+			desc:      "Verify TTL and DSCP values in PopGate UnOptimized chain with triggers",
+			fn:        testPopGateUnOptimized,
+			chainType: "popgate_unoptimized",
+		},
 	}
 
 	dut := ondatra.DUT(t, "dut")
@@ -103,6 +103,8 @@ func TestFibChains(t *testing.T) {
 
 		defer c.Close(t)
 		c.BecomeLeader(t)
+
+		// flush entries at the end of each test
 		defer c.FlushAll(t)
 
 		// Flush all existing AFT entries on the router
@@ -597,6 +599,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		// valudate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -605,6 +608,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		// validate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
@@ -618,6 +622,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		weights := []float64{0, 0, 1, 0}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		// valudate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -626,8 +631,8 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
-		// valudate sflow capture
 
+		// valudate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
@@ -645,6 +650,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		// valudate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
@@ -677,6 +683,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
 		// valudate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -880,50 +887,4 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	})
-	t.Run("delete nhg", func(t *testing.T) {
-		// ctx := context.Background()
-		// gribic := args.dut.RawAPIs().GRIBI(t)
-		// client := fluent.NewClient()
-		// client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
-		// 	WithRedundancyMode(fluent.ElectedPrimaryClient).WithFIBACK()
-		// t.Log("Start gRIBI client and become leader")
-		// client.StartSending(ctx, t)
-
-		args.client.DeleteIPv4(t, "0.0.0.0/0", vrfEncapA, fluent.InstalledInFIB)
-		args.client.DeleteIPv6(t, "0::0/0", vrfEncapA, fluent.InstalledInFIB)
-
-		// if err := awaitTimeout(ctx, client, t, time.Minute); err != nil {
-		// 	t.Fatalf("Await got error during session negotiation for client: %v", err)
-		// }
-		// electionID := gribi.BecomeLeader(t, client)
-		// t.Logf("Election ID: %v", electionID)
-
-		// args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
-		args.client.DeleteNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.DeleteNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
-
-		// args.client.DeleteIPv4(t, "0.0.0.0/0", vrfEncapA, fluent.InstalledInFIB)
-		// args.client.DeleteIPv6(t, "0::0/0", vrfEncapA, fluent.InstalledInFIB)
-	})
-}
-
-func TestFlush(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	// configure gRIBI client
-	c := gribi.Client{
-		DUT:         dut,
-		FIBACK:      true,
-		Persistence: true,
-	}
-
-	if err := c.Start(t); err != nil {
-		t.Fatalf("gRIBI Connection can not be established")
-	}
-
-	defer c.Close(t)
-	c.BecomeLeader(t)
-	// defer c.FlushAll(t)
-
-	// Flush all existing AFT entries on the router
-	c.FlushAll(t)
 }

@@ -848,44 +848,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	configureLoopbackAndSFlow(t, dut)
 }
 
-// func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
-// 	d := gnmi.OC()
-// 	p1 := dut.Port(t, "port1")
-// 	p2 := dut.Port(t, "port2")
-// 	p3 := dut.Port(t, "port3")
-// 	p4 := dut.Port(t, "port4")
-// 	p5 := dut.Port(t, "port5")
-// 	p8 := dut.Port(t, "port8")
-
-// 	// configure interfaces
-// 	if bundleMode {
-// 		configureBundleInterfaces(t, dut, p1, "Bundle-Ether1", &dutPort1)
-// 		configureBundleInterfaces(t, dut, p2, "Bundle-Ether2", &dutPort2)
-// 		configureBundleInterfaces(t, dut, p3, "Bundle-Ether3", &dutPort3)
-// 		configureBundleInterfaces(t, dut, p4, "Bundle-Ether4", &dutPort4)
-// 		configureBundleInterfaces(t, dut, p5, "Bundle-Ether5", &dutPort5)
-// 		configureBundleInterfaces(t, dut, p8, "Bundle-Ether8", &dutPort8)
-// 	} else {
-// 		gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-// 		gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-// 		gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-// 		gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-// 		gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
-// 		gnmi.Replace(t, dut, d.Interface(p8.Name()).Config(), dutPort8.NewOCInterface(p8.Name(), dut))
-// 	}
-
-// 	// configure base PBF policies and network-instances
-// 	configureBaseconfig(t, dut, clusterFacing)
-
-// 	// apply PBF to src interface.
-// 	applyForwardingPolicy(t, dut, getPolicyInterface(t, dut, bundleMode), clusterFacing)
-// 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-// 		staticARPWithSecondaryIP(t, dut, bundleMode)
-// 	}
-// 	// configSflow(t, dut)
-// 	configureLoopbackAndSFlow(t, dut)
-// }
-
 func getPolicyInterface(t *testing.T, dut *ondatra.DUTDevice, useBundleMode bool) string {
 	p1 := dut.Port(t, "port1")
 	policyIntf := p1.Name()
@@ -1343,17 +1305,6 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 }
 
-// // configStaticArp configures static arp entries
-// func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
-// 	i := &oc.Interface{Name: ygot.String(p)}
-// 	i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-// 	s := i.GetOrCreateSubinterface(0)
-// 	s4 := s.GetOrCreateIpv4()
-// 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
-// 	n4.LinkLayerAddress = ygot.String(macAddr)
-// 	return i
-// }
-
 // staticARPWithSecondaryIP configures secondary IPs and static ARP.
 func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, useBundleMode bool) {
 	t.Helper()
@@ -1453,51 +1404,6 @@ func staticARPWithSecondaryIP3(t *testing.T, dut *ondatra.DUTDevice, useBundleMo
 			configStaticArp(cfg.bundleName, cfg.otgAttr.IPv4, magicMac, useBundleMode))
 	}
 }
-
-// // staticARPWithSecondaryIP configures secondary IPs and static ARP.
-// func staticARPWithSecondaryIP2(t *testing.T, dut *ondatra.DUTDevice, bundle bool) {
-// t.Helper()
-// if !bundle {
-// 	p2 := dut.Port(t, "port2")
-// 	p3 := dut.Port(t, "port3")
-// 	p4 := dut.Port(t, "port4")
-// 	p5 := dut.Port(t, "port5")
-
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
-// } else if bundle {
-
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), assignIPAsSecondary(&dutPort2DummyIP, "Bundle-Ether2", dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), assignIPAsSecondary(&dutPort3DummyIP, "Bundle-Ether3", dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), assignIPAsSecondary(&dutPort4DummyIP, "Bundle-Ether4", dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), assignIPAsSecondary(&dutPort5DummyIP, "Bundle-Ether5", dut))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), assignIPAsSecondary(&dutPort8DummyIP, "Bundle-Ether8", dut))
-
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether2").Config(), configStaticArp("Bundle-Ether2", otgPort2DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether3").Config(), configStaticArp("Bundle-Ether3", otgPort3DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether4").Config(), configStaticArp("Bundle-Ether4", otgPort4DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether5").Config(), configStaticArp("Bundle-Ether5", otgPort5DummyIP.IPv4, magicMac))
-// 	gnmi.Update(t, dut, gnmi.OC().Interface("Bundle-Ether8").Config(), configStaticArp("Bundle-Ether8", otgPort8DummyIP.IPv4, magicMac))
-// }
-
-// }
-
-// // override ip address type as secondary
-// func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice) *oc.Interface {
-// 	intf := a.NewOCInterface(port, dut)
-// 	intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-// 	s := intf.GetOrCreateSubinterface(0)
-// 	s4 := s.GetOrCreateIpv4()
-// 	a4 := s4.GetOrCreateAddress(a.IPv4)
-// 	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
-// 	return intf
-// }
 
 func configureVIP1(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, baseNH(2), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})
