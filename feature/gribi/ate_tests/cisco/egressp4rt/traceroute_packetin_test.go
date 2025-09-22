@@ -212,7 +212,7 @@ func TestEgressp4rt(t *testing.T) {
 	if err := setupP4RTClient(args, deviceId, stream); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
-	
+
 	if P4rtNode != P4rtNode2 {
 		if err := setupP4RTClient(args, deviceId2, stream2); err != nil {
 			t.Fatalf("Could not setup p4rt client: %v", err)
