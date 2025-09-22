@@ -198,6 +198,12 @@ func TestEstablish(t *testing.T) {
 				wantState.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = nil
 				wantState.GetOrCreateNeighbor(ateAttrs.IPv4).Enabled = nil
 			}
+
+			if deviations.BgpRplDirectlyUnderPeerGroupUnsupported(dut) && applyPolicyToAfiSafi == false {
+				wantState.GetOrCreatePeerGroup(peerGrpName).ApplyPolicy.ExportPolicy = nil
+				wantState.GetOrCreatePeerGroup(peerGrpName).ApplyPolicy.ImportPolicy = nil
+			}
+
 			confirm.State(t, wantState, dutState)
 			nbr := dutState.GetNeighbor(ateAttrs.IPv4)
 
