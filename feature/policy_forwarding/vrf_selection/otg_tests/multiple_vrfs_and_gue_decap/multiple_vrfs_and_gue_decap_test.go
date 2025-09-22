@@ -151,7 +151,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	createVRF(t, dut)
 	ConfigureDUTIntf(t, dut)
 	ConfigureBgp(t, dut)
-	ConfigureQoS(t, dut)
+	ConfigureQoSDUTIpv4Ipv6(t, dut)
 
 	configureRouteLeaking(t, dut)
 	configureDutWithGueDecap(t, dut, guePort, "ipv4")
@@ -326,8 +326,8 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-// ConfigureQoS configure dut with QoS configuration
-func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
+// ConfigureQoSDUTIpv4Ipv6 configure dut with QoS configuration
+func ConfigureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	d := &oc.Root{}
@@ -344,140 +344,111 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	t.Logf("Create qos forwarding groups config")
-	forwardingGroups := []struct {
-		desc        string
-		queueName   string
-		targetGroup string
-	}{{
-		desc:        "forwarding-group-BE1",
-		queueName:   queues.BE1,
-		targetGroup: "target-group-BE1",
-	}, {
-		desc:        "forwarding-group-AF1",
-		queueName:   queues.AF1,
-		targetGroup: "target-group-AF1",
-	}, {
-		desc:        "forwarding-group-AF2",
-		queueName:   queues.AF2,
-		targetGroup: "target-group-AF2",
-	}, {
-		desc:        "forwarding-group-AF3",
-		queueName:   queues.AF3,
-		targetGroup: "target-group-AF3",
-	}, {
-		desc:        "forwarding-group-AF4",
-		queueName:   queues.AF4,
-		targetGroup: "target-group-AF4",
-	},
-	}
+	forwardingGroups := []cfgplugins.ForwardingGroup{
+		{
+			Desc:        "forwarding-group-BE1",
+			QueueName:   queues.BE1,
+			TargetGroup: "target-group-BE1",
+		}, {
+			Desc:        "forwarding-group-AF1",
+			QueueName:   queues.AF1,
+			TargetGroup: "target-group-AF1",
+		}, {
+			Desc:        "forwarding-group-AF2",
+			QueueName:   queues.AF2,
+			TargetGroup: "target-group-AF2",
+		}, {
+			Desc:        "forwarding-group-AF3",
+			QueueName:   queues.AF3,
+			TargetGroup: "target-group-AF3",
+		}, {
+			Desc:        "forwarding-group-AF4",
+			QueueName:   queues.AF4,
+			TargetGroup: "target-group-AF4",
+		}, {
+			Desc:        "forwarding-group-NC1",
+			QueueName:   queues.NC1,
+			TargetGroup: "target-group-NC1",
+		}}
 
-	t.Logf("qos forwarding groups config: %v", forwardingGroups)
-	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
-	}
+	cfgplugins.NewQoSForwardingGroup(t, dut, q, forwardingGroups)
 
 	t.Logf("Create qos Classifiers config")
-	classifiers := []struct {
-		desc        string
-		name        string
-		classType   oc.E_Qos_Classifier_Type
-		termID      string
-		targetGroup string
-		dscpSet     []uint8
-	}{{
-		desc:        "classifier_ipv4_be1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0},
-	}, {
-		desc:        "classifier_ipv4_af1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{8},
-	}, {
-		desc:        "classifier_ipv4_af2",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{16},
-	}, {
-		desc:        "classifier_ipv4_af3",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{24},
-	}, {
-		desc:        "classifier_ipv4_af4",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{32},
-	}, {
-		desc:        "classifier_ipv6_be1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0},
-	}, {
-		desc:        "classifier_ipv6_af1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{8},
-	}, {
-		desc:        "classifier_ipv6_af2",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{16},
-	}, {
-		desc:        "classifier_ipv6_af3",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{24},
-	}, {
-		desc:        "classifier_ipv6_af4",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{32},
-	},
-	}
+	classifiers := []cfgplugins.QosClassifier{
+		{
+			Desc:        "classifier_ipv4_be1",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "0",
+			TargetGroup: "target-group-BE1",
+			DscpSet:     []uint8{0},
+		}, {
+			Desc:        "classifier_ipv4_af1",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "1",
+			TargetGroup: "target-group-AF1",
+			DscpSet:     []uint8{8},
+		}, {
+			Desc:        "classifier_ipv4_af2",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "2",
+			TargetGroup: "target-group-AF2",
+			DscpSet:     []uint8{16},
+		}, {
+			Desc:        "classifier_ipv4_af3",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "3",
+			TargetGroup: "target-group-AF3",
+			DscpSet:     []uint8{24},
+		}, {
+			Desc:        "classifier_ipv4_af4",
+			Name:        "dscp_based_classifier_ipv4",
+			ClassType:   oc.Qos_Classifier_Type_IPV4,
+			TermID:      "4",
+			TargetGroup: "target-group-AF4",
+			DscpSet:     []uint8{32},
+		}, {
+			Desc:        "classifier_ipv6_be1",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "0",
+			TargetGroup: "target-group-BE1",
+			DscpSet:     []uint8{0},
+		}, {
+			Desc:        "classifier_ipv6_af1",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "1",
+			TargetGroup: "target-group-AF1",
+			DscpSet:     []uint8{8},
+		}, {
+			Desc:        "classifier_ipv6_af2",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "2",
+			TargetGroup: "target-group-AF2",
+			DscpSet:     []uint8{16},
+		}, {
+			Desc:        "classifier_ipv6_af3",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "3",
+			TargetGroup: "target-group-AF3",
+			DscpSet:     []uint8{24},
+		}, {
+			Desc:        "classifier_ipv6_af4",
+			Name:        "dscp_based_classifier_ipv6",
+			ClassType:   oc.Qos_Classifier_Type_IPV6,
+			TermID:      "4",
+			TargetGroup: "target-group-AF4",
+			DscpSet:     []uint8{32},
+		}}
 
-	t.Logf("qos Classifiers config: %v", classifiers)
-	for _, tc := range classifiers {
-		classifier := q.GetOrCreateClassifier(tc.name)
-		classifier.SetName(tc.name)
-		classifier.SetType(tc.classType)
-		term, err := classifier.NewTerm(tc.termID)
-		if err != nil {
-			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
-		}
-		term.SetId(tc.termID)
-		action := term.GetOrCreateActions()
-		action.SetTargetGroup(tc.targetGroup)
-
-		condition := term.GetOrCreateConditions()
-		if tc.name == "dscp_based_classifier_ipv4" {
-			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
-		} else {
-			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
-		}
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
-	}
+	q = cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	t.Logf("Create qos input classifier config")
 	classifierIntfs := []struct {
