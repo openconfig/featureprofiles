@@ -418,10 +418,23 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func MplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, pseudowireName string, nexthopGroupName string, localLabel string, remoteLabel string, intfName string, subinterface uint32) {
+type MplsStaticPseudowire struct {
+	PseudowireName   string
+	NexthopGroupName string
+	LocalLabel       string
+	RemoteLabel      string
+	IntfName         string
+	Subinterface     uint32
+}
+
+func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
 	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
 		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			if params.Subinterface != 0 {
+				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
+			}
 			cli = fmt.Sprintf(`
 			mpls pseudowires
    				static pseudowires
@@ -432,9 +445,9 @@ func MplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDe
          		control-word
 			patch panel
 				patch patch-1
-				   connector interface %s.%v
+				   connector interface %s
 				   connector pseudowire mpls static %s`,
-				pseudowireName, nexthopGroupName, localLabel, remoteLabel, intfName, subinterface, pseudowireName)
+				params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.IntfName, params.PseudowireName)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -446,12 +459,60 @@ func MplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDe
 		connectionCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateConnectionPoint("1")
 		endpointCfg := connectionCfg.GetOrCreateEndpoint("endpoint-1")
 		localCfg := endpointCfg.GetOrCreateLocal()
-		localCfg.SetInterface(intfName)
-		localCfg.SetSubinterface(subinterface)
+		localCfg.SetInterface(params.IntfName)
+		localCfg.SetSubinterface(params.Subinterface)
 
 		remoteCfg := endpointCfg.GetOrCreateRemote()
 		remoteCfg.SetVirtualCircuitIdentifier(1001)
 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).ConnectionPoint("1").Config(), connectionCfg)
+	}
+}
+
+func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
+	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if params.Subinterface != 0 {
+				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
+			}
+			cli = fmt.Sprintf(`
+			patch panel
+				patch patch-1
+				   no connector interface %s`,
+				params.IntfName)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	}
+}
+
+type VlanClientEncapsulationParams struct {
+	IntfName         string
+	Subinterfaces    uint32
+	RemoveVlanConfig bool
+}
+
+func VlanClientEncapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params VlanClientEncapsulationParams) {
+	if deviations.VlanClientEncapsulationOcUnsupported(dut) {
+		cli := ""
+		if !params.RemoveVlanConfig {
+			cli = fmt.Sprintf(`
+					interface %v.%v
+						encapsulation vlan
+      						client dot1q %v network client
+						`, params.IntfName, params.Subinterfaces, params.Subinterfaces)
+		} else {
+			cli = fmt.Sprintf(`
+				interface %v.%v
+					no encapsulation vlan
+					`, params.IntfName, params.Subinterfaces)
+		}
+		helpers.GnmiCLIConfig(t, dut, cli)
+	} else {
+		// OC is not available
 	}
 }
