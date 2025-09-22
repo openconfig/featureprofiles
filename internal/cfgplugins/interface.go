@@ -23,6 +23,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -58,6 +59,13 @@ func init() {
 
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
+
+// StaticAggregateConfig defines the parameters for configuring a static LAG.
+type StaticAggregateConfig struct {
+	AggID    string
+	DutLag   attrs.Attributes
+	AggPorts []*ondatra.Port
+}
 
 // String returns the string representation of the list of operational modes.
 func (om *OperationalModeList) String() string {
@@ -724,4 +732,27 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 	for _, port := range dutAggPorts {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 	}
+}
+
+// SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
+func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggrBatch *gnmi.SetBatch, cfg StaticAggregateConfig) *oc.Interface {
+	t.Helper()
+	// Create LAG
+	agg := cfg.DutLag.NewOCInterface(cfg.AggID, dut)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(cfg.AggID).Config(), agg)
+
+	// Create all member ports
+	for _, port := range cfg.AggPorts {
+		d := &oc.Root{}
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(cfg.AggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+		gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+	return agg
 }
