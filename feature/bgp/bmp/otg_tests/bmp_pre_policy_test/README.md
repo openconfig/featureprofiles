@@ -1,4 +1,4 @@
-# BMP-1.2: BMP Pre Policy Test
+# BMP-2.7: BMP Pre Policy Test
 
 ## Summary
 
