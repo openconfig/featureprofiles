@@ -29,6 +29,7 @@ import (
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	acctzrpc "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
