@@ -154,7 +154,7 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 			}
 		}
 		if !deviations.QosRemarkOCUnsupported(dut) {
-			action.GetOrCreateRemark().SetDscp = ygot.Uint8(tc.RemarkDscp)
+			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
 		}
 	}
 	return q
