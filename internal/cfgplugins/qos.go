@@ -147,10 +147,14 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 		}
 		if len(class.DscpSet) > 0 {
 			condition := term.GetOrCreateConditions()
-			condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
+			if class.Name == "dscp_based_classifier_ipv4" {
+				condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
+			} else {
+				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
+			}
 		}
-		if class.RemarkDscp != 0 {
-			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
+		if !deviations.QosRemarkOCUnsupported(dut) {
+			action.GetOrCreateRemark().SetDscp = ygot.Uint8(tc.RemarkDscp)
 		}
 	}
 	return q
@@ -275,7 +279,6 @@ func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string,
 		return ""
 	}
 }
-
 func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []string) {
 	for index, q := range queues {
 		queue := qos.GetOrCreateQueue(q)
@@ -371,4 +374,54 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	default:
 		return ""
 	}
+}
+
+func ConfigureQosDscpRemarkSpecific(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.QosRemarkOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			aristaConfigureRemarkIpv4(t, dut)
+			aristaConfigureRemarkIpv6(t, dut)
+		}
+	}
+}
+
+// aristaConfigureRemarkIpv4 configure remark for ipv4 through CLI
+func aristaConfigureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
+	jsonConfig := `
+    policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
+	class __yang_[dscp_based_classifier_ipv4]_[0]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[1]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[2]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[3]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[4]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[6]
+	set dscp 6
+		`
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
+}
+
+// aristaConfigureRemarkIpv6 configure remark for ipv6 through CLI
+func aristaConfigureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
+	jsonConfig := `
+    policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
+   class __yang_[dscp_based_classifier_ipv6]_[0]
+      set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[1]
+      set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[3]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[2]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[4]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[6]
+   set dscp 6
+		`
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
