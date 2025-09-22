@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
-	acctzrpc "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -172,10 +171,14 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	}
 }
 
-func deviceRecords(t *testing.T, client acctzrpc.AcctzStream_RecordSubscribeClient, deadline time.Duration) ([]*acctzpb.RecordResponse, error) {
+type recvClient interface {
+	Recv() (*acctzpb.RecordResponse, error)
+}
+
+func deviceRecords(t *testing.T, client recvClient, deadline time.Duration) ([]*acctzpb.RecordResponse, error) {
 	rChan := make(chan recordRequestResult)
 	defer close(rChan)
-	go func(ch chan recordRequestResult, c acctzrpc.AcctzStream_RecordSubscribeClient) {
+	go func(ch chan recordRequestResult, c recvClient) {
 		defer func() {
 			if r := recover(); r != nil {
 				return
