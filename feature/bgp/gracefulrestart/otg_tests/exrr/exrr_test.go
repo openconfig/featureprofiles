@@ -55,6 +55,8 @@ const (
 	errnodeprefasn           = 200
 	testibgpasn              = 500
 	testebgpasn              = 600
+	MED50 = 50
+	MED150 = 150
 )
 
 var (
@@ -435,7 +437,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	setMEDstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	setMEDstmtCommunitySet := setMEDstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 	setMEDstmtCommunitySet.SetCommunitySet("TEST-EBGP")
-	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(50))
+	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(MED50))
 	if deviations.BGPSetMedActionUnsupported(dut) {
 		setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
@@ -1367,7 +1369,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 				setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
 				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(150))
+				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(MED150))
 				if deviations.BGPSetMedActionUnsupported(dut) {
 					setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 				}
