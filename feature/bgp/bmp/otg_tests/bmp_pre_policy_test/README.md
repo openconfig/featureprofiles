@@ -100,7 +100,7 @@ to OpenConfig.  ref: https://github.com/openconfig/public/pull/1343
 
 In the current state of the proposed BMP model, the configuration would look
 like:
-```
+```json
 {
   "network-instances": {
     "network-instance": {
