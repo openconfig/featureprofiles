@@ -1644,3 +1644,8 @@ func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
+
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
+}

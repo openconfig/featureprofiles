@@ -85,6 +85,7 @@ const (
 	gribiIPv4EntryVRF111 = "203.0.113.1"
 	ipv4OuterSrc222Addr  = "198.51.100.222"
 	gribiIPv4EntryVRF222 = "203.0.113.100"
+	magicMAC             = "02:00:00:00:00:01"
 )
 
 type aggPortData struct {
@@ -318,6 +319,8 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 		// Ensure LAG2 is UP when all member are Forwarding unviable
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+		// Wait 30 seconds to allow the node to receive the OTG packet.
+		time.Sleep(30 * time.Second)
 		startTraffic(t, dut, ate, top)
 		if len(dut.Ports()) > 4 {
 			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
@@ -439,6 +442,8 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		}
 		// Ensure LAG2 is UP when all member are Forwarding unviable
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+		// Wait 30 seconds to allow the node to receive the OTG packet.
+		time.Sleep(30 * time.Second)
 		startTraffic(t, dut, ate, top)
 		if len(dut.Ports()) > 4 {
 			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
@@ -499,9 +504,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
 		trafficDistributionWeights = []uint64{50, 50}
-		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
-			trafficDistributionWeights = []uint64{33, 67}
-		}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -1108,16 +1110,29 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	)
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
-	tcArgs.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
+	if deviations.IndirectNhWithIPAddressUnsupported(dut) {
+		tcArgs.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+				WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(LAG3),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+				WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
 
-		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-			WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
-			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
-	)
+			fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+				WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
+		)
+	} else {
+		tcArgs.client.Modify().AddEntry(t,
+			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+				WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
+			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+				WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
+
+			fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+				WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
+				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
+		)
+	}
 
 	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 5*time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1174,9 +1189,13 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
+				t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+				t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 				return false
 			}
 		} else if got := (lostPkt * 100 / txPkts); got > 0 {
+			t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+			t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 			return false
 		}
 	} else {
@@ -1186,6 +1205,8 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			lostPkt := txPkts - rxPkts
 
 			if got := (lostPkt * 100 / txPkts); got > 0 {
+				t.Logf("%s loss packet count is: %v", flow.Name(), lostPkt)
+				t.Logf("%s stream loss packet percent is: %v%%", flow.Name(), got)
 				return false
 			}
 		}
@@ -1194,20 +1215,30 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 }
 
 // awaitAdjacency wait for adjacency to be up/down
-func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, states []oc.E_Isis_IsisInterfaceAdjState) bool {
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	intf := isisPath.Interface(intfName)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		v, ok := val.Val()
-		for _, s := range state {
-			if (v == s) && ok {
-				return true
+	for i := 1; i <= 5; i++ {
+		_, ok := gnmi.WatchAll(t, dut, query, 30*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			v, present := val.Val()
+			if !present {
+				return false
 			}
+			t.Logf("Observed adjacency state: %v", v)
+			for _, s := range states {
+				if v == s {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+
+		if ok {
+			return true
 		}
-		return false
-	}).Await(t)
-	return ok
+	}
+	return false
 }
 
 // checkBidirectionalTraffic verify the bidirectional traffic on DUT ports.
