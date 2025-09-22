@@ -29,14 +29,24 @@ type ISISGlobalParams struct {
 	DUTSysID            string
 	NetworkInstanceName string
 	ISISInterfaceNames  []string
+	NetworkInstanceType *oc.E_NetworkInstanceTypes_NETWORK_INSTANCE_TYPE
 }
 
 // NewISIS configures the DUT with ISIS protocol.
-func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams) *oc.Root {
+func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b *gnmi.SetBatch) *oc.Root {
 	t.Helper()
 	rootPath := &oc.Root{}
 	// Create network instance "Default"
-	networkInstance, _ := rootPath.NewNetworkInstance(ISISData.NetworkInstanceName)
+	networkInstance, err := rootPath.NewNetworkInstance(ISISData.NetworkInstanceName)
+	if err != nil {
+		t.Errorf("Error creating NewNetworkInstance for %s", ISISData.NetworkInstanceName)
+	}
+	if ISISData.NetworkInstanceType != nil {
+		networkInstance.Type = *ISISData.NetworkInstanceType
+	} else {
+	networkInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+	}
+	
 	protocol := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISData.NetworkInstanceName)
 	protocol.Enabled = ygot.Bool(true)
 	isis := protocol.GetOrCreateIsis()
@@ -93,6 +103,8 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams) *
 			isisInterface.SetPassive(true)
 		}
 	}
+
+	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(ISISData.NetworkInstanceName).Config(), rootPath.GetNetworkInstance(ISISData.NetworkInstanceName))
 	return rootPath
 }
 
