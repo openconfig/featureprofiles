@@ -29,14 +29,13 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ethernetCsmacd        = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag         = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	mplsLabelCount        = 2000
 	intCount              = 2000
 	dutIntStartIP         = "169.254.0.1"
 	otgIntStartIP         = "169.254.0.2"
-	dutIntStartIpV6       = "2000:0:0:1::1"
-	otgIntStartIpV6       = "2000:0:0:1::2"
+	dutIntStartIPV6       = "2000:0:0:1::1"
+	otgIntStartIPV6       = "2000:0:0:1::2"
 	intStepV4             = "0.0.0.4"
 	intStepV6             = "0:0:0:1::"
 	mplsLabelStep         = 200
@@ -186,12 +185,12 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 
 	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
 
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIpV6, intCount, intStepV6)
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPV6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIpV6, intCount, intStepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPV6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}
@@ -223,6 +222,7 @@ func configureOTG(t *testing.T) {
 
 // PF-1.13.1: Generate DUT Configuration
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 
 	var interfaces []*attrs.Attributes
@@ -346,36 +346,21 @@ func decapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("Verify IPV4/IPV6 traffic scale")
-	createflow(t, top, flowOuterIPv4, flowInnerIPv4, true)
+	createflow(top, flowOuterIPv4, flowInnerIPv4, true)
 	sendTraffic(t, ate)
 	var err error
-	start := time.Now()
-	for {
-		err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate)
-		if err == nil || time.Since(start) > 1*time.Minute {
-			break
-		}
-		time.Sleep(20 * time.Second)
-	}
 
-	if err != nil {
+	if err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 
 	if err = lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
 		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
 	}
-	createflow(t, top, flowOuterIPv6, flowInnerIPv6, true)
+	createflow(top, flowOuterIPv6, flowInnerIPv6, true)
 	sendTraffic(t, ate)
-	start = time.Now()
-	for {
-		err := flowOuterIPv6Validation.ValidateLossOnFlows(t, ate)
-		if err == nil || time.Since(start) > 1*time.Minute {
-			break
-		}
-		time.Sleep(20 * time.Second)
-	}
-	if err != nil {
+
+	if err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 }
@@ -384,38 +369,20 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("Verify MPLSoGRE DSCP/TTL preserve operation")
 	packetvalidationhelpers.ClearCapture(t, top, ate)
-	updateFlow(t, flowOuterIPv4, flowInnerIPv4, true, 100, 1000)
+	updateFlow(flowOuterIPv4, flowInnerIPv4, true, 100, 1000)
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv4)
 	sendTrafficCapture(t, ate)
 	var err error
-	start := time.Now()
-	for {
-		err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate)
-		if err == nil || time.Since(start) > 1*time.Minute {
-			break
-		}
-		time.Sleep(20 * time.Second)
-	}
-
-	if err != nil {
+	if err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
 		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
-	updateFlow(t, flowOuterIPv6, flowInnerIPv6, true, 100, 1000)
+	updateFlow(flowOuterIPv6, flowInnerIPv6, true, 100, 1000)
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv6)
 	sendTrafficCapture(t, ate)
-	start = time.Now()
-	for {
-		err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate)
-		if err == nil || time.Since(start) > 1*time.Minute {
-			break
-		}
-		time.Sleep(20 * time.Second)
-	}
-
-	if err != nil {
+	if err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
 		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
 	}
 
@@ -425,18 +392,24 @@ func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
 }
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
 }
 
 func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(20 * time.Second)
@@ -444,7 +417,7 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
-func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {
+func createflow(top gosnappi.Config, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
 	}
@@ -471,7 +444,7 @@ func createflow(t *testing.T, top gosnappi.Config, paramsOuter *otgconfighelpers
 	}
 }
 
-func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool, pps uint64, totalPackets uint32) {
+func updateFlow(paramsOuter *otgconfighelpers.Flow, paramsInner *otgconfighelpers.Flow, clearFlows bool, pps uint64, totalPackets uint32) {
 	paramsOuter.PacketsToSend = totalPackets
 	paramsOuter.PpsRate = pps
 	paramsOuter.Flowrate = 0
@@ -485,13 +458,13 @@ func updateFlow(t *testing.T, paramsOuter *otgconfighelpers.Flow, paramsInner *o
 		paramsOuter.IPv4Flow.IPv4Src = "100.64.0.1"
 		paramsOuter.IPv4Flow.IPv4Dst = "11.1.1.1"
 	}
-	createflow(t, top, paramsOuter, paramsInner, clearFlows)
+	createflow(top, paramsOuter, paramsInner, clearFlows)
 }
 
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
-	dutAggPorts := []*ondatra.Port{}
+	var dutAggPorts []*ondatra.Port
 	for _, port := range dutPorts {
 		dutAggPorts = append(dutAggPorts, dut.Port(t, port))
 	}

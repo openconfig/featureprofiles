@@ -56,6 +56,8 @@ func intToIP(n uint32) net.IP {
 	)
 }
 
+// GenerateIPsWithStep creates a list of IPv4 addresses.
+// Returns a slice of IPv4 address strings or an error if inputs are invalid.
 func GenerateIPsWithStep(startIP string, count int, stepIP string) ([]string, error) {
 	ip := net.ParseIP(startIP).To4()
 	if ip == nil {
@@ -95,6 +97,8 @@ func bigIntToIP(ipInt *big.Int) net.IP {
 	return net.IP(ipBytes)
 }
 
+// GenerateIPv6sWithStep creates a list of IPv6 addresses.
+// Returns a slice of IPv6 address strings or an error if inputs are invalid.
 func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, error) {
 	ip := net.ParseIP(startIP).To16()
 	if ip == nil || ip.To4() != nil {
@@ -136,6 +140,8 @@ func macToInt(mac net.HardwareAddr) int {
 	return result
 }
 
+// GenerateMACs returns a slice of MAC address strings.
+// Returns generated MAC addresses or an empty slice on parse errors.
 func GenerateMACs(mac string, count int, stepMACStr string) []string {
 	baseMAC, _ := net.ParseMAC(mac)
 	stepMAC, _ := net.ParseMAC(stepMACStr)
