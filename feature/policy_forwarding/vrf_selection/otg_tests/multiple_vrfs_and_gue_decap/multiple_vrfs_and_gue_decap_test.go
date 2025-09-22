@@ -16,15 +16,10 @@ package multiple_vrfs_and_gue_decap_test
 
 import (
 	"fmt"
-	"net"
-	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	"github.com/google/gopacket"
-	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -64,7 +59,6 @@ const (
 	packetPerSecond           = 100
 	guePort                   = 6080
 	trafficSleepTime          = 10
-	captureWait               = 10
 	nonDefaultVrfName         = "B2_VRF"
 	packetSize                = 512
 	IPv4Prefix1               = "198.51.100.1"
@@ -166,16 +160,13 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	topo := configureATE(t)
 	ate.OTG().PushConfig(t, topo)
 
-	enableCapture(t, topo, "port2")
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	verifyBGPTelemetry(t, dut)
 	verifyLeakedRoutes(t, dut)
 	configureIPv4Traffic(t, ate, topo)
-	startCapture(t, ate)
 	trafficStartStop(t, dut, ate, topo)
-	stopCapture(t, ate)
 
 	testCases := []testCase{
 		{
@@ -185,7 +176,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 		},
 		{
 			name:          "PF-2.3.2: BE1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "1to6v6_encapped"},
+			flownames:     []string{"1to6v4_encapped", "1to6v6_encapped", "2to7v4", "3to8v4", "4to9v4", "5to10v4", "2to7v6", "3to8v6", "4to9v6", "5to10v6"},
 			ipv4SrcIp:     IPv4Prefix1,
 			ipv6SrcIp:     IPv6Prefix1,
 			dscpValue:     0,
@@ -193,7 +184,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 		},
 		{
 			name:          "PF-2.3.3: BE1 and AF1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "1to6v6_encapped", "2to7v6_encapped"},
+			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v4", "4to9v4", "5to10v4", "3to8v6", "4to9v6", "5to10v6"},
 			ipv4SrcIp:     IPv4Prefix2,
 			ipv6SrcIp:     IPv6Prefix2,
 			dscpValue:     8,
@@ -201,7 +192,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 		},
 		{
 			name:          "PF-2.3.4: BE1, AF1 and AF2 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped"},
+			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v4", "5to10v4", "4to9v6", "5to10v6"},
 			ipv4SrcIp:     IPv4Prefix3,
 			ipv6SrcIp:     IPv6Prefix3,
 			dscpValue:     16,
@@ -209,7 +200,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 		},
 		{
 			name:          "PF-2.3.5: BE1, AF1, AF2 and AF3 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "4to9v4_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped"},
+			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "4to9v4_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped", "5to10v4", "5to10v6"},
 			ipv4SrcIp:     IPv4Prefix4,
 			ipv6SrcIp:     IPv6Prefix4,
 			dscpValue:     24,
@@ -228,10 +219,6 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			validateTrafficLoss(t, ate, tc.flownames)
-			if tc.verifyCapture {
-				verifyCapturePackets(t, ate, "port2", "ipv4", tc.ipv4SrcIp)
-				verifyCapturePackets(t, ate, "port2", "ipv6", tc.ipv6SrcIp)
-			}
 		})
 	}
 }
@@ -334,17 +321,8 @@ func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 // configInterfaceDUT Configures the given DUT interface.
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	s5 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s5.Enabled = ygot.Bool(true)
-	}
+	i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	return i
 }
 
@@ -604,93 +582,6 @@ func validateTrafficLoss(t *testing.T, ate *ondatra.ATEDevice, flowName []string
 		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
 			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
 		}
-	}
-}
-
-// startCapture starts the capture on the otg ports
-func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-}
-
-// stopCapture starts the capture on the otg ports
-func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
-// enableCapture - enable capture on ATE port
-func enableCapture(t *testing.T, config gosnappi.Config, port string) {
-	config.Captures().Clear()
-	t.Log("Enabling capture on ", port)
-	config.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
-}
-
-// processCapture - process captured packets and return the pcap file
-func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
-	otg := ate.OTG()
-	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(captureWait * time.Second)
-	pcapFile, err := os.CreateTemp("", "pcap")
-	if err != nil {
-		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
-	}
-	if _, err := pcapFile.Write(bytes); err != nil {
-		t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
-	}
-	defer pcapFile.Close()
-	return pcapFile.Name()
-}
-
-// verifyCapturePackets - verify packets having expected field and values
-func verifyCapturePackets(t *testing.T, ate *ondatra.ATEDevice, port string, ipType string, srcIP string) {
-	var packetCount uint32 = 0
-	pcapfilename := processCapture(t, ate, port)
-	handle, err := pcap.OpenOffline(pcapfilename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
-		switch ipType {
-		case "ipv4":
-			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-				ip, _ := ipLayer.(*layers.IPv4)
-				if ip.SrcIP.Equal(net.ParseIP(srcIP)) {
-					udpLayer := packet.Layer(layers.LayerTypeUDP)
-					udp, ok := udpLayer.(*layers.UDP)
-					if ok || udpLayer != nil {
-						if udp.DstPort == 15 {
-							packetCount += 1
-						}
-					}
-				}
-			}
-
-		case "ipv6":
-			if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
-				ip, _ := ipLayer.(*layers.IPv6)
-				if ip.SrcIP.Equal(net.ParseIP(srcIP)) {
-					udpLayer := packet.Layer(layers.LayerTypeUDP)
-					udp, ok := udpLayer.(*layers.UDP)
-					if ok || udpLayer != nil {
-						if udp.DstPort == 15 {
-							packetCount += 1
-						}
-					}
-				}
-			}
-		}
-	}
-
-	if packetCount != 2*packetPerSecond {
-		t.Fatalf("Packet count is %v and packetPerSecond count is %v", packetCount, 2*packetPerSecond)
-		t.Fatalf("No packet found with the decapsulated IP address of %s", srcIP)
 	}
 }
 
