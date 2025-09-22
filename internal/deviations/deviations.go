@@ -1640,6 +1640,11 @@ func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosTwoRateThreeColorPolicerOcUnsupported()
 }
 
+// LoadBalancePolicyOCUnsupported returns true if load-balancing policy configuration is not supported through OpenConfig.
+func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
+}
+
 func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
 }

@@ -158,6 +158,22 @@ type BGPSession struct {
 	networkInstance string
 }
 
+// BGPConfig holds all parameters needed to configure BGP on the DUT.
+type BGPConfig struct {
+	DutAS       uint32
+	ECMPMaxPath uint32
+	RouterID    string
+}
+
+// BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
+type BGPNeighborConfig struct {
+	AteAS        uint32
+	PortName     string
+	NeighborIPv4 string
+	NeighborIPv6 string
+	IsLag        bool
+}
+
 // NewBGPSession creates a new BGPSession using the default global config, and
 // configures the interfaces on the dut and the ate based in given topology port count.
 // Only supports 2 and 4 port DUT-ATE topology
@@ -623,6 +639,104 @@ func ConfigureBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIn
 	nAfiSafi.Enabled = ygot.Bool(true)
 	nAfiSafi.GetOrCreateAddPaths().Receive = ygot.Bool(sendReceivePaths)
 	nAfiSafi.GetOrCreateAddPaths().Send = ygot.Bool(sendReceivePaths)
+}
+
+// ConfigureDUTBGP configures BGP on the DUT using OpenConfig.
+func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg BGPConfig) *oc.NetworkInstance_Protocol {
+	t.Helper()
+	d := gnmi.OC()
+
+	dutBgpConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	// Create BGP config
+	dutBgpConf := &oc.NetworkInstance_Protocol{Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, Name: ygot.String("BGP"), Bgp: &oc.NetworkInstance_Protocol_Bgp{}}
+	bgp := dutBgpConf.Bgp
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(cfg.DutAS)
+	global.RouterId = ygot.String(cfg.RouterID)
+
+	af4 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	af4.Enabled = ygot.Bool(true)
+	af6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	af6.Enabled = ygot.Bool(true)
+
+	// Handle multipath deviation
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		t.Log("Executing CLI commands for multipath deviation")
+		bgpRouteConfig := fmt.Sprintf(`		
+		router bgp %d
+		address-family ipv4
+		maximum-paths %[2]d ecmp %[2]d
+		bgp bestpath as-path multipath-relax
+		address-family ipv6
+		maximum-paths %[2]d ecmp %[2]d
+		bgp bestpath as-path multipath-relax
+		`, cfg.DutAS, cfg.ECMPMaxPath)
+		helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
+	} else {
+		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
+		// remove CLI fallback and rely solely on OC configuration.
+		af4.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		af4.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+		af6.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		af6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
+		af4.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+		af6.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+	}
+	gnmi.BatchUpdate(batch, dutBgpConfPath.Config(), dutBgpConf)
+	return dutBgpConf
+}
+
+// AppendBGPNeighbor configures BGP peer-groups and neighbors into a batch.
+func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, bgp *oc.NetworkInstance_Protocol_Bgp, cfg BGPNeighborConfig) *oc.NetworkInstance_Protocol_Bgp {
+	t.Helper()
+	// === Peer Group for IPv4 ===
+	pgv4Name := cfg.PortName + "BGP-PEER-GROUP-V4"
+	pgv4 := bgp.GetOrCreatePeerGroup(pgv4Name)
+	pgv4.PeerAs = ygot.Uint32(cfg.AteAS)
+	pgv4.PeerGroupName = ygot.String(pgv4Name)
+	pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	pgafv4.Enabled = ygot.Bool(true)
+	rpl4 := pgafv4.GetOrCreateApplyPolicy()
+	rpl4.ImportPolicy = []string{"ALLOW"}
+	rpl4.ExportPolicy = []string{"ALLOW"}
+
+	// === Peer Group for IPv6 ===
+	pgv6Name := cfg.PortName + "BGP-PEER-GROUP-V6"
+	pgv6 := bgp.GetOrCreatePeerGroup(pgv6Name)
+	pgv6.PeerAs = ygot.Uint32(cfg.AteAS)
+	pgv6.PeerGroupName = ygot.String(pgv6Name)
+	pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	pgafv6.Enabled = ygot.Bool(true)
+	rpl6 := pgafv6.GetOrCreateApplyPolicy()
+	rpl6.ImportPolicy = []string{"ALLOW"}
+	rpl6.ExportPolicy = []string{"ALLOW"}
+
+	// === IPv4 Neighbor ===
+	nv4 := bgp.GetOrCreateNeighbor(cfg.NeighborIPv4)
+	nv4.PeerAs = ygot.Uint32(cfg.AteAS)
+	nv4.Enabled = ygot.Bool(true)
+	nv4.PeerGroup = ygot.String(pgv4Name)
+	afisafi4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afisafi4.Enabled = ygot.Bool(true)
+	nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+
+	// === IPv6 Neighbor ===
+	nv6 := bgp.GetOrCreateNeighbor(cfg.NeighborIPv6)
+	nv6.PeerAs = ygot.Uint32(cfg.AteAS)
+	nv6.Enabled = ygot.Bool(true)
+	nv6.PeerGroup = ygot.String(pgv6Name)
+	afisafi6 := nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	afisafi6.Enabled = ygot.Bool(true)
+	nv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+
+	// Enable multihop on LAG neighbors
+	if cfg.IsLag {
+		nv4.GetOrCreateEbgpMultihop().SetMultihopTtl(5)
+		nv6.GetOrCreateEbgpMultihop().SetMultihopTtl(5)
+	}
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config(), bgp)
+
+	return bgp
 }
 
 // This function configures extended route retention on the DUT for the
