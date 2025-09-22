@@ -898,8 +898,6 @@ tests:
     mustpass: false
     timeout: 1800
     priority: 65
-    pr: 1710
-    internal: true
     owners:
       - harikri4
   - name: Credentialz-1 (Password console login)
