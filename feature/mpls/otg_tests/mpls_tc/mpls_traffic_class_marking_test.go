@@ -39,13 +39,13 @@ const (
 
 var (
 	dutAP1 = attrs.Attributes{
-		Desc:    "DUT-A to DUT-B",
+		Desc:    "DUT-1 to DUT-2",
 		IPv4:    "192.168.1.1",
 		IPv4Len: plenIPv4,
 	}
 
 	dutBP2 = attrs.Attributes{
-		Desc:    "DUT-B to DUT-A",
+		Desc:    "DUT-2 to DUT-1",
 		IPv4:    "192.168.1.2",
 		IPv4Len: plenIPv4,
 	}
@@ -73,12 +73,12 @@ func TestMain(m *testing.M) {
 //
 // Topology:
 //
-//	DUT-A <---> DUT-B
+//	DUT-1 <---> DUT-2
 //
 // Test steps:
 //  1. Configure interfaces, ISIS, MPLS, and LDP on both DUTs
 //  2. Verify LDP session establishment
-//  3. Configure QoS classifier on DUT-A for MPLS TC marking
+//  3. Configure QoS classifier on DUT-1 for MPLS TC marking
 //  4. Verify QoS configuration state
 func TestMplsTcMarking(t *testing.T) {
 	dutA := ondatra.DUT(t, "dut1")
@@ -90,72 +90,67 @@ func TestMplsTcMarking(t *testing.T) {
 	// Verify LDP session is established.
 	verifyLDP(t, dutA, dutBLo50.IPv4)
 
-	t.Run("MPLS-1.2: Configure and verify MPLS TC marking classifier", func(t *testing.T) {
-		// Configure QoS on DUT-A.
+	t.Run("Configure and verify MPLS TC marking classifier", func(t *testing.T) {
+		// Configure QoS on DUT-1.
 		configureQoS(t, dutA)
 
-		// Verify QoS configuration state on DUT-A.
+		// Verify QoS configuration state on DUT-1.
 		verifyQoS(t, dutA)
 	})
 }
 
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutAreaAddress, dutSysID string) {
-	d := &oc.Root{}
-	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	prot.Enabled = ygot.Bool(true)
-	isis := prot.GetOrCreateIsis()
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, isisInterfaceNames []string, dutAreaAddress, dutSysID string) {
+	root := &oc.Root{}
+	netInstance := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	isisProtocol := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
+	isisProtocol.SetEnabled(true)
+	isis := isisProtocol.GetOrCreateIsis()
 	globalISIS := isis.GetOrCreateGlobal()
 	if deviations.ISISInstanceEnabledRequired(dut) {
-		globalISIS.Instance = ygot.String(isisInstance)
+		globalISIS.SetInstance(isisInstance)
 	}
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 	if deviations.ISISLevelEnabled(dut) {
-		isisLevel2.Enabled = ygot.Bool(true)
+		isisLevel2.SetEnabled(true)
 	}
 
-	for _, intf := range intfName {
+	for _, intf := range isisInterfaceNames {
 		isisIntf := isis.GetOrCreateInterface(intf)
-		isisIntf.Enabled = ygot.Bool(true)
-		// only set passive isis for loopback interfaces for /32 propagation
+		isisIntf.SetEnabled(true)
 		if strings.Contains(strings.ToLower(intf), "loopback") {
 			isisIntf.SetPassive(true)
 		}
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		// Configure ISIS level at global mode if true else at interface mode
 		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-			isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+			isisIntf.GetOrCreateLevel(1).SetEnabled(true)
 		} else {
-			isisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+			isisIntf.GetOrCreateLevel(2).SetEnabled(true)
 		}
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
-		isisIntfLevel.Enabled = ygot.Bool(true)
+		isisIntfLevel.SetEnabled(true)
 		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(isisMetricValue)
-		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		isisIntfLevelAfi.SetMetric(isisMetricValue)
+		isisIntfLevelAfi.SetEnabled(true)
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
 		}
 	}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProtocol)
 }
 
-// configureDUT is a helper to configure interfaces, ISIS, MPLS, and LDP on a single DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, dutAttr, loopbackAttr *attrs.Attributes, dutAreaAddress string, dutSysID string) {
 	t.Helper()
 	d := gnmi.OC()
 	niName := deviations.DefaultNetworkInstance(dut)
-	niOC := &oc.Root{}
-	ni := niOC.GetOrCreateNetworkInstance(niName)
+	root := &oc.Root{}
+	networkInstance := root.GetOrCreateNetworkInstance(niName)
 
-	// Configure default network instance.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	// Configure physical and loopback interfaces.
 	dutPortCfg := dutAttr.NewOCInterface(dutPort.Name(), dut)
 	gnmi.Replace(t, dut, d.Interface(dutPort.Name()).Config(), dutPortCfg)
 
@@ -172,12 +167,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d
 		fptest.AssignToNetworkInstance(t, dut, lo50Name, niName, 0)
 	}
 
-	// Configure ISIS.
 	isisIntfList := []string{lo50Name, dutPort.Name()}
 	configureISIS(t, dut, isisIntfList, dutAreaAddress, dutSysID)
 
-	// Configure MPLS and LDP.
-	mpls := ni.GetOrCreateMpls()
+	mpls := networkInstance.GetOrCreateMpls()
 	ldp := mpls.GetOrCreateSignalingProtocols().GetOrCreateLdp()
 	ldpg := ldp.GetOrCreateGlobal()
 	ldpg.LsrId = ygot.String(dutALo50.IPv4)
@@ -185,7 +178,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d
 	ldpif := ldp.GetOrCreateInterfaceAttributes().GetOrCreateInterface(dutPort.Name())
 	ldpif.GetOrCreateAddressFamily(oc.MplsLdp_MplsLdpAfi_IPV4).SetEnabled(true)
 
-	gnmi.Update(t, dut, d.NetworkInstance(niName).Config(), ni)
+	gnmi.Update(t, dut, d.NetworkInstance(niName).Config(), networkInstance)
 }
 
 // configureInitialDUTs configures both DUTs.
@@ -223,7 +216,7 @@ func verifyLDP(t *testing.T, dut *ondatra.DUTDevice, peerIP string) {
 	t.Logf("LDP session to peer %s on DUT %s is OPERATIONAL", peerIP, dut.Name())
 }
 
-// configureQoS configures a QoS classifier on DUT-A to match MPLS packets and mark their TC.
+// configureQoS configures a QoS classifier on DUT-1 to match MPLS packets and mark their TC.
 func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dutPort1 := dut.Port(t, "port1").Name()
