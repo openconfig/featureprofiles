@@ -1644,3 +1644,8 @@ func QosTwoRateThreeColorPolicerOCUnsupported(dut *ondatra.DUTDevice) bool {
 func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
