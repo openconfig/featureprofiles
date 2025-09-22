@@ -46,7 +46,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	} else {
 		networkInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 	}
-	
+
 	protocol := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISData.NetworkInstanceName)
 	protocol.Enabled = ygot.Bool(true)
 	isis := protocol.GetOrCreateIsis()
