@@ -30,16 +30,24 @@ B --BMP--> C[Port2:ATE];
 
 3) Interface Configuration: Configure IPv4 and IPV6 addresses on all involved interfaces on both the ATE and the DUT.
 
-4) Establish eBGP Session: Configure and establish an external BGP (eBGP) peering session between the IP addresses of ATE Port 1 and DUT Port 1. Configure AS 64520 on the DUT and ATE port2 i.e. BMP station, configure AS 64530 on the ATE port1.
+4) Establish BMP Session: Configure and establish BMP session between the DUT and ATE port2 i.e. BMP station.
+
 5) Establish eBGP session between ATE port-1 (AS 64530) and DUT port-1 (AS 64520)
+
 6) Configure BMP on the DUT with the following parameters:
 
     • statistics-timeout: 60 seconds
+   
     • connection-mode: active
+   
     • local-address: 172.16.1.1
+   
     • station-address: 10.23.15.58
+   
     • station-port: 7039
+   
     • route-monitoring: pre-policy
+   
     • exclude-noneligible: true
 
 8) Advertise 15mil * IPV4 routes and 5mil * IPV6 routes
