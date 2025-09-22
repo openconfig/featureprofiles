@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -66,6 +65,7 @@ const (
 	dutAreaAddress   = "49.0001"
 	dutSysID         = "1920.0000.2001"
 	isisMetric       = 10
+	isisInstance     = "DEFAULT"
 )
 
 var (
@@ -179,95 +179,29 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-func addISISOC(areaAddress, sysID, ifaceName1, ifaceName2 string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
-	dev := &oc.Root{}
-	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := inst.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
-	prot.SetEnabled(true)
-	isis := prot.GetOrCreateIsis()
-	glob := isis.GetOrCreateGlobal()
-	if deviations.ISISInstanceEnabledRequired(dut) {
-		glob.SetInstance("DEFAULT")
-	}
-	glob.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	level := isis.GetOrCreateLevel(2)
-	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	// Configure ISIS enabled flag at level
-	if deviations.ISISLevelEnabled(dut) {
-		level.SetEnabled(true)
-	}
-	intf := isis.GetOrCreateInterface(ifaceName1)
-	intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf.SetEnabled(true)
-	// Configure ISIS level at global mode if true else at interface mode
-	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf.GetOrCreateLevel(1).SetEnabled(false)
-	} else {
-		intf.GetOrCreateLevel(2).SetEnabled(true)
-	}
-	glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	// Configure ISIS enable flag at interface level
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	if deviations.ISISInterfaceAfiUnsupported(dut) {
-		intf.Af = nil
-	}
-
-	intf2 := isis.GetOrCreateInterface(ifaceName2)
-	intf2.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-	intf2.SetEnabled(true)
-	// Configure ISIS level at global mode if true else at interface mode
-	if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-		intf2.GetOrCreateLevel(1).SetEnabled(false)
-	} else {
-		intf2.GetOrCreateLevel(2).SetEnabled(true)
-	}
-	glob.LevelCapability = oc.Isis_LevelType_LEVEL_1_2
-	// Configure ISIS enable flag at interface level
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	intf2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
-	if deviations.ISISInterfaceAfiUnsupported(dut) {
-		intf2.Af = nil
-	}
-
-	return prot
-}
-
 // configureDUTMPLSAndRouting configures MPLS, SRGB, and static routes on the DUT.
 func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	niName := deviations.DefaultNetworkInstance(dut)
-	dc := gnmi.OC()
+	batch := &gnmi.SetBatch{}
 
-	root := &oc.Root{}
-	ni := root.GetOrCreateNetworkInstance(niName)
+	// ISIS Configuration
 
-	dutConfPath := dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "DEFAULT")
-	dutConf := addISISOC(dutAreaAddress, dutSysID, dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name(), dut)
-	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-
-	if deviations.IsisSrgbSrlbUnsupported(dut) {
-		configureGlobalMPLS(t, dut)
-	} else {
-		mpls := ni.GetOrCreateMpls()
-		mplsGlobal := mpls.GetOrCreateGlobal()
-
-		rlb := mplsGlobal.GetOrCreateReservedLabelBlock(srgbName)
-
-		rlb.SetLowerBound(oc.UnionUint32(srgbStartLabel))
-		rlb.SetUpperBound(oc.UnionUint32(srgbEndLabel))
-
-		sr := ni.GetOrCreateSegmentRouting()
-		srgbConfig := sr.GetOrCreateSrgb(srgbName)
-		srgbConfig.SetMplsLabelBlocks([]string{srgbName})
-		srgbConfig.SetLocalId(srgbID)
-
-		t.Logf("Pushing DUT MPLS & SRGB configurations...")
-		gnmi.Update(t, dut, dc.NetworkInstance(niName).Mpls().Config(), mpls)
-		gnmi.Update(t, dut, dc.NetworkInstance(niName).SegmentRouting().Config(), sr)
+	cfgISIS := cfgplugins.ISISConfigBasic{
+		InstanceName: isisInstance,
+		AreaAddress:  dutAreaAddress,
+		SystemID:     dutSysID,
+		Ports:        []*ondatra.Port{dut.Port(t, "port1"), dut.Port(t, "port2")},
 	}
+	cfgplugins.NewISISBasic(t, batch, dut, cfgISIS)
+
+	mplsCfg := cfgplugins.MPLSConfigBasic{
+		InstanceName:   isisInstance,
+		SrgbName:       srgbName,
+		SrgbStartLabel: srgbStartLabel,
+		SrgbEndLabel:   srgbEndLabel,
+		SrgbID:         srgbID,
+	}
+	cfgplugins.NewMPLSBasic(t, batch, dut, mplsCfg)
 
 	// IPv4 static route to ATE Port2
 	mustConfigStaticRoute(t, dut, ateTrafficDstIPv4Net, atePort2.IPv4)
@@ -275,11 +209,6 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	// IPv6 static route to ATE Port2
 	mustConfigStaticRoute(t, dut, ateTrafficDstIPv6Net, atePort2.IPv6)
 
-}
-
-func configureGlobalMPLS(t *testing.T, dut *ondatra.DUTDevice) {
-	cliConfig := fmt.Sprintf("mpls ip\nmpls label range isis-sr %v %v", srgbStartLabel, srgbEndLabel)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
 // Congigure Static Routes on DUT
