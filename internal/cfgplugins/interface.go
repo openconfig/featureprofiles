@@ -845,8 +845,8 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 // 3. Adds member Ports configuration to an aggregate interface
 // 4. Subinterface configuration including thier IP address and VLAN ID
 // Note that you will still need to push the batch config to the DUT in your code.
-func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTAggData, aggID string) *oc.Interface {
-	l.LagName = aggID
+func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTAggData) *oc.Interface {
+	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	if deviations.IPv4MissingEnabled(dut) {
