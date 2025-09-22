@@ -7,6 +7,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -219,7 +220,18 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	}
 }
 
-func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthopGroupName string, groupType string, srcAddr []string, dstAddr string, ttl uint8) {
+// GreNextHopGroupParams holds parameters for generating the OC GRE Next Hop Group config.
+type GreNextHopGroupParams struct {
+	NetworkInstance  *oc.NetworkInstance
+	NexthopGroupName string
+	GroupType        string
+	SrcAddr          []string
+	DstAddr          []string
+	TTL              uint8
+	Dscp             uint8
+}
+
+func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params GreNextHopGroupParams) {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		cli := ""
 		tunnelConfig := ""
@@ -227,40 +239,64 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, dut *ondatra.DUTDevice, ni *o
 
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if len(srcAddr) != 0 && dstAddr != "" {
-				for entryNum, addr := range srcAddr {
-					tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
-						entryNum, dstAddr, addr)
+			if len(params.SrcAddr) != 0 && len(params.DstAddr) != 0 {
+				srcLen := len(params.SrcAddr)
+				dstLen := len(params.DstAddr)
+
+				switch {
+				case srcLen == dstLen:
+					for entryNum := 0; entryNum < srcLen; entryNum++ {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum], params.SrcAddr[entryNum])
+					}
+
+				case srcLen > dstLen:
+					for entryNum, addr := range params.SrcAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, params.DstAddr[entryNum%dstLen], addr)
+					}
+
+				case dstLen > srcLen:
+					for entryNum, addr := range params.DstAddr {
+						tunnelConfig += fmt.Sprintf("entry %d tunnel-destination %s tunnel-source %s \n",
+							entryNum, addr, params.SrcAddr[entryNum%srcLen])
+					}
 				}
 			}
-			if ttl != 0 {
-				ttlConfig = fmt.Sprintf(`ttl %v`, ttl)
+			if params.TTL != 0 {
+				ttlConfig = fmt.Sprintf(`ttl %v`, params.TTL)
 			}
 
 			cli = fmt.Sprintf(`
 				nexthop-group %s type %s
 				%s
 				%s
-				`, nexthopGroupName, groupType, tunnelConfig, ttlConfig)
+				`, params.NexthopGroupName, params.GroupType, tunnelConfig, ttlConfig)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
 	} else {
 		t.Helper()
-		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(nexthopGroupName)
-		nhg.GetOrCreateNextHop(nexthopGroupName).SetIndex(nexthopGroupName)
+		nhg := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGroupName)
+		nhg.GetOrCreateNextHop(params.NexthopGroupName).SetIndex(params.NexthopGroupName)
 
 		// Set the encap header for each next-hop
-		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop(nexthopGroupName).GetOrCreateEncapHeader(1)
-		ueh1.GetOrCreateUdpV4().SetDstIp(dstAddr)
+		ueh1 := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHop(params.NexthopGroupName).GetOrCreateEncapHeader(1)
+		for _, addr := range params.DstAddr {
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
+		}
 
-		for _, addr := range srcAddr {
+		for _, addr := range params.SrcAddr {
 			ueh1.GetOrCreateUdpV4().SetSrcIp(addr)
 		}
 
-		if ttl != 0 {
-			ueh1.GetOrCreateUdpV4().SetIpTtl(ttl)
+		if params.TTL != 0 {
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
+		}
+
+		if params.Dscp != 0 {
+			ueh1.GetOrCreateUdpV4().SetDscp(params.Dscp)
 		}
 	}
 }
