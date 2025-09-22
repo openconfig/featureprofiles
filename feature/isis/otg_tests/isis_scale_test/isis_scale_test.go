@@ -230,7 +230,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 			}
 		}
 	}
-	// Wait for LAG interfaces to be AdminStatus UP
+	// Wait for LAG interfaces to AdminStatus to be UP
 	for _, l := range dutData.lags {
 		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
 	}
