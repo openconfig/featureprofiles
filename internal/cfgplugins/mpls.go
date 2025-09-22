@@ -244,10 +244,35 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
-// MPLSStaticLSPScaleConfig configures static MPLS LSP entries on the DUT.
-// It programs either CLI-based configurations for vendors that do not support
-// OpenConfig static MPLS, or uses OpenConfig models where supported.
-// The configuration scales across IPv4 and IPv6 next hops and labels.
+func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
+	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s access-list bypass
+					`, incomingLabel, nextHopIP, protocolType)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	} else {
+		d := &oc.Root{}
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+	}
+}
+
+// MPLSStaticLSPScaleConfig configures static MPLS LSP entries on the DUT.It programs either CLI-based configurations for vendors that do not support
+// OpenConfig static MPLS, or uses OpenConfig models where supported. The configuration scales across IPv4 and IPv6 next hops and labels.
 func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, nexthops, nexthopsIpv6 []string, labels, labelsforIpv6 []int, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
@@ -265,15 +290,11 @@ func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Netwo
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
 		}
 	} else {
-		MplsGlobalStaticLspAttrIter(t, ni, nexthops, nexthopsIpv6, labels, labelsforIpv6)
+		mplsGlobalStaticLspAttrIter(t, ni, nexthops, nexthopsIpv6, labels, labelsforIpv6)
 	}
 }
 
-func MplsGlobalStaticLspAttrIter(
-	t *testing.T,
-	ni *oc.NetworkInstance,
-	nexthopsV4, nexthopsV6 []string, labelsV4, labelsV6 []int,
-) {
+func mplsGlobalStaticLspAttrIter(t *testing.T, ni *oc.NetworkInstance, nexthopsV4, nexthopsV6 []string, labelsV4, labelsV6 []int) {
 	t.Helper()
 	mplsCfg := ni.GetOrCreateMpls()
 
