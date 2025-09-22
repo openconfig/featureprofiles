@@ -221,12 +221,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 	for _, l := range dutData.lags {
 		b := &gnmi.SetBatch{}
 		// Create LAG interface
-		aggID := netutil.NextAggregateInterface(t, dut)
-		agg := cfgplugins.NewAggregateInterface(t, dut, b, l, aggID)
+		l.LagName := netutil.NextAggregateInterface(t, dut)
+		agg := cfgplugins.NewAggregateInterface(t, dut, b, l)
 		b.Set(t, dut)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			for k := range agg.GetOrCreateSubinterfaceMap() {
-				fptest.AssignToNetworkInstance(t, dut, aggID, defaultNetworkInstance, k)
+				fptest.AssignToNetworkInstance(t, dut, l.LagName, defaultNetworkInstance, k)
 			}
 		}
 	}
