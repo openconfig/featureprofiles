@@ -1,4 +1,4 @@
-# BMP-1.3: BMP Post Policy Test
+# BMP-2.8: BMP Post Policy Test
 
 ## Summary
 
