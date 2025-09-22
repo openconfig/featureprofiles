@@ -121,7 +121,7 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
 	ConfigureBgp(t, dut)
-	ConfigureQoS(t, dut)
+	ConfigureQoSDUTIpv4Ipv6(t, dut)
 
 	// configure ATE
 	topo := configureATE(t)
@@ -300,8 +300,8 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-// ConfigureQoS configure qos configuration
-func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
+// ConfigureQoSDUTIpv4Ipv6 configure qos configuration
+func ConfigureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	d := &oc.Root{}
