@@ -23,12 +23,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/functional-translators/registrar"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 
+	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -41,6 +43,16 @@ const (
 	maxOpticsPower         = 10.0
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
+
+	// The plausible ranges for temperature and power thresholds are set generously wider than typical operating conditions and
+	// alarm settings. This ensures the test robustly validates that the reported threshold values are sane, without being overly
+	// restrictive to specific optic types.
+	// Plausible range for temperature thresholds in Celsius.
+	minTempThreshold = -30.0
+	maxTempThreshold = 110.0
+	// Plausible range for power thresholds in dBm.
+	minPowerThreshold = -50.0
+	maxPowerThreshold = 15.0
 )
 
 func TestMain(m *testing.M) {
@@ -128,57 +140,73 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
-			} else {
-				// TODO(ankursaikia): Validate the values for each leaf.
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
-
-					if th.ModuleTemperatureLower == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-lower: %v", transceiver, th.GetModuleTemperatureLower())
-					}
-
-					if th.ModuleTemperatureUpper == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-upper: %v", transceiver, th.GetModuleTemperatureUpper())
-					}
-
-					if th.Severity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
-						t.Errorf("Transceiver %s: threshold severity is unset", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold severity: %v", transceiver, th.GetSeverity())
-					}
-
-					if th.InputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold input-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, th.GetInputPowerLower())
-					}
-
-					if th.InputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold input-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-upper: %v", transceiver, th.GetInputPowerUpper())
-					}
-
-					if th.OutputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold output-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-lower: %v", transceiver, th.GetOutputPowerLower())
-					}
-
-					if th.OutputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold output-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-upper: %v", transceiver, th.GetOutputPowerUpper())
-					}
+				return
+			}
+			// TODO(ankursaikia): Validate the values for each leaf.
+			var opts []ygnmi.Option
+			if deviations.TransceiverThresholdsFT(dut) != "" {
+				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+				if !ok {
+					t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
 				}
+				opts = append(opts, ygnmi.WithFT(ft))
+			}
+			var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+			for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+				val, ok := s.Val()
+				if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+					t.Errorf("Transceiver %s: threshold severity is not set", transceiver)
+					continue
+				}
+				sevs = append(sevs, val)
+			}
+
+			for _, sev := range sevs {
+				validateThresholds(t, dut, transceiver, sev, component, opts)
 			}
 		})
 	}
+}
+
+// checkThreshold validates a pair of lower and upper thresholds.
+func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, transceiver string, opts []ygnmi.Option, lowerPath ygnmi.SingletonQuery[float64], upperPath ygnmi.SingletonQuery[float64], min float64, max float64, name string) {
+	t.Helper()
+	lV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), lowerPath)
+	uV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), upperPath)
+	l, lOK := lV.Val()
+	u, uOK := uV.Val()
+
+	if !lOK {
+		t.Errorf("Transceiver %s: threshold %s-lower is not set", transceiver, name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-lower: %v", transceiver, name, l)
+		if l < min || l > max {
+			t.Errorf("Transceiver %s: %s-lower %v is outside plausible range [%v, %v]", transceiver, name, l, min, max)
+		}
+	}
+	if !uOK {
+		t.Errorf("Transceiver %s: threshold %s-upper is not set", transceiver, name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-upper: %v", transceiver, name, u)
+		if u < min || u > max {
+			t.Errorf("Transceiver %s: %s-upper %v is outside plausible range [%v, %v]", transceiver, name, u, min, max)
+		}
+	}
+	if lOK && uOK && l >= u {
+		t.Errorf("Transceiver %s: %s-lower (%v) must be less than %s-upper (%v)", transceiver, name, l, name, u)
+	}
+}
+
+// validateThresholds checks that threshold leaves are populated,
+// are within a plausible range, and that lower thresholds are less than upper thresholds.
+func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
+	t.Helper()
+	t.Logf("Validating transceiver %s thresholds for severity: %v", transceiver, sev)
+	threshold := component.Transceiver().Threshold(sev)
+
+	checkThreshold(t, dut, transceiver, opts, threshold.ModuleTemperatureLower().State(), threshold.ModuleTemperatureUpper().State(), minTempThreshold, maxTempThreshold, "module-temperature")
+	checkThreshold(t, dut, transceiver, opts, threshold.InputPowerLower().State(), threshold.InputPowerUpper().State(), minPowerThreshold, maxPowerThreshold, "input-power")
+	checkThreshold(t, dut, transceiver, opts, threshold.OutputPowerLower().State(), threshold.OutputPowerUpper().State(), minPowerThreshold, maxPowerThreshold, "output-power")
 }
 
 func TestOpticsPowerUpdate(t *testing.T) {
@@ -264,12 +292,26 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
-					t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
-					t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
-					t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+				var opts []ygnmi.Option
+				if deviations.TransceiverThresholdsFT(dut) != "" {
+					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+					if !ok {
+						t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
+					}
+					opts = append(opts, ygnmi.WithFT(ft))
+				}
+				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+				for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+					val, ok := s.Val()
+					if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+						t.Errorf("Transceiver %s: threshold severity is not set", transceiverName)
+						continue
+					}
+					sevs = append(sevs, val)
+				}
+
+				for _, sev := range sevs {
+					validateThresholds(t, dut, transceiverName, sev, component, opts)
 				}
 			}
 		})

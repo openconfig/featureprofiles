@@ -18,6 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.40.0
 	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
+	github.com/openconfig/functional-translators v0.0.0-20250906150131-6190218830fa
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56

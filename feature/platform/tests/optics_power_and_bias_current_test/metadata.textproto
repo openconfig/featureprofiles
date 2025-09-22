@@ -22,3 +22,12 @@ platform_exceptions:  {
     transceiver_thresholds_unsupported:  true
   }
 }
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    transceiver_thresholds_ft:  "ciscoxr-laser-ft"
+  }
+}
