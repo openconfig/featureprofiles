@@ -1,11 +1,9 @@
 package dcgate_test
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
@@ -58,14 +56,20 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	sshClient := dut.RawAPIs().CLI(t)
-	dutPorts := dut.Ports()
-	intfs := []string{}
-	for i, port := range dutPorts {
-		intfs = append(intfs, port.Name())
-		intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
-	}
-	getIfIndex(t, dut, &sshClient, intfs)
+	// sshClient := dut.RawAPIs().CLI(t)
+
+	// // Set sflow config details
+	// dutPorts := dut.Ports()
+	// intfs := []string{}
+	// for i, port := range dutPorts {
+	// 	intfs = append(intfs, port.Name())
+	// 	intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
+	// }
+	// getIfIndex(t, dut, &sshClient, intfs)
+	erd := sfAttr.AddSflowSample().AddExtendedRouterData()
+	erd.SetNextHop(otgPort5.IPv4)
+	erd.SetNextHopDestinationMask(0)
+	erd.SetNextHopSourceMask(0)
 
 	for _, tc := range test {
 
@@ -82,6 +86,9 @@ func TestFibChains(t *testing.T) {
 		case "popgate_unoptimized":
 			configureDUTforPopGate(t, dut)
 		}
+
+		sfAttr.InputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether1", "port1", *bundleMode)
+		sfAttr.OutputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether5", "port5", *bundleMode)
 
 		// configure gRIBI client
 		c := gribi.Client{
@@ -559,25 +566,6 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 	faTransit.innerDscp = dscpEncapA1
 	faTransit.ttl = ttl
 	faTransit.innerTtl = 50
-
-	// Set sflow config details
-	bmIndexes := GetBundleMemberIfIndexes(t, args.dut, []string{"Bundle-Ether1", "Bundle-Ether2", "Bundle-Ether3", "Bundle-Ether4", "Bundle-Ether5", "Bundle-Ether8"})
-	t.Logf("Bundle member ifindexes: %v", bmIndexes)
-
-	sfAttr := &s.SflowAttr{
-		PacketsToSend:   uint32(*sf_trafficDuration * int(*sf_fps)),
-		PpsRate:         uint64(*sf_fps),
-		SflowDscp:       32,
-		SamplingRate:    262144,
-		SampleTolerance: 0.8,
-		IP:              "IPv6",
-		InputInterface:  bmIndexes["Bundle-Ether1"],
-		OutputInterface: bmIndexes["Bundle-Ether5"],
-	}
-	erd := sfAttr.AddSflowSample().AddExtendedRouterData()
-	erd.SetNextHop(otgPort5.IPv4)
-	erd.SetNextHopDestinationMask(0)
-	erd.SetNextHopSourceMask(0)
 
 	t.Run("miss in decap fallback to transit", func(t *testing.T) {
 		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
