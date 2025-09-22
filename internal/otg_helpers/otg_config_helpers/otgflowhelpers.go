@@ -50,6 +50,7 @@ type Flow struct {
 	TCPFlow           *TCPFlowParams
 	UDPFlow           *UDPFlowParams
 	MPLSFlow          *MPLSFlowParams
+	CustomFlow        *CustomFlowParams
 	flow              gosnappi.Flow
 }
 
@@ -120,6 +121,11 @@ type MPLSFlowParams struct {
 	MPLSExp        uint32
 	MPLSLabelCount uint32
 	MPLSExpCount   uint32
+}
+
+// CustomFlowParams is a struct to hold custom header parameters.
+type CustomFlowParams struct {
+	Bytes string
 }
 
 // SizeWeightPair represents a custom Size profile for a traffic flow.
@@ -308,4 +314,10 @@ func (f *Flow) AddUDPHeader() {
 	} else {
 		udpHdr.DstPort().SetValue(f.UDPFlow.UDPDstPort)
 	}
+}
+
+// AddCustomHeader adds an custom header to the flow.
+func (f *Flow) AddCustomHeader() {
+	customHeader := f.flow.Packet().Add().Custom()
+	customHeader.SetBytes(f.CustomFlow.Bytes)
 }

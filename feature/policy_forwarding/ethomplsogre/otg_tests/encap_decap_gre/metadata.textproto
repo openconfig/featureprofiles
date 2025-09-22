@@ -15,15 +15,12 @@ platform_exceptions:  {
     default_network_instance: "default"
     next_hop_group_config_unsupported: true
     mpls_unsupported: true
-    mpls_label_classification_unsupported: true
     qos_classification_unsupported: true
-    policy_forwarding_unsupported: true
-    interface_policy_forwarding_unsupported: true
-    policy_forwarding_to_next_hop_unsupported: true
-    policy_forwarding_gre_encapsulation_unsupported: true
+    mpls_label_classification_unsupported: true
     static_mpls_lsp_oc_unsupported: true
-    macsec_unsupported: true
     mpls_static_pseudowire_oc_unsupported: true
     vlan_client_encapsulation_oc_unsupported: true
+    gre_decapsulation_oc_unsupported: true
+    macsec_unsupported: true 
   }
 }
