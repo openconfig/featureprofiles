@@ -1113,10 +1113,7 @@ func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []strin
 	ate.OTG().StopTraffic(t)
 	dut := ondatra.DUT(t, "dut")
 
-	if deviations.ExrrStaleRouteTimeUnsupported(dut) {
-		t.Log("Skipping verification of No traffic loss during stale route time expiration as stale route time is not supported")
-		// verifyNoPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
-	} else {
+	if !deviations.ExrrStaleRouteTimeUnsupported(dut) {
 		verifyNoPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
 	}
 
@@ -1289,21 +1286,21 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		{
 			name: "4_Administrative_Reset_Notification_Sent_By_DUT_Graceful",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
-				// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
-				t.Skip("Skipping this subtest for now")
+				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-				ate.OTG().StartTraffic(t)
+					ate.OTG().StartTraffic(t)
 
-				gnoiClient := dut.RawAPIs().GNOI(t)
-				bgpReq := &bpb.ClearBGPNeighborRequest{
-					Mode: bpb.ClearBGPNeighborRequest_SOFT,
+					gnoiClient := dut.RawAPIs().GNOI(t)
+					bgpReq := &bpb.ClearBGPNeighborRequest{
+						Mode: bpb.ClearBGPNeighborRequest_GRACEFUL_RESET,
+					}
+					gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
+
+					validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+
+					checkBgpStatus(t, dut, 3)
 				}
-				gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
-
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
-
-				checkBgpStatus(t, dut, 3)
 			},
 		},
 		{
@@ -1324,21 +1321,21 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		{
 			name: "6_Administrative_Reset_Notification_Sent_By_DUT_Hard_Reset",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
-				// TODO: Remove the skip once https://partnerissuetracker.corp.google.com/issues/444181975 resolved
-				t.Skip("Skipping this subtest for now")
+				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
 
-				ate.OTG().StartTraffic(t)
+					ate.OTG().StartTraffic(t)
 
-				gnoiClient := dut.RawAPIs().GNOI(t)
-				bgpReq := &bpb.ClearBGPNeighborRequest{
-					Mode: bpb.ClearBGPNeighborRequest_HARD,
+					gnoiClient := dut.RawAPIs().GNOI(t)
+					bgpReq := &bpb.ClearBGPNeighborRequest{
+						Mode: bpb.ClearBGPNeighborRequest_HARD_RESET,
+					}
+					gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
+
+					validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+
+					checkBgpStatus(t, dut, 3)
 				}
-				gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
-
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
-
-				checkBgpStatus(t, dut, 3)
 			},
 		},
 		{

@@ -1147,12 +1147,14 @@ type Metadata_Deviations struct {
 	// Devices that do not support configuring a two rate three color policer through OC
 	// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
 	QosTwoRateThreeColorPolicerOcUnsupported bool `protobuf:"varint,325,opt,name=qos_two_rate_three_color_policer_oc_unsupported,json=qosTwoRateThreeColorPolicerOcUnsupported,proto3" json:"qos_two_rate_three_color_policer_oc_unsupported,omitempty"`
-	// b/443044887
+	// https://partnerissuetracker.corp.google.com/issues/443044887
 	ExtendedRouteRetentionOcUnsupported bool `protobuf:"varint,326,opt,name=extended_route_retention_oc_unsupported,json=extendedRouteRetentionOcUnsupported,proto3" json:"extended_route_retention_oc_unsupported,omitempty"`
-	// b/439825838
+	// https://partnerissuetracker.corp.google.com/issues/439825838
 	ExrrStaleRouteTimeUnsupported bool `protobuf:"varint,327,opt,name=exrr_stale_route_time_unsupported,json=exrrStaleRouteTimeUnsupported,proto3" json:"exrr_stale_route_time_unsupported,omitempty"`
-	unknownFields                 protoimpl.UnknownFields
-	sizeCache                     protoimpl.SizeCache
+	// https://partnerissuetracker.corp.google.com/issues/446376446
+	GnoiBgpGracefulRestartUnsupported bool `protobuf:"varint,328,opt,name=gnoi_bgp_graceful_restart_unsupported,json=gnoiBgpGracefulRestartUnsupported,proto3" json:"gnoi_bgp_graceful_restart_unsupported,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3250,6 +3252,13 @@ func (x *Metadata_Deviations) GetExrrStaleRouteTimeUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetGnoiBgpGracefulRestartUnsupported() bool {
+	if x != nil {
+		return x.GnoiBgpGracefulRestartUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3306,7 +3315,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xbf\xb3\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x92\xb4\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3318,7 +3327,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe0\xa9\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb3\xaa\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3618,7 +3627,8 @@ const file_metadata_proto_rawDesc = "" +
 	"!global_max_ecmp_paths_unsupported\x18\xc4\x02 \x01(\bR\x1dglobalMaxEcmpPathsUnsupported\x12b\n" +
 	"/qos_two_rate_three_color_policer_oc_unsupported\x18\xc5\x02 \x01(\bR(qosTwoRateThreeColorPolicerOcUnsupported\x12U\n" +
 	"'extended_route_retention_oc_unsupported\x18\xc6\x02 \x01(\bR#extendedRouteRetentionOcUnsupported\x12I\n" +
-	"!exrr_stale_route_time_unsupported\x18\xc7\x02 \x01(\bR\x1dexrrStaleRouteTimeUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"!exrr_stale_route_time_unsupported\x18\xc7\x02 \x01(\bR\x1dexrrStaleRouteTimeUnsupported\x12Q\n" +
+	"%gnoi_bgp_graceful_restart_unsupported\x18\xc8\x02 \x01(\bR!gnoiBgpGracefulRestartUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\x92\x01\x10\x93\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
