@@ -18,7 +18,7 @@ Validate BGP Monitoring Protocol (BMP) for pre policy routes
 ```mermaid
 graph LR; 
 A[ATE:Port1] --EBGP--> B[Port1:DUT:Port2];
-B --EBGP--> C[Port2:ATE];
+B --BMP--> C[Port2:ATE];
 ```
 
 
@@ -26,7 +26,7 @@ B --EBGP--> C[Port2:ATE];
 
 *   Connect ATE Port 1 to DUT Port 1.
 *   Connect ATE Port 2 to DUT Port 2 (simulating the BMP monitoring station).
-*   Connected interface IPv4/IPv6 addresses
+*   Connected interface should have dual address family supported i.e. it should have both IPv4 & IPv6 addresses
 
 3) Interface Configuration: Configure IPv4 and IPV6 addresses on all involved interfaces on both the ATE and the DUT.
 
