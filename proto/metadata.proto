@@ -938,12 +938,16 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/442749011
     bool qos_two_rate_three_color_policer_oc_unsupported = 325;
 
+    // Devices that do not support load balance policies
+    // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
+    bool load_balance_policy_oc_unsupported = 326;
+
     // Device requires p4rt table entries to be configured for each new primary controller
     // Nokia: b/445494680
-    bool p4rt_explicit_table_entry_per_controller = 326;
+    bool p4rt_explicit_table_entry_per_controller = 327;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 146;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }
 
   message PlatformExceptions {
