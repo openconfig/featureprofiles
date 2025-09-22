@@ -241,7 +241,9 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 
 }
 
-// InterfacelocalProxyConfig configures the interface local-proxy-arp.
+// InterfacelocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied
 func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
 	if deviations.LocalProxyOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -262,7 +264,9 @@ func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, interf
 	}
 }
 
-// InterfaceQosClassificationConfig configures the interface qos classification.
+// InterfaceQosClassificationConfigScale configures qos-classification on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied
 func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
 	if deviations.QosClassificationOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -281,7 +285,9 @@ func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice,
 	}
 }
 
-// InterfacePolicyForwardingConfig configures the interface policy-forwarding config.
+// InterfacePolicyForwardingConfigScale configures policy forwarding on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied
 func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
@@ -409,6 +415,9 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 	}
 }
 
+// PolicyForwardingConfigScale configures policy forwarding using multiple traffic-policies.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied
 func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 

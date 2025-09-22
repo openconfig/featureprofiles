@@ -28,25 +28,27 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	GREProtocol     = 47
-	dutIntStartIP   = "169.254.0.1"
-	otgIntStartIP   = "169.254.0.2"
-	dutIntStartIpV6 = "2000:0:0:1::1"
-	otgIntStartIpV6 = "2000:0:0:1::2"
-	intStepV4       = "0.0.0.4"
-	intStepV6       = "0:0:0:1::"
+	ieee8023adLag                = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	greProtocol                  = 47
+	dutIntStartIP                = "169.254.0.1"
+	otgIntStartIP                = "169.254.0.2"
+	dutIntStartIPV6              = "2000:0:0:1::1"
+	otgIntStartIPV6              = "2000:0:0:1::2"
+	intStepV4                    = "0.0.0.4"
+	intStepV6                    = "0:0:0:1::"
+	greTunnelDestinationsStartIP = "10.99.1.1"
 )
 
 type encapsulationParams struct {
-	intCount                int
-	mplsLabelCount          int
-	mplsStaticLabels        []int
-	mplsStaticLabelsForIpv6 []int
-	mplsLabelStartforIpv4   int
-	mplsLabelStartforIpv6   int
-	mplsLabelStep           int
+	count                        int
+	mplsLabelCount               int
+	mplsStaticLabels             []int
+	mplsStaticLabelsForIPv6      []int
+	mplsLabelStartForIPv4        int
+	mplsLabelStartForIPv6        int
+	mplsLabelStep                int
+	greTunnelSources             []string
+	greTunnelDestinationsStartIP string
 }
 
 var (
@@ -141,7 +143,7 @@ var (
 	}
 	outerGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
 		DstIP:    "10.99.1.20",
-		Protocol: GREProtocol,
+		Protocol: greProtocol,
 		Tos:      96,
 		TTL:      64,
 	}
@@ -168,6 +170,13 @@ var (
 		InnerIPLayerIPv6: innerIPLayerIPv6,
 		TCPLayer:         &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 179},
 		UDPLayer:         &packetvalidationhelpers.UDPLayer{SrcPort: 49152, DstPort: 3784},
+	}
+
+	greTunnelSources = []string{
+		"10.235.143.208", "10.235.143.209", "10.235.143.210", "10.235.143.211",
+		"10.235.143.212", "10.235.143.213", "10.235.143.215", "10.235.143.216",
+		"10.235.143.217", "10.235.143.218", "10.235.143.219", "10.235.143.220",
+		"10.235.143.221", "10.235.143.222", "10.235.143.223", "10.235.143.224",
 	}
 )
 
@@ -207,12 +216,12 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 
 	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
 
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIpV6, intCount, intStepV6)
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPV6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIpV6, intCount, intStepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPV6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}
@@ -229,9 +238,10 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 // PF-1.15.1: Generate DUT Configuration
 // Modified to create and pass OC root, ni, pf
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams *encapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
-	for i := range encapParams.intCount {
+	for i := range encapParams.count {
 		iface := &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          1500,
@@ -262,34 +272,36 @@ func TestSetup(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		encapParams.intCount = 250
+		encapParams.count = 250
 		encapParams.mplsLabelCount = 250
-		encapParams.mplsLabelStartforIpv4 = 16
-		encapParams.mplsLabelStartforIpv6 = 524280
+		encapParams.mplsLabelStartForIPv4 = 16
+		encapParams.mplsLabelStartForIPv6 = 524280
 		encapParams.mplsLabelStep = 1000
+		encapParams.greTunnelSources = greTunnelSources
+		encapParams.greTunnelDestinationsStartIP = greTunnelDestinationsStartIP
 	default:
 		t.Fatalf("Unsupported vendor %s for now, need to check the maximum interface count", dut.Vendor())
 	}
 
-	flowIPv4.VLANFlow.VLANCount = uint32(encapParams.intCount)
-	flowIPv6.VLANFlow.VLANCount = uint32(encapParams.intCount)
+	flowIPv4.VLANFlow.VLANCount = uint32(encapParams.count)
+	flowIPv6.VLANFlow.VLANCount = uint32(encapParams.count)
 
-	netConfig, err := generateNetConfig(int(encapParams.intCount))
+	netConfig, err := generateNetConfig(int(encapParams.count))
 	if err != nil {
 		t.Fatalf("Error generating net config: %v", err)
 	}
 	encapParams.mplsStaticLabels = func() []int {
 		var r []int
-		for count, label := 0, encapParams.mplsLabelStartforIpv4; count < encapParams.mplsLabelCount; count++ {
+		for count, label := 0, encapParams.mplsLabelStartForIPv4; count < encapParams.mplsLabelCount; count++ {
 			r = append(r, label)
 			label += encapParams.mplsLabelStep
 		}
 		return r
 	}()
 
-	encapParams.mplsStaticLabelsForIpv6 = func() []int {
+	encapParams.mplsStaticLabelsForIPv6 = func() []int {
 		var r []int
-		for count, label := 0, encapParams.mplsLabelStartforIpv6; count < encapParams.mplsLabelCount; count++ {
+		for count, label := 0, encapParams.mplsLabelStartForIPv6; count < encapParams.mplsLabelCount; count++ {
 			r = append(r, label)
 			label += encapParams.mplsLabelStep
 		}
@@ -297,7 +309,7 @@ func TestSetup(t *testing.T) {
 	}()
 	var interfaces []*otgconfighelpers.InterfaceProperties
 
-	for i := range encapParams.intCount {
+	for i := range encapParams.count {
 		iface := &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
 			IPv4:        netConfig.otgIPs[i],
@@ -350,6 +362,7 @@ func fetchDefaultOCPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams 
 }
 
 func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, aggID string, ocPFParams cfgplugins.OcPolicyForwardingParams, interfaces []*attrs.Attributes) {
+	t.Helper()
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
 	cfgplugins.InterfacelocalProxyConfigScale(t, dut, interfaces, aggID)
@@ -359,11 +372,16 @@ func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, agg
 
 // encapMPLsInGre function helps in configurating MPLSinGRE commands in the DUT
 func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams *encapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+	t.Helper()
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.NextHopGroupConfigScale(t, dut, encapParams.intCount, encapParams.mplsStaticLabels, encapParams.mplsStaticLabelsForIpv6, ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfigScale(t, dut, encapParams.intCount, pf, ocPFParams)
+	cfgplugins.NextHopGroupConfigScale(t, dut, encapParams.count,
+		encapParams.mplsStaticLabels,
+		encapParams.mplsStaticLabelsForIPv6,
+		encapParams.greTunnelSources,
+		encapParams.greTunnelDestinationsStartIP, ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfigScale(t, dut, encapParams.count, pf, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}
@@ -373,8 +391,8 @@ func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 func TestMPLSOGREEncapIPv4(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	t.Log("PF-1.15.2: Verify PF MPLSoGRE encapsulate action for IPv4/IPv6 traffic")
-	createflow(t, top, flowIPv4, true)
-	createflow(t, top, flowIPv6, false)
+	createFlow(top, flowIPv4, true)
+	createFlow(top, flowIPv6, false)
 	sendTraffic(t, ate)
 
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
@@ -389,7 +407,7 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 	flowIPv4.IPv4Flow.RawPriorityCount = 0
 	flowIPv4.PacketsToSend = 1000
 
-	createflow(t, top, flowIPv4, true)
+	createFlow(top, flowIPv4, true)
 	packetvalidationhelpers.ConfigurePacketCapture(t, top, encapPacketValidation)
 	sendTrafficCapture(t, ate)
 
@@ -408,14 +426,16 @@ func TestMPLSOGREEncapIPv4(t *testing.T) {
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
 	time.Sleep(30 * time.Second)
 }
 
-func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
+func createFlow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
 	}
@@ -439,7 +459,7 @@ func createflow(t *testing.T, top gosnappi.Config, params *otgconfighelpers.Flow
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
-	dutAggPorts := []*ondatra.Port{}
+	var dutAggPorts []*ondatra.Port
 	for _, port := range dutPorts {
 		dutAggPorts = append(dutAggPorts, dut.Port(t, port))
 	}

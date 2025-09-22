@@ -157,20 +157,14 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 }
 
 // NextHopGroupConfigScale configures the interface next-hop-group config.
-func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, intCount int, mplsStaticLabels, mplsStaticLabelsForIpv6 []int, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int, mplsStaticLabels, mplsStaticLabelsForIpv6 []int, tunnelSources []string, tunnelDestinationStart string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			tunnelSources := []string{
-				"10.235.143.208", "10.235.143.209", "10.235.143.210", "10.235.143.211",
-				"10.235.143.212", "10.235.143.213", "10.235.143.215", "10.235.143.216",
-				"10.235.143.217", "10.235.143.218", "10.235.143.219", "10.235.143.220",
-				"10.235.143.221", "10.235.143.222", "10.235.143.223", "10.235.143.224",
-			}
-
+			ipPrefix := strings.Join(strings.Split(strings.Split(tunnelDestinationStart, "/")[0], ".")[:3], ".")
 			buildConfig := func(prefix string, labels []int) string {
 				var b strings.Builder
-				for i := 1; i <= intCount; i++ {
+				for i := 1; i <= count; i++ {
 					b.WriteString(fmt.Sprintf(`
 nexthop-group %s%d type mpls-over-gre
  tos 96
@@ -178,8 +172,8 @@ nexthop-group %s%d type mpls-over-gre
  fec hierarchical`, prefix, i))
 					for entry, src := range tunnelSources {
 						b.WriteString(fmt.Sprintf(`
- entry  %d push label-stack %d tunnel-destination 10.99.1.%d tunnel-source %s`,
-							entry, labels[i-1], i, src))
+ entry  %d push label-stack %d tunnel-destination %s.%d tunnel-source %s`,
+							entry, labels[i-1], ipPrefix, i, src))
 					}
 					b.WriteString("\n!")
 				}
