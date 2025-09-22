@@ -44,7 +44,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	if ISISData.NetworkInstanceType != nil {
 		networkInstance.Type = *ISISData.NetworkInstanceType
 	} else {
-	networkInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+		networkInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 	}
 	
 	protocol := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISData.NetworkInstanceName)
