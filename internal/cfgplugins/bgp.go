@@ -743,30 +743,30 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 // provided BGP neighbors. When the OC path is unsupported on the DUT, this function
 // applies vendor CLI using helpers.GnmiCLIConfig.
 func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
-    t.Helper()
+	t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-        for _, nbr := range neighbors {
-            exrrConfig := fmt.Sprintf(`router bgp %d
+		for _, nbr := range neighbors {
+			exrrConfig := fmt.Sprintf(`router bgp %d
     neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, dutAS, nbr, restartTime)
-            helpers.GnmiCLIConfig(t, dut, exrrConfig)
-        }
-    } else {
-        t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-    }
+			helpers.GnmiCLIConfig(t, dut, exrrConfig)
+		}
+	} else {
+		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
+	}
 }
 
 // This function removes extended route retention configuration on the DUT
 // for the provided BGP neighbors. When the OC path is unsupported on the DUT, this
 // function removes the configuration via vendor CLI using helpers.GnmiCLIConfig.
 func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, dutAS, restartTime int, neighbors []string) {
-    t.Helper()
+	t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-        for _, nbr := range neighbors {
-            exrrConfig := fmt.Sprintf(`router bgp %d
+		for _, nbr := range neighbors {
+			exrrConfig := fmt.Sprintf(`router bgp %d
     no neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, dutAS, nbr, restartTime)
-            helpers.GnmiCLIConfig(t, dut, exrrConfig)
-        }
-    } else {
-        t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
-    }
+			helpers.GnmiCLIConfig(t, dut, exrrConfig)
+		}
+	} else {
+		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
+	}
 }

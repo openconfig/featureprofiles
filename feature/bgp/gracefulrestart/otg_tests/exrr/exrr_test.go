@@ -55,8 +55,8 @@ const (
 	errnodeprefasn           = 200
 	testibgpasn              = 500
 	testebgpasn              = 600
-	MED50 = 50
-	MED150 = 150
+	MED50                    = 50
+	MED150                   = 150
 )
 
 var (
