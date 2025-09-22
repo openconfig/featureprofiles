@@ -64,6 +64,7 @@ type PolicyForwardingRule struct {
 	IpType             string
 	SourceAddress      string
 	DestinationAddress string
+	TTL                []uint8
 	Dscp               uint8
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
@@ -88,7 +89,7 @@ Traffic-policies
             set traffic class 3
       match ipv6-all-default ipv6
    !
-	 `
+     `
 	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
 	PolicyForwardingConfigv6Arista = `
 Traffic-policies
@@ -720,11 +721,12 @@ func newPolicyForwardingEncapGreFromOC(t *testing.T, pf *oc.NetworkInstance_Poli
 func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		var matchRules, matchTarget string
+		var matchRules string
 		var nhGroupTargets = make(map[string][]string)
 		var nhGroupsBySource = make(map[string]string)
 		var nhTTlBySource = make(map[string]uint8)
 		for _, ruleConfig := range rules {
+			var matchTarget string
 			t.Logf("Processing rule %s", ruleConfig.Name)
 			if ruleConfig.Action == nil ||
 				ruleConfig.Name == "" {
@@ -732,11 +734,21 @@ func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName 
 				return ""
 			}
 			if ruleConfig.DestinationAddress != "" {
-				matchTarget = fmt.Sprintf("destination prefix %s", ruleConfig.DestinationAddress)
-			} else if ruleConfig.SourceAddress != "" {
-				matchTarget = fmt.Sprintf("source prefix %s", ruleConfig.SourceAddress)
-			} else {
-				t.Errorf("Rule %s must have either SourceAddress or DestinationAddress defined", ruleConfig.Name)
+				matchTarget += fmt.Sprintf("destination prefix %s\n", ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.SourceAddress != "" {
+				matchTarget += fmt.Sprintf("source prefix %s\n", ruleConfig.SourceAddress)
+			}
+			if len(ruleConfig.TTL) > 0 {
+				ttlStrs := make([]string, len(ruleConfig.TTL))
+				for i, v := range ruleConfig.TTL {
+					ttlStrs[i] = fmt.Sprintf("%d", v)
+				}
+				ttlValues := strings.Join(ttlStrs, ", ")
+				matchTarget += fmt.Sprintf("ttl %s\n", ttlValues)
+			}
+			if matchTarget == "" {
+				t.Errorf("Rule %s must have either SourceAddress, DestinationAddress or TTL defined", ruleConfig.Name)
 				return ""
 			}
 			switch ruleConfig.IpType {
