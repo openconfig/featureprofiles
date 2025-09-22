@@ -178,6 +178,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "BMP-2.7"
+  description: "BMP pre-policy test"
+  readme: ""
+  exec: " "
+}
+test: {
+  id: "BMP-2.8"
+  description: "BMP post-policy test"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "Certz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/client_certificates/README.md"
 }
