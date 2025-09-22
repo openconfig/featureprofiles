@@ -362,13 +362,3 @@ func applyQosPolicyOnInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, para
 		t.Errorf("Unsupported CLI command for dut %v %s", dut.Vendor(), dut.Name())
 	}
 }
-
-func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName string) string {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cliConfig := fmt.Sprintf("show policy-map type qos %s counters", policyName)
-		return runCliCommand(t, dut, cliConfig)
-	default:
-		return ""
-	}
-}
