@@ -28,6 +28,6 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
-    transceiver_thresholds_ft:  "ciscoxr-laser-ft"
+    ciscoxr_laser_ft:  "ciscoxr-laser-ft"
   }
 }

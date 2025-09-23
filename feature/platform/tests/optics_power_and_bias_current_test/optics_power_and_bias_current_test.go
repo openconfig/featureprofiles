@@ -28,9 +28,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
-
 	"github.com/openconfig/ondatra/gnmi/oc/platform"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -73,6 +72,80 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, i
 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
 }
 
+type checkThresholdParams struct {
+	transceiver string
+	opts        []ygnmi.Option
+	lowerPath   ygnmi.SingletonQuery[float64]
+	upperPath   ygnmi.SingletonQuery[float64]
+	minVal      float64
+	maxVal      float64
+	name        string
+}
+
+// checkThreshold validates a pair of lower and upper thresholds.
+func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdParams) {
+	t.Helper()
+	lV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(params.opts...), params.lowerPath)
+	uV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(params.opts...), params.upperPath)
+	l, lOK := lV.Val()
+	u, uOK := uV.Val()
+
+	if !lOK {
+		t.Errorf("Transceiver %s: threshold %s-lower is not set", params.transceiver, params.name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-lower: %v", params.transceiver, params.name, l)
+		if l < params.minVal || l > params.maxVal {
+			t.Errorf("Transceiver %s: %s-lower %v is outside plausible range [%v, %v]", params.transceiver, params.name, l, params.minVal, params.maxVal)
+		}
+	}
+	if !uOK {
+		t.Errorf("Transceiver %s: threshold %s-upper is not set", params.transceiver, params.name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-upper: %v", params.transceiver, params.name, u)
+		if u < params.minVal || u > params.maxVal {
+			t.Errorf("Transceiver %s: %s-upper %v is outside plausible range [%v, %v]", params.transceiver, params.name, u, params.minVal, params.maxVal)
+		}
+	}
+	if lOK && uOK && l >= u {
+		t.Errorf("Transceiver %s: %s-lower (%v) must be less than %s-upper (%v)", params.transceiver, params.name, l, params.name, u)
+	}
+}
+
+// validateThresholds checks that threshold leaves are populated,
+// are within a plausible range, and that lower thresholds are less than upper thresholds.
+func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
+	t.Helper()
+	t.Logf("Validating transceiver %s thresholds for severity: %v", transceiver, sev)
+	threshold := component.Transceiver().Threshold(sev)
+
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		opts:        opts,
+		lowerPath:   threshold.ModuleTemperatureLower().State(),
+		upperPath:   threshold.ModuleTemperatureUpper().State(),
+		minVal:      minTempThreshold,
+		maxVal:      maxTempThreshold,
+		name:        "module-temperature",
+	})
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		opts:        opts,
+		lowerPath:   threshold.InputPowerLower().State(),
+		upperPath:   threshold.InputPowerUpper().State(),
+		minVal:      minPowerThreshold,
+		maxVal:      maxPowerThreshold,
+		name:        "input-power",
+	})
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		opts:        opts,
+		lowerPath:   threshold.OutputPowerLower().State(),
+		upperPath:   threshold.OutputPowerUpper().State(),
+		minVal:      minPowerThreshold,
+		maxVal:      maxPowerThreshold,
+		name:        "output-power",
+	})
+}
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -144,10 +217,10 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			}
 			// TODO(ankursaikia): Validate the values for each leaf.
 			var opts []ygnmi.Option
-			if deviations.TransceiverThresholdsFT(dut) != "" {
-				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+			if deviations.CiscoxrLaserFt(dut) != "" {
+				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
 				if !ok {
-					t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
+					t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
 				}
 				opts = append(opts, ygnmi.WithFT(ft))
 			}
@@ -166,47 +239,6 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			}
 		})
 	}
-}
-
-// checkThreshold validates a pair of lower and upper thresholds.
-func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, transceiver string, opts []ygnmi.Option, lowerPath ygnmi.SingletonQuery[float64], upperPath ygnmi.SingletonQuery[float64], min float64, max float64, name string) {
-	t.Helper()
-	lV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), lowerPath)
-	uV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), upperPath)
-	l, lOK := lV.Val()
-	u, uOK := uV.Val()
-
-	if !lOK {
-		t.Errorf("Transceiver %s: threshold %s-lower is not set", transceiver, name)
-	} else {
-		t.Logf("Transceiver %s threshold %s-lower: %v", transceiver, name, l)
-		if l < min || l > max {
-			t.Errorf("Transceiver %s: %s-lower %v is outside plausible range [%v, %v]", transceiver, name, l, min, max)
-		}
-	}
-	if !uOK {
-		t.Errorf("Transceiver %s: threshold %s-upper is not set", transceiver, name)
-	} else {
-		t.Logf("Transceiver %s threshold %s-upper: %v", transceiver, name, u)
-		if u < min || u > max {
-			t.Errorf("Transceiver %s: %s-upper %v is outside plausible range [%v, %v]", transceiver, name, u, min, max)
-		}
-	}
-	if lOK && uOK && l >= u {
-		t.Errorf("Transceiver %s: %s-lower (%v) must be less than %s-upper (%v)", transceiver, name, l, name, u)
-	}
-}
-
-// validateThresholds checks that threshold leaves are populated,
-// are within a plausible range, and that lower thresholds are less than upper thresholds.
-func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
-	t.Helper()
-	t.Logf("Validating transceiver %s thresholds for severity: %v", transceiver, sev)
-	threshold := component.Transceiver().Threshold(sev)
-
-	checkThreshold(t, dut, transceiver, opts, threshold.ModuleTemperatureLower().State(), threshold.ModuleTemperatureUpper().State(), minTempThreshold, maxTempThreshold, "module-temperature")
-	checkThreshold(t, dut, transceiver, opts, threshold.InputPowerLower().State(), threshold.InputPowerUpper().State(), minPowerThreshold, maxPowerThreshold, "input-power")
-	checkThreshold(t, dut, transceiver, opts, threshold.OutputPowerLower().State(), threshold.OutputPowerUpper().State(), minPowerThreshold, maxPowerThreshold, "output-power")
 }
 
 func TestOpticsPowerUpdate(t *testing.T) {
@@ -293,10 +325,10 @@ func TestOpticsPowerUpdate(t *testing.T) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
 				var opts []ygnmi.Option
-				if deviations.TransceiverThresholdsFT(dut) != "" {
-					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.TransceiverThresholdsFT(dut)]
+				if deviations.CiscoxrLaserFt(dut) != "" {
+					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
 					if !ok {
-						t.Fatalf("Functional translator %s is not registered", deviations.TransceiverThresholdsFT(dut))
+						t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
 					}
 					opts = append(opts, ygnmi.WithFT(ft))
 				}

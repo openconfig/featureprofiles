@@ -1643,7 +1643,9 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 // Gribi Records Unsupported returns true if Gribi records creation is not supported through OpenConfig.
 func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
-// TransceiverThresholdsFT returns the functional translator to be used for translating
+}
+
+// CiscoxrLaserFt returns the functional translator to be used for translating
 // transceiver threshold leaves.
 func CiscoxrLaserFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxrLaserFt()
