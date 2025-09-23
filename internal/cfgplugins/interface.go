@@ -82,6 +82,7 @@ var (
 		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
+		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
 	}
@@ -355,7 +356,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP
 			switch params.OperationalMode {
-			case 1, 2:
+			case 1, 2, 8:
 				params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
 				params.NumPhysicalChannels = 8
 				params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
