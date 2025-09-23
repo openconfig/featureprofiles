@@ -303,6 +303,8 @@ github.com/openconfig/containerz v0.0.0-20250408205203-029560584812 h1:qjDaXTJ8a
 github.com/openconfig/containerz v0.0.0-20250408205203-029560584812/go.mod h1:0anbhHTN0LNn42iX5k8RTBiiO2mCp4q3vxcBHCKMOCg=
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64 h1:pS4NcCl49ker3FYRkvY+erNUw1CgL/lB8gnDQbax6Yk=
 github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64/go.mod h1:FDF5sbP9BbP2IM6EUopcAWfGJ5OPZ4VV2EYQ9vvqLjA=
+github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0 h1:pG2t2nrDF3BrEI2UZtT5OyxUsn8NcIGR+krWNuvOQmw=
+github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0/go.mod h1:/q0lCXFg7gfuWQPnlX//77HO5a6UmJo4vFxwcHeAT4M=
 github.com/openconfig/gnmi v0.14.1 h1:qKMuFvhIRR2/xxCOsStPQ25aKpbMDdWr3kI+nP9bhMs=
 github.com/openconfig/gnmi v0.14.1/go.mod h1:whr6zVq9PCU8mV1D0K9v7Ajd3+swoN6Yam9n8OH3eT0=
 github.com/openconfig/gnoi v0.6.2 h1:o828QHknW5WIbQYSqXkJK2ZnSM0TF8roQ2nzpH/CdBE=
@@ -339,6 +341,8 @@ github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGF
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/ygnmi v0.12.0 h1:tHQvwAtOK59P9o0yLYT9VcVFG90jPFebaKJTFk1M8V0=
 github.com/openconfig/ygnmi v0.12.0/go.mod h1:tgmeZPVofJnH0zUIPmoO0ZyBX3Ami1asv86k7cbahVA=
+github.com/openconfig/ygnmi v0.13.0 h1:l/oxs5QMpZhMYoFYLoUCjXOOEFCxVrxgz3Fdj7ot+BM=
+github.com/openconfig/ygnmi v0.13.0/go.mod h1:PdM5tOI2aCWSqfci5OagAyKJUNJ1IhYIGmSeRlMBVCI=
 github.com/openconfig/ygot v0.33.0 h1:AHvMYdQpTHImpSvoPvzZkdsTAegX2yi0IpsLLuzohgY=
 github.com/openconfig/ygot v0.33.0/go.mod h1:sMTAECRlEmETQ36XaAbWav5AFrR6EZlNNcHyZ7KHBDE=
 github.com/opentracing/opentracing-go v1.1.0/go.mod h1:UkNAQd3GIcIGf0SeVgPpRdFStlNbqXla1AfSYxPUl2o=
