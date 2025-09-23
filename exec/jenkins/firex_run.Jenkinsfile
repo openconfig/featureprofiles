@@ -114,6 +114,7 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Other")
+        persistentBoolean(name: 'Cisco Insta Triage', defaultValue: true, description: 'Includes Cisco Insta Triage plugin webdt_cit.py,webdt_at.py')
         persistentBoolean(name: 'Must reserve all testbeds', defaultValue: false, description: 'By default, the pipeline will reserve those testbeds that are available and modify the run list accordingly. Set to true to wait for all testbeds to be available.')
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
         persistentString(name: 'Number of FireX workers', defaultValue: '', description: 'The number of FireX workers to launch. This is the number of tests that can execute in parallel (subject to testbed availability). Defaults to the number of testbeds.', trim: true)
@@ -385,8 +386,10 @@ pipeline {
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
-                                firex_plugins.add("webdt_cit.py")
-                                firex_plugins.add("webdt_at.py")
+                                if params['Cisco Insta Triage'] {
+                                    firex_plugins.add("webdt_cit.py")
+                                    firex_plugins.add("webdt_at.py")
+                                }
                             }
 
                             def decomission_testbeds = (params['Decomission testbeds'] || testbeds.size() > 1) ? 1 : 0
