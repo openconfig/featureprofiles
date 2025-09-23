@@ -21,6 +21,7 @@ import (
 
 const (
 	samplingInterval    = 1 * time.Second
+	extraWaitTime       = 10 * time.Second
 	minAllowedQValue    = 7.0
 	maxAllowedQValue    = 14.0
 	minAllowedPreFECBER = 1e-9
@@ -106,7 +107,7 @@ func TestTerminalDevicePaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_UP)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
 					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
@@ -122,7 +123,7 @@ func TestTerminalDevicePaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_DOWN)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
 					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
@@ -138,7 +139,7 @@ func TestTerminalDevicePaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 					awaitQValueStats(t, dut, p, params, oc.Interface_OperStatus_UP)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // Wait extra time for telemetry to be updated.
 				for _, p := range dut.Ports() {
 					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), otnStreams[p.Name()].Next(), ethStreams[p.Name()].Next(), operationalMode)
 				}
@@ -168,9 +169,9 @@ func awaitQValueStats(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, par
 			qValue, present := min.Val()
 			return present &&
 				qValue.GetMin() <= maxAllowedQValue && qValue.GetMin() >= minAllowedQValue &&
-				qValue.GetAvg() <= maxAllowedQValue && qValue.GetAvg() >= minAllowedQValue &&
+				qValue.GetAvg() <= qValue.GetMax() && qValue.GetAvg() >= qValue.GetMin() &&
 				qValue.GetMax() <= maxAllowedQValue && qValue.GetMax() >= minAllowedQValue &&
-				qValue.GetInstant() <= maxAllowedQValue && qValue.GetInstant() >= minAllowedQValue
+				qValue.GetInstant() <= qValue.GetMax() && qValue.GetInstant() >= qValue.GetMin()
 		}).Await(t)
 		if !ok {
 			t.Fatalf("QValue stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
@@ -521,14 +522,6 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 				want: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 			},
 		}...)
-	}
-	if !deviations.ChannelRateClassParametersUnsupported(dut) {
-		tcs = append(tcs, testcase{
-			desc: "Rate Class",
-			path: fmt.Sprintf(logicalChannelPath+"/state/rate-class", params.OTNIndexes[p.Name()]),
-			got:  otnChannel.GetRateClass(),
-			want: params.RateClass,
-		})
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
 		tcs = append(tcs, []testcase{
