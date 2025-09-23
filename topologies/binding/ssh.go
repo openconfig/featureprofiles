@@ -29,7 +29,7 @@ type sshClient struct {
 	hostKey []byte
 }
 
-func newSSH(sc *ssh.Client, hk []bytes) (*sshClient, error) {
+func newSSH(sc *ssh.Client, hk []byte) (*sshClient, error) {
 	return &sshClient{ssh: sc, hostKey: hk}, nil
 }
 
@@ -68,6 +68,6 @@ func (r *commandResult) Error() string {
 	return r.error
 }
 
-func (c *SSHClient) HostKey() []byte {
+func (c *sshClient) HostKey() []byte {
 	return c.hostKey
 }
