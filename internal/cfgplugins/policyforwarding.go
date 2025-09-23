@@ -55,6 +55,10 @@ type OcPolicyForwardingParams struct {
 	IpType       string
 	Dynamic      bool
 	TunnelIP     string
+
+	// policy applied on Interfaces
+	AggID      string
+	Interfaces []*attrs.Attributes
 }
 
 type PolicyForwardingRule struct {
@@ -258,17 +262,17 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 // InterfacelocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
 // are applied
-func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
+func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	if deviations.LocalProxyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			var interfacelocalproxy strings.Builder
-			for _, a := range interfaces {
+			for _, a := range params.Interfaces {
 				if a.IPv4 != "" {
 					interfacelocalproxy.WriteString(fmt.Sprintf(`
 					interface %s.%d
 					ip local-proxy-arp 
-					!`, aggID, a.Subinterface))
+					!`, params.AggID, a.Subinterface))
 				}
 			}
 			helpers.GnmiCLIConfig(t, dut, interfacelocalproxy.String())
@@ -281,16 +285,16 @@ func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, interf
 // InterfaceQosClassificationConfigScale configures qos-classification on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
 // are applied
-func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string) {
+func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	if deviations.QosClassificationOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			var interfaceqosconfig strings.Builder
-			for _, a := range interfaces {
+			for _, a := range params.Interfaces {
 				interfaceqosconfig.WriteString(fmt.Sprintf(`
 				interface %s.%d
 				service-policy type qos input af3 
-				!`, aggID, a.Subinterface))
+				!`, params.AggID, a.Subinterface))
 			}
 			helpers.GnmiCLIConfig(t, dut, interfaceqosconfig.String())
 		default:
@@ -302,7 +306,7 @@ func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice,
 // InterfacePolicyForwardingConfigScale configures policy forwarding on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
 // are applied
-func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, interfaces []*attrs.Attributes, aggID string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
@@ -312,11 +316,11 @@ func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, 
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Format and apply the CLI command for traffic policy input.
 			var trafficpolicyconfig strings.Builder
-			for _, a := range interfaces {
+			for _, a := range params.Interfaces {
 				trafficpolicyconfig.WriteString(fmt.Sprintf(`
 				interface %s.%d  
 				traffic-policy input tp_cloud_id_3_%d
-				!`, aggID, a.Subinterface, a.Subinterface))
+				!`, params.AggID, a.Subinterface, a.Subinterface))
 			}
 			helpers.GnmiCLIConfig(t, dut, trafficpolicyconfig.String())
 		default:
@@ -432,7 +436,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 // PolicyForwardingConfigScale configures policy forwarding using multiple traffic-policies.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
 // are applied
-func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, encapparams OCEncapsulationParams, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
@@ -444,7 +448,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int
 
 			PolicyForwardingConfig.WriteString("Traffic-policies\n")
 
-			for i := 1; i <= count; i++ {
+			for i := 1; i <= encapparams.Count; i++ {
 
 				PolicyForwardingConfig.WriteString(fmt.Sprintf(`
     traffic-policy tp_cloud_id_3_%d

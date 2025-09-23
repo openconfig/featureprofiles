@@ -39,18 +39,6 @@ const (
 	greTunnelDestinationsStartIP = "10.99.1.1"
 )
 
-type encapsulationParams struct {
-	count                        int
-	mplsLabelCount               int
-	mplsStaticLabels             []int
-	mplsStaticLabelsForIPv6      []int
-	mplsLabelStartForIPv4        int
-	mplsLabelStartForIPv6        int
-	mplsLabelStep                int
-	greTunnelSources             []string
-	greTunnelDestinationsStartIP string
-}
-
 var (
 	top       = gosnappi.NewConfig()
 	aggID     string
@@ -91,7 +79,7 @@ var (
 		IPv4Len:     29,
 		IPv6Len:     126,
 	}
-	encapParams = &encapsulationParams{}
+
 	// Custom IMIX settings for all flows.
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
 		{Size: 64, Weight: 20},
@@ -237,11 +225,11 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 
 // PF-1.15.1: Generate DUT Configuration
 // Modified to create and pass OC root, ni, pf
-func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams *encapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
-	for i := range encapParams.count {
+	for i := range encapParams.Count {
 		iface := &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          1500,
@@ -270,46 +258,51 @@ func TestSetup(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
+	// Get default parameters for OC Policy Forwarding
+	ocPFParams := fetchDefaultOCPolicyForwardingParams()
+	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
+	ocEncapParams := fetchDefaultOCEncapParams()
+
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		encapParams.count = 250
-		encapParams.mplsLabelCount = 250
-		encapParams.mplsLabelStartForIPv4 = 16
-		encapParams.mplsLabelStartForIPv6 = 524280
-		encapParams.mplsLabelStep = 1000
-		encapParams.greTunnelSources = greTunnelSources
-		encapParams.greTunnelDestinationsStartIP = greTunnelDestinationsStartIP
+		ocEncapParams.Count = 250
+		ocEncapParams.MPLSLabelCount = 250
+		ocEncapParams.MPLSLabelStartForIPv4 = 16
+		ocEncapParams.MPLSLabelStartForIPv6 = 524280
+		ocEncapParams.MPLSLabelStep = 1000
+		ocEncapParams.GRETunnelSources = greTunnelSources
+		ocEncapParams.GRETunnelDestinationsStartIP = greTunnelDestinationsStartIP
 	default:
 		t.Fatalf("Unsupported vendor %s for now, need to check the maximum interface count", dut.Vendor())
 	}
 
-	flowIPv4.VLANFlow.VLANCount = uint32(encapParams.count)
-	flowIPv6.VLANFlow.VLANCount = uint32(encapParams.count)
+	flowIPv4.VLANFlow.VLANCount = uint32(ocEncapParams.Count)
+	flowIPv6.VLANFlow.VLANCount = uint32(ocEncapParams.Count)
 
-	netConfig, err := generateNetConfig(int(encapParams.count))
+	netConfig, err := generateNetConfig(int(ocEncapParams.Count))
 	if err != nil {
 		t.Fatalf("Error generating net config: %v", err)
 	}
-	encapParams.mplsStaticLabels = func() []int {
+	ocEncapParams.MPLSStaticLabels = func() []int {
 		var r []int
-		for count, label := 0, encapParams.mplsLabelStartForIPv4; count < encapParams.mplsLabelCount; count++ {
+		for count, label := 0, ocEncapParams.MPLSLabelStartForIPv4; count < ocEncapParams.MPLSLabelCount; count++ {
 			r = append(r, label)
-			label += encapParams.mplsLabelStep
+			label += ocEncapParams.MPLSLabelStep
 		}
 		return r
 	}()
 
-	encapParams.mplsStaticLabelsForIPv6 = func() []int {
+	ocEncapParams.MPLSStaticLabelsForIPv6 = func() []int {
 		var r []int
-		for count, label := 0, encapParams.mplsLabelStartForIPv6; count < encapParams.mplsLabelCount; count++ {
+		for count, label := 0, ocEncapParams.MPLSLabelStartForIPv6; count < ocEncapParams.MPLSLabelCount; count++ {
 			r = append(r, label)
-			label += encapParams.mplsLabelStep
+			label += ocEncapParams.MPLSLabelStep
 		}
 		return r
 	}()
 	var interfaces []*otgconfighelpers.InterfaceProperties
 
-	for i := range encapParams.count {
+	for i := range ocEncapParams.Count {
 		iface := &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
 			IPv4:        netConfig.otgIPs[i],
@@ -326,12 +319,8 @@ func TestSetup(t *testing.T) {
 
 	agg1.Interfaces = interfaces
 
-	// Get default parameters for OC Policy Forwarding
-	ocPFParams := fetchDefaultOCPolicyForwardingParams()
-	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
-
 	// Pass ocPFParams to ConfigureDut
-	configureDut(t, dut, netConfig, encapParams, ocPFParams, ocNHGParams)
+	configureDut(t, dut, netConfig, ocEncapParams, ocPFParams, ocNHGParams)
 	flowIPv4Validation.Interface.Names = append(flowIPv4Validation.Interface.Names, agg1.Interfaces[0].Name)
 	flowIPv4.TxNames = append(flowIPv4.TxNames, agg1.Interfaces[0].Name+".IPv4")
 	flowIPv6Validation.Interface.Names = append(flowIPv6Validation.Interface.Names, agg1.Interfaces[0].Name)
@@ -361,27 +350,30 @@ func fetchDefaultOCPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams 
 	}
 }
 
+// fetchDefaultOCEncapParams provides default parameters for mpls gre encapsulation.
+func fetchDefaultOCEncapParams() cfgplugins.OCEncapsulationParams {
+	return cfgplugins.OCEncapsulationParams{}
+}
+
 func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, aggID string, ocPFParams cfgplugins.OcPolicyForwardingParams, interfaces []*attrs.Attributes) {
 	t.Helper()
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
-	cfgplugins.InterfacelocalProxyConfigScale(t, dut, interfaces, aggID)
-	cfgplugins.InterfaceQosClassificationConfigScale(t, dut, interfaces, aggID)
-	cfgplugins.InterfacePolicyForwardingConfigScale(t, dut, interfaces, aggID, pf, ocPFParams)
+	ocPFParams.Interfaces = interfaces
+	ocPFParams.AggID = aggID
+	cfgplugins.InterfacelocalProxyConfigScale(t, dut, ocPFParams)
+	cfgplugins.InterfaceQosClassificationConfigScale(t, dut, ocPFParams)
+	cfgplugins.InterfacePolicyForwardingConfigScale(t, dut, pf, ocPFParams)
 }
 
 // encapMPLsInGre function helps in configurating MPLSinGRE commands in the DUT
-func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams *encapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.NextHopGroupConfigScale(t, dut, encapParams.count,
-		encapParams.mplsStaticLabels,
-		encapParams.mplsStaticLabelsForIPv6,
-		encapParams.greTunnelSources,
-		encapParams.greTunnelDestinationsStartIP, ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfigScale(t, dut, encapParams.count, pf, ocPFParams)
+	cfgplugins.NextHopGroupConfigScale(t, dut, encapParams, ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfigScale(t, dut, encapParams, pf, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}

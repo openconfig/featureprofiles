@@ -12,6 +12,19 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// OCEncapsulationParams holds parameters for generating the OC Encapsulations config.
+type OCEncapsulationParams struct {
+	Count                        int
+	MPLSLabelCount               int
+	MPLSStaticLabels             []int
+	MPLSStaticLabelsForIPv6      []int
+	MPLSLabelStartForIPv4        int
+	MPLSLabelStartForIPv6        int
+	MPLSLabelStep                int
+	GRETunnelSources             []string
+	GRETunnelDestinationsStartIP string
+}
+
 var (
 	nextHopGroupConfigIPV4Arista = `
 	nexthop-group 1V4_vlan_3_20 type mpls-over-gre
@@ -157,20 +170,20 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 }
 
 // NextHopGroupConfigScale configures the interface next-hop-group config.
-func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, count int, mplsStaticLabels, mplsStaticLabelsForIpv6 []int, tunnelSources []string, tunnelDestinationStart string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, encapparams OCEncapsulationParams, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			ipPrefix := strings.Join(strings.Split(strings.Split(tunnelDestinationStart, "/")[0], ".")[:3], ".")
+			ipPrefix := strings.Join(strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")[:3], ".")
 			buildConfig := func(prefix string, labels []int) string {
 				var b strings.Builder
-				for i := 1; i <= count; i++ {
+				for i := 1; i <= encapparams.Count; i++ {
 					b.WriteString(fmt.Sprintf(`
 nexthop-group %s%d type mpls-over-gre
  tos 96
  ttl 64
  fec hierarchical`, prefix, i))
-					for entry, src := range tunnelSources {
+					for entry, src := range encapparams.GRETunnelSources {
 						b.WriteString(fmt.Sprintf(`
  entry  %d push label-stack %d tunnel-destination %s.%d tunnel-source %s`,
 							entry, labels[i-1], ipPrefix, i, src))
@@ -180,8 +193,8 @@ nexthop-group %s%d type mpls-over-gre
 				return b.String()
 			}
 
-			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", mplsStaticLabels))
-			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", mplsStaticLabelsForIpv6))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", encapparams.MPLSStaticLabels))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", encapparams.MPLSStaticLabelsForIPv6))
 
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
