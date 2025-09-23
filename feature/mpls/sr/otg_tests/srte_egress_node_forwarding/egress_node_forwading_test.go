@@ -194,14 +194,14 @@ func configureDUTMPLSAndRouting(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	cfgplugins.NewISISBasic(t, batch, dut, cfgISIS)
 
-	mplsCfg := cfgplugins.MPLSConfigBasic{
+	mplsCfg := cfgplugins.MPLSSRConfigBasic{
 		InstanceName:   isisInstance,
 		SrgbName:       srgbName,
 		SrgbStartLabel: srgbStartLabel,
 		SrgbEndLabel:   srgbEndLabel,
 		SrgbID:         srgbID,
 	}
-	cfgplugins.NewMPLSBasic(t, batch, dut, mplsCfg)
+	cfgplugins.NewMPLSSRBasic(t, batch, dut, mplsCfg)
 
 	// IPv4 static route to ATE Port2
 	mustConfigStaticRoute(t, dut, ateTrafficDstIPv4Net, atePort2.IPv4)

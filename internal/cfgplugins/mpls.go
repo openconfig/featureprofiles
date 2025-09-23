@@ -270,8 +270,8 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 	}
 }
 
-// MPLSConfigBasic holds all parameters needed to configure MPLS on the DUT.
-type MPLSConfigBasic struct {
+// MPLSSRConfigBasic holds all parameters needed to configure MPLS and SR on the DUT.
+type MPLSSRConfigBasic struct {
 	InstanceName   string
 	SrgbName       string
 	SrgbStartLabel uint32
@@ -279,8 +279,8 @@ type MPLSConfigBasic struct {
 	SrgbID         string
 }
 
-// NewMPLSBasic configures MPLS on the DUT using OpenConfig.
-func NewMPLSBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg MPLSConfigBasic) {
+// NewMPLSSRBasic configures MPLS on the DUT using OpenConfig.
+func NewMPLSSRBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg MPLSSRConfigBasic) {
 	if deviations.IsisSrgbSrlbUnsupported(dut) {
 		cliConfig := ""
 		switch dut.Vendor() {
