@@ -208,6 +208,9 @@ func deviceRecords(t *testing.T, client recvClient, deadline time.Duration) ([]*
 				return rs, r.err
 			}
 			rs = append(rs, r.record)
+		case <-time.After(30 * time.Second):
+			close(rChan)
+			return rs, nil
 		}
 	}
 	return rs, nil
