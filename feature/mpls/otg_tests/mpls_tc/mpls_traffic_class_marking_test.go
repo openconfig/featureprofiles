@@ -38,25 +38,25 @@ const (
 )
 
 var (
-	dutAP1 = attrs.Attributes{
+	dut1P1 = attrs.Attributes{
 		Desc:    "DUT-1 to DUT-2",
 		IPv4:    "192.168.1.1",
 		IPv4Len: plenIPv4,
 	}
 
-	dutBP2 = attrs.Attributes{
+	dut2P2 = attrs.Attributes{
 		Desc:    "DUT-2 to DUT-1",
 		IPv4:    "192.168.1.2",
 		IPv4Len: plenIPv4,
 	}
 
-	dutALo50 = attrs.Attributes{
+	dut1Lo50 = attrs.Attributes{
 		Desc:    loopbackIntf,
 		IPv4:    "100.100.100.1",
 		IPv4Len: plenIPv4Loopback,
 	}
 
-	dutBLo50 = attrs.Attributes{
+	dut2Lo50 = attrs.Attributes{
 		Desc:    loopbackIntf,
 		IPv4:    "200.200.200.2",
 		IPv4Len: plenIPv4Loopback,
@@ -81,21 +81,21 @@ func TestMain(m *testing.M) {
 //  3. Configure QoS classifier on DUT-1 for MPLS TC marking
 //  4. Verify QoS configuration state
 func TestMplsTcMarking(t *testing.T) {
-	dutA := ondatra.DUT(t, "dut1")
-	dutB := ondatra.DUT(t, "dut2")
+	dut1 := ondatra.DUT(t, "dut1")
+	dut2 := ondatra.DUT(t, "dut2")
 
 	// Configure initial network setup (interfaces, ISIS, MPLS, LDP).
-	configureInitialDUTs(t, dutA, dutB)
+	configureInitialDUTs(t, dut1, dut2)
 
 	// Verify LDP session is established.
-	verifyLDP(t, dutA, dutBLo50.IPv4)
+	verifyLDP(t, dut1, dut2Lo50.IPv4)
 
 	t.Run("Configure and verify MPLS TC marking classifier", func(t *testing.T) {
 		// Configure QoS on DUT-1.
-		configureQoS(t, dutA)
+		configureQoS(t, dut1)
 
 		// Verify QoS configuration state on DUT-1.
-		verifyQoS(t, dutA)
+		verifyQoS(t, dut1)
 	})
 }
 
@@ -173,7 +173,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d
 	mpls := networkInstance.GetOrCreateMpls()
 	ldp := mpls.GetOrCreateSignalingProtocols().GetOrCreateLdp()
 	ldpg := ldp.GetOrCreateGlobal()
-	ldpg.LsrId = ygot.String(dutALo50.IPv4)
+	ldpg.LsrId = ygot.String(dut1Lo50.IPv4)
 
 	ldpif := ldp.GetOrCreateInterfaceAttributes().GetOrCreateInterface(dutPort.Name())
 	ldpif.GetOrCreateAddressFamily(oc.MplsLdp_MplsLdpAfi_IPV4).SetEnabled(true)
@@ -182,16 +182,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.Port, d
 }
 
 // configureInitialDUTs configures both DUTs.
-func configureInitialDUTs(t *testing.T, dutA, dutB *ondatra.DUTDevice) {
+func configureInitialDUTs(t *testing.T, dut1, dut2 *ondatra.DUTDevice) {
 	t.Helper()
-	p1A := dutA.Port(t, "port1")
-	p2B := dutB.Port(t, "port2")
+	p1 := dut1.Port(t, "port1")
+	p2 := dut2.Port(t, "port2")
 
-	configureDUT(t, dutA, p1A, &dutAP1, &dutALo50, dut1AreaAddress, dut1SysID)
-	configureDUT(t, dutB, p2B, &dutBP2, &dutBLo50, dut2AreaAddress, dut2SysID)
+	configureDUT(t, dut1, p1, &dut1P1, &dut1Lo50, dut1AreaAddress, dut1SysID)
+	configureDUT(t, dut2, p2, &dut2P2, &dut2Lo50, dut2AreaAddress, dut2SysID)
 }
 
-// verifyLDP waits for the LDP session between dutA and its peer to be established.
+// verifyLDP waits for the LDP session between dut1 and its peer to be established.
 func verifyLDP(t *testing.T, dut *ondatra.DUTDevice, peerIP string) {
 	t.Helper()
 	niName := deviations.DefaultNetworkInstance(dut)
