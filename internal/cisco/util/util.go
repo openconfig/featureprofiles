@@ -2599,3 +2599,12 @@ func GetOutboundIP(t testing.TB) net.IP {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	return localAddr.IP
 }
+
+// FirstOrFatal returns the first element or fails the test if slice is empty.
+func FirstOrFatal[T any](t testing.TB, xs []T, errMsg string, args ...any) T {
+	t.Helper()
+	if len(xs) == 0 {
+		t.Fatalf(errMsg, args...)
+	}
+	return xs[0]
+}
