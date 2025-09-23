@@ -4,7 +4,7 @@ owners:
 testbeds:
   - 8818-DUT-PEER-MTLS
 tests:
-- name: 8818_config_test 
+- name: 8818_scale_profile
   path: feature/gribi/otg_tests/cisco/8818_scale_profile
   timeout: 300000
   mustpass: true
