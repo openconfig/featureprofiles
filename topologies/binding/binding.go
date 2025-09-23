@@ -297,7 +297,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 	if err != nil {
 		return nil, err
 	}
-	return newSSH(sc)
+	return newSSH(sc, hk)
 }
 
 func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
