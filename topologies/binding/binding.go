@@ -243,6 +243,11 @@ func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
 
 func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding.SSHClient, error) {
 	var config *ssh.ClientConfig
+	var hk []byte
+	hkCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		hk = ssh.MarshalAuthorizedKey(key)
+		return nil
+	}
 	switch auth := sshAuth.(type) {
 	case binding.PasswordAuth:
 		config = &ssh.ClientConfig{
@@ -251,6 +256,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 				ssh.Password(auth.Password),
 				ssh.KeyboardInteractive(sshInteractive(auth.Password)),
 			},
+			HostKeyCallback: hkCallback,
 		}
 	case binding.KeyAuth:
 		signer, err := ssh.ParsePrivateKey(auth.Key)
@@ -262,6 +268,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
+			HostKeyCallback: hkCallback,
 		}
 	case binding.CertificateAuth:
 		signer, err := ssh.ParsePrivateKey(auth.PrivateKey)
@@ -281,6 +288,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
+			HostKeyCallback: hkCallback,
 		}
 	default:
 		return nil, fmt.Errorf("ssh auth type %T not supported yet", auth)
@@ -289,7 +297,7 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 	if err != nil {
 		return nil, err
 	}
-	return newSSH(sc)
+	return newSSH(sc, hk)
 }
 
 func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
