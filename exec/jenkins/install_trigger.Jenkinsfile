@@ -1,5 +1,5 @@
 def global_parameters = []
-def image_path, image_version, image_lineup, image_efr
+def image_path, image_version, image_full_version, image_lineup, image_efr
 
 pipeline {
     agent { label "ads" }
@@ -15,7 +15,7 @@ pipeline {
         stage('Validate') {
             steps {
                 script {
-                    for(p in ['Boot Image', 'Upgrade Image', 'Jenkins job path']) {
+                    for(p in ['Upgrade Image', 'Jenkins job path']) {
                         if(!params[p]) {
                             error "Parameter '${p}' is required."
                         }
@@ -33,12 +33,19 @@ pipeline {
         stage('Image Info') {
             steps {
                 script {
-                    (image_path, image_lineup, image_efr, image_version) = getImageInfo(params['Upgrade Image'])
-    
-                    global_parameters += [
-                        string(name: 'Image Path', value: "${params['Boot Image']}"),
-                        booleanParam(name: 'Install Image', value: true)
-                    ]
+                    (image_path, image_lineup, image_efr, image_version, image_full_version) = getImageInfo(params['Upgrade Image'])
+
+                    if(params['Boot Image']) {
+                        global_parameters += [
+                            string(name: 'Image Path', value: "${params['Boot Image']}"),
+                            booleanParam(name: 'Install Image', value: true)
+                        ]
+                    } else {
+                        global_parameters += [
+                            string(name: 'Image Path', value: ""),
+                            booleanParam(name: 'Install Image', value: false)
+                        ]
+                    }
                 }
             }
         }
@@ -49,6 +56,7 @@ pipeline {
                     def test_env = [
                         "UPGRADE_IMAGE_PATH: ${image_path}", 
                         "UPGRADE_IMAGE_VERSION: ${image_version}", 
+                        "UPGRADE_IMAGE_FULL_VERSION: ${image_full_version}", 
                         "UPGRADE_IMAGE_LINEUP: ${image_lineup}", 
                         "UPGRADE_IMAGE_EFR: ${image_efr}", 
                         "BOOT_IMAGE_PATH: ${params['Boot Image']}", 
@@ -73,7 +81,7 @@ def getImageInfo(String imagePath) {
         returnStdout: true
     ).trim()
     
-    def lineup, efr, version
+    def lineup, efr, version, fullVersion, label
     for(line in imageInfo.split('\n')) {
         if(line.startsWith("Lineup")) {
             def (k,v) = line.split('=')
@@ -83,8 +91,19 @@ def getImageInfo(String imagePath) {
         }
         else if(line.startsWith("XR version")) {
             def (k,v) = line.split('=')
-            version = v.split('-')[0].trim()
+            version = v.replaceAll('-LNT$', '').trim()
+        }
+        else if(line.startsWith("GISO build command")) {
+            def m = (line =~ /--label\s+([^\s]+)/)
+            if(m.find()) {
+                label = m.group(1).trim()
+            }
         }
     }
-    return [imagePath, lineup, efr, version]
+    if(label) {
+        fullVersion = version ? "${version}-${label}" : label
+    } else {
+        fullVersion = version
+    }
+    return [imagePath, lineup, efr, version, fullVersion]
 }
