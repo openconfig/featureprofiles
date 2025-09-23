@@ -59,7 +59,6 @@ B --BMP--> C[Port2:ATE];
 ### Verify BMP session establishment
 
 1)  Configure BMP station on ATE port-2 with address 10.23.15.58 and port 7039
-vvlakshmanamurthy marked this conversation as resolved.
 2)  Verify that the DUT initiates a BMP session to the station (connection-mode: active)
 3)  Using OTG, verify the ATE has an active BMP session with the DUT.
 4)  Validate that the DUT connects to the correct station-address (10.23.15.58) and port (7039) with pre-policy route monitoring.
