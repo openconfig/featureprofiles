@@ -180,13 +180,13 @@ test: {
 test: {
   id: "BMP-2.7"
   description: "BMP pre-policy test"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/pull/4532/files"
   exec: " "
 }
 test: {
   id: "BMP-2.8"
   description: "BMP post-policy test"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/pull/4533/files"
   exec: " "
 }
 test: {
