@@ -178,6 +178,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "BMP-2.7"
+  description: "BMP pre-policy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_pre_policy_test/README.md"
+  exec: " "
+}
+test: {
+  id: "BMP-2.8"
+  description: "BMP post-policy test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_post_policy_test/README.md"
+  exec: " "
+}
+test: {
   id: "Certz-1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/gnsi/certz/client_certificates/README.md"
 }
@@ -361,6 +373,12 @@ test: {
   id: "IC-1"
   description: "Integrated Circuit Utilization and Thresholds"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization/README.md"
+  exec: " "
+}
+test: {
+  id: "INT-1.1"
+  description: "Integrated Circuit Utilization and Thresholds"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/utilization_threshold/README.md"
   exec: " "
 }
 test: {
@@ -1202,6 +1220,11 @@ test: {
   id: "RT-9.3"
   description: "Static MAC address"
   readme: ""
+}
+test: {
+  id: "RT-10.1"
+  description: "Default Route Generation based on 192.0.0.0/8 Presence"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
 }
 test: {
   id: "Replay-1.2"
