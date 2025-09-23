@@ -21,7 +21,7 @@ def test_revision_params = ['Test branch', 'Test PR', 'Test commit hash']
 def test_override_params = ['Test repository', 'Test args'] + test_revision_params
 
 def forbidden_params_per_chain = [
-    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
+    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Pause Run Hours', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
     CulpritFinder: ['Image Path'],
     B4FeatureCoverageRunTests: [],
     RunTests: []
@@ -81,7 +81,8 @@ pipeline {
         
         separator(sectionHeader: "On Test Failure")
         persistentBoolean(name: 'Pause Run', defaultValue: false, description: 'Pause run on test failure. The run will be paused if the test fails. A test in this context is an entire FireX suite or go package (e.g., gNOI-5.1).')
-    
+        persistentChoice(name: 'Pause Run Hours', choices: ['5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24'], description: 'Hours to Pause run on test failure')
+
         separator(sectionHeader: "Image Info")
         persistentBoolean(name: 'Install Image', defaultValue: false, description: 'Install the specified image. The image installation script can be found here: exec/utils/software_upgrade/software_upgrade_test.go')
         persistentBoolean(name: 'Force Install Image', defaultValue: false, description: 'Force install the image even if it is already installed. This option might be necessary if the image has additional SMUs and an EFR that matches the installed image.')
@@ -484,6 +485,9 @@ pipeline {
 
                             if(params['Pause Run']) {
                                 firex_cmd_parts.add("--pause_if_tests_fail true")
+                                if(params['Pause Run Hours']) {
+                                    firex_cmd_parts.add("--pause_if_tests_fail_hours '${params['Pause Run Hours']}'")
+                                }
                             }
 
                             if(ts_internal.size() == 0) { // no need for internal testsuites
