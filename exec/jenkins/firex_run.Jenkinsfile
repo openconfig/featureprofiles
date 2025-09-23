@@ -386,7 +386,7 @@ pipeline {
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
-                                if params['Cisco Insta Triage'] {
+                                if(params['Cisco Insta Triage']) {
                                     firex_plugins.add("webdt_cit.py")
                                     firex_plugins.add("webdt_at.py")
                                 }
