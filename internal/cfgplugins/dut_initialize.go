@@ -32,10 +32,10 @@ type FeatureType int
 
 // VRFConfig holds input parameters for creating VRFs in a batched way.
 type VRFConfig struct {
-	VRFCount   int
-	EnablePBF  bool
+	VRFCount      int
+	EnablePBF     bool
 	VrfPolicyName string
-	VrfIPv6    string
+	VrfIPv6       string
 }
 
 const (
