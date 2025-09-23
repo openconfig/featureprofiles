@@ -5,11 +5,13 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"math/rand"
 	"net"
 	"os"
-	"strings"
+	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -18,6 +20,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -39,38 +42,38 @@ func TestMain(m *testing.M) {
 
 // Constants
 const (
-	portSpeed                    = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-	startVLANPort1               = 100
-	startVLANPort2               = 200
-	numVRFs                      = 1023
-	trafficDuration              = 15 * time.Second
-	nhIDStart                    = 201
-	mplsNHID                     = uint64(1001)
-	mplsNHGID                    = uint64(2001)
-	outerIPv6Src                 = "2001:db8::1"
-	outerIPv6Dst                 = "2001:db8::100"
-	outerDstUDPPort              = 6635
-	outerDSCP                    = 26
-	outerIPTTL                   = 64
-	ttl                          = uint32(100) // Inner packet TTL
-	mplsLabel                    = 100         // Each NHG gets a unique label
-	ipv4PrefixLen                = 30
-	ipv6PrefixLen                = 126
-	tolerance                    = 5
-	ratePps                      = 10000
-	pktSize                      = 256
-	policyName                   = "redirect-to-vrf_t"
-	ipv4AddrPfx1                 = "192.51.100.%d"
-	ipv4AddrPfx2                 = "193.51.100.%d"
-	ipv6AddrPfx1                 = "2001:db8:1:5::%d"
-	ipv6AddrPfx2                 = "2002:db8:1:6::%d"
-	pbfIpv6                      = "2001:db8::%d/128"
-	magicIP                      = "192.168.1.1"
-	magicMac                     = "02:00:00:00:00:01"
-	ipCount                      = 10
-	otgMultiPortCaptureSupported = false
-	baseIPv6                     = "2001:db8:100::" // starting prefix for IPv6
-	baseIPv4                     = "198.51.100.0"   // starting prefix for IPv4
+	portSpeed       = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	startVLANPort1  = 100
+	startVLANPort2  = 200
+	numVRFs         = 1023
+	vlanCount       = 16
+	trafficDuration = 15 * time.Second
+	nextHopID       = uint64(1001)
+	nextHopGroupID  = uint64(2001)
+	outerIPv6Src    = "2001:db8::1"
+	outerIPv6Dst    = "2001:db8::100"
+	outerDstUDPPort = 6635
+	outerDSCP       = 26
+	outerTTL        = 64
+	innerTTL        = uint32(100) // Inner packet TTL
+	mplsLabel       = 100         // Each NHG gets a unique label
+	ipv4PrefixLen   = 30
+	ipv6PrefixLen   = 126
+	routePrefixLen  = "/128"
+	tolerance       = 5
+	ratePPS         = 10000
+	pktSize         = 256
+	policyName      = "redirect-to-vrf_t"
+	ipv4AddrPfx1    = "192.51.100.%d"
+	ipv4AddrPfx2    = "193.51.100.%d"
+	ipv6AddrPfx1    = "2001:db8:1:5::%d"
+	ipv6AddrPfx2    = "2002:db8:1:6::%d"
+	pbfIPv6         = "2001:db8::%d/128"
+	dstIP           = "192.168.1.1"
+	dstMac          = "02:00:00:00:00:01"
+	ipCount         = 10
+	baseIPv6        = "2001:db8:100::" // starting prefix for IPv6
+	baseIPv4        = "198.51.100.0"   // starting prefix for IPv4
 )
 
 // DUT and ATE port attributes
@@ -85,33 +88,17 @@ var (
 	atePort3 = attrs.Attributes{Name: "ATE-Egress-Port-3", MAC: "02:02:02:00:00:03", IPv4: "194.51.100.2", IPv4Len: ipv4PrefixLen, IPv6: "2003:db8:1::2", IPv6Len: ipv6PrefixLen}
 	atePort4 = attrs.Attributes{Name: "ATE-Egress-Port-4", MAC: "02:02:02:00:00:04", IPv4: "195.51.100.2", IPv4Len: ipv4PrefixLen, IPv6: "2004:db8:1::2", IPv6Len: ipv6PrefixLen}
 
-	dutPort3DummyIP = attrs.Attributes{
-		Desc:       "dutPort3",
-		IPv4Sec:    "192.0.2.21",
-		IPv4LenSec: ipv4PrefixLen,
-	}
+	dutPort3DummyIP = attrs.Attributes{Desc: "dutPort3", IPv4Sec: "192.0.2.21", IPv4LenSec: ipv4PrefixLen}
 
-	otgPort3DummyIP = attrs.Attributes{
-		Desc:    "otgPort3",
-		IPv4:    "192.0.2.22",
-		IPv4Len: ipv4PrefixLen,
-	}
+	otgPort3DummyIP = attrs.Attributes{Desc: "otgPort3", IPv4: "192.0.2.22", IPv4Len: ipv4PrefixLen}
 
-	dutPort4DummyIP = attrs.Attributes{
-		Desc:       "dutPort4",
-		IPv4Sec:    "193.0.2.21",
-		IPv4LenSec: ipv4PrefixLen,
-	}
+	dutPort4DummyIP = attrs.Attributes{Desc: "dutPort4", IPv4Sec: "193.0.2.21", IPv4LenSec: ipv4PrefixLen}
 
-	otgPort4DummyIP = attrs.Attributes{
-		Desc:    "otgPort4",
-		IPv4:    "193.0.2.22",
-		IPv4Len: ipv4PrefixLen,
-	}
+	otgPort4DummyIP = attrs.Attributes{Desc: "otgPort4", IPv4: "193.0.2.22", IPv4Len: ipv4PrefixLen}
 	// IPv6 flow configuration for MPLS-in-UDP testing
 	fa6 = flowAttr{
 		src:      atePort1.IPv6,
-		dst:      strings.Split(baseIPv6, "/")[0], // Extract IPv6 prefix for inner destination
+		dst:      baseIPv6, // IPv6 prefix for inner destination
 		srcMac:   atePort1.MAC,
 		dstMac:   dutPort1.MAC,
 		srcPort:  "port1",
@@ -120,7 +107,7 @@ var (
 	}
 	fa4 = flowAttr{
 		src:      atePort1.IPv4,
-		dst:      strings.Split("198.51.100.0", "/")[0], // Extract IPv6 prefix for inner destination
+		dst:      baseIPv4, // IPv4 prefix for inner destination
 		srcMac:   atePort1.MAC,
 		dstMac:   dutPort1.MAC,
 		srcPort:  "port1",
@@ -183,7 +170,7 @@ type testCase struct {
 	wantOuterDstIP      string
 	wantOuterSrcIP      string
 	wantOuterDstUDPPort uint16
-	wantOuterIPTTL      uint8
+	wantOuterTTL        uint8
 }
 
 // configureDUT configures all ports with base IPs and subinterfaces with VRF and VLANs.
@@ -195,9 +182,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	dp4 := dut.Port(t, "port4")
 	d := gnmi.OC()
 
+	vrfBatch := new(gnmi.SetBatch)
 	// Create VRFs + PBF (true enables policy-based forwarding rules)
-	vrfsList := createVRFsBatched(t, dut, numVRFs, true)
-
+	vrfsList := cfgplugins.CreateVRFs(t, dut, vrfBatch, cfgplugins.VRFConfig{VRFCount: numVRFs, EnablePBF: true, VrfPolicyName: policyName, VrfIPv6: pbfIPv6})
 	portList := []*ondatra.Port{dp1, dp2, dp3, dp4}
 	dutPortAttrs := []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4}
 
@@ -218,33 +205,34 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
 		}
-		gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), intf)
+		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
 		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
 	}
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	// configure 16 L3 subinterfaces under DUT port#1 & 2 and assign them to DEFAULT vrf
-	configureDUTSubIfs(t, new(oc.Root), dut, dp1, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
-	configureDUTSubIfs(t, new(oc.Root), dut, dp2, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
+	configureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
+	configureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
 
 	// configure an L3 subinterface without vlan tagging under DUT port#3 & 4
-	createDUTSubif(t, new(oc.Root), dut, dp3, 0, 0, dutPort3.IPv4, dutPort3.IPv6)
-	createDUTSubif(t, new(oc.Root), dut, dp4, 0, 0, dutPort4.IPv4, dutPort4.IPv6)
+	createDUTSubinterface(t, vrfBatch, new(oc.Root), dut, dp3, 0, 0, dutPort3.IPv4, dutPort3.IPv6)
+	createDUTSubinterface(t, vrfBatch, new(oc.Root), dut, dp4, 0, 0, dutPort4.IPv4, dutPort4.IPv6)
 
-	applyForwardingPolicy(t, dp1.Name())
-	applyForwardingPolicy(t, dp2.Name())
+	cfgplugins.VRFPolicy(t, vrfBatch, cfgplugins.VRFPolicyConfig{IngressPort: dp1.Name(), PolicyName: policyName})
+	cfgplugins.VRFPolicy(t, vrfBatch, cfgplugins.VRFPolicyConfig{IngressPort: dp2.Name(), PolicyName: policyName})
+	vrfBatch.Set(t, dut)
 	// Set static ARP for gRIBI NH MAC resolution
 	switch {
 	case deviations.GRIBIMACOverrideWithStaticARP(dut):
 		staticARPWithSecondaryIP(t, dut)
 	case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-		staticARPWithMagicUniversalIP(t, dut)
+		staticARPWithUniversalIP(t, dut)
 	}
 	return vrfsList
 }
 
-// createSubifDUT creates a single L3 subinterface
-func createDUTSubif(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr, ipv6Addr string) {
+// createDUTSubinterface creates a single subinterface on the DUT port with optional VLAN, IPv4, and IPv6 configuration, and stages it into the provided GNMI SetBatch.
+func createDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, index uint32, vlanID uint16, ipv4Addr, ipv6Addr string) {
 	t.Helper()
 	ifName := dutPort.Name()
 	i := d.GetOrCreateInterface(dutPort.Name())
@@ -268,106 +256,26 @@ func createDUTSubif(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *o
 	if deviations.InterfaceEnabled(dut) {
 		s6.Enabled = ygot.Bool(true)
 	}
-	gnmi.Replace(t, dut, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
+	gnmi.BatchUpdate(vrfBatch, gnmi.OC().Interface(ifName).Subinterface(index).Config(), s)
 }
 
-// configureDUTSubIfs configures 16 DUT subinterfaces on the target device
-func configureDUTSubIfs(t *testing.T, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
+// configureDUTSubinterfaces creates and configures multiple subinterfaces (up to 16) on the given DUT port. Each subinterface is assigned a VLAN ID, IPv4, and IPv6 address, and all configurations are staged into the provided GNMI SetBatch.
+func configureDUTSubinterfaces(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
 	t.Helper()
-	for i := startVLANPort; i < 16; i++ {
-		index := uint32(i)
-		vlanID := uint16(i)
+	for i := 0; i < vlanCount; i++ {
+		index := uint32(i + 1)
+		vlanID := uint16(startVLANPort + i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			vlanID = uint16(i) + 1
+			vlanID += 1
 		}
-		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*i)+2)
-		dutIPv6 := fmt.Sprintf(prefixFmtV6, (5*i)+2)
-		createDUTSubif(t, d, dut, dutPort, index, vlanID, dutIPv4, dutIPv6)
+		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*index)+2)
+		dutIPv6 := fmt.Sprintf(prefixFmtV6, (5*index)+2)
+		createDUTSubinterface(t, vrfBatch, d, dut, dutPort, index, vlanID, dutIPv4, dutIPv6)
 	}
 }
 
-// applyForwardingPolicy applies the forwarding policy on the interface.
-func applyForwardingPolicy(t *testing.T, ingressPort string) {
-	t.Helper()
-	t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
-	d := new(oc.Root)
-	dut := ondatra.DUT(t, "dut")
-	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = ingressPort + ".0"
-	}
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
-	pfCfg.ApplyVrfSelectionPolicy = ygot.String(policyName)
-	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
-	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		pfCfg.InterfaceRef = nil
-	}
-	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
-}
-
-func createVRFsBatched(t *testing.T, dut *ondatra.DUTDevice, vrfCount int, enablePBF bool) []string {
-	t.Helper()
-	droot := new(oc.Root)
-	vrfs := []string{deviations.DefaultNetworkInstance(dut)}
-
-	// DEFAULT NI
-	ni := droot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-
-	sb := &gnmi.SetBatch{}
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
-
-	// VRFs
-	for i := 1; i <= vrfCount; i++ {
-		name := fmt.Sprintf("VRF_%03d", i)
-		vrfs = append(vrfs, name)
-		ni := droot.GetOrCreateNetworkInstance(name)
-		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(name).Config(), ni)
-	}
-
-	// PBF
-	if enablePBF {
-		pbf := configurePBF(t, dut, vrfCount)
-		gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pbf)
-	}
-	sb.Set(t, dut)
-	return vrfs
-}
-
-func configurePBF(t *testing.T, dut *ondatra.DUTDevice, vrfCount int) *oc.NetworkInstance_PolicyForwarding {
-	t.Helper()
-	d := new(oc.Root)
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	pf := ni.GetOrCreatePolicyForwarding()
-
-	// Create one policy to hold multiple rules
-	policy := pf.GetOrCreatePolicy(policyName)
-	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	// Add one rule per VRF up to vrfCount
-	for i := 1; i <= vrfCount; i++ {
-		ruleID := uint32(i)
-		vrfName := fmt.Sprintf("VRF_%03d", i)
-
-		rule := policy.GetOrCreateRule(ruleID)
-		rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf(pbfIpv6, i))
-		rule.GetOrCreateIpv6().DscpSet = []uint8{uint8(i % 64)}
-		rule.GetOrCreateAction().NetworkInstance = ygot.String(vrfName)
-	}
-
-	// Add default catch-all rule (optional but recommended)
-	defaultRuleID := uint32(10000)
-	defaultRule := policy.GetOrCreateRule(defaultRuleID)
-	defaultRule.GetOrCreateIpv6().SourceAddress = ygot.String("::/0")
-	defaultRule.GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
-
-	return pf
-}
-
-func configureATE(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4, dutIPv6, ateIPv6 string) {
+// createATEDevice creates a single ATE device with Ethernet, VLAN, IPv4, and IPv6 configuration, and attaches it to the given ATE port.
+func createATEDevice(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, vlanID uint16, Name, MAC, dutIPv4, ateIPv4, dutIPv6, ateIPv6 string) {
 	t.Helper()
 	dev := ateConfig.Devices().Add().SetName(Name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(Name + ".Eth").SetMac(MAC)
@@ -377,30 +285,28 @@ func configureATE(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port
 	eth.Ipv6Addresses().Add().SetName(Name + ".IPv6").SetAddress(ateIPv6).SetGateway(dutIPv6).SetPrefix(uint32(ipv6PrefixLen))
 }
 
-// configureATESubIfs configures 16 ATE subinterfaces on the target device
-// It returns a slice of the corresponding ATE IPAddresses.
-func configureATESubIfs(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, Name, Mac, prefixFmtV4, prefixFmtV6 string, startVLANPort int) []string {
+// configureATESubinterfaces configures 16 ATE subinterfaces on the target device It returns a slice of the corresponding ATE IPAddresses.
+func configureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, Name, Mac, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
 	t.Helper()
-	var nextHops []string
-	for i := startVLANPort; i < 16; i++ {
-		vlanID := uint16(i)
+	for i := 0; i < vlanCount; i++ {
+		vlanID := uint16(startVLANPort + i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			vlanID += 1
+			vlanID = vlanID + 1
 		}
-		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*i)+2)
-		ateIPv4 := fmt.Sprintf(prefixFmtV4, (4*i)+1)
-		dutIPv6 := fmt.Sprintf(prefixFmtV6, (5*i)+2)
-		ateIPv6 := fmt.Sprintf(prefixFmtV6, (5*i)+1)
+		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*(i+1))+2)
+		ateIPv4 := fmt.Sprintf(prefixFmtV4, (4*(i+1))+1)
+		dutIPv6 := fmt.Sprintf(prefixFmtV6, (5*(i+1))+2)
+		ateIPv6 := fmt.Sprintf(prefixFmtV6, (5*(i+1))+1)
 		name := fmt.Sprintf("%s%d", Name, i)
 		mac, _ := incrementMAC(Mac, i+1)
-		configureATE(t, ateConfig, atePort, vlanID, name, mac, dutIPv4, ateIPv4, dutIPv6, ateIPv6)
-		nextHops = append(nextHops, ateIPv6)
+		createATEDevice(t, ateConfig, atePort, vlanID, name, mac, dutIPv4, ateIPv4, dutIPv6, ateIPv6)
 	}
-	return nextHops
 }
 
-func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, ateConfig gosnappi.Config) gosnappi.Config {
+// configureOTG sets up the ATE topology across 4 physical ports, including VLAN subinterfaces, IP addressing, and device-level configs. It also applies Layer1 link settings for 100GBASE-LR4 PMD ports with auto-negotiation and disables RS-FEC if required.
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) gosnappi.Config {
 	t.Helper()
+	ateConfig := gosnappi.NewConfig()
 	ap1 := ate.Port(t, "port1")
 	ap2 := ate.Port(t, "port2")
 	ap3 := ate.Port(t, "port3")
@@ -411,11 +317,11 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, 
 	ateConfig.Ports().Add().SetName(ap3.ID())
 	ateConfig.Ports().Add().SetName(ap4.ID())
 
-	configureATE(t, ateConfig, ap3, 0, atePort3.Name, atePort3.MAC, dutPort3.IPv4, atePort3.IPv4, dutPort3.IPv6, atePort3.IPv6)
-	configureATE(t, ateConfig, ap4, 0, atePort4.Name, atePort4.MAC, dutPort4.IPv4, atePort4.IPv4, dutPort4.IPv6, atePort4.IPv6)
+	createATEDevice(t, ateConfig, ap3, 0, atePort3.Name, atePort3.MAC, dutPort3.IPv4, atePort3.IPv4, dutPort3.IPv6, atePort3.IPv6)
+	createATEDevice(t, ateConfig, ap4, 0, atePort4.Name, atePort4.MAC, dutPort4.IPv4, atePort4.IPv4, dutPort4.IPv6, atePort4.IPv6)
 	// subIntfIPs is a []string slice with ATE IPv6 addresses for all the subInterfaces
-	configureATESubIfs(t, ateConfig, ap1, dut, atePort1.Name, atePort1.MAC, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
-	configureATESubIfs(t, ateConfig, ap2, dut, atePort2.Name, atePort2.MAC, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
+	configureATESubinterfaces(t, ateConfig, ap1, dut, atePort1.Name, atePort1.MAC, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
+	configureATESubinterfaces(t, ateConfig, ap2, dut, atePort2.Name, atePort2.MAC, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
 	var pmd100GBASELR4 []string
 	for _, p := range ateConfig.Ports().Items() {
 		port := ate.Port(t, p.Name())
@@ -432,6 +338,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, 
 	return ateConfig
 }
 
+// programBasicEntries installs basic NextHop and NextHopGroup entries to set up ECMP forwarding across port3 and port4, along with an IPv6 route to test MPLS-in-UDP tunnels.
 func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) {
 	t.Helper()
 	t.Log("Setting up routing infrastructure for MPLS-in-UDP with ECMP on port3 and port4")
@@ -449,39 +356,24 @@ func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) 
 
 		switch {
 		case deviations.GRIBIMACOverrideWithStaticARP(dut):
-			nh, op := gribi.NHEntry(
-				nhIDs[i], "MACwithIp", deviations.DefaultNetworkInstance(dut),
-				fluent.InstalledInFIB,
-				&gribi.NHOptions{Dest: []string{otgPort3DummyIP.IPv4, otgPort4DummyIP.IPv4}[i], Mac: magicMac},
-			)
+			nh, op := gribi.NHEntry(nhIDs[i], "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: []string{otgPort3DummyIP.IPv4, otgPort4DummyIP.IPv4}[i], Mac: dstMac})
 			nhEntries = append(nhEntries, nh)
 			nhOps = append(nhOps, op)
 
 		case deviations.GRIBIMACOverrideStaticARPStaticRoute(dut):
-			nh, op := gribi.NHEntry(
-				nhIDs[i], "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-				fluent.InstalledInFIB,
-				&gribi.NHOptions{Interface: port.Name(), Mac: magicMac, Dest: magicIP},
-			)
+			nh, op := gribi.NHEntry(nhIDs[i], "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: port.Name(), Mac: dstMac, Dest: dstIP})
 			nhEntries = append(nhEntries, nh)
 			nhOps = append(nhOps, op)
 
 		default:
-			nh, op := gribi.NHEntry(
-				nhIDs[i], "MACwithInterface", deviations.DefaultNetworkInstance(dut),
-				fluent.InstalledInFIB,
-				&gribi.NHOptions{Interface: port.Name(), Mac: magicMac},
-			)
+			nh, op := gribi.NHEntry(nhIDs[i], "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: port.Name(), Mac: dstMac})
 			nhEntries = append(nhEntries, nh)
 			nhOps = append(nhOps, op)
 		}
 	}
 
 	// Build NHG with both next-hops (ECMP)
-	nhMap := map[uint64]uint64{
-		nhIDs[0]: 1, // weight 1
-		nhIDs[1]: 1, // weight 1
-	}
+	nhMap := map[uint64]uint64{nhIDs[0]: 1, nhIDs[1]: 1}
 	nhg, nhgOp := gribi.NHGEntry(nhgID, nhMap, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	nhEntries = append(nhEntries, nhg)
 	nhOps = append(nhOps, nhgOp)
@@ -490,128 +382,107 @@ func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) 
 	c.AddEntries(t, nhEntries, nhOps)
 
 	// Add IPv6 route for outer destination to point to the NHG
-	c.AddIPv6(t, outerIPv6Dst+"/128", nhgID,
-		deviations.DefaultNetworkInstance(dut),
-		deviations.DefaultNetworkInstance(dut),
-		fluent.InstalledInFIB)
+	c.AddIPv6(t, outerIPv6Dst+routePrefixLen, nhgID, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	t.Logf("Installed ECMP route %s/128 via ports 3 and 4", outerIPv6Dst)
+	t.Logf("Installed ECMP route %s via ports 3 and 4", outerIPv6Dst+routePrefixLen)
 }
 
-// programMPLSinUDPEntries programs gRIBI entries for MPLS-in-UDP encapsulation.
-// It installs a single NextHop that performs MPLS-in-UDP encapsulation with the
-// provided outer IPv6 and UDP header attributes, associates multiple NextHopGroups
-// (NHGs) with that NextHop, and finally installs IPv6 /128 routes pointing to each NHG.
-func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, mplsNHID, mplsLabelStart uint64, numNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerIPTTL, outerDSCP uint8) []fluent.GRIBIEntry {
+// programMPLSinUDPEntries programs gRIBI entries for MPLS-in-UDP encapsulation. It installs a single NextHop that performs MPLS-in-UDP encapsulation with the provided outer IPv6 and UDP header attributes, associates multiple NextHopGroups (NHGs) with that NextHop, and finally installs IPv6 /128 routes pointing to each NHG.
+func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, nextHopID, mplsLabelStart uint64, numNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) []fluent.GRIBIEntry {
 	t.Helper()
-	entries := []fluent.GRIBIEntry{
-		// Create the single MPLS-in-UDP NextHop
-		fluent.NextHopEntry().
-			WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(mplsNHID).
-			AddEncapHeader(
-				fluent.MPLSEncapHeader().WithLabels(mplsLabelStart),
+	// Preallocate exact capacity to avoid reallocation
+	totalEntries := 1 + 2*numNHGs
+	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
+
+	// Create the single MPLS-in-UDP NextHop
+	entries = append(entries,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(nextHopID).
+			AddEncapHeader(fluent.MPLSEncapHeader().WithLabels(mplsLabelStart),
 				fluent.UDPV6EncapHeader().
 					WithSrcIP(outerIPv6Src).
 					WithDstIP(outerIPv6Dst).
 					WithDstUDPPort(uint64(outerDstUDPPort)).
-					WithIPTTL(uint64(outerIPTTL)).
+					WithIPTTL(uint64(outerTTL)).
 					WithDSCP(uint64(outerDSCP)),
 			),
-	}
-	// Create NextHopGroups pointing to the same NH
-	for i := 0; i < numNHGs; i++ {
-		nhgID := mplsNHGID + uint64(i)
-		entries = append(entries,
-			fluent.NextHopGroupEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithID(nhgID).
-				AddNextHop(mplsNHID, 1),
-		)
-	}
+	)
 
-	// Create IPv6 routes pointing to those NHGs
-	baseIP := net.ParseIP(baseIPv6)
-	ipInt := big.NewInt(0).SetBytes(baseIP.To16())
-	for i := 0; i < numNHGs; i++ {
-		ipBytes := ipInt.FillBytes(make([]byte, 16))
-		prefix := fmt.Sprintf("%s/128", net.IP(ipBytes).String())
+	// Pre-parse base IP once
+	ipInt := big.NewInt(0).SetBytes(net.ParseIP(baseIPv6).To16())
+	tmpBytes := make([]byte, 16)
+
+	// Create NextHopGroups and IPv6 routes
+	for i := range numNHGs {
+		nhgID := nextHopGroupID + uint64(i)
+
+		// Add NHG
+		entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(nhgID).AddNextHop(nextHopID, 1))
+
+		// Compute next prefix
 		ipInt.Add(ipInt, big.NewInt(1))
+		ipBytes := ipInt.FillBytes(tmpBytes)
+		prefix := fmt.Sprintf("%s%s", net.IP(ipBytes), routePrefixLen)
 
-		nhgID := mplsNHGID + uint64(i)
-		entries = append(entries,
-			fluent.IPv6Entry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithPrefix(prefix).
-				WithNextHopGroup(nhgID).
-				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		)
+		// Add IPv6 entry
+		entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithPrefix(prefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
 	}
 
 	return entries
 }
 
-func programMPLSinUDPMultiEntries(t *testing.T, dut *ondatra.DUTDevice, vrfs []string, mplsNHBase, mplsLabelStart uint64, numNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerIPTTL, outerDSCP uint8) []fluent.GRIBIEntry {
+// programMPLSinUDPMultiEntries programs MPLS-in-UDP encapsulated NextHops, NextHopGroups, and IPv6 routes across multiple VRFs. It returns a slice of gRIBI entries that can be pushed to the DUT using the fluent gRIBI client.
+func programMPLSinUDPMultiEntries(t *testing.T, dut *ondatra.DUTDevice, vrfs []string, mplsNHBase, nhgBase, mplsLabelStart uint64, numNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) []fluent.GRIBIEntry {
 	t.Helper()
-	var entries []fluent.GRIBIEntry
+
+	// Preallocate: 1 NextHop per VRF + (numNHGs * (1 NHG + 1 Route)) per VRF
+	totalEntries := len(vrfs) * (1 + numNHGs*2)
+	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
+
+	defaultNI := deviations.DefaultNetworkInstance(dut)
 
 	for vrfIdx, vrfName := range vrfs {
+		// one unique MPLS label and one NH per VRF
 		label := mplsLabelStart + uint64(vrfIdx)
-		nhID := mplsNHBase + uint64(vrfIdx)
+		nhID := mplsNHBase + uint64(vrfIdx) // unique NH per VRF
 
-		// NextHop
-		entries = append(entries,
-			fluent.NextHopEntry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithIndex(nhID).
-				AddEncapHeader(
-					fluent.MPLSEncapHeader().WithLabels(label),
-					fluent.UDPV6EncapHeader().
-						WithSrcIP(outerIPv6Src).
-						WithDstIP(outerIPv6Dst).
-						WithDstUDPPort(uint64(outerDstUDPPort)).
-						WithIPTTL(uint64(outerIPTTL)).
-						WithDSCP(uint64(outerDSCP)),
-				),
+		// NextHop (programmed into default network-instance by convention)
+		entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultNI).WithIndex(nhID).
+			AddEncapHeader(fluent.MPLSEncapHeader().WithLabels(label),
+				fluent.UDPV6EncapHeader().
+					WithSrcIP(outerIPv6Src).
+					WithDstIP(outerIPv6Dst).
+					WithDstUDPPort(uint64(outerDstUDPPort)).
+					WithIPTTL(uint64(outerTTL)).
+					WithDSCP(uint64(outerDSCP)),
+			),
 		)
 
-		// NextHopGroups and Routes
-		for i := 0; i < numNHGs; i++ {
-			nhgID := mplsNHGID + uint64(vrfIdx*numNHGs+i)
+		// For each NHG in this VRF, create NHG and a unique route pointing to it
+		for i := range numNHGs {
+			nhgID := nhgBase + uint64(vrfIdx*numNHGs+i)
 
-			entries = append(entries,
-				fluent.NextHopGroupEntry().
-					WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-					WithID(nhgID).
-					AddNextHop(nhID, 1),
-			)
+			// NextHopGroup (referring to the NH in defaultNI)
+			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultNI).WithID(nhgID).AddNextHop(nhID, 1))
 
-			// Unique IPv6 prefix for this NHG
+			// Generate unique IPv6 prefix for this NHG
 			offset := int64(vrfIdx*numNHGs + i)
-			prefix := iputil.GenerateIPv6Prefix(baseIPv6, offset)
+			prefixIP := iputil.GenerateIPv6Prefix(baseIPv6, offset) // returns net.IP or IPNet depending on your util
+			prefixStr := fmt.Sprintf("%s%s", prefixIP.String(), routePrefixLen)
 
-			entries = append(entries,
-				fluent.IPv6Entry().
-					WithNetworkInstance(vrfName).
-					WithPrefix(prefix).
-					WithNextHopGroup(nhgID).
-					WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-			)
+			entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfName).WithPrefix(prefixStr).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(defaultNI))
 		}
 	}
 
 	return entries
 }
 
-func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
+// staticARPWithUniversalIP programs a static route with multiple next-hops across two DUT ports, each accompanied by a static ARP entry.
+func staticARPWithUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	sb := &gnmi.SetBatch{}
+	sb := new(gnmi.SetBatch)
 
 	// Define the static route prefix once
-	sp := gnmi.OC().
-		NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).
-		Static(magicIP + "/32")
+	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(dstIP + "/32")
 
 	// For both ports, add a unique next-hop under the same static prefix
 	for i, portName := range []string{"port3", "port4"} {
@@ -630,159 +501,128 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 		// Also push a static ARP entry for this interface
 		gnmi.BatchUpdate(sb,
 			gnmi.OC().Interface(port.Name()).Config(),
-			configStaticArp(port.Name(), magicIP, magicMac),
+			configStaticArp(port.Name(), dstIP, dstMac),
 		)
-		t.Logf("Added static route %s -> %s (NextHop %s)", magicIP, port.Name(), nhIndex)
+		t.Logf("Added static route %s -> %s (NextHop %s)", dstIP, port.Name(), nhIndex)
 	}
 	// Commit all changes
 	sb.Set(t, dut)
 }
 
-// validateMPLSPacketCapture validates MPLS-in-UDP encapsulated packets from capture
-func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName string, pr *packetResult, labelList []uint64) {
+// validateMPLSPacketCapture analyzes a packet capture on the given OTG port and validates MPLS-in-UDP encapsulation against the expected parameters. Returns an error if validation fails.
+func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName string, pr *packetResult, labelList []uint64) error {
 	t.Helper()
 	t.Logf("=== PACKET CAPTURE VALIDATION START for port %s ===", otgPortName)
 
+	// Get raw packet bytes
 	packetBytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
+	if len(packetBytes) == 0 {
+		return fmt.Errorf("no packet data captured on port %s", otgPortName)
+	}
 	t.Logf("Captured %d bytes from port %s", len(packetBytes), otgPortName)
 
-	if len(packetBytes) == 0 {
-		t.Errorf("No packet data captured on port %s", otgPortName)
-		return
-	}
-
-	// Write capture to temporary pcap file for analysis
-	f, err := os.CreateTemp("", ".pcap")
+	// Write capture to temporary pcap file
+	tmpFile, err := os.CreateTemp("", "*.pcap")
 	if err != nil {
-		t.Fatalf("Could not create temporary pcap file: %v", err)
+		return fmt.Errorf("could not create temporary pcap file: %v", err)
 	}
-	if _, err := f.Write(packetBytes); err != nil {
-		t.Fatalf("Could not write packetBytes to pcap file: %v", err)
+	if _, err := tmpFile.Write(packetBytes); err != nil {
+		return fmt.Errorf("could not write packet data: %v", err)
 	}
-	f.Close()
+	tmpFile.Close()
 
-	handle, err := pcap.OpenOffline(f.Name())
+	handle, err := pcap.OpenOffline(tmpFile.Name())
 	if err != nil {
-		t.Fatalf("Could not open pcap file: %v", err)
+		return fmt.Errorf("could not open pcap file: %v", err)
 	}
 	defer handle.Close()
+
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
-	packetCount := 0
-	mplsPacketCount := 0
-	validMplsPacketCount := 0
+	// Optimize label lookups by using a map
+	labelMap := make(map[uint64]struct{}, len(labelList))
+	for _, l := range labelList {
+		labelMap[l] = struct{}{}
+	}
+
+	var packetCount, mplsPacketCount, validMplsPacketCount int
 	for packet := range packetSource.Packets() {
 		packetCount++
-		// Look for UDP-IPv6 packets (MPLS-in-UDP encapsulation)
 		udpLayer := packet.Layer(layers.LayerTypeUDP)
 		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
+		// Skip packets that are not UDP-over-IPv6. For debugging, we log only the first 5 skipped packets to avoid flooding the test logs if the capture contains many irrelevant packets (e.g., ARP, ICMP).
 		if udpLayer == nil || ipv6Layer == nil {
-			if packetCount < 5 {
+			if packetCount <= 5 {
 				t.Logf("Packet %d: Skipping non-UDP-IPv6 packet", packetCount)
 			}
 			continue
 		}
 		mplsPacketCount++
-		t.Logf("Packet %d: Found UDP-IPv6 packet for validation", packetCount)
-		packetValid := true
 
-		// Validate IPv6 outer header
-		v6Packet := ipv6Layer.(*layers.IPv6)
-		t.Logf("Packet %d: IPv6 src=%s, dst=%s, hopLimit=%d", packetCount,
-			v6Packet.SrcIP.String(), v6Packet.DstIP.String(), v6Packet.HopLimit)
-
-		if v6Packet.DstIP.String() != pr.dstIP {
-			t.Errorf("Packet %d: Got outer destination IP %s, want %s", packetCount, v6Packet.DstIP.String(), pr.dstIP)
-			packetValid = false
+		// Validate IPv6 header
+		v6 := ipv6Layer.(*layers.IPv6)
+		if v6.DstIP.String() != pr.dstIP {
+			return fmt.Errorf("packet %d: got dstIP %s, want %s", packetCount, v6.DstIP, pr.dstIP)
 		}
-		if v6Packet.SrcIP.String() != pr.srcIP {
-			t.Errorf("Packet %d: Got outer source IP %s, want %s", packetCount, v6Packet.SrcIP.String(), pr.srcIP)
-			packetValid = false
+		if v6.SrcIP.String() != pr.srcIP {
+			return fmt.Errorf("packet %d: got srcIP %s, want %s", packetCount, v6.SrcIP, pr.srcIP)
 		}
-		if v6Packet.HopLimit != pr.ipTTL {
-			t.Errorf("Packet %d: Got outer hop limit %d, want %d", packetCount, v6Packet.HopLimit, pr.ipTTL)
-			packetValid = false
+		if v6.HopLimit != pr.ipTTL {
+			return fmt.Errorf("packet %d: got hopLimit %d, want %d", packetCount, v6.HopLimit, pr.ipTTL)
 		}
 
-		// Validate UDP header - extract raw bytes for robust parsing
-		udpHeaderBytes := udpLayer.LayerContents()
-		t.Logf("Packet %d: UDP header bytes: %X", packetCount, udpHeaderBytes)
-
-		if len(udpHeaderBytes) < 8 {
-			t.Errorf("Packet %d: UDP header too short (len: %d)", packetCount, len(udpHeaderBytes))
-			packetValid = false
-		}
-
-		// Validate MPLS header inside UDP payload
+		// Extract UDP payload (MPLS header)
 		payload := udpLayer.LayerPayload()
 		if len(payload) < 4 {
-			t.Errorf("Packet %d: UDP payload too short for MPLS header, len=%d", packetCount, len(payload))
-			packetValid = false
-		} else {
-			mplsHeaderVal := binary.BigEndian.Uint32(payload[:4])
-			label := (mplsHeaderVal >> 12) & 0xFFFFF
-			bottomOfStack := (mplsHeaderVal >> 8) & 0x1
-			mplsTTL := mplsHeaderVal & 0xFF
-			t.Logf("Packet %d: %s", packetCount, formatMPLSHeader(payload[:4]))
+			return fmt.Errorf("packet %d: UDP payload too short (len=%d)", packetCount, len(payload))
+		}
+		mplsHeader := binary.BigEndian.Uint32(payload[:4])
+		label := (mplsHeader >> 12) & 0xFFFFF
+		bos := (mplsHeader >> 8) & 0x1
+		mplsTTL := mplsHeader & 0xFF
 
-			if len(labelList) != 0 {
-				// Validate that label is in labelList
-				found := false
-				for _, l := range labelList {
-					if uint64(label) == l {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Packet %d: Got MPLS Label %d, want one of %v", packetCount, label, labelList)
-					packetValid = false
-				}
-			} else {
-				// Validate exact match with pr.mplsLabel
-				if uint64(label) != pr.mplsLabel {
-					t.Errorf("Packet %d: Got MPLS Label %d, want %d", packetCount, label, pr.mplsLabel)
-					packetValid = false
-				}
+		// Label validation
+		if len(labelMap) > 0 {
+			if _, ok := labelMap[uint64(label)]; !ok {
+				return fmt.Errorf("packet %d: got MPLS label %d, not in %v", packetCount, label, labelList)
 			}
-			if bottomOfStack != 1 {
-				t.Errorf("Packet %d: Got MPLS Bottom of Stack bit %d, want 1", packetCount, bottomOfStack)
-				packetValid = false
-			}
-			expectedMPLSTTL := ttl - 1 // Inner packet TTL decremented by 1
-			if uint32(mplsTTL) != expectedMPLSTTL {
-				t.Errorf("Packet %d: Got MPLS TTL %d, want %d", packetCount, mplsTTL, expectedMPLSTTL)
-				packetValid = false
-			}
+		} else if uint64(label) != pr.mplsLabel {
+			return fmt.Errorf("packet %d: got MPLS label %d, want %d", packetCount, label, pr.mplsLabel)
+		}
+		if bos != 1 {
+			return fmt.Errorf("packet %d: BOS bit = %d, want 1", packetCount, bos)
+		}
+		expectedMPLSTTL := innerTTL - 1
+		if uint32(mplsTTL) != expectedMPLSTTL {
+			return fmt.Errorf("packet %d: got MPLS TTL %d, want %d", packetCount, mplsTTL, expectedMPLSTTL)
 		}
 
-		if packetValid {
-			validMplsPacketCount++
-			if validMplsPacketCount <= 2 {
-				t.Logf("Packet %d: MPLS validation PASSED", packetCount)
-			}
-		} else {
-			t.Logf("Packet %d: MPLS validation FAILED", packetCount)
+		validMplsPacketCount++
+		if validMplsPacketCount <= 2 {
+			t.Logf("Packet %d: MPLS validation PASSED", packetCount)
 		}
 	}
 
-	// Summary and validation results
+	// Summary
 	t.Logf("=== PACKET CAPTURE VALIDATION SUMMARY ===")
-	t.Logf("Total packets captured: %d", packetCount)
-	t.Logf("UDP-IPv6 packets found: %d", mplsPacketCount)
-	t.Logf("Valid MPLS-in-UDP packets: %d", validMplsPacketCount)
+	t.Logf("Total packets: %d, UDP-IPv6: %d, Valid MPLS-in-UDP: %d",
+		packetCount, mplsPacketCount, validMplsPacketCount)
 
-	if packetCount == 0 {
-		t.Errorf("No packets captured on port %s", otgPortName)
-	} else if mplsPacketCount == 0 {
-		t.Errorf("No UDP-IPv6 packets found in capture on port %s", otgPortName)
-	} else if validMplsPacketCount == 0 {
-		t.Errorf("No valid MPLS-in-UDP packets found in capture on port %s", otgPortName)
-	} else if validMplsPacketCount < (mplsPacketCount / 2) {
-		t.Errorf("Many packets (%d/%d) failed validation", mplsPacketCount-validMplsPacketCount, mplsPacketCount)
-	} else {
-		t.Logf("Packet capture validation PASSED: Found %d valid MPLS-in-UDP packets", validMplsPacketCount)
+	// Validation checks
+	switch {
+	case packetCount == 0:
+		return fmt.Errorf("no packets captured on port %s", otgPortName)
+	case mplsPacketCount == 0:
+		return fmt.Errorf("no UDP-IPv6 packets found on port %s", otgPortName)
+	case validMplsPacketCount == 0:
+		return fmt.Errorf("no valid MPLS-in-UDP packets found on port %s", otgPortName)
+	case validMplsPacketCount < mplsPacketCount/2:
+		return fmt.Errorf("too many invalid packets: %d/%d",
+			mplsPacketCount-validMplsPacketCount, mplsPacketCount)
 	}
+
+	t.Logf("Validation PASSED: %d valid MPLS-in-UDP packets", validMplsPacketCount)
+	return nil
 }
 
 // Main test entry point.
@@ -790,10 +630,9 @@ func TestMPLSinUDPScale(t *testing.T) {
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	ateConfig := gosnappi.NewConfig()
 	ctx := context.Background()
 	vrfsList := configureDUT(t, dut)
-	configureOTG(t, ate, dut, ateConfig)
+	ateConfig := configureOTG(t, ate, dut)
 	ate.OTG().PushConfig(t, ateConfig)
 	ate.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), ateConfig, "IPv6")
@@ -815,137 +654,87 @@ func TestMPLSinUDPScale(t *testing.T) {
 	c.FlushAll(t)
 	programBasicEntries(t, dut, &c)
 	t.Run("Profile-1-Single VRF", func(t *testing.T) {
-		configureVrfProfiles(t, ateConfig, ctx, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 1)
+		if err := configureVrfProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 1, false); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
 	})
 	t.Run("Profile-2-Multi VRF", func(t *testing.T) {
-		configureVrfProfiles(t, ateConfig, ctx, dut, ate, &c, vrfsList, 2)
+		if err := configureVrfProfiles(ctx, t, ateConfig, dut, ate, &c, vrfsList, 2, true); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
 	})
 	t.Run("Profile-3-Multi VRF with Skew", func(t *testing.T) {
-		configureVrfProfiles(t, ateConfig, ctx, dut, ate, &c, vrfsList, 3)
+		if err := configureVrfProfiles(ctx, t, ateConfig, dut, ate, &c, vrfsList, 3, true); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
 	})
 	t.Run("Profile-4-Single VRF", func(t *testing.T) {
-		configureVrfProfiles(t, ateConfig, ctx, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 4)
+		if err := configureVrfProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 4, false); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
 	})
 	t.Run("Profile-5-Single VRF", func(t *testing.T) {
-		configureVrfProfiles(t, ateConfig, ctx, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 5)
+		if err := configureVrfProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, 5, false); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
 	})
 }
 
-// configureVrfProfiles implements the “Single/Multi VRF Validation” for Profile 1 (baseline) and Profile 4 (ECMP).
-// It programs MPLS-in-UDP NHs, NHGs, and 20k prefixes (10k v4 + 10k v6),
-// validates FIB/AFT, sends traffic, checks MPLS-over-UDP encapsulation, and deletes entries.
-func configureVrfProfiles(
-	t *testing.T,
-	ateConfig gosnappi.Config,
-	ctx context.Context,
-	dut *ondatra.DUTDevice,
-	ate *ondatra.ATEDevice,
-	c *gribi.Client,
-	vrfs []string,
-	profile int, // 1 = baseline, 4 = ECMP
-) {
+// configureVrfProfiles implements the “Single/Multi VRF Validation” for Profile 1 (baseline) and Profile 4 (ECMP). It programs MPLS-in-UDP NHs, NHGs, and 20k prefixes (10k v4 + 10k v6), validates FIB/AFT, sends traffic, checks MPLS-over-UDP encapsulation, and deletes entries.
+func configureVrfProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.Config, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, c *gribi.Client, vrfs []string, profile int, otgMultiPortCaptureSupported bool) error {
 	t.Helper()
 	cfg, ok := profiles[profile]
 	if !ok {
-		t.Fatalf("Unsupported profile %d", profile)
+		return fmt.Errorf("Unsupported profile %d", profile)
 	}
 	totalNHGs := cfg.totalNHGs
 	nhsPerNHG := cfg.nhsPerNHG
 	totalNHs := totalNHGs * nhsPerNHG
-	var entries []fluent.GRIBIEntry
-	var wantAdds []*client.OpResult
-	var wantDels []*client.OpResult
-	var flows []gosnappi.Flow
-	var labelList []uint64
+	var (
+		entries   []fluent.GRIBIEntry
+		wantAdds  []*client.OpResult
+		wantDels  []*client.OpResult
+		flows     []gosnappi.Flow
+		labelList []uint64
+	)
 	// === Program MPLS-in-UDP NH & NHG entries ===
-	if profile == 2 {
-		entries = programMPLSinUDPMultiEntries(
-			t,
-			dut,
-			vrfs,
-			mplsNHID,
-			mplsLabel, // one consistent label across all NHs
-			totalNHGs,
-			outerIPv6Src, outerIPv6Dst,
-			outerDstUDPPort,
-			outerIPTTL,
-			outerDSCP,
-		)
-		wantAdds, wantDels = expectedMPLSinUDPMultiOpResults(
-			t,
-			vrfs,
-			mplsNHID,
-			totalNHGs,
-			mplsNHGID,
-		)
-		flows = []gosnappi.Flow{
-			fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP),
-		}
-	} else if profile == 3 {
-		skewPattern := generateSkewPattern(len(vrfs), len(vrfs))
-		vrfsSkewList := generateSkewedVRFList(t, vrfs, totalPrefixes, skewPattern)
-		entries, labelList = programMPLSinUDPMultiEntriesSkew(
-			t,
-			dut,
-			vrfsSkewList,
-			mplsNHID,
-			mplsLabel, // one consistent label across all NHs
-			totalNHGs,
-			outerIPv6Src, outerIPv6Dst,
-			outerDstUDPPort,
-			outerIPTTL,
-			outerDSCP,
-		)
-		wantAdds, wantDels = expectedMPLSinUDPMultiOpResultsSkewed(
-			t,
-			vrfsSkewList,
-			mplsNHID,
-			totalNHGs,
-			mplsNHGID,
-		)
-		flows = []gosnappi.Flow{
-			fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP),
-		}
-	} else {
-		entries = programMPLSinUDPEntries(
-			t,
-			dut,
-			mplsNHID,
-			mplsLabel, // one consistent label across all NHs
-			totalNHGs,
-			outerIPv6Src, outerIPv6Dst,
-			outerDstUDPPort,
-			outerIPTTL,
-			outerDSCP,
-		)
+	switch profile {
+	case 2:
+		entries = programMPLSinUDPMultiEntries(t, dut, vrfs, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
+		wantAdds, wantDels = expectedMPLSinUDPMultiOpResults(t, vrfs, nextHopID, nextHopGroupID, totalNHGs)
+		flows = []gosnappi.Flow{fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP)}
+	case 3:
+		entries = programMPLSinUDPSkewedEntries(t, dut, vrfs, nextHopID, nextHopGroupID, mplsLabel, totalNHGs, outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
+		wantAdds, wantDels = expectedMPLSinUDPSkewedResults(t, vrfs, nextHopID, nextHopGroupID, totalNHGs)
+		flows = []gosnappi.Flow{fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP)}
+	case 5:
+		// Profile 5 uses normal MPLS-in-UDP setup, same as default
+		entries = programMPLSinUDPEntries(t, dut, nextHopID, mplsLabel, totalNHGs, outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
+		ipv4Entries := buildIPv4Routes(t, dut, totalPrefixes/2, baseIPv4, nextHopGroupID)
+		ipv6Entries := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, nextHopGroupID)
+		entries = append(entries, ipv4Entries...)
+		entries = append(entries, ipv6Entries...)
+		wantAdds, wantDels = expectedMPLSinUDPOpResults(t, nextHopID, nextHopGroupID, totalNHGs, totalPrefixes, baseIPv4, baseIPv6)
+		flows = []gosnappi.Flow{fa4.createFlow("ipv4", fmt.Sprintf("ip4mpls_p%d", profile), outerDSCP), fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP)}
+	default:
+		entries = programMPLSinUDPEntries(t, dut, nextHopID, mplsLabel, totalNHGs, outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
 		// === Add IPv4 + IPv6 route entries ===
-		ipv4Entries := buildIPv4Routes(t, dut, totalPrefixes/2, baseIPv4, mplsNHGID)
-		ipv6Entries := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, mplsNHGID)
+		ipv4Entries := buildIPv4Routes(t, dut, totalPrefixes/2, baseIPv4, nextHopGroupID)
+		ipv6Entries := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, nextHopGroupID)
 		entries = append(entries, ipv4Entries...)
 		entries = append(entries, ipv6Entries...)
 		// === Expected OpResults ===
-		wantAdds, wantDels = expectedMPLSinUDPOpResults(
-			t,
-			mplsNHID,
-			totalNHGs,
-			mplsNHGID, // nhgBase
-			totalPrefixes,
-			baseIPv4, baseIPv6, // used for v6 sample verification
-		)
-		flows = []gosnappi.Flow{
-			fa4.createFlow("ipv4", fmt.Sprintf("ip4mpls_p%d", profile), outerDSCP),
-			fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP),
-		}
+		wantAdds, wantDels = expectedMPLSinUDPOpResults(t, nextHopID, nextHopGroupID, totalNHGs, totalPrefixes, baseIPv4, baseIPv6)
+		flows = []gosnappi.Flow{fa4.createFlow("ipv4", fmt.Sprintf("ip4mpls_p%d", profile), outerDSCP), fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP)}
 	}
 
 	// === Verify infra installed ===
 	if err := c.AwaitTimeout(ctx, t, 3*time.Minute); err != nil {
-		t.Fatalf("Failed to install infra entries for profile %d: %v", profile, err)
+		return fmt.Errorf("Failed to install infra entries for profile %d: %v", profile, err)
 	}
 
 	testCaseArgs := &testCase{
-		name: fmt.Sprintf("Profile%d: MPLS-in-UDP Traffic Encap (Single VRF, %d NHGs × %d NHs, %d total prefixes split v4/v6)",
-			profile, totalNHGs, nhsPerNHG, totalPrefixes),
+		name:                fmt.Sprintf("Profile%d: MPLS-in-UDP Traffic Encap (Single VRF, %d NHGs × %d NHs, %d total prefixes split v4/v6)", profile, totalNHGs, nhsPerNHG, totalPrefixes),
 		entries:             entries,
 		wantAddResults:      wantAdds,
 		wantDelResults:      wantDels,
@@ -955,10 +744,10 @@ func configureVrfProfiles(
 		wantOuterDstIP:      outerIPv6Dst,
 		wantOuterSrcIP:      outerIPv6Src,
 		wantOuterDstUDPPort: outerDstUDPPort,
-		wantOuterIPTTL:      outerIPTTL,
+		wantOuterTTL:        outerTTL,
 	}
 
-	tcArgs := &testArgs{
+	tArgs := &testArgs{
 		client: c,
 		dut:    dut,
 		ate:    ate,
@@ -966,247 +755,88 @@ func configureVrfProfiles(
 	}
 
 	// === Add Entries ===
-	t.Logf("Programming Profile %d: %d NHGs × %d NHs/NHG = %d total NHs, %d prefixes (10k v4 + 10k v6)",
-		profile, totalNHGs, nhsPerNHG, totalNHs, totalPrefixes)
+	t.Logf("Programming Profile %d: %d NHGs × %d NHs/NHG = %d total NHs, %d prefixes (10k v4 + 10k v6)", profile, totalNHGs, nhsPerNHG, totalNHs, totalPrefixes)
 	c.AddEntries(t, testCaseArgs.entries, testCaseArgs.wantAddResults)
 
 	// === Capture & Send Traffic ===
 	expectedPkt := &packetResult{
 		mplsLabel:  testCaseArgs.wantMPLSLabel,
 		udpDstPort: testCaseArgs.wantOuterDstUDPPort,
-		ipTTL:      testCaseArgs.wantOuterIPTTL,
+		ipTTL:      testCaseArgs.wantOuterTTL,
 		srcIP:      testCaseArgs.wantOuterSrcIP,
 		dstIP:      testCaseArgs.wantOuterDstIP,
 	}
 	if otgMultiPortCaptureSupported {
 		enableCapture(t, ate.OTG(), ateConfig, testCaseArgs.capturePorts)
-		sendTraffic(t, tcArgs, testCaseArgs.flows, true)
-		validateMPLSPacketCapture(t, ate, testCaseArgs.capturePorts[0], expectedPkt, labelList)
+		sendTraffic(t, tArgs, testCaseArgs.flows, true)
+		err := validateMPLSPacketCapture(t, ate, testCaseArgs.capturePorts[0], expectedPkt, labelList)
+		if err != nil {
+			return fmt.Errorf("profile %d capture validation failed: %v", profile, err)
+		}
 		clearCapture(t, ate.OTG(), ateConfig)
 	} else {
 		for _, port := range testCaseArgs.capturePorts {
 			enableCapture(t, ate.OTG(), ateConfig, []string{port})
-			sendTraffic(t, tcArgs, testCaseArgs.flows, true)
-			validateMPLSPacketCapture(t, ate, port, expectedPkt, labelList)
+			sendTraffic(t, tArgs, testCaseArgs.flows, true)
+			err := validateMPLSPacketCapture(t, ate, port, expectedPkt, labelList)
+			if err != nil {
+				return fmt.Errorf("profile %d capture validation failed: %v", profile, err)
+			}
 			clearCapture(t, ate.OTG(), ateConfig)
 		}
 	}
 
-	// === Validate Forwarding ===
-	err := validateTrafficFlows(t, ate, ateConfig, tcArgs, testCaseArgs.flows, false, true)
-	if err != nil {
-		t.Fatal(err)
+	// Validate forwarding (allow the helper to return an error for test assertions)
+	if err := validateTrafficFlows(t, ate, ateConfig, tArgs, testCaseArgs.flows, false, true); err != nil {
+		return fmt.Errorf("profile %d traffic validation failed: %v", profile, err)
 	}
 	// === Profile 5 specific QPS scaling ===
 	if profile == 5 {
 		t.Log("Starting Profile 5 high-rate gRIBI ops at ~1k ops/sec")
 
 		// build 60k ops (20k × 3 per entry)
-		ops, _ := buildProfile5Ops(t, dut, totalPrefixes, mplsNHGID, baseIPv4, baseIPv6)
+		ops, _ := buildProfile5Ops(t, dut, totalPrefixes, nextHopGroupID, baseIPv6)
 
-		// stream ops at ~1k ops/sec
-		pumpOpsAtRate(t, ctx, c, ops, 1000)
-		t.Log("Starting Profile ops/sec")
-		// while ops stream, keep sending dataplane traffic
-		sendTraffic(t, tcArgs, testCaseArgs.flows, false)
-		err := validateTrafficFlows(t, ate, ateConfig, tcArgs, testCaseArgs.flows, false, true)
-		if err != nil {
-			t.Fatal(err)
+		// pump ops at rate in a goroutine while sending dataplane traffic
+		var pumpWg sync.WaitGroup
+		pumpWg.Add(1)
+		go func() {
+			defer pumpWg.Done()
+			// pumpOpsAtRate blocks while streaming; capture returned errors via t.Fatal inside helper if required
+			pumpOpsAtRate(ctx, t, c, ops, 1000)
+		}()
+
+		// keep sending dataplane traffic while ops are streaming
+		sendTraffic(t, tArgs, testCaseArgs.flows, false)
+		// Wait for pump to finish before validating flows (if pumpOpsAtRate is synchronous this returns promptly)
+		pumpWg.Wait()
+
+		if err := validateTrafficFlows(t, ate, ateConfig, tArgs, testCaseArgs.flows, false, true); err != nil {
+			return fmt.Errorf("profile %d traffic validation failed: %v", profile, err)
 		}
 		t.Log("Completed Profile 5 QPS scaling phase")
 	}
 	// === Delete Entries ===
 	t.Logf("Deleting MPLS-in-UDP entries for Profile %d", profile)
-	var revEntries []fluent.GRIBIEntry
-	for i := len(testCaseArgs.entries) - 1; i >= 0; i-- {
-		revEntries = append(revEntries, testCaseArgs.entries[i])
+	n := len(testCaseArgs.entries)
+	revEntries := make([]fluent.GRIBIEntry, n)
+	for i := 0; i < n; i++ {
+		revEntries[i] = testCaseArgs.entries[n-1-i]
 	}
 	c.DeleteEntries(t, revEntries, testCaseArgs.wantDelResults)
 
-	// === Validate Post-Delete (traffic loss) ===
+	// Validate that traffic fails after deletion (expect loss)
 	t.Logf("Verifying traffic fails after MPLS-in-UDP entries deleted for Profile %d", profile)
-	perr := validateTrafficFlows(t, ate, ateConfig, tcArgs, testCaseArgs.flows, false, false)
-	if perr != nil {
-		t.Fatal(perr)
-	}
-}
-
-// expectedMPLSinUDPMultiOpResultsSkewed generates expected add/delete operation results
-func expectedMPLSinUDPMultiOpResultsSkewed(
-	t *testing.T,
-	vrfsSkewList []string, // skewed VRF list (duplicates allowed)
-	mplsNHBase uint64,
-	numNHsPerVRF int,
-	nhgBase uint64,
-) (adds, dels []*client.OpResult) {
-	t.Helper()
-	total := len(vrfsSkewList)
-	adds = make([]*client.OpResult, 0, total*3)
-	dels = make([]*client.OpResult, 0, total*3)
-
-	// Track NH created per VRF
-	nhCreated := map[string]uint64{}
-	// Track prefix counter per VRF
-	prefixCounter := map[string]uint64{}
-
-	baseIP := net.ParseIP(baseIPv6).To16()
-	baseIPInt := binary.BigEndian.Uint64(baseIP[8:16]) // use last 64 bits as counter
-
-	for idx, vrf := range vrfsSkewList {
-		// NH: create once per VRF
-		_, exists := nhCreated[vrf]
-		if !exists {
-			nhID := mplsNHBase + uint64(len(nhCreated))
-			adds = append(adds,
-				fluent.OperationResult().
-					WithNextHopOperation(nhID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Add).
-					AsResult(),
-			)
-			dels = append(dels,
-				fluent.OperationResult().
-					WithNextHopOperation(nhID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Delete).
-					AsResult(),
-			)
-			nhCreated[vrf] = nhID
-		}
-
-		// NHG: unique per skewed entry
-		nhgID := nhgBase + uint64(idx)
-		adds = append(adds,
-			fluent.OperationResult().
-				WithNextHopGroupOperation(nhgID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithNextHopGroupOperation(nhgID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
-
-		// IPv6 prefix: increment last 64 bits per VRF
-		prefixCounter[vrf]++
-		counter := prefixCounter[vrf]
-		ipBytes := make([]byte, 16)
-		copy(ipBytes[:8], baseIP[:8])
-		binary.BigEndian.PutUint64(ipBytes[8:], baseIPInt+counter-1)
-		prefix := fmt.Sprintf("%s/128", net.IP(ipBytes).String())
-
-		adds = append(adds,
-			fluent.OperationResult().
-				WithIPv6Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithIPv6Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+	if perr := validateTrafficFlows(t, ate, ateConfig, tArgs, testCaseArgs.flows, false, false); perr != nil {
+		return fmt.Errorf("profile %d post-delete traffic validation failed: %v", profile, perr)
 	}
 
-	return adds, dels
-}
-
-func programMPLSinUDPMultiEntriesSkew(
-	t *testing.T,
-	dut *ondatra.DUTDevice,
-	vrfsSkewList []string,
-	mplsNHBase uint64,
-	mplsLabelStart uint64,
-	numNHsPerVRF int, // currently one NH per VRF; kept for API compatibility
-	outerIPv6Src, outerIPv6Dst string,
-	outerDstUDPPort uint16,
-	outerIPTTL uint8,
-	outerDSCP uint8,
-) ([]fluent.GRIBIEntry, []uint64) {
-	t.Helper()
-
-	total := len(vrfsSkewList)
-	// 3 entries per skew index: NHG + IPv6 route; NH once per VRF (upper bound ~+total/2)
-	entries := make([]fluent.GRIBIEntry, 0, total*3)
-
-	// Hoist constants to avoid repeated calls/conversions.
-	defaultNI := deviations.DefaultNetworkInstance(dut)
-	// NH created once per VRF; map VRF -> NH ID
-	nhCreated := make(map[string]uint64, 64) // capacity hint for many VRFs
-	// Unique prefix counter per VRF
-	prefixCounter := make(map[string]uint64, 64)
-
-	// Fast IPv6 prefix allocator: increment the last 64 bits per VRF
-	baseIP := net.ParseIP(baseIPv6).To16()
-	if baseIP == nil {
-		t.Fatalf("invalid base IPv6 for prefix allocation")
-	}
-	baseHi := make([]byte, 8)
-	copy(baseHi, baseIP[:8]) // top 64 bits fixed
-	baseLo := binary.BigEndian.Uint64(baseIP[8:16])
-	labelList := []uint64{}
-	for idx, vrf := range vrfsSkewList {
-		label := mplsLabelStart + uint64(idx)
-		labelList = append(labelList, label)
-		// --- NH: create exactly once per VRF ---
-		nhID, exists := nhCreated[vrf]
-		if !exists {
-			nhID = mplsNHBase + uint64(len(nhCreated)) // stable and monotonic per new VRF
-			nhCreated[vrf] = nhID
-			entries = append(entries,
-				fluent.NextHopEntry().
-					WithNetworkInstance(defaultNI).
-					WithIndex(nhID).
-					AddEncapHeader(
-						fluent.MPLSEncapHeader().WithLabels(label),
-						fluent.UDPV6EncapHeader().
-							WithSrcIP(outerIPv6Src).
-							WithDstIP(outerIPv6Dst).
-							WithDstUDPPort(uint64(outerDstUDPPort)).
-							WithIPTTL(uint64(outerIPTTL)).
-							WithDSCP(uint64(outerDSCP)),
-					),
-			)
-		}
-
-		// --- NHG: unique per skewed occurrence ---
-		nhgID := mplsNHGID + uint64(idx)
-		entries = append(entries,
-			fluent.NextHopGroupEntry().
-				WithNetworkInstance(defaultNI).
-				WithID(nhgID).
-				AddNextHop(nhID, 1),
-		)
-
-		// --- IPv6 route: unique per VRF occurrence ---
-		prefixCounter[vrf]++
-		counter := prefixCounter[vrf] - 1 // start from 0
-		ipBytes := make([]byte, 16)
-		copy(ipBytes[:8], baseHi)
-		binary.BigEndian.PutUint64(ipBytes[8:], baseLo+counter)
-		prefix := fmt.Sprintf("%s/128", net.IP(ipBytes).String())
-
-		entries = append(entries,
-			fluent.IPv6Entry().
-				WithNetworkInstance(vrf).
-				WithPrefix(prefix).
-				WithNextHopGroup(nhgID).
-				WithNextHopGroupNetworkInstance(defaultNI),
-		)
-	}
-
-	return entries, labelList
+	t.Logf("Profile %d finished: %d NHGs × %d NHs", profile, totalNHGs, nhsPerNHG)
+	return nil
 }
 
 // buildProfile5Ops generates ADD/DELETE ops mix for Profile 5.
-func buildProfile5Ops(t *testing.T, dut *ondatra.DUTDevice, totalPrefixes int, nhgBase uint64, baseIPv4, baseIPv6 string) (adds, dels []fluent.GRIBIEntry) {
+func buildProfile5Ops(t *testing.T, dut *ondatra.DUTDevice, totalPrefixes int, nhgBase uint64, baseIPv6 string) (adds, dels []fluent.GRIBIEntry) {
 	t.Helper()
 	ipv6s := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, nhgBase)
 	for i, e := range ipv6s {
@@ -1217,21 +847,15 @@ func buildProfile5Ops(t *testing.T, dut *ondatra.DUTDevice, totalPrefixes int, n
 			// DELETE version: rebuild with same prefix & NHG, but
 			// you don’t mark operation here — caller will use DeleteEntries()
 			nhgID := nhgBase + uint64(i%2)
-			dels = append(dels,
-				fluent.IPv6Entry().
-					WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-					WithPrefix(baseIPv6+"/128").
-					WithNextHopGroup(nhgID).
-					WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-			)
+			dels = append(dels, fluent.IPv6Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithPrefix(baseIPv6+routePrefixLen).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
 
 		}
 	}
 	return adds, dels
 }
 
-// pumpOpsAtRate sends ops to gRIBI client at target ops/sec
-func pumpOpsAtRate(t *testing.T, ctx context.Context, c *gribi.Client, ops []fluent.GRIBIEntry, targetOps int) {
+// pumpOpsAtRate sends ops to gRIBI client at target ops/sec.
+func pumpOpsAtRate(ctx context.Context, t *testing.T, c *gribi.Client, ops []fluent.GRIBIEntry, targetOps int) {
 	t.Helper()
 	ticker := time.NewTicker(time.Second)
 	defer ticker.Stop()
@@ -1254,235 +878,375 @@ func pumpOpsAtRate(t *testing.T, ctx context.Context, c *gribi.Client, ops []flu
 // buildIPv4Routes generates num IPv4 /32 routes starting from baseIPv4 mapped to NHGs.
 func buildIPv4Routes(t *testing.T, dut *ondatra.DUTDevice, num int, baseIPv4 string, nhgBase uint64) []fluent.GRIBIEntry {
 	t.Helper()
-	var entries []fluent.GRIBIEntry
 	ip := net.ParseIP(baseIPv4).To4()
-	ipInt := big.NewInt(0).SetBytes(ip)
-
-	for i := 0; i < num; i++ {
-		ipBytes := ipInt.FillBytes(make([]byte, 4))
-		prefix := fmt.Sprintf("%s/32", net.IP(ipBytes).String())
-		ipInt.Add(ipInt, big.NewInt(1))
-
-		nhgID := nhgBase + uint64(i%num) // cycle across NHGs
-		entries = append(entries,
-			fluent.IPv4Entry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithPrefix(prefix).
-				WithNextHopGroup(nhgID).
-				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		)
+	if ip == nil {
+		t.Fatalf("invalid baseIPv4: %s", baseIPv4)
 	}
+
+	entries := make([]fluent.GRIBIEntry, num)
+	workers := 8 // tune based on CPU cores
+
+	var wg sync.WaitGroup
+	batch := (num + workers - 1) / workers
+
+	for w := 0; w < workers; w++ {
+		start := w * batch
+		end := start + batch
+		if end > num {
+			end = num
+		}
+		if start >= end {
+			continue
+		}
+
+		wg.Add(1)
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				ipCopy := make(net.IP, len(ip))
+				copy(ipCopy, ip)
+				incrementIPv4(ipCopy, i)
+
+				prefix := fmt.Sprintf("%s/32", ipCopy.String())
+				nhgID := nhgBase + uint64(i%num)
+
+				entries[i] = fluent.IPv4Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithPrefix(prefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
 	return entries
 }
 
 // buildIPv6Routes generates num IPv6 /128 routes starting from baseIPv6 mapped to NHGs.
 func buildIPv6Routes(t *testing.T, dut *ondatra.DUTDevice, num int, baseIPv6 string, nhgBase uint64) []fluent.GRIBIEntry {
 	t.Helper()
-	var entries []fluent.GRIBIEntry
 	ip := net.ParseIP(baseIPv6).To16()
-	ipInt := big.NewInt(0).SetBytes(ip)
-
-	for i := 0; i < num; i++ {
-		ipBytes := ipInt.FillBytes(make([]byte, 16))
-		prefix := fmt.Sprintf("%s/128", net.IP(ipBytes).String())
-		ipInt.Add(ipInt, big.NewInt(1))
-
-		nhgID := nhgBase + uint64(i%num) // cycle across NHGs
-		entries = append(entries,
-			fluent.IPv6Entry().
-				WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-				WithPrefix(prefix).
-				WithNextHopGroup(nhgID).
-				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-		)
+	if ip == nil {
+		t.Fatalf("invalid baseIPv6: %s", baseIPv6)
 	}
+
+	entries := make([]fluent.GRIBIEntry, num)
+	workers := 8 // tune based on CPU cores
+
+	var wg sync.WaitGroup
+	batch := (num + workers - 1) / workers
+
+	for w := 0; w < workers; w++ {
+		start := w * batch
+		end := start + batch
+		if end > num {
+			end = num
+		}
+		if start >= end {
+			continue
+		}
+
+		wg.Add(1)
+		go func(start, end int) {
+			defer wg.Done()
+			for i := start; i < end; i++ {
+				ipCopy := make(net.IP, len(ip))
+				copy(ipCopy, ip)
+				incrementIPv6(ipCopy, i)
+
+				prefix := fmt.Sprintf("%s%s", ipCopy.String(), routePrefixLen)
+				nhgID := nhgBase + uint64(i%num)
+
+				entries[i] = fluent.IPv6Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithPrefix(prefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut))
+			}
+		}(start, end)
+	}
+
+	wg.Wait()
 	return entries
 }
 
-// expectedMPLSinUDPOpResults builds expected gRIBI OpResults for Profile 5.
-// It models the baseline state of one MPLS-in-UDP NH, all NHGs, and
-// 20k route entries (10k IPv4 + 10k IPv6).
-func expectedMPLSinUDPOpResults(
-	t *testing.T,
-	mplsNHID uint64,
-	numNHGs int,
-	nhgBase uint64,
-	totalPrefixes int,
-	baseIPv4, baseIPv6 string,
-) (adds, dels []*client.OpResult) {
+// expectedMPLSinUDPOpResults builds expected gRIBI OpResults for Profile 5. It models the baseline state of one MPLS-in-UDP NH, all NHGs, and 20k route entries (10k IPv4 + 10k IPv6).
+func expectedMPLSinUDPOpResults(t *testing.T, nextHopID, nhgBase uint64, numNHGs, totalPrefixes int, baseIPv4, baseIPv6 string) (adds, dels []*client.OpResult) {
 	t.Helper()
-	adds = []*client.OpResult{}
-	dels = []*client.OpResult{}
+	adds = make([]*client.OpResult, 0, 1+numNHGs+totalPrefixes)
+	dels = make([]*client.OpResult, 0, 1+numNHGs+totalPrefixes)
 
-	// === Step 1: One NH ===
-	adds = append(adds,
-		fluent.OperationResult().
-			WithNextHopOperation(mplsNHID).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			WithOperationType(constants.Add).
-			AsResult(),
-	)
-	dels = append(dels,
-		fluent.OperationResult().
-			WithNextHopOperation(mplsNHID).
-			WithProgrammingResult(fluent.InstalledInFIB).
-			WithOperationType(constants.Delete).
-			AsResult(),
-	)
+	// Step 1: One NH
+	adds = append(adds, fluent.OperationResult().WithNextHopOperation(nextHopID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+	dels = append(dels, fluent.OperationResult().WithNextHopOperation(nextHopID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 
-	// === Step 2: NHGs ===
-	for i := 0; i < numNHGs; i++ {
+	// Step 2: NHGs
+	for i := range numNHGs {
 		nhgID := nhgBase + uint64(i)
-		adds = append(adds,
-			fluent.OperationResult().
-				WithNextHopGroupOperation(nhgID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithNextHopGroupOperation(nhgID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+		adds = append(adds, fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+		dels = append(dels, fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 	}
 
-	// === Step 3: IPv4 routes (/32) ===
-	numIPv4 := totalPrefixes / 2
-	ip4 := net.ParseIP(baseIPv4).To4()
-	ip4Int := big.NewInt(0).SetBytes(ip4)
-
-	for i := 0; i < numIPv4; i++ {
-		ipBytes := ip4Int.FillBytes(make([]byte, 4))
-		prefix := fmt.Sprintf("%s/32", net.IP(ipBytes).String())
-		ip4Int.Add(ip4Int, big.NewInt(1))
-
-		adds = append(adds,
-			fluent.OperationResult().
-				WithIPv4Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithIPv4Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+	// === Step 3 & 4: Parallel IPv4 & IPv6 routes ===
+	type ipTask struct {
+		baseIP net.IP
+		count  int
+		isIPv6 bool
 	}
 
-	// === Step 4: IPv6 routes (/128) ===
-	numIPv6 := totalPrefixes / 2
-	ip6 := net.ParseIP(baseIPv6).To16()
-	ip6Int := big.NewInt(0).SetBytes(ip6)
+	tasks := []ipTask{
+		{baseIP: net.ParseIP(baseIPv4).To4(), count: totalPrefixes / 2, isIPv6: false},
+		{baseIP: net.ParseIP(baseIPv6).To16(), count: totalPrefixes - totalPrefixes/2, isIPv6: true},
+	}
 
-	for i := 0; i < numIPv6; i++ {
-		ipBytes := ip6Int.FillBytes(make([]byte, 16))
-		prefix := fmt.Sprintf("%s/128", net.IP(ipBytes).String())
-		ip6Int.Add(ip6Int, big.NewInt(1))
+	for _, task := range tasks {
+		if task.baseIP == nil {
+			t.Fatalf("invalid base IP: %v", task.baseIP)
+		}
+	}
 
-		adds = append(adds,
-			fluent.OperationResult().
-				WithIPv6Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithIPv6Operation(prefix).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+	workers := runtime.NumCPU()
+	var wg sync.WaitGroup
+	var mtx sync.Mutex
+
+	ipPool := sync.Pool{New: func() any { return make(net.IP, 16) }} // max size for IPv6
+
+	for _, task := range tasks {
+		batch := (task.count + workers - 1) / workers
+		for w := 0; w < workers; w++ {
+			start := w * batch
+			end := start + batch
+			if end > task.count {
+				end = task.count
+			}
+			if start >= end {
+				continue
+			}
+
+			wg.Add(1)
+			go func(start, end int, task ipTask) {
+				defer wg.Done()
+				localAdds := make([]*client.OpResult, 0, end-start)
+				localDels := make([]*client.OpResult, 0, end-start)
+
+				for i := start; i < end; i++ {
+					ipCopy := ipPool.Get().(net.IP)[:len(task.baseIP)]
+					copy(ipCopy, task.baseIP)
+					if task.isIPv6 {
+						incrementIPv6(ipCopy, i)
+					} else {
+						incrementIPv4(ipCopy, i)
+					}
+					prefix := fmt.Sprintf("%s%s", ipCopy.String(), func() string {
+						if task.isIPv6 {
+							return routePrefixLen
+						}
+						return "/32"
+					}())
+
+					if task.isIPv6 {
+						localAdds = append(localAdds, fluent.OperationResult().WithIPv6Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+						localDels = append(localDels, fluent.OperationResult().WithIPv6Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
+					} else {
+						localAdds = append(localAdds, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+						localDels = append(localDels, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
+					}
+					ipPool.Put(ipCopy)
+				}
+
+				mtx.Lock()
+				adds = append(adds, localAdds...)
+				dels = append(dels, localDels...)
+				mtx.Unlock()
+			}(start, end, task)
+		}
+	}
+	wg.Wait()
+
+	return adds, dels
+}
+
+// expectedMPLSinUDPMultiOpResults builds the expected set of Add/Delete OperationResults for MPLS-in-UDP multi-VRF programming.
+func expectedMPLSinUDPMultiOpResults(t *testing.T, vrfs []string, mplsNHBase, nhgBase uint64, numNHGs int) (adds, dels []*client.OpResult) {
+	t.Helper()
+	totalOps := len(vrfs) * (1 + numNHGs*2) // 1 NH + 2*numNHGs per VRF
+	adds = make([]*client.OpResult, 0, totalOps)
+	dels = make([]*client.OpResult, 0, totalOps)
+
+	// === Step 1: NHs (cheap, sequential) ===
+	for vrfIdx := range vrfs {
+		nhID := mplsNHBase + uint64(vrfIdx)
+		adds = append(adds, fluent.OperationResult().WithNextHopOperation(nhID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+		dels = append(dels, fluent.OperationResult().WithNextHopOperation(nhID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
+	}
+
+	// === Step 2 & 3: NHGs and Routes (parallelized) ===
+	type result struct {
+		add []*client.OpResult
+		del []*client.OpResult
+	}
+
+	totalJobs := len(vrfs) * numNHGs
+	results := make([]result, totalJobs)
+
+	jobs := make(chan int, totalJobs)
+	var wg sync.WaitGroup
+
+	workers := runtime.NumCPU() * 2 // tunable
+	for w := 0; w < workers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for idx := range jobs {
+				vrfIdx := idx / numNHGs
+				i := idx % numNHGs
+
+				nhgID := nhgBase + uint64(vrfIdx*numNHGs+i)
+
+				// NHG add/del
+				addOps := []*client.OpResult{fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult()}
+				delOps := []*client.OpResult{fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult()}
+
+				// Prefix add/del
+				offset := int64(vrfIdx*numNHGs + i)
+				prefixIP := iputil.GenerateIPv6Prefix(baseIPv6, offset)
+				prefixStr := fmt.Sprintf("%s%s", prefixIP.String(), routePrefixLen)
+
+				addOps = append(addOps, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+				delOps = append(delOps, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
+
+				results[idx] = result{add: addOps, del: delOps}
+			}
+		}()
+	}
+
+	// Feed jobs
+	for i := 0; i < totalJobs; i++ {
+		jobs <- i
+	}
+	close(jobs)
+
+	wg.Wait()
+
+	// === Deterministic gather ===
+	for _, r := range results {
+		adds = append(adds, r.add...)
+		dels = append(dels, r.del...)
 	}
 
 	return adds, dels
 }
 
-func expectedMPLSinUDPMultiOpResults(
-	t *testing.T,
-	vrfs []string,
-	mplsNHBase uint64,
-	numNHGs int,
-	nhgBase uint64,
-) (adds, dels []*client.OpResult) {
-	t.Helper()
+// generateSkewPattern returns a slice of prefix counts per VRF, summing to totalNHGs.
+func generateSkewPattern(numVRFs, totalNHGs int) []int {
+	pattern := make([]int, numVRFs)
 
-	// Preallocate: NH + NHGs + Routes
-	totalOps := len(vrfs) * (1 + numNHGs + numNHGs)
-	adds = make([]*client.OpResult, 0, totalOps)
-	dels = make([]*client.OpResult, 0, totalOps)
-
-	// === Step 1: NHs ===
-	for vrfIdx := range vrfs {
-		nhID := mplsNHBase + uint64(vrfIdx)
-
-		adds = append(adds,
-			fluent.OperationResult().
-				WithNextHopOperation(nhID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithNextHopOperation(nhID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+	if numVRFs == 0 || totalNHGs == 0 {
+		return pattern
 	}
 
-	// === Step 2 & 3: NHGs and Routes ===
+	// Define heavier VRFs: e.g., top 3 get more
+	heavyCount := int(math.Max(1, float64(numVRFs)/4)) // first 25% VRFs heavier
+	lightCount := numVRFs - heavyCount
+
+	// Calculate total weight: heavy VRFs 2x, light VRFs 1x
+	totalWeight := heavyCount*2 + lightCount*1
+
+	assigned := 0
+	for i := 0; i < numVRFs; i++ {
+		if i < heavyCount {
+			pattern[i] = totalNHGs * 2 / totalWeight
+		} else {
+			pattern[i] = totalNHGs * 1 / totalWeight
+		}
+		assigned += pattern[i]
+	}
+
+	// Fix rounding drift
+	leftover := totalNHGs - assigned
+	for i := 0; leftover > 0; i = (i + 1) % numVRFs {
+		pattern[i]++
+		leftover--
+	}
+
+	return pattern
+}
+
+// programMPLSinUDPSkewedEntries programs skewed entries for Profile 3
+func programMPLSinUDPSkewedEntries(t *testing.T, dut *ondatra.DUTDevice, vrfs []string, mplsNHBase, nhgBase, mplsLabelStart uint64, totalNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) []fluent.GRIBIEntry {
+	t.Helper()
+	entries := make([]fluent.GRIBIEntry, 0, totalNHGs*3)
+
+	defaultNI := deviations.DefaultNetworkInstance(dut)
+
+	skewPattern := generateSkewPattern(len(vrfs), totalNHGs)
+	nhIndex := 0
+	for vrfIdx, vrfName := range vrfs {
+		label := mplsLabelStart + uint64(vrfIdx)
+		vrfNHID := mplsNHBase + uint64(vrfIdx)
+
+		// Create single NH per VRF in default NI
+		entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultNI).
+			WithIndex(vrfNHID).AddEncapHeader(fluent.MPLSEncapHeader().WithLabels(label),
+			fluent.UDPV6EncapHeader().
+				WithSrcIP(outerIPv6Src).
+				WithDstIP(outerIPv6Dst).
+				WithDstUDPPort(uint64(outerDstUDPPort)).
+				WithIPTTL(uint64(outerTTL)).
+				WithDSCP(uint64(outerDSCP)),
+		),
+		)
+
+		numNHGsVRF := skewPattern[vrfIdx]
+		for i := 0; i < numNHGsVRF; i++ {
+			nhgID := nhgBase + uint64(nhIndex)
+
+			// NHG points to VRF's NH
+			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultNI).WithID(nhgID).AddNextHop(vrfNHID, 1))
+
+			// Generate a prefix unique to this VRF
+			prefixIP := iputil.GenerateIPv6Prefix(baseIPv6, int64(nhIndex))
+			prefixStr := fmt.Sprintf("%s%s", prefixIP.String(), routePrefixLen)
+
+			entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(vrfName).WithPrefix(prefixStr).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(defaultNI))
+			nhIndex++
+		}
+	}
+
+	return entries
+}
+
+// expectedMPLSinUDPSkewedResults generates expected add/delete operation results
+func expectedMPLSinUDPSkewedResults(t *testing.T, vrfs []string, mplsNHBase, nhgBase uint64, totalNHGs int) (adds, dels []*client.OpResult) {
+	t.Helper()
+	adds = []*client.OpResult{}
+	dels = []*client.OpResult{}
+
+	skewPattern := generateSkewPattern(len(vrfs), totalNHGs)
+	nhIndex := 0
 	for vrfIdx := range vrfs {
-		for i := 0; i < numNHGs; i++ {
-			nhgID := nhgBase + uint64(vrfIdx*numNHGs+i)
+		vrfNHID := mplsNHBase + uint64(vrfIdx)
 
-			adds = append(adds,
-				fluent.OperationResult().
-					WithNextHopGroupOperation(nhgID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Add).
-					AsResult(),
-			)
-			dels = append(dels,
-				fluent.OperationResult().
-					WithNextHopGroupOperation(nhgID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Delete).
-					AsResult(),
-			)
+		// NH add/del
+		adds = append(adds, fluent.OperationResult().WithNextHopOperation(vrfNHID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+		dels = append(dels, fluent.OperationResult().WithNextHopOperation(vrfNHID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 
-			// Prefix generation (shared helper)
-			offset := int64(vrfIdx*numNHGs + i)
-			prefix := iputil.GenerateIPv6Prefix(baseIPv6, offset)
+		numNHGsVRF := skewPattern[vrfIdx]
+		for i := 0; i < numNHGsVRF; i++ {
+			nhgID := nhgBase + uint64(nhIndex)
 
-			adds = append(adds,
-				fluent.OperationResult().
-					WithIPv6Operation(prefix).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Add).
-					AsResult(),
-			)
-			dels = append(dels,
-				fluent.OperationResult().
-					WithIPv6Operation(prefix).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Delete).
-					AsResult(),
-			)
+			addOps := []*client.OpResult{fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult()}
+			delOps := []*client.OpResult{fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult()}
+
+			prefixIP := iputil.GenerateIPv6Prefix(baseIPv6, int64(nhIndex))
+			prefixStr := fmt.Sprintf("%s%s", prefixIP.String(), routePrefixLen)
+
+			addOps = append(addOps, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+			delOps = append(delOps, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
+
+			adds = append(adds, addOps...)
+			dels = append(dels, delOps...)
+			nhIndex++
 		}
 	}
 
 	return adds, dels
 }
 
-// validateTrafficFlows verifies traffic flow behavior (pass/fail) based on expected outcome
+// validateTrafficFlows verifies traffic flow behavior (pass/fail) based on expected outcome.
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnappi.Config, args *testArgs, flows []gosnappi.Flow, capture bool, match bool) error {
 	t.Helper()
 	t.Logf("=== TRAFFIC FLOW VALIDATION START (expecting match=%v) ===", match)
@@ -1517,7 +1281,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 		}
 		if match {
 			rxPorts := []string{ateConfig.Ports().Items()[2].Name(), ateConfig.Ports().Items()[3].Name()}
-			weights := testLoadBalance(t, ate, rxPorts, flow)
+			weights := testLoadBalance(t, ate, rxPorts)
 			for idx, weight := range portsTrafficDistribution {
 				if got, want := weights[idx], weight; got < (want-tolerance) || got > (want+tolerance) {
 					return fmt.Errorf("ECMP percentage mismatch on Aggregate : %d: got %d, want %d", idx+1, got, want)
@@ -1551,11 +1315,11 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	otg.StopTraffic(t)
 }
 
-// createFlow creates a traffic flow for MPLS-in-UDP testing
+// createFlow creates a traffic flow for MPLS-in-UDP testing.
 func (fa *flowAttr) createFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-	flow.Rate().SetPps(ratePps)
+	flow.Rate().SetPps(ratePPS)
 	flow.Size().SetFixed(pktSize)
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
 	e1 := flow.Packet().Add().Ethernet()
@@ -1566,13 +1330,13 @@ func (fa *flowAttr) createFlow(flowType string, name string, dscp uint32) gosnap
 		v6 := flow.Packet().Add().Ipv6()
 		v6.Src().SetValue(fa.src)
 		v6.Dst().Increment().SetStart(fa.dst).SetCount(ipCount)
-		v6.HopLimit().SetValue(ttl)
+		v6.HopLimit().SetValue(innerTTL)
 		v6.TrafficClass().SetValue(dscp << 2)
 	} else {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(fa.src)
 		v4.Dst().Increment().SetStart(fa.dst).SetCount(ipCount)
-		v4.TimeToLive().SetValue(ttl)
+		v4.TimeToLive().SetValue(innerTTL)
 		v4.Priority().Dscp().Phb().SetValue(dscp)
 	}
 
@@ -1584,16 +1348,18 @@ func (fa *flowAttr) createFlow(flowType string, name string, dscp uint32) gosnap
 	return flow
 }
 
-func randRange(max int, count int) []uint32 {
+// randRange generates a slice of random uint32 values in the range [0, max).
+func randRange(rmax int, rcount int) []uint32 {
+	// #nosec G404 -- math/rand is fine for non-crypto randomness
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 	var result []uint32
-	for len(result) < count {
-		result = append(result, uint32(rand.Intn(max)))
+	for len(result) < rcount {
+		result = append(result, uint32(rand.Intn(rmax)))
 	}
 	return result
 }
 
-// enableCapture enables packet capture on specified OTG ports
+// enableCapture enables packet capture on specified OTG ports.
 func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortNames []string) {
 	t.Helper()
 	for _, port := range otgPortNames {
@@ -1602,14 +1368,14 @@ func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortName
 	otg.PushConfig(t, topo)
 }
 
-// clearCapture clears packet capture from all OTG ports
+// clearCapture clears packet capture from all OTG ports.
 func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 	t.Helper()
 	topo.Captures().Clear()
 	otg.PushConfig(t, topo)
 }
 
-// startCapture starts packet capture on OTG ports
+// startCapture starts packet capture on OTG ports.
 func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	otg := ate.OTG()
@@ -1618,7 +1384,7 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	otg.SetControlState(t, cs)
 }
 
-// stopCapture stops packet capture on OTG ports
+// stopCapture stops packet capture on OTG ports.
 func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	otg := ate.OTG()
@@ -1627,7 +1393,7 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	otg.SetControlState(t, cs)
 }
 
-// configStaticArp configures static ARP entries for gRIBI next hop resolution
+// configStaticArp configures static ARP entries for gRIBI next hop resolution.
 func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	i := &oc.Interface{Name: ygot.String(p)}
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -1638,20 +1404,20 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	return i
 }
 
-// staticARPWithSecondaryIP configures secondary IPs and static ARP for gRIBI compatibility
+// staticARPWithSecondaryIP configures secondary IPs and static ARP for gRIBI compatibility.
 func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	p3 := dut.Port(t, "port3")
 	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, dstMac))
 
 	p4 := dut.Port(t, "port4")
 	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
+	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, dstMac))
 }
 
-// testLoadBalance to ensure 50:50 Load Balancing
-func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, portNames []string, flow gosnappi.Flow) []uint64 {
+// testLoadBalance to ensure 50:50 Load Balancing.
+func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, portNames []string) []uint64 {
 	t.Helper()
 	var rxs []uint64
 	for _, aggName := range portNames {
@@ -1668,7 +1434,7 @@ func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, portNames []string, f
 	return rxs
 }
 
-// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
+// incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space.
 func incrementMAC(mac string, i int) (string, error) {
 	macAddr, err := net.ParseMAC(mac)
 	if err != nil {
@@ -1685,7 +1451,25 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// formatMPLSHeader formats MPLS header bytes for debugging output
+// incrementIPv4 increments IPv4 address in place by n.
+func incrementIPv4(ip net.IP, n int) {
+	for j := len(ip) - 1; j >= 0 && n > 0; j-- {
+		sum := int(ip[j]) + (n & 0xFF)
+		ip[j] = byte(sum)
+		n >>= 8
+	}
+}
+
+// incrementIPv6 increments IPv6 address in place by n.
+func incrementIPv6(ip net.IP, n int) {
+	for j := len(ip) - 1; j >= 0 && n > 0; j-- {
+		sum := int(ip[j]) + (n & 0xFF)
+		ip[j] = byte(sum)
+		n >>= 8
+	}
+}
+
+// formatMPLSHeader formats MPLS header bytes for debugging output.
 func formatMPLSHeader(data []byte) string {
 	if len(data) < 4 {
 		return "Invalid MPLS header: too short"
@@ -1698,60 +1482,4 @@ func formatMPLSHeader(data []byte) string {
 	ttl := uint8(headerValue & 0xFF)
 
 	return fmt.Sprintf("MPLS Label: %d, EXP: %d, BoS: %t, TTL: %d", label, exp, s == 1, ttl)
-}
-
-// generateSkewPattern generates a skewed distribution of prefixes per VRF.
-// The returned slice indicates how many prefixes each VRF should have.
-func generateSkewPattern(numVRFs, totalPrefixes int) []int {
-	rand.Seed(time.Now().UnixNano())
-
-	weights := make([]int, numVRFs)
-	sum := 0
-	for i := 0; i < numVRFs; i++ {
-		weights[i] = rand.Intn(30) + 1 // random weight between 1 and 30
-		sum += weights[i]
-	}
-
-	skew := make([]int, numVRFs)
-	accum := 0
-	for i := 0; i < numVRFs; i++ {
-		skew[i] = weights[i] * totalPrefixes / sum
-		accum += skew[i]
-	}
-
-	// Adjust last element so the sum matches exactly
-	skew[numVRFs-1] += totalPrefixes - accum
-	return skew
-}
-
-// generateSkewedVRFList creates a skewed VRF assignment list.
-// totalPrefixes = total number of prefixes (e.g. 20000)
-// vrfs = list of VRF names
-// skewPattern = list of prefix counts per VRF (len must == len(vrfs))
-func generateSkewedVRFList(t *testing.T, vrfs []string, totalPrefixes int, skewPattern []int) []string {
-	t.Helper()
-	// sanity check
-	sum := 0
-	for _, c := range skewPattern {
-		sum += c
-	}
-	if sum != totalPrefixes+1 {
-		t.Errorf("skewPattern sum=%d but expected totalPrefixes=%d", sum, totalPrefixes+1)
-	}
-
-	vrfList := []string{}
-	for i, vrf := range vrfs {
-		count := skewPattern[i]
-		for j := 0; j < count; j++ {
-			vrfList = append(vrfList, vrf)
-		}
-	}
-
-	// shuffle so distribution looks random
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(vrfList), func(i, j int) {
-		vrfList[i], vrfList[j] = vrfList[j], vrfList[i]
-	})
-
-	return vrfList
 }

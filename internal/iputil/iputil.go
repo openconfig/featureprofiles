@@ -43,10 +43,22 @@ func GenerateIPs(ipBlock string, n int) []string {
 	return entries
 }
 
-func GenerateIPv6Prefix(baseIPv6 string, offset int64) string {
+// GenerateIPv6Prefix takes a base IPv6 string and an integer offset, adds the offset to the base address, and returns the resulting IPv6 net.IP Caller can decide whether to append a CIDR mask or format it as needed.
+func GenerateIPv6Prefix(baseIPv6 string, offset int64) net.IP {
 	baseIP := net.ParseIP(baseIPv6).To16()
-	baseInt := big.NewInt(0).SetBytes(baseIP)
-	ipInt := big.NewInt(0).Add(baseInt, big.NewInt(offset))
+	if baseIP == nil {
+		return nil
+	}
+
+	// 2^128 modulus
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128)
+
+	baseInt := new(big.Int).SetBytes(baseIP)
+	ipInt := new(big.Int).Add(baseInt, big.NewInt(offset))
+
+	// wrap around
+	ipInt.Mod(ipInt, pmax)
+
 	ipBytes := ipInt.FillBytes(make([]byte, 16))
-	return net.IP(ipBytes).String() + "/128"
+	return net.IP(ipBytes)
 }
