@@ -31,7 +31,7 @@ require (
 	github.com/openconfig/ondatra v0.12.2
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.12.0
+	github.com/openconfig/ygnmi v0.13.0
 	github.com/openconfig/ygot v0.33.0
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pborman/uuid v1.2.1
@@ -128,6 +128,7 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
 	github.com/openconfig/attestz v0.5.0 // indirect
 	github.com/openconfig/bootz v0.6.0 // indirect
+	github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0 // indirect
 	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
