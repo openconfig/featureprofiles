@@ -12,6 +12,7 @@ platform_exceptions: {
   }
   deviations: {
     p4rt_capabilities_unsupported: true
+    gribi_records_unsupported: true
   }
 }
 
