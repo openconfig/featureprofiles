@@ -29,6 +29,8 @@ const (
 	triggerGrTimer           = 280
 	grRestartTime            = 220
 	grStaleRouteTime         = 250
+	errRetentionTime         = 300
+	errRetentionTimeLarge    = 15552000
 	advertisedRoutesv4Prefix = 32
 	advertisedRoutesv6Prefix = 128
 	dutAS                    = 100
@@ -55,8 +57,9 @@ const (
 	errnodeprefasn           = 200
 	testibgpasn              = 500
 	testebgpasn              = 600
-	MED50                    = 50
-	MED150                   = 150
+	med50                    = 50
+	med150                   = 150
+	routeCount               = 3
 )
 
 var (
@@ -437,7 +440,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	setMEDstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	setMEDstmtCommunitySet := setMEDstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 	setMEDstmtCommunitySet.SetCommunitySet("TEST-EBGP")
-	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(MED50))
+	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med50))
 	if deviations.BGPSetMedActionUnsupported(dut) {
 		setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
@@ -488,7 +491,7 @@ func buildNbrListibgp() []*bgpNeighbor {
 	return []*bgpNeighbor{nbr2v4, nbr2v6}
 }
 
-func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func ebgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -496,14 +499,14 @@ func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 
 	g := bgp.GetOrCreateGlobal()
 
-	g.SetAs(as)
+	g.SetAs(params.DutAS)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 	g.SetRouterId(dutEBGP.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
 	bgpgr.SetEnabled(true)
-	bgpgr.SetRestartTime(grRestartTime)
-	bgpgr.SetStaleRoutesTime(grStaleRouteTime)
+	bgpgr.SetRestartTime(params.GracefulRestartTime)
+	bgpgr.SetStaleRoutesTime(params.GracefulRestartStaleRouteTime)
 
 	pg := bgp.GetOrCreatePeerGroup(epeerv4GrpName)
 	pg.SetPeerGroupName(epeerv4GrpName)
@@ -560,14 +563,14 @@ func ebgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	return niProto
 }
 
-func ibgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func ibgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 
 	g := bgp.GetOrCreateGlobal()
-	g.SetAs(as)
+	g.SetAs(params.DutAS)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 	g.SetRouterId(dutEBGP.IPv4)
@@ -629,7 +632,7 @@ func ibgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice) *oc.Net
 	return niProto
 }
 
-func checkBgpGRConfig(t *testing.T, dut *ondatra.DUTDevice) {
+func checkBgpGRConfig(t *testing.T, params cfgplugins.BGPGracefulRestartConfig, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP configuration")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
@@ -643,18 +646,18 @@ func checkBgpGRConfig(t *testing.T, dut *ondatra.DUTDevice) {
 
 	grTimerVal := gnmi.Get(t, dut, statePath.Global().GracefulRestart().RestartTime().State())
 	t.Logf("grTimerVal %v", grTimerVal)
-	if grTimerVal == uint16(grRestartTime) {
-		t.Logf("Graceful restart timer enabled as expected to be %v", grRestartTime)
+	if grTimerVal == uint16(params.GracefulRestartTime) {
+		t.Logf("Graceful restart timer enabled as expected to be %v", params.GracefulRestartTime)
 	} else {
-		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, grRestartTime)
+		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, params.GracefulRestartTime)
 	}
 
 	grStaleRouteTimeVal := gnmi.Get(t, dut, statePath.Global().GracefulRestart().StaleRoutesTime().State())
 	t.Logf("grStaleRouteTimeVal %v", grStaleRouteTimeVal)
-	if grStaleRouteTimeVal == uint16(grStaleRouteTime) {
-		t.Logf("Graceful restart Stale Route timer enabled as expected to be %v", grStaleRouteTime)
+	if grStaleRouteTimeVal == uint16(params.GracefulRestartStaleRouteTime) {
+		t.Logf("Graceful restart Stale Route timer enabled as expected to be %v", params.GracefulRestartStaleRouteTime)
 	} else {
-		t.Errorf("Expected Graceful restart timer: got %v, want %v", grStaleRouteTimeVal, grStaleRouteTime)
+		t.Errorf("Expected Graceful restart timer: got %v, want %v", grStaleRouteTimeVal, params.GracefulRestartStaleRouteTime)
 	}
 }
 
@@ -746,7 +749,7 @@ func checkBgpStatusDown(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice, params cfgplugins.BGPGracefulRestartConfig) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
@@ -765,21 +768,21 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	iBGP := iBGPDev.Bgp().SetRouterId(iBGPIpv4.Address())
 	iBGP4Peer := iBGP.Ipv4Interfaces().Add().SetIpv4Name(iBGPIpv4.Name()).Peers().Add().SetName(ateIBGP.Name + ".BGP4.peer")
-	iBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	iBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(params.GracefulRestartTime))
 	iBGP4Peer.SetPeerAddress(iBGPIpv4.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iBGP4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 	iBGP6Peer := iBGP.Ipv6Interfaces().Add().SetIpv6Name(iBGPIpv6.Name()).Peers().Add().SetName(ateIBGP.Name + ".BGP6.peer")
-	iBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	iBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(params.GracefulRestartTime))
 	iBGP6Peer.SetPeerAddress(iBGPIpv6.Gateway()).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	iBGP6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	eBGP := eBGPDev.Bgp().SetRouterId(eBGPIpv4.Address())
 	eBGP4Peer := eBGP.Ipv4Interfaces().Add().SetIpv4Name(eBGPIpv4.Name()).Peers().Add().SetName(ateEBGP.Name + ".BGP4.peer")
-	eBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	eBGP4Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(params.GracefulRestartTime))
 	eBGP4Peer.SetPeerAddress(eBGPIpv4.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	eBGP4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 	eBGP6Peer := eBGP.Ipv6Interfaces().Add().SetIpv6Name(eBGPIpv6.Name()).Peers().Add().SetName(ateEBGP.Name + ".BGP6.peer")
-	eBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(grRestartTime)
+	eBGP6Peer.GracefulRestart().SetEnableGr(true).SetRestartTime(uint32(params.GracefulRestartTime))
 	eBGP6Peer.SetPeerAddress(eBGPIpv6.Gateway()).SetAsNumber(ateAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	eBGP6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
@@ -1102,15 +1105,15 @@ func ptrToUint32(val uint32) *uint32 {
 	return &val
 }
 
-func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []string) {
+func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []string, params cfgplugins.BGPGracefulRestartConfig) {
 
 	ate := ondatra.ATE(t, "ate")
 
 	startTime := time.Now()
 	t.Log("Sending packets while GR timer is counting down. Traffic should pass as BGP GR is enabled!")
 	t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
-	waitDuration := grStaleRouteTime*time.Second - time.Since(startTime) - 10*time.Second
-	t.Logf("Waiting for %s short of stale route time expiration of %v", waitDuration, grStaleRouteTime)
+	waitDuration := time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - time.Since(startTime) - 10*time.Second
+	t.Logf("Waiting for %s short of stale route time expiration of %v", waitDuration, params.GracefulRestartStaleRouteTime)
 	time.Sleep(waitDuration)
 	ate.OTG().StopTraffic(t)
 	dut := ondatra.DUT(t, "dut")
@@ -1120,16 +1123,16 @@ func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []strin
 	}
 
 	t.Logf("Time passed since graceful restart was initiated is %s", time.Since(startTime))
-	if time.Since(startTime) < time.Duration(grStaleRouteTime)*time.Second {
-		waitDuration = time.Duration(grStaleRouteTime)*time.Second - time.Since(startTime)
-		t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, grStaleRouteTime)
+	if time.Since(startTime) < time.Duration(params.GracefulRestartStaleRouteTime)*time.Second {
+		waitDuration = time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - time.Since(startTime)
+		t.Logf("Waiting another %s seconds to ensure the stale route timer of %v expired", waitDuration, params.GracefulRestartStaleRouteTime)
 		time.Sleep(waitDuration)
 	} else {
-		t.Logf("Enough time passed to ensure the expiration of stale route timer of %v", grStaleRouteTime)
+		t.Logf("Enough time passed to ensure the expiration of stale route timer of %v", params.GracefulRestartStaleRouteTime)
 	}
 
 	ate.OTG().StartTraffic(t)
-	waitDuration = time.Duration(triggerGrTimer*time.Second - grStaleRouteTime*time.Second - 5*time.Second)
+	waitDuration = time.Duration(triggerGrTimer*time.Second - time.Duration(params.GracefulRestartStaleRouteTime)*time.Second - 5*time.Second)
 	time.Sleep(waitDuration)
 	ate.OTG().StopTraffic(t)
 
@@ -1143,9 +1146,24 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
+	bgpNeighbors := []string{
+		ateIBGP.IPv4,
+		ateEBGP.IPv4,
+		ateIBGP.IPv6,
+		ateEBGP.IPv6,
+	}
+
+	bgpGracefulRestartConfigParams := cfgplugins.BGPGracefulRestartConfig{
+		GracefulRestartTime:           grRestartTime,
+		GracefulRestartStaleRouteTime: grStaleRouteTime,
+		ERRRetentionTime:              errRetentionTime,
+		DutAS:                         dutAS,
+		BgpNeighbors:                  bgpNeighbors,
+	}
+
 	// ATE Configuration.
 	t.Log("Start ATE Config")
-	config := configureATE(t, ate)
+	config := configureATE(t, ate, bgpGracefulRestartConfigParams)
 
 	// Configure interface on the DUT
 	t.Log("Start DUT interface Config")
@@ -1156,10 +1174,10 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	t.Log("Configure BGP with Graceful Restart option under Global Bgp")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	nbrList := buildNbrListebgp()
-	dutConf := ebgpWithNbr(dutAS, nbrList, dut)
+	dutConf := ebgpWithNbr(bgpGracefulRestartConfigParams, nbrList, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	nbrList = buildNbrListibgp()
-	dutConf = ibgpWithNbr(dutAS, nbrList, dut)
+	dutConf = ibgpWithNbr(bgpGracefulRestartConfigParams, nbrList, dut)
 	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
@@ -1196,7 +1214,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 
-	checkBgpStatus(t, dut, 3)
+	checkBgpStatus(t, dut, routeCount)
 
 	flowsWithNoERR := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix1, ipv4Prefix4),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix4, ipv4Prefix1),
@@ -1208,13 +1226,6 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		ateEBGP.Name + ".BGP4.peer",
 		ateIBGP.Name + ".BGP6.peer",
 		ateEBGP.Name + ".BGP6.peer",
-	}
-
-	bgpNeighbors := []string{
-		ateIBGP.IPv4,
-		ateEBGP.IPv4,
-		ateIBGP.IPv6,
-		ateEBGP.IPv6,
 	}
 
 	flowsWithNoLoss := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
@@ -1236,7 +1247,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			name: "1_BaseLine_Validation",
 			fn: func(t *testing.T) {
 				t.Log("verify BGP Graceful Restart settings")
-				checkBgpGRConfig(t, dut)
+				checkBgpGRConfig(t, bgpGracefulRestartConfigParams, dut)
 
 				validatePrefixesWithAttributes(t, ate, prefixattrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixv6attrs)
@@ -1244,28 +1255,36 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					t.Fatalf("validateTrafficFlows failed: %v", err)
 				}
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 15552000, bgpNeighbors)
+				bgpGracefulRestartConfigParamsERRLarge := cfgplugins.BGPGracefulRestartConfig{
+					GracefulRestartTime:           grRestartTime,
+					GracefulRestartStaleRouteTime: grStaleRouteTime,
+					ERRRetentionTime:              errRetentionTimeLarge,
+					DutAS:                         dutAS,
+					BgpNeighbors:                  bgpNeighbors,
+				}
+
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParamsERRLarge)
 			},
 		},
 		{
 			name: "2_DUT_as_Helper_for_graceful_Restart",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
 				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
 				// Check Routes are re-learnt after graceful-restart completes
-				checkBgpStatus(t, dut, 3)
+				checkBgpStatus(t, dut, routeCount)
 			},
 		},
 		{
 			name: "3_ATE_Peer_Abrupt_Termination",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Stop BGP on the ATE Peer")
@@ -1274,7 +1293,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					SetState(gosnappi.StateProtocolBgpPeersState.DOWN)
 				ate.OTG().SetControlState(t, stopBgp)
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
 				t.Log("Start BGP on the ATE Peer")
 				startBgp := gosnappi.NewControlState()
@@ -1282,14 +1301,14 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					SetState(gosnappi.StateProtocolBgpPeersState.UP)
 				ate.OTG().SetControlState(t, startBgp)
 
-				checkBgpStatus(t, dut, 3)
+				checkBgpStatus(t, dut, routeCount)
 			},
 		},
 		{
 			name: "4_Administrative_Reset_Notification_Sent_By_DUT_Graceful",
 			fn: func(t *testing.T) {
 				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
-					cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1298,33 +1317,36 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 						Mode: bpb.ClearBGPNeighborRequest_GRACEFUL_RESET,
 					}
 					gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
+					if _, err := gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq); err != nil {
+						t.Fatalf("Failed to clear BGP neighbor: %v", err)
+					}
 
-					validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
-					checkBgpStatus(t, dut, 3)
+					checkBgpStatus(t, dut, routeCount)
 				}
 			},
 		},
 		{
 			name: "5_Administrative_Reset_Notification_Received_By_DUT_Graceful",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
 				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
 				// Check Routes are re-learnt after graceful-restart completes
-				checkBgpStatus(t, dut, 3)
+				checkBgpStatus(t, dut, routeCount)
 			},
 		},
 		{
 			name: "6_Administrative_Reset_Notification_Sent_By_DUT_Hard_Reset",
 			fn: func(t *testing.T) {
 				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
-					cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1332,26 +1354,29 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					bgpReq := &bpb.ClearBGPNeighborRequest{
 						Mode: bpb.ClearBGPNeighborRequest_HARD_RESET,
 					}
-					gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq)
 
-					validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+					if _, err := gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq); err != nil {
+						t.Fatalf("Failed to clear BGP neighbor: %v", err)
+					}
 
-					checkBgpStatus(t, dut, 3)
+					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
+
+					checkBgpStatus(t, dut, routeCount)
 				}
 			},
 		},
 		{
 			name: "7_Administrative_Reset_Notification_Received_By_DUT_Hard_Reset",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
 				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "hard"))
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
-				checkBgpStatus(t, dut, 3)
+				checkBgpStatus(t, dut, routeCount)
 			},
 		},
 		{
@@ -1369,29 +1394,29 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 				setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
 				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(MED150))
+				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med150))
 				if deviations.BGPSetMedActionUnsupported(dut) {
 					setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 				}
 
 				gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
 				ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "none"))
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 
-				checkBgpStatus(t, dut, 3)
+				checkBgpStatus(t, dut, routeCount)
 			},
 		},
 		{
 			name: "9_Default_Reject_Behavior",
 			fn: func(t *testing.T) {
-				cfgplugins.DeleteExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.DeleteExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 
 				t.Log("Stop BGP on the ATE Peer")
 				stopBgp := gosnappi.NewControlState()
@@ -1410,7 +1435,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		{
 			name: "10_Consecutive_BGP_Restarts",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, 100, 300, bgpNeighbors)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
 
 				ate.OTG().StartTraffic(t)
 
@@ -1426,7 +1451,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				ate.OTG().SetControlState(t, stopBgp)
 
-				validateExrr(t, flowsWithNoERR, flowsWithNoLoss)
+				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, bgpGracefulRestartConfigParams)
 			},
 		},
 	}
