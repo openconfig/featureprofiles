@@ -560,7 +560,7 @@ func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 		"-h",
 		"-I", dutKey,
 		"-H", "prod",
-		"-V", "+52w",
+		"-V", "-1d:+52w",
 	)
 	err = createHostCertCmd.Run()
 	if err != nil {
