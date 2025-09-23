@@ -128,7 +128,7 @@ func (f *sshClientFixture) start(t testing.TB) error {
 		return fmt.Errorf("handshake errors: %v; and %v", err1, err2)
 	}
 
-	sshClient, err := newSSH(client, "Hostkey")
+	sshClient, err := newSSH(client, []byte("Hostkey"))
 	if err != nil {
 		return err
 	}
