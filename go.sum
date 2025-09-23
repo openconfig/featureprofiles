@@ -307,6 +307,8 @@ github.com/openconfig/functional-translators v0.0.0-20250911083153-9f7dfea7b809 
 github.com/openconfig/functional-translators v0.0.0-20250911083153-9f7dfea7b809/go.mod h1:/q0lCXFg7gfuWQPnlX//77HO5a6UmJo4vFxwcHeAT4M=
 github.com/openconfig/functional-translators v0.0.0-20250911134540-699e9e0bfeb3 h1:tHL5V5EWjqF6NcmvXr/3sGB+a8CRyimWJvJV514zHSY=
 github.com/openconfig/functional-translators v0.0.0-20250911134540-699e9e0bfeb3/go.mod h1:/q0lCXFg7gfuWQPnlX//77HO5a6UmJo4vFxwcHeAT4M=
+github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0 h1:pG2t2nrDF3BrEI2UZtT5OyxUsn8NcIGR+krWNuvOQmw=
+github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0/go.mod h1:/q0lCXFg7gfuWQPnlX//77HO5a6UmJo4vFxwcHeAT4M=
 github.com/openconfig/gnmi v0.14.1 h1:qKMuFvhIRR2/xxCOsStPQ25aKpbMDdWr3kI+nP9bhMs=
 github.com/openconfig/gnmi v0.14.1/go.mod h1:whr6zVq9PCU8mV1D0K9v7Ajd3+swoN6Yam9n8OH3eT0=
 github.com/openconfig/gnoi v0.6.2 h1:o828QHknW5WIbQYSqXkJK2ZnSM0TF8roQ2nzpH/CdBE=

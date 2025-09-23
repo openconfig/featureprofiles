@@ -128,7 +128,7 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
 	github.com/openconfig/attestz v0.5.0 // indirect
 	github.com/openconfig/bootz v0.6.0 // indirect
-	github.com/openconfig/functional-translators v0.0.0-20250911134540-699e9e0bfeb3 // indirect
+	github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0 // indirect
 	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
