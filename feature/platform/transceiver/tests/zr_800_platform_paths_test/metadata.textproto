@@ -16,6 +16,7 @@ platform_exceptions: {
     otn_channel_trib_unsupported: true
     otn_to_eth_assignment: true
   }
+}
 platform_exceptions: {
   platform: {
     vendor: NOKIA
