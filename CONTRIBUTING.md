@@ -154,7 +154,8 @@ were discovered when implementing the code.
 Generally, a Feature Profiles ONDATRA test has the following stages: configure
 DUT, configure OTG, generate and verify traffic, verify telemetry. The
 configuration generation code should be factored out to their own functions and
-placed in the `/internal/cfgplugins` folder.  See the cfgplugins README for details.
+placed in the `/internal/cfgplugins` folder.  See the [cfgplugins README](https://github.com/openconfig/featureprofiles/blob/main/internal/cfgplugins/README.md)
+for details.
 
 Subtests should be run under `t.Run` so the test output clearly reflects which
 parts of the test passed and which parts failed.  This way using `t.Error()` will
