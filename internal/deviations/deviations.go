@@ -1645,6 +1645,11 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
 
+// Gribi Records Unsupported returns true if Gribi records creation is not supported through OpenConfig.
+func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
+}
+
 func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
 }
