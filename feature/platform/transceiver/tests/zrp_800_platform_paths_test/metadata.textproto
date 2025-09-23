@@ -4,7 +4,7 @@
 uuid: "670a5ddb-d187-418d-a64e-e8cd8fc1140e"
 plan_id: "TRANSCEIVER-101"
 description: "Telemetry: ZR Plus platform OC paths streaming."
-testbed: TESTBED_DUT_800ZRP
+testbed: TESTBED_DUT_800ZR_PLUS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
