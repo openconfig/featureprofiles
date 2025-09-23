@@ -676,10 +676,6 @@ func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string
 	}, nil
 }
 
-func (c *wbbSSHClient) HostKey() []byte {
-	return c.hostKey
-}
-
 func (c *creds) RequireTransportSecurity() bool {
 	return c.secure
 }
