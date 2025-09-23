@@ -390,7 +390,7 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 		"-s", caKey,
 		"-I", userKey,
 		"-n", userPrincipal,
-		"-V", "-1d+52w",
+		"-V", "-1d:+52w",
 		fmt.Sprintf("%s.pub", userKey),
 	)
 	userCertCmd.Dir = dir
