@@ -115,7 +115,7 @@ func TestTerminalDevicePaths(t *testing.T) {
 				t.Logf("\n*** Bringing DOWN all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = false
-					cfgplugins.ToggleInterfaceState(t, p, params)
+					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as down and validate stats updated.
@@ -131,7 +131,7 @@ func TestTerminalDevicePaths(t *testing.T) {
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, p, params)
+					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as up and validate stats updated.

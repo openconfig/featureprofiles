@@ -373,8 +373,9 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		default:
 			t.Fatalf("Unsupported PMD type for %v", p.PMD())
 		}
-		updateInterfaceConfig(batch, p, params)
-		updateHWPortConfig(batch, p, params)
+		updateInterfaceConfig(batch, dut, p, params)
+		updateHWPortConfig(batch, dut, p, params)
+		updateTransceiverConfig(batch, dut, p, params)
 		updateOpticalChannelConfig(batch, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
@@ -382,13 +383,18 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 }
 
 // updateInterfaceConfig updates the interface config.
-func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
+func updateInterfaceConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
 	i := &oc.Interface{
 		Name:    ygot.String(p.Name()),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled: ygot.Bool(params.Enabled),
 	}
-	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
+	switch {
+	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
+		// No port speed and duplex mode config for devices that do not support it.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,
 			DuplexMode: oc.Ethernet_DuplexMode_FULL,
@@ -398,23 +404,48 @@ func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *Config
 }
 
 // updateHWPortConfig updates the hardware port config.
-func updateHWPortConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
-	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
-		return // No HwPort config for 400GZR/400GZR Plus.
-	}
-	gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
-		Name: ygot.String(params.HWPortNames[p.Name()]),
-		Port: &oc.Component_Port{
-			BreakoutMode: &oc.Component_Port_BreakoutMode{
-				Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
-					1: {
-						Index:               ygot.Uint8(1),
-						BreakoutSpeed:       params.PortSpeed,
-						NumBreakouts:        ygot.Uint8(1),
-						NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	switch {
+	case deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB:
+		return
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No breakout mode config for 400GZR/400GZR Plus as it is not supported.
+		return
+	default:
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						1: {
+							Index:               ygot.Uint8(1),
+							BreakoutSpeed:       params.PortSpeed,
+							NumBreakouts:        ygot.Uint8(1),
+							NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+						},
 					},
 				},
 			},
+		})
+	}
+	if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
+			Name:    ygot.String(p.Name() + "/1"),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+		})
+	}
+}
+
+// updateTransceiverConfig updates the transceiver config.
+func updateTransceiverConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	if !deviations.ExplicitDcoConfig(dut) {
+		return // No transceiver config for devices that do not require explicit DCO config.
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().Component(params.TransceiverNames[p.Name()]).Config(), &oc.Component{
+		Name: ygot.String(params.TransceiverNames[p.Name()]),
+		Transceiver: &oc.Component_Transceiver{
+			ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
 		},
 	})
 }
@@ -527,13 +558,18 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.
-func ToggleInterfaceState(t *testing.T, p *ondatra.Port, params *ConfigParameters) {
+func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
 	i := &oc.Interface{
 		Name:    ygot.String(p.Name()),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled: ygot.Bool(params.Enabled),
 	}
-	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
+	switch {
+	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
+		// No port speed and duplex mode config for devices that do not support it.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,
 			DuplexMode: oc.Ethernet_DuplexMode_FULL,
