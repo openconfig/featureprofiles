@@ -32,7 +32,7 @@ The goal of this test is to:
     successfully performs decapsulation. During this decapsulation process, the
     system must not transfer the DSCP and TTL bits from the outer header to the
     inner header. Instead, following decapsulation, the DUT should decrement the
-    inner header's  by 1 before forwarding the packet
+    inner header's  TTL by 1 before forwarding the packet
 
 ## Topology
 
