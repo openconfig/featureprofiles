@@ -305,7 +305,8 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
     *   The outer header TTL should be 63 upon arrival at `ATE2_Port1` (before
         decapsulation). Please check this on the ATE2.
     *   Post decapsulation at `ATE2_Port1`, ensure that the DSCP bits on the
-        payload is the same as the DSCP bits prior to encapsupation on ATE1.
+        payload is the same as the DSCP bits set by ATE1:Port1 before sending
+        it to the DUT for encap.
     *   Verify on ATEs that the amount of packets sent is the same as the amount
         of encaped packets received per tunnel endpoint. Also check the
         interface counters using OC.
