@@ -18,6 +18,7 @@ from getpass import getuser
 from pathlib import Path
 import xml.etree.ElementTree as ET
 import shutil
+import socket
 import random
 import string
 import tempfile
@@ -35,6 +36,7 @@ logger = get_task_logger(__name__)
 
 GO_BIN = '/auto/firex/bin/go'
 PYTHON_BIN = '/auto/firex/sw/python/3.9.10/bin/python3.9'
+HIBA_BIN_PATH = '/auto/b4ws/hiba' # https://github.com/google/hiba/blob/main/README.md
 
 PUBLIC_FP_REPO_URL = 'https://github.com/openconfig/featureprofiles.git'
 INTERNAL_FP_REPO_URL = 'git@wwwin-github.cisco.com:B4Test/featureprofiles.git'
@@ -61,6 +63,7 @@ whitelist_arguments([
     'test_revision',
     'test_pr',
     'sim_use_mtls',
+    'test_requires_bootz',
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
@@ -98,9 +101,9 @@ def _get_venv_pip_bin(ws):
     return os.path.join(_get_venv_path(ws), 'bin', 'pip')
 
 def _get_go_env(ws=None):
-    PATH = "{}:{}".format(
-        os.path.dirname(GO_BIN), os.environ["PATH"]
-    )
+    PATH = "{}:{}:{}".format(
+        HIBA_BIN_PATH, os.path.dirname(GO_BIN), os.environ["PATH"]
+    ) 
 
     nobackup_path = _get_user_nobackup_path(ws)
     gocache = os.path.join(nobackup_path, '.gocache')
@@ -715,7 +718,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         if using_sim and sim_use_mtls:
             c |= GenerateCertificates.s()
             c |= SimEnableMTLS.s()
-
+            
         # Determine if the test requires traffic generators
         is_otg = 'otg' in test_path or test_requires_otg
         is_tgen = 'ate' in test_path or is_otg or test_requires_tgen
@@ -786,6 +789,7 @@ def b4_chain_provider(ws, testsuite_id,
                         test_timeout=0,
                         test_requires_tgen=False,
                         test_requires_otg=False,
+                        test_requires_bootz=False,
                         fp_pre_tests=[],
                         fp_post_tests=[],
                         internal_test=False,
@@ -854,6 +858,9 @@ def b4_chain_provider(ws, testsuite_id,
     if is_otg:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
 
+    if test_requires_bootz:
+        chain |= ConfigDhcpForBootz.s()
+
     if is_tgen and not decommission_testbed_after_tests():
         chain |= ReleaseIxiaPorts.s()
         if is_otg:
@@ -877,6 +884,9 @@ def b4_chain_provider(ws, testsuite_id,
     if is_otg:
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
+
+    if test_requires_bootz:
+        chain |= ConfigDhcpForBootz.s(unconfig=True)
 
     if sanitizer:
         logger.info(f"Sanitizer is set to {sanitizer}. Collect show tech sanitizer from routers")
@@ -1341,13 +1351,14 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
             reserved_testbed['ondatra_baseconf_path'][dut] = ondatra_baseconf_path
             shutil.copyfile(baseconf_file_path, ondatra_baseconf_path)
 
-            mgmt_ip = mgmt_ips[dut]
-            logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
-
             extra_conf = []
-            mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
-            if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
-            else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
+            if dut in mgmt_ips:
+                mgmt_ip = mgmt_ips[dut]
+                logger.info(f"Found management ip: {mgmt_ip} for dut '{dut}'")
+
+                mgmt_vrf = _sim_get_vrf(ondatra_baseconf_path)
+                if mgmt_vrf: extra_conf.append(f'ipv4 virtual address vrf {mgmt_vrf} {mgmt_ip}/24')
+                else: extra_conf.append(f'ipv4 virtual address {mgmt_ip}/24')
 
             # some FP tests (e.g., gNOI-3.1) expects that
             for d in data_ports.get(dut, []):
@@ -1762,6 +1773,57 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
             f'-out {reserved_testbed["binding_file"]}'
 
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+
+# noinspection PyPep8Naming
+# Add a dhcp entry pointing to test (this) host for bootz
+@app.task(bind=True)
+def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, unconfig=False):
+    dhcp_host = ""
+    dhcp_api_port = 8001
+    dhcp_gw = ""
+
+    if reserved_testbed.get('sim', False):
+        vxr_ports_file = os.path.join(test_log_directory_path, "testbed_logs", "bringup_success", "sim-ports.yaml")
+        with open(vxr_ports_file, "r") as fp:
+            try:
+                vxr_ports = yaml.safe_load(fp)
+            except yaml.YAMLError:
+                raise Exception("Failed to parse vxr ports file...")
+        
+        if not 'bootz' in vxr_ports:
+            raise Exception("No bootz device found in vxr ports file...Ignoring")
+        
+        if not 'xr_redir8001' in vxr_ports['bootz']:
+            raise Exception("No xr_redir8001 port found in vxr ports file...Ignoring")
+
+        dhcp_host = vxr_ports['bootz']['HostAgent']
+        dhcp_api_port = vxr_ports['bootz']['xr_redir8001']
+    else:
+        dhcp_conf = reserved_testbed.get('dhcp')
+        if not dhcp_conf:
+            raise Exception("No dhcp configuration found in reserved testbed...")
+        dhcp_host = dhcp_conf['host']
+        dhcp_api_port = dhcp_conf.get('api_port', dhcp_api_port)
+        dhcp_gw = dhcp_conf.get('gateway', dhcp_gw)
+
+    test_to_run = "TestAddDHCPEntry"
+    if unconfig: test_to_run = "TestDeleteDHCPEntry"
+
+    dhcp_conf_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/godhcpc ' \
+            f'-timeout 15m ' \
+            f'-args ' \
+            f'-push-config=false ' \
+            f'-collect_dut_info=false ' \
+            f'-test.run {test_to_run} ' \
+            f'-addr http://{dhcp_host}:{dhcp_api_port} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
+            f'-dhcp_gw {dhcp_gw}'
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(dhcp_conf_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

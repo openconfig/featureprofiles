@@ -56,6 +56,7 @@ func baseConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	return baseConfiguration
 
 }
+
 func validate[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[T], expected T) {
 	getResponse := gnmi.Get(t, dut, q)
 	diff := cmp.Diff(getResponse, expected)
@@ -64,6 +65,7 @@ func validate[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuer
 	}
 
 }
+
 func bgpValidator(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Get(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "default").Bgp().Global().Config())
 	time.Sleep(10 * time.Second)
@@ -678,31 +680,38 @@ type testcases struct {
 	checks     func(*testing.T, *ondatra.DUTDevice)
 }
 
+// TestGnmiUnionReplace exercises sending a gNMI SetRequest that mixes
+// (a) openconfig origin data and
+// (b) Cisco native origin data
+// using the "replace" semantics for a union of configs.
 func TestGnmiUnionReplace(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
-	initialMemory := memoryCheck(t, dut)
+	initialMemory := memoryCheck(t, dut) // Capture baseline process memory
+	// 1. Negative test: send a UnionReplace containing empty origins.
+	// Goal: ensure server rejects invalid origin usage.
 	t.Run("Union Replace with Empty Origins", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
+		// Construct two updates with empty Origin (invalid).
 		emptyOriginPath := &gpb.Update{Path: &gpb.Path{Origin: ""}}
 		setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{emptyOriginPath, emptyOriginPath}}
 		gnmiC := dut.RawAPIs().GNMI(t)
-		setResponse, err := gnmiC.Set(context.Background(), setReq)
+		_, err := gnmiC.Set(context.Background(), setReq)
 		if err == nil {
-			t.Error("Expected error with empty config : ", err)
-
+			t.Errorf("Expected error with empty config. Got success: %v", err)
 		}
-		t.Log(setResponse.GetResponse())
-		t.Log(err.Error())
 	})
+	// 2. Mixed OC + invalid CLI fragment.
+	// Goal: verify malformed/unsupported CLI chunk triggers failure while parsing/applying.
 	t.Run("Union Replace with OC and Invalid Base config CLI", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		var jsonietfVal []byte
+		// Load proto‑text test vector (contains OC replaces + bad CLI).
 		occliConfig, err := os.ReadFile("testdata/vrf.txt")
 		if err != nil {
-			panic(fmt.Sprintf("Cannot load base config: %v", err))
+			t.Fatalf("Failed to load base config: %v", err)
 		}
 		req := &gpb.SetRequest{}
+		// Unmarshal into SetRequest; iterate entries; build batch.
 		prototext.Unmarshal(occliConfig, req)
 		replaceContents := req.Replace
 		for _, path := range replaceContents {
@@ -710,26 +719,32 @@ func TestGnmiUnionReplace(t *testing.T) {
 		}
 		b := &gnmi.SetBatch{}
 		ocRoot := &oc.Root{}
+		// Convert JSON (OC) into ygot root.
 		opts := []ytypes.UnmarshalOpt{
 			&ytypes.PreferShadowPath{},
 		}
 		if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-			panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+			t.Fatalf("failed to unmarshall json config. err: %v", err)
 		}
+		// Push via BatchUnionReplace + CLI helper.
 		gnmi.BatchUnionReplace(b, gnmi.OC().Config(), ocRoot)
 		gnmi.BatchUnionReplaceCLI(b, "cisco", "histname$ cisco")
 		t.Log("############# STARTED UNION REPLACE ###############")
+		// CaptureFatal used to assert an expected failure occurs cleanly.
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			b.Set(t, dut)
 		}); errMsg == nil {
 			t.Errorf("Expected Fatal Error as CLI config is invalid, but response %v", errMsg)
 		}
 	})
-
+	// 3. Empty OC + valid CLI base snippet.
+	// Goal: Shows that native CLI alone can be packaged with an (empty) OC payload.
 	t.Run("Union Replace empty OC and Base config CLI", func(t *testing.T) {
-
 		dut := ondatra.DUT(t, "dut")
 		gnmiC := dut.RawAPIs().GNMI(t)
+		// GET current CLI as ASCII (origin "cli"); slice out from "hostname".
+		// Build one OC (empty JSON `{}`) + one CLI update.
+		// Send as UnionReplace; expect rejection (server usually wants non‑empty OC or structured path).
 		inGetRequest := &gpb.GetRequest{
 			Prefix: &gpb.Path{
 				Origin: "cli",
@@ -748,11 +763,11 @@ func TestGnmiUnionReplace(t *testing.T) {
 		cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
 		index := strings.Index(cliJson, "hostname")
 		if index == -1 {
-			t.Errorf("No 'hostname' found in the configuration string. Error : %v ", err)
+			t.Fatalf("No 'hostname' found in the configuration string. Error : %v ", err)
 		}
 		result := cliJson[index:]
-		jsonietfVal := []byte(`{}`)
-		nyconfig := []*gpb.Update{{
+		jsonIetfVal := []byte(`{}`)
+		NYConfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cisco_cli",
 				Elem:   []*gpb.PathElem{},
@@ -763,30 +778,46 @@ func TestGnmiUnionReplace(t *testing.T) {
 				},
 			},
 		}}
-		occonfig := []*gpb.Update{{
+		OCConfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "openconfig",
 				Elem:   []*gpb.PathElem{},
 			},
 			Val: &gpb.TypedValue{
 				Value: &gpb.TypedValue_JsonIetfVal{
-					JsonIetfVal: jsonietfVal,
+					JsonIetfVal: jsonIetfVal,
 				},
 			},
 		}}
 
-		setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{occonfig[0], nyconfig[0]}}
+		setReq := &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: []*gpb.Update{OCConfig[0], NYConfig[0]}}
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReq))
 		_, err = gnmiC.Set(context.Background(), setReq)
 		if err == nil {
 			t.Errorf("Expected error while set union replace with empty oc and base CLI %v", err)
 		}
 	})
+
+	// 4. Core scenario: OC + Native YANG (NY) config.
+	// Steps:
+	//   a. Pull a filtered "base" CLI config (users/grpc/mgmt interface) to ensure deterministic base.
+	//   b. Replace device CLI with that base (clean slate for test scope).
+	//   c. Load OC VRF config (vrf.txt), extract OC JSON, unmarshal into root.
+	//   d. Fetch full native JSON (device reply includes wrapper); isolate "data" field.
+	//   e. Serialize native subtree; build:
+	//        - Single giant native update
+	//        - Then per-top-level-key native updates
+	//   f. Issue:
+	//        (i) Update: OC + full native JSON (monolithic)
+	//        (ii) Update: OC + native split into series
+	//        (iii) UnionReplace: OC + native split (atomic multi-origin replace)
+	//   g. Log each phase; treat errors as failures (should succeed if payload valid).
 	t.Run("Union Replace with OC and Native Yang config", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
+		// Extract small deterministic base CLI fragment to reapply (stabilizes test state).
 		baseConfig := baseConfig(t, dut)
-		t.Log("Base Config:", baseConfig)
 
+		// Replace device CLI with base (plain SetRequest Replace using origin=cli).
 		cliBaseconfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cisco_cli",
@@ -799,36 +830,45 @@ func TestGnmiUnionReplace(t *testing.T) {
 			},
 		}}
 		gpbReplaceReq := &gpb.SetRequest{Replace: cliBaseconfig}
-		//Replace with base config on the box
-		setRes, _ := dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
-		t.Logf("SetResponse for base config:\n%s", prototext.Format(setRes))
-
-		log.V(1).Infof("SetResponse:\n%s", prototext.Format(gpbReplaceReq))
-		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setRes))
-		var jsonietfVal []byte
-		t.Logf("Input JSON (ietfVal): %s", string(jsonietfVal))
-		occliConfig, err := os.ReadFile("testdata/vrf.txt")
+		// Replace with base config on the box
+		_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), gpbReplaceReq)
 		if err != nil {
-			panic(fmt.Sprintf("Cannot load base config: %v", err))
+			t.Fatalf("failed to replace with base config on DUT. err: %v", err)
 		}
-		t.Log("OC CLI Config File Content:\n", string(occliConfig))
 
+		var jsonIetfVal []byte
+		t.Logf("Input JSON (ietfVal): %s", string(jsonIetfVal)) // is this logging needed? bloated test output log
+		// Load OC VRF proto‑text (contains SetRequest with Replace entries)
+		ocCliConfig, err := os.ReadFile("testdata/vrf.txt")
+		if err != nil {
+			t.Fatalf("Failed to read the testdata config file. err: %v", err)
+		}
+		t.Log("OC CLI Config File Content:\n", string(ocCliConfig))
+		// Unmarshal the OpenConfig CLI configuration file into a gNMI SetRequest.
+		// The `ocCliConfig` contains the configuration data in proto-text format.
+		// The `replaceContents` slice holds the Replace entries from the unmarshalled request.
+		// Each Replace entry's JSON IETF value is extracted and logged.
 		req := &gpb.SetRequest{}
-		prototext.Unmarshal(occliConfig, req)
+		err = prototext.Unmarshal(ocCliConfig, req)
+		if err != nil {
+			t.Fatalf("Error while unmarshalling CLI config into gNMI SetRequest. err: %v", err)
+		}
 		replaceContents := req.Replace
 		for _, path := range replaceContents {
-			jsonietfVal = path.Val.GetJsonIetfVal()
-			t.Log("JSON IETF Value from Replace Contents:", string(jsonietfVal))
+			// Extract the JSON IETF value from each Replace entry and log it.
+			jsonIetfVal = path.Val.GetJsonIetfVal()
+			t.Log("JSON IETF Value from Replace Contents:", string(jsonIetfVal))
 		}
-
+		// Unmarshal the JSON IETF value into an OpenConfig root structure.
 		ocRoot := &oc.Root{}
 		opts := []ytypes.UnmarshalOpt{
-			&ytypes.PreferShadowPath{},
+			&ytypes.PreferShadowPath{}, // Option to prefer shadow paths during unmarshalling.
 		}
-		if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-			panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+		if err := oc.Unmarshal(jsonIetfVal, ocRoot, opts...); err != nil {
+			t.Fatalf("failed to unmarshall json config. err: %v", err)
 		}
 		gnmiC := dut.RawAPIs().GNMI(t)
+		// Prepare a gNMI GetRequest to fetch the device's CLI configuration as ASCII.
 		inGetRequest := &gpb.GetRequest{
 			Prefix: &gpb.Path{
 				Origin: "cli",
@@ -836,24 +876,34 @@ func TestGnmiUnionReplace(t *testing.T) {
 			Path: []*gpb.Path{
 				{
 					Elem: []*gpb.PathElem{{
-						Name: "sh run | json unified-model",
+						Name: "sh run | json unified-model", // Command to fetch the running config in JSON format.
 					}},
 				},
 			},
 			Encoding: gpb.Encoding_ASCII,
 		}
-
+		// Send the GetRequest and retrieve the CLI configuration.
 		gotRes, _ := gnmiC.Get(context.Background(), inGetRequest)
 		cliJson := gotRes.GetNotification()[0].GetUpdate()[0].GetVal().GetAsciiVal()
 		t.Log("CLI JSON Response:", cliJson)
 
+		// Parse the CLI JSON response to extract the JSON content.
 		startIndex := strings.Index(cliJson, "{")
+		if startIndex == -1 {
+			t.Fatal("invalid JSON string: missing opening brace")
+		}
 		jsonString := cliJson[startIndex:]
 		t.Log("Parsed JSON String:", jsonString)
 
-		jsonString = jsonString[:strings.LastIndex(jsonString, "}")+1]
+		// Trim the JSON string to remove any characters after the closing brace.
+		endIndex := strings.LastIndex(jsonString, "}")
+		if endIndex == -1 {
+			t.Fatal("invalid JSON string: missing closing brace")
+		}
+		jsonString = jsonString[:endIndex+1]
 		t.Log("JSON String after removing character after }", jsonString)
 
+		// Unmarshal the JSON string into a map for further processing.
 		var data map[string]interface{}
 		err = json.Unmarshal([]byte(jsonString), &data)
 		if err != nil {
@@ -861,19 +911,22 @@ func TestGnmiUnionReplace(t *testing.T) {
 			return
 		}
 		t.Log("Unmarshalled Data:", data)
+
+		// Extract the "data" field from the JSON map.
 		dataContent, ok := data["data"]
 		if !ok {
-			t.Errorf("Key 'data' not found in the JSON")
+			t.Fatal("Key 'data' not found in the JSON")
 		}
 		t.Log("Data Content:", dataContent)
+
+		// Marshal the extracted "data" field back into JSON format.
 		extractedJSON, err := json.Marshal(dataContent)
 		if err != nil {
 			t.Errorf("Could not marshal data from json: %v", err)
 		}
 		t.Log("Extracted JSON:", string(extractedJSON))
 
-		///////////new code here //////////
-
+		// Create a Cisco native configuration update using the extracted JSON.
 		nyconfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "cisco_native",
@@ -886,7 +939,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			},
 		}}
 		var updates []*gpb.Update
-
+		// Create an OpenConfig configuration update using the JSON IETF value.
 		occonfig := []*gpb.Update{{
 			Path: &gpb.Path{
 				Origin: "openconfig",
@@ -894,7 +947,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			},
 			Val: &gpb.TypedValue{
 				Value: &gpb.TypedValue_JsonIetfVal{
-					JsonIetfVal: jsonietfVal,
+					JsonIetfVal: jsonIetfVal,
 				},
 			},
 		}}
@@ -908,6 +961,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		}
 		t.Log("############end of UPDATE ###############")
 
+		// Create a Cisco-Native configuration update using the JSON IETF value.
 		updates = append(updates, occonfig...)
 		// Unmarshal the JSON string
 		var jsonData map[string]interface{}
@@ -927,7 +981,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 				Path: &gpb.Path{
 					Origin: "cisco_native",
 					Elem: []*gpb.PathElem{
-						{Name: key},
+						{Name: key}, // Use the top-level key as the path element.
 					},
 				},
 				Val: &gpb.TypedValue{
@@ -940,7 +994,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		}
 
 		t.Log("######Update Request sent with NY in series and OC#########")
-
+		// Send the updates in series using the Update semantics.
 		setReqNY = &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, Update: updates}
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReqNY))
 		_, err = gnmiC.Set(context.Background(), setReqNY)
@@ -948,7 +1002,9 @@ func TestGnmiUnionReplace(t *testing.T) {
 			t.Errorf("Error while set union replace with oc+ny combination %v", err)
 		}
 		t.Log("############end of UPDATE ###############")
+
 		t.Log("##########Union Replace sent along with OC###########")
+		// Send the updates using the UnionReplace semantics for atomic replacement.
 		setReqNY = &gpb.SetRequest{Prefix: &gpb.Path{Target: "DUT", Origin: ""}, UnionReplace: updates}
 		log.V(1).Infof("SetResponse:\n%s", prototext.Format(setReqNY))
 		_, err = gnmiC.Set(context.Background(), setReqNY)
@@ -1035,7 +1091,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 			var asciiVal string
 			occliConfig, err := os.ReadFile(tc.configPath)
 			if err != nil {
-				panic(fmt.Sprintf("Cannot load base config: %v", err))
+				t.Fatalf("failed to read %v. err: %v", tc.configPath, err)
 			}
 			req := &gpb.SetRequest{}
 			prototext.Unmarshal(occliConfig, req)
@@ -1059,7 +1115,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 					&ytypes.PreferShadowPath{},
 				}
 				if err := oc.Unmarshal(jsonietfVal, ocRoot, opts...); err != nil {
-					panic(fmt.Sprintf("Cannot unmarshal json config: %v", err))
+					t.Fatalf("failed to unmarshall json config. err: %v", err)
 				}
 
 				t.Log(asciiVal)

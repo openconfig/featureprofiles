@@ -319,14 +319,17 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-
-    pr: 3015
   - name: RT-5.7 (Aggregate Not Viable All)
     path: feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test
     owners:
       - sprem
     mustpass: true
     priority: 38
+    timeout: 4200
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7    
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
@@ -831,9 +834,9 @@ tests:
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
       - kjahed
-    mustpass: true
+    mustpass: false
     timeout: 3600
-    skip: true # danger?
+    #skip: true # danger?
     priority: 10000
     groups: [ancx,P3]
   - name: FP-1.1 (Power admin DOWN/UP Test)
@@ -893,8 +896,6 @@ tests:
     mustpass: false
     timeout: 1800
     priority: 65
-    pr: 1710
-    internal: true
     owners:
       - harikri4
   - name: Credentialz-1 (Password console login)
@@ -1000,6 +1001,10 @@ tests:
     owners:
       - mastarke
     mustpass: true
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7    
   - name: RT-5.5 (Interface hold-times)
     path: feature/interface/holdtime/otg_tests/holdtime_test
     owners:
@@ -1033,7 +1038,6 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    pr: 3639
     internal: false
   - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
     path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
@@ -1053,11 +1057,14 @@ tests:
     owners:
       - arvbaska
     timeout: 3600
-    pr: 1428
     internal: true
     mustpass: true
     testbeds_exclude:
-      - 8201-32FH_FLM254206E7    
+      - 8201-32FH_FLM254206E7 
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7       
   - name: TE-16.2 (DCGate - encap FRR test)
     testbeds:
           - 8808-FOX2508P0JU_MGMT_GRPC
@@ -1211,6 +1218,16 @@ tests:
     priority: 2
     args:
       - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-6_ZRP (400ZR_PLUS Optics performance metrics pm streaming)
+    path: feature/platform/transceiver/tests/zrp_pm_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'
     owners:
       - mananpat
     mustpass: true
@@ -2354,10 +2371,11 @@ tests:
     groups: [newfnt]
 
   - name: AFT-1.1 (AFT Streaming)
-    path: feature/aft/aft_base/otg_tests/aft_base
+    path: feature/afts/otg_tests/afts_base
     owners:
       - mananpat
     mustpass: false
+    timeout: 3200
     priority: 3
     groups: [newfnt]
 

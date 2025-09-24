@@ -818,9 +818,17 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // enableCapture enables packet capture on specified list of ports on OTG
 func enableCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config, otgPortNames []string) {
+	// Clear existing captures to avoid duplicates
+	topo.Captures().Clear()
+
+	// Keep track of unique port names to avoid duplicates
+	uniquePorts := make(map[string]bool)
 	for _, port := range otgPortNames {
-		t.Log("Enabling capture on ", port)
-		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
+		if !uniquePorts[port] {
+			t.Log("Enabling capture on ", port)
+			topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
+			uniquePorts[port] = true
+		}
 	}
 	//t.Log(topo.Msg().GetCaptures())
 	otg.PushConfig(t, topo)
