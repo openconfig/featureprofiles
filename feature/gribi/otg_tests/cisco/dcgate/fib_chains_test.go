@@ -483,6 +483,9 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
+		testTransitTrafficWithTtlDscp(t, args, weights, true)
 	})
 	t.Run("match in decap nomatch in encap", func(t *testing.T) {
 		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
@@ -569,16 +572,17 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		t.Log("Remove decap prefix from decap vrf and verify traffic goes to fallback vrf vrfTransit.")
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfDecap, fluent.InstalledInFIB)
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), vipNHG(2), vrfTransit, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
+		// verify traffic passes through primary NHG
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port3"}
 		weights := []float64{0, 1, 0, 0}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
-		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50}
+		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -597,7 +601,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -611,7 +615,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
-		t.Log("Shutdown primary path for transit tunnel and verify traffic goes via repair path tunnel")
+		t.Log("Shutdown primary path for transit path tunnel and verify traffic goes via repair path tunnel")
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 		defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 		args.capture_ports = []string{"port4"}
@@ -621,7 +625,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 1, 0}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether4", "port4", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -631,7 +635,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
@@ -650,7 +654,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
@@ -677,7 +681,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
@@ -685,7 +689,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		// valudate sflow capture
+		// validate sflow capture
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
 		t.Log("Add back prefix to encap vrf")
