@@ -513,7 +513,6 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 	t.Logf("Starting traffic")
 	args.ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
-	ondatra.Debug().Breakpoint(t, "Traffic started, waiting for 60 seconds before stopping traffic")
 	t.Logf("Stop traffic")
 	args.ate.OTG().StopTraffic(t)
 
