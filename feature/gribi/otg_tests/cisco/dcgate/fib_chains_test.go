@@ -67,10 +67,13 @@ func TestFibChains(t *testing.T) {
 	}
 	getIfIndex(t, dut, intfs)
 
-	erd := sfAttr.AddSflowSample().AddExtendedRouterData()
-	erd.SetNextHop(otgPort5.IPv4)
-	erd.SetNextHopDestinationMask(0)
-	erd.SetNextHopSourceMask(0)
+	// Uncomment below code when sflow feature is available
+	// This code may be later moved to each major test base configuration
+	// Or just modify erd.SetNextHop(otgPort5.IPv4) as per the egress port used in the test.
+	// erd := sfAttr.AddSflowSample().AddExtendedRouterData()
+	// erd.SetNextHop(otgPort5.IPv4)
+	// erd.SetNextHopDestinationMask(0)
+	// erd.SetNextHopSourceMask(0)
 
 	for _, tc := range test {
 
@@ -89,7 +92,7 @@ func TestFibChains(t *testing.T) {
 		}
 
 		sfAttr.InputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether1", "port1", *bundleMode)
-		sfAttr.OutputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether5", "port5", *bundleMode)
+		// sfAttr.OutputInterface will change per subtest based on the egress interface for the traffic.
 
 		// configure gRIBI client
 		c := gribi.Client{
@@ -584,6 +587,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -602,6 +606,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
 		args.capture_ports = []string{"port3"}
@@ -625,6 +630,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether4", "port4", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
 		args.capture_ports = []string{"port4"}
@@ -653,6 +659,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("match in decap nomatch in encap", func(t *testing.T) {
@@ -679,6 +686,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
 		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 
 		args.capture_ports = []string{"port5"}
