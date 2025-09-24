@@ -24,7 +24,8 @@ func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
 	return &s.SFlowConfig{
 		SourceIPv4:          dutLoopback0.IPv4,
 		SourceIPv6:          dutLoopback0.IPv6,
-		CollectorIPv6:       "2001:0db8::192:0:2:1e",
+		CollectorIPv6:       otgPort8.IPv6,
+		CollectorIPv4:       otgPort8.IPv4,
 		IP:                  s.IPv6,
 		CollectorPort:       6343,
 		DSCP:                32,
