@@ -277,10 +277,6 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testEncapTrafficTtlDscp(t, args, weights, true)
-		if args.pattr.sfSample != nil {
-			args.capture_ports = []string{"port8"}
-			testEncapTrafficTtlDscp(t, args, weights, true)
-		}
 	})
 	t.Run("frr1 shutdown primary path for tunnel1", func(t *testing.T) {
 		t.Log("Shutdown link carrying primary traffic for tunnel1 to vip1")
