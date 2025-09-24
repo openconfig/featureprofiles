@@ -1044,7 +1044,7 @@ func expectedMPLSinUDPOpResults(t *testing.T, nextHopID, nhgBase uint64, numNHGs
 						localAdds = append(localAdds, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
 						localDels = append(localDels, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 					}
-					ipPool.Put(ipCopy)
+					ipPool.Put(&ipCopy)
 				}
 
 				mtx.Lock()
@@ -1467,19 +1467,4 @@ func incrementIPv6(ip net.IP, n int) {
 		ip[j] = byte(sum)
 		n >>= 8
 	}
-}
-
-// formatMPLSHeader formats MPLS header bytes for debugging output.
-func formatMPLSHeader(data []byte) string {
-	if len(data) < 4 {
-		return "Invalid MPLS header: too short"
-	}
-
-	headerValue := binary.BigEndian.Uint32(data[:4])
-	label := (headerValue >> 12) & 0xFFFFF
-	exp := uint8((headerValue >> 9) & 0x07)
-	s := (headerValue >> 8) & 0x01
-	ttl := uint8(headerValue & 0xFF)
-
-	return fmt.Sprintf("MPLS Label: %d, EXP: %d, BoS: %t, TTL: %d", label, exp, s == 1, ttl)
 }
