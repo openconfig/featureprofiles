@@ -189,11 +189,11 @@ var (
 	lossTolerance      = float32(0.0)
 	sf_fps             = flag.Uint64("sf_fps", 100000, "frames per second for traffic while validating sFlow")
 	sf_trafficDuration = flag.Int("sf_traffic_duration", 10, "traffic duration in seconds while validating sFlow")
-	// capture_sflow      = flag.Bool("capture_sflow", false, "enable sFlow capture")
-	frameSize       = flag.Int("frame_size", 512, "frame size in bytes, default 512")
-	fps             = flag.Uint64("fps", 100, "frames per second")
-	trafficDuration = flag.Int("traffic_duration", 10, "traffic duration in seconds")
-	bundleMode      = flag.Bool("bundle_mode", true, "disable bundle mode by passing flag false")
+	capture_sflow      = flag.Bool("capture_sflow", false, "set to true to enable sFlow capture")
+	frameSize          = flag.Int("frame_size", 512, "frame size in bytes, default 512")
+	fps                = flag.Uint64("fps", 100, "frames per second")
+	trafficDuration    = flag.Int("traffic_duration", 10, "traffic duration in seconds")
+	bundleMode         = flag.Bool("bundle_mode", false, "set to true to enable bundle mode")
 )
 
 var (
@@ -544,7 +544,6 @@ type testArgs struct {
 	pattr           *packetAttr
 	flows           []gosnappi.Flow
 	capture_ports   []string
-	validateSflow   bool
 	trafficDuration int
 }
 
@@ -1358,7 +1357,8 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 
 	// skip first entry that belongs to source port on ate
-	gotWeights, _ := normalize(inFramesAllPorts[1 : len(inFramesAllPorts)-1]) // last entry is the sink port sflow packet count
+	// skip last entry which is used as sink port for sflow packet count
+	gotWeights, _ := normalize(inFramesAllPorts[1 : len(inFramesAllPorts)-1])
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)

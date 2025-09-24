@@ -63,7 +63,7 @@ func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func validateSflowCapture(t *testing.T, args *testArgs, ports []string, sfc *s.SflowAttr) {
-	if sfc == nil {
+	if sfc == nil && !*capture_sflow {
 		return
 	}
 
