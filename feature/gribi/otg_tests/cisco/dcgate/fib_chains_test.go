@@ -247,10 +247,6 @@ func testEncapDcgateOptimized(t *testing.T, args *testArgs) {
 		args.capture_ports = []string{"port5"}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testEncapTrafficTtlDscp(t, args, weights, true)
-		if args.pattr.sfSample != nil {
-			args.capture_ports = []string{"port8"}
-			testEncapTrafficTtlDscp(t, args, weights, true)
-		}
 	})
 	t.Run("mismatch in encap vrf and encap vrf with backup nhg", func(t *testing.T) {
 		args.client.DeleteIPv4(t, cidr(ipv4EntryPrefix, ipv4EntryPrefixLen), vrfEncapA, fluent.InstalledInFIB)
