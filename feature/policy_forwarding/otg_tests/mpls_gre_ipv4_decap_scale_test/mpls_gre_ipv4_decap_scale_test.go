@@ -315,8 +315,8 @@ func setup(t *testing.T) {
 	configureOTG(t)
 
 	// Pass ocPFParams to ConfigureDut
-	ocPFParams.DecapPolicy.DecapMplsParams.MplsStaticLabels = mplsStaticLabels
-	ocPFParams.DecapPolicy.DecapMplsParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsStaticLabels
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
 	configureDut(t, dut, netConfig, ocPFParams)
 
 }
@@ -335,9 +335,9 @@ func fetchDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams 
 // Modified to accept pf, ni, and ocPFParams
 func decapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	t.Helper()
-	ocPFParams.DecapPolicy.DecapMplsParams.NextHops = netConfig.otgIPs
-	ocPFParams.DecapPolicy.DecapMplsParams.NextHopsV6 = netConfig.otgIPsV6
-	ocPFParams.DecapPolicy.DecapMplsParams.ScaleStaticLSP = true
+	ocPFParams.DecapPolicy.DecapMPLSParams.NextHops = netConfig.otgIPs
+	ocPFParams.DecapPolicy.DecapMPLSParams.NextHopsV6 = netConfig.otgIPsV6
+	ocPFParams.DecapPolicy.DecapMPLSParams.ScaleStaticLSP = true
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
