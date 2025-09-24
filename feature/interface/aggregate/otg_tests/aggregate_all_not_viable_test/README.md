@@ -62,6 +62,7 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure there are no packet losses in steady state (no congestion).
 -   Ensure there is no traffic received on DUT LAG_3
 -   Ensure there is no traffic transmitted on DUT LAG_3
+-   Ensure that the total bandwidth computation for the bundle interface does not include links where "forwarding viable" is set to false.
 
 #### RT-5.7.1.2: Verify forwarding-viable behavior on an aggregate interface with all members down or set with forwarding-viable=FALSE.
 -   Ensure ISIS adjacency is UP on DUT LAG_2 and ATE LAG_2
@@ -76,6 +77,7 @@ Ensure that when --all LAG member-- become set with forwarding-viable == FALSE
 -   Ensure there is no traffic received on DUT LAG_3
 -   Ensure that traffic from ATE port1 to pfx2, pfx3 are transmitted via DUT LAG3
 -   Ensure that traffic from ATE port1 to pfx4 are transmitted out through backup NHG pointing to NH LAG3
+-   Ensure that the aggregatable, collecting, distributing states are true and Synchronization is IN_SYNC for all member ports that are set to forwarding unviable. 
 
 #### RT-5.7.1.3: Make the forwarding-viable transitions from FALSE --> TRUE on a ports 6 within the LAG_2 on the DUT
 -   Ensure that only DUT port 6 of LAG ports has bidirectional traffic.
@@ -155,6 +157,7 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 ```yaml
 paths:
   /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/state/lag-speed:
   ## Config forwarding Viable to True/false
   /interfaces/interface/config/forwarding-viable:
   ## Define Lag type

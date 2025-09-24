@@ -93,6 +93,7 @@ Verify:
 
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  Outer GRE IPv4 header has same marking as ingress non-encapsulated IPv4 packet.
+*  Verify that DSCP in inner IPv4 header is unchanged.
 
 ### PF-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic
 Generate traffic on ATE Port 1 from IPV6-SRC1 for every IPv6 TC 8-bit value [0, 32, 64, 96, 128, 160, 192, 224]
@@ -101,6 +102,7 @@ Verify:
 
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  Outer GRE IPv4 header has DSCP match to ingress IPv6 TC packet.
+*  Verify that TC in inner IPv6 header is unchanged.
 
 ### PF-1.1.7: Verify MTU handling during GRE encap
 * Generate traffic on ATE Port 1 from IPV4-SRC1 with frame size of 4000 with DF-bit set.

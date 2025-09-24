@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "f7622128-5fb5-4a9a-95b4-d66a6e59934e"
+plan_id:  "TUN-2.9"
+description:  "ECMP hashing on outer and inner packets with MPLSoUDP encapsulation"
+testbed:  TESTBED_DUT_ATE_2LINKS

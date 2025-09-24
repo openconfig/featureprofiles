@@ -6,11 +6,21 @@ Ensure that multiple protocol and dscp based VRF selection rules are matched cor
 
 ## Procedure
 
-Configure DUT with 1 input interface connected to ATE port-1, and a second interface (output) connected to ATE port-2 with VLAN-based subinterfaces, with the following assignments: 
+Configure DUT with 1 input interface connected to ATE port-1, and a second 
+interface (output) connected to ATE port-2 with VLAN-based subinterfaces, 
+with the following assignments: 
 
 * network-instance “10” corresponding to VLAN 10, default route via VLAN 10 subinterface. 
 * network-instance “20” corresponding to VLAN 20, default route via VLAN 20 subinterface. 
 * network-instance “30” corresponding to VLAN 30, default route via VLAN 30 subinterface. 
+
+Connect DUT port-3 input interface connected to ATE port-3, and a second 
+interface (output) connected to ATE port-4 with VLAN-based subinterfaces, 
+with the following assignments:
+
+* network-instance “40” corresponding to VLAN 40, default route via VLAN 40 subinterface. 
+* network-instance “50” corresponding to VLAN 50, default route via VLAN 50 subinterface. 
+* network-instance “60” corresponding to VLAN 60, default route via VLAN 60 subinterface. 
 
 Configure DUT with the following rules and determine measurement: 
 
@@ -49,6 +59,14 @@ It's ok that some NOS does not support this config (duplicated matching conditio
     * Protocol IPinIP, DSCP 20 to network-instance 20 
 
 Ensure that unspecified fields are wildcard and IPinIP packets are only received at VLAN 10 subinterface. 
+
+### Case #5:
+
+* Rules: 
+    * Protocol IPinIP, DSCP 10 to network-instance 10 
+    * Protocol IPinIP, DSCP 40 to network-instance 40 
+    
+Ensure that the dut is able to evaluate more than one vrf selection policies. 
 
 ## OpenConfig Path and RPC Coverage
 ```yaml

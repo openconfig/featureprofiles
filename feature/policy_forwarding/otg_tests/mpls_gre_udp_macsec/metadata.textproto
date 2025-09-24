@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "73f52817-2667-44c8-837e-cb1a2769b599"
+plan_id:  "PF-1.17"
+description:  "MPLSoGRE and MPLSoGUE MACsec"
+testbed:  TESTBED_DUT_ATE_2LINKS

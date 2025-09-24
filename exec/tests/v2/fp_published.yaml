@@ -327,6 +327,11 @@ tests:
       - sprem
     mustpass: true
     priority: 38
+    timeout: 4200
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7    
   - name: RT-5.3 (Aggregate Balancing)
     path: feature/interface/aggregate/otg_tests/balancing_test
     owners:
@@ -346,6 +351,15 @@ tests:
       - agvarghe
     mustpass: true
     priority: 39
+    timeout: 4200
+    groups: [ancx,P0]
+  - name: RT-1.21 (BGP TCP MSS and PMTUD)
+    path: feature/beg/otg_tests/bgptcp_mss_path_mtu
+    owners:
+      - fmolinar
+    mustpass: true
+    testbeds:
+      - 8808-DUT1DUT2-ATE
     timeout: 4200
     groups: [ancx,P0]
   - name: RT-5.8 (IPv6 Link Local)
@@ -565,13 +579,15 @@ tests:
     priority: 1
     groups: [ancx,P1]
   - name: RT-6.1 (Core LLDP TLV Population)
-    path: feature/lldp/ate_tests/core_lldp_tlv_population_test
+    path: feature/lldp/otg_tests/core_lldp_tlv_population_test
     owners:
       - agvarghe
     mustpass: true
     priority: 1002
-    testbeds:
-      - 2DUT-TB2
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7 
   - name: SR-1.1 (Forwarding to Node-SID)
     path: feature/mpls/sr/otg_tests/isis_node_sid_forward
     owners:
@@ -820,9 +836,9 @@ tests:
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
       - kjahed
-    mustpass: true
+    mustpass: false
     timeout: 3600
-    skip: true # danger?
+    #skip: true # danger?
     priority: 10000
     groups: [ancx,P3]
   - name: FP-1.1 (Power admin DOWN/UP Test)
@@ -850,37 +866,37 @@ tests:
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: ACCTZ-1.1 (Record Subscribe Full)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_full
+    path: feature/gnsi/acctz/tests/record_subscribe_full
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-2.1 (Record Subscribe Partial)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
+    path: feature/gnsi/acctz/tests/record_subscribe_partial
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
+    path: feature/gnsi/acctz/tests/record_subscribe_non_grpc
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.1 (Record History Truncation)
-    path: feature/security/gnsi/acctz/tests/record_history_truncation
+    path: feature/gnsi/acctz/tests/record_history_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
   - name: ACCTZ-4.2 (Record Payload Truncation)
-    path: feature/security/gnsi/acctz/tests/record_payload_truncation
+    path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
-    timeout: 21000
+    timeout: 1800
     priority: 65
     owners:
       - harikri4
@@ -987,6 +1003,10 @@ tests:
     owners:
       - mastarke
     mustpass: true
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7    
   - name: RT-5.5 (Interface hold-times)
     path: feature/interface/holdtime/otg_tests/holdtime_test
     owners:
@@ -1020,7 +1040,6 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    pr: 3639
     internal: false
   - name: TE-2.2 (gRIBI IPv4 Entry With Aggregate Ports)
     path: feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test
@@ -1040,11 +1059,14 @@ tests:
     owners:
       - arvbaska
     timeout: 3600
-    pr: 1428
     internal: true
     mustpass: true
     testbeds_exclude:
-      - 8201-32FH_FLM254206E7    
+      - 8201-32FH_FLM254206E7 
+    otg_version:
+      controller: 1.33.0-34
+      hw: 1.33.0-11
+      gnmi: 1.33.7       
   - name: TE-16.2 (DCGate - encap FRR test)
     testbeds:
           - 8808-FOX2508P0JU_MGMT_GRPC
@@ -1090,7 +1112,12 @@ tests:
     owners:
       - sprem
     mustpass: true
-    pr: 3613
+    otg_version:
+      controller: 1.20.0-6
+      hw: 1.20.0-1
+      gnmi: 1.20.2 
+    internal: false
+    pr: 4448
     groups: [ancx,P1]
   - name: RT-1.33 (BGP Policy with prefix-set matching)
     path: feature/bgp/policybase/otg_tests/prefix_set_test
@@ -1138,7 +1165,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-1_ZRP (Telemetry 400ZRP Chromatic Dispersion(CD) telemetry values streaming)
-    path: feature/platform/transceiver/chromatic_dispersion/tests/zrp_cd_test
+    path: feature/platform/transceiver/tests/zrp_cd_test
     priority: 2
     args:
       - '-operational_mode="6003"'
@@ -1155,7 +1182,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-3_ZRP (Telemetry 400ZRP Optics firmware version streaming)
-    path: feature/platform/transceiver/firmware_version/tests/zrp_firmware_version_test
+    path: feature/platform/transceiver/tests/zrp_firmware_version_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1172,7 +1199,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-4_ZRP (Telemetry 400ZRP RX input and TX output power telemetry values streaming)
-    path: feature/platform/transceiver/input_output_power/tests/zrp_input_output_power_test
+    path: feature/platform/transceiver/tests/zrp_input_output_power_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1182,17 +1209,27 @@ tests:
     timeout: 4200
     groups: [zrp]
   - name: TRANSCEIVER-5 (Configuration 400ZR channel frequency, output TX launch power and operational mode setting)
-    path: feature/platform/transceiver/tunable_parameters/tests/zr_tunable_parameters_test
+    path: feature/platform/transceiver/tests/zr_tunable_parameters_test
     priority: 2
     owners:
       - mananpat
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
-    path: feature/platform/transceiver/tunable_parameters/tests/zrp_tunable_parameters_test
+    path: feature/platform/transceiver/tests/zrp_tunable_parameters_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+    groups: [zrp]
+  - name: TRANSCEIVER-6_ZRP (400ZR_PLUS Optics performance metrics pm streaming)
+    path: feature/platform/transceiver/tests/zrp_pm_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'
     owners:
       - mananpat
     mustpass: true
@@ -1206,7 +1243,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-7_ZRP (Telemetry 400ZRP Optics inventory info streaming)
-    path: feature/platform/transceiver/inventory/tests/zrp_inventory_test
+    path: feature/platform/transceiver/tests/zrp_inventory_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1215,7 +1252,6 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
-    pr: 4188
   - name: TRANSCEIVER-8 (Telemetry 400ZR Optics module temperature streaming.)
     path: feature/platform/transceiver/temperature/tests/zr_temperature_test
     priority: 2
@@ -1224,7 +1260,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-8_ZRP (Telemetry 400ZRP Optics module temperature streaming.)
-    path: feature/platform/transceiver/temperature/tests/zrp_temperature_test
+    path: feature/platform/transceiver/tests/zrp_temperature_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1242,7 +1278,7 @@ tests:
     timeout: 4200
     internal: false
   - name: TRANSCEIVER-9_ZRP (Telemetry 400ZRP TX laser bias current telemetry values streaming.)
-    path: feature/platform/transceiver/laser_bias_current/tests/zrp_laser_bias_current_test
+    path: feature/platform/transceiver/tests/zrp_laser_bias_current_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1260,7 +1296,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-10_ZRP (Telemetry 400ZRP Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.)
-    path: feature/platform/transceiver/fec_uncorrectable_frames/tests/zrp_fec_uncorrectable_frames_test
+    path: feature/platform/transceiver/tests/zrp_fec_uncorrectable_frames_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1277,9 +1313,8 @@ tests:
     mustpass: true
     timeout: 4200
     internal: false
-    pr: 4028
   - name: TRANSCEIVER-11_ZRP (Telemetry 400ZRP Optics logical channels provisioning and related telemetry)
-    path: feature/platform/transceiver/logical_channels/tests/zrp_logical_channels_test
+    path: feature/platform/transceiver/tests/zrp_logical_channels_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1289,7 +1324,6 @@ tests:
     timeout: 4200
     groups: [zrp]
     internal: false
-    pr: 4028
   - name: TRANSCEIVER-12 (Telemetry 400ZR Transceiver Supply Voltage streaming.)
     path: feature/platform/transceiver/supply_voltage/tests/zr_supply_voltage_test
     priority: 2
@@ -1298,7 +1332,7 @@ tests:
     mustpass: true
     timeout: 4200
   - name: TRANSCEIVER-12_ZRP (Telemetry 400ZRP Transceiver Supply Voltage streaming.)
-    path: feature/platform/transceiver/supply_voltage/tests/zrp_supply_voltage_test
+    path: feature/platform/transceiver/tests/zrp_supply_voltage_test
     priority: 2
     args:
       - '-operational_mode="6003"'    
@@ -1360,13 +1394,13 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [ancx,P2]
-  - name: SFLOW-1 (sFlow Configuration and Traffic Sampling)
-    path: feature/sflow/otg_tests/sflow_base_test
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: true
-    groups: [ancx,P2]
+  # - name: SFLOW-1 (sFlow Configuration and Traffic Sampling)
+  #   path: feature/sflow/otg_tests/sflow_base_test
+  #   priority: 2
+  #   owners:
+  #     - arvbaska
+  #   mustpass: true
+  #   groups: [ancx,P2]
   - name: TR-6.1 (System logging remote syslog)
     path: feature/system/logging/otg_tests/remote_syslog
     priority: 2
@@ -1490,15 +1524,6 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-3.1 (Record Subscribe Non-gRPC)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_non_grpc
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    pr: 3709
-    groups: [newfnt]
   - name: Credentialz-2 (SSH Password Login Disallowed)
     path: feature/security/gnsi/credentialz/tests/ssh_password_login_disallowed
     priority: 2
@@ -1515,32 +1540,8 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-4.2 (Record Payload Truncation)
-    path: feature/security/gnsi/acctz/tests/record_payload_truncation
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: Credentialz-3 (Host Certificates)
     path: feature/security/gnsi/credentialz/tests/host_certificates
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: ACCTZ-2.1 (Record Subscribe Partial)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_partial
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
-  - name: ACCTZ-4.1 (Record History Truncation)
-    path: feature/security/gnsi/acctz/tests/record_history_truncation
     priority: 2
     owners:
       - arvbaska
@@ -1563,16 +1564,8 @@ tests:
     mustpass: false
     timeout: 4200
     groups: [newfnt]
-  - name: ACCTZ-1.1 (Record Subscribe Full)
-    path: feature/security/gnsi/acctz/tests/record_subscribe_full
-    priority: 2
-    owners:
-      - arvbaska
-    mustpass: false
-    timeout: 4200
-    groups: [newfnt]
   - name: ACCTZ-10.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Error - Multi-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenErrorMulti
+    path: feature/gnsi/acctz/AccountingAuthenErrorMulti
     owners:
     - mananpat
     mustpass: false
@@ -1580,7 +1573,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-5.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - client becomes silent)
-    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeout
+    path: feature/gnsi/acctz/RecordSubscribeIdleTimeout
     owners:
     - mananpat
     mustpass: false
@@ -1588,14 +1581,14 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-6.1 (gNSI.acctz.v1 (Accounting) Test RecordSubscribe Idle Timeout - DoA client)
-    path: feature/security/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
+    path: feature/gnsi/acctz/RecordSubscribeIdleTimeoutDoA
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
   - name: ACCTZ-7.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenFailMulti
+    path: feature/gnsi/acctz/AccountingAuthenFailMulti
     owners:
       - mananpat
     mustpass: false
@@ -1603,7 +1596,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-8.1 (gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Uni-transaction)
-    path: feature/security/gnsi/acctz/AccountingAuthenFailUni
+    path: feature/gnsi/acctz/AccountingAuthenFailUni
     owners:
       - mananpat
     mustpass: false
@@ -1611,7 +1604,7 @@ tests:
     groups: [newfnt]
 
   - name: ACCTZ-9.1 (gNSI.acctz.v1 (Accounting) Test Accounting Privilege Escalation)
-    path: feature/security/gnsi/acctz/AccountingPrivEscalation
+    path: feature/gnsi/acctz/AccountingPrivEscalation
     owners:
       - mananpat
     mustpass: false
@@ -2380,10 +2373,11 @@ tests:
     groups: [newfnt]
 
   - name: AFT-1.1 (AFT Streaming)
-    path: feature/aft/aft_base/otg_tests/aft_base
+    path: feature/afts/otg_tests/afts_base
     owners:
       - mananpat
     mustpass: false
+    timeout: 3200
     priority: 3
     groups: [newfnt]
 

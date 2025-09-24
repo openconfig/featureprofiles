@@ -6,6 +6,8 @@ on:
 
 jobs:
   update-wiki:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     steps:
     - name: Checkout code
@@ -37,7 +39,7 @@ jobs:
         popd
 
         pushd featureprofiles
-        go run tools/wikidoc/wikidoc.go -feature_root feature/ -output_root ../featureprofiles.wiki
+        go run tools/wikidoc/wikidoc.go -alsologtostderr -feature_root feature/ -output_root ../featureprofiles.wiki
         popd
 
         pushd featureprofiles.wiki

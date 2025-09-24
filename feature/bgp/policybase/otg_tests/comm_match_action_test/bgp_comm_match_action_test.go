@@ -200,6 +200,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global := bgp.GetOrCreateGlobal()
 	global.RouterId = ygot.String(dutPort1.IPv4)
 	global.As = ygot.Uint32(localAs)
+
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
@@ -209,14 +210,21 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		pg.PeerAs = ygot.Uint32(nbr.as)
 		pg.PeerGroupName = ygot.String(nbr.peerGrp)
 
-		if !deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-		}
-
 		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		as4.Enabled = ygot.Bool(true)
 		as6 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		as6.Enabled = ygot.Bool(true)
+
+		if deviations.SkipBgpSendCommunityType(dut) {
+			pg.SetSendCommunity(oc.E_Bgp_CommunityType(oc.Bgp_CommunityType_STANDARD))
+		} else {
+			if deviations.SkipBgpPeerGroupSendCommunityType(dut) {
+				as4.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+				as6.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			} else {
+				pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+			}
+		}
 
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.nbrAddr)
 		bgpNbr.PeerGroup = ygot.String(nbr.peerGrp)
@@ -301,7 +309,9 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		if !deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
 			sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
 		}
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		}
 		stmt2, _ := pdef.AppendNewStatement("accept_all_routes")
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	case "match_and_add_comms":
@@ -311,6 +321,13 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 			stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(matchStdCommunitySet)
 			ds := rp.GetOrCreateDefinedSets()
 			cs := ds.GetOrCreateBgpDefinedSets().GetOrCreateCommunitySet(matchStdCommunitySet)
+			if dut.Vendor() == ondatra.CISCO {
+				var commMemberUnion []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union
+				for _, commMember := range communitySets[0].members {
+					commMemberUnion = append(commMemberUnion, oc.UnionString(commMember))
+				}
+				cs.SetCommunityMember(commMemberUnion)
+			}
 			cs.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
 			gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().DefinedSets().Config(), ds)
 		} else {
@@ -328,7 +345,9 @@ func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName str
 		if !deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
 			sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
 		}
-		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		}
 		stmt2, _ := pdef.AppendNewStatement("accept_all_routes")
 		stmt2.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
@@ -545,7 +564,7 @@ func validateDutIPv4PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 	statePath := bgpPath.Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast()
 	state := gnmi.Get(t, dut, statePath.State())
 
-	if communityIndex := state.GetNeighbor(bgpNbr.nbrAddr).GetAdjRibInPost().GetRoute(subnet, 0).GetCommunityIndex(); communityIndex != 0 {
+	if communityIndex := state.GetNeighbor(bgpNbr.nbrAddr).GetAdjRibInPost().GetRoute(subnet+"/30", 0).GetCommunityIndex(); communityIndex != 0 {
 		t.Logf("DUT: Prefix %v learned with CommunityIndex: %v", subnet, communityIndex)
 	} else {
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)
@@ -592,7 +611,7 @@ func validateDutIPv6PrefixCommunitySet(t *testing.T, dut *ondatra.DUTDevice, bgp
 	statePath := bgpPath.Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast()
 	state := gnmi.Get(t, dut, statePath.State())
 
-	if communityIndex := state.GetNeighbor(bgpNbr.nbrAddr).GetAdjRibInPost().GetRoute(subnet, 0).GetCommunityIndex(); communityIndex != 0 {
+	if communityIndex := state.GetNeighbor(bgpNbr.nbrAddr).GetAdjRibInPost().GetRoute(subnet+"/126", 0).GetCommunityIndex(); communityIndex != 0 {
 		t.Logf("DUT: Prefix %v learned with CommunityIndex: %v", subnet, communityIndex)
 	} else {
 		fptest.LogQuery(t, "Node BGP", statePath.State(), state)

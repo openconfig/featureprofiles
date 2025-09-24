@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -172,7 +173,6 @@ func TestQoSCounters(t *testing.T) {
 
 		flow.Size().SetFixed(uint32(data.frameSize))
 		flow.Rate().SetPercentage(float32(data.trafficRate))
-		flow.Duration().FixedPackets().SetPackets(10000)
 	}
 
 	var counterNames []string
@@ -231,8 +231,12 @@ func TestQoSCounters(t *testing.T) {
 	t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp2.Name())
 	t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(120 * time.Second)
+	time.Sleep(2 * time.Second)
+	outputQosPerSecoundCounterOK := validateoutputQosPerSecoundCounter(t, dut, dp1, dp2, trafficFlows)
 	ate.OTG().StopTraffic(t)
+	if !outputQosPerSecoundCounterOK {
+		t.Errorf("Output QoS per second counter is not updated correctly")
+	}
 	time.Sleep(30 * time.Second)
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
@@ -340,6 +344,34 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
+}
+
+// verifyCounters verifies the qos counters are updated on every subscription request spaced at 30s time interval.
+func validateoutputQosPerSecoundCounter(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, trafficFlows map[string]*trafficData) bool {
+	i2 := gnmi.OC().Qos().Interface(dp2.Name())
+	qosCounterOK := true
+	trafficData, ok := trafficFlows["flow-af2"]
+	if !ok {
+		t.Fatalf("Traffic flow 'flow-af3' not found in provided map")
+		return false
+	}
+	qosOutputCountersSamples := gnmi.Collect(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_SAMPLE), ygnmi.WithSampleInterval(30*time.Second)), i2.Output().Queue(trafficData.queue).TransmitPkts().State(), 300*time.Second)
+	outQosCountersPkts := qosOutputCountersSamples.Await(t)
+
+	tolerance := uint64(70)
+	// Check if the output queue counters are updated correctly every 30 seconds.
+	for i := 1; i < len(outQosCountersPkts); i++ {
+		outValOld, _ := outQosCountersPkts[i-1].Val()
+		outValLatest, _ := outQosCountersPkts[i].Val()
+		outValDelta := outValLatest - outValOld
+		t.Logf("Outgoing Packets: %d", outValLatest)
+		if outValLatest == outValOld {
+			t.Errorf("Comparison with previous iteration: Outgoing Packets Delta: %d, Tolerance: %d", outValDelta, tolerance)
+			qosCounterOK = false
+			break
+		}
+	}
+	return qosCounterOK
 }
 
 func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {

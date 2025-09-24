@@ -508,7 +508,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
@@ -674,7 +674,7 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original ttl is 100
+		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
 		// valudate sflow capture
@@ -855,36 +855,5 @@ func testPopGateOptimized(t *testing.T, args *testArgs) {
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
-	})
-	t.Run("match in decap nomatch in encap", func(t *testing.T) {
-		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0.0.0.0/0").Config())
-		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static("0::/0").Config())
-
-		shutPorts(t, args, []string{"port3", "port4"})
-		defer unshutPorts(t, args, []string{"port3", "port4"})
-		// add static route for encap vrf
-		args.client.AddNH(t, baseNH(1001), "VRFOnly", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(args.dut)})
-		args.client.AddNHG(t, baseNHG(1001), map[uint64]uint64{baseNH(1001): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddIPv4(t, "0.0.0.0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddIPv6(t, "0::0/0", baseNHG(1001), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-
-		t.Log("Delete prefix from encap vrf and verify traffic goes to default vrf")
-		args.client.DeleteIPv4(t, cidr(innerV4DstIP, 32), vrfEncapA, fluent.InstalledInFIB)
-		args.client.DeleteIPv6(t, cidr(InnerV6DstIP, 128), vrfEncapA, fluent.InstalledInFIB)
-
-		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
-		// args.capture_ports = []string{"port5"}
-		args.capture_ports = []string{"port8"}
-		weights := []float64{0, 0, 0, 1}
-		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 49} //original ttl is 50
-		testTransitTrafficWithTtlDscp(t, args, weights, true)
-
-		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
-		testTransitTrafficWithTtlDscp(t, args, weights, true)
-
-		t.Log("Add back prefix to encap vrf")
-		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
-		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	})
 }

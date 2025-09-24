@@ -121,7 +121,7 @@ func buildGRIBIServer(t *testing.T) func(uint) func() {
 }
 
 type gNMIServer struct {
-	*gpb.UnimplementedGNMIServer
+	gpb.UnimplementedGNMIServer
 }
 
 func (g *gNMIServer) Capabilities(context.Context, *gpb.CapabilityRequest) (*gpb.CapabilityResponse, error) {

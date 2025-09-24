@@ -38,6 +38,8 @@ type ContainerInfo struct {
 	Name      string
 	ImageName string
 	State     string
+	Labels    map[string]string
+	Hash      string
 
 	Error error
 }
@@ -73,11 +75,16 @@ type startOptions struct {
 	envs      []string
 	ports     []string
 	volumes   []string
+	devices   []string
 	network   string
 	capAdd    []string
 	capRemove []string
 	policy    string
 	runAs     string
+	labels    map[string]string
+	cpus      float64
+	softMem   int64
+	hardMem   int64
 }
 
 type nonBlockTypes interface {
@@ -108,6 +115,13 @@ func WithVolumes(volumes []string) StartOption {
 	}
 }
 
+// WithDevices sets the devices to be passed to the start operation.
+func WithDevices(devices []string) StartOption {
+	return func(opt *startOptions) {
+		opt.devices = devices
+	}
+}
+
 // WithNetwork sets the network to be passed to the start operation.
 func WithNetwork(network string) StartOption {
 	return func(opt *startOptions) {
@@ -134,6 +148,34 @@ func WithRestartPolicy(policy string) StartOption {
 func WithRunAs(runAs string) StartOption {
 	return func(opt *startOptions) {
 		opt.runAs = runAs
+	}
+}
+
+// WithLabels sets the labels to be passed to the start operation.
+func WithLabels(labels map[string]string) StartOption {
+	return func(opt *startOptions) {
+		opt.labels = labels
+	}
+}
+
+// WithCPUs sets the CPU limit to be passed to the start operation.
+func WithCPUs(cpus float64) StartOption {
+	return func(opt *startOptions) {
+		opt.cpus = cpus
+	}
+}
+
+// WithSoftLimit sets the soft memory limit to be passed to the start operation.
+func WithSoftLimit(mem int64) StartOption {
+	return func(opt *startOptions) {
+		opt.softMem = mem
+	}
+}
+
+// WithHardLimit sets the hard memory limit to be passed to the start operation.
+func WithHardLimit(mem int64) StartOption {
+	return func(opt *startOptions) {
+		opt.hardMem = mem
 	}
 }
 

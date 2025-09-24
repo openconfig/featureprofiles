@@ -146,7 +146,7 @@ func aggregatePortState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 }
 
 func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string) {
-	ateTop := ate.OTG().FetchConfig(t)
+	ateTop := ate.OTG().GetConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		return
 	}
