@@ -74,7 +74,6 @@ func testbedPathFromMetadata() (string, error) {
 	testbed := metadata.Get().Testbed
 	testbedToFile := map[mpb.Metadata_Testbed]string{
 		mpb.Metadata_TESTBED_DUT:                   "dut.testbed",
-		mpb.Metadata_TESTBED_DUT_2LINKS:            "dut_2links.testbed",
 		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:        "dutdut.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:        "atedut_2.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:        "atedut_4.testbed",
@@ -85,6 +84,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_400ZR_PLUS:        "dut_400zr_plus.testbed",
 		mpb.Metadata_TESTBED_DUT_400ZR_100G_4LINKS: "dut_400zr_100g_4links.testbed",
 		mpb.Metadata_TESTBED_DUT_400FR_100G_4LINKS: "dut_400fr_100g_4links.testbed",
+		mpb.Metadata_TESTBED_DUT_2LINKS:            "dut_2links.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {
