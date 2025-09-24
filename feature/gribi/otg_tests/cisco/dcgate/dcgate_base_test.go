@@ -291,40 +291,40 @@ var (
 		IPv6:    "2001:0db8::192:0:2:12",
 		IPv6Len: ipv6PrefixLen,
 	}
+	// keep following Attributes for future use
+	// dutPort6 = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.21",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:15",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	dutPort6 = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "192.0.2.21",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2001:0db8::192:0:2:15",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// otgPort6 = attrs.Attributes{
+	// 	Name:    "otgPort6",
+	// 	MAC:     "02:00:06:01:01:01",
+	// 	IPv4:    "192.0.2.22",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:16",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	otgPort6 = attrs.Attributes{
-		Name:    "otgPort6",
-		MAC:     "02:00:06:01:01:01",
-		IPv4:    "192.0.2.22",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2001:0db8::192:0:2:16",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// dutPort7 = attrs.Attributes{
+	// 	Desc:    "dutPort7",
+	// 	IPv4:    "192.0.2.25",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:19",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
-	dutPort7 = attrs.Attributes{
-		Desc:    "dutPort7",
-		IPv4:    "192.0.2.25",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2001:0db8::192:0:2:19",
-		IPv6Len: ipv6PrefixLen,
-	}
-
-	otgPort7 = attrs.Attributes{
-		Name:    "otgPort7",
-		MAC:     "02:00:07:01:01:01",
-		IPv4:    "192.0.2.26",
-		IPv4Len: ipv4PrefixLen,
-		IPv6:    "2001:0db8::192:0:2:1a",
-		IPv6Len: ipv6PrefixLen,
-	}
+	// otgPort7 = attrs.Attributes{
+	// 	Name:    "otgPort7",
+	// 	MAC:     "02:00:07:01:01:01",
+	// 	IPv4:    "192.0.2.26",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:1a",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
 
 	dutPort8 = attrs.Attributes{
 		Desc:    "dutPort8",
@@ -391,29 +391,30 @@ var (
 		IPv4Len: ipv4PrefixLen,
 	}
 
-	dutPort6DummyIP = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "192.0.2.49",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// keep the Attributes for future use
+	// dutPort6DummyIP = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.49",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	otgPort6DummyIP = attrs.Attributes{
-		Desc:    "otgPort6",
-		IPv4:    "192.0.2.50",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// otgPort6DummyIP = attrs.Attributes{
+	// 	Desc:    "otgPort6",
+	// 	IPv4:    "192.0.2.50",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	dutPort7DummyIP = attrs.Attributes{
-		Desc:    "dutPort6",
-		IPv4:    "192.0.2.53",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// dutPort7DummyIP = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.53",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
-	otgPort7DummyIP = attrs.Attributes{
-		Desc:    "otgPort6",
-		IPv4:    "192.0.2.54",
-		IPv4Len: ipv4PrefixLen,
-	}
+	// otgPort7DummyIP = attrs.Attributes{
+	// 	Desc:    "otgPort6",
+	// 	IPv4:    "192.0.2.54",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
 
 	dutPort8DummyIP = attrs.Attributes{
 		Desc:    "dutPort6",
@@ -444,7 +445,6 @@ type packetAttr struct {
 	protocol int
 	ttl      uint32
 	inner    *packetAttr
-	sfSample *s.SflowSample
 	sfAttr   *s.SflowAttr
 }
 
