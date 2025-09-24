@@ -14,22 +14,22 @@ var sfAttr = &s.SflowAttr{
 	PacketsToSend:   uint32(*sf_trafficDuration * int(*sf_fps)),
 	PpsRate:         uint64(*sf_fps),
 	SflowDscp:       32,
-	SamplingRate:    262144,
-	SampleTolerance: 0.8,
+	SamplingRate:    samplingRate,
+	SampleTolerance: sampleTolerance,
 	IP:              "IPv6",
 }
 
 // NewDefaultSflowAttr returns a SflowAttr with default values
 func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
 	return &s.SFlowConfig{
-		SourceIPv4:          "203.0.113.255",
-		SourceIPv6:          "2001:db8::203:0:113:255",
+		SourceIPv4:          dutLoopback0.IPv4,
+		SourceIPv6:          dutLoopback0.IPv6,
 		CollectorIPv6:       "2001:0db8::192:0:2:1e",
 		IP:                  s.IPv6,
 		CollectorPort:       6343,
 		DSCP:                32,
 		SampleSize:          343,
-		IngressSamplingRate: 262144,
+		IngressSamplingRate: samplingRate,
 		InterfaceName:       ingressInterface,
 		ExporterMapName:     "OC-FEM-GLOBAL",
 		PacketLength:        8968,

@@ -1,6 +1,7 @@
 package dcgate_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -56,16 +57,16 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-	// sshClient := dut.RawAPIs().CLI(t)
 
-	// // Set sflow config details
-	// dutPorts := dut.Ports()
-	// intfs := []string{}
-	// for i, port := range dutPorts {
-	// 	intfs = append(intfs, port.Name())
-	// 	intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
-	// }
-	// getIfIndex(t, dut, &sshClient, intfs)
+	// Set sflow config details
+	dutPorts := dut.Ports()
+	intfs := []string{}
+	for i, port := range dutPorts {
+		intfs = append(intfs, port.Name())
+		intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
+	}
+	getIfIndex(t, dut, intfs)
+
 	erd := sfAttr.AddSflowSample().AddExtendedRouterData()
 	erd.SetNextHop(otgPort5.IPv4)
 	erd.SetNextHopDestinationMask(0)

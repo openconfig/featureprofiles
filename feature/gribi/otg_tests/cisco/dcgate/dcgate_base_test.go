@@ -42,7 +42,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
@@ -68,7 +67,6 @@ const (
 	vrfEncap             = "ENCAP_TE_VRF"
 	ipv4PrefixLen        = 30
 	ipv6PrefixLen        = 126
-	// trafficDuration      = 15 * time.Second
 	nhg10ID              = 10
 	nh201ID              = 201
 	nh202ID              = 202
@@ -141,8 +139,8 @@ const (
 	primaryNH2ID                     = uint64(3005)
 	lookupTestVRF                    = "lookup-test-vrf"
 	lookupTestIPv4                   = "192.168.100.0/24"
-  samplingRate                     = 262144 // Example value, adjust as per your test setup
-	sampleTolerance                  = 0.8    // Example value, adjust as per your test setup
+	samplingRate                     = 262144
+	sampleTolerance                  = 0.8
 )
 
 const (
@@ -1458,51 +1456,6 @@ func configStaticArp(p string, ipv4addr string, macAddr string, useBundleMode bo
 	return i
 }
 
-// staticARPWithSecondaryIP configures secondary IPs and static ARP.
-func staticARPWithSecondaryIP3(t *testing.T, dut *ondatra.DUTDevice, useBundleMode bool) {
-	t.Helper()
-	// Define port mappings for non-bundle and bundle configurations
-	type portConfig struct {
-		portName   string
-		bundleName string
-		dutAttr    *attrs.Attributes
-		otgAttr    *attrs.Attributes
-	}
-
-	configs := []portConfig{
-		{"port2", "Bundle-Ether2", &dutPort2DummyIP, &otgPort2DummyIP},
-		{"port3", "Bundle-Ether3", &dutPort3DummyIP, &otgPort3DummyIP},
-		{"port4", "Bundle-Ether4", &dutPort4DummyIP, &otgPort4DummyIP},
-		{"port5", "Bundle-Ether5", &dutPort5DummyIP, &otgPort5DummyIP},
-		{"port8", "Bundle-Ether8", &dutPort8DummyIP, &otgPort8DummyIP},
-	}
-
-	// Configure for bundle interfaces (always use bundle in this context)
-	for _, cfg := range configs {
-		// Configure secondary IP
-		gnmi.Update(t, dut, gnmi.OC().Interface(cfg.bundleName).Config(),
-			assignIPAsSecondary(cfg.dutAttr, cfg.bundleName, dut, useBundleMode))
-
-		// Configure static ARP
-		gnmi.Update(t, dut, gnmi.OC().Interface(cfg.bundleName).Config(),
-			configStaticArp(cfg.bundleName, cfg.otgAttr.IPv4, magicMac, useBundleMode))
-	}
-
-// Helper function to update assignIPAsSecondary to handle bundle mode
-func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice, useBundleMode bool) *oc.Interface {
-	intf := a.NewOCInterface(port, dut)
-	if useBundleMode {
-		intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	} else {
-		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	}
-	s := intf.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	a4 := s4.GetOrCreateAddress(a.IPv4)
-	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
-	return intf
-}
-
 func configureVIP1(t *testing.T, args *testArgs) {
 	args.client.AddNH(t, baseNH(2), "MACwithIp", deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgPort2DummyIP.IPv4, Mac: magicMac})
 	args.client.AddNHG(t, baseNHG(2), map[uint64]uint64{baseNH(2): 100}, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
@@ -1713,7 +1666,6 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 }
 
 // configureLoopback0 configures the Loopback0 interface with IPv4 and IPv6 addresses
-// func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, config *SflowAttr) {
 func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
 	root := &oc.Root{}
 
@@ -1752,10 +1704,9 @@ func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames 
 	return bundleMemberIfIndexes
 }
 
-func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, sshClient *binding.CLIClient, intfs []string) {
+func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 	for _, intf := range intfs {
 		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
-		// sshRunCommand(t, dut, sshClient, cmd)
 		util.SshRunCommand(t, dut, cmd)
 	}
 }
