@@ -41,6 +41,7 @@ const (
 	mplsLabelStep         = 200
 	mplsLabelStartforIpv4 = 16
 	mplsLabelStartforIpv6 = 524280
+	trafficDuration       = 10 * time.Second
 )
 
 var (
@@ -162,6 +163,10 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Ports: agg1.MemberPorts},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv4.FlowName},
 	}
+	lagECMPValidationV6 = &otgvalidationhelpers.OTGValidation{
+		Interface: &otgvalidationhelpers.InterfaceParams{Ports: agg1.MemberPorts},
+		Flow:      &otgvalidationhelpers.FlowParams{Name: flowOuterIPv6.FlowName},
+	}
 )
 
 type networkConfig struct {
@@ -248,8 +253,8 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 
 }
 
-func TestSetup(t *testing.T) {
-	t.Log("PF-1.13.1: Generate DUT Configuration")
+func setup(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	netConfig, err := generateNetConfig(intCount)
@@ -310,8 +315,8 @@ func TestSetup(t *testing.T) {
 	configureOTG(t)
 
 	// Pass ocPFParams to ConfigureDut
-	ocPFParams.DecapPolicy.MplsStaticLabels = mplsStaticLabels
-	ocPFParams.DecapPolicy.MplsStaticLabelsForIpv6 = mplsStaticLabelsForIpv6
+	ocPFParams.DecapPolicy.DecapMplsParams.MplsStaticLabels = mplsStaticLabels
+	ocPFParams.DecapPolicy.DecapMplsParams.MplsStaticLabelsForIPv6 = mplsStaticLabelsForIpv6
 	configureDut(t, dut, netConfig, ocPFParams)
 
 }
@@ -329,9 +334,10 @@ func fetchDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
 // Modified to accept pf, ni, and ocPFParams
 func decapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
-	ocPFParams.DecapPolicy.NextHops = netConfig.otgIPs
-	ocPFParams.DecapPolicy.NextHopsV6 = netConfig.otgIPsV6
-	ocPFParams.DecapPolicy.ScaleStaticLSP = true
+	t.Helper()
+	ocPFParams.DecapPolicy.DecapMplsParams.NextHops = netConfig.otgIPs
+	ocPFParams.DecapPolicy.DecapMplsParams.NextHopsV6 = netConfig.otgIPsV6
+	ocPFParams.DecapPolicy.DecapMplsParams.ScaleStaticLSP = true
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
@@ -339,55 +345,6 @@ func decapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance
 	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
-	}
-}
-
-// PF-1.13.2: Verify IPV4/IPV6 traffic scale
-func TestMPLSOGREDecapIPv4AndIPv6(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	t.Log("Verify IPV4/IPV6 traffic scale")
-	createflow(top, flowOuterIPv4, flowInnerIPv4, true)
-	sendTraffic(t, ate)
-	var err error
-
-	if err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-
-	if err = lagECMPValidation.ValidateECMPonLAG(t, ate); err != nil {
-		t.Errorf("ECMPValidationFailed(): got err: %q, want nil", err)
-	}
-	createflow(top, flowOuterIPv6, flowInnerIPv6, true)
-	sendTraffic(t, ate)
-
-	if err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-}
-
-func TestMPLSOGREDecapInnerPayloadPreserve(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	t.Log("Verify MPLSoGRE DSCP/TTL preserve operation")
-	packetvalidationhelpers.ClearCapture(t, top, ate)
-	updateFlow(flowOuterIPv4, flowInnerIPv4, true, 100, 1000)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv4)
-	sendTrafficCapture(t, ate)
-	var err error
-	if err = flowOuterIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv4); err != nil {
-		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
-	}
-	updateFlow(flowOuterIPv6, flowInnerIPv6, true, 100, 1000)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, decapValidationIPv6)
-	sendTrafficCapture(t, ate)
-	if err = flowOuterIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ValidateLossOnFlows(): got err: %q, want nil", err)
-	}
-
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidationIPv6); err != nil {
-		t.Errorf("CaptureAndValidatePackets(): got err: %q", err)
 	}
 }
 
@@ -399,7 +356,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 }
 
@@ -412,7 +369,7 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	}
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(20 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
@@ -574,4 +531,84 @@ func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.Net
 	t.Helper()
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
+}
+
+func TestMPLSOGREDecapScale(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+
+	setup(t)
+
+	tests := []struct {
+		name                    string
+		outerFlow               *otgconfighelpers.Flow
+		innerFlow               *otgconfighelpers.Flow
+		flowValidator           func(*testing.T, *ondatra.ATEDevice) error
+		ecmpValidator           func(*testing.T, *ondatra.ATEDevice) error
+		validatePayloadPreserve bool
+		validationConfig        *packetvalidationhelpers.PacketValidation
+	}{
+		{
+			name:          "IPv4 Traffic Scale",
+			outerFlow:     flowOuterIPv4,
+			innerFlow:     flowInnerIPv4,
+			flowValidator: flowOuterIPv4Validation.ValidateLossOnFlows,
+			ecmpValidator: lagECMPValidation.ValidateECMPonLAG,
+		},
+		{
+			name:          "IPv6 Traffic Scale",
+			outerFlow:     flowOuterIPv6,
+			innerFlow:     flowInnerIPv6,
+			flowValidator: flowOuterIPv6Validation.ValidateLossOnFlows,
+			ecmpValidator: lagECMPValidationV6.ValidateECMPonLAG,
+		},
+		{
+			name:                    "IPv4 Payload Preserve",
+			outerFlow:               flowOuterIPv4,
+			innerFlow:               flowInnerIPv4,
+			flowValidator:           flowOuterIPv4Validation.ValidateLossOnFlows,
+			validatePayloadPreserve: true,
+			validationConfig:        decapValidationIPv4,
+		},
+		{
+			name:                    "IPv6 Payload Preserve",
+			outerFlow:               flowOuterIPv6,
+			innerFlow:               flowInnerIPv6,
+			flowValidator:           flowOuterIPv6Validation.ValidateLossOnFlows,
+			validatePayloadPreserve: true,
+			validationConfig:        decapValidationIPv6,
+		},
+	}
+
+	packetvalidationhelpers.ClearCapture(t, top, ate)
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Logf("Running test: %s", tc.name)
+
+			if tc.validatePayloadPreserve {
+				updateFlow(tc.outerFlow, tc.innerFlow, true, 100, 1000)
+				packetvalidationhelpers.ConfigurePacketCapture(t, top, tc.validationConfig)
+				sendTrafficCapture(t, ate)
+			} else {
+				createflow(top, tc.outerFlow, tc.innerFlow, true)
+				sendTraffic(t, ate)
+			}
+
+			if err := tc.flowValidator(t, ate); err != nil {
+				t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
+			}
+
+			if tc.ecmpValidator != nil {
+				if err := tc.ecmpValidator(t, ate); err != nil {
+					t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
+				}
+			}
+
+			if tc.validatePayloadPreserve {
+				if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, tc.validationConfig); err != nil {
+					t.Errorf("captureAndValidatePackets(): got err: %q", err)
+				}
+			}
+		})
+	}
 }

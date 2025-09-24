@@ -37,12 +37,7 @@ type DecapPolicyParams struct {
 	StaticLSPNameMulticast    string
 	StaticLSPLabelMulticast   uint32
 	StaticLSPNextHopMulticast string
-	// Mpls Scale LSP params
-	ScaleStaticLSP          bool
-	MplsStaticLabels        []int
-	MplsStaticLabelsForIpv6 []int
-	NextHops                []string
-	NextHopsV6              []string
+	DecapMplsParams           DecapMplsParams
 }
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
