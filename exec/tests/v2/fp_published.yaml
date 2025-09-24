@@ -319,8 +319,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-
-    pr: 3015
   - name: RT-5.7 (Aggregate Not Viable All)
     path: feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test
     owners:
