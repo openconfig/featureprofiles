@@ -74,6 +74,7 @@ func testbedPathFromMetadata() (string, error) {
 	testbed := metadata.Get().Testbed
 	testbedToFile := map[mpb.Metadata_Testbed]string{
 		mpb.Metadata_TESTBED_DUT:                   "dut.testbed",
+		mpb.Metadata_TESTBED_DUT_2LINKS:            "dut_2links.testbed",
 		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:        "dutdut.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:        "atedut_2.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:        "atedut_4.testbed",
