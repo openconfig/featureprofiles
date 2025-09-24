@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
@@ -31,18 +32,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	oc "github.com/openconfig/ondatra/gnmi/oc"
-)
-
-var (
-	fixedComponents = []string{
-		"0/RP0/CPU0-NPU0",
-	}
-
-	distributedComponents = []string{
-		"0/0/CPU0-NPU0",
-		"0/0/CPU0-NPU1",
-		"0/0/CPU0-NPU2",
-	}
 )
 
 func TestMain(m *testing.M) {
@@ -66,9 +55,9 @@ func isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
 func getTestComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
 	if isDistributed(t, dut) {
-		return distributedComponents
+		return components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 	} else {
-		return fixedComponents
+		return components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	}
 }
 
