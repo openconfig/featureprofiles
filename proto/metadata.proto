@@ -44,6 +44,7 @@ message Metadata {
     TESTBED_DUT_ATE_5LINKS = 12;
     TESTBED_DUT_800ZR = 13;
     TESTBED_DUT_800ZR_PLUS = 14;
+    TESTBED_DUT_2LINKS = 15;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -937,6 +938,10 @@ message Metadata {
     // Devices that do not support load balance policies 
     // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
     bool load_balance_policy_oc_unsupported = 326;
+
+    // Devices that do not support gribi records
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
+    bool gribi_records_unsupported = 327;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
