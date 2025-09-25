@@ -186,7 +186,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
 
-	installGRIBIRoutes(t, dut, ate, top)
+	installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
@@ -1024,7 +1024,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 }
 
 // installGRIBIRoutes configure route using gRIBI client
-func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, intf string) {
 	t.Helper()
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -1113,7 +1113,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	if deviations.IndirectNhWithIPAddressUnsupported(dut) {
 		tcArgs.client.Modify().AddEntry(t,
 			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-				WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(LAG3),
+				WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf),
 			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 				WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
 

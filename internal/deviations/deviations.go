@@ -1645,6 +1645,11 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
 
+// Gribi Records Unsupported returns true if Gribi records creation is not supported through OpenConfig.
+func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
+}
+
 // WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
 func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
