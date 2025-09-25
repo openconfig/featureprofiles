@@ -26,6 +26,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 
 	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/cisco/verifiers"
@@ -140,10 +141,10 @@ var (
 		encapTunnelIP1:    "98.1.0.0",
 		encapTunnelIP2:    "98.1.0.1",
 		decapV4Prefix:     "98.2.0.0/20",
-		nextSiteVIPs:      []string{"10.41.164.1", "10.41.164.3"},
+		nextSiteVIPs:      []string{"10.41.164.1","10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
 		nextSiteIntfCount: 2,
-		selfSiteIntfCount: 1,
+		selfSiteIntfCount: 0,
 		nextSite1VIPNH: []map[string]string{
 			{"Bundle-Ether2": "169.254.0.4"},
 			{"Bundle-Ether3": "169.254.0.6"},
@@ -169,7 +170,7 @@ var (
 		nextSiteVIPs:      []string{"10.41.164.1", "10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
 		nextSiteIntfCount: 2,
-		selfSiteIntfCount: 1,
+		selfSiteIntfCount: 0,
 		nextSite1VIPNH: []map[string]string{
 			{"Bundle-Ether2": "169.254.0.4"},
 			{"Bundle-Ether3": "169.254.0.6"},
@@ -278,8 +279,8 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 					nhInfo.aftV6Prefix = rSiteV6DSTPFX
 					nhInfo.aftV6PrefixLen = "/64"
 				}
-				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, "ipv4")
-				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, "ipv6")
+				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
+				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
 				deviceNHInfo[device] = nhInfo
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
@@ -361,7 +362,12 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 	deviceGribiMap[dut2R] = gribi2R
 	deviceGribiMap[dut3R] = gribi3R
 	deviceGribiMap[dut4R] = gribi4R
-
+	cef := helper.FIBHelper().GetPrefixCEFObjects(t, dut1E, "10.240.119.48/28", vrfEncapA, "ipv4")
+	for _, c := range cef.CEFNH {
+		ab := helper.FIBHelper().GetPrefixCEFObjects(t, dut1E, c.NextHopAddress, "default", "ipv4")
+		t.Log("AB", ab)
+	}
+	t.Log("Test", cef)
 	for device, gribiParam := range deviceGribiMap {
 		t.Log("Program gRIBI entries for device: ", device.Name())
 		programGribiEntries(t, device, gribiParam)
@@ -436,8 +442,8 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 					nhInfo.aftV6Prefix = rSiteV6DSTPFX
 					nhInfo.aftV6PrefixLen = "/64"
 				}
-				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, "ipv4")
-				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, "ipv6")
+				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
+				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
 				deviceNHInfo[device] = nhInfo
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).

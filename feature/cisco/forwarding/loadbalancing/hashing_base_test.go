@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
+	// "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -490,8 +491,15 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	//gRIBI entries for Encap VRF prefixes
 	gribiClient.AddNH(t, 2342, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: gribiArgs.encapTunnelIP1, VrfName: vrfTransit})
 	gribiClient.AddNH(t, 2334, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: gribiArgs.encapTunnelIP2, VrfName: vrfTransit})
-	gribiClient.AddNHG(t, 335544321, map[uint64]uint64{2342: 1, 2334: 3}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 335548321})
+	gribiClient.AddNHG(t, 335544321, map[uint64]uint64{2342: 1, 2334: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 335548321})
 	gribiClient.AddIPv4(t, gribiArgs.encapV4Prefix, 335544321, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	// encapPrefixList := []string{}
+	// for i := range 10000 {
+	// 	encapPrefixList = append(encapPrefixList, util.GetIPPrefix("10.1.1.1", i, "32"))
+	// }
+	// for _, encapPrefix := range encapPrefixList {
+	// 	gribiClient.AddIPv4(t, encapPrefix, 335544321, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	// }
 	//Add default route for Encap VRF
 	gribiClient.AddIPv4(t, "0.0.0.0/0", 335548300, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 	gribiClient.AddIPv6(t, gribiArgs.encapV6Prefix, 335544321, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
@@ -588,9 +596,9 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 }
 
 // getInterfaceNHWithWeights returns the interface next hops with their respective weights, and BundleInterface struct, for a given prefix and prefix length.
-func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, afiType string) (map[string]uint64, []BundleInterface) {
+func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, vrf, afiType string) (map[string]uint64, []BundleInterface) {
 	var outputIFWeight = make(map[string]uint64) // Get the interface next hops
-	aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, dut, prefix+prefixLength, deviations.DefaultNetworkInstance(dut), afiType)
+	aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, dut, prefix+prefixLength, vrf, afiType)
 	bundleObjList := []BundleInterface{}
 
 	for _, nhObj := range aftPfxObj.NextHop {

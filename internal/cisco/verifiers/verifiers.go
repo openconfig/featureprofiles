@@ -5,6 +5,7 @@ var (
 	loadbalancing *loadbalancingVerifier
 	interfaces    *interfaceVerifier
 	tgen          *tgenVerifier
+	fib           *fibVerifier
 	// rib     = &ribverifier{}
 )
 
@@ -30,4 +31,12 @@ func TGENverifier() *tgenVerifier {
 		tgen = &tgenVerifier{}
 	}
 	return tgen
+}
+
+// FIBverifier accessor for CEF verifier functions.
+func FIBverifier() *fibVerifier {
+	if fib == nil {
+		fib = &fibVerifier{}
+	}
+	return fib
 }

@@ -1,8 +1,10 @@
 package helper
 
 import (
+	"fmt"
 	"testing"
 
+	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -21,6 +23,18 @@ type FIBAFTObject struct {
 	Prefix       string
 	NextHopGroup []uint64
 	NextHop      []AFTNHInfo
+}
+
+type CEFNHInfo struct {
+	NextHopAddress   string
+	NextHopInterface string
+	Weight           float64
+}
+
+type FIBCEFObject struct {
+	Prefix string
+	VRF    string
+	CEFNH  []CEFNHInfo
 }
 
 // GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix , with afiType string "ipv4" or "ipv6".
@@ -104,4 +118,43 @@ func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 		}
 	}
 	return aftObj
+}
+
+func (v *fibHelper) GetPrefixCEFObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBCEFObject {
+	cefObj := FIBCEFObject{}
+	NHInfo := CEFNHInfo{}
+	cefObj.Prefix = prefix
+	cefObj.VRF = vrf
+	cliOutput := dut.CLI().Run(t, fmt.Sprintf("show cef vrf %s %s detail", vrf, prefix))
+	//Build cef textfsm struct.
+	var nhAddList []string
+	ipCount := make(map[string]int)
+	cefVrfTextfsm := textfsm.ShowCefVrfDetail{}
+	if err := cefVrfTextfsm.Parse(cliOutput); err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, cefCliVal := range cefVrfTextfsm.Rows {
+		nhAddList = cefCliVal.GetAddressVal()
+		for i, ip := range nhAddList {
+			ipCount[ip]++
+			if len(cefCliVal.GetInterfaceValue()) > 0 {
+				NHInfo.NextHopInterface = cefCliVal.GetInterfaceValue()[i]
+			}
+		}
+
+	}
+	uniqueNH := make(map[string]bool)
+	for _, nh := range nhAddList {
+		if uniqueNH[nh] { // Skip if already exist
+			continue
+
+		}
+		uniqueNH[nh] = true
+		total := float64(len(nhAddList))
+		wt := float64(ipCount[nh]) / total
+		NHInfo.NextHopAddress = nh
+		NHInfo.Weight = wt
+		cefObj.CEFNH = append(cefObj.CEFNH, NHInfo)
+	}
+	return cefObj
 }
