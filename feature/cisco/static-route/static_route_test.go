@@ -1017,6 +1017,9 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 	configureDUT(t, dut1)
 	configureDUT(t, dut2)
 	time.Sleep(60 * time.Second)
+	if cliHandle == nil {
+		cliHandle = dut2.RawAPIs().CLI(t)
+	}
 
 	testCases := []testCase{
 		{
