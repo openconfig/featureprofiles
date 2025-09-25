@@ -17,12 +17,14 @@ package cfgplugins
 import (
 	"fmt"
 	"math"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -38,6 +40,40 @@ const (
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
 )
+
+// DUTSubInterfaceData is the data structure for a subinterface in the DUT.
+type DUTSubInterfaceData struct {
+	VlanID        int
+	IPv4Address   net.IP
+	IPv6Address   net.IP
+	IPv4PrefixLen int
+	IPv6PrefixLen int
+}
+
+// LACPParams is the data structure for the LACP parameters used in the DUTLagData.
+type LACPParams struct {
+	Activity *oc.E_Lacp_LacpActivityType
+	Period   *oc.E_Lacp_LacpPeriodType
+}
+
+// DUTAggData is the data structure for a LAG in the DUT.
+type DUTAggData struct {
+	attrs.Attributes
+	SubInterfaces   []*DUTSubInterfaceData
+	OndatraPortsIdx []int
+	OndatraPorts    []*ondatra.Port
+	LagName         string
+	LacpParams      *LACPParams
+	AggType         oc.E_IfAggregate_AggregationType
+}
+
+// PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
+// field.
+func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.OndatraPortsIdx {
+		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
+	}
+}
 
 var (
 	opmode   uint16
@@ -58,6 +94,13 @@ func init() {
 
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
+
+// StaticAggregateConfig defines the parameters for configuring a static LAG.
+type StaticAggregateConfig struct {
+	AggID    string
+	DutLag   attrs.Attributes
+	AggPorts []*ondatra.Port
+}
 
 // String returns the string representation of the list of operational modes.
 func (om *OperationalModeList) String() string {
@@ -724,4 +767,126 @@ func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggP
 	for _, port := range dutAggPorts {
 		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 	}
+}
+
+// SetupStaticAggregateAtomically sets up the static aggregate interface atomically.
+func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggrBatch *gnmi.SetBatch, cfg StaticAggregateConfig) *oc.Interface {
+	t.Helper()
+	// Create LAG
+	agg := cfg.DutLag.NewOCInterface(cfg.AggID, dut)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(cfg.AggID).Config(), agg)
+
+	// Create all member ports
+	for _, port := range cfg.AggPorts {
+		d := &oc.Root{}
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(cfg.AggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+		gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+	return agg
+}
+
+// AddPortToAggregate adds an Ondatra port as a member to the aggregate interface.
+func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port, b *gnmi.SetBatch, op *ondatra.Port) {
+	gnmi.BatchDelete(b, gnmi.OC().Interface(op.Name()).Ethernet().AggregateId().Config())
+
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(op.Name())
+	i.Description = ygot.String("LAG - Member - " + op.Name())
+	e := i.GetOrCreateEthernet()
+	e.AggregateId = ygot.String(aggID)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+	if op.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+		e.AutoNegotiate = ygot.Bool(false)
+		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(op.Name()).Config(), i)
+}
+
+// AddSubInterface adds a subinterface to an interface.
+func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
+	sub.Enabled = ygot.Bool(true)
+	if s.VlanID != 0 {
+		sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
+	}
+	if s.IPv4Address == nil && s.IPv6Address == nil {
+		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
+	}
+	if s.IPv4Address != nil {
+		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().SetEnabled(true)
+		}
+	}
+	if s.IPv6Address != nil {
+		sub.GetOrCreateIpv6().GetOrCreateAddress(s.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv6PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv6().SetEnabled(true)
+		}
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(i.GetName()).Subinterface(uint32(s.VlanID)).Config(), sub)
+}
+
+// NewAggregateInterface creates the below configuration for the aggregate interface:
+// 1. Create a new aggregate interface
+// 2. LACP configuration
+// 3. Adds member Ports configuration to an aggregate interface
+// 4. Subinterface configuration including thier IP address and VLAN ID
+// Note that you will still need to push the batch config to the DUT in your code.
+func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTAggData) *oc.Interface {
+	aggID := l.LagName
+	agg := l.NewOCInterface(aggID, dut)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	if deviations.IPv4MissingEnabled(dut) {
+		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	}
+	agg.GetOrCreateAggregation().LagType = l.AggType
+
+	// Set LACP mode to ACTIVE for the LAG interface
+	if l.LacpParams != nil {
+		if l.LacpParams.Activity == nil || l.LacpParams.Period == nil {
+			t.Fatalf("LACP activity or period is not set for LAG %s", aggID)
+		}
+		lacp := &oc.Lacp_Interface{Name: ygot.String(aggID)}
+		lacp.LacpMode = *l.LacpParams.Activity
+		lacp.Interval = *l.LacpParams.Period
+		lacpPath := gnmi.OC().Lacp().Interface(aggID)
+		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
+	}
+
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+
+	l.PopulateOndatraPorts(t, dut)
+	for _, op := range l.OndatraPorts {
+		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+	}
+
+	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
+		if !deviations.InterfaceEnabled(dut) {
+			// TODO : Need to investigate if this a real diviation or not as it is not clear openconfig
+			agg.DeleteSubinterface(0)
+			gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+		}
+		for _, i := range l.SubInterfaces {
+			if i.VlanID == 0 {
+				t.Fatalf("No VLAN ID found for a subinterface under lag %s", aggID)
+			}
+			AddSubInterface(t, dut, b, agg, i)
+		}
+	}
+	return agg
 }

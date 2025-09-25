@@ -1,4 +1,4 @@
-package ingress_police_two_rate_three_color_test
+package ingress_police_two_rate_three_color_with_classifier_test
 
 import (
 	"fmt"
@@ -12,6 +12,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -34,9 +35,12 @@ const (
 	queue2              = "QUEUE_2"
 	queue3              = "QUEUE_3"
 	targetQueue         = queue3
-	targetClass         = "class-default"
 	sequenceNumber      = 1
 	targetQueueID       = 2
+	classifierType      = oc.Qos_Classifier_Type_IPV4
+	inputClassifierType = oc.Input_Classifier_Type_IPV4
+	targetGroup         = "TRAFFIC_CLASS_3"
+	targetClass         = "class-default"
 	port1               = "port1"
 	port2               = "port2"
 	ipv4                = "IPv4"
@@ -111,8 +115,8 @@ func TestIngressPolicerTwoRateThreeColor(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, ipv6)
 
 	testCases := []testCase{
-		{name: "DP-2.5.1 Low Traffic", flowRate: trafficRateLowMbps, lossPct: 0},
-		{name: "DP-2.5.2 High Traffic", flowRate: trafficRateHighMbps, lossPct: 0.5},
+		{name: "DP-2.6.1 Low Traffic", flowRate: trafficRateLowMbps, lossPct: 0},
+		{name: "DP-2.6.2 High Traffic", flowRate: trafficRateHighMbps, lossPct: 0.5},
 	}
 
 	for _, tc := range testCases {
@@ -136,9 +140,24 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTPort(t, dut, &dutPort1, dp1)
 	configureDUTPort(t, dut, &dutPort2, dp2)
 
-	t.Logf("Configuring QOS")
+	t.Logf("Configuring QOS with Classifier")
 	qos := new(oc.Qos)
 	cfgplugins.CreateQueues(t, dut, qos, queues)
+
+	fg := cfgplugins.ForwardingGroup{
+		Desc:        "Traffic Class 3",
+		QueueName:   queue3,
+		TargetGroup: targetGroup,
+	}
+	cfgplugins.NewQoSForwardingGroup(t, dut, qos, []cfgplugins.ForwardingGroup{fg})
+	classifier := cfgplugins.QosClassifier{
+		Desc:        "Match all IPv4 packets",
+		Name:        schedulerName,
+		ClassType:   classifierType,
+		TermID:      targetClass,
+		TargetGroup: targetGroup,
+	}
+
 	schedulerParams := &cfgplugins.SchedulerParams{
 		SchedulerName:  schedulerName,
 		PolicerName:    inputPolicerName,
@@ -153,6 +172,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	qosPath := gnmi.OC().Qos().Config()
+	cfgplugins.NewQoSClassifierConfiguration(t, dut, qos, []cfgplugins.QosClassifier{classifier})
+	qoscfg.SetInputClassifier(t, dut, qos, inputInterfaceName, inputClassifierType, schedulerName)
 	cfgplugins.NewTwoRateThreeColorScheduler(t, dut, qosBatch, schedulerParams)
 	cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, schedulerParams)
 	gnmi.BatchUpdate(qosBatch, qosPath, qos)
@@ -240,6 +261,7 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, confi
 	}
 
 	validateSchedulerCounters(t, dut, inputInterfaceName, tc, uint64(lostPackets))
+	validateClassifierCounters(t, dut, inputInterfaceName, tc, sentPackets)
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
@@ -262,5 +284,13 @@ func validateSchedulerCounters(t *testing.T, dut *ondatra.DUTDevice, intf string
 	t.Logf("Scheduler counters for %s at %.1fGbps: conforming=%d, exceeding=%d, violating=%d", intf, float64(tc.flowRate/1000), *scheduler.ConformingPkts, *scheduler.ExceedingPkts, *scheduler.ViolatingPkts)
 	if *scheduler.ViolatingPkts != droppedPackets {
 		t.Errorf("Expected %d dropped packets, but got %d", droppedPackets, *scheduler.ViolatingPkts)
+	}
+}
+
+func validateClassifierCounters(t *testing.T, dut *ondatra.DUTDevice, intf string, tc testCase, expectedPackets uint64) {
+	classifier := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(intf).Input().Classifier(inputClassifierType).Term(targetClass).State())
+	t.Logf("Classifier counters for %s at %.1fGbps: matched-packets=%d", intf, float64(tc.flowRate/1000), *classifier.MatchedPackets)
+	if *classifier.MatchedPackets != expectedPackets {
+		t.Errorf("Expected %d matched packets, but got %d", expectedPackets, *classifier.MatchedPackets)
 	}
 }
