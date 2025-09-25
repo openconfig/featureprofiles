@@ -18,6 +18,7 @@ platform_exceptions: {
     missing_value_for_defaults: true
     bgp_community_member_is_a_string: true
     skip_bgp_send_community_type: true
+    match_as_path_set_unsupported: true
   }
 }
 platform_exceptions: {
