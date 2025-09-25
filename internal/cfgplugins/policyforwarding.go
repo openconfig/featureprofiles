@@ -37,6 +37,7 @@ type DecapPolicyParams struct {
 	StaticLSPNameMulticast    string
 	StaticLSPLabelMulticast   uint32
 	StaticLSPNextHopMulticast string
+	DecapMPLSParams           DecapMPLSParams
 }
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
@@ -63,6 +64,7 @@ type PolicyForwardingRule struct {
 	IpType             string
 	SourceAddress      string
 	DestinationAddress string
+	TTL                []uint8
 	Dscp               uint8
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
@@ -87,7 +89,7 @@ Traffic-policies
             set traffic class 3
       match ipv6-all-default ipv6
    !
-	 `
+     `
 	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
 	PolicyForwardingConfigv6Arista = `
 Traffic-policies
@@ -474,22 +476,6 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
-// MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
-func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-	mplsCfgv4 := ni.GetOrCreateMpls()
-	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
-	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
-	egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
-	egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
-
-	mplsCfgv6 := ni.GetOrCreateMpls()
-	staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
-	egressv6 := staticMplsCfgv6.GetOrCreateEgress()
-	egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
-	egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
-}
-
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -568,20 +554,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
-}
-
-// MPLSStaticLSPConfig configures the interface mpls static lsp.
-func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
-	if deviations.StaticMplsUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
-		}
-	} else {
-		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
-	}
 }
 
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
@@ -719,11 +691,12 @@ func newPolicyForwardingEncapGreFromOC(t *testing.T, pf *oc.NetworkInstance_Poli
 func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		var matchRules, matchTarget string
+		var matchRules string
 		var nhGroupTargets = make(map[string][]string)
 		var nhGroupsBySource = make(map[string]string)
 		var nhTTlBySource = make(map[string]uint8)
 		for _, ruleConfig := range rules {
+			var matchTarget string
 			t.Logf("Processing rule %s", ruleConfig.Name)
 			if ruleConfig.Action == nil ||
 				ruleConfig.Name == "" {
@@ -731,11 +704,21 @@ func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName 
 				return ""
 			}
 			if ruleConfig.DestinationAddress != "" {
-				matchTarget = fmt.Sprintf("destination prefix %s", ruleConfig.DestinationAddress)
-			} else if ruleConfig.SourceAddress != "" {
-				matchTarget = fmt.Sprintf("source prefix %s", ruleConfig.SourceAddress)
-			} else {
-				t.Errorf("Rule %s must have either SourceAddress or DestinationAddress defined", ruleConfig.Name)
+				matchTarget += fmt.Sprintf("destination prefix %s\n", ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.SourceAddress != "" {
+				matchTarget += fmt.Sprintf("source prefix %s\n", ruleConfig.SourceAddress)
+			}
+			if len(ruleConfig.TTL) > 0 {
+				ttlStrs := make([]string, len(ruleConfig.TTL))
+				for i, v := range ruleConfig.TTL {
+					ttlStrs[i] = fmt.Sprintf("%d", v)
+				}
+				ttlValues := strings.Join(ttlStrs, ", ")
+				matchTarget += fmt.Sprintf("ttl %s\n", ttlValues)
+			}
+			if matchTarget == "" {
+				t.Errorf("Rule %s must have either SourceAddress, DestinationAddress or TTL defined", ruleConfig.Name)
 				return ""
 			}
 			switch ruleConfig.IpType {
@@ -811,5 +794,87 @@ func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName 
 		return trafficPolicyConfig
 	default:
 		return ""
+	}
+}
+
+// Configure GRE decapsulated. Adding deviation when device doesn't support OC
+func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string, decapGrpName string) {
+	if deviations.GreDecapsulationOCUnsupported(dut) {
+		var decapIPAddr string
+		if strings.Contains(decapIp, "/") {
+			decapIPAddr = strings.Split(decapIp, "/")[0]
+		} else {
+			decapIPAddr = decapIp
+		}
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, decapGrpName, decapIPAddr)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+		default:
+			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy("PBR-MAP")
+		np.PolicyId = ygot.String("PBR-MAP")
+		np.Type = oc.Policy_Type_PBR_POLICY
+
+		npRule := np.GetOrCreateRule(10)
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(decapIp)
+		npAction := npRule.GetOrCreateAction()
+		npAction.DecapsulateGre = ygot.Bool(true)
+
+		port := dut.Port(t, "port1")
+		ingressPort := port.Name()
+		t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+
+		intf := npf.GetOrCreateInterface(ingressPort)
+		intf.ApplyForwardingPolicy = ygot.String("PBR-MAP")
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
+	}
+}
+
+func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
+	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
+	if deviations.DecapsulateGueOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+                            ip decap-group type udp destination port %[1]d payload %[2]s 
+                            tunnel type %[2]s-over-udp udp destination port %[1]d
+                            ip decap-group test
+                            tunnel type UDP
+                            tunnel decap-ip %[3]s
+                            tunnel decap-interface %[4]s
+                            `, guePort, ipType, tunIp, decapInt)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+		default:
+			t.Errorf("Deviation decapsulateGueOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+	} else {
+		// TODO: As per the latest OpenConfig GNMI OC schema — the Encapsulation/Decapsulation sub-tree is not fully implemented, need to add OC commands once implemented.
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy(policyName)
+		np.PolicyId = ygot.String(policyName)
+		npRule := np.GetOrCreateRule(uint32(policyId))
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(tunIp)
+		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
+		// transport := npRule.GetOrCreateTransport()
+		// transport.SetDestinationPort()
 	}
 }

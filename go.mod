@@ -1,6 +1,6 @@
 module github.com/openconfig/featureprofiles
 
-go 1.24.2
+go 1.24.7
 
 require (
 	cloud.google.com/go/pubsub v1.45.1
@@ -19,8 +19,8 @@ require (
 	github.com/openconfig/containerz v0.0.0-20250408205203-029560584812
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
 	github.com/openconfig/gnmi v0.14.1
-	github.com/openconfig/gnoi v0.6.2
-	github.com/openconfig/gnoigo v0.0.0-20250422174708-0b77c31c7d66
+	github.com/openconfig/gnoi v0.7.0
+	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
 	github.com/openconfig/gnsi v1.9.0
 	github.com/openconfig/gocloser v0.0.0-20250211195114-79e08bd41eef
 	github.com/openconfig/goyang v1.6.3
@@ -28,10 +28,10 @@ require (
 	github.com/openconfig/gribigo v0.1.1
 	github.com/openconfig/kne v0.1.18
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
-	github.com/openconfig/ondatra v0.12.0
+	github.com/openconfig/ondatra v0.12.3
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
 	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
-	github.com/openconfig/ygnmi v0.12.0
+	github.com/openconfig/ygnmi v0.13.0
 	github.com/openconfig/ygot v0.33.0
 	github.com/p4lang/p4runtime v1.4.1
 	github.com/pborman/uuid v1.2.1
@@ -41,12 +41,12 @@ require (
 	github.com/spf13/viper v1.20.1
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
-	golang.org/x/crypto v0.41.0
+	golang.org/x/crypto v0.42.0
 	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
-	golang.org/x/text v0.28.0
+	golang.org/x/text v0.29.0
 	google.golang.org/api v0.215.0
-	google.golang.org/grpc v1.75.0
-	google.golang.org/protobuf v1.36.8
+	google.golang.org/grpc v1.75.1
+	google.golang.org/protobuf v1.36.9
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/klog/v2 v2.130.1
@@ -167,14 +167,14 @@ require (
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/net v0.44.0 // indirect
+	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250818200422-3122310a409c // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250908214217-97024824d090 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
