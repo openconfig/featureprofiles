@@ -318,6 +318,7 @@ func mplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params 
 }
 
 // MPLSStaticLSPConfig configures the interface mpls static lsp.
+// TODO: Need to refactor this function by adding one more parameter ocMPLSStaticLSPParams
 func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
