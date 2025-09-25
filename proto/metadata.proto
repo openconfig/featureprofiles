@@ -947,6 +947,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
     bool gribi_records_unsupported = 327;
 
+    //Indirect next-hop using a direct interface IP is not supported.
+    // Nokia b/428883444
+    bool indirect_nh_with_ip_address_unsupported = 328;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
   }

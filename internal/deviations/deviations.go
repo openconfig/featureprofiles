@@ -1649,3 +1649,8 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
 }
+
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
+}
