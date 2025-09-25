@@ -3,6 +3,7 @@ package otgvalidationhelpers
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +34,20 @@ OTGValidation is a struct to hold OTG validation parameters.
 type OTGValidation struct {
 	Interface *InterfaceParams
 	Flow      *FlowParams
+}
+
+// PortWeightage represents an OTG port's expected traffic share as a percentage.
+type PortWeightage struct {
+	PortName  string
+	Weightage float64
+}
+
+// OTGECMPValidation validates ECMP traffic distribution across OTG ports.
+// TolerancePct is fractional (e.g.±10%).
+type OTGECMPValidation struct {
+	PortWeightages []PortWeightage
+	Flows          []string
+	TolerancePct   float64
 }
 
 // InterfaceParams is a struct to hold OTG interface parameters.
@@ -155,4 +170,37 @@ func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj 
 		}
 	}
 
+}
+
+// ValidateECMP validates if equal number of packets shared across the interfaces given
+func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) error {
+	t.Helper()
+	totalPkts := uint64(0)
+	for _, fName := range ev.Flows {
+		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
+	}
+
+	var validationErrors []string
+
+	for _, p := range ev.PortWeightages {
+		actualPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
+		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
+
+		t.Logf("port: %s, Packets Received: %d", p.PortName, actualPkts)
+
+		lowerBound := expectedPkts * (1 - ev.TolerancePct)
+		upperBound := expectedPkts * (1 + ev.TolerancePct)
+
+		if float64(actualPkts) < lowerBound || float64(actualPkts) > upperBound {
+			validationErrors = append(validationErrors,
+				fmt.Sprintf("port %s: Actual packets %d out of expected range [%.0f - %.0f]",
+					p.PortName, actualPkts, lowerBound, upperBound))
+		}
+	}
+
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("ecmp validation failed:\n%s", strings.Join(validationErrors, "\n"))
+	}
+
+	return nil
 }
