@@ -151,23 +151,6 @@ func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, 
 	return ips, nil
 }
 
-// incrementMAC increments the MAC address by the given step.
-func incrementMAC(mac net.HardwareAddr, step int) {
-	for i := len(mac) - 1; i >= 0 && step > 0; i-- {
-		sum := int(mac[i]) + step
-		mac[i] = byte(sum % 256)
-		step = sum / 256
-	}
-}
-
-func macToInt(mac net.HardwareAddr) int {
-	result := 0
-	for _, b := range mac {
-		result = result<<8 + int(b)
-	}
-	return result
-}
-
 // GenerateMACs returns a slice of MAC address strings.
 // Returns generated MAC addresses or an empty slice on parse errors.
 func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
