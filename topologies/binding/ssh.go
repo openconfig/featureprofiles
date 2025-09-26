@@ -25,11 +25,12 @@ import (
 // sshClient implements the binding.SSHClient interface using an SSH client.
 type sshClient struct {
 	*binding.AbstractSSHClient
-	ssh *ssh.Client
+	ssh     *ssh.Client
+	hostKey []byte
 }
 
-func newSSH(sc *ssh.Client) (*sshClient, error) {
-	return &sshClient{ssh: sc}, nil
+func newSSH(sc *ssh.Client, hk []byte) (*sshClient, error) {
+	return &sshClient{ssh: sc, hostKey: hk}, nil
 }
 
 func (c *sshClient) RunCommand(_ context.Context, cmd string) (binding.CommandResult, error) {
@@ -65,4 +66,8 @@ func (r *commandResult) Output() string {
 
 func (r *commandResult) Error() string {
 	return r.error
+}
+
+func (c *sshClient) HostKey() []byte {
+	return c.hostKey
 }
