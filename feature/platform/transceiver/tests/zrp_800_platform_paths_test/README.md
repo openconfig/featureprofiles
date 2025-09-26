@@ -1,8 +1,8 @@
-# TRANSCEIVER-101: Telemetry: ZR platform OC paths streaming.
+# TRANSCEIVER-103: Telemetry: ZR Plus platform OC paths streaming.
 
 ## Summary
 
-Validate ZR optics module reports telemetry data for all leaves in
+Validate ZR Plus optics module reports telemetry data for all leaves in
 
 ```yaml
     /components/component/:
@@ -15,10 +15,10 @@ Validate ZR optics module reports telemetry data for all leaves in
 
 ## Procedure
 
-*   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
+*   Connect two ZR Plus interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
 
-*   To establish a point to point ZR link ensure the following:
+*   To establish a point to point ZR Plus link ensure the following:
       * Both transceivers state is enabled
       * Both transceivers are set to a valid operational mode
         example 1.      
@@ -27,13 +27,13 @@ Validate ZR optics module reports telemetry data for all leaves in
       * Both transceivers are tuned to a valid centre frequency
         example 196.1 THz.
 
-*   With the ZR link established as explained above, wait until
+*   With the ZR Plus link established as explained above, wait until
     both interfaces oper-status are UP and all the min/avg/max values are 
-    populated. Then verify that the following ZR transceiver telemetry paths 
-    exist and are streamed valid values for both ZR optics.
+    populated. Then verify that the following ZR Plus transceiver telemetry paths 
+    exist and are streamed valid values for both ZR Plus optics.
 
 *   Emulate flaps with the following procedure:
-    *   Enable a pair of ZR interfaces on the DUT as explained above.
+    *   Enable a pair of ZR Plus interfaces on the DUT as explained above.
     *   Disable interface and wait at least one sample interval.
     *   Enable interface.
 
