@@ -132,11 +132,8 @@ func TestMain(m *testing.M) {
 }
 
 type testCase struct {
-	name          string
-	flownames     []string
-	ipv6SrcIp     string
-	dscpValue     int
-	verifyCapture bool
+	name      string
+	flownames []string
 }
 
 func TestMultipleVrfsAndGueDecap(t *testing.T) {
