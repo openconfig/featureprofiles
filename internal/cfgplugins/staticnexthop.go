@@ -236,6 +236,7 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *on
 		cli := ""
 		tunnelConfig := ""
 		ttlConfig := ""
+		tosConfig := ""
 
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -267,11 +268,16 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *on
 				ttlConfig = fmt.Sprintf(`ttl %v`, params.TTL)
 			}
 
+			if params.Dscp != 0 {
+				tosConfig = fmt.Sprintf(`tos %v`, params.Dscp)
+			}
+
 			cli = fmt.Sprintf(`
 				nexthop-group %s type %s
 				%s
 				%s
-				`, params.NexthopGroupName, params.GroupType, tunnelConfig, ttlConfig)
+				%s
+				`, params.NexthopGroupName, params.GroupType, tunnelConfig, ttlConfig, tosConfig)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
