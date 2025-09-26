@@ -62,6 +62,7 @@ whitelist_arguments([
     'test_branch',
     'test_revision',
     'test_pr',
+    'internal_test',
     'sim_use_mtls',
     'test_requires_bootz',
     'collect_dut_info',
