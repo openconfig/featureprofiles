@@ -1,6 +1,8 @@
 package cfgplugins
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -9,6 +11,19 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// OCEncapsulationParams holds parameters for generating the OC Encapsulations config.
+type OCEncapsulationParams struct {
+	Count                        int
+	MPLSLabelCount               int
+	MPLSStaticLabels             []int
+	MPLSStaticLabelsForIPv6      []int
+	MPLSLabelStartForIPv4        int
+	MPLSLabelStartForIPv6        int
+	MPLSLabelStep                int
+	GRETunnelSources             []string
+	GRETunnelDestinationsStartIP string
+}
 
 var (
 	nextHopGroupConfigIPV4Arista = `
@@ -152,6 +167,41 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 		configureNextHopGroups(t, ni, params)
 	}
 
+}
+
+// NextHopGroupConfigScale configures the interface next-hop-group config.
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, encapparams OCEncapsulationParams, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			ipPrefix := strings.Join(strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")[:3], ".")
+			buildConfig := func(prefix string, labels []int) string {
+				var b strings.Builder
+				for i := 1; i <= encapparams.Count; i++ {
+					b.WriteString(fmt.Sprintf(`
+nexthop-group %s%d type mpls-over-gre
+ tos 96
+ ttl 64
+ fec hierarchical`, prefix, i))
+					for entry, src := range encapparams.GRETunnelSources {
+						b.WriteString(fmt.Sprintf(`
+ entry  %d push label-stack %d tunnel-destination %s.%d tunnel-source %s`,
+							entry, labels[i-1], ipPrefix, i, src))
+					}
+					b.WriteString("\n!")
+				}
+				return b.String()
+			}
+
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", encapparams.MPLSStaticLabels))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", encapparams.MPLSStaticLabelsForIPv6))
+
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		configureNextHopGroups(t, ni, params)
+	}
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
