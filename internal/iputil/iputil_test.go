@@ -190,64 +190,61 @@ func TestGenerateIPv6sWithStep(t *testing.T) {
 
 func TestGenerateMACs(t *testing.T) {
 	tests := []struct {
-		name      string
-		startMAC  string
-		count     int
-		stepMAC   string
-		want      []string
-		wantError string
+		name     string
+		startMAC string
+		count    int
+		stepMAC  string
+		want     []string
 	}{
 		{
-			name:      "valid MAC sequence",
-			startMAC:  "00:00:00:00:00:AA",
-			count:     3,
-			stepMAC:   "00:00:00:00:00:01",
-			want:      []string{"00:00:00:00:00:aa", "00:00:00:00:00:ab", "00:00:00:00:00:ac"},
-			wantError: "",
+			name:     "valid MAC sequence",
+			startMAC: "00:00:00:00:00:AA",
+			count:    3,
+			stepMAC:  "00:00:00:00:00:01",
+			want:     []string{"00:00:00:00:00:aa", "00:00:00:00:00:ab", "00:00:00:00:00:ac"},
 		},
 		{
-			name:      "invalid base MAC",
-			startMAC:  "invalid",
-			count:     3,
-			stepMAC:   "00:00:00:00:00:01",
-			wantError: "invalid base MAC",
+			name:     "invalid base MAC",
+			startMAC: "invalid",
+			count:    3,
+			stepMAC:  "00:00:00:00:00:01",
+			want:     []string{}, // invalid MAC → empty list
 		},
 		{
-			name:      "invalid step MAC",
-			startMAC:  "00:00:00:00:00:AA",
-			count:     3,
-			stepMAC:   "invalid",
-			wantError: "invalid step MAC",
+			name:     "invalid step MAC",
+			startMAC: "00:00:00:00:00:AA",
+			count:    3,
+			stepMAC:  "invalid",
+			want:     []string{}, // invalid MAC → empty list
 		},
 		{
-			name:      "negative count",
-			startMAC:  "00:00:00:00:00:AA",
-			count:     -1,
-			stepMAC:   "00:00:00:00:00:01",
-			wantError: "negative count",
+			name:     "negative count",
+			startMAC: "00:00:00:00:00:AA",
+			count:    -1,
+			stepMAC:  "00:00:00:00:00:01",
+			want:     []string{}, // negative count → empty list
 		},
 		{
-			name:      "zero count",
-			startMAC:  "00:00:00:00:00:AA",
-			count:     0,
-			stepMAC:   "00:00:00:00:00:01",
-			want:      []string{},
-			wantError: "",
+			name:     "zero count",
+			startMAC: "00:00:00:00:00:AA",
+			count:    0,
+			stepMAC:  "00:00:00:00:00:01",
+			want:     []string{}, // zero count → empty list
 		},
 		{
-			name:      "overflow MAC",
-			startMAC:  "ff:ff:ff:ff:ff:fe",
-			count:     3,
-			stepMAC:   "00:00:00:00:00:01",
-			wantError: "overflow MAC",
+			name:     "overflow MAC",
+			startMAC: "ff:ff:ff:ff:ff:fe",
+			count:    3,
+			stepMAC:  "00:00:00:00:00:01",
+			want:     []string{}, // overflow → empty list
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := GenerateMACs(tt.startMAC, tt.count, tt.stepMAC)
-			if len(got) == 0 {
-				t.Errorf("failed to generate macs, generateMACs() returned empty list")
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("GenerateMACs() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
