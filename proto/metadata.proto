@@ -942,6 +942,18 @@ message Metadata {
     // Devices that do not support gribi records
     // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
     bool gribi_records_unsupported = 327;
+  
+    // Devices without breakout mode support for full rate.
+    // Nokia: b/435502032
+    bool breakout_mode_unsupported_for_eight_hundred_gb = 328;
+
+    // Devices without port speed and duplex mode support for interface config.
+    // Nokia: b/435502032
+    bool port_speed_duplex_mode_unsupported_for_interface_config = 329;
+
+    // Devices that need explicit breakout interface config.
+    // Nokia: b/435502032
+    bool explicit_breakout_interface_config = 330;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
