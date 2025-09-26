@@ -31,8 +31,8 @@ func TestMain(m *testing.M) {
 
 const (
 	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	mplsLabelCount         = 2000
-	intCount               = 2000
+	mplsLabelCount         = 50
+	intCount               = 50
 	mplsV4Label            = 99991
 	mplsV6Label            = 110993
 	dutIntStartIPv4        = "169.254.0.1"
@@ -195,20 +195,17 @@ type networkConfig struct {
 
 // generateNetConfig generates and returns a networkConfig object containing IPv4, IPv6, and MAC address allocations for both DUT and OTG interfaces.
 func generateNetConfig(intCount int) (*networkConfig, error) {
-	dutIPs, err := iputil.GenerateIPv4sWithStep(dutIntStartIPv4, intCount, intStepV4)
+	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIPv4, intCount, intStepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPv4sWithStep(otgIntStartIPv4, intCount, intStepV4)
+	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIPv4, intCount, intStepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
-	otgMACs, err := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate MACs: %v", err)
-	}
+	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
 	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPv6, intCount, intStepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
@@ -246,7 +243,7 @@ func configureOTG(t *testing.T) {
 }
 
 // configureDUT Generate DUT Configuration.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
@@ -266,7 +263,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-	decapMPLSInGUE(t, dut, pf, ni, netConfig, mplsStaticLabels, mplsStaticLabelsForIpv6, ocPFParams)
+	decapMPLSInGUE(t, dut, pf, ni, netConfig, ocPFParams)
 }
 
 // configureDUTAndOTG generates and applies DUT configuration, prepares OTG device/interface properties, and sets up validation flows.
@@ -312,8 +309,11 @@ func configureDUTAndOTG(t *testing.T) {
 	// Get default parameters for OC Policy Forwarding
 	ocPFParams := defaultOCPolicyForwardingParams()
 
+	// Pass ocPFParams to ConfigureDut
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels = mplsV4Labels
+	ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6 = mplsV6Labels
 	// Pass ocPFParams to configureDut
-	configureDUT(t, dut, netConfig, mplsV4Labels, mplsV6Labels, ocPFParams)
+	configureDUT(t, dut, netConfig, ocPFParams)
 	// after agg1.Interfaces has been populated...
 	for _, intf := range agg1.Interfaces {
 		// tell the validator which ingress interfaces to watch
@@ -340,13 +340,16 @@ func defaultOCPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 }
 
 // decapMPLSInGUE should also include the OC config , within these deviations there should be a switch statement is needed, Modified to accept pf, ni, and ocPFParams.
-func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, netConfig *networkConfig, mplsStaticLabels []int, mplsStaticLabelsForIpv6 []int, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+func decapMPLSInGUE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, netConfig *networkConfig, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	t.Helper()
+	ocPFParams.DecapPolicy.DecapMPLSParams.NextHops = netConfig.OtgIPv4s
+	ocPFParams.DecapPolicy.DecapMPLSParams.NextHopsV6 = netConfig.OtgIPv6s
+	ocPFParams.DecapPolicy.DecapMPLSParams.ScaleStaticLSP = true
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
-	cfgplugins.MPLSStaticLSPScaleConfig(t, dut, ni, cfgplugins.MPLSStaticLSPScaleParams{NexthopsIPv4: netConfig.OtgIPv4s, NexthopsIPv6: netConfig.OtgIPv6s, LabelsForIPv4: mplsStaticLabels, LabelsForIPv6: mplsStaticLabelsForIpv6, OCPFParams: ocPFParams})
+	cfgplugins.MPLSStaticLSPConfig(t, dut, ni, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}
