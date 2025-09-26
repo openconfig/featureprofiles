@@ -297,6 +297,13 @@ func MplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
 		}
+	} else {
+		t.Log("Currently do not have support to enable Mpls through OC, need to uncomment once implemented")
+		// TODO: Currently do not have support to enable Mpls through OC, need to uncomment once implemented.
+		// d := &oc.Root{}
+		// ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		// mpls := ni.GetOrCreateMpls()
+		// mpls.Enabled = ygot.Bool(true)
 	}
 }
 
@@ -309,8 +316,71 @@ func QosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
 		}
-	}
+	} else {
+		// TODO: OC commands for QOS are not in the place. Need to fix the below commented code once implemented the OC commands.
+		d := &oc.Root{}
+		qos := d.GetOrCreateQos()
 
+		// DSCP → traffic-class 0
+		classifier0 := qos.GetOrCreateClassifier("dscp-to-tc0")
+		classifier0.Type = oc.Qos_Classifier_Type_IPV4
+		// classifier0.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+		term0 := classifier0.GetOrCreateTerm("tc0")
+		term0.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{0, 1, 2, 3, 4, 5, 6, 7}
+		// term0.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+		// 	TargetGroup: ygot.String("forwarding-group-tc0"),
+		// }
+
+		// DSCP → traffic-class 1
+		classifier1 := qos.GetOrCreateClassifier("dscp-to-tc1")
+		classifier1.Type = oc.Qos_Classifier_Type_IPV4
+		// classifier1.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+		term1 := classifier1.GetOrCreateTerm("tc1")
+		term1.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{8, 9, 10, 11, 12, 13, 14, 15}
+		// term1.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+		// 	TargetGroup: ygot.String("forwarding-group-tc1"),
+		// }
+
+		// DSCP → traffic-class 4
+		classifier4 := qos.GetOrCreateClassifier("dscp-to-tc4")
+		classifier4.Type = oc.Qos_Classifier_Type_IPV4
+		// classifier4.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+		term4 := classifier4.GetOrCreateTerm("tc4")
+		term4.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{40, 41, 42, 43, 44, 45, 46, 47}
+		// term4.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+		// 	TargetGroup: ygot.String("forwarding-group-tc4"),
+		// }
+
+		// DSCP → traffic-class 7
+		classifier7 := qos.GetOrCreateClassifier("dscp-to-tc7")
+		classifier7.Type = oc.Qos_Classifier_Type_IPV4
+		// classifier7.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+		term7 := classifier7.GetOrCreateTerm("tc7")
+		term7.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{48, 49, 50, 51, 52, 53, 54, 55}
+		// term7.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+		// 	TargetGroup: ygot.String("forwarding-group-tc7"),
+		// }
+
+		// fg0 := qos.GetOrCreateForwardingGroup("forwarding-group-tc0")
+		// fg0.ForwardingClass = ygot.Uint8(0)
+
+		// fg1 := qos.GetOrCreateForwardingGroup("forwarding-group-tc1")
+		// fg1.ForwardingClass = ygot.Uint8(1)
+
+		// fg4 := qos.GetOrCreateForwardingGroup("forwarding-group-tc4")
+		// fg4.ForwardingClass = ygot.Uint8(4)
+
+		// fg7 := qos.GetOrCreateForwardingGroup("forwarding-group-tc7")
+		// fg7.ForwardingClass = ygot.Uint8(7)
+
+		// // Forwarding group for policy-map af3
+		// fg3 := qos.GetOrCreateForwardingGroup("forwarding-group-tc3")
+		// fg3.ForwardingClass = ygot.Uint8(3)
+
+		// policy := qos.GetOrCreatePolicy("af3")
+		// stmt := policy.GetOrCreateStatement("class-default")
+		// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
+	}
 }
 
 // LabelRangeConfig configures the interface label range.
@@ -322,6 +392,29 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
 		}
+	} else {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		mplsObj := ni.GetOrCreateMpls().GetOrCreateGlobal()
+		// Map of local-id → [lowerBound, upperBound]
+		labelRanges := map[string][2]uint32{
+			"bgp-sr":                  {16, 0},
+			"dynamic":                 {16, 0},
+			"isis-sr":                 {16, 0},
+			"l2evpn":                  {16, 0},
+			"l2evpn ethernet-segment": {16, 0},
+			"ospf-sr":                 {16, 0},
+			"srlb":                    {16, 0},
+			"static":                  {16, 1048560},
+		}
+		t.Logf("Mpls Object %v, label range %v", mplsObj, labelRanges)
+		// TODO: The below loop will uncomment once OC paths are in place.
+		// for localID, bounds := range labelRanges {
+		// 	rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
+		// 	rlb.Config.LocalId = ygot.String(localID)
+		// 	rlb.Config.LowerBound = ygot.Uint32(bounds[0])
+		// 	rlb.Config.UpperBound = ygot.Uint32(bounds[1])
+		// }
 	}
 }
 

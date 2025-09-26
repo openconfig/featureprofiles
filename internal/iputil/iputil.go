@@ -57,11 +57,7 @@ func intToIPv4(n uint32) net.IP {
 	)
 }
 
-// GenerateIPv4sWithStep returns a list of IPv4 addresses starting from startIP,
-// generating count addresses by incrementing each step by stepIP. The function
-// validates that startIP and stepIP are valid IPv4 addresses, ensures count is
-// non-negative, and checks that the generated sequence does not exceed the
-// IPv4 address space.
+// GenerateIPv4sWithStep returns a list of IPv4 addresses starting from startIP, generating count addresses by incrementing each step by stepIP. The function validates that startIP and stepIP are valid IPv4 addresses, ensures count is non-negative, and checks that the generated sequence does not exceed the IPv4 address space.
 func GenerateIPv4sWithStep(startIP string, count int, stepIP string) ([]string, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("count cannot be negative")
@@ -115,11 +111,7 @@ func bigIntToIP(ipInt *big.Int) net.IP {
 	return net.IP(ipBytes)
 }
 
-// GenerateIPv6sWithStep returns a list of IPv6 addresses starting from startIP,
-// generating count addresses by incrementing each step by stepIP. The function
-// validates that startIP and stepIP are valid IPv6 addresses, ensures count is
-// non-negative, and checks that the generated sequence does not exceed the
-// IPv6 address space.
+// GenerateIPv6sWithStep returns a list of IPv6 addresses starting from startIP, generating count addresses by incrementing each step by stepIP. The function validates that startIP and stepIP are valid IPv6 addresses, ensures count is non-negative, and checks that the generated sequence does not exceed the IPv6 address space.
 func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("count cannot be negative")
@@ -168,11 +160,7 @@ func macToInt(mac net.HardwareAddr) uint64 {
 	return result
 }
 
-// GenerateMACs returns a list of MAC addresses starting from mac, generating
-// count addresses by incrementing each step by stepMACStr. The function
-// validates that both the base and step MAC addresses are valid 48-bit MACs,
-// ensures count is non-negative, and checks that the generated sequence does
-// not exceed the MAC address space.
+// GenerateMACs returns a list of MAC addresses starting from mac, generating count addresses by incrementing each step by stepMACStr. The function validates that both the base and step MAC addresses are valid 48-bit MACs, ensures count is non-negative, and checks that the generated sequence does not exceed the MAC address space.
 func GenerateMACs(mac string, count int, stepMACStr string) ([]string, error) {
 	if count < 0 {
 		return nil, fmt.Errorf("count cannot be negative")

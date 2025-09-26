@@ -111,10 +111,10 @@ func TestGenerateIPv4sWithStep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateIPv4sWithStep(tt.startIP, tt.count, tt.stepIP)
 			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
-				t.Errorf("GenerateIPv4sWithStep() unexpected error (-want,+got): %s", diff)
+				t.Errorf("generateIPv4sWithStep() unexpected error (-want,+got): %s", diff)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("GenerateIPv4sWithStep() mismatch (-want +got):\n%s", diff)
+				t.Errorf("generateIPv4sWithStep() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -179,10 +179,10 @@ func TestGenerateIPv6sWithStep(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateIPv6sWithStep(tt.startIP, tt.count, tt.stepIP)
 			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
-				t.Errorf("GenerateIPv6sWithStep() unexpected error (-want,+got): %s", diff)
+				t.Errorf("generateIPv6sWithStep() unexpected error (-want,+got): %s", diff)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("GenerateIPv6sWithStep() mismatch (-want +got):\n%s", diff)
+				t.Errorf("generateIPv6sWithStep() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
@@ -247,10 +247,10 @@ func TestGenerateMACs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := GenerateMACs(tt.startMAC, tt.count, tt.stepMAC)
 			if diff := errdiff.Substring(err, tt.wantError); diff != "" {
-				t.Errorf("GenerateMACs() error = %v, wantError %v", err, tt.wantError)
+				t.Errorf("generateMACs() error = %v, wantError %v", err, tt.wantError)
 			}
 			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("GenerateMACs() mismatch (-want +got):\n%s", cmp.Diff(tt.want, got))
+				t.Errorf("generateMACs() mismatch (-want +got):\n%s", cmp.Diff(tt.want, got))
 			}
 		})
 	}
