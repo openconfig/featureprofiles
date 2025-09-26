@@ -16,6 +16,7 @@ package system_ntp_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -37,7 +38,9 @@ var (
 	dutlo0Attrs = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
+		IPv6:    "2001:db8::1:1:1:1",
 		IPv4Len: 32,
+		IPv6Len: 128,
 	}
 	loopbackIntf = map[ondatra.Vendor]int{
 		ondatra.JUNIPER: 0,
@@ -133,7 +136,16 @@ func TestNtpServerConfigurability(t *testing.T) {
 				ntp.SetEnabled(true)
 				for _, address := range testCase.addresses {
 					server := ntp.GetOrCreateServer(address)
-					server.SetSourceAddress(dutlo0Attrs.IPv4)
+					switch dut.Vendor() {
+					case ondatra.ARISTA:
+						if strings.Contains(address, ":") {
+							server.SetSourceAddress(dutlo0Attrs.IPv6)
+						} else {
+							server.SetSourceAddress(dutlo0Attrs.IPv4)
+						}
+					default:
+						server.SetSourceAddress(dutlo0Attrs.IPv6)
+					}
 					if testCase.vrf != "" {
 						server.SetNetworkInstance(testCase.vrf)
 					}
