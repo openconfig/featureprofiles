@@ -115,7 +115,7 @@ func configureInterfaceID(t *testing.T, dut *ondatra.DUTDevice) {
 			strings.Contains(intfName, "PTP") {
 			continue
 		}
-		// Create interface config structure with only the ID field
+		// Create interface config structure with the ID field
 		intfConfig := &oc.Interface{
 			Type: intf.GetType(),
 			Id:   ygot.Uint32(id),
