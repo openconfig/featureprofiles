@@ -27,13 +27,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-// Define a struct to hold all parameters.
-type MPLSStaticLSPScaleParams struct {
-	NexthopsIPv4  []string
-	NexthopsIPv6  []string
-	LabelsForIPv4 []int
-	LabelsForIPv6 []int
-	OCPFParams    OcPolicyForwardingParams
+type DecapMPLSParams struct {
+	ScaleStaticLSP          bool
+	MplsStaticLabels        []int
+	MplsStaticLabelsForIPv6 []int
+	NextHops                []string
+	NextHopsV6              []string
 }
 
 // MPLSStaticLSP configures static MPLS label binding using OC on device.
@@ -280,40 +279,68 @@ func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDev
 	}
 }
 
-// MPLSStaticLSPScaleConfig configures static MPLS LSP entries on the DUT.It programs either CLI-based configurations for vendors that do not support OpenConfig static MPLS, or uses OpenConfig models where supported. The configuration scales across IPv4 and IPv6 next hops and labels.
-func MPLSStaticLSPScaleConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, cfg MPLSStaticLSPScaleParams) {
+// mplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
+func mplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
 	t.Helper()
+	if params.DecapPolicy.DecapMPLSParams.ScaleStaticLSP {
+		mplsCfgv4 := ni.GetOrCreateMpls()
+		for i, nexthop := range params.DecapPolicy.DecapMPLSParams.NextHops {
+			staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(
+				fmt.Sprintf("%s%d", params.DecapPolicy.StaticLSPNameIPv4, i),
+			)
+			egressv4 := staticMplsCfgv4.GetOrCreateEgress()
+			egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.DecapMPLSParams.MplsStaticLabels[i])
+			egressv4.NextHop = ygot.String(nexthop)
+		}
+		mplsCfgv6 := ni.GetOrCreateMpls()
+		for i, nexthop := range params.DecapPolicy.DecapMPLSParams.NextHopsV6 {
+			staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(
+				fmt.Sprintf("%s%d", params.DecapPolicy.StaticLSPNameIPv6, i),
+			)
+			egressv6 := staticMplsCfgv6.GetOrCreateEgress()
+			egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6[i])
+			egressv6.NextHop = ygot.String(nexthop)
+		}
+
+	} else {
+		mplsCfgv4 := ni.GetOrCreateMpls()
+		staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
+		egressv4 := staticMplsCfgv4.GetOrCreateEgress()
+		egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
+		egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
+
+		mplsCfgv6 := ni.GetOrCreateMpls()
+		staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
+		egressv6 := staticMplsCfgv6.GetOrCreateEgress()
+		egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
+		egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
+	}
+}
+
+// MPLSStaticLSPConfig configures the interface mpls static lsp.
+// TODO: Need to refactor this function by adding one more parameter ocMPLSStaticLSPParams
+func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
 	if deviations.StaticMplsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			var mplsStaticLspConfig, mplsStaticLspConfigV6 string
-			for i, nexthop := range cfg.NexthopsIPv4 {
-				mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", cfg.LabelsForIPv4[i], nexthop)
+			if ocPFParams.DecapPolicy.DecapMPLSParams.ScaleStaticLSP {
+				var mplsStaticLspConfig string
+				var mplsStaticLspConfigV6 string
+				for i, nexthop := range ocPFParams.DecapPolicy.DecapMPLSParams.NextHops {
+					mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels[i], nexthop)
+				}
+				helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
+				for i, nexthopIpv6 := range ocPFParams.DecapPolicy.DecapMPLSParams.NextHopsV6 {
+					mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6[i], nexthopIpv6)
+				}
+				helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, staticLSPArista)
 			}
-			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
-			for i, nexthopIpv6 := range cfg.NexthopsIPv6 {
-				mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", cfg.LabelsForIPv6[i], nexthopIpv6)
-			}
-			helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
 		}
 	} else {
-		mplsCfg := ni.GetOrCreateMpls()
-		// IPv4 static LSPs
-		for i, lbl := range cfg.LabelsForIPv4 {
-			staticLsp := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(fmt.Sprintf("static-v4-%d", lbl))
-			egress := staticLsp.GetOrCreateEgress()
-			egress.IncomingLabel = oc.UnionUint32(uint32(lbl))
-			egress.NextHop = ygot.String(cfg.NexthopsIPv4[i])
-		}
-
-		// IPv6 static LSPs
-		for i, lbl := range cfg.LabelsForIPv6 {
-			staticLsp := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(fmt.Sprintf("static-v6-%d", lbl))
-			egress := staticLsp.GetOrCreateEgress()
-			egress.IncomingLabel = oc.UnionUint32(uint32(lbl))
-			egress.NextHop = ygot.String(cfg.NexthopsIPv6[i])
-		}
+		mplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
