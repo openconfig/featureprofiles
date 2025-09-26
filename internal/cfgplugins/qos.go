@@ -153,6 +153,8 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
 			}
 		}
+
+		// DSCP remark configuration is not supported. Adding external static configuration after QoS OC configuration
 		if !deviations.QosRemarkOCUnsupported(dut) {
 			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
 		}
@@ -376,6 +378,7 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	}
 }
 
+// External static configuration for DSCP remark. Will be configured after QoS OC configuration.
 func ConfigureQosDscpRemarkSpecific(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.QosRemarkOCUnsupported(dut) {
 		switch dut.Vendor() {
