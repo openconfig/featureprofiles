@@ -469,19 +469,15 @@ func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *onda
 	}
 }
 
-func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
+func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice) {
 	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
 		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if params.Subinterface != 0 {
-				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
-			}
-			cli = fmt.Sprintf(`
-			patch panel
-				patch patch-1
-				   no connector interface %s`,
-				params.IntfName)
+			// if params.Subinterface != 0 {
+			// 	params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
+			// }
+			cli = "patch panel\n no patch patch-1"
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
