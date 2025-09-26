@@ -88,11 +88,6 @@ var (
 	}
 )
 
-// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
-func init() {
-	opmode = 1
-}
-
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
 
