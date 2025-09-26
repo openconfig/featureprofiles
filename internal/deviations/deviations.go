@@ -1645,6 +1645,12 @@ func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
 }
 
+// CiscoxrLaserFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrLaserFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrLaserFt()
+}
+
 // BreakoutModeUnsupportedForEightHundredGb returns true if the device does not support breakout mode for 800G ports.
 func BreakoutModeUnsupportedForEightHundredGb(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBreakoutModeUnsupportedForEightHundredGb()
