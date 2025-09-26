@@ -134,7 +134,6 @@ func TestMain(m *testing.M) {
 type testCase struct {
 	name          string
 	flownames     []string
-	ipv4SrcIp     string
 	ipv6SrcIp     string
 	dscpValue     int
 	verifyCapture bool
@@ -170,49 +169,28 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:          "PF-2.3.1: [Baseline] Traffic flow between ATE:Port1 and ATE:Port2 via DUT's Default VRF",
-			flownames:     []string{"1to6v4", "2to7v4", "3to8v4", "4to9v4", "5to10v4", "1to6v6", "2to7v6", "3to8v6", "4to9v6", "5to10v6"},
-			verifyCapture: false,
+			name:      "PF-2.3.1: [Baseline] Traffic flow between ATE:Port1 and ATE:Port2 via DUT's Default VRF",
+			flownames: []string{"1to6v4", "2to7v4", "3to8v4", "4to9v4", "5to10v4", "1to6v6", "2to7v6", "3to8v6", "4to9v6", "5to10v6"},
 		},
 		{
-			name:          "PF-2.3.2: BE1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "1to6v6_encapped", "2to7v4", "3to8v4", "4to9v4", "5to10v4", "2to7v6", "3to8v6", "4to9v6", "5to10v6"},
-			ipv4SrcIp:     IPv4Prefix1,
-			ipv6SrcIp:     IPv6Prefix1,
-			dscpValue:     0,
-			verifyCapture: true,
+			name:      "PF-2.3.2: BE1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
+			flownames: []string{"1to6v4_encapped", "1to6v6_encapped", "2to7v4", "3to8v4", "4to9v4", "5to10v4", "2to7v6", "3to8v6", "4to9v6", "5to10v6"},
 		},
 		{
-			name:          "PF-2.3.3: BE1 and AF1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v4", "4to9v4", "5to10v4", "3to8v6", "4to9v6", "5to10v6"},
-			ipv4SrcIp:     IPv4Prefix2,
-			ipv6SrcIp:     IPv6Prefix2,
-			dscpValue:     8,
-			verifyCapture: true,
+			name:      "PF-2.3.3: BE1 and AF1 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
+			flownames: []string{"1to6v4_encapped", "2to7v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v4", "4to9v4", "5to10v4", "3to8v6", "4to9v6", "5to10v6"},
 		},
 		{
-			name:          "PF-2.3.4: BE1, AF1 and AF2 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v4", "5to10v4", "4to9v6", "5to10v6"},
-			ipv4SrcIp:     IPv4Prefix3,
-			ipv6SrcIp:     IPv6Prefix3,
-			dscpValue:     16,
-			verifyCapture: true,
+			name:      "PF-2.3.4: BE1, AF1 and AF2 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
+			flownames: []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v4", "5to10v4", "4to9v6", "5to10v6"},
 		},
 		{
-			name:          "PF-2.3.5: BE1, AF1, AF2 and AF3 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "4to9v4_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped", "5to10v4", "5to10v6"},
-			ipv4SrcIp:     IPv4Prefix4,
-			ipv6SrcIp:     IPv6Prefix4,
-			dscpValue:     24,
-			verifyCapture: true,
+			name:      "PF-2.3.5: BE1, AF1, AF2 and AF3 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
+			flownames: []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "1to6v6_encapped", "4to9v4_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped", "5to10v4", "5to10v6"},
 		},
 		{
-			name:          "PF-2.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
-			flownames:     []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "4to9v4_encapped", "5to10v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped", "5to10v6_encapped"},
-			ipv4SrcIp:     IPv4Prefix5,
-			ipv6SrcIp:     IPv6Prefix5,
-			dscpValue:     32,
-			verifyCapture: true,
+			name:      "PF-2.3.6: BE1, AF1, AF2, AF3 and AF4 traffic from ATE:Port1 to ATE:Port2 simulated to be GUE Encaped and sent to the DUT's Default VRF by ATE:Port2",
+			flownames: []string{"1to6v4_encapped", "2to7v4_encapped", "3to8v4_encapped", "4to9v4_encapped", "5to10v4_encapped", "1to6v6_encapped", "2to7v6_encapped", "3to8v6_encapped", "4to9v6_encapped", "5to10v6_encapped"},
 		},
 	}
 
