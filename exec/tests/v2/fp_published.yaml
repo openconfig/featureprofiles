@@ -1303,6 +1303,20 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
+  - name: TRANSCEIVER-101 (Telemetry ZR platform OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_platform_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-102 (Telemetry ZR terminal-device OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_terminal_device_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
   - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/logical_channels/tests/zr_logical_channels_test
     priority: 2
