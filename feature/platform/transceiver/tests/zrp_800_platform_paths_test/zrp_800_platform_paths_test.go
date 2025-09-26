@@ -1,4 +1,4 @@
-package zr_800_platform_paths_test
+package zrp_800_platform_paths_test
 
 import (
 	"flag"
@@ -132,7 +132,7 @@ func TestComponentPaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 					awaitRxPowerStats(t, p, params, oc.Interface_OperStatus_DOWN)
 				}
-				time.Sleep(extraWaitTime) // // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
+				time.Sleep(extraWaitTime) // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
 				for _, p := range dut.Ports() {
 					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
 				}
@@ -148,7 +148,7 @@ func TestComponentPaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 					awaitRxPowerStats(t, p, params, oc.Interface_OperStatus_UP)
 				}
-				time.Sleep(extraWaitTime) // // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
+				time.Sleep(extraWaitTime) // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
 				for _, p := range dut.Ports() {
 					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
 				}
