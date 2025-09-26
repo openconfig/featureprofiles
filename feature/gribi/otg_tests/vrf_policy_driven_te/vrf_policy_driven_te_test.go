@@ -862,6 +862,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIpHdr.Dst().SetValue(flowValues.outHdrDstIP)
+	outerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 	outerIpHdr.Priority().Raw().SetValue(outerTrafficClass)
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
@@ -1752,7 +1753,7 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		} else {
 			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
-			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != expectedInHdrDscp {
+			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
@@ -1960,31 +1961,31 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						outHdrSrcIP: ipv4OuterSrc111,
 						outHdrDstIP: ipv4OuterDst111,
 						outHdrDscp:  []uint32{dscpEncapNoMatch},
-						outHdrEcn:   []uint32{ecnCapable1},
+						outHdrEcn:   []uint32{ecnCongestionExperienced},
 						isInnHdrV4:  true,
 						InnHdrSrcIP: atePort1.IPv4,
 						InnHdrDstIP: ipv4InnerDst,
-						inHdrDscp:   []uint32{dscpEncapA1},               // Different than outer DSCP
-						inHdrEcn:    []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:   []uint32{dscpEncapNoMatch},
+						inHdrEcn:    []uint32{ecnCapable1}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP:   ipv4OuterSrc111,
 						outHdrDstIP:   ipv4OuterDst111,
 						outHdrDscp:    []uint32{dscpEncapNoMatch},
-						outHdrEcn:     []uint32{ecnCapable1},
+						outHdrEcn:     []uint32{ecnCongestionExperienced},
 						isInnHdrV4:    false,
 						InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDst,
-						inHdrDscp:     []uint32{dscpEncapA1},               // Different than outer DSCP
-						inHdrEcn:      []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:     []uint32{dscpEncapNoMatch},
+						inHdrEcn:      []uint32{ecnCapable1}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDst,
-						inHdrDscp:     dscpEncapNoMatch, // We expect the outer DSCP to be copied to the inner packet.
-						inHdrEcn:      ecnCapable1,      // We expect the outer ECN to be copied to the inner packet.
+						inHdrDscp:     dscpEncapNoMatch,
+						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
 						validateTTL:   true,
 						validateDecap: true})
 				})

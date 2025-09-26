@@ -17,17 +17,18 @@ is roughly aligned with the OpenConfig data model tree.  Top level feature
 folders should have a cfgplugins file using the same name.  
 
 Each function in `cfgplugins` should define a struct to hold the required
-attributes, which is then passed to the configuration generation function. The
-code in the function should construct and return an ondatra `gnmi.BatchReplace`
-object. Here is an
-[example](https://github.com/openconfig/featureprofiles/blob/bc105a443b44d862c70e91112708b5a339c71ae5/internal/cfgplugins/sflow.go#L52))
+attributes, which is then passed to the configuration generation function.  The
+configuration parameters should be defined in a struct and passed by reference.
+(See [example](https://github.com/openconfig/featureprofiles/blob/f724d8371724a5045382b350464050df3e027d6c/internal/cfgplugins/sflow.go#L43))
+
+The code in the cfgplugin function should construct and return an ondatra
+`gnmi.BatchReplace` object. (See [example](https://github.com/openconfig/featureprofiles/blob/f724d8371724a5045382b350464050df3e027d6c/internal/cfgplugins/sflow.go#L74-L75))
 
 Test code (`_test.go` files) should call as many `cfgplugins` as needed to
 compose the desired configuration.  After assembling the configuration needed
 for a particular test or subtest, the test should call `batch.Set()` to replace
 the portion of the configuration on the DUT described by in the batch object.
-Here is a simple
-[example](https://github.com/openconfig/featureprofiles/blob/main/feature/sflow/otg_tests/sflow_base_test/sflow_base_test.go#L212-L215).
+(See [example](https://github.com/openconfig/featureprofiles/blob/f724d8371724a5045382b350464050df3e027d6c/feature/sflow/otg_tests/sflow_base_test/sflow_base_test.go#L253-L256).
 
 The idea behind placing the `.Set` call in the test code is this is modifying
 the DUT and is what is being tested.  In other words, we are not testing the
