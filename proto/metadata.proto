@@ -955,6 +955,11 @@ message Metadata {
     // Nokia: b/435502032
     bool explicit_breakout_interface_config = 330;
 
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 331;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
