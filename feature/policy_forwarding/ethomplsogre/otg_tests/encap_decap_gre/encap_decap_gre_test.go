@@ -57,6 +57,7 @@ const (
 
 var (
 	sfBatch      *gnmi.SetBatch
+	ni           *oc.NetworkInstance
 	aggID        string
 	tunnelSrcIPs = []string{}
 	custPort     = "port1"
@@ -254,9 +255,6 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 
-	// Apply service policy on interface
-	cfgplugins.InterfaceQosClassificationConfigApply(t, dut, dut.Port(t, custPort).Name())
-
 	configureStaticRoute(t, dut)
 
 	t.Log("Configuring BGP")
@@ -359,14 +357,13 @@ func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string,
 		cfgplugins.ConfigureMplsStaticPseudowire(t, sfBatch, dut, pseudowireCfg)
 	case "attachment":
 		// Accepts packets only for the specified VLAN
-		cfgplugins.RemoveMplsStaticPseudowire(t, sfBatch, dut, pseudowireCfg)
+		cfgplugins.RemoveMplsStaticPseudowire(t, sfBatch, dut)
 		pseudowireCfg.Subinterface = subinterfaces
 		cfgplugins.ConfigureMplsStaticPseudowire(t, sfBatch, dut, pseudowireCfg)
 		vlanClientCfg.RemoveVlanConfig = false
 		cfgplugins.VlanClientEncapsulation(t, sfBatch, dut, vlanClientCfg)
 	case "remove":
-		pseudowireCfg.Subinterface = subinterfaces
-		cfgplugins.RemoveMplsStaticPseudowire(t, sfBatch, dut, pseudowireCfg)
+		cfgplugins.RemoveMplsStaticPseudowire(t, sfBatch, dut)
 		vlanClientCfg.RemoveVlanConfig = true
 		cfgplugins.VlanClientEncapsulation(t, sfBatch, dut, vlanClientCfg)
 	}
@@ -936,6 +933,15 @@ func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 }
 
 func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	greNextHopGroupCfg := cfgplugins.GreNextHopGroupParams{
+		NetworkInstance:  ni,
+		NexthopGroupName: nexthopGroupName,
+		GroupType:        nexthopType,
+		Dscp:             dscp,
+	}
+
+	cfgplugins.NextHopGroupConfigForMultipleIP(t, sfBatch, dut, greNextHopGroupCfg)
+
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
