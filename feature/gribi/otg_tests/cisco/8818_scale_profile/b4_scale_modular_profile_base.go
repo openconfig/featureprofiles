@@ -1807,6 +1807,11 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	configStaticRoute(t, peer, "100.101.0.0/16", otgDst.IPv4, "", "", false)
 
 	gnmi.Replace(t, peer, gnmi.OC().System().MacAddress().RoutingMac().Config(), magicMac)
+
+	// configure P4RT
+	configureDeviceID(t, dut)
+	configureInterfaceID(t, dut)
+
 	gArgs = tcArgs
 	bConfig.setConfigured(true)
 	return tcArgs
