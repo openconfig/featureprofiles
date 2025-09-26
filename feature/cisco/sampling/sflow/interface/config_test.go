@@ -116,7 +116,19 @@ func TestNameAtContainer(t *testing.T) {
 	var baseConfig = setupSampling(t, dut)
 	defer teardownSampling(t, dut, baseConfig)
 
+	// Fetch interface list to determine the correct interface name
 	interfaceName := "FourHundredGigE0/0/0/0"
+	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
+	for _, intf := range interfaces {
+		if intf == "EightHundredGigE0/0/0/0" {
+			interfaceName = "EightHundredGigE0/0/0/0"
+			// Remove last two elements and append new ones
+			testNameInput = testNameInput[:len(testNameInput)-2]
+			testNameInput = append(testNameInput, "EightHundredGigE0/0/0/0", "EightHundredGigE0/0/0/0.1")
+			break
+		}
+	}
+
 	var subInterfaceNumber uint32 = 1
 	t.Logf("Configuring subinterface:%v in Intf %v", subInterfaceNumber, interfaceName)
 	configureSubInterface(t, dut, interfaceName, subInterfaceNumber)

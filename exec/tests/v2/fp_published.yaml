@@ -319,8 +319,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-
-    pr: 3015
   - name: RT-5.7 (Aggregate Not Viable All)
     path: feature/interface/aggregate/otg_tests/aggregate_all_not_viable_test
     owners:
@@ -836,9 +834,9 @@ tests:
     path: feature/gnoi/factory_reset/tests/factory_reset_test
     owners:
       - kjahed
-    mustpass: true
+    mustpass: false
     timeout: 3600
-    skip: true # danger?
+    #skip: true # danger?
     priority: 10000
     groups: [ancx,P3]
   - name: FP-1.1 (Power admin DOWN/UP Test)
@@ -898,8 +896,6 @@ tests:
     mustpass: false
     timeout: 1800
     priority: 65
-    pr: 1710
-    internal: true
     owners:
       - harikri4
   - name: Credentialz-1 (Password console login)
@@ -1217,6 +1213,7 @@ tests:
       - mananpat
     mustpass: true
     timeout: 4200
+    pr: 4645
   - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
     path: feature/platform/transceiver/tests/zrp_tunable_parameters_test
     priority: 2
@@ -1307,6 +1304,38 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
+  - name: TRANSCEIVER-101 (Telemetry ZR platform OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_platform_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-102 (Telemetry ZR terminal-device OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_terminal_device_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-103 (Telemetry ZR Plus platform OC paths streaming)
+    path: feature/platform/transceiver/tests/zrp_800_platform_paths_test
+    priority: 2
+     args:
+      - '-operational_mode="6003"'  
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-104 (Telemetry ZR Plus terminal-device OC paths streaming)
+    path: feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test
+    priority: 2
+     args:
+      - '-operational_mode="6003"'  
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
   - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/logical_channels/tests/zr_logical_channels_test
     priority: 2
