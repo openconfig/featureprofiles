@@ -1321,7 +1321,7 @@ tests:
   - name: TRANSCEIVER-103 (Telemetry ZR Plus platform OC paths streaming)
     path: feature/platform/transceiver/tests/zrp_800_platform_paths_test
     priority: 2
-     args:
+    args:
       - '-operational_mode="6003"'  
     owners:
       - mananpat
@@ -1330,7 +1330,7 @@ tests:
   - name: TRANSCEIVER-104 (Telemetry ZR Plus terminal-device OC paths streaming)
     path: feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test
     priority: 2
-     args:
+    args:
       - '-operational_mode="6003"'  
     owners:
       - mananpat
