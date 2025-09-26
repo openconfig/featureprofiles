@@ -448,6 +448,51 @@ according to the STALE-ROUTE-POLICY, as validated in RT-1.35.2.
 
 Repeat the tests above, with ExRR configuration under the peer-group hierarchy.
 
+## Canonical OC
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "neighbor-address": "192.168.1.1"
+                      },
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true
+                        }
+                      },
+                      "neighbor-address": "192.168.1.1"
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Canonical OpenConfig for ERR
 
 ```
@@ -539,4 +584,5 @@ rpcs:
     system.System.KillProcess:
     # bgp.ClearBGPNeighborRequest.Hard:
 ```
+
 

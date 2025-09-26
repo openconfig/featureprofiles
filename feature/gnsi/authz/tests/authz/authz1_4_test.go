@@ -87,7 +87,7 @@ type access struct {
 type authorizationTable map[string]access
 
 var authTable = authorizationTable{
-	//table: map[string]access{
+	// table: map[string]access{
 	"cert_user_admin": struct {
 		allowed []*gnxi.RPC
 		denied  []*gnxi.RPC
@@ -213,7 +213,8 @@ func TestAuthz1(t *testing.T) {
 		if !ok {
 			t.Fatal("Policy policy-everyone-can-gnmi-not-gribi is not loaded from policy json file")
 		}
-		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.GnsiAuthzAllRPC})
 		// Rotate the policy.
 		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false)
 

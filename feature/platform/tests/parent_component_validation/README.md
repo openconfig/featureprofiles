@@ -34,6 +34,44 @@ rpcs:
     gNMI.Get:
 ```
 
+#### Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "Ethernet-1/1-Port"
+        },
+        "name": "Ethernet-1/1-Port",
+        "state": {
+          "parent": "SwitchChip1/0"
+        }
+      },
+      {
+        "config": {
+          "name": "SwitchChip1/0"
+        },
+        "name": "SwitchChip1/0"
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "ethernet-1/1"
+        },
+        "name": "ethernet-1/1",
+        "state": {
+          "hardware-port": "Ethernet-1/1-Port"
+        }
+      }
+    ]
+  }
+}
+```
+
 ## Minimum DUT Platform Requirement
 
 - FFF

@@ -15,10 +15,10 @@
 package passwordconsolelogin_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -41,11 +41,13 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
+	// target := credz.GetDutTarget(t, dut)
 
 	// Setup test user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
+
+	t.Logf("Rotating user password on DUT")
 	credz.RotateUserPassword(t, dut, username, password, passwordVersion, uint64(passwordCreatedOn))
 
 	testCases := []struct {
@@ -73,11 +75,12 @@ func TestCredentialz(t *testing.T) {
 			expectFail:    true,
 		},
 	}
-
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Verify ssh succeeds/fails based on expected result.
-			client, err := credz.SSHWithPassword(target, tc.loginUser, tc.loginPassword)
+			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			defer cancel()
+			client, err := credz.SSHWithPassword(ctx, dut, tc.loginUser, tc.loginPassword)
 			if tc.expectFail {
 				if err == nil {
 					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
@@ -92,18 +95,12 @@ func TestCredentialz(t *testing.T) {
 			// Verify password telemetry.
 			userState := gnmi.Get(t, dut, gnmi.OC().System().Aaa().Authentication().User(username).State())
 			gotPasswordVersion := userState.GetPasswordVersion()
-			if !cmp.Equal(gotPasswordVersion, passwordVersion) {
-				t.Fatalf(
-					"Telemetry reports password version is not correctn\tgot: %s\n\twant: %s",
-					gotPasswordVersion, passwordVersion,
-				)
+			if got, want := gotPasswordVersion, passwordVersion; got != want {
+				t.Fatalf("Telemetry reports password version is not correct\n\tgot: %s\n\twant: %s", got, want)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if !cmp.Equal(time.Unix(0, int64(gotPasswordCreatedOn)), time.Unix(passwordCreatedOn, 0)) {
-				t.Fatalf(
-					"Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d",
-					gotPasswordCreatedOn, passwordCreatedOn,
-				)
+			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn); got != want {
+				t.Fatalf("Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d", got, want)
 			}
 		})
 	}
