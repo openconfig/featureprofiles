@@ -389,47 +389,51 @@ func testGrpcListenAddress(t *testing.T) {
 
 	}
 
-	t.Run("Modify leaf-list", func(t *testing.T) {
-		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
-		address1 := []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}
-		defer observer.RecordYgot(t, "SUBSCRIBE", path)
-
-		if err := gnmi.Update(t, dut, path.Config(), address1); err != nil {
-			t.Fatalf("Failed to update listen address: %v", err)
-		}
-		state1 := gnmi.Get(t, dut, path.State())
-		got1 := util.FirstOrFatal(t, state1, "no listen-address state after first update")
-		if got1 != address1[0] {
-			t.Fatalf("Listen address mismatch: got %v , want %v", got1, listenAdd)
-		}
-		// append the second address to the leaf-list
-		updatedLeafList := append(address1, oc.UnionString("1.1.1.1"))
-		if err := gnmi.Replace(t, dut, path.Config(), updatedLeafList); err != nil {
-			t.Fatalf("Replace listen address failed: %v", err)
-		}
-		got2 := gnmi.Get(t, dut, path.State())
-		if len(got2) != len(updatedLeafList) {
-			t.Fatalf("leaf-list length mismatch, got: %d, want: %d", len(got2), len(updatedLeafList))
-		} else {
-			for i := range updatedLeafList {
-				if got2[i] != updatedLeafList[i] {
-					t.Fatalf("leaf-list update mismatch, got: %v, want: %v", got2[i], updatedLeafList[i])
-				}
-			}
-		}
-
-		// delete all addresses and check for presence of the default address "ANY"
-		if err := gnmi.Delete(t, dut, path.Config()); err != nil {
-			t.Errorf("Failed to delete listen addresses: %v", err)
-		}
-		got3 := gnmi.Get(t, dut, path.State())
-		if len(got3) != 1 {
-			t.Errorf("More than 1 listen-addresses present after deletion")
-		} else if got3[0] != oc.GrpcServer_ListenAddresses_ANY {
-			t.Errorf("Expected default listen-address ANY, got: %v", got3[0])
-		}
-
-	})
+	// NOTE 22 September 2025: via triage of CSCwr26561, grpc DE team confirmed that changing from ANY to IP address will cause the existing session to reset
+	// and connect on the newly updated address. so the below testcase is invalid as ondatra Update will fail post reset
+	// as the exact timing is not deterministic everytime. commenting the test for historical context.
+	// similar functionality can be covered via multi-grpc server feature FEAT-33368
+	//t.Run("Modify leaf-list", func(t *testing.T) {
+	//	path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
+	//	address1 := []oc.System_GrpcServer_ListenAddresses_Union{oc.UnionString(listenAdd)}
+	//	defer observer.RecordYgot(t, "SUBSCRIBE", path)
+	//
+	//	if err := gnmi.Update(t, dut, path.Config(), address1); err != nil {
+	//		t.Fatalf("Failed to update listen address: %v", err)
+	//	}
+	//	state1 := gnmi.Get(t, dut, path.State())
+	//	got1 := util.FirstOrFatal(t, state1, "no listen-address state after first update")
+	//	if got1 != address1[0] {
+	//		t.Fatalf("Listen address mismatch: got %v , want %v", got1, listenAdd)
+	//	}
+	//	// append the second address to the leaf-list
+	//	updatedLeafList := append(address1, oc.UnionString("1.1.1.1"))
+	//	if err := gnmi.Replace(t, dut, path.Config(), updatedLeafList); err != nil {
+	//		t.Fatalf("Replace listen address failed: %v", err)
+	//	}
+	//	got2 := gnmi.Get(t, dut, path.State())
+	//	if len(got2) != len(updatedLeafList) {
+	//		t.Fatalf("leaf-list length mismatch, got: %d, want: %d", len(got2), len(updatedLeafList))
+	//	} else {
+	//		for i := range updatedLeafList {
+	//			if got2[i] != updatedLeafList[i] {
+	//				t.Fatalf("leaf-list update mismatch, got: %v, want: %v", got2[i], updatedLeafList[i])
+	//			}
+	//		}
+	//	}
+	//
+	//	// delete all addresses and check for presence of the default address "ANY"
+	//	if err := gnmi.Delete(t, dut, path.Config()); err != nil {
+	//		t.Errorf("Failed to delete listen addresses: %v", err)
+	//	}
+	//	got3 := gnmi.Get(t, dut, path.State())
+	//	if len(got3) != 1 {
+	//		t.Errorf("More than 1 listen-addresses present after deletion")
+	//	} else if got3[0] != oc.GrpcServer_ListenAddresses_ANY {
+	//		t.Errorf("Expected default listen-address ANY, got: %v", got3[0])
+	//	}
+	//
+	//})
 
 	t.Run("Process restart emsd and get updated listen-address", func(t *testing.T) {
 		path := gnmi.OC().System().GrpcServer("DEFAULT").ListenAddresses()
