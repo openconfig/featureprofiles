@@ -42,16 +42,6 @@ const (
 	maxOpticsPower         = 10.0
 	minOpticsHighThreshold = 1.0
 	maxOpticsLowThreshold  = -1.0
-
-	// The plausible ranges for temperature and power thresholds are set generously wider than typical operating conditions and
-	// alarm settings. This ensures the test robustly validates that the reported threshold values are sane, without being overly
-	// restrictive to specific optic types.
-	// Plausible range for temperature thresholds in Celsius.
-	minTempThreshold = -30.0
-	maxTempThreshold = 110.0
-	// Plausible range for power thresholds in dBm.
-	minPowerThreshold = -50.0
-	maxPowerThreshold = 15.0
 )
 
 func TestMain(m *testing.M) {
@@ -74,11 +64,11 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, i
 
 type checkThresholdParams struct {
 	transceiver string
+	isPortUp    bool
 	opts        []ygnmi.Option
 	lowerPath   ygnmi.SingletonQuery[float64]
 	upperPath   ygnmi.SingletonQuery[float64]
-	minVal      float64
-	maxVal      float64
+	instantPath ygnmi.SingletonQuery[float64]
 	name        string
 }
 
@@ -94,18 +84,39 @@ func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdP
 		t.Errorf("Transceiver %s: threshold %s-lower is not set", params.transceiver, params.name)
 	} else {
 		t.Logf("Transceiver %s threshold %s-lower: %v", params.transceiver, params.name, l)
-		if l < params.minVal || l > params.maxVal {
-			t.Errorf("Transceiver %s: %s-lower %v is outside plausible range [%v, %v]", params.transceiver, params.name, l, params.minVal, params.maxVal)
-		}
 	}
 	if !uOK {
 		t.Errorf("Transceiver %s: threshold %s-upper is not set", params.transceiver, params.name)
 	} else {
 		t.Logf("Transceiver %s threshold %s-upper: %v", params.transceiver, params.name, u)
-		if u < params.minVal || u > params.maxVal {
-			t.Errorf("Transceiver %s: %s-upper %v is outside plausible range [%v, %v]", params.transceiver, params.name, u, params.minVal, params.maxVal)
+	}
+
+	// OC path /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant
+	// is not supported by some vendors, so we skip the check.
+	if params.name == "module-temperature" && dut.Vendor() != ondatra.CISCO {
+		t.Logf("Skipping instant path check for module-temperature on non-Cisco vendor.")
+	} else {
+		iV := gnmi.Lookup(t, dut.GNMIOpts(), params.instantPath)
+		i, iOK := iV.Val()
+		if !iOK {
+			t.Errorf("Transceiver %s: instant %s is not set", params.transceiver, params.name)
+		} else {
+			t.Logf("Transceiver %s instant %s: %v", params.transceiver, params.name, i)
+		}
+
+		if lOK && uOK && iOK {
+			if !params.isPortUp {
+				t.Logf("Skipping range check for transceiver %s because port is not UP.", params.transceiver)
+			} else if (params.name == "input-power" || params.name == "output-power") && i == minOpticsPower {
+				t.Logf("Skipping range check for transceiver %s for %s because instant value is %v, indicating link is not stable.", params.transceiver, params.name, minOpticsPower)
+			} else if i < l || i > u {
+				t.Errorf("Transceiver %s: instant %s %v is outside threshold range [%v, %v]", params.transceiver, params.name, i, l, u)
+			} else {
+				t.Logf("Transceiver %s: instant %s %v is within threshold range [%v, %v]", params.transceiver, params.name, i, l, u)
+			}
 		}
 	}
+
 	if lOK && uOK && l >= u {
 		t.Errorf("Transceiver %s: %s-lower (%v) must be less than %s-upper (%v)", params.transceiver, params.name, l, params.name, u)
 	}
@@ -113,41 +124,49 @@ func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdP
 
 // validateThresholds checks that threshold leaves are populated,
 // are within a plausible range, and that lower thresholds are less than upper thresholds.
-func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
+func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, isPortUp bool, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
 	t.Helper()
 	t.Logf("Validating transceiver %s thresholds for severity: %v", transceiver, sev)
 	threshold := component.Transceiver().Threshold(sev)
 
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
+		isPortUp:    isPortUp,
 		opts:        opts,
 		lowerPath:   threshold.ModuleTemperatureLower().State(),
 		upperPath:   threshold.ModuleTemperatureUpper().State(),
-		minVal:      minTempThreshold,
-		maxVal:      maxTempThreshold,
+		instantPath: component.Transceiver().Channel(0).LaserTemperature().Instant().State(),
 		name:        "module-temperature",
 	})
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
+		isPortUp:    isPortUp,
 		opts:        opts,
 		lowerPath:   threshold.InputPowerLower().State(),
 		upperPath:   threshold.InputPowerUpper().State(),
-		minVal:      minPowerThreshold,
-		maxVal:      maxPowerThreshold,
+		instantPath: component.Transceiver().Channel(0).InputPower().Instant().State(),
 		name:        "input-power",
 	})
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
+		isPortUp:    isPortUp,
 		opts:        opts,
 		lowerPath:   threshold.OutputPowerLower().State(),
 		upperPath:   threshold.OutputPowerUpper().State(),
-		minVal:      minPowerThreshold,
-		maxVal:      maxPowerThreshold,
+		instantPath: component.Transceiver().Channel(0).OutputPower().Instant().State(),
 		name:        "output-power",
 	})
 }
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	transceiverToInterface := make(map[string]string)
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range intfs {
+		if intf.GetTransceiver() != "" {
+			transceiverToInterface[intf.GetTransceiver()] = intf.GetName()
+		}
+	}
 
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
@@ -234,8 +253,16 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				sevs = append(sevs, val)
 			}
 
+			portName := transceiverToInterface[transceiver]
+			var isPortUp bool
+			if portName != "" {
+				operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(portName).OperStatus().State())
+				isPortUp = operStatus == oc.Interface_OperStatus_UP
+			} else {
+				t.Logf("Could not find interface for transceiver %s, assuming port is down for threshold checks", transceiver)
+			}
 			for _, sev := range sevs {
-				validateThresholds(t, dut, transceiver, sev, component, opts)
+				validateThresholds(t, dut, transceiver, isPortUp, sev, component, opts)
 			}
 		})
 	}
@@ -330,6 +357,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 					if !ok {
 						t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
 					}
+					t.Logf("Using functional translator %s for transceiver %s", deviations.CiscoxrLaserFt(dut), transceiverName)
 					opts = append(opts, ygnmi.WithFT(ft))
 				}
 				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
@@ -342,8 +370,9 @@ func TestOpticsPowerUpdate(t *testing.T) {
 					sevs = append(sevs, val)
 				}
 
+				isPortUp := tc.expectedStatus == oc.Interface_OperStatus_UP
 				for _, sev := range sevs {
-					validateThresholds(t, dut, transceiverName, sev, component, opts)
+					validateThresholds(t, dut, transceiverName, isPortUp, sev, component, opts)
 				}
 			}
 		})
