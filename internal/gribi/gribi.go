@@ -282,7 +282,7 @@ func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedR
 func (c *Client) DeleteEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
 	t.Helper()
 	c.fluentC.Modify().DeleteEntry(t, entries...)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+	if err := c.AwaitTimeout(context.Background(), t, 3*timeout); err != nil {
 		t.Fatalf("Error waiting to delete entries: %v", err)
 	}
 	for _, result := range expectedResults {

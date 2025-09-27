@@ -907,9 +907,9 @@ func ConfigurePBF(t *testing.T, dut *ondatra.DUTDevice, cfg PBFConfig) *oc.Netwo
 	for i := 1; i <= cfg.PBFCount; i++ {
 		ruleID := uint32(i)
 		vrfName := fmt.Sprintf("VRF_%03d", i)
-
 		rule := policy.GetOrCreateRule(ruleID)
 		rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf(cfg.PBFIPv6, i))
+		// Assign different DSCP values per rule to test DSCP-based VRF selection
 		rule.GetOrCreateIpv6().DscpSet = []uint8{uint8(i % 64)}
 		rule.GetOrCreateAction().NetworkInstance = ygot.String(vrfName)
 	}
