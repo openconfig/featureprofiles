@@ -1009,7 +1009,7 @@ func expectedMPLSinUDPOpResults(t *testing.T, nextHopID, nhgBase uint64, numNHGs
 	workers := runtime.NumCPU()
 	var wg sync.WaitGroup
 	var mtx sync.Mutex
-	ipPool := sync.Pool{New: func() any { return make(net.IP, net.IPv6len) }} // max size for IPv6
+	var ipPool = sync.Pool{New: func() interface{} { return make(net.IP, net.IPv6len) }}
 
 	for _, task := range tasks {
 		batch := (task.count + workers - 1) / workers
