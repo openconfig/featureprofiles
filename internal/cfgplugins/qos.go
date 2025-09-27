@@ -378,8 +378,11 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	}
 }
 
-// External static configuration for DSCP remark. Will be configured after QoS OC configuration.
-func ConfigureQosDscpRemarkSpecific(t *testing.T, dut *ondatra.DUTDevice) {
+// ConfigureQoSDSCPRemarkFix adds configuration that may be needed
+// to rewrite DSCP packet fields.  It is intended to be called only if DSCP
+// remarking is used.  It must be called after NewQoSClassifierConfiguration
+// and SetInputClassifier
+func ConfigureQoSDSCPRemarkFix(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.QosRemarkOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:

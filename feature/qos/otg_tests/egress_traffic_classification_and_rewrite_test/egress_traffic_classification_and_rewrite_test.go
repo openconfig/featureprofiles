@@ -451,7 +451,6 @@ func ConfigureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	q = cfgplugins.NewQoSClassifierConfiguration(t, dut, q, classifiers)
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
-	t.Logf("Create qos input classifier config")
 	classifierIntfs := []struct {
 		desc                string
 		intf                string
@@ -468,12 +467,12 @@ func ConfigureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 		inputClassifierType: oc.Input_Classifier_Type_IPV6,
 		classifier:          "dscp_based_classifier_ipv6",
 	}}
-	t.Logf("qos input classifier config: %v", classifierIntfs)
+	t.Logf("Apply qos input classifier config to interfaces: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
 		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
 	}
 
-	cfgplugins.ConfigureQosDscpRemarkSpecific(t, dut)
+	cfgplugins.ConfigureQoSDSCPRemarkFix(t, dut)
 }
 
 // configureATE sets up the ATE interfaces and BGP configurations.
