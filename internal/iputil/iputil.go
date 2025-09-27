@@ -218,7 +218,7 @@ func GenerateIPv6s(baseIP net.IP, n int) []string {
 func IncrementMAC(startMAC string, i int) (string, error) {
 	macs := GenerateMACs(startMAC, i, "00:00:00:00:00:01")
 	if len(macs) == 0 {
-		return "", fmt.Errorf("failed to generate MAC address.")
+		return "", fmt.Errorf("failed to generate MAC address")
 	}
 	return macs[0], nil
 }
