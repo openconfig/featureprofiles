@@ -1057,7 +1057,7 @@ func expectedMPLSinUDPOpResults(t *testing.T, nextHopID, nhgBase uint64, numNHGs
 						localAdds = append(localAdds, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
 						localDels = append(localDels, fluent.OperationResult().WithIPv4Operation(prefix).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 					}
-					ipPool.Put(ipCopy)
+					ipPool.Put(&ipCopy)
 				}
 
 				mtx.Lock()
