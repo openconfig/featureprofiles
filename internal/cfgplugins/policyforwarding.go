@@ -37,6 +37,7 @@ type DecapPolicyParams struct {
 	StaticLSPNameMulticast    string
 	StaticLSPLabelMulticast   uint32
 	StaticLSPNextHopMulticast string
+	DecapMPLSParams           DecapMPLSParams
 }
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
@@ -488,22 +489,6 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
-// MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
-func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-	mplsCfgv4 := ni.GetOrCreateMpls()
-	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
-	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
-	egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
-	egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
-
-	mplsCfgv6 := ni.GetOrCreateMpls()
-	staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
-	egressv6 := staticMplsCfgv6.GetOrCreateEgress()
-	egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
-	egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
-}
-
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -582,20 +567,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
-}
-
-// MPLSStaticLSPConfig configures the interface mpls static lsp.
-func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
-	if deviations.StaticMplsUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
-		}
-	} else {
-		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
-	}
 }
 
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
