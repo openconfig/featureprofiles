@@ -90,7 +90,7 @@ func TestMplsTcMarking(t *testing.T) {
 	// Verify LDP session is established.
 	verifyLDP(t, dut1, dut2Lo50.IPv4)
 
-	t.Run("Configure and verify MPLS TC marking classifier", func(t *testing.T) {
+	t.Run("Configure_verify_MPLS_TC_classifier", func(t *testing.T) {
 		// Configure QoS on DUT-1.
 		configureQoS(t, dut1)
 
