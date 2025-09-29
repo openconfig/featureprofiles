@@ -158,7 +158,7 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/otn-compliance-code", s.GetOtnComplianceCode(), "otn-compliance-code is empty for port %v")
 
 	mfgDate := gnmi.Get(t, dut, gnmi.OC().Component(transceiver).MfgDate().State())
-	appendToTableIfNotNil(t, table, transceiver, "openconfig-platform:components/component/state/mfg-date", mfgDate, "mfg-date is empty for port %v")
+	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component/state/mfg-date", mfgDate, "mfg-date is empty for port %v")
 
 	// Optical Channel Leaves
 	oc := gnmi.Get(t, dut, gnmi.OC().Component(transceiver).Transceiver().Channel(0).AssociatedOpticalChannel().State())
