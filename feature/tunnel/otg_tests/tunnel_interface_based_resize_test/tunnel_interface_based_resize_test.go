@@ -203,6 +203,7 @@ func configureOTG(t *testing.T) {
 
 // Modified to create and pass OC root, ni, pf
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+	t.Helper()
 	config := &oc.Root{}
 
 	dp1 := dut.Port(t, "port1")
@@ -217,7 +218,7 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	configureInterfaces(t, dut, egressLag1Ports, []*attrs.Attributes{&egressLag1Intf}, aggID)
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, egressLag2Ports, []*attrs.Attributes{&egressLag2Intf}, aggID)
-	configureStaticRoutes(t, dut)
+	mustConfigureStaticRoutes(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	encapInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
 
@@ -242,6 +243,7 @@ func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams 
 // fetchDefaultOCPolicyForwardingParams provides default parameters for the generator,
 // matching the values in the provided JSON example.
 func fetchDefaultOCPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) cfgplugins.OcPolicyForwardingParams {
+	t.Helper()
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
@@ -252,10 +254,11 @@ func fetchDefaultOCPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) 
 // function should also include the OC config , within these deviations there should be a switch statement is needed
 // Modified to accept pf, ni, and ocPFParams
 func encapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+	t.Helper()
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.NextHopGroupConfig(t, dut, "dualstack", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "dualstack", pf, ocPFParams)
+	cfgplugins.NextHopGroupConfig(t, dut, string(cfgplugins.TrafficTypeDS), ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfig(t, dut, string(cfgplugins.TrafficTypeDS), pf, ocPFParams)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}
@@ -347,7 +350,7 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 }
 
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
+func mustConfigureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
 	for i := 1; i <= 32; i++ {
@@ -407,11 +410,14 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	flowResolveArp.IsIPv4Interfaceresolved(t, ate)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
 	ate.OTG().StartTraffic(t)
 }
 
-func TestSetup(t *testing.T) {
+func testSetup(t *testing.T) {
+	t.Helper()
 	t.Log("TUN:1.6.1-Setup Tunnels as per requirements")
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -425,90 +431,110 @@ func TestSetup(t *testing.T) {
 	configureOTG(t)
 }
 
-func TestTunnelBaselineStats(t *testing.T) {
-	t.Log("TUN:1.6.2-Gather baseline stats by passing traffic")
+// validateTrafficAndECMP is a helper to validate IPv4/IPv6 loss and ECMP behavior.
+func validateTrafficAndECMP(t *testing.T) {
+	t.Helper()
 	ate := ondatra.ATE(t, "ate")
-	createFlow(top, flowIPv4, true)
-	createFlow(top, flowIPv6, false)
-	sendTraffic(t, ate)
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("ipv4 loss validation failed: %q", err)
 	}
 	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
+		t.Errorf("ipv6 loss validation failed: %q", err)
 	}
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
+		t.Errorf("ecmp validation failed: %q", err)
 	}
-
 }
 
 func TestTunnelInterfaceBasedResize(t *testing.T) {
-	t.Log("TUN:1.6.3-Removal of static routes to prevent using some of the tunnels")
-	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
-	sendTraffic(t, ate)
-	t.Log("Reduce number of Tunnels by deleting static routes")
-	deleteStaticRoutes(t, dut)
 
-	// Verify the entry for static route is not active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		ipv4Entry, present := val.Val()
-		if !present && ipv4Entry == nil {
-			return true
-		}
-		return false
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
-	} else {
-		t.Logf("Prefix %s not installed in DUT as static Route", staticRoute)
+	testSetup(t)
+
+	type testCase struct {
+		name        string
+		description string
+		run         func(t *testing.T)
 	}
 
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
-	}
-}
+	tests := []testCase{
+		{
+			name:        "BaselineStats",
+			description: "TUN:1.6.2 - Gather baseline stats by passing traffic",
+			run: func(t *testing.T) {
+				createFlow(top, flowIPv4, true)
+				createFlow(top, flowIPv6, false)
+				ate := ondatra.ATE(t, "ate")
+				sendTraffic(t, ate)
+				time.Sleep(trafficDuration)
+				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
+				validateTrafficAndECMP(t)
+			},
+		},
+		{
+			name:        "ResizeTunnelInterfaces",
+			description: "TUN:1.6.3 - Remove static routes to reduce tunnel usage",
+			run: func(t *testing.T) {
+				ate := ondatra.ATE(t, "ate")
+				dut := ondatra.DUT(t, "dut")
+				sendTraffic(t, ate)
+				t.Log("Deleting static routes to reduce tunnel count")
+				deleteStaticRoutes(t, dut)
 
-func TestTunnelInterfaceBasedResizeRestoreStaticRoutes(t *testing.T) {
-	t.Log("TUN:1.6.4-Restore static routes to start using all 32 tunnels")
-	ate := ondatra.ATE(t, "ate")
-	dut := ondatra.DUT(t, "dut")
-	sendTraffic(t, ate)
-	t.Log("Restore static routes to start using all 32 tunnels")
-	configureStaticRoutes(t, dut)
+				ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
 
-	// Verify the entry for static Route is active through AFT Telemetry.
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
-	if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		ipv4Entry, present := val.Val()
-		t.Log(ipv4Entry.GetPrefix())
-		return present && ipv4Entry.GetPrefix() == fmt.Sprintf("%s/24", staticRoute)
-	}).Await(t); !ok {
-		t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, staticRoute)
-	} else {
-		t.Logf("Prefix %s installed in DUT as static...", staticRoute)
+				watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+					entry, present := val.Val()
+					return !present && entry == nil
+				}
+
+				if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
+					t.Errorf("Static route not removed: got %v, want %s", got, staticRoute)
+				}
+
+				t.Logf("Prefix %s removed from DUT static routes...", staticRoute)
+
+				time.Sleep(trafficDuration)
+				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
+				validateTrafficAndECMP(t)
+			},
+		},
+		{
+			name:        "RestoreStaticRoutes",
+			description: "TUN:1.6.4 - Restore static routes to use all tunnels",
+			run: func(t *testing.T) {
+				ate := ondatra.ATE(t, "ate")
+				dut := ondatra.DUT(t, "dut")
+				sendTraffic(t, ate)
+				t.Log("Restoring static routes")
+				mustConfigureStaticRoutes(t, dut)
+
+				ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+					Afts().Ipv4Entry(fmt.Sprintf("%s/24", staticRoute))
+
+				watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+					entry, present := val.Val()
+					t.Log(entry.GetPrefix())
+					return present && entry.GetPrefix() == fmt.Sprintf("%s/24", staticRoute)
+				}
+
+				if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
+					t.Errorf("Static route not restored: got %v, want %s", got, staticRoute)
+				}
+
+				t.Logf("Prefix %s restored to DUT static routes...", staticRoute)
+
+				time.Sleep(trafficDuration)
+				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
+				validateTrafficAndECMP(t)
+			},
+		},
 	}
 
-	time.Sleep(trafficDuration)
-	ate.OTG().StopTraffic(t)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("validateLossOnFlows(): got err: %q, want nil", err)
-	}
-	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ecmpValidationFailed(): got err: %q, want nil", err)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Log(tc.description)
+			tc.run(t)
+		})
 	}
 }

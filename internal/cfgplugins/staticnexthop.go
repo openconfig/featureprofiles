@@ -138,7 +138,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if params.StaticNHGName == "gre_encap" {
-				if traffictype == "dualstack" {
+				if traffictype == string(TrafficTypeDS) {
 					nextHopGreConfig := new(strings.Builder)
 					fmt.Fprintf(nextHopGreConfig, "nexthop-group %s type gre\n", params.StaticNHGName)
 					fmt.Fprint(nextHopGreConfig, "   ttl 64\n")
@@ -151,15 +151,15 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig.String())
 				}
 			} else {
-				switch traffictype {
-				case "v4":
+				switch TrafficType(traffictype) {
+				case TrafficTypeV4:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-				case "dualstack":
+				case TrafficTypeDS:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-				case "v6":
+				case TrafficTypeV6:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-				case "multicloudv4":
+				case TrafficTypeMCV4:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 				}
 			}

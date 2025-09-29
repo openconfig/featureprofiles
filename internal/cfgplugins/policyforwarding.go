@@ -18,12 +18,21 @@ import (
 )
 
 const (
-	ethernetCsmacd  = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	trafficTypeV4   = "v4"
-	trafficTypeV6   = "v6"
-	trafficTypeDS   = "dualstack"
-	trafficTypeMCV4 = "multicloudv4"
+	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+)
+
+type TrafficType string
+
+const (
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure IPV4 policy.
+	TrafficTypeV4 TrafficType = "v4"
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure IPV6 policy.
+	TrafficTypeV6 TrafficType = "v6"
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure both IPV4 and IPV6 policy.
+	TrafficTypeDS TrafficType = "dualstack"
+	// TrafficTypeMCV4 as an argument for PolicyForwardingConfig to configure multicloud IPV4 policy.
+	TrafficTypeMCV4 TrafficType = "multicloudv4"
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -74,7 +83,7 @@ type PolicyForwardingRule struct {
 
 var (
 
-	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
+	// PolicyForwardingConfigV4Arista configuration for policy-forwarding for ipv4.
 	PolicyForwardingConfigV4Arista = `
 Traffic-policies
    traffic-policy tp_cloud_id_3_20
@@ -93,7 +102,7 @@ Traffic-policies
       match ipv6-all-default ipv6
    !
      `
-	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
+	// PolicyForwardingConfigV6Arista configuration for policy-forwarding for ipv6.
 	PolicyForwardingConfigV6Arista = `
 Traffic-policies
     traffic-policy tp_cloud_id_3_21
@@ -166,7 +175,7 @@ Traffic-policies
           redirect next-hop group 1V6_vlan_3_22
           set traffic class 3
  !`
-	// PolicyForwardingConfigMulticloudAristav4 configuration for policy-forwarding for multicloud ipv4.
+	// PolicyForwardingConfigMultiCloudV4Arista configuration for policy-forwarding for multicloud ipv4.
 	PolicyForwardingConfigMultiCloudV4Arista = `
  Traffic-policies
  counter interface per-interface ingress
@@ -339,7 +348,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if params.AppliedPolicyName == "gre_encap" {
-				if traffictype == "dualstack" {
+				if traffictype == string(TrafficTypeDS) {
 					policyForwardingGREConfigTemplate := `  
                     traffic-policies  
                       traffic-policy tp_gre_encap  
@@ -365,14 +374,14 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 					helpers.GnmiCLIConfig(t, dut, policyForwardingGREConfig)
 				}
 			} else {
-				switch traffictype {
-				case trafficTypeV4:
+				switch TrafficType(traffictype) {
+				case TrafficTypeV4:
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV4Arista)
-				case trafficTypeV6:
+				case TrafficTypeV6:
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV6Arista)
-				case trafficTypeDS:
+				case TrafficTypeDS:
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-				case trafficTypeMCV4:
+				case TrafficTypeMCV4:
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMultiCloudV4Arista)
 				}
 			}

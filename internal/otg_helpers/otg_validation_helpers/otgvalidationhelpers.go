@@ -2,8 +2,8 @@
 package otgvalidationhelpers
 
 import (
+	"errors"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -95,12 +95,12 @@ func (v *OTGValidation) IsIPv6Interfaceresolved(t *testing.T, ate *ondatra.ATEDe
 func (v *OTGValidation) ValidateLossOnFlows(t *testing.T, ate *ondatra.ATEDevice) error {
 	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
 	if outPkts == 0 {
-		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
+		t.Fatalf("out packets for flow %q: got %v, want nonzero", v.Flow.Name, outPkts)
 	}
 	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
 	if lossPct > v.Flow.TolerancePct {
-		return fmt.Errorf("Get(traffic loss for flow %q): got %v percent, want < %v percent", v.Flow.Name, lossPct, v.Flow.TolerancePct)
+		return fmt.Errorf("traffic loss for flow %q: got %v percent, want < %v percent", v.Flow.Name, lossPct, v.Flow.TolerancePct)
 	}
 	t.Logf("Flow %q, inPkts %d, outPkts %d, lossPct %v", v.Flow.Name, inPkts, outPkts, lossPct)
 	return nil
@@ -180,7 +180,7 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
 	}
 
-	var validationErrors []string
+	var validationErrors []error
 
 	for _, p := range ev.PortWeightages {
 		actualPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
@@ -193,13 +193,12 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 
 		if float64(actualPkts) < lowerBound || float64(actualPkts) > upperBound {
 			validationErrors = append(validationErrors,
-				fmt.Sprintf("port %s: Actual packets %d out of expected range [%.0f - %.0f]",
-					p.PortName, actualPkts, lowerBound, upperBound))
+				fmt.Errorf("port %s: actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, lowerBound, upperBound))
 		}
 	}
 
 	if len(validationErrors) > 0 {
-		return fmt.Errorf("ecmp validation failed:\n%s", strings.Join(validationErrors, "\n"))
+		return fmt.Errorf("ecmp validation failed:\n%v", errors.Join(validationErrors...))
 	}
 
 	return nil
