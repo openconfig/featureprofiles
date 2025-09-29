@@ -21,7 +21,7 @@ def test_revision_params = ['Test branch', 'Test PR', 'Test commit hash']
 def test_override_params = ['Test repository', 'Test args'] + test_revision_params
 
 def forbidden_params_per_chain = [
-    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Pause Run Hours', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
+    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
     CulpritFinder: ['Image Path'],
     B4FeatureCoverageRunTests: [],
     RunTests: []

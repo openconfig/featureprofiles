@@ -1212,7 +1212,9 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    timeout: 4200
+    timeout: 0
+    internal: true
+    pr: 1762
   - name: TRANSCEIVER-5_ZRP (Configuration 400ZRP channel frequency, output TX launch power and operational mode setting)
     path: feature/platform/transceiver/tests/zrp_tunable_parameters_test
     priority: 2
@@ -1221,7 +1223,9 @@ tests:
     owners:
       - mananpat
     mustpass: true
-    timeout: 4200
+    timeout: 0
+    pr: 1757
+    internal: true
     groups: [zrp]
   - name: TRANSCEIVER-6_ZRP (400ZR_PLUS Optics performance metrics pm streaming)
     path: feature/platform/transceiver/tests/zrp_pm_test
@@ -1303,6 +1307,38 @@ tests:
     mustpass: true
     timeout: 4200
     groups: [zrp]
+  - name: TRANSCEIVER-101 (Telemetry ZR platform OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_platform_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-102 (Telemetry ZR terminal-device OC paths streaming)
+    path: feature/platform/transceiver/tests/zr_800_terminal_device_paths_test
+    priority: 2
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-103 (Telemetry ZR Plus platform OC paths streaming)
+    path: feature/platform/transceiver/tests/zrp_800_platform_paths_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'  
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
+  - name: TRANSCEIVER-104 (Telemetry ZR Plus terminal-device OC paths streaming)
+    path: feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test
+    priority: 2
+    args:
+      - '-operational_mode="6003"'  
+    owners:
+      - mananpat
+    mustpass: true
+    timeout: 4200
   - name: TRANSCEIVER-11 (Telemetry 400ZR Optics logical channels provisioning and related telemetry)
     path: feature/platform/transceiver/logical_channels/tests/zr_logical_channels_test
     priority: 2
