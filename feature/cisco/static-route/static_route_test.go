@@ -2465,7 +2465,6 @@ func testIPv4StaticRouteRecurseNextHopInvalid(t *testing.T, dut *ondatra.DUTDevi
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		gnmi.Update(t, dut, path.Config(), static)
 	}); errMsg != nil {
-		fmt.Printf("DBG: Error Message: %v", *errMsg)
 		if strings.Contains(*errMsg, "'ip-static' detected the 'warning' condition 'Invalid Address Family'") ||
 			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") ||
 			strings.Contains(*errMsg, "ip-static' detected the 'warning' condition 'Invalid next hop address") {
@@ -2514,7 +2513,6 @@ func testIPv4StaticRouteRecurseInterfaceNextHopInvalid(t *testing.T, dut *ondatr
 	if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 		gnmi.Update(t, dut, path.Config(), static)
 	}); errMsg != nil {
-		fmt.Printf("DBG: Error Message: %v", *errMsg)
 		if strings.Contains(*errMsg, "'ip-static' detected the 'warning' condition 'Invalid Address Family'") ||
 			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") ||
 			strings.Contains(*errMsg, "ip-static' detected the 'warning' condition 'Invalid next hop address") {
