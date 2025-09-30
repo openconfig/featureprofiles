@@ -1033,7 +1033,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 		stopCapture(t, bs.ATE.OTG(), cs)
 		captureName := mustProcessCapture(t, bs.ATE.OTG(), "port1")
 
@@ -1062,7 +1062,7 @@ func TestGUEEncap(t *testing.T) {
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(20 * time.Second)
 		stopCapture(t, bs.ATE.OTG(), cs)
 		captureName := mustProcessCapture(t, bs.ATE.OTG(), "port1")
 
