@@ -1665,3 +1665,8 @@ func PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut *ondatra.DUTDevice) bo
 func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
+
+// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
+}
