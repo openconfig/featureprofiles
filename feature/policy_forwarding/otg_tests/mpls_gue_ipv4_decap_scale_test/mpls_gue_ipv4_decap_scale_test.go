@@ -31,8 +31,8 @@ func TestMain(m *testing.M) {
 
 const (
 	ieee8023adLag          = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	mplsLabelCount         = 50
-	intCount               = 50
+	mplsLabelCount         = 2000
+	intCount               = 2000
 	mplsV4Label            = 99991
 	mplsV6Label            = 110993
 	dutIntStartIPv4        = "169.254.0.1"
