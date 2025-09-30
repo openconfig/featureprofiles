@@ -96,6 +96,7 @@ type GueEncapPolicyParams struct {
 	DstAddr          []string
 	SrcAddr          []string
 	Ttl              uint8
+	Rule             uint8
 }
 
 var (
@@ -595,8 +596,17 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
+// createPolicyForwardingNexthopConfig to configure policyforwading through CLI using vendor specific cli
+func createPolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
+	groupType := ""
+
+	switch params.TrafficType {
+	case "V4Udp":
+		groupType = "ipv4"
+	case "V6Udp":
+		groupType = "ipv6"
+	}
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
 	if deviations.PolicyForwardingOCUnsupported(dut) {
@@ -610,7 +620,7 @@ func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, p
 				traffic-policy %s
       			match %s %s
          		actions
-            	redirect next-hop group %s`, policyName, ruleName, traffictype, nhGrpName)
+            	redirect next-hop group %s`, params.PolicyName, fmt.Sprintf("rule%d", params.Rule), groupType, params.NexthopGroupName)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.
@@ -619,23 +629,24 @@ func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 }
 
-func ConfigurePolicyForwardingNextHopFromOC(dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
-	policy := pf.GetOrCreatePolicy(policyName)
+// configurePolicyForwardingNextHopFromOC to configure policyforwading through OC
+func configurePolicyForwardingNextHopFromOC(pf *oc.NetworkInstance_PolicyForwarding, params GueEncapPolicyParams) {
+	policy := pf.GetOrCreatePolicy(params.PolicyName)
 	policy.Type = oc.Policy_Type_PBR_POLICY
 
-	rule1 := policy.GetOrCreateRule(rule)
+	rule1 := policy.GetOrCreateRule(uint32(params.Rule))
 	rule1.GetOrCreateTransport()
-	if len(dstAddr) != 0 {
-		for _, addr := range dstAddr {
-			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+	if len(params.DstAddr) != 0 {
+		for _, addr := range params.DstAddr {
+			rule1.GetOrCreateIpv4().SetDestinationAddress(addr)
 		}
 	}
-	if len(srcAddr) != 0 {
-		for _, addr := range srcAddr {
-			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+	if len(params.SrcAddr) != 0 {
+		for _, addr := range params.SrcAddr {
+			rule1.GetOrCreateIpv4().SetSourceAddress(addr)
 		}
 	}
-	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
+	rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
 }
 
 func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
@@ -657,11 +668,11 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interf
 }
 
 // QosClassificationConfig configures the interface qos classification.
-func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, delteTOS bool) {
+func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
 	if deviations.QosClassificationOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if delteTOS {
+			if deleteTOS {
 				cli := fmt.Sprintf(`
 				policy-map type quality-of-service %s
    					class class-default
@@ -1095,6 +1106,7 @@ func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
 
 // NewPolicyForwardingGueEncap configure policy forwarding for GUE encapsulation.
 func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
+// NewPolicyForwardingGueEncap configures policy forwading for gue encapsulation
 func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
 	_, _, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
@@ -1110,9 +1122,11 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 			case "V4Udp":
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
 				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
+				createPolicyForwardingNexthopConfig(t, dut, params)
 			case "V6Udp":
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
 				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
+				createPolicyForwardingNexthopConfig(t, dut, params)
 			default:
 				t.Logf("Unsupported address family type %s", params.IPFamily)
 				t.Logf("Unsupported traffic type %s", params.TrafficType)
@@ -1190,5 +1204,6 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 		iface := policyForward.GetOrCreateInterface(params.InterfaceID)
 		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
 		ConfigurePolicyForwardingNextHopFromOC(dut, pf, params.PolicyName, 1, params.DstAddr, params.SrcAddr, params.NexthopGroupName)
+		configurePolicyForwardingNextHopFromOC(pf, params)
 	}
 }
