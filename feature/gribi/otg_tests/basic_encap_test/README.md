@@ -36,7 +36,7 @@ DUT port-5 <------> port-5 ATE
 * magic_mac = 02:00:00:00:00:01`
 ```
 
-## Canonical OC Configuration
+## Canonical OC
 ```json
 {
 	network-instances {
