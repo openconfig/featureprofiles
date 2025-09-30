@@ -39,214 +39,57 @@ DUT port-5 <------> port-5 ATE
 ## Canonical OC
 ```json
 {
-	network-instances {
-	    network-instance {
-	        name: DEFAULT
-	        policy-forwarding {
-	            policies {
-	                policy {
-	                    policy-id: "vrf_selection_policy_c"
-	                    rules {
-	                        rule {
-	                            sequence-id: 1
-	                            ipv4 {
-	                                protocol: 4
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_A"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 2
-	                            ipv4 {
-	                                protocol: 41
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_A"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 3
-	                            ipv4 {
-	                                protocol: 4
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_A"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 4
-	                            ipv4 {
-	                                protocol: 41
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_A"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 5
-	                            ipv4 {
-	                                protocol: 4
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_B"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 6
-	                            ipv4 {
-	                                protocol: 41
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_B"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 7
-	                            ipv4 {
-	                                protocol: 4
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_B"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 8
-	                            ipv4 {
-	                                protocol: 41
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "ENCAP_TE_VRF_B"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 9
-	                            ipv4 {
-	                                protocol: 4
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "DEFAULT"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 10
-	                            ipv4 {
-	                                protocol: 41
-	                                source-address: "ipv4_outer_src_222"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "DEFAULT"
-	                                decap-fallback-network-instance: "TE_VRF_222"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 11
-	                            ipv4 {
-	                                protocol: 4
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "DEFAULT"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 12
-	                            ipv4 {
-	                                protocol: 41
-	                                source-address: "ipv4_outer_src_111"
-	                            }
-	                            action {
-	                                decap-network-instance: "DECAP_TE_VRF"
-	                                post-network-instance: "DEFAULT"
-	                                decap-fallback-network-instance: "TE_VRF_111"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 13
-	                            ipv4 {
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                            }
-	                            action {
-	                                network-instance: "ENCAP_TE_VRF_A"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 14
-	                            ipv6 {
-	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
-	                            }
-	                            action {
-	                                network-instance: "ENCAP_TE_VRF_A"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 15
-	                            ipv4 {
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                            }
-	                            action {
-	                                network-instance: "ENCAP_TE_VRF_B"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 16
-	                            ipv6 {
-	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
-	                            }
-	                            action {
-	                                network-instance: "ENCAP_TE_VRF_B"
-	                            }
-	                        }
-	                        rule {
-	                            sequence-id: 17
-	                            action {
-	                                network-instance: "DEFAULT"
-	                            }
-	                        }
-	                    }
-	                }
-	            }
-	        }
-	    }
-	}
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+        },
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "network-instances": {
+      "network-instance": {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+          "policy-forwarding" {
+              "policies": {
+                  "policy": [
+                      "policy-id": "vrf_selection_policy_c"
+                      "rules" {
+                          "rule": {
+                              "sequence-id": 1,
+                              "ipv4":  {
+                                  "protocol": 4
+                                  "dscp-set": "[dscp_encap_a_1, dscp_encap_a_2]""
+                                  "source-address": "ipv4_outer_src_222"
+                              }
+                              "action": {
+                                  "decap-network-instance": "DECAP_TE_VRF"
+                                  "post-network-instance": "ENCAP_TE_VRF_A"
+                                  "decap-fallback-network-instance": "TE_VRF_222"
+                              }
+                          }
+                          "rule": {
+                              "sequence-id": 17
+                              "action": {
+                                  "network-instance": "DEFAULT"
+                              }
+                          }
+                      }
+                    ]
+                  }
+              }
+          }
+      }
+  }
 }
 ```
 
@@ -312,8 +155,8 @@ Send packets to DUT port-1. The outer v4 header has the destination addresses
     weight.
 *   The DSCP value is copied from the inner header to the outer header.
 *   The TTL value is copied from the inner header to the outer header.
-* 	Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
-	in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
+*   Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
+  in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
 
 #### Test-2, IPv6 traffic WCMP Encap
 
@@ -354,8 +197,8 @@ this test we’ll focus on tunnel traffic identification using
     *   The TTL value is copied from the inner header to the outer header.
 
 #### Test-3b, Tunnel traffic counters
-* 	Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
-	in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
+*   Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
+  in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
 
 
 ## Config Parameter Coverage
@@ -389,12 +232,12 @@ this test we’ll focus on tunnel traffic identification using
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
 *   /interfaces/interface/tunnel/ipv4/state/enabled:
 *   /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
-*   /interfaces/interface/tunnel/ipv4/state/counters/in-octet:	
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-octet:  
 *   /interfaces/interface/tunnel/ipv4/state/counters/in-error-pkts:
 *   /interfaces/interface/tunnel/ipv4/state/counters/in-forwarded-pkts:
 *   /interfaces/interface/tunnel/ipv4/state/counters/in-discarded-pkts:
 *   /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
-*   /interfaces/interface/tunnel/ipv4/state/counters/out-octets:	
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-octets:  
 *   /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
 *   /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
 *   /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
@@ -433,12 +276,12 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
   /interfaces/interface/tunnel/ipv4/state/enabled:
   /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/in-octets:	
+  /interfaces/interface/tunnel/ipv4/state/counters/in-octets: 
   /interfaces/interface/tunnel/ipv4/state/counters/in-error-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/in-forwarded-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/in-discarded-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-octets:	
+  /interfaces/interface/tunnel/ipv4/state/counters/out-octets:  
   /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
   /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
