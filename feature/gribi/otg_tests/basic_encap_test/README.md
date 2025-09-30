@@ -36,6 +36,8 @@ DUT port-5 <------> port-5 ATE
 * magic_mac = 02:00:00:00:00:01`
 ```
 
+## Canonical OC Configuration
+
 ```
 network-instances {
     network-instance {
@@ -309,6 +311,8 @@ Send packets to DUT port-1. The outer v4 header has the destination addresses
     weight.
 *   The DSCP value is copied from the inner header to the outer header.
 *   The TTL value is copied from the inner header to the outer header.
+* 	Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
+	in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
 
 #### Test-2, IPv6 traffic WCMP Encap
 
@@ -325,7 +329,7 @@ Send packets to DUT port-1. The outer v6 header has the destination addresses
 *   The DSCP value is copied from the inner header to the outer header.
 *   The TTL value is copied from the inner header to the outer header.
 
-#### Test-3, IPinIP Traffic Encap
+#### Test-3a, IPinIP Traffic Encap
 
 Tests support for encap of IPinIP IPv4 (IP protocol 4) traffic. Specifically, in
 this test we’ll focus on tunnel traffic identification using
@@ -347,6 +351,11 @@ this test we’ll focus on tunnel traffic identification using
         the weight.
     *   The DSCP value is copied from the inner header to the outer header.
     *   The TTL value is copied from the inner header to the outer header.
+
+#### Test-3b, Tunnel traffic counters
+* 	Verify telemetry for the encap/decap tunnel including all the in-pkts, out-pkts, in-octets, out-octets,
+	in-forwarded-pkts, out-forwarded-pkts, in-discarded-pkts, out-discarded-pkts
+
 
 ## Config Parameter Coverage
 
@@ -377,6 +386,17 @@ this test we’ll focus on tunnel traffic identification using
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/post-network-instance
 *   network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decap-fallback-network-instance
+*   /interfaces/interface/tunnel/ipv4/state/enabled:
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-octet:	
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-error-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-forwarded-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/in-discarded-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-octets:	
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
+*   /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
 
 ## Protocol/RPC Parameter Coverage
 
@@ -410,12 +430,22 @@ paths:
 
   ## State paths
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
-
+  /interfaces/interface/tunnel/ipv4/state/enabled:
+  /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/in-octet:	
+  /interfaces/interface/tunnel/ipv4/state/counters/in-error-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/in-forwarded-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/in-discarded-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/out-octets:	
+  /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
+  /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
 rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
     gRIBI.Modify:
-    gRIBI.Flush:    
+    gRIBI.Flush: 
 ```
