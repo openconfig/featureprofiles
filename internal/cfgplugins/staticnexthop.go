@@ -137,7 +137,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
+			if traffictype == "ipv4" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
@@ -156,7 +156,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
+			} else if traffictype == "ipv6" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
