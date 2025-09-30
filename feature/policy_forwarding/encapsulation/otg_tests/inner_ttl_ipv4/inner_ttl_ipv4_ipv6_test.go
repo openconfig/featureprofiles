@@ -12,16 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package inner_ttl_ipv4_test
+package inner_ttl_ipv4_ipv6_test
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"net"
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -33,6 +32,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -54,21 +54,22 @@ const (
 	IPv4RoutePfx1    = "10.100.101.0/24"
 	IPv4RoutePfx2    = "10.100.102.0/24"
 	mplsLabel        = 100
-	IPCount          = 10
+	srcIPCount       = 100
+	dstIPcount       = 10
 	nexthopGroupName = "NHG-1"
 
 	// Policy and TTL configuration
 	policyForwardingName = "pf-policy-rewrite-ttl"
 	tunnelIPTTL          = 64
-	matchedIPTTL         = 64 // TODO: TTL config issue (issue ID: 442948813), once fix the issue replace to 1
-	unmatchedIPTTL       = 32
+	matchTTL             = 1
+	unMatchTTL           = 32
 	rewrittenIPTTL       = 1
 
 	// Traffic parameters
 	frameSize       = 512
-	pps             = 1000
+	ratePPS         = 1000
 	lossTolerance   = 2
-	trafficDuration = 15 * time.Second
+	trafficDuration = 20 * time.Second
 
 	// ATE and DUT LAG configuration
 	ateLAG1Name = "lag1"
@@ -77,30 +78,23 @@ const (
 	aggID2      = "Port-Channel2"
 	plenIPv4    = 30
 	plenIPv6    = 126
-	sleepTime   = 20
 )
 
 // DUT and ATE port attributes
 var (
-	dutLag1 = attrs.Attributes{Desc: "DUT LAG1 to ATE", IPv4: "192.0.3.1", IPv6: "2001:db8:3::1", MAC: "02:00:03:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
-	ateLag1 = attrs.Attributes{Name: "ateLag1", IPv4: "192.0.3.2", IPv6: "2001:db8:3::2", MAC: "02:00:03:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
-
-	dutLag2     = attrs.Attributes{Desc: "DUT LAG2 to ATE", IPv4: "192.0.4.1", IPv6: "2001:db8:4::1", MAC: "02:00:04:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
-	ateLag2     = attrs.Attributes{Name: "ateLag2", IPv4: "192.0.4.2", IPv6: "2001:db8:4::2", MAC: "02:00:04:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
-	dutLoopback = attrs.Attributes{
-		Desc:    "Loopback ip",
-		IPv4:    "10.100.100.1",
-		IPv6:    "2001:db8::203:0:113:1",
-		IPv4Len: 32,
-		IPv6Len: 128,
-	}
+	dutLag1             = attrs.Attributes{Desc: "DUT LAG1 to ATE", IPv4: "192.0.3.1", IPv6: "2001:db8:3::1", MAC: "02:00:03:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
+	ateLag1             = attrs.Attributes{Name: "ateLag1", IPv4: "192.0.3.2", IPv6: "2001:db8:3::2", MAC: "02:00:03:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
+	dutLag2             = attrs.Attributes{Desc: "DUT LAG2 to ATE", IPv4: "192.0.4.1", IPv6: "2001:db8:4::1", MAC: "02:00:04:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
+	ateLag2             = attrs.Attributes{Name: "ateLag2", IPv4: "192.0.4.2", IPv6: "2001:db8:4::2", MAC: "02:00:04:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
+	dutLoopback         = attrs.Attributes{Desc: "Loopback ip", IPv4: "10.100.100.1", IPv6: "2001:db8::203:0:113:1", IPv4Len: 32, IPv6Len: 128}
 	matchedIPv4SrcNet   = "10.10.50.0"
 	unmatchedIPv4SrcNet = "10.10.51.0"
-	matchedIPv6SrcNet   = "2001:f:a::"
-	unmatchedIPv6SrcNet = "2001:f:b::"
-	ipv4DstNet          = "10.10.52.0"
-	ipv6DstNet          = "2001:f:c::"
-	isDefaultVrf        = true
+	matchedIPv6SrcNet   = "2001:f:a:1::1"
+	unmatchedIPv6SrcNet = "2001:f:b:1::1"
+	v4DstNet            = "10.10.52.0"
+	v6DstNet            = "2001:f:c:1::1"
+	v6Step              = "1::1"
+	isDefaultVRF        = true
 	capturePorts        = []string{"port3", "port4"}
 	routes              = []struct {
 		prefix string
@@ -122,44 +116,84 @@ func TestMain(m *testing.M) {
 func TestIngressInnerPktTTL(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-
-	t.Log("Step 1: Configure DUT basic setup (interfaces, LAGs, VRF)")
 	configureDUT(t, dut)
-
-	t.Log("Step 2: Configure ATE basic setup (interfaces, LAGs, IPs)")
 	otgConfig := configureATE(t, ate)
 	otg := ate.OTG()
-	otg.PushConfig(t, otgConfig)
-	otg.StartProtocols(t)
+	configPush(t, otg, otgConfig)
 	otgutils.WaitForARP(t, otg, otgConfig, "IPv4")
 	otgutils.WaitForARP(t, otg, otgConfig, "IPv6")
-	t.Run("IPv4 TTL Rewrite Verification", func(t *testing.T) {
-		t.Log("Configuring IPv4 traffic flows on ATE")
-		flows := ipv4Flows(t, otgConfig)
-		otg.PushConfig(t, otgConfig)
-		otg.StartProtocols(t)
-		otgOperation(t, dut, ate, otg, otgConfig, flows)
-	})
+	verifyPortsUp(t, dut.Device)
+	tests := []struct {
+		name          string
+		family        string
+		matchSrcNet   string
+		unMatchSrcNet string
+		dstNet        string
+		matchTTL      int
+		unMatchTTL    int
+	}{
+		{
+			name:          "IPv4 TTL Rewrite Verification",
+			family:        "ipv4",
+			matchSrcNet:   matchedIPv4SrcNet,
+			unMatchSrcNet: unmatchedIPv4SrcNet,
+			dstNet:        v4DstNet,
+			matchTTL:      matchTTL,
+			unMatchTTL:    unMatchTTL,
+		},
+		{
+			name:          "IPv6 TTL Rewrite Verification",
+			family:        "ipv6",
+			matchSrcNet:   matchedIPv6SrcNet,
+			unMatchSrcNet: unmatchedIPv6SrcNet,
+			dstNet:        v6DstNet,
+			matchTTL:      matchTTL,
+			unMatchTTL:    unMatchTTL,
+		},
+	}
 
-	t.Run("IPv6 TTL Rewrite Verification", func(t *testing.T) {
-		t.Log("Configuring IPv6 traffic flows on ATE")
-		flows := ipv6Flows(t, otgConfig)
-		otg.PushConfig(t, otgConfig)
-		otg.StartProtocols(t)
-		otgOperation(t, dut, ate, otg, otgConfig, flows)
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ocNHGParams := defaultStaticNextHopGroupParams()
+			ocPFParams := defaultOcPolicyForwardingParams()
+			_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+			cfgplugins.NextHopGroupConfig(t, dut, tc.family, ni, ocNHGParams)
+
+			// --- Matched case ---
+			ocPFParams.TTL = tc.matchTTL
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
+
+			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tunnelIPTTL))
+			configPush(t, otg, otgConfig)
+			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, tc.matchTTL)
+
+			// --- Unmatched case ---
+			ocPFParams.TTL = tc.unMatchTTL
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
+
+			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tunnelIPTTL))
+			configPush(t, otg, otgConfig)
+			otgOperation(t, dut, ate, otg, otgConfig, unMatchFlow, tc.family, tc.unMatchTTL)
+		})
+	}
+}
+
+// configPush method to push OTG configuration and start the protocols.
+func configPush(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config) {
+	t.Helper()
+	otg.PushConfig(t, otgConfig)
+	otg.StartProtocols(t)
 }
 
 // defaultStaticNextHopGroupParams provides default parameters for the generator. matching the values in the provided JSON example.
 func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	return cfgplugins.StaticNextHopGroupParams{
-
 		StaticNHGName: "MPLS_in_GRE_Encap",
 		NHIPAddr1:     "nh_ip_addr_1",
 		NHIPAddr2:     "nh_ip_addr_2",
 		DynamicValues: []cfgplugins.DynamicStructParams{
 			{
-				NexthopGrpName: "NHG-1",
+				NexthopGrpName: nexthopGroupName,
 				NexthopType:    "mpls-over-gre",
 				TTL:            tunnelIPTTL,
 				TunnelSrc:      IPv4TunnelSrc,
@@ -168,7 +202,7 @@ func defaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 				EntryValue:     1,
 			},
 			{
-				NexthopGrpName: "NHG-1",
+				NexthopGrpName: nexthopGroupName,
 				NexthopType:    "mpls-over-gre",
 				TTL:            tunnelIPTTL,
 				TunnelSrc:      IPv4TunnelSrc,
@@ -189,6 +223,10 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 		AppliedPolicyName:   "customer1",
 		ChangeCli:           true,
 		InterfaceName:       aggID1 + ".10",
+		TTL:                 matchTTL,
+		RwTTL:               rewrittenIPTTL,
+		PolicyForwardName:   policyForwardingName,
+		NHGName:             nexthopGroupName,
 	}
 }
 
@@ -196,39 +234,34 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Logf("Configuring Hardware Init")
+	batch := &gnmi.SetBatch{}
 	configureHardwareInit(t, dut)
-	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, vrfName, !isDefaultVrf)
+	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, vrfName, !isDefaultVRF)
 	// LAG1
 	dutAggPorts1 := []*ondatra.Port{dut.Port(t, "port1"), dut.Port(t, "port2")}
 	clearLAGInterfaces(t, dut, dutAggPorts1, aggID1)
-	aggObj, aggSubint := configureDUTLag(t, dut, dutAggPorts1, aggID1, dutLag1, vlanID)
+	aggObj, aggSubint := configureDUTLag(t, dut, batch, dutAggPorts1, aggID1, dutLag1, vlanID)
 	// LAG2
 	dutAggPorts2 := []*ondatra.Port{dut.Port(t, "port3"), dut.Port(t, "port4")}
 	clearLAGInterfaces(t, dut, dutAggPorts2, aggID2)
-	configureDUTLag(t, dut, dutAggPorts2, aggID2, dutLag2, 0)
+	configureDUTLag(t, dut, batch, dutAggPorts2, aggID2, dutLag2, 0)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, vrfName, nonDefaultNI)
-	assignToNetworkInstance(t, dut, aggID1, vrfName, 10, true)
-	updateLagInterfaceDetails(t, dut, aggSubint, dutLag1, aggObj, aggID1)
+	assignToNetworkInstance(t, dut, batch, aggID1, vrfName, 10, true)
+	updateLagInterfaceDetails(t, dut, batch, aggSubint, dutLag1, aggObj, aggID1)
 
-	configureDUTLoopback(t, dut)
-	ocNHGParams := defaultStaticNextHopGroupParams()
-	ocPFParams := defaultOcPolicyForwardingParams()
-	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-	cfgplugins.NextHopGroupConfig(t, dut, "v4", ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "v4", pf, ocPFParams)
-	cfgplugins.PolicyForwardingConfig(t, dut, "v6", pf, ocPFParams)
+	configureDUTLoopback(t, dut, batch)
 	// Configure all routes in one loop.
 	for _, r := range routes {
-		configureStaticRoute(t, dut, r.prefix, r.indx, r.nextIP)
+		configureStaticRoute(t, dut, batch, r.prefix, r.indx, r.nextIP)
 	}
+	batch.Set(t, dut)
 }
 
 // configureDUTLag configures a LAG (Port-Channel) interface on the DUT, assigns its member interfaces, and applies IPv4/IPv6 addressing. It supports both untagged (default) and VLAN-tagged subinterfaces.
-func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes, vlanID int) (*oc.Interface, *oc.Interface_Subinterface) {
+func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, aggPorts []*ondatra.Port, aggID string, dutLag attrs.Attributes, vlanID int) (*oc.Interface, *oc.Interface_Subinterface) {
 	t.Helper()
-	batch := &gnmi.SetBatch{}
 	var subif *oc.Interface_Subinterface
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	if deviations.InterfaceEnabled(dut) {
@@ -284,8 +317,6 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 		}
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
-	batch.Set(t, dut)
-
 	return agg, subif
 }
 
@@ -302,7 +333,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // updateLagInterfaceDetails updates the IPv4/IPv6 addressing details on a LAG subinterface after a VRF has been configured.
-func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, subif *oc.Interface_Subinterface, dutLag attrs.Attributes, agg *oc.Interface, aggID string) {
+func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, subif *oc.Interface_Subinterface, dutLag attrs.Attributes, agg *oc.Interface, aggID string) {
 	t.Helper()
 	v4 := subif.GetOrCreateIpv4()
 	v4.Enabled = ygot.Bool(true)
@@ -312,11 +343,11 @@ func updateLagInterfaceDetails(t *testing.T, dut *ondatra.DUTDevice, subif *oc.I
 	v6.Enabled = ygot.Bool(true)
 	addr6 := v6.GetOrCreateAddress(dutLag.IPv6)
 	addr6.PrefixLength = ygot.Uint8(uint8(dutLag.IPv6Len))
-	gnmi.Update(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
+	gnmi.BatchUpdate(batch, gnmi.OC().Interface(aggID).Config(), agg)
 }
 
 // assignToNetworkInstance attaches a physical or logical subinterface of a DUT to a given network instance (VRF).
-func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32, subInt bool) {
+func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, i string, ni string, si uint32, subInt bool) {
 	t.Helper()
 	if ni == "" {
 		t.Fatalf("Network instance not provided for interface assignment")
@@ -335,7 +366,7 @@ func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 		netInstIntf.Id = ygot.String(intf.GetName())
 	}
 	if intf.GetOrCreateSubinterface(si) != nil {
-		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
 }
 
@@ -350,24 +381,20 @@ func clearLAGInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 }
 
 // configureStaticRoute installs a static IPv4 route on the DUT.
-func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ipRoutePfx, indx, nxtIP string) {
+func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ipRoutePfx, indx, nxtIP string) {
 	t.Helper()
-	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          ipRoutePfx,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			indx: oc.UnionString(nxtIP),
-		},
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{indx: oc.UnionString(nxtIP)},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(batch, sV4, dut); err != nil {
 		t.Fatalf("Failed to configure IPv4 static route: %v", err)
 	}
-	b.Set(t, dut)
 }
 
 // configureDUTLoopback sets up or retrieves the loopback interface on the DUT.
-func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
 	d := gnmi.OC()
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
@@ -376,19 +403,15 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
 	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
 	var subif *oc.Interface_Subinterface
-	loop1 := &oc.Interface{
-		Name: ygot.String(loopbackIntfName),
-		Type: oc.IETFInterfaces_InterfaceType_softwareLoopback,
-	}
+	loop1 := &oc.Interface{Name: ygot.String(loopbackIntfName), Type: oc.IETFInterfaces_InterfaceType_softwareLoopback}
 	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
 		loop1.Enabled = ygot.Bool(true)
-
 		// Subif 0 (required for loopback)
 		subif = loop1.GetOrCreateSubinterface(0)
 		subif.GetOrCreateIpv4().Enabled = ygot.Bool(true)
 		subif.GetOrCreateIpv6().Enabled = ygot.Bool(true)
 		// Push loopback config
-		gnmi.Update(t, dut, d.Interface(loopbackIntfName).Config(), loop1)
+		gnmi.BatchUpdate(batch, d.Interface(loopbackIntfName).Config(), loop1)
 	} else {
 		if v4, ok := ipv4Addrs[0].Val(); ok {
 			dutLoopback.IPv4 = v4.GetIp()
@@ -404,7 +427,7 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	v4addr.PrefixLength = ygot.Uint8(dutLoopback.IPv4Len)
 	v6addr := subif.GetOrCreateIpv6().GetOrCreateAddress(dutLoopback.IPv6)
 	v6addr.PrefixLength = ygot.Uint8(dutLoopback.IPv6Len)
-	gnmi.Update(t, dut, d.Interface(loopbackIntfName).Config(), loop1)
+	gnmi.BatchUpdate(batch, d.Interface(loopbackIntfName).Config(), loop1)
 	// Save into dutLoopback struct
 	dutLoopback.IPv4 = v4addr.GetIp()
 	dutLoopback.IPv6 = v6addr.GetIp()
@@ -416,17 +439,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ateConfig := gosnappi.NewConfig()
 
 	// ATE LAG1
-	ateAggPorts1 := []*ondatra.Port{
-		ate.Port(t, "port1"),
-		ate.Port(t, "port2"),
-	}
+	ateAggPorts1 := []*ondatra.Port{ate.Port(t, "port1"), ate.Port(t, "port2")}
 	configureLAGDevice(t, ateConfig, ateLAG1Name, 1, ateLag1, dutLag1, ateAggPorts1, 10)
 
 	// ATE LAG2
-	ateAggPorts2 := []*ondatra.Port{
-		ate.Port(t, "port3"),
-		ate.Port(t, "port4"),
-	}
+	ateAggPorts2 := []*ondatra.Port{ate.Port(t, "port3"), ate.Port(t, "port4")}
 	configureLAGDevice(t, ateConfig, ateLAG2Name, 2, ateLag2, dutLag2, ateAggPorts2, 0)
 	return ateConfig
 }
@@ -439,7 +456,7 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 
 	for i, p := range atePorts {
 		port := ateConfig.Ports().Add().SetName(p.ID())
-		mac, err := incrementMAC(lagAttrs.MAC, i+1)
+		mac, err := iputil.IncrementMAC(lagAttrs.MAC, i+1)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -457,161 +474,119 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagName string,
 	}
 
 	// IPv4
-	ipv4 := eth.Ipv4Addresses().Add().SetName(lagAttrs.Name + ".IPv4")
+	ipv4 := eth.Ipv4Addresses().Add().SetName(lagAttrs.Name + ".IPV4")
 	ipv4.SetAddress(lagAttrs.IPv4).SetGateway(dutAttrs.IPv4).SetPrefix(uint32(lagAttrs.IPv4Len))
 
 	// IPv6
-	ipv6 := eth.Ipv6Addresses().Add().SetName(lagAttrs.Name + ".IPv6")
+	ipv6 := eth.Ipv6Addresses().Add().SetName(lagAttrs.Name + ".IPV6")
 	ipv6.SetAddress(lagAttrs.IPv6).SetGateway(dutAttrs.IPv6).SetPrefix(uint32(lagAttrs.IPv6Len))
 }
 
-// ipv4Flows configures IPv4 traffic flows on the ATE.
-// This function creates two traffic flows in the provided gosnappi Config:
-//  1. "MatchedIPv4" flow – uses a defined source network, destination network, and TTL expected to match the DUT policy.
-//  2. "UnmatchedIPv4" flow – uses a different source network and TTL expected not to match the DUT policy.
-func ipv4Flows(t *testing.T, config gosnappi.Config) []string {
+// createFlow configures IPv4/IPv6 (match/unmatch) traffic flows on the ATE.
+func createFlow(t *testing.T, config gosnappi.Config, name, srcIP, dstIP, protoType string, ttl uint32) string {
 	t.Helper()
 	config.Flows().Clear()
-
-	createIPv4Flow := func(name, srcNet string, ttl uint32) string {
-		flow := config.Flows().Add().SetName(name)
-		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().SetTxNames([]string{ateLag1.Name + ".IPv4"}).SetRxNames([]string{ateLag2.Name + ".IPv4"})
-		flow.Rate().SetPps(pps)
-		flow.Size().SetFixed(frameSize)
-
-		flow.Packet().Add().Ethernet()
-		flow.Packet().Add().Vlan().Id().SetValue(vlanID)
-
+	flow := config.Flows().Add().SetName(name)
+	flow.Metrics().SetEnable(true)
+	flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s%s%s", ateLag1.Name, ".", strings.ToUpper(protoType))}).SetRxNames([]string{fmt.Sprintf("%s%s%s", ateLag2.Name, ".", strings.ToUpper(protoType))})
+	flow.Rate().SetPps(ratePPS)
+	flow.Size().SetFixed(frameSize)
+	eth := flow.Packet().Add().Ethernet()
+	eth.Src().SetValue(ateLag1.MAC)
+	eth.Dst().Auto()
+	flow.Packet().Add().Vlan().Id().SetValue(vlanID)
+	switch strings.ToLower(protoType) {
+	case "ipv4":
 		ip := flow.Packet().Add().Ipv4()
-		ip.Src().Increment().SetStart(srcNet).SetCount(IPCount)
-		ip.Dst().Increment().SetStart(ipv4DstNet).SetCount(IPCount)
+		ip.Src().Increment().SetStart(srcIP).SetCount(srcIPCount)
+		ip.Dst().Increment().SetStart(dstIP).SetCount(dstIPcount)
 		ip.TimeToLive().SetValue(ttl)
 
-		return flow.Name()
-	}
-
-	var flowList []string
-	flowList = append(flowList, createIPv4Flow("MatchedIPv4", matchedIPv4SrcNet, matchedIPTTL), createIPv4Flow("UnmatchedIPv4", unmatchedIPv4SrcNet, unmatchedIPTTL))
-
-	return flowList
-}
-
-// ipv6Flows configures IPv6 traffic flows on the ATE.
-// This function creates two IPv6 traffic flows in the gosnappi Config:
-//  1. "MatchedIPv6" flow – configured with a specific source network and Hop Limit expected to match DUT policy.
-//  2. "UnmatchedIPv6" flow – configured with a different Hop Limit or parameters expected not to match DUT policy.
-func ipv6Flows(t *testing.T, c gosnappi.Config) []string {
-	t.Helper()
-	c.Flows().Clear()
-
-	createIPv6Flow := func(name, srcNet, dstNet string, ttl uint32) string {
-		flow := c.Flows().Add().SetName(name)
-		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().SetTxNames([]string{ateLag1.Name + ".IPv6"}).SetRxNames([]string{ateLag2.Name + ".IPv6"})
-		flow.Rate().SetPps(pps)
-		flow.Size().SetFixed(frameSize)
-		flow.Packet().Add().Ethernet()
-		flow.Packet().Add().Vlan().Id().SetValue(vlanID)
+	case "ipv6":
 		ip := flow.Packet().Add().Ipv6()
-		ip.Src().Increment().SetStart(srcNet).SetCount(IPCount)
-		ip.Dst().Increment().SetStart(dstNet).SetCount(IPCount)
+		ip.Src().Increment().SetStart(srcIP).SetCount(srcIPCount).SetStep(v6Step)
+		ip.Dst().Increment().SetStart(dstIP).SetCount(dstIPcount).SetStep(v6Step)
 		ip.HopLimit().SetValue(ttl)
 
-		return flow.Name()
+	default:
+		t.Fatalf("unsupported protocol: %s", protoType)
 	}
 
-	var flowList []string
-	flowList = append(flowList, createIPv6Flow("MatchedIPv6", matchedIPv6SrcNet, ipv6DstNet, matchedIPTTL), createIPv6Flow("UnmatchedIPv6", unmatchedIPv6SrcNet, ipv6DstNet, unmatchedIPTTL))
-
-	return flowList
-}
-
-// incrementMAC takes a MAC address in string form (e.g., "02:42:ac:11:00:02") and increments it by the given integer offset `i`.
-func incrementMAC(mac string, i int) (string, error) {
-	macAddr, err := net.ParseMAC(mac)
-	if err != nil {
-		return "", err
-	}
-	convMac := binary.BigEndian.Uint64(append([]byte{0, 0}, macAddr...))
-	convMac = convMac + uint64(i)
-	buf := new(bytes.Buffer)
-	err = binary.Write(buf, binary.BigEndian, convMac)
-	if err != nil {
-		return "", err
-	}
-	newMac := net.HardwareAddr(buf.Bytes()[2:8])
-	return newMac.String(), nil
+	return flow.Name()
 }
 
 // verifyTraffic checks that the flows sent and received the expected number of packets.
-func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flows []string) {
+func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, c gosnappi.Config, flowName string) {
 	t.Helper()
 	otg := ate.OTG()
 	otgutils.LogPortMetrics(t, otg, c)
 	otgutils.LogLAGMetrics(t, otg, c)
 	otgutils.LogFlowMetrics(t, otg, c)
 
-	for _, flowName := range flows {
-		flowPath := gnmi.OTG().Flow(flowName)
-		txPkts := gnmi.Get(t, otg, flowPath.Counters().OutPkts().State())
-		rxPkts := gnmi.Get(t, otg, flowPath.Counters().InPkts().State())
+	flowPath := gnmi.OTG().Flow(flowName)
+	txPkts := gnmi.Get(t, otg, flowPath.Counters().OutPkts().State())
+	rxPkts := gnmi.Get(t, otg, flowPath.Counters().InPkts().State())
 
-		if txPkts == 0 {
-			t.Errorf("Flow %s did not transmit any packets", flowName)
-		}
+	if txPkts == 0 {
+		t.Errorf("Flow %s did not transmit any packets", flowName)
+	}
 
-		lostPkts := txPkts - rxPkts
-		if got := (lostPkts * 100 / txPkts); got >= lossTolerance {
-			t.Errorf("Flow %s saw unexpected packet loss: sent %d, got %d", flowName, txPkts, rxPkts)
-		} else {
-			t.Logf("Flow %s traffic verification passed: sent %d, got %d", flowName, txPkts, rxPkts)
-		}
+	lostPkts := txPkts - rxPkts
+	if got := (lostPkts * 100 / txPkts); got >= lossTolerance {
+		t.Errorf("Flow %s saw unexpected packet loss: sent %d, got %d", flowName, txPkts, rxPkts)
+	} else {
+		t.Logf("Flow %s traffic verification passed: sent %d, got %d", flowName, txPkts, rxPkts)
 	}
 }
 
 // otgOperation orchestrates the entire OTG workflow for traffic validation.
 // It validates ATE packet counters, enables capture on specified ports, pushes configuration, starts protocols, ensures DUT ports are up, starts capture, runs traffic for a fixed duration, stops traffic, stops capture, verifies traffic flow, and validates captured packets.
-func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config, flows []string) {
+func otgOperation(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config, flow, protoType string, ttl int) {
 	t.Helper()
-	validateATEPkts(t, otgConfig, flows)
 	enableCapture(t, config, capturePorts)
-	otgConfig.PushConfig(t, config)
-	otgConfig.StartProtocols(t)
+	configPush(t, otgConfig, config)
+	validateATEPkts(t, otgConfig, flow)
 
-	verifyPortsUp(t, dut.Device)
 	cs := startCapture(t, otgConfig)
 	otgConfig.StartTraffic(t)
-	time.Sleep(sleepTime * time.Second)
+	time.Sleep(trafficDuration)
 	otgConfig.StopTraffic(t)
 
 	stopCapture(t, otgConfig, cs)
-	verifyTrafficFlow(t, ate, config, flows)
-	captureAndValidatePackets(t, ate, []string{IPv4TunnelDstA, IPv4TunnelDstB}, "ipv4")
+	verifyTrafficFlow(t, ate, config, flow)
+	if protoType == "ipv4" {
+		// TODO: We cannot add an error return here because the GenerateIPs method is already merged into main. To fix this, we’ll need to raise a new PR and update it.
+		IPList := iputil.GenerateIPs(v4DstNet, dstIPcount)
+		captureAndValidatePackets(t, ate, IPList, protoType, ttl)
+	} else {
+		IPList, err := iputil.GenerateIPv6s(net.ParseIP(v6DstNet), dstIPcount)
+		if err != nil {
+			t.Errorf("%s", err)
+		}
+		captureAndValidatePackets(t, ate, IPList, protoType, ttl)
+	}
 }
 
 // validateATEPkts validates packet counts for the given traffic flows on the ATE.
-func validateATEPkts(t *testing.T, otgConfig *otg.OTG, flows []string) {
+func validateATEPkts(t *testing.T, otgConfig *otg.OTG, flowName string) {
 	t.Helper()
-	for _, fName := range flows {
-		otgConfig.StartTraffic(t)
-		time.Sleep(sleepTime * time.Second)
-		otgConfig.StopTraffic(t)
-		egressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(fName).Counters().InPkts().State())
-		ingressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(fName).Counters().OutPkts().State())
-		if ingressAtePkts == 0 || egressAtePkts == 0 {
-			t.Errorf("Got the unexpected packet count ingressAtePkts: %d, egressAtePkts: %d", ingressAtePkts, egressAtePkts)
-		}
-		if ingressAtePkts >= egressAtePkts {
-			t.Logf("Interface counters matched: InUnicastPkts : %d OutUnicastPkts : %d", ingressAtePkts, egressAtePkts)
-		} else {
-			t.Errorf("Error: Interface counters didn't match.")
-		}
+	otgConfig.StartTraffic(t)
+	time.Sleep(trafficDuration)
+	otgConfig.StopTraffic(t)
+	egressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().InPkts().State())
+	ingressAtePkts := gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().OutPkts().State())
+	if ingressAtePkts == 0 || egressAtePkts == 0 {
+		t.Errorf("Got the unexpected packet count ingressAtePkts: %d, egressAtePkts: %d", ingressAtePkts, egressAtePkts)
+	}
+	if ingressAtePkts >= egressAtePkts {
+		t.Logf("Interface counters matched: InUnicastPkts : %d OutUnicastPkts : %d", ingressAtePkts, egressAtePkts)
+	} else {
+		t.Errorf("Error: Interface counters didn't match.")
 	}
 }
 
 // captureAndValidatePackets captures packets on all configured capture ports and validates them against expected values (destination IPs, TTL/HopLimit, MPLS label).
-func captureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, dstIPs []string, protocolType string) {
+func captureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, dstIPs []string, protocolType string, ttl int) {
 	t.Helper()
 	for _, p := range capturePorts {
 		packetCaptureGRE := processCapture(t, ate.OTG(), p)
@@ -621,78 +596,94 @@ func captureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, dstIPs []st
 		}
 		defer handle.Close()
 		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		validatePackets(t, packetSource, dstIPs, tunnelIPTTL, mplsLabel, protocolType)
+		validatePackets(t, packetSource, dstIPs, ttl, mplsLabel, protocolType)
 	}
 }
 
 // validatePackets iterates through captured packets and validates protocol headers.
 func validatePackets(t *testing.T, packetSource *gopacket.PacketSource, expectedIPs []string, expectedTTL, expectedLabel int, protocolType string) {
 	t.Helper()
-outer:
+	var matched bool
+	var lastErr string
 	for packet := range packetSource.Packets() {
-		var match bool
+		var innerIPv4 *layers.IPv4
+		var innerIPv6 *layers.IPv6
+		ipv4Count, ipv6Count := 0, 0
+
+		for _, l := range packet.Layers() {
+			switch l.LayerType() {
+			case layers.LayerTypeIPv4:
+				ipv4Count++
+				// second IPv4 = inner
+				if ipv4Count == 2 {
+					innerIPv4 = l.(*layers.IPv4)
+				}
+			case layers.LayerTypeIPv6:
+				ipv6Count++
+				// Using IPv4 for the GRE tunnel since IPv6 is not supported, so checking the first IPv6 (inner) occurrence instead.
+				if ipv6Count == 1 {
+					innerIPv6 = l.(*layers.IPv6)
+				}
+			}
+		}
 
 		switch protocolType {
 		case "ipv4":
-			ipLayer := packet.Layer(layers.LayerTypeIPv4)
-			if ipLayer == nil {
+			if innerIPv4 == nil {
+				lastErr = "missing inner IPv4 layer"
 				continue
 			}
-			ipPacket := ipLayer.(*layers.IPv4)
-			gotTTL := ipPacket.TTL
-			gotDstIP := ipPacket.DstIP.String()
+			gotTTL := int(innerIPv4.TTL)
+			gotDstIP := innerIPv4.DstIP.String()
 
-			if slices.Contains(expectedIPs, gotDstIP) && int(gotTTL) == expectedTTL {
-				t.Logf("Matched IPv4 packet: DstIP = %s, TTL = %d", gotDstIP, gotTTL)
-				match = true
+			if slices.Contains(expectedIPs, gotDstIP) && gotTTL == expectedTTL {
+				matched = true
 			} else {
-				t.Errorf("Failed to match IPv4 IP/TTL, GotIP = %s, ExpectedIPs = %v, GotTTL = %d, ExpectedTTL = %d", gotDstIP, expectedIPs, gotTTL, expectedTTL)
+				lastErr = fmt.Sprintf("INNER IPv4 mismatch: GotIP=%s TTL=%d, ExpectedIPs=%v ExpectedTTL=%d", gotDstIP, gotTTL, expectedIPs, expectedTTL)
 			}
 
 		case "ipv6":
-			ipLayer := packet.Layer(layers.LayerTypeIPv6)
-			if ipLayer == nil {
+			if innerIPv6 == nil {
+				lastErr = "missing inner IPv6 layer"
 				continue
 			}
-			ipPacket := ipLayer.(*layers.IPv6)
-			gotHopLimit := ipPacket.HopLimit
-			gotDstIP := ipPacket.DstIP.String()
+			gotHopLimit := int(innerIPv6.HopLimit)
+			gotDstIP := innerIPv6.DstIP.String()
 
-			if slices.Contains(expectedIPs, gotDstIP) && int(gotHopLimit) == expectedTTL {
-				t.Logf("Matched IPv6 packet: DstIP = %s, HopLimit = %d", gotDstIP, gotHopLimit)
-				match = true
+			if slices.Contains(expectedIPs, gotDstIP) && gotHopLimit == expectedTTL {
+				matched = true
 			} else {
-				t.Errorf("Failed to match IPv6 IP/HopLimit, GotIP = %s, ExpectedIPs = %v, GotHopLimit = %d, ExpectedHopLimit = %d", gotDstIP, expectedIPs, gotHopLimit, expectedTTL)
+				lastErr = fmt.Sprintf("INNER IPv6 mismatch: GotIP=%s HopLimit=%d, ExpectedIPs=%v ExpectedTTL=%d", gotDstIP, gotHopLimit, expectedIPs, expectedTTL)
 			}
 
 		default:
 			t.Fatalf("Unsupported protocol type: %s. Must be 'ipv4' or 'ipv6'", protocolType)
 		}
-
-		// validate GRE
-		greLayer := packet.Layer(layers.LayerTypeGRE)
-		if greLayer == nil {
-			t.Fatalf("GRE header missing")
-		} else {
-			t.Log("Found GRE header")
+		// Validate GRE layer
+		if packet.Layer(layers.LayerTypeGRE) == nil {
+			lastErr = "missing GRE header"
+			continue
 		}
 
-		// validate MPLS
+		// Validate MPLS layer
 		mplsLayer := packet.Layer(layers.LayerTypeMPLS)
 		if mplsLayer == nil {
-			t.Fatalf("MPLS header missing")
-		} else {
-			mplsPacket := mplsLayer.(*layers.MPLS)
-			if mplsPacket.Label == uint32(expectedLabel) {
-				t.Logf("Matched MPLS Label, Got: %d, Expected: %d", mplsPacket.Label, expectedLabel)
-			} else {
-				t.Fatalf("MPLS Label mismatch, Got: %d, Expected: %d", mplsPacket.Label, expectedLabel)
-			}
+			lastErr = "missing MPLS header"
+			continue
 		}
+		mplsPacket := mplsLayer.(*layers.MPLS)
+		if mplsPacket.Label != uint32(expectedLabel) {
+			lastErr = fmt.Sprintf("MPLS label mismatch: Got=%d, Expected=%d", mplsPacket.Label, expectedLabel)
+			continue
+		}
+		matched = true
+	}
 
-		if match {
-			break outer // break only after all validations succeed
-		}
+	// Final result
+	if matched {
+		t.Logf("Packet validation succeeded for protocol=%s", protocolType)
+	} else {
+		t.Errorf("packet validation failed for protocol=%s: %s", protocolType, lastErr)
 	}
 }
 
@@ -730,7 +721,7 @@ func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
 func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 	t.Helper()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(sleepTime * time.Second)
+	time.Sleep(trafficDuration)
 	capture, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)

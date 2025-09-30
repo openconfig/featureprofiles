@@ -133,10 +133,11 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
+			if traffictype == "ipv4" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
@@ -155,7 +156,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
+			} else if traffictype == "ipv6" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
@@ -180,7 +181,6 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
-
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.

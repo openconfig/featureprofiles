@@ -47,17 +47,21 @@ type OcPolicyForwardingParams struct {
 	AppliedPolicyName   string
 
 	// Policy Rule specific params
-	InnerDstIPv6  string
-	InnerDstIPv4  string
-	CloudV4NHG    string
-	CloudV6NHG    string
-	DecapPolicy   DecapPolicyParams
-	GuePort       uint32
-	IpType        string
-	Dynamic       bool
-	TunnelIP      string
-	ChangeCli     bool
-	InterfaceName string
+	InnerDstIPv6      string
+	InnerDstIPv4      string
+	CloudV4NHG        string
+	CloudV6NHG        string
+	DecapPolicy       DecapPolicyParams
+	GuePort           uint32
+	IpType            string
+	Dynamic           bool
+	TunnelIP          string
+	ChangeCli         bool
+	InterfaceName     string
+	TTL               int
+	RwTTL             int
+	PolicyForwardName string
+	NHGName           string
 }
 
 type PolicyForwardingRule struct {
@@ -331,82 +335,82 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 // PolicyForwardingConfig configures the interface policy-forwarding config.
 func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
-
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
 	if deviations.PolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
-		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			if traffictype == "v4" {
-				if params.ChangeCli {
-					// PolicyForwardingConfigv4Vrf configuration for policy-forwarding for ipv4.
-					PolicyForwardingConfigv4Vrf := fmt.Sprintf(`
+		case ondatra.ARISTA:
+			if params.ChangeCli {
+				switch traffictype {
+				case "ipv4":
+					policyForwardingConfigv4Vrf := fmt.Sprintf(`
 					Traffic-policies
-					traffic-policy tp_cloud_id_3_23
-						match bgpsetttlv4 ipv4
-							ttl 1
+						no traffic-policy %[1]s
+						traffic-policy %[1]s
+							match rewritettlv4 ipv4
+								ttl %[2]d
+								!
+								actions
+									count
+									redirect next-hop group %[3]s ttl %[4]d
 							!
-							actions
-								count
-								redirect next-hop group NHG-1
+							match ipv4-all-default ipv4
+								actions
+									count
+									redirect next-hop group %[3]s ttl %[4]d
+							!
+							match ipv6-all-default ipv6
 						!
-						match ipv4-all-default ipv4
-							actions
-								count
-								redirect next-hop group NHG-1
+							interface %[5]s
+							traffic-policy input %[1]s
 						!
-						match ipv6-all-default ipv6
-					!
-						interface %s
-						traffic-policy input tp_cloud_id_3_23
-					!
-						`, params.InterfaceName)
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Vrf)
-				} else {
+							`, params.PolicyForwardName, params.TTL, params.NHGName, params.RwTTL, params.InterfaceName)
+					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv4Vrf)
+				case "ipv6":
+					policyForwardingConfigv6Vrf := fmt.Sprintf(`
+					Traffic-policies
+						no traffic-policy %[1]s
+						traffic-policy %[1]s
+							match rewritettlv6 ipv6
+								ttl %[2]d
+								!
+								actions
+									count
+									redirect next-hop group %[3]s ttl %[4]d
+							!
+							match ipv6-all-default ipv6
+								actions
+									count
+									redirect next-hop group %[3]s ttl %[4]d
+							!
+							match ipv4-all-default ipv4
+						!
+							interface %[5]s
+							traffic-policy input %[1]s
+						!
+							`, params.PolicyForwardName, params.TTL, params.NHGName, params.RwTTL, params.InterfaceName)
+					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv6Vrf)
+				default:
+					t.Logf("Unsupported traffictype %s", traffictype)
+				}
+			} else {
+				switch traffictype {
+				case "v4":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
-				}
-			} else if traffictype == "v6" {
-				if params.ChangeCli {
-					// PolicyForwardingConfigv4Vrf configuration for policy-forwarding for ipv4.
-					PolicyForwardingConfigv6Vrf := fmt.Sprintf(`
-					Traffic-policies
-					traffic-policy tp_cloud_id_3_23
-						match bgpsetttlv6 ipv6
-							ttl 1
-							!
-							actions
-								count
-								redirect next-hop group NHG-1
-						!
-						match ipv6-all-default ipv6
-							actions
-								count
-								redirect next-hop group NHG-1
-						!
-						match ipv4-all-default ipv4
-					!
-						interface %s
-						traffic-policy input tp_cloud_id_3_23
-					!
-						`, params.InterfaceName)
-					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Vrf)
-				} else {
+				case "v6":
 					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
+				case "dualstack":
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
+				case "multicloudv4":
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
+				default:
+					t.Logf("Unsupported traffictype %s", traffictype)
 				}
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
 			}
 		default:
-			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
-
 		RulesAndActions(params, pf)
-
 	}
 }
 
