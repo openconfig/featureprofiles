@@ -30,6 +30,7 @@ import (
 	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -45,13 +46,10 @@ import (
 )
 
 const (
-	ethertypeIPv4   = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
-	ethertypeIPv6   = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
 	ipv4PrefixLen   = 30
 	ipv6PrefixLen   = 126
 	trafficDuration = 15 * time.Second
 	clusterPolicy   = "vrf_selection_policy_c"
-	seqIDBase       = uint32(10)
 
 	// MPLS-in-UDP test configuration
 	mplsLabel       = uint64(100)
@@ -123,13 +121,6 @@ var (
 	}
 	portsTrafficDistribution = []uint64{33, 33, 33}
 )
-
-// pbrRule defines a policy-based routing rule configuration
-type pbrRule struct {
-	sequence  uint32
-	etherType oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
-	encapVrf  string
-}
 
 // flowAttr defines traffic flow attributes for test packets
 type flowAttr struct {
@@ -342,9 +333,23 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Set up static ARP configuration for gRIBI NH entries
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		staticARPWithSecondaryIP(t, dut)
+		cfg := cfgplugins.SecondaryIPConfig{
+			Entries: []cfgplugins.SecondaryIPEntry{
+				{PortName: "port2", PortDummyAttr: dutPort2DummyIP, DummyIP: otgPort2DummyIP.IPv4, MagicMAC: magicMac},
+				{PortName: "port3", PortDummyAttr: dutPort3DummyIP, DummyIP: otgPort3DummyIP.IPv4, MagicMAC: magicMac},
+				{PortName: "port4", PortDummyAttr: dutPort4DummyIP, DummyIP: otgPort4DummyIP.IPv4, MagicMAC: magicMac},
+			},
+		}
+		cfgplugins.StaticARPWithSecondaryIP(t, dut, cfg)
 	} else if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
-		staticARPWithMagicUniversalIP(t, dut)
+		cfg := cfgplugins.StaticARPConfig{
+			Entries: []cfgplugins.StaticARPEntry{
+				{PortName: "port2", MagicIP: magicIP, MagicMAC: magicMac},
+				{PortName: "port3", MagicIP: magicIP, MagicMAC: magicMac},
+				{PortName: "port4", MagicIP: magicIP, MagicMAC: magicMac},
+			},
+		}
+		cfgplugins.StaticARPWithMagicUniversalIP(t, dut, cfg)
 	}
 
 	// Allow time for configuration to be applied
@@ -355,7 +360,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 // configureBaseconfig configures network instances and forwarding policy on the DUT
 func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	pf := getPbrPolicy(dut, clusterPolicy)
+	pf := cfgplugins.NewPolicyForwardingVRFSelection(dut, clusterPolicy)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 }
 
@@ -375,140 +380,11 @@ func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort str
 	gnmi.Replace(t, dut, pfPath.Config(), pfCfg)
 }
 
-// getPbrPolicy creates policy-based routing configuration for VRF selection
-func getPbrPolicy(dut *ondatra.DUTDevice, name string) *oc.NetworkInstance_PolicyForwarding {
-	d := &oc.Root{}
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	pf := ni.GetOrCreatePolicyForwarding()
-	p := pf.GetOrCreatePolicy(name)
-	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	for _, pRule := range getPbrRules(dut) {
-		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.sequence))
-
-		if deviations.PfRequireMatchDefaultRule(dut) {
-			if pRule.etherType != nil {
-				r.GetOrCreateL2().Ethertype = pRule.etherType
-			}
-		}
-
-		if pRule.encapVrf != "" {
-			r.GetOrCreateAction().SetNetworkInstance(pRule.encapVrf)
-		}
-	}
-	return pf
-}
-
-// getPbrRules returns policy-based routing rules for VRF selection
-func getPbrRules(dut *ondatra.DUTDevice) []pbrRule {
-	vrfDefault := deviations.DefaultNetworkInstance(dut)
-
-	if deviations.PfRequireMatchDefaultRule(dut) {
-		return []pbrRule{
-			{
-				sequence:  17,
-				etherType: ethertypeIPv4,
-				encapVrf:  vrfDefault,
-			},
-			{
-				sequence:  18,
-				etherType: ethertypeIPv6,
-				encapVrf:  vrfDefault,
-			},
-		}
-	}
-	return []pbrRule{
-		{
-			sequence: 17,
-			encapVrf: vrfDefault,
-		},
-	}
-}
-
-// seqIDOffset returns sequence ID with base offset to ensure proper ordering
-func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
-	if deviations.PfRequireSequentialOrderPbrRules(dut) {
-		return i + seqIDBase
-	}
-	return i
-}
-
-// staticARPWithMagicUniversalIP configures static ARP with magic universal IP
-func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	sb := &gnmi.SetBatch{}
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-
-	s := &oc.NetworkInstance_Protocol_Static{
-		Prefix: ygot.String(magicIP + "/32"),
-		NextHop: map[string]*oc.NetworkInstance_Protocol_Static_NextHop{
-			"0": {
-				Index: ygot.String("0"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p2.Name()),
-				},
-			},
-			"1": {
-				Index: ygot.String("1"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p3.Name()),
-				},
-			},
-			"2": {
-				Index: ygot.String("2"),
-				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p4.Name()),
-				},
-			},
-		},
-	}
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), s)
-	gnmi.BatchUpdate(sb, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), magicIP, magicMac))
-	gnmi.BatchUpdate(sb, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), magicIP, magicMac))
-	gnmi.BatchUpdate(sb, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), magicIP, magicMac))
-
-	sb.Set(t, dut)
-}
-
-// staticARPWithSecondaryIP configures secondary IPs and static ARP for gRIBI compatibility
-func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	p2 := dut.Port(t, "port2")
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2DummyIP.NewOCInterface(p2.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
-
-	p3 := dut.Port(t, "port3")
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), dutPort3DummyIP.NewOCInterface(p3.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
-
-	p4 := dut.Port(t, "port4")
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), dutPort4DummyIP.NewOCInterface(p4.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
-}
-
-// configStaticArp configures static ARP entries for gRIBI next hop resolution
-func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
-	i := &oc.Interface{Name: ygot.String(p)}
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	n4 := s4.GetOrCreateNeighbor(ipv4addr)
-	n4.LinkLayerAddress = ygot.String(macAddr)
-	return i
-}
-
 // Configures the given DUT interface.
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
-	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
+	i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
 	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-
 	return i
 }
 
