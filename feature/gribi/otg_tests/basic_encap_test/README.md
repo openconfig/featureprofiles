@@ -36,59 +36,64 @@ DUT port-5 <------> port-5 ATE
 * magic_mac = 02:00:00:00:00:01`
 ```
 
-## Canonical OC
+#### Canonical OC
 ```json
 {
   "network-instances": {
     "network-instance": [
       {
         "config": {
-          "name": "DEFAULT",
-        },
-      }
-    ]
-  }
-}
-```
-
-```json
-{
-  "network-instances": {
-      "network-instance": {
-        "config": {
           "name": "DEFAULT"
         },
         "name": "DEFAULT",
-          "policy-forwarding" {
-              "policies": {
-                  "policy": [
-                      "policy-id": "vrf_selection_policy_c"
-                      "rules" {
-                          "rule": {
-                              "sequence-id": 1,
-                              "ipv4":  {
-                                  "protocol": 4
-                                  "dscp-set": "[dscp_encap_a_1, dscp_encap_a_2]""
-                                  "source-address": "ipv4_outer_src_222"
-                              }
-                              "action": {
-                                  "decap-network-instance": "DECAP_TE_VRF"
-                                  "post-network-instance": "ENCAP_TE_VRF_A"
-                                  "decap-fallback-network-instance": "TE_VRF_222"
-                              }
-                          }
-                          "rule": {
-                              "sequence-id": 17
-                              "action": {
-                                  "network-instance": "DEFAULT"
-                              }
-                          }
+        "protocols": {
+          "protocol": [
+            {
+              "bgp": {
+                "neighbors": {
+                  "neighbor": [
+                    {
+                      "config": {
+                        "neighbor-address": "192.0.2.6"
+                      },
+                      "neighbor-address": "192.0.2.6",
+                      "timers": {
+                        "config": {
+                          "hold-time": 30,
+                          "keepalive-interval": 10
+                        }
                       }
-                    ]
-                  }
-              }
-          }
+                    }
+                  ]
+                },
+                "peer-groups": {
+                  "peer-group": [
+                    {
+                      "config": {
+                        "peer-group-name": "peer_group"
+                      },
+                      "peer-group-name": "peer_group",
+                      "timers": {
+                        "config": {
+                          "hold-time": 30,
+                          "keepalive-interval": 10
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              },
+              "identifier": "BGP",
+              "name": "BGP"
+            }
+          ]
+        }
       }
+    ]
   }
 }
 ```
@@ -293,3 +298,4 @@ rpcs:
     gRIBI.Modify:
     gRIBI.Flush: 
 ```
+
