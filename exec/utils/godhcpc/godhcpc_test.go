@@ -57,12 +57,20 @@ func TestAddDHCPEntry(t *testing.T) {
 		gw = "1.0.0.2"
 	} else {
 		intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	outer:
 		for _, intf := range intfs {
 			if intf.GetManagement() {
 				for _, subIntf := range intf.GetOrCreateSubinterfaceMap() {
+					// Prefer IPv6 address if available
+					for _, addr := range subIntf.GetOrCreateIpv6().GetOrCreateAddressMap() {
+						mgmtIpAddress = addr.GetIp()
+						mgmtPrefixLength = addr.GetPrefixLength()
+						break outer
+					}
 					for _, addr := range subIntf.GetOrCreateIpv4().GetOrCreateAddressMap() {
 						mgmtIpAddress = addr.GetIp()
 						mgmtPrefixLength = addr.GetPrefixLength()
+						break outer
 					}
 				}
 			}
