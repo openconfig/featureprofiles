@@ -344,3 +344,48 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		mplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
+
+// MPLSSRConfigBasic holds all parameters needed to configure MPLS and SR on the DUT.
+type MPLSSRConfigBasic struct {
+	InstanceName   string
+	SrgbName       string
+	SrgbStartLabel uint32
+	SrgbEndLabel   uint32
+	SrgbID         string
+}
+
+// NewMPLSSRBasic configures MPLS on the DUT using OpenConfig.
+func NewMPLSSRBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg MPLSSRConfigBasic) {
+	if deviations.IsisSrgbSrlbUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf("mpls ip\nmpls label range isis-sr %v %v", cfg.SrgbStartLabel, cfg.SrgbEndLabel)
+		default:
+			t.Errorf("Deviation IsisSrgbSrlbUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	} else {
+		t.Helper()
+		d := &oc.Root{}
+		netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+		// Set Protocol Config
+		mpls := netInstance.GetOrCreateMpls()
+		mplsGlobal := mpls.GetOrCreateGlobal()
+
+		rlb := mplsGlobal.GetOrCreateReservedLabelBlock(cfg.SrgbName)
+
+		rlb.SetLowerBound(oc.UnionUint32(cfg.SrgbStartLabel))
+		rlb.SetUpperBound(oc.UnionUint32(cfg.SrgbEndLabel))
+
+		sr := netInstance.GetOrCreateSegmentRouting()
+		srgbConfig := sr.GetOrCreateSrgb(cfg.SrgbName)
+		srgbConfig.SetMplsLabelBlocks([]string{cfg.SrgbName})
+		srgbConfig.SetLocalId(cfg.SrgbID)
+
+		// === Add protocol subtree into the batch ===
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mpls)
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).SegmentRouting().Config(), sr)
+	}
+}
