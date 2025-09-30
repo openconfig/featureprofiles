@@ -98,6 +98,219 @@ DUT port-5 <------> port-5 ATE
 }
 ```
 
+```json
+{
+	network-instances {
+	    network-instance {
+	        name: DEFAULT
+	        policy-forwarding {
+	            policies {
+	                policy {
+	                    policy-id: "vrf_selection_policy_c"
+	                    rules {
+	                        rule {
+	                            sequence-id: 1
+	                            ipv4 {
+	                                protocol: 4
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_A"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 2
+	                            ipv4 {
+	                                protocol: 41
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_A"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 3
+	                            ipv4 {
+	                                protocol: 4
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_A"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 4
+	                            ipv4 {
+	                                protocol: 41
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_A"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 5
+	                            ipv4 {
+	                                protocol: 4
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_B"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 6
+	                            ipv4 {
+	                                protocol: 41
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_B"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 7
+	                            ipv4 {
+	                                protocol: 4
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_B"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 8
+	                            ipv4 {
+	                                protocol: 41
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "ENCAP_TE_VRF_B"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 9
+	                            ipv4 {
+	                                protocol: 4
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "DEFAULT"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 10
+	                            ipv4 {
+	                                protocol: 41
+	                                source-address: "ipv4_outer_src_222"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "DEFAULT"
+	                                decap-fallback-network-instance: "TE_VRF_222"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 11
+	                            ipv4 {
+	                                protocol: 4
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "DEFAULT"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 12
+	                            ipv4 {
+	                                protocol: 41
+	                                source-address: "ipv4_outer_src_111"
+	                            }
+	                            action {
+	                                decap-network-instance: "DECAP_TE_VRF"
+	                                post-network-instance: "DEFAULT"
+	                                decap-fallback-network-instance: "TE_VRF_111"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 13
+	                            ipv4 {
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                            }
+	                            action {
+	                                network-instance: "ENCAP_TE_VRF_A"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 14
+	                            ipv6 {
+	                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+	                            }
+	                            action {
+	                                network-instance: "ENCAP_TE_VRF_A"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 15
+	                            ipv4 {
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                            }
+	                            action {
+	                                network-instance: "ENCAP_TE_VRF_B"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 16
+	                            ipv6 {
+	                                dscp-set: [dscp_encap_b_1, dscp_encap_b_2]
+	                            }
+	                            action {
+	                                network-instance: "ENCAP_TE_VRF_B"
+	                            }
+	                        }
+	                        rule {
+	                            sequence-id: 17
+	                            action {
+	                                network-instance: "DEFAULT"
+	                            }
+	                        }
+	                    }
+	                }
+	            }
+	        }
+	    }
+	}
+}
+```
+
 *   Using gRIBI, install the following gRIBI AFTs, and validate the specified
     behavior.
 
@@ -298,4 +511,3 @@ rpcs:
     gRIBI.Modify:
     gRIBI.Flush: 
 ```
-
