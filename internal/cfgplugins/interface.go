@@ -928,6 +928,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	return agg
 }
 
+// ConfigureAggregateInterfaces creates a aggregate interface
 func ConfigureAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutLags []*attrs.Attributes) {
 	for _, lagIntf := range dutLags {
 		agg := lagIntf.NewOCInterface(aggID, dut)
