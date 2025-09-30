@@ -692,11 +692,25 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv6.cidr(t))
 		// Validate that the metric is set correctly
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().State()), port1Metric; got != want {
-			t.Errorf("IPv4 Static Route metric for NextHop 1, got: %d, want: %d", got, want)
+		_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*60,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+				val, present := v.Val()
+				return present && val.GetPrefix() == td.staticIPv4.cidr(t) &&
+					val.GetNextHop("0").GetMetric() == port1Metric
+			}).Await(t)
+		if !ok {
+			got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("0").Metric().State())
+			t.Errorf("IPv4 Static Route metric for NextHop 0, got: %d, want: %d", got, port1Metric)
 		}
-		if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().State()), port1Metric; got != want {
-			t.Errorf("IPv6 Static Route metric for NextHop 1, got: %d, want: %d", got, want)
+		_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*60,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+				val, present := v.Val()
+				return present && val.GetPrefix() == td.staticIPv6.cidr(t) &&
+					val.GetNextHop("0").GetMetric() == port1Metric
+			}).Await(t)
+		if !ok {
+			got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("0").Metric().State())
+			t.Errorf("IPv6 Static Route metric for NextHop 0, got: %d, want: %d", got, port1Metric)
 		}
 	})
 
@@ -830,11 +844,25 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 				}
 			}
 		} else {
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Preference().State()), port2Preference; got != want {
-				t.Errorf("IPv4 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			_, ok := gnmi.Watch(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).State(), time.Second*60,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+					val, present := v.Val()
+					return present && val.GetPrefix() == td.staticIPv4.cidr(t) &&
+						val.GetNextHop("1").GetPreference() == port2Preference
+				}).Await(t)
+			if !ok {
+				got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).NextHop("1").Preference().State())
+				t.Errorf("IPv4 Static Route preference for NextHop 1, got: %d, want: %d", got, port2Preference)
 			}
-			if got, want := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Preference().State()), port2Preference; got != want {
-				t.Errorf("IPv6 Static Route preference for NextHop 0, got: %d, want: %d", got, want)
+			_, ok = gnmi.Watch(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).State(), time.Second*60,
+				func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static]) bool {
+					val, present := v.Val()
+					return present && val.GetPrefix() == td.staticIPv6.cidr(t) &&
+						val.GetNextHop("1").GetPreference() == port2Preference
+				}).Await(t)
+			if !ok {
+				got := gnmi.Get(t, td.dut, sp.Static(td.staticIPv6.cidr(t)).NextHop("1").Preference().State())
+				t.Errorf("IPv6 Static Route preference for NextHop 1, got: %d, want: %d", got, port2Preference)
 			}
 		}
 	})
