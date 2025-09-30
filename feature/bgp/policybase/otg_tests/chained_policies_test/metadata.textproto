@@ -16,7 +16,6 @@ platform_exceptions: {
     missing_value_for_defaults: true
     skip_setting_statement_for_policy: true
     default_import_export_policy_unsupported: true
-    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
