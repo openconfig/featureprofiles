@@ -34,13 +34,15 @@ type StaticRouteCfg struct {
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 	IPType          string
 	NextHopAddr     string
+	NexthopGroup    bool
+	T               *testing.T
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
 // Prefix and NextHops.
 //
 // Configuration deviations are applied based on the ondatra device passed in.
-func NewStaticRouteCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
 	if cfg == nil {
 		return nil, errors.New("cfg must be defined")
 	}
@@ -58,10 +60,10 @@ func NewStaticRouteCfg(t *testing.T, batch *gnmi.SetBatch, cfg *StaticRouteCfg, 
 				switch d.Vendor() {
 				case ondatra.ARISTA:
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
-					helpers.GnmiCLIConfig(t, d, cli)
+					helpers.GnmiCLIConfig(cfg.T, d, cli)
 
 				default:
-					t.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
+					cfg.T.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
 				}
 			}
 			return s, nil
