@@ -17,12 +17,14 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+
+	// Add GNOI system and types imports for spb and tpb
+	spb "github.com/openconfig/gnoi/system"
+	tpb "github.com/openconfig/gnoi/types"
 )
 
 const (
@@ -56,11 +58,9 @@ func findComponentsByTypeNoLogs(t *testing.T, dut *ondatra.DUTDevice, cType oc.E
 func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state []*oc.Component_Transceiver_Channel, port_state bool) {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.Header([]string{"Transceiver", "Leaf", "Value"})
-
 	for channel := range state {
 		// CDETS: CSCwk32258. This will be un-commented after the fix
 		// appendToTableIfNotNil(t, table, transceiver, "Description", state[channel].Description, "Description is empty for port %v")
-
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/associated-optical-channel]", state[channel].AssociatedOpticalChannel, "associated_optical_channel is empty for port %v")
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/index", state[channel].Index, "Index is empty for port %v")
 		appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform/components/component[name=*]/transceiver/physical-channels/channel[index=*]/state/laser-age", state[channel].LaserAge, "LaserAge is empty for port %v")
@@ -150,13 +150,15 @@ func checkleaves(t *testing.T, dut *ondatra.DUTDevice, transceiver string, state
 	}
 
 	s := gnmi.Get(t, dut, gnmi.OC().Component(transceiver).Transceiver().State())
-
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/connector-type", s.GetConnectorType(), "connector-type is empty for port %v")
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/date-code", s.GetDateCode(), "date-code is empty for port %v")
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/enabled", s.Enabled, "enabled is empty for port %v")
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/form-factor", s.GetFormFactor(), "form-factor is empty for port %v")
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/module-functional-type", s.GetModuleFunctionalType(), "module-functional-type is empty for port %v")
 	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component[name=*]/openconfig-transceiver:transceiver/state/otn-compliance-code", s.GetOtnComplianceCode(), "otn-compliance-code is empty for port %v")
+
+	mfgDate := gnmi.Get(t, dut, gnmi.OC().Component(transceiver).MfgDate().State())
+	appendToTableIfNotNil(t, table, transceiver, "/openconfig-platform:components/component/state/mfg-date", mfgDate, "mfg-date is empty for port %v")
 
 	// Optical Channel Leaves
 	oc := gnmi.Get(t, dut, gnmi.OC().Component(transceiver).Transceiver().Channel(0).AssociatedOpticalChannel().State())
