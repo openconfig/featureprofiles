@@ -75,7 +75,7 @@ duts {
   }
   ports {
     id: "port8"                   
-    name: "HundredGigE0/0/0/14"    # not conncted to Ixia 
+    name: "HundredGigE0/0/0/0" 
   }
 }
 
@@ -132,7 +132,7 @@ ates {
   }
   ports {
     id: "port8"
-    name: "1/14"  # not working
+    name: "1/1"
     speed: S_100GB
   }
 }
