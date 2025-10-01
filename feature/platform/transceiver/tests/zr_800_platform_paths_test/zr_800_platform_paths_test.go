@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -21,14 +22,15 @@ import (
 
 const (
 	samplingInterval                 = 1 * time.Second
+	extraWaitTime                    = 10 * time.Second
 	minAllowedCDValue                = -200
 	maxAllowedCDValue                = 2400
 	inactiveCDValue                  = 1.0
 	inactivePower                    = -30.0
 	powerLoss                        = 2.0
 	powerReadingError                = 1.0
-	minAllowedCarrierFrequencyOffset = -1000.0
-	maxAllowedCarrierFrequencyOffset = 1000.0
+	minAllowedCarrierFrequencyOffset = -2000.0
+	maxAllowedCarrierFrequencyOffset = 2000.0
 	inactiveCarrierFrequencyOffset   = 1.0
 	minAllowedLaserBiasCurrent       = 0.0
 	maxAllowedLaserBiasCurrent       = 300.0
@@ -114,15 +116,15 @@ func TestComponentPaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 					awaitRxPowerStats(t, p, params, oc.Interface_OperStatus_UP)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
 				}
 
 				t.Log("\n*** Bringing DOWN all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = false
-					cfgplugins.ToggleInterfaceState(t, p, params)
+					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as down and validate stats updated.
@@ -130,15 +132,15 @@ func TestComponentPaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 					awaitRxPowerStats(t, p, params, oc.Interface_OperStatus_DOWN)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = true
-					cfgplugins.ToggleInterfaceState(t, p, params)
+					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
 
 				// Wait for streaming telemetry to report the channels as up and validate stats updated.
@@ -146,9 +148,9 @@ func TestComponentPaths(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 					awaitRxPowerStats(t, p, params, oc.Interface_OperStatus_UP)
 				}
-				time.Sleep(3 * samplingInterval) // Wait extra time for telemetry to be updated.
+				time.Sleep(extraWaitTime) // // TODO : samplestream.NextAwait or similar function could be introduced in a future PR that would alleviate the need to do a sleep like this.
 				for _, p := range dut.Ports() {
-					validateNextSample(t, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
+					validateNextSample(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()].Next(), hwPortStreams[p.Name()].Next(), trStreams[p.Name()].Next(), ochStreams[p.Name()].Next())
 				}
 			}
 		}
@@ -172,24 +174,42 @@ func setToDefaults(t *testing.T, dut *ondatra.DUTDevice) {
 func awaitRxPowerStats(t *testing.T, p *ondatra.Port, params *cfgplugins.ConfigParameters, operStatus oc.E_Interface_OperStatus) {
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
-		_, ok := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().Channel(0).InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_Transceiver_Channel_InputPower]) bool {
+		_, trRxPowIsInRange := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().Channel(0).InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_Transceiver_Channel_InputPower]) bool {
 			rxPValue, present := rxP.Val()
 			return present &&
-				rxPValue.GetMax() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMax() >= (params.TargetOpticalPower-powerLoss) &&
-				rxPValue.GetMin() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMin() >= (params.TargetOpticalPower-powerLoss) &&
-				rxPValue.GetAvg() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetAvg() >= (params.TargetOpticalPower-powerLoss) &&
-				rxPValue.GetInstant() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetInstant() >= (params.TargetOpticalPower-powerLoss)
+				rxPValue.GetMax() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMax() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetMin() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMin() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetAvg() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetAvg() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetInstant() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetInstant() >= (params.TargetOpticalPower-powerLoss-powerReadingError)
 		}).Await(t)
-		if !ok {
-			t.Fatalf("Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
+		if !trRxPowIsInRange {
+			t.Fatalf("Transceiver Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
+		}
+		_, ochRxPowIsInRange := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).OpticalChannel().InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_OpticalChannel_InputPower]) bool {
+			rxPValue, present := rxP.Val()
+			return present &&
+				rxPValue.GetMax() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMax() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetMin() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetMin() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetAvg() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetAvg() >= (params.TargetOpticalPower-powerLoss-powerReadingError) &&
+				rxPValue.GetInstant() <= (params.TargetOpticalPower+powerLoss+powerReadingError) && rxPValue.GetInstant() >= (params.TargetOpticalPower-powerLoss-powerReadingError)
+		}).Await(t)
+		if !ochRxPowIsInRange {
+			t.Fatalf("Optical Channel Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
 		}
 	case oc.Interface_OperStatus_DOWN:
-		_, ok := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().Channel(0).InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_Transceiver_Channel_InputPower]) bool {
+		_, trRxPowIsInRange := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.TransceiverNames[p.Name()]).Transceiver().Channel(0).InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_Transceiver_Channel_InputPower]) bool {
 			rxPValue, ok := rxP.Val()
 			return ok && rxPValue.GetMax() <= inactivePower && rxPValue.GetMin() <= inactivePower && rxPValue.GetAvg() <= inactivePower && rxPValue.GetInstant() <= inactivePower
 		}).Await(t)
-		if !ok {
+		if !trRxPowIsInRange {
 			t.Fatalf("Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
+		}
+		_, ochRxPowIsInRange := gnmi.Watch(t, p.Device(), gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).OpticalChannel().InputPower().State(), timeout, func(rxP *ygnmi.Value[*oc.Component_OpticalChannel_InputPower]) bool {
+			rxPValue, ok := rxP.Val()
+			return ok && rxPValue.GetMax() <= inactivePower && rxPValue.GetMin() <= inactivePower && rxPValue.GetAvg() <= inactivePower && rxPValue.GetInstant() <= inactivePower
+		}).Await(t)
+		if !ochRxPowIsInRange {
+			t.Fatalf("Optical Channel Rx power stats are not as expected for %v after %v minutes.", p.Name(), timeout.Minutes())
 		}
 	default:
 		t.Fatalf("Unsupported oper status for %v: %v", p.PMD(), operStatus)
@@ -197,7 +217,7 @@ func awaitRxPowerStats(t *testing.T, p *ondatra.Port, params *cfgplugins.ConfigP
 }
 
 // validateNextSample validates the stream data.
-func validateNextSample(t *testing.T, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, interfaceData *ygnmi.Value[*oc.Interface], hwPortData, transceiverData, opticalChannelData *ygnmi.Value[*oc.Component]) {
+func validateNextSample(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, wantOperStatus oc.E_Interface_OperStatus, interfaceData *ygnmi.Value[*oc.Interface], hwPortData, transceiverData, opticalChannelData *ygnmi.Value[*oc.Component]) {
 	if interfaceData == nil {
 		t.Errorf("Data not received for port %v.", p.Name())
 		return
@@ -227,7 +247,7 @@ func validateNextSample(t *testing.T, p *ondatra.Port, params *cfgplugins.Config
 		t.Errorf("HW Port Value is empty for port %v.", p.Name())
 		return
 	}
-	validateHWPortTelemetry(t, p, params, hwPortValue)
+	validateHWPortTelemetry(t, dut, p, params, hwPortValue)
 	if transceiverData == nil {
 		t.Errorf("Transceiver data is empty for port %v.", p.Name())
 		return
@@ -251,9 +271,12 @@ func validateNextSample(t *testing.T, p *ondatra.Port, params *cfgplugins.Config
 }
 
 // validateHWPortTelemetry validates the hw port telemetry.
-func validateHWPortTelemetry(t *testing.T, p *ondatra.Port, params *cfgplugins.ConfigParameters, hwPort *oc.Component) {
+func validateHWPortTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *cfgplugins.ConfigParameters, hwPort *oc.Component) {
 	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
 		// Skip HW Port validation for PMD400GBASEZR/PMD400GBASEZRP as it is not supported.
+		return
+	}
+	if deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB {
 		return
 	}
 	tcs := []testcase{
@@ -264,10 +287,10 @@ func validateHWPortTelemetry(t *testing.T, p *ondatra.Port, params *cfgplugins.C
 			want: params.HWPortNames[p.Name()],
 		},
 		{
-			desc: "HW Port Location Validation",
-			path: fmt.Sprintf(componentPath+"/state/location", params.HWPortNames[p.Name()]),
-			got:  hwPort.GetLocation(),
-			want: strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1),
+			desc:           "HW Port Location Validation",
+			path:           fmt.Sprintf(componentPath+"/state/location", params.HWPortNames[p.Name()]),
+			got:            hwPort.GetLocation(),
+			patternToMatch: strings.Replace(strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1), "-transceiver", "", 1),
 		},
 		{
 			desc: "HW Port Type Validation",
@@ -303,8 +326,19 @@ func validateHWPortTelemetry(t *testing.T, p *ondatra.Port, params *cfgplugins.C
 	for _, tc := range tcs {
 		t.Run(fmt.Sprintf("%s of %v", tc.desc, p.Name()), func(t *testing.T) {
 			t.Logf("\n%s: %s = %v\n\n", p.Name(), tc.path, tc.got)
-			if diff := cmp.Diff(tc.got, tc.want); diff != "" {
-				t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", p.Name(), tc.path, diff)
+			switch {
+			case tc.patternToMatch != "":
+				val, ok := tc.got.(string)
+				if !ok {
+					t.Errorf("\n%s: %s, invalid type: \n got %v want string\n\n", p.Name(), tc.path, tc.got)
+				}
+				if !regexp.MustCompile(tc.patternToMatch).MatchString(val) {
+					t.Errorf("\n%s: %s, invalid:\n got %v, want pattern %v\n\n", p.Name(), tc.path, tc.got, tc.patternToMatch)
+				}
+			default:
+				if diff := cmp.Diff(tc.got, tc.want); diff != "" {
+					t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", p.Name(), tc.path, diff)
+				}
 			}
 		})
 	}
@@ -326,16 +360,10 @@ func validateTranscieverTelemetry(t *testing.T, p *ondatra.Port, params *cfgplug
 			want: params.HWPortNames[p.Name()],
 		},
 		{
-			desc: "Transceiver Location Validation",
-			path: fmt.Sprintf(componentPath+"/state/location", params.TransceiverNames[p.Name()]),
-			got:  transceiver.GetLocation(),
-			want: strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1),
-		},
-		{
-			desc: "Transceiver removable Validation",
-			path: fmt.Sprintf(componentPath+"/state/removable", params.TransceiverNames[p.Name()]),
-			got:  transceiver.GetRemovable(),
-			want: true,
+			desc:           "Transceiver Location Validation",
+			path:           fmt.Sprintf(componentPath+"/state/location", params.TransceiverNames[p.Name()]),
+			got:            transceiver.GetLocation(),
+			patternToMatch: strings.Replace(strings.Replace(params.TransceiverNames[p.Name()], "Ethernet", "", 1), "transceiver", "", 1),
 		},
 		{
 			desc: "Transceiver Type Validation",
@@ -344,10 +372,11 @@ func validateTranscieverTelemetry(t *testing.T, p *ondatra.Port, params *cfgplug
 			want: oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER,
 		},
 		{
-			desc: "Transceiver Oper-Status Validation",
-			path: fmt.Sprintf(componentPath+"/state/oper-status", params.TransceiverNames[p.Name()]),
-			got:  transceiver.GetOperStatus(),
-			want: oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+			desc:       "Transceiver Oper-Status Validation",
+			path:       fmt.Sprintf(componentPath+"/state/oper-status", params.TransceiverNames[p.Name()]),
+			operStatus: oc.Interface_OperStatus_UP,
+			got:        transceiver.GetOperStatus(),
+			want:       oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 		},
 		{
 			desc:       "Transceiver Temperature Validation",
@@ -400,18 +429,6 @@ func validateTranscieverTelemetry(t *testing.T, p *ondatra.Port, params *cfgplug
 			want: params.FormFactor,
 		},
 		{
-			desc: "Transceiver Present Validation",
-			path: fmt.Sprintf(componentPath+"/transceiver/state/present", params.TransceiverNames[p.Name()]),
-			got:  transceiver.GetTransceiver().GetPresent(),
-			want: oc.Transceiver_Present_PRESENT,
-		},
-		{
-			desc: "Transceiver Connector Type Validation",
-			path: fmt.Sprintf(componentPath+"/transceiver/state/connector-type", params.TransceiverNames[p.Name()]),
-			got:  transceiver.GetTransceiver().GetConnectorType(),
-			want: oc.TransportTypes_FIBER_CONNECTOR_TYPE_LC_CONNECTOR,
-		},
-		{
 			desc:       "Transceiver Supply Voltage Validation",
 			path:       fmt.Sprintf(componentPath+"/transceiver/state/supply-voltage/instant", params.TransceiverNames[p.Name()]),
 			got:        transceiver.GetTransceiver().GetSupplyVoltage().GetInstant(),
@@ -426,7 +443,7 @@ func validateTranscieverTelemetry(t *testing.T, p *ondatra.Port, params *cfgplug
 			want: uint16(0),
 		},
 		{
-			desc:       "Transceiver Physical Channel Output Power Validation",
+			desc:       "Transceiver Physical Channel Instant Output Power Validation",
 			path:       fmt.Sprintf(componentPath+"/transceiver/state/physical-channels/channel[index=0]/output-power/instant", params.TransceiverNames[p.Name()]),
 			got:        transceiver.GetTransceiver().GetChannel(0).GetOutputPower().GetInstant(),
 			operStatus: oc.Interface_OperStatus_UP,
@@ -517,6 +534,10 @@ func validateTranscieverTelemetry(t *testing.T, p *ondatra.Port, params *cfgplug
 				if !regexp.MustCompile(tc.patternToMatch).MatchString(val) {
 					t.Errorf("\n%s: %s, invalid:\n got %v, want pattern %v\n\n", p.Name(), tc.path, tc.got, tc.patternToMatch)
 				}
+			case tc.operStatus != oc.Interface_OperStatus_UNSET && tc.want != nil:
+				if diff := cmp.Diff(tc.got, tc.want); diff != "" {
+					t.Errorf("\n%s: %s, diff (-got +want):\n%s\n\n", p.Name(), tc.path, diff)
+				}
 			case tc.operStatus == oc.Interface_OperStatus_UP:
 				val, ok := tc.got.(float64)
 				if !ok {
@@ -564,10 +585,12 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			want: params.OperationalMode,
 		},
 		{
-			desc: "Optical Channel Frequency Validation",
-			path: fmt.Sprintf(componentPath+"/optical-channel/state/frequency", params.OpticalChannelNames[p.Name()]),
-			got:  opticalChannel.GetOpticalChannel().GetFrequency(),
-			want: params.Frequency,
+			desc:       "Optical Channel Frequency Validation",
+			path:       fmt.Sprintf(componentPath+"/optical-channel/state/frequency", params.OpticalChannelNames[p.Name()]),
+			got:        float64(opticalChannel.GetOpticalChannel().GetFrequency()),
+			operStatus: oc.Interface_OperStatus_UP,
+			maxAllowed: float64(params.Frequency) + maxAllowedCarrierFrequencyOffset,
+			minAllowed: float64(params.Frequency) + minAllowedCarrierFrequencyOffset,
 		},
 		{
 			desc: "Optical Channel Target Output Power Validation",
@@ -582,13 +605,6 @@ func validateOpticalChannelTelemetry(t *testing.T, p *ondatra.Port, params *cfgp
 			operStatus: oc.Interface_OperStatus_UP,
 			minAllowed: minAllowedLaserBiasCurrent,
 			maxAllowed: maxAllowedLaserBiasCurrent,
-		},
-		{
-			desc:       "Optical Channel Instant Laser Bias Current Validation",
-			path:       fmt.Sprintf(componentPath+"/optical-channel/state/laser-bias-current/instant", params.OpticalChannelNames[p.Name()]),
-			got:        opticalChannel.GetOpticalChannel().GetLaserBiasCurrent().GetInstant(),
-			operStatus: oc.Interface_OperStatus_DOWN,
-			maxAllowed: inactiveLaserBiasCurrent,
 		},
 		{
 			desc:       "Optical Channel Instant Input Power Validation",

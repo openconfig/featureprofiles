@@ -32,6 +32,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -107,6 +108,7 @@ var (
 		flowSize: 4000,
 	}
 )
+var config ygnmi.ConfigQuery[oc.E_Platform_ComponentPowerType]
 
 type flowDefinition struct {
 	name     string
@@ -218,6 +220,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
+
 	for _, fabric := range fabrics {
 		t.Logf("\n\n VALIDATE %s: \n\n", fabric)
 		description := gnmi.OC().Component(fabric).Description()
@@ -248,9 +251,13 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 		lastReboofdimeKey := strings.Join([]string{fabric, "last-reboot-time"}, ":")
 		powerAdminStateConfigKey := strings.Join([]string{fabric, "config/power-admin-state"}, ":")
 		powerAdminStateStateKey := strings.Join([]string{fabric, "state/power-admin-state"}, ":")
-
+		c := gnmi.OC().Component(fabric)
 		/* fabricLeafOrValuePresent: Key: fabric:leaf, Value: []any{isLeafPresent, leafValue} */
 		if deviations.ConfigLeafCreateRequired(dut) {
+			config = c.Fabric().PowerAdminState().Config()
+			gnmi.Update(t, dut, c.Config(), &oc.Component{
+				Name: ygot.String(fabric),
+			})
 			gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
@@ -334,13 +341,25 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	t.Logf("\n\n VALIDATE %s: \n\n", fabric)
 	lastReboofdime := gnmi.OC().Component(fabric).LastRebootTime()
 	lastReboofdimeBefore := gnmi.Get(t, dut, lastReboofdime.State())
-
+	if deviations.ConfigLeafCreateRequired(dut) {
+		c := gnmi.OC().Component(fabric)
+		config = c.Fabric().PowerAdminState().Config()
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(fabric),
+		})
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	t.Logf("Waiting for 120s after power disable...")
 	time.Sleep(120 * time.Second)
-
+	if deviations.ConfigLeafCreateRequired(dut) {
+		c := gnmi.OC().Component(fabric)
+		config = c.Fabric().PowerAdminState().Config()
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(fabric),
+		})
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 
 	if deviations.MissingValueForDefaults(dut) {
@@ -366,7 +385,6 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 
 func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
 	t.Logf("Name: %s, Description: %s", fd.name, fd.desc)
-
 	flowParams := createFlow(fd.name, fd.flowSize, od.flowProto)
 	od.otgConfig.Flows().Clear()
 	od.otgConfig.Flows().Append(flowParams)
@@ -383,7 +401,13 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 
 	// Access the fabric at the random index
 	disabledFabric = fabrics[randomIndex]
-
+	if deviations.ConfigLeafCreateRequired(dut) {
+		c := gnmi.OC().Component(disabledFabric)
+		config = c.Fabric().PowerAdminState().Config()
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(disabledFabric),
+		})
+	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
