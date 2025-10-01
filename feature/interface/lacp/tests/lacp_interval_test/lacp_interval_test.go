@@ -165,7 +165,7 @@ func (tc *testCase) configDstAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 }
 
 func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
-	i.Description = ygot.String(a.Desc)
+	i.Description = ygot.String(dut1Src.Desc)
 	if deviations.InterfaceEnabled(tc.dut1) {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -224,8 +224,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
-		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
-		fptest.AssignToNetworkInstance(t, tc.dut1, dut1Src.Name, deviations.DefaultNetworkInstance(tc.dut1), 0)
+		duts := []*ondatra.DUTDevice{tc.dut1, tc.dut2}
+		for _, dut := range duts {
+			fptest.AssignToNetworkInstance(t, dut, tc.aggID,
+				deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 	for _, port := range tc.dut1Ports {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
