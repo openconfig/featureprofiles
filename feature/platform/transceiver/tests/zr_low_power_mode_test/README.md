@@ -94,6 +94,11 @@ Once the ZR link is estabished proceed with the following:
         stream any invalid string values like "nil" or "-inf" until valid values
         are available for streaming.
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

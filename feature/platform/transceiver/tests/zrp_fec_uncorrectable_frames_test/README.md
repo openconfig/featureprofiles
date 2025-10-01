@@ -29,6 +29,11 @@ This is a post-FEC decoder error metric.
     verify relevant FEC uncorrectable frame count is streamed. If there are no
     errors a value of 0 should be streamed for no FEC uncorrectable frames. 
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

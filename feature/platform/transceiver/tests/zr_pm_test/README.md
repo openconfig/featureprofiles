@@ -69,6 +69,11 @@ module CMIS VDM(Versatile Diagnostics Monitor):
     *   Verify the ZR optics pre FEC PM is updated to the value in the normal
         range again. 
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

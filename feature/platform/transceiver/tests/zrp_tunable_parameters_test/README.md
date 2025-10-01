@@ -138,6 +138,11 @@ explicitly through OC operational mode.
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 10
 seconds is not supported, the sampling interval used must be communicated.
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

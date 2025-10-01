@@ -29,6 +29,11 @@ Validate 400ZR_PLUS optics module reports correct firmware version.
 
     *  /platform/components/component/state/firmware-version
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:

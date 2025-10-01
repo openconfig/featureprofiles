@@ -132,6 +132,11 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:

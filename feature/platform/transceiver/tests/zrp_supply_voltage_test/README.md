@@ -46,6 +46,11 @@ Once the ZR_PLUS link is estabished proceed with the following:
         any invalid string values like "nil" or "-inf".
     *   Reported supply voltage value must always be of type decimal64. 
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
