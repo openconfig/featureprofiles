@@ -304,68 +304,68 @@ func configureAclInterface(t *testing.T, dut *ondatra.DUTDevice, acl *oc.Acl, tc
 }
 
 func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-    t.Helper()
-    d := &oc.Root{}
-    acl := d.GetOrCreateAcl()
+	t.Helper()
+	d := &oc.Root{}
+	acl := d.GetOrCreateAcl()
 
-    if tc.ipType == IPv4 {
-        // All IPv4 ACL logic goes here.
-        aclSetv4 := acl.GetOrCreateAclSet(aclNamev4, oc.Acl_ACL_TYPE_ACL_IPV4)
-        aclAcceptEntryv4 := aclSetv4.GetOrCreateAclEntry(10)
+	if tc.ipType == IPv4 {
+		// All IPv4 ACL logic goes here.
+		aclSetv4 := acl.GetOrCreateAclSet(aclNamev4, oc.Acl_ACL_TYPE_ACL_IPV4)
+		aclAcceptEntryv4 := aclSetv4.GetOrCreateAclEntry(10)
 
-        ipv4Acl := aclAcceptEntryv4.GetOrCreateIpv4()
-        ipv4Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv4, ipv4PrefixLen))
-        ipv4Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen))
-        ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
+		ipv4Acl := aclAcceptEntryv4.GetOrCreateIpv4()
+		ipv4Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv4, ipv4PrefixLen))
+		ipv4Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv4, ipv4PrefixLen))
+		ipv4Acl.SetDscp(uint8(tc.aclDscpValue))
 
-        if len(tc.srcDstPortPair) == 2 {
-            aclAcceptEntryv4.GetOrCreateIpv4().SetProtocol(oc.UnionUint8(ipProtoTCP))
-            aclTransport := aclAcceptEntryv4.GetOrCreateTransport()
-            aclTransport.SetSourcePort(oc.UnionUint16(tc.srcDstPortPair[0]))
-            aclTransport.SetDestinationPort(oc.UnionUint16(tc.srcDstPortPair[1]))
-        }
-        aclAcceptEntryv4.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_ACCEPT)
+		if len(tc.srcDstPortPair) == 2 {
+			aclAcceptEntryv4.GetOrCreateIpv4().SetProtocol(oc.UnionUint8(ipProtoTCP))
+			aclTransport := aclAcceptEntryv4.GetOrCreateTransport()
+			aclTransport.SetSourcePort(oc.UnionUint16(tc.srcDstPortPair[0]))
+			aclTransport.SetDestinationPort(oc.UnionUint16(tc.srcDstPortPair[1]))
+		}
+		aclAcceptEntryv4.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_ACCEPT)
 
-        // Add a deny all rule at the end for IPv4
-        aclDropEntryv4 := aclSetv4.GetOrCreateAclEntry(30)
-        aclDropEntryv4.Description = ygot.String("dscp mismatch drop v4")
-        aclDropEntryv4.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
+		// Add a deny all rule at the end for IPv4
+		aclDropEntryv4 := aclSetv4.GetOrCreateAclEntry(30)
+		aclDropEntryv4.Description = ygot.String("dscp mismatch drop v4")
+		aclDropEntryv4.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
 
-        gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclNamev4, aclSetv4.GetType()).Config(), aclSetv4)
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclNamev4, aclSetv4.GetType()).Config(), aclSetv4)
 
-    } else { // This block handles IPv6
-        // All IPv6 ACL logic goes here.
-        aclSetv6 := acl.GetOrCreateAclSet(aclNamev6, oc.Acl_ACL_TYPE_ACL_IPV6)
-        aclAcceptEntryv6 := aclSetv6.GetOrCreateAclEntry(10) // Using 10 for consistency
+	} else { // This block handles IPv6
+		// All IPv6 ACL logic goes here.
+		aclSetv6 := acl.GetOrCreateAclSet(aclNamev6, oc.Acl_ACL_TYPE_ACL_IPV6)
+		aclAcceptEntryv6 := aclSetv6.GetOrCreateAclEntry(10) // Using 10 for consistency
 
-        ipv6Acl := aclAcceptEntryv6.GetOrCreateIpv6()
-        ipv6Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv6, ipv6PrefixLen))
-        ipv6Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen))
-        ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
+		ipv6Acl := aclAcceptEntryv6.GetOrCreateIpv6()
+		ipv6Acl.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort1.IPv6, ipv6PrefixLen))
+		ipv6Acl.DestinationAddress = ygot.String(fmt.Sprintf("%s/%d", otgPort2.IPv6, ipv6PrefixLen))
+		ipv6Acl.SetDscp(uint8(tc.aclDscpValue))
 
-        if len(tc.srcDstPortPair) == 2 {
-            aclAcceptEntryv6.GetOrCreateIpv6().SetProtocol(oc.UnionUint8(ipProtoTCP))
-            // NOTE: For IPv6, Transport needs to be created on the entry itself, not under Ipv6.
-            aclTransport := aclAcceptEntryv6.GetOrCreateTransport()
-            aclTransport.SetSourcePort(oc.UnionUint16(tc.srcDstPortPair[0]))
-            aclTransport.SetDestinationPort(oc.UnionUint16(tc.srcDstPortPair[1]))
-        }
-        aclAcceptEntryv6.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_ACCEPT)
+		if len(tc.srcDstPortPair) == 2 {
+			aclAcceptEntryv6.GetOrCreateIpv6().SetProtocol(oc.UnionUint8(ipProtoTCP))
+			// NOTE: For IPv6, Transport needs to be created on the entry itself, not under Ipv6.
+			aclTransport := aclAcceptEntryv6.GetOrCreateTransport()
+			aclTransport.SetSourcePort(oc.UnionUint16(tc.srcDstPortPair[0]))
+			aclTransport.SetDestinationPort(oc.UnionUint16(tc.srcDstPortPair[1]))
+		}
+		aclAcceptEntryv6.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_ACCEPT)
 
-        // Adding allow rule for IPV6 ND packets
-        aclARPEntry := aclSetv6.GetOrCreateAclEntry(15)
-        aclMatchipv6 := aclARPEntry.GetOrCreateIpv6()
-        aclMatchipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
-        aclARPEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		// Adding allow rule for IPV6 ND packets
+		aclARPEntry := aclSetv6.GetOrCreateAclEntry(15)
+		aclMatchipv6 := aclARPEntry.GetOrCreateIpv6()
+		aclMatchipv6.Protocol = oc.UnionUint8(ipProtoICMPv6)
+		aclARPEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
 
-        // Add a deny all rule at the end for IPv6
-        aclDropEntryv6 := aclSetv6.GetOrCreateAclEntry(40)
-        aclDropEntryv6.Description = ygot.String("dscp mismatch drop v6")
-        aclDropEntryv6.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
+		// Add a deny all rule at the end for IPv6
+		aclDropEntryv6 := aclSetv6.GetOrCreateAclEntry(40)
+		aclDropEntryv6.Description = ygot.String("dscp mismatch drop v6")
+		aclDropEntryv6.GetOrCreateActions().SetForwardingAction(oc.Acl_FORWARDING_ACTION_DROP)
 
-        gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclNamev6, aclSetv6.GetType()).Config(), aclSetv6)
-    }
+		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclNamev6, aclSetv6.GetType()).Config(), aclSetv6)
+	}
 
-    // This part is common and can stay outside the if/else
-    configureAclInterface(t, dut, acl, tc)
+	// This part is common and can stay outside the if/else
+	configureAclInterface(t, dut, acl, tc)
 }
