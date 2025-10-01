@@ -107,7 +107,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		path := r.GetGrpcService().GetRpcName()
 		id := r.GetSessionInfo().GetUser().GetIdentity()
 		// Skip if the path is not in the list of paths to be tested or if the id is not a success or fail username.
-		if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailUsername}, id) {
+		if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthenticateUsername}, id) {
 			continue
 		}
 		if foundMap[key{path: path, id: id}] {
