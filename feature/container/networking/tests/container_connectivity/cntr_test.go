@@ -169,8 +169,6 @@ func TestDialLocal(t *testing.T) {
 	dialAddr = "localhost"
 	if deviations.LocalhostForContainerz(dut) {
 		dialAddr = "[fd01::1]"
-		//} else {
-		//	dialAddr = "localhost"
 	}
 
 	tests := []struct {
