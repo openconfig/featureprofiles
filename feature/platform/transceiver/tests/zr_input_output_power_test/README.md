@@ -98,6 +98,11 @@ The test must be repeated for each supported operational-mode or as agreed betwe
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
         * Typical min/max value range for TX Output Power -10 to -6 dbm.
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
