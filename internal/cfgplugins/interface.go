@@ -941,9 +941,9 @@ type StaticARPConfig struct {
 }
 
 // StaticARPWithMagicUniversalIP configures static ARP and static routes per-port.
-func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, cfg StaticARPConfig) {
+func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticARPConfig) {
 	t.Helper()
-	sb := &gnmi.SetBatch{}
+	// sb := &gnmi.SetBatch{}
 
 	// Group entries by MagicIP so each prefix can have multiple next-hops.
 	entriesByIP := make(map[string][]StaticARPEntry)
