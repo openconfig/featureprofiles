@@ -1,4 +1,4 @@
-# TRANSCEIVER-13: Configuration: 400ZR Transceiver Low Power Mode Setting.
+# TRANSCEIVER-13.1: Configuration: 400ZR Transceiver Low Power Mode Setting.
 
 ## Summary
 

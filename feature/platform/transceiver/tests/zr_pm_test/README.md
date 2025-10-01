@@ -1,4 +1,4 @@
-# TRANSCEIVER-6: Telemetry: 400ZR Optics performance metrics (pm) streaming.
+# TRANSCEIVER-6.1: Telemetry: 400ZR Optics performance metrics (pm) streaming.
 
 ## Summary
 

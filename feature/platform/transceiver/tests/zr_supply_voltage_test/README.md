@@ -1,4 +1,4 @@
-# TRANSCEIVER-12: Telemetry: 400ZR Transceiver Supply Voltage streaming.
+# TRANSCEIVER-12.1: Telemetry: 400ZR Transceiver Supply Voltage streaming.
 
 ## Summary
 

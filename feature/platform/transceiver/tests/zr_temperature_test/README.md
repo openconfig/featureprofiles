@@ -1,4 +1,4 @@
-# TRANSCEIVER-8: Telemetry: 400ZR Optics module temperature streaming.
+# TRANSCEIVER-8.1: Telemetry: 400ZR Optics module temperature streaming.
 
 ## Summary
 

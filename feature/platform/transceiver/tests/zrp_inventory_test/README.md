@@ -1,4 +1,4 @@
-# TRANSCEIVER-7 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics inventory info streaming
+# TRANSCEIVER-7.2: Telemetry: 400ZR_PLUS Optics inventory info streaming
 
 ## Summary
 
