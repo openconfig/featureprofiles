@@ -19,6 +19,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -55,7 +56,18 @@ func isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
 func getTestComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
 	if isDistributed(t, dut) {
-		return components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+		npus := []string{}
+		components := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+		for _, component := range components {
+			match, err := regexp.MatchString("\\d\\/\\d\\/CPU0-NPU\\d", component)
+			if err != nil {
+				t.Fatalf("error in regex match: %v", err)
+			}
+			if match {
+				npus = append(npus, component)
+			}
+		}
+		return npus
 	} else {
 		return components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
 	}
