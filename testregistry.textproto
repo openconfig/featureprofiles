@@ -1512,7 +1512,7 @@ test: {
 test: {
   id: "TRANSCEIVER-1"
   description: "400ZR Chromatic Dispersion(CD) telemetry values streaming"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/zr_cd_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_cd_test/README.md"
   exec: " "
 }
 test: {
