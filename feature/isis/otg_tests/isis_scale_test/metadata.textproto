@@ -32,9 +32,6 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
-    explicit_interface_in_default_vrf: true
-    missing_isis_interface_afi_safi_enable: true
-    isis_instance_enabled_required: true
   }
 }
 platform_exceptions: {
