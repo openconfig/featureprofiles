@@ -186,6 +186,7 @@ var (
 	}
 )
 
+// configureOTG sets up the OTG interfaces and pushes the configuration to the ATE.
 func configureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
@@ -201,7 +202,7 @@ func configureOTG(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 }
 
-// Modified to create and pass OC root, ni, pf
+// configureDut configures DUT interfaces, aggregates, static routes, and policy forwarding infrastructure.
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	config := &oc.Root{}
@@ -251,8 +252,7 @@ func fetchDefaultOCPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice) 
 	}
 }
 
-// function should also include the OC config , within these deviations there should be a switch statement is needed
-// Modified to accept pf, ni, and ocPFParams
+// encapInGRE applies GRE encapsulation configuration including QoS, label range, next-hop group, and policy forwarding.
 func encapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	cfgplugins.QosClassificationConfig(t, dut)
@@ -264,6 +264,7 @@ func encapInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_Pol
 	}
 }
 
+// configureInterfaces sets up aggregate interfaces and applies LACP and interface configurations on the DUT.
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
@@ -300,6 +301,7 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	}
 }
 
+// configDUTInterface configures the DUT interface with subinterface attributes including IP and MTU settings.
 func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut *ondatra.DUTDevice) {
 	for _, a := range subinterfaces {
 		i.Description = ygot.String(a.Desc)
@@ -324,6 +326,7 @@ func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut 
 	}
 }
 
+// configureInterfaceAddress sets IPv4 and IPv6 addresses on the DUT subinterface based on provided attributes.
 func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterface, a *attrs.Attributes) {
 	s4 := s.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) {
@@ -350,6 +353,7 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 }
 
+// mustConfigureStaticRoutes configures a batch of static IPv4 routes on the DUT.
 func mustConfigureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
@@ -370,6 +374,7 @@ func mustConfigureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
+// deleteStaticRoutes deletes a subset of static IPv4 routes from the DUT.
 func deleteStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	b := &gnmi.SetBatch{}
@@ -380,12 +385,14 @@ func deleteStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
+// pushPolicyForwardingConfig pushes the policy forwarding configuration to the DUT.
 func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
 	t.Helper()
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
 }
 
+// createFlow creates and configures a traffic flow with optional headers including Ethernet, IP, TCP, and UDP.
 func createFlow(cfg gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		cfg.Flows().Clear()
@@ -406,7 +413,8 @@ func createFlow(cfg gosnappi.Config, params *otgconfighelpers.Flow, clearFlows b
 	}
 }
 
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+// mustSendTraffic pushes configuration, starts protocols and traffic, and verifies ARP resolution on the ATE.
+func mustSendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -416,6 +424,7 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().StartTraffic(t)
 }
 
+// testSetup prepares the DUT and OTG configuration for tunnel interface testing.
 func testSetup(t *testing.T) {
 	t.Helper()
 	t.Log("TUN:1.6.1-Setup Tunnels as per requirements")
@@ -431,19 +440,22 @@ func testSetup(t *testing.T) {
 	configureOTG(t)
 }
 
-// validateTrafficAndECMP is a helper to validate IPv4/IPv6 loss and ECMP behavior.
-func validateTrafficAndECMP(t *testing.T) {
+// validateTrafficAndECMP validates IPv4/IPv6 loss and ECMP behavior and returns a slice of errors.
+func validateTrafficAndECMP(t *testing.T) []error {
 	t.Helper()
+	var errs []error
 	ate := ondatra.ATE(t, "ate")
+
 	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ipv4 loss validation failed: %q", err)
+		errs = append(errs, fmt.Errorf("ipv4 loss validation failed: %w", err))
 	}
 	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("ipv6 loss validation failed: %q", err)
+		errs = append(errs, fmt.Errorf("ipv6 loss validation failed: %w", err))
 	}
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
-		t.Errorf("ecmp validation failed: %q", err)
+		errs = append(errs, fmt.Errorf("ecmp validation failed: %w", err))
 	}
+	return errs
 }
 
 func TestTunnelInterfaceBasedResize(t *testing.T) {
@@ -464,10 +476,16 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 				createFlow(top, flowIPv4, true)
 				createFlow(top, flowIPv6, false)
 				ate := ondatra.ATE(t, "ate")
-				sendTraffic(t, ate)
+				mustSendTraffic(t, ate)
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				validateTrafficAndECMP(t)
+
+				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
+					for _, err := range errs {
+						t.Error(err)
+					}
+				}
+
 			},
 		},
 		{
@@ -476,7 +494,7 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 			run: func(t *testing.T) {
 				ate := ondatra.ATE(t, "ate")
 				dut := ondatra.DUT(t, "dut")
-				sendTraffic(t, ate)
+				mustSendTraffic(t, ate)
 				t.Log("Deleting static routes to reduce tunnel count")
 				deleteStaticRoutes(t, dut)
 
@@ -489,14 +507,18 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 				}
 
 				if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-					t.Errorf("Static route not removed: got %v, want %s", got, staticRoute)
+					t.Errorf("static route not removed: got %v, want %s", got, staticRoute)
 				}
 
 				t.Logf("Prefix %s removed from DUT static routes...", staticRoute)
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				validateTrafficAndECMP(t)
+				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
+					for _, err := range errs {
+						t.Error(err)
+					}
+				}
 			},
 		},
 		{
@@ -505,7 +527,7 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 			run: func(t *testing.T) {
 				ate := ondatra.ATE(t, "ate")
 				dut := ondatra.DUT(t, "dut")
-				sendTraffic(t, ate)
+				mustSendTraffic(t, ate)
 				t.Log("Restoring static routes")
 				mustConfigureStaticRoutes(t, dut)
 
@@ -519,14 +541,18 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 				}
 
 				if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
-					t.Errorf("Static route not restored: got %v, want %s", got, staticRoute)
+					t.Errorf("static route not restored: got %v, want %s", got, staticRoute)
 				}
 
 				t.Logf("Prefix %s restored to DUT static routes...", staticRoute)
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				validateTrafficAndECMP(t)
+				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
+					for _, err := range errs {
+						t.Error(err)
+					}
+				}
 			},
 		},
 	}
