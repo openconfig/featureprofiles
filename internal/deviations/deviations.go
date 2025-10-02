@@ -1665,3 +1665,15 @@ func PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut *ondatra.DUTDevice) bo
 func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
+
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}
