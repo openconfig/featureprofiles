@@ -14,7 +14,7 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
  
 *   The source address of the ipv4 and ipv6 NTP servers will be Loopback ipv4 and ipv6 source addresses respectively.  
 
-#### Canonical OC for DUT configuration
+#### Canonical OC
 
 ```json
         {
