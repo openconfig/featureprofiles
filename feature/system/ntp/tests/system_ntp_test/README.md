@@ -9,12 +9,10 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 *   For the following cases, enable NTP on the DUT and validate telemetry reports the servers are configured:
     *   4x IPv4 NTP server in default VRF
     *   4x IPv6 NTP server in default VRF
-    *   4x IPv4 & 4x IPv6 NTP server in default VRF
     *   4x IPv4 NTP server in non-default VRF
     *   4x IPv6 NTP server in non-default VRF
-    *   4x IPv4 & 4x IPv6 NTP server in non-default VRF
-
-Note:  [TODO]the source address of NTP need to be specified
+ 
+*   The source address of the ipv4 and ipv6 NTP servers will be Loopback ipv4 and ipv6 source addresses respectively.  
 
 ## OpenConfig Path and RPC Coverage
 
