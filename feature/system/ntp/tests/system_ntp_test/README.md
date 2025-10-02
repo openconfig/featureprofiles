@@ -14,6 +14,257 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
  
 *   The source address of the ipv4 and ipv6 NTP servers will be Loopback ipv4 and ipv6 source addresses respectively.  
 
+#### Canonical OC for DUT configuration
+
+```json
+        {
+          "openconfig-network-instance:config": {
+            "name": "VRF-1",
+            "type": "openconfig-network-instance-types:L3VRF"
+          },
+          "openconfig-network-instance:name": "VRF-1",
+          "openconfig-network-instance:protocols": {
+            "protocol": [
+              {
+                "config": {
+                  "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
+                  "name": "DIRECTLY_CONNECTED"
+                },
+                "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
+                "name": "DIRECTLY_CONNECTED"
+              }
+            ]
+          },
+          "openconfig-network-instance:tables": {
+            "table": [
+              {
+                "address-family": "openconfig-types:IPV4",
+                "config": {
+                  "address-family": "openconfig-types:IPV4",
+                  "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+                },
+                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+              },
+              {
+                "address-family": "openconfig-types:IPV6",
+                "config": {
+                  "address-family": "openconfig-types:IPV6",
+                  "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+                },
+                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+              }
+            ]
+          }
+        }
+        {
+          "openconfig-network-instance:config": {
+            "name": "VRF-1",
+            "type": "openconfig-network-instance-types:L3VRF"
+          },
+          "openconfig-network-instance:name": "VRF-1",
+          "openconfig-network-instance:protocols": {
+            "protocol": [
+              {
+                "config": {
+                  "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
+                  "name": "DIRECTLY_CONNECTED"
+                },
+                "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
+                "name": "DIRECTLY_CONNECTED"
+              }
+            ]
+          },
+          "openconfig-network-instance:tables": {
+            "table": [
+              {
+                "address-family": "openconfig-types:IPV4",
+                "config": {
+                  "address-family": "openconfig-types:IPV4",
+                  "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+                },
+                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+              },
+              {
+                "address-family": "openconfig-types:IPV6",
+                "config": {
+                  "address-family": "openconfig-types:IPV6",
+                  "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+                },
+                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED"
+              }
+            ]
+          }
+        }
+        {
+          "openconfig-system:servers": {
+            "server": [
+              {
+                "address": "192.0.2.1",
+                "config": {
+                  "address": "192.0.2.1",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.2",
+                "config": {
+                  "address": "192.0.2.2",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.3",
+                "config": {
+                  "address": "192.0.2.3",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.4",
+                "config": {
+                  "address": "192.0.2.4",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "216.239.35.0",
+                "config": {
+                  "address": "216.239.35.0"
+                }
+              },
+              {
+                "address": "216.239.35.12",
+                "config": {
+                  "address": "216.239.35.12"
+                }
+              },
+              {
+                "address": "216.239.35.4",
+                "config": {
+                  "address": "216.239.35.4"
+                }
+              },
+              {
+                "address": "216.239.35.8",
+                "config": {
+                  "address": "216.239.35.8"
+                }
+              }
+            ]
+          }
+        }
+        {
+          "openconfig-system:servers": {
+            "server": [
+              {
+                "address": "2001:db8::1",
+                "config": {
+                  "address": "2001:db8::1",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::2",
+                "config": {
+                  "address": "2001:db8::2",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::3",
+                "config": {
+                  "address": "2001:db8::3",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::4",
+                "config": {
+                  "address": "2001:db8::4",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              }
+            ]
+          }
+        }
+        {
+          "openconfig-system:servers": {
+            "server": [
+              {
+                "address": "192.0.2.10",
+                "config": {
+                  "address": "192.0.2.10",
+                  "network-instance": "VRF-1",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.11",
+                "config": {
+                  "address": "192.0.2.11",
+                  "network-instance": "VRF-1",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.12",
+                "config": {
+                  "address": "192.0.2.12",
+                  "network-instance": "VRF-1",
+                  "source-address": "203.0.113.1"
+                }
+              },
+              {
+                "address": "192.0.2.9",
+                "config": {
+                  "address": "192.0.2.9",
+                  "network-instance": "VRF-1",
+                  "source-address": "203.0.113.1"
+                }
+              }
+            ]
+          }
+        }
+        {
+          "openconfig-system:servers": {
+            "server": [
+              {
+                "address": "2001:db8::9",
+                "config": {
+                  "address": "2001:db8::9",
+                  "network-instance": "VRF-1",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::a",
+                "config": {
+                  "address": "2001:db8::a",
+                  "network-instance": "VRF-1",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::b",
+                "config": {
+                  "address": "2001:db8::b",
+                  "network-instance": "VRF-1",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              },
+              {
+                "address": "2001:db8::c",
+                "config": {
+                  "address": "2001:db8::c",
+                  "network-instance": "VRF-1",
+                  "source-address": "2001:db8::1:1:1:1"
+                }
+              }
+            ]
+          }
+        }
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test. OC
