@@ -333,6 +333,7 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Set up static ARP configuration for gRIBI NH entries
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		b := &gnmi.SetBatch{}
 		cfg := cfgplugins.SecondaryIPConfig{
 			Entries: []cfgplugins.SecondaryIPEntry{
 				{PortName: "port2", PortDummyAttr: dutPort2DummyIP, DummyIP: otgPort2DummyIP.IPv4, MagicMAC: magicMac},
@@ -340,7 +341,8 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 				{PortName: "port4", PortDummyAttr: dutPort4DummyIP, DummyIP: otgPort4DummyIP.IPv4, MagicMAC: magicMac},
 			},
 		}
-		cfgplugins.StaticARPWithSecondaryIP(t, dut, cfg)
+		sb := cfgplugins.StaticARPWithSecondaryIP(t, dut, b, cfg)
+		sb.Set(t, dut)
 	} else if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		b := &gnmi.SetBatch{}
 		cfg := cfgplugins.StaticARPConfig{
@@ -350,7 +352,8 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 				{PortName: "port4", MagicIP: magicIP, MagicMAC: magicMac},
 			},
 		}
-		cfgplugins.StaticARPWithMagicUniversalIP(t, dut, b, cfg)
+		sb := cfgplugins.StaticARPWithMagicUniversalIP(t, dut, b, cfg)
+		sb.Set(t, dut)
 	}
 
 	// Allow time for configuration to be applied

@@ -941,9 +941,8 @@ type StaticARPConfig struct {
 }
 
 // StaticARPWithMagicUniversalIP configures static ARP and static routes per-port.
-func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticARPConfig) {
+func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticARPConfig) *gnmi.SetBatch {
 	t.Helper()
-	// sb := &gnmi.SetBatch{}
 
 	// Group entries by MagicIP so each prefix can have multiple next-hops.
 	entriesByIP := make(map[string][]StaticARPEntry)
@@ -984,15 +983,14 @@ func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 				configStaticArp(port.Name(), entry.MagicIP, entry.MagicMAC),
 			)
 
-			t.Logf("Configured ARP: port=%s, ip=%s, mac=%s",
+			t.Logf("Configuring ARP: port=%s, ip=%s, mac=%s",
 				entry.PortName, entry.MagicIP, entry.MagicMAC)
 		}
 
-		t.Logf("Configured static route for MagicIP %s with %d next-hops", magicIP, len(entries))
+		t.Logf("Configuring static route for MagicIP %s with %d next-hops", magicIP, len(entries))
 	}
 
-	// 4. Commit everything in one batch.
-	sb.Set(t, dut)
+	return sb
 }
 
 // SecondaryIPEntry defines per-port dummy IP + ARP mapping for secondary IP config.
@@ -1010,7 +1008,7 @@ type SecondaryIPConfig struct {
 }
 
 // StaticARPWithSecondaryIP configures secondary IPs and static ARP for gRIBI compatibility
-func StaticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, cfg SecondaryIPConfig) {
+func StaticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg SecondaryIPConfig) *gnmi.SetBatch {
 
 	t.Helper()
 
@@ -1018,20 +1016,18 @@ func StaticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, cfg Secondar
 		port := dut.Port(t, entry.PortName)
 
 		// Configure secondary IP on the DUT port.
-		gnmi.Update(t, dut,
-			gnmi.OC().Interface(port.Name()).Config(),
-			entry.PortDummyAttr.NewOCInterface(port.Name(), dut),
-		)
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(port.Name()).Config(), entry.PortDummyAttr.NewOCInterface(port.Name(), dut))
 
 		// Configure static ARP entry.
-		gnmi.Update(t, dut,
+		gnmi.BatchUpdate(sb,
 			gnmi.OC().Interface(port.Name()).Config(),
 			configStaticArp(port.Name(), entry.DummyIP, entry.MagicMAC),
 		)
 
-		t.Logf("Configured secondary IP + static ARP: port=%s, dummyIP=%s, mac=%s",
+		t.Logf("Configuring secondary IP + static ARP: port=%s, dummyIP=%s, mac=%s",
 			entry.PortName, entry.DummyIP, entry.MagicMAC)
 	}
+	return sb
 }
 
 // configStaticArp configures static ARP entries for gRIBI next hop resolution
