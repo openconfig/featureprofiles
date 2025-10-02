@@ -1,4 +1,4 @@
-# TRANSCEIVER-7 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics inventory info streaming
+# TRANSCEIVER-7.2: Telemetry: 400ZR_PLUS Optics inventory info streaming
 
 ## Summary
 
@@ -84,6 +84,11 @@ Validate 400ZR_PLUS modules report correct inventory information.
 *   /platform/components/component/state/mfg-date
 *   /platform/components/component/state/hardware-version
 *   /platform/components/component/state/firmware-version
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
