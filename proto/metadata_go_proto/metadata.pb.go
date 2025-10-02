@@ -56,6 +56,7 @@ const (
 	Metadata_TESTBED_DUT_ATE_5LINKS        Metadata_Testbed = 12
 	Metadata_TESTBED_DUT_800ZR             Metadata_Testbed = 13
 	Metadata_TESTBED_DUT_800ZR_PLUS        Metadata_Testbed = 14
+	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -76,6 +77,7 @@ var (
 		12: "TESTBED_DUT_ATE_5LINKS",
 		13: "TESTBED_DUT_800ZR",
 		14: "TESTBED_DUT_800ZR_PLUS",
+		15: "TESTBED_DUT_2LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -93,6 +95,7 @@ var (
 		"TESTBED_DUT_ATE_5LINKS":        12,
 		"TESTBED_DUT_800ZR":             13,
 		"TESTBED_DUT_800ZR_PLUS":        14,
+		"TESTBED_DUT_2LINKS":            15,
 	}
 )
 
@@ -690,9 +693,6 @@ type Metadata_Deviations struct {
 	// Skip setting isis-actions set-metric-style-type while configuring
 	// routing-policy statement action
 	SkipIsisSetMetricStyleType bool `protobuf:"varint,145,opt,name=skip_isis_set_metric_style_type,json=skipIsisSetMetricStyleType,proto3" json:"skip_isis_set_metric_style_type,omitempty"`
-	// Skip setting match-prefix-set match-set-options while configuring
-	// routing-policy statement condition
-	SkipSetRpMatchSetOptions bool `protobuf:"varint,146,opt,name=skip_set_rp_match_set_options,json=skipSetRpMatchSetOptions,proto3" json:"skip_set_rp_match_set_options,omitempty"`
 	// Skip setting disable-metric-propagation while configuring
 	// table-connection
 	SkipSettingDisableMetricPropagation bool `protobuf:"varint,147,opt,name=skip_setting_disable_metric_propagation,json=skipSettingDisableMetricPropagation,proto3" json:"skip_setting_disable_metric_propagation,omitempty"`
@@ -1080,9 +1080,6 @@ type Metadata_Deviations struct {
 	DefaultNoIgpMetricPropagation bool `protobuf:"varint,298,opt,name=default_no_igp_metric_propagation,json=defaultNoIgpMetricPropagation,proto3" json:"default_no_igp_metric_propagation,omitempty"`
 	// Skip setting send-community-type in bgp peer-group config
 	SkipBgpPeerGroupSendCommunityType bool `protobuf:"varint,299,opt,name=skip_bgp_peer_group_send_community_type,json=skipBgpPeerGroupSendCommunityType,proto3" json:"skip_bgp_peer_group_send_community_type,omitempty"`
-	// Devices that does have different AS path prepend order.
-	// juniper : b/425632068
-	BgpAsPathPrependOrderMismtach bool `protobuf:"varint,300,opt,name=bgp_as_path_prepend_order_mismtach,json=bgpAsPathPrependOrderMismtach,proto3" json:"bgp_as_path_prepend_order_mismtach,omitempty"`
 	// Devices that need explicit swap_src_dst_mac set with loopback_mode
 	// Nokia b/430183279
 	ExplicitSwapSrcDstMacNeededForLoopbackMode bool `protobuf:"varint,301,opt,name=explicit_swap_src_dst_mac_needed_for_loopback_mode,json=explicitSwapSrcDstMacNeededForLoopbackMode,proto3" json:"explicit_swap_src_dst_mac_needed_for_loopback_mode,omitempty"`
@@ -1141,8 +1138,37 @@ type Metadata_Deviations struct {
 	// Device does not support line-port configuration on optical channel
 	// components for Nokia and Arista.
 	LinePortUnsupported bool `protobuf:"varint,322,opt,name=line_port_unsupported,json=linePortUnsupported,proto3" json:"line_port_unsupported,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// routing-policy bgp community needs to use REPLACE option
+	// Arista b/443044881
+	UseBgpSetCommunityOptionTypeReplace bool `protobuf:"varint,323,opt,name=use_bgp_set_community_option_type_replace,json=useBgpSetCommunityOptionTypeReplace,proto3" json:"use_bgp_set_community_option_type_replace,omitempty"`
+	// Devices that do not support global max ecmp paths
+	// Arista b/445097297
+	GlobalMaxEcmpPathsUnsupported bool `protobuf:"varint,324,opt,name=global_max_ecmp_paths_unsupported,json=globalMaxEcmpPathsUnsupported,proto3" json:"global_max_ecmp_paths_unsupported,omitempty"`
+	// Devices that do not support configuring a two rate three color policer through OC
+	// Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+	QosTwoRateThreeColorPolicerOcUnsupported bool `protobuf:"varint,325,opt,name=qos_two_rate_three_color_policer_oc_unsupported,json=qosTwoRateThreeColorPolicerOcUnsupported,proto3" json:"qos_two_rate_three_color_policer_oc_unsupported,omitempty"`
+	// Devices that do not support load balance policies
+	// Arista: https://partnerissuetracker.corp.google.com/issues/445043741
+	LoadBalancePolicyOcUnsupported bool `protobuf:"varint,326,opt,name=load_balance_policy_oc_unsupported,json=loadBalancePolicyOcUnsupported,proto3" json:"load_balance_policy_oc_unsupported,omitempty"`
+	// Devices that do not support gribi records
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
+	GribiRecordsUnsupported bool `protobuf:"varint,327,opt,name=gribi_records_unsupported,json=gribiRecordsUnsupported,proto3" json:"gribi_records_unsupported,omitempty"`
+	// Devices without breakout mode support for full rate.
+	// Nokia: b/435502032
+	BreakoutModeUnsupportedForEightHundredGb bool `protobuf:"varint,328,opt,name=breakout_mode_unsupported_for_eight_hundred_gb,json=breakoutModeUnsupportedForEightHundredGb,proto3" json:"breakout_mode_unsupported_for_eight_hundred_gb,omitempty"`
+	// Devices without port speed and duplex mode support for interface config.
+	// Nokia: b/435502032
+	PortSpeedDuplexModeUnsupportedForInterfaceConfig bool `protobuf:"varint,329,opt,name=port_speed_duplex_mode_unsupported_for_interface_config,json=portSpeedDuplexModeUnsupportedForInterfaceConfig,proto3" json:"port_speed_duplex_mode_unsupported_for_interface_config,omitempty"`
+	// Devices that need explicit breakout interface config.
+	// Nokia: b/435502032
+	ExplicitBreakoutInterfaceConfig bool `protobuf:"varint,330,opt,name=explicit_breakout_interface_config,json=explicitBreakoutInterfaceConfig,proto3" json:"explicit_breakout_interface_config,omitempty"`
+	// Devices do not support threshold container under
+	// /components/component/transceiver. Translate from native ST with the
+	// specified functional translator. See ciscoxr-laser-ft.
+	// Cisco: b/429233045
+	CiscoxrLaserFt string `protobuf:"bytes,331,opt,name=ciscoxr_laser_ft,json=ciscoxrLaserFt,proto3" json:"ciscoxr_laser_ft,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -1997,13 +2023,6 @@ func (x *Metadata_Deviations) GetSkipIsisSetLevel() bool {
 func (x *Metadata_Deviations) GetSkipIsisSetMetricStyleType() bool {
 	if x != nil {
 		return x.SkipIsisSetMetricStyleType
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetSkipSetRpMatchSetOptions() bool {
-	if x != nil {
-		return x.SkipSetRpMatchSetOptions
 	}
 	return false
 }
@@ -3051,13 +3070,6 @@ func (x *Metadata_Deviations) GetSkipBgpPeerGroupSendCommunityType() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpAsPathPrependOrderMismtach() bool {
-	if x != nil {
-		return x.BgpAsPathPrependOrderMismtach
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetExplicitSwapSrcDstMacNeededForLoopbackMode() bool {
 	if x != nil {
 		return x.ExplicitSwapSrcDstMacNeededForLoopbackMode
@@ -3212,6 +3224,69 @@ func (x *Metadata_Deviations) GetLinePortUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetUseBgpSetCommunityOptionTypeReplace() bool {
+	if x != nil {
+		return x.UseBgpSetCommunityOptionTypeReplace
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGlobalMaxEcmpPathsUnsupported() bool {
+	if x != nil {
+		return x.GlobalMaxEcmpPathsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosTwoRateThreeColorPolicerOcUnsupported() bool {
+	if x != nil {
+		return x.QosTwoRateThreeColorPolicerOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLoadBalancePolicyOcUnsupported() bool {
+	if x != nil {
+		return x.LoadBalancePolicyOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGribiRecordsUnsupported() bool {
+	if x != nil {
+		return x.GribiRecordsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBreakoutModeUnsupportedForEightHundredGb() bool {
+	if x != nil {
+		return x.BreakoutModeUnsupportedForEightHundredGb
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPortSpeedDuplexModeUnsupportedForInterfaceConfig() bool {
+	if x != nil {
+		return x.PortSpeedDuplexModeUnsupportedForInterfaceConfig
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetExplicitBreakoutInterfaceConfig() bool {
+	if x != nil {
+		return x.ExplicitBreakoutInterfaceConfig
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCiscoxrLaserFt() string {
+	if x != nil {
+		return x.CiscoxrLaserFt
+	}
+	return ""
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3268,7 +3343,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ϰ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"õ\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3280,7 +3355,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf0\xa6\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a̫\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3402,8 +3477,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1eskip_setting_allow_multiple_as\x18\x8c\x01 \x01(\bR\x1askipSettingAllowMultipleAs\x12K\n" +
 	"\"gribi_decap_mixed_plen_unsupported\x18\x8f\x01 \x01(\bR\x1egribiDecapMixedPlenUnsupported\x12.\n" +
 	"\x13skip_isis_set_level\x18\x90\x01 \x01(\bR\x10skipIsisSetLevel\x12D\n" +
-	"\x1fskip_isis_set_metric_style_type\x18\x91\x01 \x01(\bR\x1askipIsisSetMetricStyleType\x12@\n" +
-	"\x1dskip_set_rp_match_set_options\x18\x92\x01 \x01(\bR\x18skipSetRpMatchSetOptions\x12U\n" +
+	"\x1fskip_isis_set_metric_style_type\x18\x91\x01 \x01(\bR\x1askipIsisSetMetricStyleType\x12U\n" +
 	"'skip_setting_disable_metric_propagation\x18\x93\x01 \x01(\bR#skipSettingDisableMetricPropagation\x12b\n" +
 	".bgp_conditions_match_community_set_unsupported\x18\x94\x01 \x01(\bR)bgpConditionsMatchCommunitySetUnsupported\x12A\n" +
 	"\x1dpf_require_match_default_rule\x18\x95\x01 \x01(\bR\x19pfRequireMatchDefaultRule\x12g\n" +
@@ -3552,8 +3626,7 @@ const file_metadata_proto_rawDesc = "" +
 	"(interface_output_queue_non_standard_name\x18\xa8\x02 \x01(\bR#interfaceOutputQueueNonStandardName\x12Z\n" +
 	"*mpls_exp_ingress_classifier_oc_unsupported\x18\xa9\x02 \x01(\bR%mplsExpIngressClassifierOcUnsupported\x12I\n" +
 	"!default_no_igp_metric_propagation\x18\xaa\x02 \x01(\bR\x1ddefaultNoIgpMetricPropagation\x12S\n" +
-	"'skip_bgp_peer_group_send_community_type\x18\xab\x02 \x01(\bR!skipBgpPeerGroupSendCommunityType\x12J\n" +
-	"\"bgp_as_path_prepend_order_mismtach\x18\xac\x02 \x01(\bR\x1dbgpAsPathPrependOrderMismtach\x12g\n" +
+	"'skip_bgp_peer_group_send_community_type\x18\xab\x02 \x01(\bR!skipBgpPeerGroupSendCommunityType\x12g\n" +
 	"2explicit_swap_src_dst_mac_needed_for_loopback_mode\x18\xad\x02 \x01(\bR*explicitSwapSrcDstMacNeededForLoopbackMode\x127\n" +
 	"\x18link_local_instead_of_nh\x18\xae\x02 \x01(\bR\x14linkLocalInsteadOfNh\x12#\n" +
 	"\rlow_scale_aft\x18\xaf\x02 \x01(\bR\vlowScaleAft\x12S\n" +
@@ -3576,13 +3649,22 @@ const file_metadata_proto_rawDesc = "" +
 	"skipOrigin\x12:\n" +
 	"\x19predefined_max_ecmp_paths\x18\xc0\x02 \x01(\bR\x16predefinedMaxEcmpPaths\x12D\n" +
 	"\x1edecapsulate_gue_oc_unsupported\x18\xc1\x02 \x01(\bR\x1bdecapsulateGueOcUnsupported\x123\n" +
-	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01\x1a\xa0\x01\n" +
+	"\x15line_port_unsupported\x18\xc2\x02 \x01(\bR\x13linePortUnsupported\x12W\n" +
+	")use_bgp_set_community_option_type_replace\x18\xc3\x02 \x01(\bR#useBgpSetCommunityOptionTypeReplace\x12I\n" +
+	"!global_max_ecmp_paths_unsupported\x18\xc4\x02 \x01(\bR\x1dglobalMaxEcmpPathsUnsupported\x12b\n" +
+	"/qos_two_rate_three_color_policer_oc_unsupported\x18\xc5\x02 \x01(\bR(qosTwoRateThreeColorPolicerOcUnsupported\x12K\n" +
+	"\"load_balance_policy_oc_unsupported\x18\xc6\x02 \x01(\bR\x1eloadBalancePolicyOcUnsupported\x12;\n" +
+	"\x19gribi_records_unsupported\x18\xc7\x02 \x01(\bR\x17gribiRecordsUnsupported\x12a\n" +
+	".breakout_mode_unsupported_for_eight_hundred_gb\x18\xc8\x02 \x01(\bR(breakoutModeUnsupportedForEightHundredGb\x12r\n" +
+	"7port_speed_duplex_mode_unsupported_for_interface_config\x18\xc9\x02 \x01(\bR0portSpeedDuplexModeUnsupportedForInterfaceConfig\x12L\n" +
+	"\"explicit_breakout_interface_config\x18\xca\x02 \x01(\bR\x1fexplicitBreakoutInterfaceConfig\x12)\n" +
+	"\x10ciscoxr_laser_ft\x18\xcb\x02 \x01(\tR\x0eciscoxrLaserFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xab\x03\n" +
+	"deviations\"\xc3\x03\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -3599,7 +3681,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1dTESTBED_DUT_400FR_100G_4LINKS\x10\v\x12\x1a\n" +
 	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\x12\x15\n" +
 	"\x11TESTBED_DUT_800ZR\x10\r\x12\x1a\n" +
-	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\"m\n" +
+	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
+	"\x12TESTBED_DUT_2LINKS\x10\x0f\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
