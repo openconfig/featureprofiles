@@ -51,20 +51,7 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
               "address": "192.0.2.4",
               "source-address": "203.0.113.1"
             }
-          }
-        ]
-      }
-    }
-  }
-},
-{
-  "system": {
-    "ntp": {
-      "config": {
-        "enabled": true
-      },
-      "servers": {
-        "server": [
+          },
           {
             "address": "2001:db8::1",
             "config": {
@@ -92,20 +79,7 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
               "address": "2001:db8::4",
               "source-address": "2001:db8::1:1:1:1"
             }
-          }
-        ]
-      }
-    }
-  }
-},
-{
-  "system": {
-    "ntp": {
-      "config": {
-        "enabled": true
-      },
-      "servers": {
-        "server": [
+          },
           {
             "address": "192.0.2.10",
             "config": {
@@ -137,20 +111,7 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
               "network-instance": "VRF-1",
               "source-address": "203.0.113.1"
             }
-          }
-        ]
-      }
-    }
-  }
-},
-{
-  "system": {
-    "ntp": {
-      "config": {
-        "enabled": true
-      },
-      "servers": {
-        "server": [
+          },
           {
             "address": "2001:db8::9",
             "config": {
