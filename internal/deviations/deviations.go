@@ -1665,3 +1665,8 @@ func PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut *ondatra.DUTDevice) bo
 func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
+
+// BgpGracefulRestartPeerGroupUnsupported returns true if BGP graceful restart for Peer Group is not supported
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
