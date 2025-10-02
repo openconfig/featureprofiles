@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"fmt"
 	"math"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -40,6 +41,40 @@ const (
 	targetFrequencyToleranceMHz   = 100000
 )
 
+// DUTSubInterfaceData is the data structure for a subinterface in the DUT.
+type DUTSubInterfaceData struct {
+	VlanID        int
+	IPv4Address   net.IP
+	IPv6Address   net.IP
+	IPv4PrefixLen int
+	IPv6PrefixLen int
+}
+
+// LACPParams is the data structure for the LACP parameters used in the DUTLagData.
+type LACPParams struct {
+	Activity *oc.E_Lacp_LacpActivityType
+	Period   *oc.E_Lacp_LacpPeriodType
+}
+
+// DUTAggData is the data structure for a LAG in the DUT.
+type DUTAggData struct {
+	attrs.Attributes
+	SubInterfaces   []*DUTSubInterfaceData
+	OndatraPortsIdx []int
+	OndatraPorts    []*ondatra.Port
+	LagName         string
+	LacpParams      *LACPParams
+	AggType         oc.E_IfAggregate_AggregationType
+}
+
+// PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
+// field.
+func (d *DUTAggData) PopulateOndatraPorts(t *testing.T, dut *ondatra.DUTDevice) {
+	for _, v := range d.OndatraPortsIdx {
+		d.OndatraPorts = append(d.OndatraPorts, dut.Port(t, "port"+strconv.Itoa(v+1)))
+	}
+}
+
 var (
 	opmode   uint16
 	once     sync.Once
@@ -47,6 +82,7 @@ var (
 		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
+		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
 	}
@@ -320,7 +356,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		case ondatra.PMD800GBASEZR, ondatra.PMD800GBASEZRP:
 			params.FormFactor = oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_OSFP
 			switch params.OperationalMode {
-			case 1, 2:
+			case 1, 2, 8:
 				params.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
 				params.NumPhysicalChannels = 8
 				params.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_800G
@@ -338,8 +374,9 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		default:
 			t.Fatalf("Unsupported PMD type for %v", p.PMD())
 		}
-		updateInterfaceConfig(batch, p, params)
-		updateHWPortConfig(batch, p, params)
+		updateInterfaceConfig(batch, dut, p, params)
+		updateHWPortConfig(batch, dut, p, params)
+		updateTransceiverConfig(batch, dut, p, params)
 		updateOpticalChannelConfig(batch, p, params)
 		updateOTNChannelConfig(batch, dut, p, params)
 		updateETHChannelConfig(batch, dut, p, params)
@@ -347,13 +384,18 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 }
 
 // updateInterfaceConfig updates the interface config.
-func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
+func updateInterfaceConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
 	i := &oc.Interface{
 		Name:    ygot.String(p.Name()),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled: ygot.Bool(params.Enabled),
 	}
-	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
+	switch {
+	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
+		// No port speed and duplex mode config for devices that do not support it.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,
 			DuplexMode: oc.Ethernet_DuplexMode_FULL,
@@ -363,23 +405,48 @@ func updateInterfaceConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *Config
 }
 
 // updateHWPortConfig updates the hardware port config.
-func updateHWPortConfig(batch *gnmi.SetBatch, p *ondatra.Port, params *ConfigParameters) {
-	if p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP {
-		return // No HwPort config for 400GZR/400GZR Plus.
-	}
-	gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
-		Name: ygot.String(params.HWPortNames[p.Name()]),
-		Port: &oc.Component_Port{
-			BreakoutMode: &oc.Component_Port_BreakoutMode{
-				Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
-					1: {
-						Index:               ygot.Uint8(1),
-						BreakoutSpeed:       params.PortSpeed,
-						NumBreakouts:        ygot.Uint8(1),
-						NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+func updateHWPortConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	switch {
+	case deviations.BreakoutModeUnsupportedForEightHundredGb(dut) && params.PortSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB:
+		return
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No breakout mode config for 400GZR/400GZR Plus as it is not supported.
+		return
+	default:
+		gnmi.BatchReplace(batch, gnmi.OC().Component(params.HWPortNames[p.Name()]).Config(), &oc.Component{
+			Name: ygot.String(params.HWPortNames[p.Name()]),
+			Port: &oc.Component_Port{
+				BreakoutMode: &oc.Component_Port_BreakoutMode{
+					Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{
+						1: {
+							Index:               ygot.Uint8(1),
+							BreakoutSpeed:       params.PortSpeed,
+							NumBreakouts:        ygot.Uint8(1),
+							NumPhysicalChannels: ygot.Uint8(params.NumPhysicalChannels),
+						},
 					},
 				},
 			},
+		})
+	}
+	if deviations.ExplicitBreakoutInterfaceConfig(dut) {
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(p.Name()+"/1").Config(), &oc.Interface{
+			Name:    ygot.String(p.Name() + "/1"),
+			Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled: ygot.Bool(params.Enabled),
+		})
+	}
+}
+
+// updateTransceiverConfig updates the transceiver config.
+func updateTransceiverConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
+	if !deviations.ExplicitDcoConfig(dut) {
+		return // No transceiver config for devices that do not require explicit DCO config.
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().Component(params.TransceiverNames[p.Name()]).Config(), &oc.Component{
+		Name: ygot.String(params.TransceiverNames[p.Name()]),
+		Transceiver: &oc.Component_Transceiver{
+			ModuleFunctionalType: oc.TransportTypes_TRANSCEIVER_MODULE_FUNCTIONAL_TYPE_TYPE_DIGITAL_COHERENT_OPTIC,
 		},
 	})
 }
@@ -492,13 +559,18 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 }
 
 // ToggleInterfaceState toggles the interface with operational mode.
-func ToggleInterfaceState(t *testing.T, p *ondatra.Port, params *ConfigParameters) {
+func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, params *ConfigParameters) {
 	i := &oc.Interface{
 		Name:    ygot.String(p.Name()),
 		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 		Enabled: ygot.Bool(params.Enabled),
 	}
-	if p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP {
+	switch {
+	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
+		// No port speed and duplex mode config for devices that do not support it.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,
 			DuplexMode: oc.Ethernet_DuplexMode_FULL,
@@ -753,6 +825,105 @@ func SetupStaticAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggrBa
 			i.Enabled = ygot.Bool(true)
 		}
 		gnmi.BatchReplace(aggrBatch, gnmi.OC().Interface(port.Name()).Config(), i)
+	}
+	return agg
+}
+
+// AddPortToAggregate adds an Ondatra port as a member to the aggregate interface.
+func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port, b *gnmi.SetBatch, op *ondatra.Port) {
+	gnmi.BatchDelete(b, gnmi.OC().Interface(op.Name()).Ethernet().AggregateId().Config())
+
+	d := &oc.Root{}
+	i := d.GetOrCreateInterface(op.Name())
+	i.Description = ygot.String("LAG - Member - " + op.Name())
+	e := i.GetOrCreateEthernet()
+	e.AggregateId = ygot.String(aggID)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+	if op.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
+		e.AutoNegotiate = ygot.Bool(false)
+		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(op.Name()).Config(), i)
+}
+
+// AddSubInterface adds a subinterface to an interface.
+func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
+	sub.Enabled = ygot.Bool(true)
+	if s.VlanID != 0 {
+		sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
+	}
+	if s.IPv4Address == nil && s.IPv6Address == nil {
+		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
+	}
+	if s.IPv4Address != nil {
+		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().SetEnabled(true)
+		}
+	}
+	if s.IPv6Address != nil {
+		sub.GetOrCreateIpv6().GetOrCreateAddress(s.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv6PrefixLen))
+		if deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv6().SetEnabled(true)
+		}
+	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(i.GetName()).Subinterface(uint32(s.VlanID)).Config(), sub)
+}
+
+// NewAggregateInterface creates the below configuration for the aggregate interface:
+// 1. Create a new aggregate interface
+// 2. LACP configuration
+// 3. Adds member Ports configuration to an aggregate interface
+// 4. Subinterface configuration including thier IP address and VLAN ID
+// Note that you will still need to push the batch config to the DUT in your code.
+func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, l *DUTAggData) *oc.Interface {
+	aggID := l.LagName
+	agg := l.NewOCInterface(aggID, dut)
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	if deviations.IPv4MissingEnabled(dut) {
+		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	}
+	agg.GetOrCreateAggregation().LagType = l.AggType
+
+	// Set LACP mode to ACTIVE for the LAG interface
+	if l.LacpParams != nil {
+		if l.LacpParams.Activity == nil || l.LacpParams.Period == nil {
+			t.Fatalf("LACP activity or period is not set for LAG %s", aggID)
+		}
+		lacp := &oc.Lacp_Interface{Name: ygot.String(aggID)}
+		lacp.LacpMode = *l.LacpParams.Activity
+		lacp.Interval = *l.LacpParams.Period
+		lacpPath := gnmi.OC().Lacp().Interface(aggID)
+		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
+	}
+
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
+
+	l.PopulateOndatraPorts(t, dut)
+	for _, op := range l.OndatraPorts {
+		AddPortToAggregate(t, dut, aggID, l.OndatraPorts, b, op)
+	}
+
+	if l.Attributes.IPv4 == "" && l.Attributes.IPv6 == "" {
+		if !deviations.InterfaceEnabled(dut) {
+			// TODO : Need to investigate if this a real diviation or not as it is not clear openconfig
+			agg.DeleteSubinterface(0)
+			gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
+		}
+		for _, i := range l.SubInterfaces {
+			if i.VlanID == 0 {
+				t.Fatalf("No VLAN ID found for a subinterface under lag %s", aggID)
+			}
+			AddSubInterface(t, dut, b, agg, i)
+		}
 	}
 	return agg
 }
