@@ -961,6 +961,15 @@ message Metadata {
     // Cisco: b/429233045
     string ciscoxr_laser_ft = 331;
 
+    // Devices that do not support role leaf of string type for OC system/aaa username configuration.
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 332;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    bool acctz_shell_cmd_accounting_unsupported = 333;
+
+    // Devices that do not support AuthZ status field with deny in CMD service in AcctZ records.
+    bool acctz_records_authz_status_deny_unsupported = 334;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
