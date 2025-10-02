@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "6f9059c8-e49c-4ff6-8bd2-f474cd4fcfce"
-plan_id: "TRANSCEIVER-10"
+plan_id: "TRANSCEIVER-10.1"
 description: "Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
 testbed: TESTBED_DUT_400ZR
 platform_exceptions: {
@@ -32,8 +32,8 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    explicit_dco_config: true
     eth_channel_ingress_parameters_unsupported: true
+    explicit_dco_config: true
   }
 }
 platform_exceptions: {
