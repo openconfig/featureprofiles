@@ -17,7 +17,6 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 #### Canonical OC
 
 ```json
-[
         {
           "openconfig-network-instance:config": {
             "name": "VRF-1",
@@ -264,7 +263,6 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
             ]
           }
         }
-]
 ```
 
 ## OpenConfig Path and RPC Coverage
