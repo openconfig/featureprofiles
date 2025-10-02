@@ -16,7 +16,6 @@ package system_ntp_test
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
