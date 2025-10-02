@@ -7,7 +7,7 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 ## Procedure
 
 *   For the following cases, enable NTP on the DUT and validate telemetry reports the servers are configured:
-    *   4x IPv4 NTP server in default VRF
+    *   4x IPv4 NTP server in default VRF#### Canonical OC
     *   4x IPv6 NTP server in default VRF
     *   4x IPv4 NTP server in non-default VRF
     *   4x IPv6 NTP server in non-default VRF
@@ -15,200 +15,176 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 *   The source address of the ipv4 and ipv6 NTP servers will be Loopback ipv4 and ipv6 source addresses respectively.  
 
 #### Canonical OC
-
 ```json
 {
-  "openconfig-network-instance:network-instances": {
-    "network-instance": [
-      {
-        "name": "VRF-1",
-        "config": {
-          "name": "VRF-1",
-          "type": "openconfig-network-instance-types:L3VRF"
-        },
-        "protocols": {
-          "protocol": [
-            {
-              "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
-              "name": "DIRECTLY_CONNECTED",
-              "config": {
-                "identifier": "openconfig-policy-types:DIRECTLY_CONNECTED",
-                "name": "DIRECTLY_CONNECTED"
-              }
-            }
-          ]
-        },
-        "tables": {
-          "table": [
-            {
-              "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED",
-              "address-family": "openconfig-types:IPV4",
-              "config": {
-                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED",
-                "address-family": "openconfig-types:IPV4"
-              }
-            },
-            {
-              "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED",
-              "address-family": "openconfig-types:IPV6",
-              "config": {
-                "protocol": "openconfig-policy-types:DIRECTLY_CONNECTED",
-                "address-family": "openconfig-types:IPV6"
-              }
-            }
-          ]
-        }
-      }
-    ]
-  },
-  "openconfig-system:system": {
-    "servers": {
-      "server": [
-        {
-          "address": "192.0.2.1",
-          "config": {
+  "system": {
+    "ntp": {
+      "config": {
+        "enabled": true
+      },
+      "servers": {
+        "server": [
+          {
             "address": "192.0.2.1",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.2",
-          "config": {
+            "config": {
+              "address": "192.0.2.1",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.2",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.3",
-          "config": {
+            "config": {
+              "address": "192.0.2.2",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.3",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.4",
-          "config": {
+            "config": {
+              "address": "192.0.2.3",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.4",
-            "source-address": "203.0.113.1"
+            "config": {
+              "address": "192.0.2.4",
+              "source-address": "203.0.113.1"
+            }
           }
-        },
-        {
-          "address": "216.239.35.0",
-          "config": {
-            "address": "216.239.35.0"
-          }
-        },
-        {
-          "address": "216.239.35.12",
-          "config": {
-            "address": "216.239.35.12"
-          }
-        },
-        {
-          "address": "216.239.35.4",
-          "config": {
-            "address": "216.239.35.4"
-          }
-        },
-        {
-          "address": "216.239.35.8",
-          "config": {
-            "address": "216.239.35.8"
-          }
-        },
-        {
-          "address": "2001:db8::1",
-          "config": {
+        ]
+      }
+    }
+  }
+},
+{
+  "system": {
+    "ntp": {
+      "config": {
+        "enabled": true
+      },
+      "servers": {
+        "server": [
+          {
             "address": "2001:db8::1",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::2",
-          "config": {
+            "config": {
+              "address": "2001:db8::1",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::2",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::3",
-          "config": {
+            "config": {
+              "address": "2001:db8::2",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::3",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::4",
-          "config": {
+            "config": {
+              "address": "2001:db8::3",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::4",
-            "source-address": "2001:db8::1:1:1:1"
+            "config": {
+              "address": "2001:db8::4",
+              "source-address": "2001:db8::1:1:1:1"
+            }
           }
-        },
-        {
-          "address": "192.0.2.10",
-          "config": {
+        ]
+      }
+    }
+  }
+},
+{
+  "system": {
+    "ntp": {
+      "config": {
+        "enabled": true
+      },
+      "servers": {
+        "server": [
+          {
             "address": "192.0.2.10",
-            "network-instance": "VRF-1",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.11",
-          "config": {
+            "config": {
+              "address": "192.0.2.10",
+              "network-instance": "VRF-1",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.11",
-            "network-instance": "VRF-1",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.12",
-          "config": {
+            "config": {
+              "address": "192.0.2.11",
+              "network-instance": "VRF-1",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.12",
-            "network-instance": "VRF-1",
-            "source-address": "203.0.113.1"
-          }
-        },
-        {
-          "address": "192.0.2.9",
-          "config": {
+            "config": {
+              "address": "192.0.2.12",
+              "network-instance": "VRF-1",
+              "source-address": "203.0.113.1"
+            }
+          },
+          {
             "address": "192.0.2.9",
-            "network-instance": "VRF-1",
-            "source-address": "203.0.113.1"
+            "config": {
+              "address": "192.0.2.9",
+              "network-instance": "VRF-1",
+              "source-address": "203.0.113.1"
+            }
           }
-        },
-        {
-          "address": "2001:db8::9",
-          "config": {
+        ]
+      }
+    }
+  }
+},
+{
+  "system": {
+    "ntp": {
+      "config": {
+        "enabled": true
+      },
+      "servers": {
+        "server": [
+          {
             "address": "2001:db8::9",
-            "network-instance": "VRF-1",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::a",
-          "config": {
+            "config": {
+              "address": "2001:db8::9",
+              "network-instance": "VRF-1",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::a",
-            "network-instance": "VRF-1",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::b",
-          "config": {
+            "config": {
+              "address": "2001:db8::a",
+              "network-instance": "VRF-1",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::b",
-            "network-instance": "VRF-1",
-            "source-address": "2001:db8::1:1:1:1"
-          }
-        },
-        {
-          "address": "2001:db8::c",
-          "config": {
+            "config": {
+              "address": "2001:db8::b",
+              "network-instance": "VRF-1",
+              "source-address": "2001:db8::1:1:1:1"
+            }
+          },
+          {
             "address": "2001:db8::c",
-            "network-instance": "VRF-1",
-            "source-address": "2001:db8::1:1:1:1"
+            "config": {
+              "address": "2001:db8::c",
+              "network-instance": "VRF-1",
+              "source-address": "2001:db8::1:1:1:1"
+            }
           }
-        }
-      ]
+        ]
+      }
     }
   }
 }
