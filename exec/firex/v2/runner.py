@@ -62,6 +62,7 @@ whitelist_arguments([
     'test_branch',
     'test_revision',
     'test_pr',
+    'internal_test',
     'sim_use_mtls',
     'test_requires_bootz',
     'collect_dut_info',
@@ -1798,6 +1799,7 @@ def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_lo
 
         dhcp_host = vxr_ports['bootz']['HostAgent']
         dhcp_api_port = vxr_ports['bootz']['xr_redir8001']
+        dhcp_gw = reserved_testbed['gateway']
     else:
         dhcp_conf = reserved_testbed.get('dhcp')
         if not dhcp_conf:

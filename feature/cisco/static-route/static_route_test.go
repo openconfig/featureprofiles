@@ -474,7 +474,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 			name: "IPv4-Static-Route-With-Recurse-True-With-NextHop-Invalid",
 			test: func(t *testing.T) {
 				testIPv4StaticRouteRecurseNextHopInvalid(t, dut2, false, true,
-					"100.100.100.25/32", "15:15:15::15")
+					"100.100.100.25/32", "224.0.0.0")
 			},
 			validate: func(t *testing.T) {
 				validateIPv4StaticRouteRecurse(t, dut2, ipAf, "100.100.100.25/32", false, false)
@@ -484,7 +484,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 			name: "IPv4-Static-Route-With-Recurse-True-With-Interface-With-NextHop-Invalid",
 			test: func(t *testing.T) {
 				testIPv4StaticRouteRecurseInterfaceNextHopInvalid(t, dut2, false, true, dut2.Port(t, "port1").Name(),
-					"100.100.100.26/32", "15:15:15::15")
+					"100.100.100.26/32", "224.0.0.0")
 			},
 			validate: func(t *testing.T) {
 				validateIPv4StaticRouteRecurse(t, dut2, ipAf, "100.100.100.26/32", false, false)
@@ -494,7 +494,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 			name: "IPv4-Static-Route-With-Recurse-False-With-NextHop-Invalid",
 			test: func(t *testing.T) {
 				testIPv4StaticRouteRecurseNextHopInvalid(t, dut2, false, false,
-					"100.100.100.27/32", "15:15:15::15")
+					"100.100.100.27/32", "224.0.0.0")
 			},
 			validate: func(t *testing.T) {
 				validateIPv4StaticRouteRecurse(t, dut2, ipAf, "100.100.100.27/32", false, false)
@@ -504,7 +504,7 @@ func TestIPv4StaticRouteRecurse(t *testing.T) {
 			name: "IPv4-Static-Route-With-Recurse-False-With-Interface-With-NextHop-Invalid",
 			test: func(t *testing.T) {
 				testIPv4StaticRouteRecurseInterfaceNextHopInvalid(t, dut2, false, false, dut2.Port(t, "port1").Name(),
-					"100.100.100.28/32", "15:15:15::15")
+					"100.100.100.28/32", "224.0.0.0")
 			},
 			validate: func(t *testing.T) {
 				validateIPv4StaticRouteRecurse(t, dut2, ipAf, "100.100.100.28/32", false, false)
@@ -1017,6 +1017,9 @@ func TestIPv6StaticRouteRecurse(t *testing.T) {
 	configureDUT(t, dut1)
 	configureDUT(t, dut2)
 	time.Sleep(60 * time.Second)
+	if cliHandle == nil {
+		cliHandle = dut2.RawAPIs().CLI(t)
+	}
 
 	testCases := []testCase{
 		{
@@ -2393,8 +2396,8 @@ func testIPv4StaticRouteRecurseNextHopAttributes(t *testing.T, dut *ondatra.DUTD
 			}).Await(t)
 	} else if metric == 100 && tag == 100 && distance == 100 {
 		static, path := configStaticRouteWithAttributes(t, dut, recurse, "", v4Prefix, v4nextHop, metric, tag, distance)
-		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.State(), ON_CHANGE_TIMEOUT,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol]) bool {
+		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.Static(v4Prefix).NextHop("0").State(), ON_CHANGE_TIMEOUT,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static_NextHop]) bool {
 				gnmi.Update(t, dut, path.Config(), static)
 
 				return v.IsPresent()
@@ -2439,8 +2442,8 @@ func testIPv4StaticRouteRecurseInterfaceNextHopAttributes(t *testing.T, dut *ond
 			}).Await(t)
 	} else if metric == 100 && tag == 100 && distance == 100 && recurse == false {
 		static, path := configStaticRouteWithAttributes(t, dut, recurse, interfaceName, v4Prefix, v4nextHop, metric, tag, distance)
-		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.State(), ON_CHANGE_TIMEOUT,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol]) bool {
+		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.Static(v4Prefix).NextHop("0").State(), ON_CHANGE_TIMEOUT,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static_NextHop]) bool {
 				gnmi.Update(t, dut, path.Config(), static)
 
 				return v.IsPresent()
@@ -2463,7 +2466,8 @@ func testIPv4StaticRouteRecurseNextHopInvalid(t *testing.T, dut *ondatra.DUTDevi
 		gnmi.Update(t, dut, path.Config(), static)
 	}); errMsg != nil {
 		if strings.Contains(*errMsg, "'ip-static' detected the 'warning' condition 'Invalid Address Family'") ||
-			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") {
+			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") ||
+			strings.Contains(*errMsg, "ip-static' detected the 'warning' condition 'Invalid next hop address") {
 			t.Log("Test Case failed as expected")
 		} else {
 			t.Error("Test case failed with unexpected failure")
@@ -2510,7 +2514,8 @@ func testIPv4StaticRouteRecurseInterfaceNextHopInvalid(t *testing.T, dut *ondatr
 		gnmi.Update(t, dut, path.Config(), static)
 	}); errMsg != nil {
 		if strings.Contains(*errMsg, "'ip-static' detected the 'warning' condition 'Invalid Address Family'") ||
-			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") {
+			strings.Contains(*errMsg, "Recurse cannot be set to true with nexthop as interface") ||
+			strings.Contains(*errMsg, "ip-static' detected the 'warning' condition 'Invalid next hop address") {
 			t.Log("Test Case failed as expected")
 		} else {
 			t.Error("Test case failed with unexpected failure")
@@ -2541,8 +2546,8 @@ func testIPv4StaticRouteNoRecurseInterfaceNextHopAttributes(t *testing.T, dut *o
 
 	if metric == 100 && tag == 100 && distance == 100 {
 		static, path := configStaticRouteNoRecurseWithAttributes(t, dut, v4Prefix, v4nextHop, metric, tag, distance)
-		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.State(), ON_CHANGE_TIMEOUT,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol]) bool {
+		_, ok = gnmi.Watch(t, gnmiOptsForOnChange(t, dut), path.Static(v4Prefix).NextHop("0").State(), ON_CHANGE_TIMEOUT,
+			func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Static_NextHop]) bool {
 				gnmi.Update(t, dut, path.Config(), static)
 
 				return v.IsPresent()

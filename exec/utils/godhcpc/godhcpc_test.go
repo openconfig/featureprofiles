@@ -2,6 +2,7 @@ package godhcpc_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -48,13 +49,29 @@ func TestAddDHCPEntry(t *testing.T) {
 
 	mgmtIpAddress := ""
 	mgmtPrefixLength := uint8(0)
-	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
-	for _, intf := range intfs {
-		if intf.GetManagement() {
-			for _, subIntf := range intf.GetOrCreateSubinterfaceMap() {
-				for _, addr := range subIntf.GetOrCreateIpv4().GetOrCreateAddressMap() {
-					mgmtIpAddress = addr.GetIp()
-					mgmtPrefixLength = addr.GetPrefixLength()
+	gw := *gateway
+
+	if util.IsPlatformVXR(context.Background(), t, dut) {
+		mgmtIpAddress = "1.0.0.5"
+		mgmtPrefixLength = 24
+		gw = "1.0.0.2"
+	} else {
+		intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	outer:
+		for _, intf := range intfs {
+			if intf.GetManagement() {
+				for _, subIntf := range intf.GetOrCreateSubinterfaceMap() {
+					// Prefer IPv6 address if available
+					for _, addr := range subIntf.GetOrCreateIpv6().GetOrCreateAddressMap() {
+						mgmtIpAddress = addr.GetIp()
+						mgmtPrefixLength = addr.GetPrefixLength()
+						break outer
+					}
+					for _, addr := range subIntf.GetOrCreateIpv4().GetOrCreateAddressMap() {
+						mgmtIpAddress = addr.GetIp()
+						mgmtPrefixLength = addr.GetPrefixLength()
+						break outer
+					}
 				}
 			}
 		}
@@ -65,7 +82,6 @@ func TestAddDHCPEntry(t *testing.T) {
 	}
 	t.Logf("Management IP address: %s", mgmtIpAddress)
 
-	gw := *gateway
 	if gw != "" {
 		t.Logf("Using configured gateway: %s", gw)
 	} else {
