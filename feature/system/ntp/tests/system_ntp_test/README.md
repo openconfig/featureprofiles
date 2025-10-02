@@ -17,7 +17,18 @@ Ensure DUT can be configured as a Network Time Protocol (NTP) client.
 #### Canonical OC
 ```json
 {
-  "system": {
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "VRF-1",
+        "config": {
+          "name": "VRF-1",
+          "type": "openconfig-network-instance-types:L3VRF"
+        }
+      }
+    ]
+  },
+  "openconfig-system:system": {
     "ntp": {
       "config": {
         "enabled": true
