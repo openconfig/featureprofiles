@@ -41,7 +41,6 @@ const (
 	routeCount         = 1
 	tolerance          = 2
 	nonDefaultVRF      = "VRF-1"
-	defaultNIName      = "default"
 	importCommunity    = "65002:200"
 	exportCommunity    = "65001:100"
 	loopbackIntfName   = "loopback0"
@@ -88,7 +87,8 @@ var (
 	prefix3Len        = 24
 	prefix3LenV6      = 64
 
-	dstAddr = []string{GUEDstIPv4}
+	dstAddr       = []string{GUEDstIPv4}
+	defaultNIName = strings.ToLower("DEFAULT")
 )
 
 func TestMain(m *testing.M) {
