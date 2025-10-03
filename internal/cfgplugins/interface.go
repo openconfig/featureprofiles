@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -926,4 +927,29 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		}
 	}
 	return agg
+}
+
+// ConfigureUrpfonDutInt configures URPF on the interface.
+func ConfigureUrpfonDutInt(t *testing.T, dut *ondatra.DUTDevice, intName string, stackObjV4 *oc.Interface_Subinterface_Ipv4, stackObjV6 *oc.Interface_Subinterface_Ipv6) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if deviations.URPFConfigOCUnsupported(dut) {
+			urpfCliConfig := fmt.Sprintf(`
+			interface %s
+			ip verify unicast source reachable-via any
+			ipv6 verify unicast source reachable-via any
+			`, intName)
+			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
+		} else {
+			stackObjV4.GetOrCreateUrpf()
+			stackObjV4.Urpf.Enabled = ygot.Bool(true)
+			stackObjV4.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+			stackObjV6.GetOrCreateUrpf()
+			stackObjV6.Urpf.Enabled = ygot.Bool(true)
+			stackObjV6.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		}
+	default:
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	}
 }

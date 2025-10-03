@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,6 +66,7 @@ const (
 
 	// PTBGP is shorthand for the long oc protocol type constant
 	PTBGP = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	routeTimeout = 30 * time.Second
 )
 
 var (
@@ -737,4 +739,80 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config(), bgp)
 
 	return bgp
+}
+
+// VerifyDUTVrfBGPEstablished verify BGP neighbor status with configured DUT VRF configuration.
+func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName string, nbrIPs []string) {
+	t.Helper()
+	statePath := gnmi.OC().NetworkInstance(vrfName).
+		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbrIp := range nbrIPs {
+		nbrPath := statePath.Neighbor(nbrIp)
+		t.Logf("Waiting for BGP neighbor to establish...")
+		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			state, ok := val.Val()
+			return ok && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+			t.Fatal("No BGP neighbor formed")
+		}
+		state, _ := status.Val()
+		t.Logf("BGP adjacency for %s: %s", nbrIp, state)
+		if want := oc.Bgp_Neighbor_SessionState_ESTABLISHED; state != want {
+			t.Errorf("BGP peer %s status got %d, want %d", nbrIp, state, want)
+		}
+
+		t.Log("Verifying BGP capabilities.")
+		capabilities := map[oc.E_BgpTypes_BGP_CAPABILITY]bool{
+			oc.BgpTypes_BGP_CAPABILITY_ROUTE_REFRESH: false,
+			oc.BgpTypes_BGP_CAPABILITY_MPBGP:         false,
+		}
+		for _, cap := range gnmi.Get(t, dut, nbrPath.SupportedCapabilities().State()) {
+			capabilities[cap] = true
+		}
+		for cap, present := range capabilities {
+			if !present {
+				t.Errorf("Capability not reported: %v", cap)
+			}
+		}
+	}
+}
+
+type RouteInfo struct {
+	VRF    string
+	IPType string
+}
+
+// VerifyRoutes checks if advertised routes are installed in DUT AFT.
+func VerifyRoutes(t *testing.T, dut *ondatra.DUTDevice, routesToAdvertise map[string]RouteInfo) {
+	t.Helper()
+
+	for route, info := range routesToAdvertise {
+		vrfName := info.VRF
+		if vrfName == "default" {
+			vrfName = deviations.DefaultNetworkInstance(dut)
+		}
+		var ok bool
+		switch info.IPType {
+		case IPv4:
+			aft := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv4Entry(route)
+			_, ok = gnmi.Watch(t, dut, aft.State(), routeTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+				return val.IsPresent()
+			}).Await(t)
+
+		case IPv6:
+			normalizedRoute := strings.Replace(route, "::0/", "::/", 1)
+			aft := gnmi.OC().NetworkInstance(vrfName).Afts().Ipv6Entry(normalizedRoute)
+			_, ok = gnmi.Watch(t, dut, aft.State(), routeTimeout, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+				return val.IsPresent()
+			}).Await(t)
+		}
+
+		if !ok {
+			t.Errorf("Route %s is NOT installed in AFT for VRF %q", route, info.VRF)
+		} else {
+			t.Logf("Route %s successfully installed in AFT for VRF %q", route, info.VRF)
+		}
+	}
 }

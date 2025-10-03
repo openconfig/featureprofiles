@@ -961,6 +961,10 @@ message Metadata {
     // Cisco: b/429233045
     string ciscoxr_laser_ft = 331;
 
+    // Devices does not support uRPF configuration.
+    // Arista https://partnerissuetracker.corp.google.com/issues/444942109
+    bool urpf_config_oc_unsupported = 332;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

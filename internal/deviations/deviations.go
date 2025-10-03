@@ -1665,3 +1665,8 @@ func PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut *ondatra.DUTDevice) bo
 func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
+
+// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF
+func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
+    return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
+}
