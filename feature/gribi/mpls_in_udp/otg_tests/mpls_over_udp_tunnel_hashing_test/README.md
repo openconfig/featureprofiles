@@ -56,7 +56,7 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TUn 2.9 Match and Encapsulate using gRIBI aft modify
+### TE-18.4 Match and Encapsulate using gRIBI aft modify
 
 ## Canonical OC Configuration
 
