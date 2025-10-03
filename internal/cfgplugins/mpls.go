@@ -408,11 +408,11 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		"static":                  {16, 1048560},
 	}
 	t.Logf("Mpls Object %v, label range %v", mplsObj, labelRanges)
-	// TODO: The below loop will uncomment once OC paths are in place.
-	// for localID, bounds := range labelRanges {
-	// 	rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
-	// 	rlb.Config.LocalId = ygot.String(localID)
-	// 	rlb.Config.LowerBound = ygot.Uint32(bounds[0])
-	// 	rlb.Config.UpperBound = ygot.Uint32(bounds[1])
-	// }
+	for localID, bounds := range labelRanges {
+		rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
+		rlb.LocalId = ygot.String(localID)
+		rlb.LowerBound = oc.UnionUint32(bounds[0])
+		rlb.UpperBound = oc.UnionUint32(bounds[1])
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
