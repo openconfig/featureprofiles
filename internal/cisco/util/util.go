@@ -2619,29 +2619,25 @@ func CompareStructRequiredFields(want, got interface{}) error {
 		}
 
 		// Handle slice comparison
-		if wantField.Kind() == reflect.Slice {
-			wantSlice := wantField
-			gotSlice := gotField
-
-			if wantSlice.Len() > gotSlice.Len() {
+		switch wantField.Kind() {
+		case reflect.Slice:
+			if wantField.Len() > gotField.Len() {
 				return fmt.Errorf("field '%s' mismatch: want slice has more elements than got slice", field.Name)
 			}
-
-			for j := 0; j < wantSlice.Len(); j++ {
-				wantElem := wantSlice.Index(j)
-				gotElem := gotSlice.Index(j)
-
+			for j := 0; j < wantField.Len(); j++ {
+				wantElem := wantField.Index(j)
+				gotElem := gotField.Index(j)
 				// Recursively compare elements in the slice
 				if err := CompareStructRequiredFields(wantElem.Interface(), gotElem.Interface()); err != nil {
 					return fmt.Errorf("field '%s' mismatch in slice element %d: %v", field.Name, j, err)
 				}
 			}
-		} else if wantField.Kind() == reflect.Struct {
+		case reflect.Struct:
 			// Handle nested struct comparison
 			if err := CompareStructRequiredFields(wantField.Interface(), gotField.Interface()); err != nil {
 				return fmt.Errorf("field '%s' mismatch: %v", field.Name, err)
 			}
-		} else {
+		default:
 			// Compare primitive fields directly
 			if !reflect.DeepEqual(gotField.Interface(), wantField.Interface()) {
 				return fmt.Errorf(
