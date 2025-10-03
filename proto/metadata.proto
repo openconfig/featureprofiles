@@ -954,7 +954,7 @@ message Metadata {
     // Devices that need explicit breakout interface config.
     // Nokia: b/435502032
     bool explicit_breakout_interface_config = 330;
-    
+ 
     // Devices do not support threshold container under
     // /components/component/transceiver. Translate from native ST with the
     // specified functional translator. See ciscoxr-laser-ft.
