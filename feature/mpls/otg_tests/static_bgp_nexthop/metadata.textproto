@@ -5,3 +5,14 @@ uuid:  "33947478-0473-4832-8717-6176d4e7a406"
 plan_id:  "MPLS-2.2"
 description:  "MPLS forwarding via static LSP to BGP next-hop."
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    static_mpls_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+  }
+}
