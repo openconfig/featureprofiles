@@ -1162,9 +1162,14 @@ type Metadata_Deviations struct {
 	// Devices that need explicit breakout interface config.
 	// Nokia: b/435502032
 	ExplicitBreakoutInterfaceConfig bool `protobuf:"varint,330,opt,name=explicit_breakout_interface_config,json=explicitBreakoutInterfaceConfig,proto3" json:"explicit_breakout_interface_config,omitempty"`
+	// Devices do not support threshold container under
+	// /components/component/transceiver. Translate from native ST with the
+	// specified functional translator. See ciscoxr-laser-ft.
+	// Cisco: b/429233045
+	CiscoxrLaserFt string `protobuf:"bytes,331,opt,name=ciscoxr_laser_ft,json=ciscoxrLaserFt,proto3" json:"ciscoxr_laser_ft,omitempty"`
 	// OC state path for the lower priority next hop not supported.
 	// Arista: b/447502389
-	TelemetryNotSupportedForLowPriorityNh bool `protobuf:"varint,331,opt,name=telemetry_not_supported_for_low_priority_nh,json=telemetryNotSupportedForLowPriorityNh,proto3" json:"telemetry_not_supported_for_low_priority_nh,omitempty"`
+	TelemetryNotSupportedForLowPriorityNh bool `protobuf:"varint,332,opt,name=telemetry_not_supported_for_low_priority_nh,json=telemetryNotSupportedForLowPriorityNh,proto3" json:"telemetry_not_supported_for_low_priority_nh,omitempty"`
 	unknownFields                         protoimpl.UnknownFields
 	sizeCache                             protoimpl.SizeCache
 }
@@ -3278,6 +3283,13 @@ func (x *Metadata_Deviations) GetExplicitBreakoutInterfaceConfig() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetCiscoxrLaserFt() string {
+	if x != nil {
+		return x.CiscoxrLaserFt
+	}
+	return ""
+}
+
 func (x *Metadata_Deviations) GetTelemetryNotSupportedForLowPriorityNh() bool {
 	if x != nil {
 		return x.TelemetryNotSupportedForLowPriorityNh
@@ -3341,7 +3353,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xf5\xb5\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa0\xb6\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3353,7 +3365,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xfe\xab\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa9\xac\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3655,8 +3667,9 @@ const file_metadata_proto_rawDesc = "" +
 	"\x19gribi_records_unsupported\x18\xc7\x02 \x01(\bR\x17gribiRecordsUnsupported\x12a\n" +
 	".breakout_mode_unsupported_for_eight_hundred_gb\x18\xc8\x02 \x01(\bR(breakoutModeUnsupportedForEightHundredGb\x12r\n" +
 	"7port_speed_duplex_mode_unsupported_for_interface_config\x18\xc9\x02 \x01(\bR0portSpeedDuplexModeUnsupportedForInterfaceConfig\x12L\n" +
-	"\"explicit_breakout_interface_config\x18\xca\x02 \x01(\bR\x1fexplicitBreakoutInterfaceConfig\x12[\n" +
-	"+telemetry_not_supported_for_low_priority_nh\x18\xcb\x02 \x01(\bR%telemetryNotSupportedForLowPriorityNhJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\"explicit_breakout_interface_config\x18\xca\x02 \x01(\bR\x1fexplicitBreakoutInterfaceConfig\x12)\n" +
+	"\x10ciscoxr_laser_ft\x18\xcb\x02 \x01(\tR\x0eciscoxrLaserFt\x12[\n" +
+	"+telemetry_not_supported_for_low_priority_nh\x18\xcc\x02 \x01(\bR%telemetryNotSupportedForLowPriorityNhJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
