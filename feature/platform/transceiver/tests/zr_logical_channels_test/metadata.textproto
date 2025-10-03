@@ -1,7 +1,8 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
+
 uuid: "0bef25c1-0ea2-4b44-8a37-07de9f870cae"
-plan_id: "TRANSCEIVER-11"
+plan_id: "TRANSCEIVER-11.1"
 description: "Telemetry: 400ZR Optics logical channels provisioning and related telemetry."
 testbed: TESTBED_DUT_400ZR
 platform_exceptions: {
@@ -33,8 +34,8 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    explicit_dco_config: true
     eth_channel_ingress_parameters_unsupported: true
+    explicit_dco_config: true
     line_port_unsupported: true
-   }
+  }
 }

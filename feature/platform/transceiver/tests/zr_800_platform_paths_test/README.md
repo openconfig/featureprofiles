@@ -53,7 +53,6 @@ Validate ZR optics module reports telemetry data for all leaves in
     *   platform/components/component/state/name
     *   platform/components/component/state/parent
     *   platform/components/component/state/location
-    *   platform/components/component/state/removable
     *   platform/components/component/state/type
     *   platform/components/component/state/oper-status
     *   platform/components/component/state/temperature/instant
@@ -64,7 +63,6 @@ Validate ZR optics module reports telemetry data for all leaves in
     *   platform/components/component/state/mfg-name
     *   platform/components/component/state/mfg-date
     *   platform/components/component/transceiver/state/form-factor
-    *   platform/components/component/transceiver/state/present
     *   platform/components/component/transceiver/state/connector-type
     *   platform/components/component/transceiver/state/supply-voltage/instant
     *   platform/components/component/transceiver/physical-channels/channel/state/index
@@ -265,8 +263,6 @@ paths:
         platform_type: ["PORT", "TRANSCEIVER", "OPTICAL_CHANNEL"]
     /components/component/state/type:
         platform_type: ["PORT", "TRANSCEIVER", "OPTICAL_CHANNEL"]
-    /components/component/state/removable:
-        platform_type: ["PORT", "TRANSCEIVER", "OPTICAL_CHANNEL"]
     /components/component/state/parent:
         platform_type: ["PORT", "TRANSCEIVER", "OPTICAL_CHANNEL"]
     /components/component/port/breakout-mode/groups/group/state/index:
@@ -294,8 +290,6 @@ paths:
     /components/component/state/mfg-date:
         platform_type: ["TRANSCEIVER"]
     /components/component/transceiver/state/form-factor:
-        platform_type: ["TRANSCEIVER"]
-    /components/component/transceiver/state/present:
         platform_type: ["TRANSCEIVER"]
     /components/component/transceiver/state/connector-type:
         platform_type: ["TRANSCEIVER"]

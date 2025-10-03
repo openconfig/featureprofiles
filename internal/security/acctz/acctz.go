@@ -64,8 +64,10 @@ const (
 	ipProto              = 6
 )
 
-// var gRPCClientAddr net.Addr
+// TestPaths is the list of paths to be tested for acctz.
+var TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
 
+// var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_Password{
@@ -379,9 +381,6 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &gnmipb.CapabilityRequest{}
 	payload, err := anypb.New(req)
-	t.Logf("username: %v, password: %v", SuccessUsername, successPassword)
-	t.Logf("Sleeping for 60 seconds to allow for authz to propagate...")
-	time.Sleep(60 * time.Second)
 
 	if err != nil {
 		t.Fatal("Failed creating anypb payload.")

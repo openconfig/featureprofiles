@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "0f3bb528-28f4-4284-8d2f-de105be09241"
-plan_id: "TRANSCEIVER-3"
+plan_id: "TRANSCEIVER-3.1"
 description: "Telemetry: 400ZR Optics firmware version streaming"
 testbed: TESTBED_DUT_400ZR
 platform_exceptions: {

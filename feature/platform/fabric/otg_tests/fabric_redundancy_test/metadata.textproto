@@ -32,3 +32,11 @@ platform_exceptions: {
     config_leaf_create_required: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    config_leaf_create_required: true
+  }
+}

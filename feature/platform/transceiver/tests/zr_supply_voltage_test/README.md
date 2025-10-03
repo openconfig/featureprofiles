@@ -1,4 +1,4 @@
-# TRANSCEIVER-12: Telemetry: 400ZR Transceiver Supply Voltage streaming.
+# TRANSCEIVER-12.1: Telemetry: 400ZR Transceiver Supply Voltage streaming.
 
 ## Summary
 
@@ -45,6 +45,11 @@ Once the ZR link is estabished proceed with the following:
     *   If the modules or the devices are in a boot stage, they must not stream
         any invalid string values like "nil" or "-inf".
     *   Reported supply voltage value must always be of type decimal64. 
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

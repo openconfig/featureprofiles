@@ -1,4 +1,4 @@
-# TRANSCEIVER-6 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics performance metrics (pm) streaming.
+# TRANSCEIVER-6.2: Telemetry: 400ZR_PLUS Optics performance metrics (pm) streaming.
 
 ## Summary
 
@@ -68,6 +68,11 @@ module CMIS VDM(Versatile Diagnostics Monitor):
     *   Re-enable the interfaces on the DUT.
     *   Verify the ZR_PLUS optics pre FEC PM is updated to the value in the normal
         range again. 
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

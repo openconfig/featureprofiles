@@ -1,4 +1,4 @@
-# TRANSCEIVER-13: Configuration: 400ZR Transceiver Low Power Mode Setting.
+# TRANSCEIVER-13.1: Configuration: 400ZR Transceiver Low Power Mode Setting.
 
 ## Summary
 
@@ -93,6 +93,11 @@ Once the ZR link is estabished proceed with the following:
     *   When the modules or the devices are still in a boot stage, they must not
         stream any invalid string values like "nil" or "-inf" until valid values
         are available for streaming.
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 
