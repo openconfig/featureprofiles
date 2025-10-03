@@ -3,7 +3,7 @@
 ## Summary
 
 This test verifies that the `atomic` flag is correctly set in gNMI subscription
-notifications for the AFTs (Abstract Forwarding Tables) path during network
+notifications for the AFT (Abstract Forwarding Table) paths during network
 churn events. The `atomic` flag is expected to be `true` for the initial
 synchronization and for updates that occur after a link comes back up, and
 `false` for delete notifications when a link goes down.
@@ -26,8 +26,6 @@ synchronization and for updates that occur after a link comes back up, and
     Adjustable Value)**
 *   Let `Z1` be the number of IPv6 prefixes to be advertised by IS-IS. **(User
     Adjustable Value)**
-
-The default value is 100 for all variables.
 
 #### Configure IS-IS session.
 
