@@ -28,12 +28,6 @@ require (
 	github.com/openconfig/entity-naming v0.0.0-20250108173956-784f643e8b64
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnmic/pkg/api v0.1.9
-	github.com/openconfig/gnoi v0.6.0
-	github.com/openconfig/gnoigo v0.0.0-20240820205259-23ac4e061cc2
-	github.com/openconfig/gnpsi v0.3.2
-	github.com/openconfig/gnsi v1.7.0
-	github.com/openconfig/gocloser v0.0.0-20220310182203-c6c950ed3b0b
-	github.com/openconfig/goyang v1.6.0
 	github.com/openconfig/gnoi v0.6.2
 	github.com/openconfig/gnoigo v0.0.0-20250422174708-0b77c31c7d66
 	github.com/openconfig/gnpsi v0.3.2
@@ -54,22 +48,13 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pborman/uuid v1.2.1
 	github.com/pkg/errors v0.9.1
-<<<<<<< HEAD
-	github.com/pkg/sftp v1.13.6
-	github.com/povsister/scp v0.0.0-20210427074412-33febfd9f13e
-	github.com/protocolbuffers/txtpbfmt v0.0.0-20220608084003-fc78c767cd6a
-	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4
-	github.com/spf13/cobra v1.8.1
-	github.com/spf13/pflag v1.0.6-0.20201009195203-85dd5c8bc61c
-	github.com/spf13/viper v1.19.0
-=======
 	github.com/pkg/sftp v1.13.9
 	github.com/povsister/scp v0.0.0-20250701154629-777cf82de5df
 	github.com/protocolbuffers/txtpbfmt v0.0.0-20240823084532-8e6b51fa9bef
+	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/pflag v1.0.6
 	github.com/spf13/viper v1.20.1
->>>>>>> master
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
 	go.mongodb.org/mongo-driver v1.17.4
