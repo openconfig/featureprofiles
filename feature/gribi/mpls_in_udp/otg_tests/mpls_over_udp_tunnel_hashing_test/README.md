@@ -1,4 +1,4 @@
-# TUN-2.9: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
+# TE-18.4: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP with
@@ -57,6 +57,8 @@ outer_ip-ttl =        "64"
 ## Procedure
 
 ### TUn 2.9 Match and Encapsulate using gRIBI aft modify
+
+## Canonical OC Configuration
 
 #### gRIBI RPC content
 
