@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -132,16 +133,45 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+			if traffictype == "ipv4" {
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						tunnel-source %s
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				}
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+			} else if traffictype == "ipv6" {
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						tunnel-source %s
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.TunnelSrc, dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				}
 			} else if traffictype == "multicloudv4" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 			}
@@ -151,7 +181,6 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
-
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
@@ -166,9 +195,20 @@ type StaticNextHopGroupParams struct {
 	OuterIpv4Src2Def string
 	OuterDscpDef     uint8
 	OuterTTLDef      uint8
-
+	DynamicValues    []DynamicStructParams
+	DynamicVal       bool
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
 
+}
+
+type DynamicStructParams struct {
+	NexthopGrpName string
+	NexthopType    string
+	TTL            int
+	TunnelSrc      string
+	TunnelDst      string
+	MplsLabel      int
+	EntryValue     int
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
