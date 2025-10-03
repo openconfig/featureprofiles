@@ -76,6 +76,8 @@ TODO:
 
 
 ```json
+
+
 {
   "network-instances": {
     "network-instance": [
@@ -87,60 +89,67 @@ TODO:
         "protocols": {
           "protocol": [
             {
-              "bgp": {
-                "neighbors": {
-                  "neighbor": [
+              "config": {
+                "identifier": "ISIS",
+                "name": "DEFAULT-ISIS"
+              },
+              "identifier": "ISIS",
+              "isis": {
+                "global": {
+                  "config": {
+                    "net": [
+                      "49.0001.0000.0000.0001.00"
+                    ]
+                  }
+                },
+                "interfaces": {
+                  "interface": [
                     {
-                      "afi-safis": {
-                        "afi-safi": [
+                      "config": {
+                        "circuit-type": "POINT_TO_POINT",
+                        "interface-id": "eth1.0"
+                      },
+                      "interface-id": "eth1.0",
+                      "levels": {
+                        "level": [
                           {
-                            "afi-safi-name": "IPV4_UNICAST",
-                            "apply-policy": {
-                              "config": {
-                                "default-import-policy": "REJECT_ROUTE"
-                              }
+                            "afi-safi": {
+                              "af": [
+                                {
+                                  "afi-name": "IPV4",
+                                  "config": {
+                                    "afi-name": "IPV4",
+                                    "enabled": true,
+                                    "safi-name": "UNICAST"
+                                  },
+                                  "safi-name": "UNICAST"
+                                }
+                              ]
                             },
                             "config": {
-                              "afi-safi-name": "IPV4_UNICAST"
-                            }
-                          }
-                        ]
-                      },
-                      "config": {
-                        "neighbor-address": "192.1.1.1"
-                      },
-                      "neighbor-address": "192.1.1.1"
-                    },
-                    {
-                      "afi-safis": {
-                        "afi-safi": [
-                          {
-                            "afi-safi-name": "IPV6_UNICAST",
-                            "apply-policy": {
-                              "config": {
-                                "default-import-policy": "REJECT_ROUTE"
-                              }
+                              "enabled": true,
+                              "level-number": 2
                             },
-                            "config": {
-                              "afi-safi-name": "IPV6_UNICAST"
-                            }
+                            "level-number": 2
                           }
                         ]
-                      },
+                      }
+                    }
+                  ]
+                },
+                "levels": {
+                  "level": [
+                    {
                       "config": {
-                        "neighbor-address": "2001:db9::1"
+                        "enabled": true,
+                        "level-number": 2
                       },
-                      "neighbor-address": "2001:db9::1"
+                      "level-number": 2
                     }
                   ]
                 }
               },
-              "config": {
-                "identifier": "BGP",
-                "name": "BGP"
-              },
-              "identifier": "BGP",
-              "name": "BGP"
+              "name": "DEFAULT-ISIS"
             },
             {
               "config": {
@@ -152,13 +161,52 @@ TODO:
                 "aggregate": [
                   {
                     "config": {
-                      "prefix": "0.0.0.0/0"
+                      "discard": true,
+                      "prefix": "192.168.2.0/30"
                     },
-                    "prefix": "0.0.0.0/0"
+                    "prefix": "192.168.2.0/30"
                   }
                 ]
               },
               "name": "DEFAULT-AGG"
+            }
+          ]
+        },
+        "table-connections": {
+          "table-connection": [
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "default-import-policy": "REJECT_ROUTE",
+                "dst-protocol": "ISIS",
+                "import-policy": [
+                  "SEND-DEF-IF-NOT-FOUND-IPV4"
+                ],
+                "src-protocol": "LOCAL_AGGREGATE"
+              },
+              "dst-protocol": "ISIS",
+              "src-protocol": "LOCAL_AGGREGATE"
+            }
+          ]
+        },
+        "tables": {
+          "table": [
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "protocol": "ISIS"
+              },
+              "protocol": "ISIS"
+            },
+            {
+              "address-family": "IPV4",
+              "config": {
+                "address-family": "IPV4",
+                "protocol": "LOCAL_AGGREGATE"
+              },
+              "protocol": "LOCAL_AGGREGATE"
             }
           ]
         }
@@ -172,17 +220,17 @@ TODO:
           {
             "config": {
               "mode": "IPV4",
-              "name": "EBGP-IMPORT-IPV4"
+              "name": "SEND-DEF-IF-NOT-FOUND-IPV4"
             },
-            "name": "EBGP-IMPORT-IPV4",
+            "name": "SEND-DEF-IF-NOT-FOUND-IPV4",
             "prefixes": {
               "prefix": [
                 {
                   "config": {
-                    "ip-prefix": "192.0.2.0/32",
+                    "ip-prefix": "192.168.2.2/32",
                     "masklength-range": "exact"
                   },
-                  "ip-prefix": "192.0.2.0/32",
+                  "ip-prefix": "192.168.2.2/32",
                   "masklength-range": "exact"
                 }
               ]
@@ -195,9 +243,9 @@ TODO:
       "policy-definition": [
         {
           "config": {
-            "name": "EBGP-IMPORT-IPV4"
+            "name": "SEND-DEF-IF-NOT-FOUND-IPV4"
           },
-          "name": "EBGP-IMPORT-IPV4",
+          "name": "SEND-DEF-IF-NOT-FOUND-IPV4",
           "statements": {
             "statement": [
               {
@@ -210,7 +258,7 @@ TODO:
                   "match-prefix-set": {
                     "config": {
                       "match-set-options": "INVERT",
-                      "prefix-set": "EBGP-IMPORT-IPV4"
+                      "prefix-set": "SEND-DEF-IF-NOT-FOUND-IPV4"
                     }
                   }
                 },
