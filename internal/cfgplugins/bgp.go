@@ -782,6 +782,7 @@ func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName st
 type RouteInfo struct {
 	VRF    string
 	IPType string
+	DefaultName string
 }
 
 // VerifyRoutes checks if advertised routes are installed in DUT AFT.
@@ -790,7 +791,7 @@ func VerifyRoutes(t *testing.T, dut *ondatra.DUTDevice, routesToAdvertise map[st
 
 	for route, info := range routesToAdvertise {
 		vrfName := info.VRF
-		if vrfName == "default" {
+		if vrfName == info.DefaultName {
 			vrfName = deviations.DefaultNetworkInstance(dut)
 		}
 		var ok bool
