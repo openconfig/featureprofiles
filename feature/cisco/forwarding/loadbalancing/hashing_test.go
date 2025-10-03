@@ -255,15 +255,16 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			}
 			defer configureHashCLIOptions(t, tt.extendedEntropyOption, tt.algorithmAdjustOption, tt.confHashCLIdutList, true)
 
-			t.Log("Clearing interface counters on all the DUTs")
+			// Commented to have an option if needed later,or during debugging.
+			//t.Log("Clearing interface counters on all the DUTs")
 			// helper.InterfaceHelper().ClearInterfaceCountersAll(t, dvtCiscoDUTList)
 
 			// Traffic flow map for v4, v6, IPinIP and IPv6inIP between R to E and E to R sites.
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
 			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4R2E, &v4E2R}
-			// trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
-			// trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
-			// trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
+			trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
+			trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
+			trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
 
 			//Get Prefix NH info for each of the DUTs in the R, E sites.
 			nhInfo := FIBNHInfo{}
@@ -420,8 +421,6 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
 			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4TunnelR2E, &v4TunnelE2R}
 			// trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
-			// trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
-			// trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
 
 			//Get Prefix NH info for each of the DUTs in the R, E sites.
 			nhInfo := FIBNHInfo{}

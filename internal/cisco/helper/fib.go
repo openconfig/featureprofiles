@@ -53,7 +53,7 @@ func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix
 	return NHG
 }
 
-// GetPrefixAFTNH returns a map of NH index and corresponding weight for a given NHG.
+// GetPrefixAFTNHIndex returns a map of NH index and corresponding weight for a given NHG.
 func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NHG uint64, vrf string) map[uint64]uint64 {
 	nhMap := make(map[uint64]uint64)
 	aftNHG := gnmi.OC().NetworkInstance(vrf).Afts().NextHopGroup(NHG).State()
@@ -91,6 +91,9 @@ func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIn
 	return nhInterface
 }
 
+// GetPrefixAFTObjects retrieves the AFT (Abstract Forwarding Table) objects for a given prefix.
+// It collects information about the next-hop group and next-hop details, including IP addresses,
+// weights, and interfaces.
 func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBAFTObject {
 	aftObj := FIBAFTObject{}
 	NHInfo := AFTNHInfo{}

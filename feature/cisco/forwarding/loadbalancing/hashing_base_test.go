@@ -46,7 +46,6 @@ var (
 	rSiteV6DSTPFX          = "2002:af0:7730:a::"
 	eSiteV6DSTIP           = "2002:af0:7620:e::1"
 	eSiteV6DSTPFX          = "2002:af0:7620:e::"
-	noTrafficType          = ""
 	srcIPFlowCount         = 50000
 	L4FlowCount            = 50000
 	useOTG                 = false
@@ -443,25 +442,22 @@ type BundleInterface struct {
 }
 
 type FIBNHInfo struct {
-	egressV4NHWeight         map[string]uint64
-	egressV6NHWeight         map[string]uint64
-	egressNHWeightNormalized map[string]float64
-	bundleInterfaceInfo      []BundleInterface
-	aftV4Prefix              string
-	aftV4PrefixLen           string
-	aftV6Prefix              string
-	aftV6PrefixLen           string
-	afiType                  string
+	egressV4NHWeight    map[string]uint64
+	egressV6NHWeight    map[string]uint64
+	bundleInterfaceInfo []BundleInterface
+	aftV4Prefix         string
+	aftV4PrefixLen      string
+	aftV6Prefix         string
+	aftV6PrefixLen      string
+	// afiType                  string //AddrType IPv4/IPv6 if needed in future
 }
 
 type gribiParamPerSite struct {
-	dut               *ondatra.DUTDevice
 	encapV4Prefix     string              // Encap VRF Prefix IP list with prefix length
 	encapV6Prefix     string              // Encap VRF Prefix IP list with prefix length
 	encapTunnelIP1    string              // Encap VRF Tunnel IP.
 	encapTunnelIP2    string              // Encap VRF Tunnel IP.
 	decapV4Prefix     string              // Decap VRF Prefix IP list with prefix length
-	decapV6Prefix     string              // Decap VRF Prefix IP list with prefix length
 	nextSiteVIPs      []string            // Next site VIP Prefix IP list with prefix length
 	selfSiteVIPs      []string            // Self site VIP Prefix IP list  prefix length
 	nextSiteIntfCount int                 // Next site VIP Next Hop Interface count
@@ -534,7 +530,6 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	}
 	gribiClient.BecomeLeader(t)
 	gribiClient.FlushAll(t)
-	// defer gribiClient.FlushAll(t)
 	t.Logf("Adding %s VRF gRIBI entries", vrfEncapA)
 	//Backup NHG with redirect/NH to default VRF
 	gribiClient.AddNH(t, 1104, "VRFOnly", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: deviations.DefaultNetworkInstance(dut)})
