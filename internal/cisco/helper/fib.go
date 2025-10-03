@@ -28,7 +28,7 @@ type FIBAFTObject struct {
 type CEFNHInfo struct {
 	NextHopAddress   string
 	NextHopInterface string
-	Weight           float64
+	NextHopWeight    float64
 }
 
 type FIBCEFObject struct {
@@ -153,7 +153,7 @@ func (v *fibHelper) GetPrefixCEFObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 		total := float64(len(nhAddList))
 		wt := float64(ipCount[nh]) / total
 		NHInfo.NextHopAddress = nh
-		NHInfo.Weight = wt
+		NHInfo.NextHopWeight = wt
 		cefObj.CEFNH = append(cefObj.CEFNH, NHInfo)
 	}
 	return cefObj

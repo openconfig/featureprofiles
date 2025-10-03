@@ -14,7 +14,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -22,7 +21,6 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	cardTypeRp         = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
 	ipv4PrefixLen      = 30
 	v4PrefixLen32      = 32
 	ipv6PrefixLen      = 126
@@ -42,8 +40,8 @@ const (
 // Traffic flow and common variables.
 var (
 	loadBalancingTolerance = 0.02
-	rSiteV4DSTIP           = "10.240.118.50"
-	eSiteV4DSTIP           = "10.240.118.35"
+	rSiteV4DSTIP           = "10.240.119.50"
+	eSiteV4DSTIP           = "10.240.118.50"
 	rSiteV6DSTIP           = "2002:af0:7730:a::1"
 	rSiteV6DSTPFX          = "2002:af0:7730:a::"
 	eSiteV6DSTIP           = "2002:af0:7620:e::1"
@@ -111,7 +109,7 @@ var (
 		OuterSrcFlowCount: uint32(srcIPFlowCount),
 		OuterDstFlowCount: 1,
 		OuterDstStep:      "0.0.0.1",
-		OuterDSCP:         10,
+		OuterDSCP:         56,
 		OuterTTL:          55,
 		OuterECN:          1,
 		TgenSrcPort:       atePort1,
@@ -137,7 +135,7 @@ var (
 		OuterSrcFlowCount: uint32(srcIPFlowCount),
 		OuterDstFlowCount: 1,
 		OuterDstStep:      "0.0.0.1",
-		OuterDSCP:         10,
+		OuterDSCP:         56,
 		OuterTTL:          55,
 		OuterECN:          1,
 		TgenSrcPort:       atePort2,
@@ -165,7 +163,7 @@ var (
 		OuterSrcFlowCount:  uint32(srcIPFlowCount),
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "::1",
-		OuterDSCP:          10,
+		OuterDSCP:          56,
 		OuterTTL:           155,
 		OuterECN:           1,
 		OuterIPv6Flowlabel: 1000,
@@ -192,7 +190,7 @@ var (
 		OuterSrcFlowCount:  uint32(srcIPFlowCount),
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "::1",
-		OuterDSCP:          10,
+		OuterDSCP:          56,
 		OuterTTL:           155,
 		OuterECN:           1,
 		OuterIPv6Flowlabel: 1000,
@@ -220,7 +218,7 @@ var (
 		OuterSrcFlowCount: 1,
 		OuterDstFlowCount: 1,
 		OuterDstStep:      "0.0.0.1",
-		OuterDSCP:         10,
+		OuterDSCP:         56,
 		OuterTTL:          55,
 		OuterECN:          1,
 		InnerProtocolType: "IPv4",
@@ -256,7 +254,7 @@ var (
 		OuterSrcFlowCount: 1,
 		OuterDstFlowCount: 1,
 		OuterDstStep:      "0.0.0.1",
-		OuterDSCP:         10,
+		OuterDSCP:         56,
 		OuterTTL:          55,
 		OuterECN:          1,
 		InnerProtocolType: "IPv4",
@@ -293,7 +291,7 @@ var (
 		OuterSrcFlowCount:  1,
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "0.0.0.1",
-		OuterDSCP:          10,
+		OuterDSCP:          56,
 		OuterTTL:           55,
 		OuterECN:           1,
 		InnerProtocolType:  "IPv6",
@@ -331,7 +329,7 @@ var (
 		OuterSrcFlowCount:  1,
 		OuterDstFlowCount:  1,
 		OuterDstStep:       "0.0.0.1",
-		OuterDSCP:          10,
+		OuterDSCP:          56,
 		OuterTTL:           55,
 		OuterECN:           1,
 		InnerProtocolType:  "IPv6",
@@ -357,6 +355,59 @@ var (
 		L4FlowCount:        uint32(srcIPFlowCount),
 		TrafficPPS:         trafficRatePPS,
 		PacketSize:         128,
+	}
+	//V4 gRIBI Tunneled Traffic flows
+	v4TunnelR2E = helper.TrafficFlowAttr{
+		FlowName:          "IPv4TunnelR2E",
+		DstMacAddress:     dutPort1.MAC,
+		OuterProtocolType: "IPv4",
+		OuterSrcStart:     "10.240.213.42",
+		OuterDstStart:     eSiteV4DSTIP,
+		OuterSrcStep:      "0.0.0.1",
+		OuterSrcFlowCount: uint32(srcIPFlowCount),
+		OuterDstFlowCount: 1,
+		OuterDstStep:      "0.0.0.1",
+		OuterDSCP:         10,
+		OuterTTL:          55,
+		OuterECN:          1,
+		TgenSrcPort:       atePort1,
+		TgenDstPorts:      []string{atePort2.Name},
+		L4TCP:             true,
+		L4PortRandom:      true,
+		L4RandomMin:       1000,
+		L4RandomMax:       65000,
+		L4SrcPortStart:    1000,
+		L4DstPortStart:    2000,
+		L4FlowStep:        1,
+		L4FlowCount:       uint32(srcIPFlowCount),
+		TrafficPPS:        trafficRatePPS,
+		PacketSize:        128,
+	}
+	v4TunnelE2R = helper.TrafficFlowAttr{
+		FlowName:          "IPv4TunnelE2R",
+		DstMacAddress:     dutPort2.MAC,
+		OuterProtocolType: "IPv4",
+		OuterSrcStart:     "10.240.113.42",
+		OuterDstStart:     rSiteV4DSTIP,
+		OuterSrcStep:      "0.0.0.1",
+		OuterSrcFlowCount: uint32(srcIPFlowCount),
+		OuterDstFlowCount: 1,
+		OuterDstStep:      "0.0.0.1",
+		OuterDSCP:         10,
+		OuterTTL:          55,
+		OuterECN:          1,
+		TgenSrcPort:       atePort2,
+		TgenDstPorts:      []string{atePort1.Name},
+		L4TCP:             true,
+		L4PortRandom:      true,
+		L4RandomMin:       1000,
+		L4RandomMax:       65000,
+		L4SrcPortStart:    1000,
+		L4DstPortStart:    2000,
+		L4FlowStep:        1,
+		L4FlowCount:       uint32(srcIPFlowCount),
+		TrafficPPS:        trafficRatePPS,
+		PacketSize:        128,
 	}
 )
 
@@ -386,20 +437,21 @@ type testCase struct {
 // Bundle interface struct for bundle interface name, bundle members and their respective weights.
 type BundleInterface struct {
 	BundleInterfaceName string
-	BundleNHWeight      uint64
+	BundleNHWeight      float64
 	BundleMembers       []string
 	BundleMembersWeight []uint64
 }
 
 type FIBNHInfo struct {
-	egressV4NHWeight    map[string]uint64
-	egressV6NHWeight    map[string]uint64
-	bundleInterfaceInfo []BundleInterface
-	aftV4Prefix         string
-	aftV4PrefixLen      string
-	aftV6Prefix         string
-	aftV6PrefixLen      string
-	afiType             string
+	egressV4NHWeight         map[string]uint64
+	egressV6NHWeight         map[string]uint64
+	egressNHWeightNormalized map[string]float64
+	bundleInterfaceInfo      []BundleInterface
+	aftV4Prefix              string
+	aftV4PrefixLen           string
+	aftV6Prefix              string
+	aftV6PrefixLen           string
+	afiType                  string
 }
 
 type gribiParamPerSite struct {
@@ -595,8 +647,8 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.Close(t)
 }
 
-// getInterfaceNHWithWeights returns the interface next hops with their respective weights, and BundleInterface struct, for a given prefix and prefix length.
-func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, vrf, afiType string) (map[string]uint64, []BundleInterface) {
+// getInterfaceNHWithWeightsAFT returns the interface next hops with their respective weights, and BundleInterface struct, for a given prefix and prefix length using OC AFT.
+func getInterfaceNHWithWeightsAFT(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, vrf, afiType string) (map[string]uint64, []BundleInterface) {
 	var outputIFWeight = make(map[string]uint64) // Get the interface next hops
 	aftPfxObj := helper.FIBHelper().GetPrefixAFTObjects(t, dut, prefix+prefixLength, vrf, afiType)
 	bundleObjList := []BundleInterface{}
@@ -604,7 +656,7 @@ func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, pre
 	for _, nhObj := range aftPfxObj.NextHop {
 		bundleObj := BundleInterface{}
 		bundleObj.BundleInterfaceName = nhObj.NextHopInterface
-		bundleObj.BundleNHWeight = nhObj.NextHopWeight
+		bundleObj.BundleNHWeight = float64(nhObj.NextHopWeight)
 		memberMap := helper.InterfaceHelper().GetBundleMembers(t, dut, nhObj.NextHopInterface)
 		for _, memberList := range memberMap {
 			bundleMemberWt := make([]uint64, len(memberList))
@@ -622,3 +674,40 @@ func getInterfaceNHWithWeights(t *testing.T, dut *ondatra.DUTDevice, prefix, pre
 	}
 	return outputIFWeight, bundleObjList
 }
+
+//Commented out if needed later.
+// getInterfaceNHWithWeightsCEF returns the interface next hops with their respective weights, and BundleInterface struct, for a given prefix and prefix length using show cef CLI
+// func getInterfaceNHWithWeightsCEF(t *testing.T, dut *ondatra.DUTDevice, prefix, prefixLength, vrf, afiType string) (map[string]float64, []BundleInterface) {
+// 	var outputIFWeight = make(map[string]float64) // Get the interface next hops
+// 	bundleObjList := []BundleInterface{}
+// 	vipPfxNH := helper.FIBHelper().GetPrefixCEFObjects(t, dut, "10.240.119.48/28", vrfEncapA, "ipv4")
+// 	for _, c := range vipPfxNH.CEFNH {
+// 		bundleObj := BundleInterface{}
+// 		cefPfxObj := helper.FIBHelper().GetPrefixCEFObjects(t, dut, prefix+prefixLength, vrf, afiType)
+
+// 		for _, vipNhObj := range cefPfxObj.CEFNH {
+// 			vipWt := vipNhObj.NextHopWeight
+// 			nonRecursiveNH := helper.FIBHelper().GetPrefixCEFObjects(t, dut, c.NextHopAddress, "default", "ipv4")
+// 			t.Log("AB", nonRecursiveNH)
+// 			for _, nh := range nonRecursiveNH.CEFNH {
+// 				t.Log("B", nh)
+// 				bundleObj.BundleInterfaceName = nh.NextHopInterface
+// 				wt := nh.NextHopWeight
+// 				bundleObj.BundleNHWeight = vipWt * wt
+// 			}
+// 		}
+// 		memberMap := helper.InterfaceHelper().GetBundleMembers(t, dut, bundleObj.BundleInterfaceName)
+// 		for _, memberList := range memberMap {
+// 			bundleMemberWt := make([]uint64, len(memberList))
+// 			bundleObj.BundleMembers = memberList
+// 			for i := range memberList {
+// 				bundleMemberWt[i] = 1 // Default weight for Bundle members is 1.
+// 			}
+// 			bundleObj.BundleMembersWeight = bundleMemberWt
+// 		}
+// 		bundleObjList = append(bundleObjList, bundleObj)
+// 		outputIFWeight[bundleObj.BundleInterfaceName] = float64(bundleObj.BundleNHWeight)
+// 	}
+// 	// Create Map of Bundle NH Outgoing interfaces with their weights
+// 	return outputIFWeight, bundleObjList
+// }

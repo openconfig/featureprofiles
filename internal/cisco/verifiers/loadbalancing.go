@@ -59,7 +59,7 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 			distrStruct.OutPkts = intfCounter.GetOutUnicastPkts()
 		}
 
-		distrStruct.Weight = wt
+		distrStruct.Weight = uint64(wt)
 		trafficDistribution[intf] = distrStruct
 	}
 	wantWeights, _ = helper.LoadbalancingHelper().Normalize(weightList)
@@ -105,8 +105,8 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 	return trafficDistribution, balancedPerWeight
 }
 
-// VerifyPPSEgressDistributionPerWeight verifies if loadbalancing distribution PPS is per give interface:weight map, using show interface CLI.
-func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, bunIntfName ...string) (map[string]EgressLBDistribution, bool) {
+// VerifyPPSEgressDistributionPerWeight verifies if loadbalancing distribution PPS is per given interface:weight map, using show interface CLI.
+func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.T, dut *ondatra.DUTDevice, outIFWeight map[string]uint64, trfDistTolerance float64, OutIFWeightNormalized map[string]float64, bunIntfName ...string) (map[string]EgressLBDistribution, bool) {
 	distrStruct := EgressLBDistribution{}
 	trafficDistribution := make(map[string]EgressLBDistribution)
 	var balancedPerWeight bool = true // Initialize as true
@@ -115,15 +115,26 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 	var wantWeights, gotWeights []float64
 	var outPacketPPS, weightList []uint64
 	// Iterate over interfaces and calculate distribution
-	for intf, wt := range outIFWeight {
-		weightList = append(weightList, wt)
-		distrStruct.OutPPS = Interfaceverifier().GetInterfaceOutPPS(t, dut, intf)
-		outPacketPPS = append(outPacketPPS, distrStruct.OutPPS)
 
-		distrStruct.Weight = wt
-		trafficDistribution[intf] = distrStruct
+	// Normalize weights and PPS to compare ratios
+	if len(OutIFWeightNormalized) == 0 {
+		for intf, wt := range outIFWeight {
+			weightList = append(weightList, wt)
+			distrStruct.OutPPS = Interfaceverifier().GetInterfaceOutPPS(t, dut, intf)
+			outPacketPPS = append(outPacketPPS, distrStruct.OutPPS)
+			distrStruct.Weight = wt
+			trafficDistribution[intf] = distrStruct
+			wantWeights, _ = helper.LoadbalancingHelper().Normalize(weightList)
+		}
+	} else {
+		for intf, wt := range OutIFWeightNormalized {
+			distrStruct.OutPPS = Interfaceverifier().GetInterfaceOutPPS(t, dut, intf)
+			outPacketPPS = append(outPacketPPS, distrStruct.OutPPS)
+			distrStruct.Weight = uint64(wt)
+			trafficDistribution[intf] = distrStruct
+			wantWeights = append(wantWeights, wt)
+		}
 	}
-	wantWeights, _ = helper.LoadbalancingHelper().Normalize(weightList)
 	gotWeights, _ = helper.LoadbalancingHelper().Normalize(outPacketPPS)
 
 	t.Log("compare", wantWeights, gotWeights)

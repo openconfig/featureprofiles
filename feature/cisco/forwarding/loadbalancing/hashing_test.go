@@ -35,12 +35,13 @@ import (
 
 // per device gribiParamPerSite param.
 var (
-	encapVRFAV4SiteE = "10.240.118.32/28"
-	encapVRFAV4SiteR = "10.240.119.48/28"
-	encapVRFAV6SiteE = "2002:af0:7730::/44"
-	encapVRFAV6SiteR = "2002:af0:7620::/44"
-	gribi1R          = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+	encapVRFAV4SiteR    = "10.240.118.48/28"
+	encapVRFAV4SiteE    = "10.240.119.48/28"
+	encapVRFAV6SiteE    = "2002:af0:7730::/44"
+	encapVRFAV6SiteR    = "2002:af0:7620::/44"
+	emptyWantWeightsMap = map[string]float64{}
+	gribi1R             = gribiParamPerSite{
+		encapV4Prefix:     encapVRFAV4SiteR,
 		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
@@ -64,7 +65,7 @@ var (
 		},
 	}
 	gribi2R = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV4Prefix:     encapVRFAV4SiteR,
 		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
@@ -88,7 +89,7 @@ var (
 		},
 	}
 	gribi3R = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV4Prefix:     encapVRFAV4SiteR,
 		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
@@ -112,7 +113,7 @@ var (
 		},
 	}
 	gribi4R = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteE,
+		encapV4Prefix:     encapVRFAV4SiteR,
 		encapV6Prefix:     encapVRFAV6SiteR,
 		encapTunnelIP1:    "98.2.0.0",
 		encapTunnelIP2:    "98.2.0.1",
@@ -136,12 +137,12 @@ var (
 		},
 	}
 	gribi1E = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteR,
+		encapV4Prefix:     encapVRFAV4SiteE,
 		encapV6Prefix:     encapVRFAV6SiteE,
 		encapTunnelIP1:    "98.1.0.0",
 		encapTunnelIP2:    "98.1.0.1",
 		decapV4Prefix:     "98.2.0.0/20",
-		nextSiteVIPs:      []string{"10.41.164.1","10.41.164.3"},
+		nextSiteVIPs:      []string{"10.41.164.1", "10.41.164.3"},
 		selfSiteVIPs:      []string{"10.41.164.0"},
 		nextSiteIntfCount: 2,
 		selfSiteIntfCount: 0,
@@ -162,7 +163,7 @@ var (
 		},
 	}
 	gribi2E = gribiParamPerSite{
-		encapV4Prefix:     encapVRFAV4SiteR,
+		encapV4Prefix:     encapVRFAV4SiteE,
 		encapV6Prefix:     encapVRFAV6SiteE,
 		encapTunnelIP1:    "98.1.0.0",
 		encapTunnelIP2:    "98.1.0.1",
@@ -279,8 +280,8 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 					nhInfo.aftV6Prefix = rSiteV6DSTPFX
 					nhInfo.aftV6PrefixLen = "/64"
 				}
-				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
-				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
+				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeightsAFT(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
+				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeightsAFT(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
 				deviceNHInfo[device] = nhInfo
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
@@ -305,11 +306,11 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 							fmt.Printf(tt.name+" for device: %s", device.Name())
 							if trafficType == "v6" {
 								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV6NHWeight, loadBalancingTolerance)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV6NHWeight, loadBalancingTolerance, emptyWantWeightsMap)
 								})
 							} else {
 								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV4NHWeight, loadBalancingTolerance)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV4NHWeight, loadBalancingTolerance, emptyWantWeightsMap)
 								})
 							}
 							for _, bunIntf := range deviceNHInfo[device].bundleInterfaceInfo {
@@ -320,7 +321,7 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 								// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
 								t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
 									t.Logf("Verify Bundle-member loadbalancing for %v", bunIntf.BundleInterfaceName)
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, bunIntf.BundleInterfaceName)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, emptyWantWeightsMap, bunIntf.BundleInterfaceName)
 								})
 							}
 						}
@@ -362,12 +363,7 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 	deviceGribiMap[dut2R] = gribi2R
 	deviceGribiMap[dut3R] = gribi3R
 	deviceGribiMap[dut4R] = gribi4R
-	cef := helper.FIBHelper().GetPrefixCEFObjects(t, dut1E, "10.240.119.48/28", vrfEncapA, "ipv4")
-	for _, c := range cef.CEFNH {
-		ab := helper.FIBHelper().GetPrefixCEFObjects(t, dut1E, c.NextHopAddress, "default", "ipv4")
-		t.Log("AB", ab)
-	}
-	t.Log("Test", cef)
+
 	for device, gribiParam := range deviceGribiMap {
 		t.Log("Program gRIBI entries for device: ", device.Name())
 		programGribiEntries(t, device, gribiParam)
@@ -422,7 +418,7 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 
 			// Traffic flow map for v4, v6, IPinIP and IPv6inIP between R to E and E to R sites.
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
-			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4R2E, &v4E2R}
+			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4TunnelR2E, &v4TunnelE2R}
 			// trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
 			// trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
 			// trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
@@ -442,8 +438,8 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 					nhInfo.aftV6Prefix = rSiteV6DSTPFX
 					nhInfo.aftV6PrefixLen = "/64"
 				}
-				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
-				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeights(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
+				nhInfo.egressV4NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeightsAFT(t, device, nhInfo.aftV4Prefix, nhInfo.aftV4PrefixLen, deviations.DefaultNetworkInstance(device), "ipv4")
+				nhInfo.egressV6NHWeight, nhInfo.bundleInterfaceInfo = getInterfaceNHWithWeightsAFT(t, device, nhInfo.aftV6Prefix, nhInfo.aftV6PrefixLen, deviations.DefaultNetworkInstance(device), "ipv6")
 				deviceNHInfo[device] = nhInfo
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
@@ -468,11 +464,11 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 							fmt.Printf(tt.name+" for device: %s", device.Name())
 							if trafficType == "v6" {
 								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV6NHWeight, loadBalancingTolerance)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV6NHWeight, loadBalancingTolerance, emptyWantWeightsMap)
 								})
 							} else {
 								t.Run(fmt.Sprintf("Bundle NH LB device %s", device.Name()), func(t *testing.T) {
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV4NHWeight, loadBalancingTolerance)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, deviceNHInfo[device].egressV4NHWeight, loadBalancingTolerance, emptyWantWeightsMap)
 								})
 							}
 							for _, bunIntf := range deviceNHInfo[device].bundleInterfaceInfo {
@@ -483,7 +479,7 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 								// Verify traffic distribution on Bundle member LAG level loadbalancing for each bundle interface.
 								t.Run(fmt.Sprintf("Bundle Member LB device %s on %s", device.Name(), bunIntf.BundleInterfaceName), func(t *testing.T) {
 									t.Logf("Verify Bundle-member loadbalancing for %v", bunIntf.BundleInterfaceName)
-									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, bunIntf.BundleInterfaceName)
+									verifiers.Loadbalancingverifier().VerifyPPSEgressDistributionPerWeight(t, device, memberListWeight, loadBalancingTolerance, emptyWantWeightsMap, bunIntf.BundleInterfaceName)
 								})
 							}
 						}
