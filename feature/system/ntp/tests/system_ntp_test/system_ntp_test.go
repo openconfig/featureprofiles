@@ -53,7 +53,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 		description string
 		addresses   []string
 		vrf         string
-		ipv4        bool		
+		ipv4        bool
 	}{
 		{
 			description: "4x IPv4 NTP in default VRF",
