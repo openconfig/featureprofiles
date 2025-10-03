@@ -958,6 +958,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-2.17"
+  description: "ISIS Scale Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_scale_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.2"
   description: "IS-IS LSP Updates"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/lsp_updates_test/README.md"
