@@ -741,7 +741,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 				t.Logf("AssertNextHopCount: Next hop count validation failed. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
 				return false, nil
 			}
-			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
