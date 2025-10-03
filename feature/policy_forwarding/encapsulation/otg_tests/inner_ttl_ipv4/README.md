@@ -1,4 +1,4 @@
-# PF-1.11 Rewrite the ingress innner packet TTL
+# PF-1.11: Rewrite the ingress innner packet TTL
 
 Create a policy-forwarding configuration using gNMI with action set-ip-ttl.
 

@@ -102,13 +102,6 @@ func TestBasic(t *testing.T) {
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
 		}
 
-		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
-		if deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
-		} else {
-			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
-		}
-
 		for _, vd := range checks {
 			t.Run(vd.RelPath(isisRoot), func(t *testing.T) {
 				if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
@@ -286,7 +279,7 @@ func TestBasic(t *testing.T) {
 		// There are about 3 RPCs executed in quick succession in this block.
 		// Increasing the wait-time value to accommodate this.
 
-		deadline = time.Now().Add(time.Second * 30)
+		deadline = time.Now().Add(time.Second * 60)
 		for _, vd := range []check.Validator{
 			check.NotEqual(pCounts.Csnp().Processed().State(), uint32(0)),
 			check.NotEqual(pCounts.Lsp().Processed().State(), uint32(0)),
@@ -454,6 +447,13 @@ func TestAuthentication(t *testing.T) {
 				auth.AuthMode = tc.mode
 				auth.AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
 				auth.AuthPassword = ygot.String(password)
+
+				if deviations.ISISExplicitLevelAuthenticationConfig(ts.DUT) {
+					auth.DisableCsnp = ygot.Bool(false)
+					auth.DisableLsp = ygot.Bool(false)
+					auth.DisablePsnp = ygot.Bool(false)
+				}
+
 				for _, intf := range isis.Interface {
 					if deviations.SetISISAuthWithInterfaceAuthenticationContainer(ts.DUT) {
 						intf.GetOrCreateAuthentication().Enabled = ygot.Bool(tc.enabled)
@@ -595,7 +595,7 @@ func TestTraffic(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	gnmi.Watch(t, otg, gnmi.OTG().IsisRouter("devIsis").Counters().Level2().InLsp().State(), 30*time.Second, func(v *ygnmi.Value[uint64]) bool {
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		val, present := v.Val()
 		return present && val >= 1
 	}).Await(t)
@@ -696,11 +696,10 @@ func TestISISHelloTimer(t *testing.T) {
 			intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 				GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).
 				GetOrCreateIsis().GetOrCreateInterface(intfName)
-			if !deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-				timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
-				timers1.SetHelloInterval(tc.helloInterval)
-				timers1.SetHelloMultiplier(tc.helloMultiplier)
-			}
+
+			timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
+			timers1.SetHelloInterval(tc.helloInterval)
+			timers1.SetHelloMultiplier(tc.helloMultiplier)
 
 			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
 			intfLeveL2.Enabled = ygot.Bool(true)

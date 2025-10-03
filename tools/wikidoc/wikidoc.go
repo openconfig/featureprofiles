@@ -146,9 +146,14 @@ func fetchTestDocs(rootPath string) ([]testDoc, error) {
 			if err := prototext.Unmarshal(bytes, md); err != nil {
 				return fmt.Errorf("cannot unmarshal %s: %v", path, err)
 			}
+			readmePath := filepath.Dir(path) + "/README.md"
+			if _, err := os.Open(readmePath); err != nil {
+				log.Infof("Bad README.md for %s: %s", path, err)
+				return nil
+			}
 			docMap[md.GetUuid()] = testDoc{
 				Name:  filepath.Base(filepath.Dir(path)),
-				Path:  filepath.Dir(path) + "/README.md",
+				Path:  readmePath,
 				Title: md.GetPlanId() + ": " + md.GetDescription(),
 			}
 

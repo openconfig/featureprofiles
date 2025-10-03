@@ -2,7 +2,7 @@ name: static_route
 owners: 
   - shpaulch
 testbeds:
-  - 2DUT-TB1
+  - 8812-2DUT-ATE
 tests:
 - name: static_route_test
   path: feature/cisco/static-route

@@ -61,14 +61,20 @@ func testRemAddHWModule(ctx context.Context, t *testing.T, args *testArgs) {
 		reloadDevice(t, args.dut)
 		args.clientA.Close(t)
 		time.Sleep(2 * time.Minute)
-		if err := args.clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection can not be established")
+		for i := 0; i < 10; i++ {
+			if err := args.clientA.Start(t); err != nil {
+				if i == 9 {
+					t.Fatalf("gRIBI Connection can not be established")
+				}
+				time.Sleep(30 * time.Second)
+			}
 		}
 		args.clientA.StartWithNoCache(t)
 		args.clientA.BecomeLeader(t)
 		configureBaseDoubleRecusionVip1Entry(ctx, t, args)
 		configureBaseDoubleRecusionVip2Entry(ctx, t, args)
 		configureBaseDoubleRecusionVrfEntry(ctx, t, args.prefix.scale, args.prefix.host, "32", args)
+		time.Sleep(5 * time.Minute) // wait for the routes to be installed
 		testTraffic(t, true, args.ate, srcEndPoint, args.top.Interfaces(), args.prefix.scale, args.prefix.host, 10)
 	})
 }

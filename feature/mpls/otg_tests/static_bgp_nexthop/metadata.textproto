@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "33947478-0473-4832-8717-6176d4e7a406"
+plan_id:  "MPLS-2.2"
+description:  "MPLS forwarding via static LSP to BGP next-hop."
+testbed:  TESTBED_DUT_ATE_2LINKS

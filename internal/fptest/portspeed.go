@@ -32,12 +32,36 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+type speedEnumInfo struct {
+	// Speed value in string format in bits/second.
+	speedStr string
+	// Speed value in integer format in bits/second.
+	speedInt uint64
+}
+
 var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed1Gb:   oc.IfEthernet_ETHERNET_SPEED_SPEED_1GB,
 	ondatra.Speed5Gb:   oc.IfEthernet_ETHERNET_SPEED_SPEED_5GB,
 	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
+}
+
+var enumToSpeedInfoMap = map[oc.E_IfEthernet_ETHERNET_SPEED]speedEnumInfo{
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_10MB:   {"10M", 10_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_100MB:  {"100M", 100_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_1GB:    {"1G", 1_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_2500MB: {"2500M", 2500_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_5GB:    {"5G", 5_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB:   {"10G", 10_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB:   {"25G", 25_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_40GB:   {"40G", 40_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB:   {"50G", 50_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB:  {"100G", 100_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_200GB:  {"200G", 200_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB:  {"400G", 400_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_600GB:  {"600G", 600_000_000_000},
+	oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB:  {"800G", 800_000_000_000},
 }
 
 // SetPortSpeed sets the DUT config for the interface port-speed according
@@ -62,4 +86,12 @@ func GetIfSpeed(t *testing.T, p *ondatra.Port) oc.E_IfEthernet_ETHERNET_SPEED {
 	}
 	t.Logf("Configuring interface %v speed %v", p.Name(), speed)
 	return speed
+}
+
+// EthernetSpeedToUint64 returns the speed in uint64 format.
+func EthernetSpeedToUint64(speed oc.E_IfEthernet_ETHERNET_SPEED) uint64 {
+	if _, ok := enumToSpeedInfoMap[speed]; !ok {
+		return 0
+	}
+	return enumToSpeedInfoMap[speed].speedInt
 }

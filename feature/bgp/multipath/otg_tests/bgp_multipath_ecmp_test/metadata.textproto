@@ -44,6 +44,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_value_for_defaults: true
     skip_setting_allow_multiple_as: true
+    enable_multipath_under_afi_safi: true
   }
 }
 tags: TAGS_DATACENTER_EDGE

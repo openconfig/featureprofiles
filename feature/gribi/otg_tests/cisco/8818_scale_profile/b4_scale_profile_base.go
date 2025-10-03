@@ -98,6 +98,7 @@ const (
 	dutPeerBundleIPv4Range   = "88.1.1.0/24"
 	dutPeerBundleIPv6Range   = "2001:DB8:1::/64"
 	bundleSubIntIPv4Range    = "192.192.0.0/16"
+	SecondaryIntIPv4Range    = "193.193.0.0/16"
 	bundleSubIntIPv6Range    = "2001:C0C0::0/112"
 	v4TunnelCount            = 1024
 	v4TunnelNHGCount         = 256
@@ -137,8 +138,8 @@ const (
 	advertisedRoutesv6Prefix = 64
 	dutAS                    = 68888
 	ateAS                    = 67777
-	switchovertime           = 315000.0
-	fps                      = 10000 //100000
+	switchovertime           = 315000.0 //msec
+	fps                      = 10000    //100000
 )
 
 var (
@@ -199,14 +200,17 @@ var (
 	primaryBundlesubIntfIPMap = map[string]util.LinkIPs{}
 	backupBundlesubIntfIPMap  = map[string]util.LinkIPs{}
 	pathInfo                  = PathInfo{}
+	dutPeerLink               = util.LinkIPs{}
 
 	nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 	nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
+	nextSecondaryIntIPv4, _, _  = net.ParseCIDR(SecondaryIntIPv4Range)
 	primarySubIntfScale         = 512 //todo increase // number of sub-interfaces on primary bundle interface
 	backupSubIntfScale          = 512 //todo increase // number of sub-interfaces on backup bundle interface
 	primaryPercent              = 60
 	aggID1                      = ""
 	aggID2                      = ""
+	magicMac                    = "02:EE:01:00:00:01"
 )
 
 type PbrRule struct {
@@ -1337,12 +1341,12 @@ func (p *PathInfo) fillPathInfoInterface(
 	p.BackupUniqueIntfCards = GetUniqueLCs(p.BackupIntfLcs)
 }
 
-// GetSubIntfMapByPeerIPv4 creates a map indexed by PeerIPv4 address with the corresponding subinterface as the value.
-func GetSubIntfMapByPeerIPv4(subIntIPMap map[string]util.LinkIPs) map[string]string {
+// GetSubIntfMapByPeerSecIPv4 creates a map indexed by PeerSecIPv4 address with the corresponding subinterface as the value.
+func GetSubIntfMapByPeerSecIPv4(subIntIPMap map[string]util.LinkIPs) map[string]string {
 	subIntfMap := make(map[string]string)
 	for subIntf, link := range subIntIPMap {
-		if link.PeerIPv4 != "" {
-			subIntfMap[link.PeerIPv4] = subIntf
+		if link.PeerSecIPv4 != "" {
+			subIntfMap[link.PeerSecIPv4] = subIntf
 		}
 	}
 	return subIntfMap
@@ -1372,6 +1376,16 @@ func GetAllSubIntfIPAddresses(subIntIPMap map[string]util.LinkIPs, afType string
 					ipAddresses = append(ipAddresses, link.DutIPv6)
 				}
 			}
+		} else if afType == "v4sec" {
+			if peer {
+				if link.PeerSecIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.PeerSecIPv4)
+				}
+			} else {
+				if link.DutSecIPv4 != "" {
+					ipAddresses = append(ipAddresses, link.DutSecIPv4)
+				}
+			}
 		}
 	}
 	return ipAddresses
@@ -1383,12 +1397,12 @@ func (p *PathInfo) fillPathInfoSubInterface(
 ) {
 	p.PrimarySubIntf = primaryBundlesubIntfIPMap
 	p.BackupSubIntf = backupBundlesubIntfIPMap
-	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4", true) // peer addresses are used in nexthop reference
+	p.PrimarySubintfPathsV4 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v4sec", true) // startic arp entries (peer addresses) are used in nexthop reference
 	p.PrimarySubintfPathsV6 = GetAllSubIntfIPAddresses(primaryBundlesubIntfIPMap, "v6", true)
-	p.PrimaryPathPeerV4ToSubIntf = GetSubIntfMapByPeerIPv4(primaryBundlesubIntfIPMap)
-	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4", true)
+	p.PrimaryPathPeerV4ToSubIntf = GetSubIntfMapByPeerSecIPv4(primaryBundlesubIntfIPMap)
+	p.BackupSubintfPathsV4 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v4sec", true)
 	p.BackupSubintfPathsV6 = GetAllSubIntfIPAddresses(backupBundlesubIntfIPMap, "v6", true)
-	p.BackupPathPeerV4ToSubIntf = GetSubIntfMapByPeerIPv4(backupBundlesubIntfIPMap)
+	p.BackupPathPeerV4ToSubIntf = GetSubIntfMapByPeerSecIPv4(backupBundlesubIntfIPMap)
 }
 
 // Print prints the PathInfo struct in a human-readable format.
@@ -1452,9 +1466,9 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		pathInfo.bundleMode = true
 		pathInfo.fillPathInfoInterface(primaryIntfs, backupIntfs)
 
-		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, nextSecondaryIntIPv4, primaryBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.PrimaryInterface, primarySubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, nextSecondaryIntIPv4, magicMac)
 		t.Logf("backupSubIntfScale: %d", backupSubIntfScale)
-		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6)
+		nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, nextSecondaryIntIPv4, backupBundlesubIntfIPMap = util.CreateBundleSubInterfaces(t, dut, peer, pathInfo.BackupInterface, backupSubIntfScale, nextBundleSubIntfIPv4, nextBundleSubIntfIPv6, nextSecondaryIntIPv4, magicMac)
 		nextBundleSubIntfIPv4, _, _ = net.ParseCIDR(bundleSubIntIPv4Range)
 		nextBundleSubIntfIPv6, _, _ = net.ParseCIDR(bundleSubIntIPv6Range)
 		pathInfo.fillPathInfoSubInterface(primaryBundlesubIntfIPMap, backupBundlesubIntfIPMap)
@@ -1474,6 +1488,13 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		applyForwardingPolicy(t, aggID1, clusterPolicy, false)
 		//Apply WAN facing policy on DUT-TGEN Bundle2 interface
 		applyForwardingPolicy(t, aggID2, wanPolicy, false)
+
+		// update dutPeerLink with the actual IP addresses that can be used for static router configuration
+		dutPeerLink.DutIPv4 = bundleBgpIsis.IntfV4Addr
+		dutPeerLink.DutIPv6 = bundleBgpIsis.IntfV6Addr
+		dutPeerLink.PeerIPv4 = bundleBgpIsis.PeerV4Addr
+		dutPeerLink.PeerIPv6 = bundleBgpIsis.PeerV6Addr
+
 	} else if interfaceMode == "physical" {
 		t.Log("Configure DUT-TGEN Physical Interfaces")
 		// TODO: Implement physical interface configuration logic
@@ -1482,6 +1503,11 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		// configureDUTPhysicalInterfaces(t, dut)
 		// configureDeviceBGP(t, dut, peer, physicalIntfList)
 		// configureDeviceISIS(t, dut, peer, physicalIntfList)
+		// update dutPeerLink with the actual IP addresses that can be used for static router configuration
+		// dutPeerLink.DutIPv4 = bundleBgpIsis.IntfV4Addr
+		// dutPeerLink.DutIPv6 = bundleBgpIsis.IntfV6Addr
+		// dutPeerLink.PeerIPv4 = bundleBgpIsis.PeerV4Addr
+		// dutPeerLink.PeerIPv6 = bundleBgpIsis.PeerV6Addr
 	} else {
 		t.Fatalf("Unknown mode: %s. Must be 'bundle' or 'physical'", interfaceMode)
 	}

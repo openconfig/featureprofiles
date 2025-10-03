@@ -407,11 +407,11 @@ func roatateAccountCredentialsRequest(t *testing.T, stream credz.Credentialz_Rot
 	log.Infof("Send Rotate Account Credentisls Request ")
 	err := stream.Send(&credz.RotateAccountCredentialsRequest{Request: &credz.RotateAccountCredentialsRequest_Credential{Credential: &akreq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetCredential()
 	if aares == nil {
@@ -425,11 +425,11 @@ func roatateAccountCredentialsRequestUser(t *testing.T, stream credz.Credentialz
 	log.Infof("Send Rotate Account Credentisls Request ")
 	err := stream.Send(&credz.RotateAccountCredentialsRequest{Request: &credz.RotateAccountCredentialsRequest_User{User: &aureq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetUser()
 	if aares == nil {
@@ -442,7 +442,7 @@ func finalizeAccountRequest(t *testing.T, stream credz.Credentialz_RotateAccount
 	log.Infof("Send Finalize Request")
 	err := stream.Send(&credz.RotateAccountCredentialsRequest{Request: &credz.RotateAccountCredentialsRequest_Finalize{}})
 	if err != nil {
-		t.Fatalf("Stream send finalize failed : " + err.Error())
+		t.Fatal("Stream send finalize failed : " + err.Error())
 	}
 	if _, err = stream.Recv(); err != nil {
 		if err != io.EOF {
@@ -479,16 +479,16 @@ func rotateHostParametersRequest(t *testing.T, stream credz.Credentialz_RotateHo
 
 	err := stream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_AuthenticationAllowed{AuthenticationAllowed: &aareq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetAuthenticationAllowed()
 	if aares == nil {
-		t.Fatalf("Credentialz response is nil")
+		t.Fatal("Credentialz response is nil")
 	}
 }
 
@@ -497,16 +497,16 @@ func rotateHostParametersRequestForSshCAPubKey(t *testing.T, stream credz.Creden
 
 	err := stream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_SshCaPublicKey{SshCaPublicKey: &caPubkeyReq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetSshCaPublicKey()
 	if aares == nil {
-		t.Fatalf("CA public keys response is nil")
+		t.Fatal("CA public keys response is nil")
 	}
 
 	fmt.Println("CA public keys  Request done")
@@ -517,17 +517,17 @@ func rotateHostParametersRequestForServerKeys(t *testing.T, stream credz.Credent
 
 	err := stream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 		return
 	}
 
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetServerKeys()
 	if aares == nil {
-		t.Fatalf("Server keys response is nil")
+		t.Fatal("Server keys response is nil")
 	}
 
 	fmt.Println("Server public keys Request done")
@@ -538,16 +538,16 @@ func rotateHostParametersRequestForprincipalCheck(t *testing.T, stream credz.Cre
 
 	err := stream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_AuthorizedPrincipalCheck{AuthorizedPrincipalCheck: &pcreq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 	}
 
 	gotRes, err := stream.Recv()
 	if err != nil {
-		t.Fatalf("Credz:  Stream receive returned error: " + err.Error())
+		t.Fatal("Credz:  Stream receive returned error: " + err.Error())
 	}
 	aares := gotRes.GetAuthorizedPrincipalCheck()
 	if aares == nil {
-		t.Fatalf("Authorized pricipal check response is nil")
+		t.Fatal("Authorized pricipal check response is nil")
 	}
 
 	fmt.Println("Authorized principal check Request done")
@@ -810,9 +810,9 @@ func TestCredentialz_2(t *testing.T) {
 		hostParamStream.CloseSend()
 		err = createSSHClientAndVerify(tartgetIP, tartgetPort, sshPasswordParams, "password", nil)
 		if err == nil {
-			t.Fatalf("Establishing SSH connection with password which is not expected")
+			t.Fatal("Establishing SSH connection with password which is not expected")
 		} else {
-			log.Infof("Error in establishing connection with password which is expected")
+			log.Info("Error in establishing connection with password which is expected")
 		}
 		errCount := 0
 		for i := 0; i < len(clientKeyNames); i++ {
@@ -1467,14 +1467,14 @@ func TestExpiredHostCert(t *testing.T) {
 	}
 	err = hostParamStream.Send(&credz.RotateHostParametersRequest{Request: &credz.RotateHostParametersRequest_ServerKeys{ServerKeys: &skreq}})
 	if err != nil {
-		t.Fatalf("Credz:  Stream send returned error: " + err.Error())
+		t.Fatal("Credz:  Stream send returned error: " + err.Error())
 		return
 	}
 
 	_, err = stream.Recv()
 	hostParamStream.CloseSend()
 	if err != nil {
-		log.Infof("Credz:  Stream receive returned error due to invalid certificate which is expected: " + err.Error())
+		log.Info("Credz:  Stream receive returned error due to invalid certificate which is expected: " + err.Error())
 	} else {
 		t.Fatalf("Credz:  Stream receive without any erors: which is not expected")
 	}

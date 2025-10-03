@@ -60,6 +60,7 @@ var (
 
 var (
 	P4rtNode, P4rtNode2 string
+	deviceSet           bool
 )
 
 func TestMain(m *testing.M) {
@@ -142,7 +143,7 @@ func getTracerouteParameter() PacketIO {
 func TestEgressp4rt(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
-
+	var memberCount int
 	// Configure the DUT
 	baseconfig(t)
 
@@ -190,19 +191,28 @@ func TestEgressp4rt(t *testing.T) {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
 
+	// find the totoal number of ports in the DUT
+	totalPorts := dut.Ports()
+	t.Logf("Total number of ports in the DUT: %d", len(totalPorts))
+	if len(totalPorts) < 8 {
+		t.Fatalf("DUT has less than 8 ports, got %d", len(totalPorts))
+	}
+	memberCount = len(totalPorts)
+
 	args := &testArgs{
-		ctx:      ctx,
-		leader:   leader,
-		follower: follower,
-		dut:      dut,
-		ate:      ate,
-		top:      top,
+		ctx:         ctx,
+		leader:      leader,
+		follower:    follower,
+		dut:         dut,
+		ate:         ate,
+		top:         top,
+		memberCount: memberCount,
 	}
 
 	if err := setupP4RTClient(args, deviceId, stream); err != nil {
 		t.Fatalf("Could not setup p4rt client: %v", err)
 	}
-	var deviceSet bool
+
 	if P4rtNode != P4rtNode2 {
 		if err := setupP4RTClient(args, deviceId2, stream2); err != nil {
 			t.Fatalf("Could not setup p4rt client: %v", err)
@@ -406,14 +416,14 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port8", true)
 
 				//regionalization
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpDCRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpDCRegionalization", deviceSet, false, srcport)
 
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, false, srcport)
 
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, false, srcport)
 				args.interfaceaction(t, "port1", true)
 			} else if j == 2 {
 				testWithDCUnoptimized(ctx, t, args, true, false, "", "IpinIpDC", deviceSet, srcport)
@@ -463,17 +473,18 @@ func TestEgressp4rt(t *testing.T) {
 				args.interfaceaction(t, "port6", true)
 				args.interfaceaction(t, "port8", true)
 
-				//regionalization
-
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, srcport)
-
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, srcport)
-				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, srcport)
+				// regionalization
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, true, false, "", "IpinIpUdpDCRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpTcpRegionalization", deviceSet, false, srcport)
+				testWithRegionalization(ctx, t, args, false, false, "", "Ipv6inIpUDPRegionalization", deviceSet, false, srcport)
 
 			}
 		}
 	}
+	t.Run("TestEgressP4RTWithNextHopDefaultVRF-port1-IpinIpTcpDCRegionalization", func(t *testing.T) {
+		testWithRegionalization(ctx, t, args, true, false, "", "IpinIpTcpDCRegionalization", deviceSet, true, srcport)
+	})
 }
 
 type TraceroutePacketIO struct {

@@ -290,7 +290,7 @@ func (c *Collector) collectAllData(t *testing.T, dut *ondatra.DUTDevice, doneCha
 						}
 
 					}); errMsg != nil {
-						t.Logf(*errMsg)
+						t.Log(*errMsg)
 						continue
 					}
 				}

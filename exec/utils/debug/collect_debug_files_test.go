@@ -24,6 +24,7 @@ import (
 
 const (
 	techDirectory        = "harddisk:/firex_tech" // Directory for storing tech support files
+	snapshotDir          = "harddisk:/snapshot"   // Directory for storing snapshot files
 	scpCopyTimeout       = 300 * time.Second      // Timeout for SCP copy operations
 	maxParallelExecutors = 4                      // maximum concurrent go routine for command execution and corefile decode
 )
@@ -33,6 +34,7 @@ var (
 	timestamp   = flag.String("timestamp", "1", "Test start timestamp")
 	coreCheck   = flag.Bool("coreCheck", false, "Check for core file")
 	collectTech = flag.Bool("collectTech", false, "Collect show tech")
+	snapshot    = flag.Bool("snapshot", false, "Collect snapshot")
 	runCmds     = flag.Bool("runCmds", false, "Run commands")
 	splitPerDut = flag.Bool("splitPerDut", false, "Create a folder for each dut")
 	showTechs   = flag.String("showtechs", "", "Comma-separated list of show techs")
@@ -177,6 +179,13 @@ func TestCollectDebugFiles(t *testing.T) {
 	}
 
 	commands := []string{}
+
+	if *snapshot {
+		commands = append(commands,
+			"run snapshot collect && cp -r /"+snapshotDir+"/* /"+techDirectory+"/",
+		)
+	}
+
 	if *coreCheck {
 		commands = append(commands,
 			"run find /misc/disk1 -maxdepth 1 -type f -name '*core*' -newermt @"+*timestamp+" -exec cp \"{}\" /"+techDirectory+"/  \\\\;",
@@ -227,6 +236,8 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 	deviceDirCleanupCmds := []string{
 		"run rm -rf /" + techDirectory,
 		"mkdir " + techDirectory,
+		"run rm -rf /" + snapshotDir,
+		"mkdir " + snapshotDir,
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)

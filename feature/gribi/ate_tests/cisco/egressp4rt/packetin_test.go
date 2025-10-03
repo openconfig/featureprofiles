@@ -45,14 +45,15 @@ type PacketIOPacket struct {
 }
 
 type testArgs struct {
-	ctx      context.Context
-	leader   *p4rt_client.P4RTClient
-	follower *p4rt_client.P4RTClient
-	dut      *ondatra.DUTDevice
-	ate      *ondatra.ATEDevice
-	packetIO PacketIO
-	client   *gribi.Client
-	top      *ondatra.ATETopology
+	ctx         context.Context
+	leader      *p4rt_client.P4RTClient
+	follower    *p4rt_client.P4RTClient
+	dut         *ondatra.DUTDevice
+	ate         *ondatra.ATEDevice
+	packetIO    PacketIO
+	client      *gribi.Client
+	top         *ondatra.ATETopology
+	memberCount int
 }
 
 // programmTableEntry programs or deletes p4rt table entry based on delete flag.

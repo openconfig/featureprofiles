@@ -1229,7 +1229,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		chk.IgnoreOperationID(),
 	)
 
-	// Install an 0/0 static route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
+	// Install an 0/0 route in ENCAP_VRF_A and ENCAP_VRF_B pointing to the DEFAULT VRF.
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(60).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1626,8 +1626,8 @@ func validateTrafficTTL(t *testing.T, packetSource *gopacket.PacketSource) {
 		if ipLayer != nil && packetCheckCount <= 3 {
 			packetCheckCount++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			if ipPacket.TTL != correspondingTTL {
-				t.Errorf("IP TTL value is altered to: %d", ipPacket.TTL)
+			if ipPacket.TTL != correspondingTTL-1 {
+				t.Errorf("After Decap TTL value is not as expected: %d", ipPacket.TTL)
 			}
 			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -2253,9 +2253,6 @@ func TestGribiDecap(t *testing.T) {
 	})
 
 	t.Run("Test-3: Mixed Prefix Decap gRIBI Entries", func(t *testing.T) {
-		if deviations.GribiDecapMixedPlenUnsupported(dut) {
-			t.Skip("Gribi route programming with mixed prefix length is not supported.")
-		}
 		testGribiDecapMixedLenPref(ctx, t, dut, args)
 	})
 

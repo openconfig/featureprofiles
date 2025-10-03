@@ -75,12 +75,14 @@ pipeline {
         separator(sectionHeader: "Test Execution")
         persistentBoolean(name: 'Verbose Mode', defaultValue: true, description: 'Run test in verbose mode (i.e., -v 5 -alsologtostderr)')
         persistentBoolean(name: 'Collect DUT Info', defaultValue: true, description: 'Allow Ondatra to collect DUT information (i.e., collect_dut_info=true)')
+        persistentBoolean(name: 'Collect Debug Files', defaultValue: false, description: 'Collect showtechs and other debug files on test failure. Note that this option can significantly increase the test runtime. The script used for debug files collection can be found here: exec/utils/debug/collect_debug_files_test.go.')
+        persistentBoolean(name: 'Force Collect Debug Files', defaultValue: false, description: 'Collect showtechs and other debug files even if test passes. Note that this option can significantly increase the test runtime. The script used for debug files collection can be found here: exec/utils/debug/collect_debug_files_test.go.')
         persistentBoolean(name: 'Interactive Mode', defaultValue: false, description: 'Run test in interactive mode. This option can only be used when specifying exactly one test under "Test names". When selected, FireX will not execute the test. It will drop to a shell allowing the user to use the dlv debugger to manually execute the test. This option is also useful to boot up a SIM for manual testing.')
         
         separator(sectionHeader: "On Test Failure")
-        persistentBoolean(name: 'Collect Debug Files', defaultValue: false, description: 'Collect showtechs and other debug files on test failure. Note that this option can significantly increase the test runtime. The script used for debug files collection can be found here: exec/utils/debug/collect_debug_files_test.go.')
         persistentBoolean(name: 'Pause Run', defaultValue: false, description: 'Pause run on test failure. The run will be paused if the test fails. A test in this context is an entire FireX suite or go package (e.g., gNOI-5.1).')
-    
+        persistentChoice(name: 'Pause Run Hours', choices: ['5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24'], description: 'Hours to Pause run on test failure')
+
         separator(sectionHeader: "Image Info")
         persistentBoolean(name: 'Install Image', defaultValue: false, description: 'Install the specified image. The image installation script can be found here: exec/utils/software_upgrade/software_upgrade_test.go')
         persistentBoolean(name: 'Force Install Image', defaultValue: false, description: 'Force install the image even if it is already installed. This option might be necessary if the image has additional SMUs and an EFR that matches the installed image.')
@@ -113,6 +115,7 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Other")
+        persistentBoolean(name: 'Cisco Insta Triage', defaultValue: true, description: 'Includes Cisco Insta Triage plugin webdt_cit.py,webdt_at.py')
         persistentBoolean(name: 'Must reserve all testbeds', defaultValue: false, description: 'By default, the pipeline will reserve those testbeds that are available and modify the run list accordingly. Set to true to wait for all testbeds to be available.')
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
         persistentString(name: 'Number of FireX workers', defaultValue: '', description: 'The number of FireX workers to launch. This is the number of tests that can execute in parallel (subject to testbed availability). Defaults to the number of testbeds.', trim: true)
@@ -384,7 +387,10 @@ pipeline {
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {
-                                firex_plugins.add("webdt_cit.py")
+                                if(params['Cisco Insta Triage']) {
+                                    firex_plugins.add("webdt_cit.py")
+                                    firex_plugins.add("webdt_at.py")
+                                }
                             }
 
                             def decomission_testbeds = (params['Decomission testbeds'] || testbeds.size() > 1) ? 1 : 0
@@ -449,6 +455,7 @@ pipeline {
                             }
                               
                             firex_cmd_parts.add("--collect_debug_files ${params['Collect Debug Files']}")
+                            firex_cmd_parts.add("--force_collect_debug_files ${params['Force Collect Debug Files']}")
                             firex_cmd_parts.add("--collect_dut_info ${params['Collect DUT Info']}")
                             firex_cmd_parts.add("--test_verbose ${params['Verbose Mode']}")
                             
@@ -478,6 +485,9 @@ pipeline {
 
                             if(params['Pause Run']) {
                                 firex_cmd_parts.add("--pause_if_tests_fail true")
+                                if(params['Pause Run Hours']) {
+                                    firex_cmd_parts.add("--pause_if_tests_fail_hours '${params['Pause Run Hours']}'")
+                                }
                             }
 
                             if(ts_internal.size() == 0) { // no need for internal testsuites
