@@ -596,7 +596,6 @@ func GribiGet(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOptio
 			return err
 		}
 	}
-	return err
 }
 
 // GribiModify implements a sample request for service /gribi.gRIBI/Modify to validate if authz works as expected.
@@ -627,7 +626,6 @@ func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 			return err
 	        }
 	}
-	return err
 }
 
 // P4P4runtimeAllRPC implements a sample request for service /p4.v1.P4Runtime/* to validate if authz works as expected.
