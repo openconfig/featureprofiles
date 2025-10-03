@@ -1666,6 +1666,11 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
 
+// OC state path for the lower priority next hop not supported
+func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
+}
+
 // URPFConfigOCUnsupported returns true if OC does not support configuring uRPF
 func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
     return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
