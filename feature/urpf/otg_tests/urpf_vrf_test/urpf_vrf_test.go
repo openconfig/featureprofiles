@@ -549,10 +549,10 @@ func bgpRouteVerification(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	// Build routes to advertise
 	routesToAdvertise := map[string]cfgplugins.RouteInfo{
-		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix1, prefix1Len):   {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4},
-		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix3, prefix3Len):   {VRF: defaultNIName, IPType: cfgplugins.IPv4},
-		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefix1LenV6): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6},
-		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefix3LenV6): {VRF: defaultNIName, IPType: cfgplugins.IPv6},
+		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix1, prefix1Len):   {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
+		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix3, prefix3Len):   {VRF: defaultNIName, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
+		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefix1LenV6): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
+		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefix3LenV6): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 	}
 
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
