@@ -20,6 +20,8 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
@@ -93,4 +95,47 @@ route-map %s
 match as-path %s
 `, aclName, asPathRegex, aclName, routeMap, aclName)
 	helpers.GnmiCLIConfig(t, dut, config)
+}
+
+// ConfigureRouteLeakingFromCLI configure route leaking through CLI.
+func ConfigureRouteLeakingFromCLI(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
+	t.Helper()
+	cli := fmt.Sprintf(`
+	route-map RM-ALL-ROUTES permit 10
+	router general
+		vrf %[1]s
+    		leak routes source-vrf default subscribe-policy RM-ALL-ROUTES
+		vrf default
+			leak routes source-vrf %[1]s subscribe-policy RM-ALL-ROUTES
+	`, vrfName)
+	helpers.GnmiCLIConfig(t, dut, cli)
+}
+
+// ConfigureRouteLeakingFromOC configure route leaking through OC.
+func ConfigureRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice, vrfName, importCommunity, exportCommunity string) {
+	t.Helper()
+	root := &oc.Root{}
+
+	ni1 := root.GetOrCreateNetworkInstance(vrfName)
+	ni1Pol := ni1.GetOrCreateInterInstancePolicies()
+	iexp1 := ni1Pol.GetOrCreateImportExportPolicy()
+	iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString(importCommunity)})
+	iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString(exportCommunity)})
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).InterInstancePolicies().Config(), ni1Pol)
+}
+
+// RemoveRouteLeakingFromCLI remove route leaking through CLI.
+func RemoveRouteLeakingFromCLI(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	cli := `
+	no router general
+	no route-map RM-ALL-ROUTES
+	`
+	helpers.GnmiCLIConfig(t, dut, cli)
+}
+
+// RemoveRouteLeakingFromOC remove route leaking through OC.
+func RemoveRouteLeakingFromOC(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
+	t.Helper()
+	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrfName).InterInstancePolicies().Config())
 }

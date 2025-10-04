@@ -1670,3 +1670,8 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
+
+// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF
+func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
+    return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
+}
