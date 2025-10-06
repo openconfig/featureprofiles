@@ -43,10 +43,6 @@ const (
 	trafficSrcNetIPv4 = "1.1.1.1"
 	trafficSrcNetIPv6 = "2001:db8::aaaa:0"
 
-	// Lag config
-	dutLag1Name = "Port-Channel1"
-	dutLag2Name = "Port-Channel2"
-
 	frameSize          = 512
 	packetCount        = 12000000
 	gueProtocolPort    = 6080
@@ -135,32 +131,8 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice) {
-// 	t.Helper()
-
-// 	// Ports 2 and 3 will be part of LAG
-// 	dutAggPorts1 := []*ondatra.Port{
-// 		dut.Port(t, "port2"),
-// 		dut.Port(t, "port3"),
-// 	}
-
-// 	cfgplugins.SetupAggregateAtomically(t, dut, dutLag1Name, dutAggPorts1)
-// 	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag1Name, []*attrs.Attributes{&dutLAG1})
-
-// 	// Ports 4 and 5 will be part of LAG
-// 	dutAggPorts2 := []*ondatra.Port{
-// 		dut.Port(t, "port4"),
-// 		dut.Port(t, "port5"),
-// 	}
-
-// 	cfgplugins.SetupAggregateAtomically(t, dut, dutLag2Name, dutAggPorts2)
-// 	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag2Name, []*attrs.Attributes{&dutLAG2})
-
-// }
-
 func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// configureDUTInterface(t, dut)
 	for _, l := range dutLagData {
 		b := &gnmi.SetBatch{}
 		// Create LAG interface
