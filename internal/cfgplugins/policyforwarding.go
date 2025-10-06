@@ -567,8 +567,8 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-// createPolicyForwardingNexthopConfig to configure policyforwading through CLI using vendor specific cli
-func createPolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
+// createPolicyForwardingNexthopCli to configure policyforwading through CLI using vendor specific cli
+func createPolicyForwardingNexthopCli(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
 	groupType := ""
 
@@ -1005,9 +1005,9 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 		case ondatra.ARISTA:
 			switch params.TrafficType {
 			case "V4Udp":
-				createPolicyForwardingNexthopConfig(t, dut, params)
+				createPolicyForwardingNexthopCli(t, dut, params)
 			case "V6Udp":
-				createPolicyForwardingNexthopConfig(t, dut, params)
+				createPolicyForwardingNexthopCli(t, dut, params)
 			default:
 				t.Logf("Unsupported traffic type %s", params.TrafficType)
 			}
