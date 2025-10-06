@@ -130,7 +130,7 @@ type profileConfig struct {
 	nhsPerNHG int
 }
 
-// flowAttr defines traffic flow attributes for test packets
+// flowAttr defines traffic flow attributes for test packets.
 type flowAttr struct {
 	src      string   // source IP address
 	dst      string   // destination IP address
@@ -141,7 +141,7 @@ type flowAttr struct {
 	topo     gosnappi.Config
 }
 
-// testArgs holds the objects needed by a test case
+// testArgs holds the objects needed by a test case.
 type testArgs struct {
 	dut    *ondatra.DUTDevice
 	ate    *ondatra.ATEDevice
@@ -273,11 +273,13 @@ func createDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root, du
 // configureDUTSubinterfaces creates and configures multiple subinterfaces (up to 16) on the given DUT port. Each subinterface is assigned a VLAN ID, IPv4, and IPv6 address, and all configurations are staged into the provided GNMI SetBatch.
 func configureDUTSubinterfaces(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root, dut *ondatra.DUTDevice, dutPort *ondatra.Port, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
 	t.Helper()
+	// The 32 logical ingress interfaces (16 VLANs × 2 ports) are mapped to VRFs as per scale profiles for traffic classification and forwarding validation.
+	// Each VLAN subinterface is configured with both IPv4 and IPv6 addresses derived from prefixFmtV4 and prefixFmtV6 patterns.
 	for i := 0; i < vlanCount; i++ {
 		index := uint32(i + 1)
 		vlanID := uint16(startVLANPort + i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			vlanID += 1
+			vlanID++
 		}
 		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*index)+2)
 		dutIPv6 := fmt.Sprintf(prefixFmtV6, (5*index)+2)
@@ -296,13 +298,13 @@ func createATEDevice(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.P
 	eth.Ipv6Addresses().Add().SetName(Name + ".IPv6").SetAddress(ateIPv6).SetGateway(dutIPv6).SetPrefix(uint32(ipv6PrefixLen))
 }
 
-// configureATESubinterfaces configures 16 ATE subinterfaces on the target device It returns a slice of the corresponding ATE IPAddresses.
-func configureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, Name, Mac, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
+// mustConfigureATESubinterfaces configures 16 ATE subinterfaces on the target device It returns a slice of the corresponding ATE IPAddresses.
+func mustConfigureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, Name, Mac, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
 	t.Helper()
 	for i := 0; i < vlanCount; i++ {
 		vlanID := uint16(startVLANPort + i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-			vlanID = vlanID + 1
+			vlanID++
 		}
 		dutIPv4 := fmt.Sprintf(prefixFmtV4, (4*(i+1))+2)
 		ateIPv4 := fmt.Sprintf(prefixFmtV4, (4*(i+1))+1)
@@ -334,8 +336,8 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) 
 	createATEDevice(t, ateConfig, ap3, 0, atePort3.Name, atePort3.MAC, dutPort3.IPv4, atePort3.IPv4, dutPort3.IPv6, atePort3.IPv6)
 	createATEDevice(t, ateConfig, ap4, 0, atePort4.Name, atePort4.MAC, dutPort4.IPv4, atePort4.IPv4, dutPort4.IPv6, atePort4.IPv6)
 	// subIntfIPs is a []string slice with ATE IPv6 addresses for all the subInterfaces
-	configureATESubinterfaces(t, ateConfig, ap1, dut, atePort1.Name, atePort1.MAC, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
-	configureATESubinterfaces(t, ateConfig, ap2, dut, atePort2.Name, atePort2.MAC, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
+	mustConfigureATESubinterfaces(t, ateConfig, ap1, dut, atePort1.Name, atePort1.MAC, ipv4AddrPfx1, ipv6AddrPfx1, startVLANPort1)
+	mustConfigureATESubinterfaces(t, ateConfig, ap2, dut, atePort2.Name, atePort2.MAC, ipv4AddrPfx2, ipv6AddrPfx2, startVLANPort2)
 	var pmd100GBASELR4 []string
 	for _, p := range ateConfig.Ports().Items() {
 		port := ate.Port(t, p.Name())
@@ -363,14 +365,18 @@ func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) 
 
 	var nhEntries []fluent.GRIBIEntry
 	var nhOps []*client.OpResult
-
+	// Build a mapping between each DUT port and its corresponding OTG dummy IP.
+	otgDummyIPs := map[string]string{dut.Port(t, "port3").Name(): otgPort3DummyIP.IPv4, dut.Port(t, "port4").Name(): otgPort4DummyIP.IPv4}
 	// Build next-hops for both ports
 	for i, p := range []string{"port3", "port4"} {
 		port := dut.Port(t, p)
-
+		otgDummyIP, ok := otgDummyIPs[port.Name()]
+		if !ok {
+			t.Errorf("No dummy IP defined for DUT port %s", port.Name())
+		}
 		switch {
 		case deviations.GRIBIMACOverrideWithStaticARP(dut):
-			nh, op := gribi.NHEntry(nhIDs[i], "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: []string{otgPort3DummyIP.IPv4, otgPort4DummyIP.IPv4}[i], Mac: dstMac})
+			nh, op := gribi.NHEntry(nhIDs[i], "MACwithIp", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Dest: otgDummyIP, Mac: dstMac})
 			nhEntries = append(nhEntries, nh)
 			nhOps = append(nhOps, op)
 
@@ -613,6 +619,7 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 
 		validMplsPacketCount++
 		if validMplsPacketCount <= 2 {
+			// Validate the first two packets only and limit logging to reduce log storage.
 			t.Logf("Packet %d: MPLS validation PASSED", packetCount)
 		}
 	}
@@ -630,6 +637,9 @@ func validateMPLSPacketCapture(t *testing.T, ate *ondatra.ATEDevice, otgPortName
 		return fmt.Errorf("no UDP-IPv6 packets found on port %s", otgPortName)
 	case validMplsPacketCount == 0:
 		return fmt.Errorf("no valid MPLS-in-UDP packets found on port %s", otgPortName)
+	// In TE‑18.3 (Profile 5 — Single VRF high-rate gRIBI update test), the test intentionally programs at high rates (1,000 ops/sec with 50% ADD/50% DELETE).
+	// During such high-rate updates, transient inconsistencies in forwarding state are expected, including short periods where MPLS-in-UDP encapsulation may be incorrect or incomplete.
+	// This condition tolerates such transient failures, allowing up to 50% of MPLS packets to fail validation. If more than half of the UDP‑IPv6 packets fail MPLS validation, it indicates a significant forwarding failure and DUT inability to maintain stable MPLS encapsulation under load.
 	case validMplsPacketCount < mplsPacketCount/2:
 		return fmt.Errorf("too many invalid packets: %d/%d", mplsPacketCount-validMplsPacketCount, mplsPacketCount)
 	}
@@ -910,7 +920,7 @@ func buildIPv4Routes(t *testing.T, dut *ondatra.DUTDevice, num int, baseIPv4 str
 			for i := start; i < end; i++ {
 				ipCopy := make(net.IP, len(ip))
 				copy(ipCopy, ip)
-				prefixIP, perr := iputil.IncrementIPv4(ipCopy, i)
+				prefixIP, perr := iputil.IncrementIPv4(ipCopy, uint32(i))
 				if perr != nil {
 					t.Errorf("%s", perr)
 				}
@@ -956,7 +966,7 @@ func buildIPv6Routes(t *testing.T, dut *ondatra.DUTDevice, num int, baseIPv6 str
 			for i := start; i < end; i++ {
 				ipCopy := make(net.IP, len(ip))
 				copy(ipCopy, ip)
-				prefixIP, perr := iputil.IncrementIPv6(ipCopy, i)
+				prefixIP, perr := iputil.IncrementIPv6(ipCopy, uint64(i))
 				if perr != nil {
 					t.Errorf("%s", perr)
 				}
@@ -1037,9 +1047,9 @@ func expectedMPLSinUDPOpResults(t *testing.T, nextHopID, nhgBase uint64, numNHGs
 						perr     error
 					)
 					if task.isIPv6 {
-						prefixIP, perr = iputil.IncrementIPv6(ipCopy, i)
+						prefixIP, perr = iputil.IncrementIPv6(ipCopy, uint64(i))
 					} else {
-						prefixIP, perr = iputil.IncrementIPv4(ipCopy, i)
+						prefixIP, perr = iputil.IncrementIPv4(ipCopy, uint32(i))
 					}
 					if perr != nil {
 						t.Errorf("%s", perr)

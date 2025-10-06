@@ -255,7 +255,7 @@ func TestIncrementIPv4(t *testing.T) {
 	tests := []struct {
 		name    string
 		ip      string
-		n       int
+		n       uint32
 		want    string
 		wantErr bool
 	}{
@@ -302,13 +302,6 @@ func TestIncrementIPv4(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:    "Negative increment",
-			ip:      "10.0.0.1",
-			n:       -1,
-			want:    "",
-			wantErr: true,
-		},
-		{
 			name:    "Max valid increment",
 			ip:      "0.0.0.0",
 			n:       4294967295, // 2^32 - 1
@@ -336,7 +329,7 @@ func TestIncrementIPv6(t *testing.T) {
 	tests := []struct {
 		name    string
 		ip      string
-		n       int
+		n       uint64
 		want    string
 		wantErr bool
 	}{
@@ -379,13 +372,6 @@ func TestIncrementIPv6(t *testing.T) {
 			name:    "IPv4 address given",
 			ip:      "192.168.1.1",
 			n:       1,
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "Negative increment",
-			ip:      "2001:db8::1",
-			n:       -1,
 			want:    "",
 			wantErr: true,
 		},

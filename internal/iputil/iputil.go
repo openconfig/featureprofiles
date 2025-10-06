@@ -232,7 +232,7 @@ func IncrementMAC(startMAC string, i int) (string, error) {
 }
 
 // IncrementIPv4 increments the given IPv4 address by n. Returns the incremented IP, or an error if the input is invalid.
-func IncrementIPv4(ip net.IP, n int) (net.IP, error) {
+func IncrementIPv4(ip net.IP, n uint32) (net.IP, error) {
 	if ip == nil {
 		return nil, fmt.Errorf("IP is nil")
 	}
@@ -242,29 +242,31 @@ func IncrementIPv4(ip net.IP, n int) (net.IP, error) {
 		return nil, fmt.Errorf("invalid IPv4 address: %v", ip)
 	}
 
-	if n < 0 {
-		return nil, fmt.Errorf("negative increment not supported: %d", n)
-	}
+	ipInt := big.NewInt(0).SetBytes(ip4)
+	increment := big.NewInt(int64(n))
+	result := big.NewInt(0).Add(ipInt, increment)
 
-	carry := n
-	newIP := make(net.IP, len(ip4))
-	copy(newIP, ip4)
+	// IPv4 max = 2^32
+	max := big.NewInt(0).Lsh(big.NewInt(1), 32)
 
-	for j := len(newIP) - 1; j >= 0 && carry > 0; j-- {
-		sum := int(newIP[j]) + carry
-		newIP[j] = byte(sum & 0xFF) // lower 8 bits
-		carry = sum >> 8            // carry-over to next byte
-	}
-
-	if carry > 0 {
+	// Overflow check — return error if it exceeds 2^32 - 1
+	if result.Cmp(max) >= 0 {
 		return nil, fmt.Errorf("increment overflowed IPv4 space")
 	}
 
-	return newIP, nil
+	// Convert back to 4-byte IPv4 address
+	ipBytes := result.Bytes()
+	if len(ipBytes) < 4 {
+		padded := make([]byte, 4)
+		copy(padded[4-len(ipBytes):], ipBytes)
+		ipBytes = padded
+	}
+
+	return net.IP(ipBytes), nil
 }
 
 // IncrementIPv6 increments the given IPv6 address by n steps. Returns an error if the input IP is not a valid IPv6 address, if it is IPv4, or if the increment cannot be performed.
-func IncrementIPv6(ip net.IP, n int) (net.IP, error) {
+func IncrementIPv6(ip net.IP, n uint64) (net.IP, error) {
 	if ip == nil {
 		return nil, fmt.Errorf("IP is nil")
 	}
@@ -279,27 +281,17 @@ func IncrementIPv6(ip net.IP, n int) (net.IP, error) {
 		return nil, fmt.Errorf("invalid IPv6 address: %s", ip.String())
 	}
 
-	if n < 0 {
-		return nil, fmt.Errorf("negative increment not supported: %d", n)
+	ipInt := ipToBigInt(ip6)
+	increment := big.NewInt(0).SetUint64(n)
+	result := big.NewInt(0).Add(ipInt, increment)
+
+	// 2^128 is the IPv6 space limit
+	max := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(128), nil)
+
+	// Wrap around if overflow
+	if result.Cmp(max) >= 0 {
+		result.Mod(result, max)
 	}
 
-	// Work on a copy so the caller’s IP isn’t modified
-	res := make(net.IP, len(ip6))
-	copy(res, ip6)
-
-	carry := n
-	for j := len(res) - 1; j >= 0 && carry > 0; j-- {
-		sum := int(res[j]) + carry
-		res[j] = byte(sum & 0xFF)
-		carry = sum >> 8
-	}
-
-	// If carry > 0 after the most significant byte, wrap around to zero (no error, just wrap in 128-bit space).
-	if carry > 0 {
-		for j := range res {
-			res[j] = 0
-		}
-	}
-
-	return res, nil
+	return bigIntToIP(result), nil
 }
