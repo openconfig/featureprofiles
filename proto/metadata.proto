@@ -178,8 +178,6 @@ message Metadata {
     bool route_policy_under_afi_unsupported = 47;
     // Device does not support using gNOI to reboot the Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 48;
-    // Device does not support the ntp nondefault vrf case.
-    bool ntp_non_default_vrf_unsupported = 49;
     // Device does not support setting the L2 MTU. OpenConfig allows a device to
     // enforce that L2 MTU, which has a default value of 1514, must be set to a
     // higher value than L3 MTU.
@@ -966,7 +964,7 @@ message Metadata {
     bool telemetry_not_supported_for_low_priority_nh = 332;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 49;
   }
 
   message PlatformExceptions {
