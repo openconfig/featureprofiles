@@ -1666,6 +1666,11 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
 
+// OC state path for the lower priority next hop not supported
+func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
+}
+
 // P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()

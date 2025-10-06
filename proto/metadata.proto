@@ -961,9 +961,13 @@ message Metadata {
     // Cisco: b/429233045
     string ciscoxr_laser_ft = 331;
 
+    // OC state path for the lower priority next hop not supported.
+    // Arista: b/447502389
+    bool telemetry_not_supported_for_low_priority_nh = 332;
+
     // Device requires p4rt table entries to be configured for each new primary controller
     // Nokia: b/445494680
-    bool p4rt_explicit_table_entry_per_controller = 332;
+    bool p4rt_explicit_table_entry_per_controller = 333;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
