@@ -19,6 +19,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 )
 
@@ -68,6 +69,29 @@ var (
 		IPv4Len: plenIPv4,
 	}
 
+	activity = oc.Lacp_LacpActivityType_ACTIVE
+	period   = oc.Lacp_LacpPeriodType_FAST
+
+	lacpParams = &cfgplugins.LACPParams{
+		Activity: &activity,
+		Period:   &period,
+	}
+
+	dutLagData = []*cfgplugins.DUTAggData{
+		{
+			Attributes:      dutLAG1,
+			OndatraPortsIdx: []int{1, 2},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_LACP,
+		},
+		{
+			Attributes:      dutLAG2,
+			OndatraPortsIdx: []int{3, 4},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_LACP,
+		},
+	}
+
 	agg2 = &otgconfighelpers.Port{
 		Name:        "Port-Channel2",
 		AggMAC:      "02:00:01:01:01:03",
@@ -111,33 +135,39 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
+// func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice) {
+// 	t.Helper()
 
-	// Ports 2 and 3 will be part of LAG
-	dutAggPorts1 := []*ondatra.Port{
-		dut.Port(t, "port2"),
-		dut.Port(t, "port3"),
-	}
+// 	// Ports 2 and 3 will be part of LAG
+// 	dutAggPorts1 := []*ondatra.Port{
+// 		dut.Port(t, "port2"),
+// 		dut.Port(t, "port3"),
+// 	}
 
-	cfgplugins.SetupAggregateAtomically(t, dut, dutLag1Name, dutAggPorts1)
-	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag1Name, []*attrs.Attributes{&dutLAG1})
+// 	cfgplugins.SetupAggregateAtomically(t, dut, dutLag1Name, dutAggPorts1)
+// 	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag1Name, []*attrs.Attributes{&dutLAG1})
 
-	// Ports 4 and 5 will be part of LAG
-	dutAggPorts2 := []*ondatra.Port{
-		dut.Port(t, "port4"),
-		dut.Port(t, "port5"),
-	}
+// 	// Ports 4 and 5 will be part of LAG
+// 	dutAggPorts2 := []*ondatra.Port{
+// 		dut.Port(t, "port4"),
+// 		dut.Port(t, "port5"),
+// 	}
 
-	cfgplugins.SetupAggregateAtomically(t, dut, dutLag2Name, dutAggPorts2)
-	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag2Name, []*attrs.Attributes{&dutLAG2})
+// 	cfgplugins.SetupAggregateAtomically(t, dut, dutLag2Name, dutAggPorts2)
+// 	cfgplugins.ConfigureAggregateInterfaces(t, dut, dutLag2Name, []*attrs.Attributes{&dutLAG2})
 
-}
+// }
 
 func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	configureDUTInterface(t, dut)
-
+	// configureDUTInterface(t, dut)
+	for _, l := range dutLagData {
+		b := &gnmi.SetBatch{}
+		// Create LAG interface
+		l.LagName = netutil.NextAggregateInterface(t, dut)
+		cfgplugins.NewAggregateInterface(t, dut, b, l)
+		b.Set(t, dut)
+	}
 	// Configure GUE Encap
 	configureGueEncap(t, dut, []string{gueDstIPv4}, 0)
 
@@ -202,8 +232,9 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:    "V4Udp",
+		TrafficType:    oc.Aft_EncapsulationHeaderType_UDPV4,
 		NexthopGrpName: nexthopGroupName,
+		Index:          "0",
 		SrcIp:          dut.Port(t, "port1").Name(),
 		DstIp:          dstAddr,
 		TTL:            ttl,
@@ -224,8 +255,9 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
 
 	v6NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:    "V6Udp",
+		TrafficType:    oc.Aft_EncapsulationHeaderType_UDPV6,
 		NexthopGrpName: nexthopGroupNameV6,
+		Index:          "1",
 		SrcIp:          dut.Port(t, "port1").Name(),
 		DstIp:          dstAddr,
 		TTL:            ttl,
@@ -254,24 +286,36 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GuePolicyName, ni, interfacePolicyParams)
 }
 
-func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, policyName string, protocolType string, nexthopGroupName string, tos, ttl uint8, deleteTos, deleteTtl bool) {
+type tunnelCfg struct {
+	policyName       string
+	protocolType     oc.E_Aft_EncapsulationHeaderType
+	nexthopGroupName string
+	index            string
+	tos              uint8
+	ttl              uint8
+	deleteTos        bool
+	deleteTtl        bool
+}
+
+func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg *tunnelCfg) {
 	t.Helper()
-	if tos != 0 || deleteTos {
-		cfgplugins.ConfigureTOSGUE(t, dut, policyName, uint32(tos>>5), dut.Port(t, "port1").Name(), deleteTos)
+	if cfg.tos != 0 || cfg.deleteTos {
+		cfgplugins.ConfigureTOSGUE(t, dut, cfg.policyName, uint32(cfg.tos>>5), dut.Port(t, "port1").Name(), cfg.deleteTos)
 	}
 
-	if ttl != 0 || deleteTtl {
+	if cfg.ttl != 0 || cfg.deleteTtl {
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-			TrafficType:    protocolType,
-			NexthopGrpName: nexthopGroupName,
+			TrafficType:    cfg.protocolType,
+			NexthopGrpName: cfg.nexthopGroupName,
 			DstUdpPort:     gueProtocolPort,
-			TTL:            ttl,
+			TTL:            cfg.ttl,
+			Index:          cfg.index,
 		}
 
-		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, nexthopUDPParams, deleteTtl)
+		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, nexthopUDPParams, cfg.deleteTtl)
 	}
 
 }
@@ -744,7 +788,15 @@ func TestGUEEncap(t *testing.T) {
 
 	t.Run("RT-3.53.3: IPv4 GUE Encap with explicit ToS", func(t *testing.T) {
 		t.Log("Configure DUT with explicit ToS on GUE tunnel")
-		configureTosTtlOnTunnel(t, bs.DUT, "policy1", "", "", 0x60, 0, false, false)
+		configureTosTtlOnTunnel(
+			t,
+			bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				tos:       0x60,
+				ttl:       0,
+				deleteTos: false,
+				deleteTtl: false,
+			})
 
 		createFlow(bs.ATETop, "IPv4-GUE-Traffic", "ipv4", trafficDstNetIPv4, 0x80, 10, false, gueProtocolPort, gueSrcProtocolPort, false)
 
@@ -811,7 +863,17 @@ func TestGUEEncap(t *testing.T) {
 	})
 
 	t.Run("RT-3.53.5: IPv4 GUE Encap with explicit TTL", func(t *testing.T) {
-		configureTosTtlOnTunnel(t, bs.DUT, "policy1", "V4Udp", nexthopGroupName, 0, 20, true, false)
+		configureTosTtlOnTunnel(t,
+			bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				nexthopGroupName: nexthopGroupName,
+				tos:              0,
+				ttl:              20,
+				deleteTos:        true,
+				deleteTtl:        false,
+				index:            "0",
+			})
 
 		createFlow(bs.ATETop, "IPv4-GUE-Traffic", "ipv4", trafficDstNetIPv4, 0x80, 10, false, gueProtocolPort, gueSrcProtocolPort, false)
 
@@ -848,7 +910,16 @@ func TestGUEEncap(t *testing.T) {
 	})
 
 	t.Run("RT-3.53.6: IPv6 GUE Encap with explicit TTL", func(t *testing.T) {
-		configureTosTtlOnTunnel(t, bs.DUT, "policy1", "V6Udp", nexthopGroupNameV6, 0, 20, true, false)
+		configureTosTtlOnTunnel(t, bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+				nexthopGroupName: nexthopGroupNameV6,
+				tos:              0,
+				ttl:              20,
+				deleteTos:        true,
+				deleteTtl:        false,
+				index:            "1",
+			})
 		createFlow(bs.ATETop, "IPv6-GUE-Traffic", "ipv6", trafficDstNetIPv6, 0x80, 10, false, gueProtocolPort, gueSrcProtocolPort, false)
 		enableCapture(t, bs.ATETop, capturePorts)
 		bs.ATE.OTG().PushConfig(t, bs.ATETop)
@@ -882,7 +953,16 @@ func TestGUEEncap(t *testing.T) {
 	})
 
 	t.Run("RT-3.53.7: IPv4 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel", func(t *testing.T) {
-		configureTosTtlOnTunnel(t, bs.DUT, "policy1", "V4Udp", nexthopGroupName, 0x60, 20, false, false)
+		configureTosTtlOnTunnel(t, bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				nexthopGroupName: nexthopGroupName,
+				tos:              0x60,
+				ttl:              20,
+				deleteTos:        false,
+				deleteTtl:        false,
+				index:            "0",
+			})
 		createFlow(bs.ATETop, "IPv4-GUE-Traffic", "ipv4", trafficDstNetIPv4, 0x60, 10, false, gueProtocolPort, gueSrcProtocolPort, false)
 
 		enableCapture(t, bs.ATETop, capturePorts)
@@ -917,7 +997,16 @@ func TestGUEEncap(t *testing.T) {
 	})
 
 	t.Run("RT-3.53.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel", func(t *testing.T) {
-		configureTosTtlOnTunnel(t, bs.DUT, "policy1", "V6Udp", nexthopGroupNameV6, 0x60, 20, false, false)
+		configureTosTtlOnTunnel(t, bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+				nexthopGroupName: nexthopGroupNameV6,
+				tos:              0x60,
+				ttl:              20,
+				deleteTos:        false,
+				deleteTtl:        false,
+				index:            "1",
+			})
 		createFlow(bs.ATETop, "IPv6-GUE-Traffic", "ipv6", trafficDstNetIPv6, 0x60, 10, false, gueProtocolPort, gueSrcProtocolPort, false)
 
 		enableCapture(t, bs.ATETop, capturePorts)

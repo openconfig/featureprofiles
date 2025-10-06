@@ -643,8 +643,8 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-// createPolicyForwardingNexthopConfig to configure policyforwading through CLI using vendor specific cli
-func createPolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
+// createPolicyForwardingNexthopCli to configure policyforwading through CLI using vendor specific cli
+func createPolicyForwardingNexthopCli(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
 	groupType := ""
 
@@ -1169,10 +1169,12 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
 				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
 				createPolicyForwardingNexthopConfig(t, dut, params)
+				createPolicyForwardingNexthopCli(t, dut, params)
 			case "V6Udp":
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
 				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
 				createPolicyForwardingNexthopConfig(t, dut, params)
+				createPolicyForwardingNexthopCli(t, dut, params)
 			default:
 				t.Logf("Unsupported address family type %s", params.IPFamily)
 				t.Logf("Unsupported traffic type %s", params.TrafficType)

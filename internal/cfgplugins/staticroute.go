@@ -65,11 +65,15 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 				default:
 					cfg.T.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
 				}
+			} else {
+				ngName := fmt.Sprintf("%s", v)
+				s.GetOrCreateNextHopGroup().SetName(ngName)
 			}
 			return s, nil
+		} else {
+			nh := s.GetOrCreateNextHop(k)
+			nh.NextHop = v
 		}
-		nh := s.GetOrCreateNextHop(k)
-		nh.NextHop = v
 	}
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchUpdate(batch, sp.Config(), c)
