@@ -114,6 +114,10 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v4Metric)
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(v6Metric)
+	if deviations.MissingIsisInterfaceAfiSafiEnable(ts.DUT) {
+		isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		isisIntfLevel2.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+	}
 }
 
 // configureOTG configures isis and traffic on OTG.

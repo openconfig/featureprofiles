@@ -1,4 +1,4 @@
-# TRANSCEIVER-10: Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.
+# TRANSCEIVER-10.1: Telemetry: 400ZR Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming.
 
 ## Summary
 
@@ -28,6 +28,11 @@ This is a post-FEC decoder error metric.
 *   Toggle the interface state using /interfaces/interface/config/enabled and
     verify relevant FEC uncorrectable frame count is streamed. If there are no
     errors a value of 0 should be streamed for no FEC uncorrectable frames. 
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

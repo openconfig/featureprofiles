@@ -18,6 +18,7 @@ package iputil
 import (
 	"encoding/binary"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 )
@@ -43,42 +44,49 @@ func GenerateIPs(ipBlock string, n int) []string {
 	return entries
 }
 
-func ipToInt(ip net.IP) uint32 {
-	return uint32(ip[0])<<24 + uint32(ip[1])<<16 + uint32(ip[2])<<8 + uint32(ip[3])
-}
-
-func intToIP(n uint32) net.IP {
-	return net.IPv4(
-		byte(n>>24),
-		byte((n>>16)&0xFF),
-		byte((n>>8)&0xFF),
-		byte(n&0xFF),
-	)
-}
-
 // GenerateIPsWithStep creates a list of IPv4 addresses.
 // Returns a slice of IPv4 address strings or an error if inputs are invalid.
 func GenerateIPsWithStep(startIP string, count int, stepIP string) ([]string, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("negative count")
+	}
+	if count == 0 {
+		return []string{}, nil
+	}
+
 	ip := net.ParseIP(startIP).To4()
 	if ip == nil {
-		return nil, fmt.Errorf("invalid start IPv4 address")
+		return nil, fmt.Errorf("invalid startIP")
 	}
-
 	step := net.ParseIP(stepIP).To4()
 	if step == nil {
-		return nil, fmt.Errorf("invalid step IPv4 address")
+		return nil, fmt.Errorf("invalid stepIP")
 	}
 
-	var ips []string
-	ipInt := ipToInt(ip)
-	stepInt := ipToInt(step)
+	start := binary.BigEndian.Uint32(ip)
+	stepVal := binary.BigEndian.Uint32(step)
 
-	for i := range count {
-		newIP := intToIP(ipInt + uint32(i)*stepInt)
-		ips = append(ips, newIP.String())
+	// --- New overflow checks ---
+	if stepVal == 0 {
+		return nil, fmt.Errorf("invalid stepIP: step is zero")
+	}
+	// Step overflow check (first increment already too large)
+	if start+stepVal < start {
+		return nil, fmt.Errorf("step causes overflow")
+	}
+	// Count overflow check (final increment too large)
+	if uint64(start)+uint64(stepVal)*uint64(count-1) > math.MaxUint32 {
+		return nil, fmt.Errorf("count causes overflow")
 	}
 
-	return ips, nil
+	out := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		val := start + uint32(i)*stepVal
+		buf := make(net.IP, 4)
+		binary.BigEndian.PutUint32(buf, val)
+		out = append(out, buf.String())
+	}
+	return out, nil
 }
 
 func ipToBigInt(ip net.IP) *big.Int {
@@ -100,22 +108,42 @@ func bigIntToIP(ipInt *big.Int) net.IP {
 // GenerateIPv6sWithStep creates a list of IPv6 addresses.
 // Returns a slice of IPv6 address strings or an error if inputs are invalid.
 func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("negative count")
+	}
+	if count == 0 {
+		return []string{}, nil
+	}
+
 	ip := net.ParseIP(startIP).To16()
 	if ip == nil || ip.To4() != nil {
-		return nil, fmt.Errorf("invalid start IPv6 address")
+		return nil, fmt.Errorf("invalid start IPv6")
 	}
 
 	step := net.ParseIP(stepIP).To16()
 	if step == nil || step.To4() != nil {
-		return nil, fmt.Errorf("invalid step IPv6 address")
+		return nil, fmt.Errorf("invalid step IPv6")
 	}
 
 	ipInt := ipToBigInt(ip)
 	stepInt := ipToBigInt(step)
 
-	var ips []string
+	if stepInt.Sign() == 0 {
+		return nil, fmt.Errorf("invalid step IPv6: step is zero")
+	}
+
+	maxIPv6 := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+
+	// --- Overflow check ---
+	lastIPInt := new(big.Int).Add(ipInt, new(big.Int).Mul(stepInt, big.NewInt(int64(count-1))))
+	if lastIPInt.Cmp(maxIPv6) >= 0 {
+		return nil, fmt.Errorf("overflow IPv6")
+	}
+
+	// Generate sequence
+	ips := make([]string, 0, count)
 	for i := 0; i < count; i++ {
-		newIPInt := big.NewInt(0).Add(ipInt, big.NewInt(0).Mul(stepInt, big.NewInt(int64(i))))
+		newIPInt := new(big.Int).Add(ipInt, new(big.Int).Mul(stepInt, big.NewInt(int64(i))))
 		newIP := bigIntToIP(newIPInt)
 		ips = append(ips, newIP.String())
 	}
@@ -123,38 +151,46 @@ func GenerateIPv6sWithStep(startIP string, count int, stepIP string) ([]string, 
 	return ips, nil
 }
 
-// incrementMAC increments the MAC address by the given step.
-func incrementMAC(mac net.HardwareAddr, step int) {
-	for i := len(mac) - 1; i >= 0 && step > 0; i-- {
-		sum := int(mac[i]) + step
-		mac[i] = byte(sum % 256)
-		step = sum / 256
-	}
-}
-
-func macToInt(mac net.HardwareAddr) int {
-	result := 0
-	for _, b := range mac {
-		result = result<<8 + int(b)
-	}
-	return result
-}
-
 // GenerateMACs returns a slice of MAC address strings.
 // Returns generated MAC addresses or an empty slice on parse errors.
-func GenerateMACs(mac string, count int, stepMACStr string) []string {
-	baseMAC, _ := net.ParseMAC(mac)
-	stepMAC, _ := net.ParseMAC(stepMACStr)
-	step := macToInt(stepMAC)
-
-	macs := make([]string, count)
-	current := make(net.HardwareAddr, len(baseMAC))
-	copy(current, baseMAC)
-
-	for i := range count {
-		macs[i] = current.String()
-		incrementMAC(current, step)
+func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
+	if count < 0 {
+		return []string{} // negative count → return empty
 	}
-	return macs
+	if count == 0 {
+		return []string{}
+	}
 
+	baseMAC, err := net.ParseMAC(startMAC)
+	if err != nil || len(baseMAC) != 6 {
+		return []string{} // invalid base MAC
+	}
+	stepMAC, err := net.ParseMAC(stepMACStr)
+	if err != nil || len(stepMAC) != 6 {
+		return []string{} // invalid step MAC
+	}
+
+	baseInt := new(big.Int).SetBytes(baseMAC)
+	stepInt := new(big.Int).SetBytes(stepMAC)
+
+	// Maximum MAC value = 2^48 - 1
+	maxMac := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 48), big.NewInt(1))
+
+	// Check final value does not overflow: base + step*(count-1) <= maxMac
+	mul := new(big.Int).Mul(stepInt, big.NewInt(int64(count-1)))
+	final := new(big.Int).Add(baseInt, mul)
+	if final.Cmp(maxMac) > 0 {
+		return []string{} // overflow → return empty
+	}
+
+	// Generate sequence
+	out := make([]string, 0, count)
+	for i := 0; i < count; i++ {
+		cur := new(big.Int).Add(baseInt, new(big.Int).Mul(stepInt, big.NewInt(int64(i))))
+		buf := cur.FillBytes(make([]byte, 6)) // 6 bytes for MAC
+		hw := net.HardwareAddr(buf)
+		out = append(out, hw.String()) // canonical lower-case hex with colons
+	}
+
+	return out
 }

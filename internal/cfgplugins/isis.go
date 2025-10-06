@@ -117,39 +117,49 @@ func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cf
 
 	// Set Protocol Config
 	protocol := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, cfg.InstanceName)
-	protocol.Enabled = ygot.Bool(true)
+	protocol.SetEnabled(true)
 
 	isis := protocol.GetOrCreateIsis()
 	globalISIS := isis.GetOrCreateGlobal()
 
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		// must match the protocol 'name'
-		globalISIS.Instance = ygot.String(cfg.InstanceName)
+		globalISIS.SetInstance(cfg.InstanceName)
 	}
 	globalISIS.Net = []string{
 		fmt.Sprintf("%v.%v.00", cfg.AreaAddress, cfg.SystemID),
 	}
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
+	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetEnabled(true)
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 
-	// Enable ISIS on specified interfaces
-	names := []string{cfg.AggID}
-	for _, p := range cfg.Ports {
-		names = append(names, p.Name())
+	if cfg.AggID != "" {
+		// Enable ISIS on specified interfaces
+		names := []string{cfg.AggID}
+		for _, p := range cfg.Ports {
+			names = append(names, p.Name())
+		}
+
+		t.Logf("Enable ISIS on interfaces: %v, plus %s", names, cfg.AggID)
+		for _, intf := range names {
+			isisIf := isis.GetOrCreateInterface(intf)
+			isisIf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+			isisIf.SetEnabled(true)
+		}
 	}
 
-	t.Logf("Enable ISIS on interfaces: %v, plus %s", names, cfg.AggID)
-	for _, intf := range names {
-		isisIf := isis.GetOrCreateInterface(intf)
+	if cfg.LoopbackIntf != "" {
+		// Loopback passive
+		isisLo := isis.GetOrCreateInterface(cfg.LoopbackIntf)
+		isisLo.SetEnabled(true)
+		isisLo.SetPassive(true)
+	}
+
+	for _, port := range cfg.Ports {
+		isisIf := isis.GetOrCreateInterface(port.Name())
 		isisIf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		isisIf.Enabled = ygot.Bool(true)
+		isisIf.SetEnabled(true)
 	}
-
-	// Loopback passive
-	isisLo := isis.GetOrCreateInterface(cfg.LoopbackIntf)
-	isisLo.Enabled = ygot.Bool(true)
-	isisLo.Passive = ygot.Bool(true)
 
 	// === Add protocol subtree into the batch ===
 	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, cfg.InstanceName).Config(), protocol)

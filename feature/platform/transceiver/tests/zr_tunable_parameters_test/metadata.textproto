@@ -1,7 +1,8 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
+
 uuid: "47c623ec-69b3-4bca-ae07-012feff496b8"
-plan_id: "TRANSCEIVER-5"
+plan_id: "TRANSCEIVER-5.1"
 description: "Configuration: 400ZR channel frequency, output TX launch power and operational mode setting."
 testbed: TESTBED_DUT_400ZR
 platform_exceptions: {
@@ -19,7 +20,7 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    operational_mode_unsupported:true
+    operational_mode_unsupported: true
   }
 }
 platform_exceptions: {
