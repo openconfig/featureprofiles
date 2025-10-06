@@ -392,7 +392,6 @@ func GnoiSystemPing(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Dia
 			return err
 		}
 	}
-	return err
 }
 
 // GnoiWavelengthrouterAdjustPSD implements a sample request for service /gnoi.optical.WavelengthRouter/AdjustPSD to validate if authz works as expected.
@@ -480,7 +479,6 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 			return err
 	        }
 	}
-	return err
 }
 
 // GnsiCertzAddProfile implements a sample request for service /gnsi.certz.v1.Certz/AddProfile to validate if authz works as expected.
