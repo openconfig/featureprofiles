@@ -173,8 +173,9 @@ type StaticNextHopGroupParams struct {
 }
 
 type NexthopGroupUDPParams struct {
-	TrafficType    string
+	TrafficType    oc.E_Aft_EncapsulationHeaderType
 	NexthopGrpName string
+	Index          string
 	DstIp          []string
 	SrcIp          string
 	DstUdpPort     uint16
@@ -240,9 +241,9 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			switch params.TrafficType {
-			case "V4Udp":
+			case oc.Aft_EncapsulationHeaderType_UDPV4:
 				groupType = "ipv4-over-udp"
-			case "V6Udp":
+			case oc.Aft_EncapsulationHeaderType_UDPV6:
 				groupType = "ipv6-over-udp"
 			}
 
@@ -292,10 +293,9 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 		}
 	} else {
 		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
-		nhg.GetOrCreateNextHop("Dest A-NH1").SetIndex("Dest A-NH1")
+		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
 
-		// Set the encap header for each next-hop
-		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
 			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
 		}
