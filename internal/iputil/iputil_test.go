@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/gnmi/errdiff"
 )
 
 func TestGenerateIPs(t *testing.T) {
@@ -45,69 +46,144 @@ func TestGenerateIPs(t *testing.T) {
 	}
 }
 
-// TestGenerateIPv6Prefix covers valid and invalid cases for IPv6 prefix generation.
-func TestGenerateIPv6Prefix(t *testing.T) {
+func TestGenerateIPv4sWithStep(t *testing.T) {
 	tests := []struct {
 		name    string
-		baseIP  string
-		offset  int64
-		want    net.IP
-		wantNil bool
+		startIP string
+		count   int
+		stepIP  string
+		want    []string
+		wantErr string
 	}{
 		{
-			name:   "valid prefix with offset",
-			baseIP: "2001:db8::",
-			offset: 5,
-			want:   net.ParseIP("2001:db8::5"),
+			name:    "valid case",
+			startIP: "192.168.0.1",
+			count:   3,
+			stepIP:  "0.0.0.1",
+			want:    []string{"192.168.0.1", "192.168.0.2", "192.168.0.3"},
+			wantErr: "",
 		},
 		{
-			name:   "valid prefix with negative offset",
-			baseIP: "2001:db8::5",
-			offset: -5,
-			want:   net.ParseIP("2001:db8::"),
+			name:    "invalid startIP",
+			startIP: "999.168.0.1",
+			count:   3,
+			stepIP:  "0.0.0.1",
+			wantErr: "invalid startIP",
 		},
 		{
-			name:   "valid prefix with large offset",
-			baseIP: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
-			offset: 1,
-			// overflows, so wraps to zero
-			want: net.ParseIP("::"),
+			name:    "invalid stepIP",
+			startIP: "192.168.0.1",
+			count:   3,
+			stepIP:  "0.0.999.1",
+			wantErr: "invalid stepIP",
 		},
 		{
-			name:    "empty prefix",
-			baseIP:  "",
-			offset:  1,
-			wantNil: true,
+			name:    "negative count",
+			startIP: "192.168.0.1",
+			count:   -5,
+			stepIP:  "0.0.0.1",
+			wantErr: "negative count",
 		},
 		{
-			name:    "invalid prefix",
-			baseIP:  "invalid-ip",
-			offset:  1,
-			wantNil: true,
+			name:    "zero count",
+			startIP: "192.168.0.1",
+			count:   0,
+			stepIP:  "0.0.0.1",
+			want:    []string{},
+			wantErr: "",
 		},
 		{
-			name:    "IPv4 input should return nil",
-			baseIP:  "192.168.1.1",
-			offset:  5,
-			wantNil: true,
+			name:    "count causes overflow",
+			startIP: "255.255.255.250",
+			count:   10,
+			stepIP:  "0.0.0.1",
+			wantErr: "count causes overflow",
+		},
+		{
+			name:    "step causes overflow",
+			startIP: "255.255.255.250",
+			count:   2,
+			stepIP:  "0.0.0.10",
+			wantErr: "step causes overflow",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GenerateIPv6WithOffset(net.ParseIP(tt.baseIP), tt.offset)
-
-			if tt.wantNil {
-				if got != nil {
-					t.Errorf("GenerateIPv6WithOffset(%q, %d) = %v, want nil", tt.baseIP, tt.offset, got)
-				}
-				return
+			got, err := GenerateIPsWithStep(tt.startIP, tt.count, tt.stepIP)
+			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
+				t.Errorf("generateIPv4sWithStep() unexpected error (-want,+got): %s", diff)
 			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("generateIPv4sWithStep() mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
 
-			if diff := cmp.Diff(tt.want, got, cmp.Comparer(func(x, y net.IP) bool {
-				return x.Equal(y)
-			})); diff != "" {
-				t.Errorf("GenerateIPv6WithOffset() mismatch (-want +got):\n%s", diff)
+func TestGenerateIPv6sWithStep(t *testing.T) {
+	tests := []struct {
+		name    string
+		startIP string
+		count   int
+		stepIP  string
+		want    []string
+		wantErr string
+	}{
+		{
+			name:    "valid IPv6 sequence",
+			startIP: "2001:db8::1",
+			count:   3,
+			stepIP:  "::1",
+			want:    []string{"2001:db8::1", "2001:db8::2", "2001:db8::3"},
+			wantErr: "",
+		},
+		{
+			name:    "invalid start IPv6",
+			startIP: "invalid",
+			count:   3,
+			stepIP:  "::1",
+			wantErr: "invalid start IPv6",
+		},
+		{
+			name:    "invalid step IPv6",
+			startIP: "2001:db8::1",
+			count:   3,
+			stepIP:  "invalid",
+			wantErr: "invalid step IPv6",
+		},
+		{
+			name:    "negative count",
+			startIP: "2001:db8::1",
+			count:   -1,
+			stepIP:  "::1",
+			wantErr: "negative count",
+		},
+		{
+			name:    "zero count",
+			startIP: "2001:db8::1",
+			count:   0,
+			stepIP:  "::1",
+			want:    []string{},
+			wantErr: "",
+		},
+		{
+			name:    "overflow IPv6",
+			startIP: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe",
+			count:   3,
+			stepIP:  "::1",
+			wantErr: "overflow IPv6",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := GenerateIPv6sWithStep(tt.startIP, tt.count, tt.stepIP)
+			if diff := errdiff.Substring(err, tt.wantErr); diff != "" {
+				t.Errorf("generateIPv6sWithStep() unexpected error (-want,+got): %s", diff)
+			}
+			if diff := cmp.Diff(tt.want, got); diff != "" {
+				t.Errorf("generateIPv6sWithStep() mismatch (-want +got):\n%s", diff)
 			}
 		})
 	}
