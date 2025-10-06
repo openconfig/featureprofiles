@@ -389,3 +389,30 @@ func NewMPLSSRBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, 
 		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).SegmentRouting().Config(), sr)
 	}
 }
+
+// LabelRangeOCConfig configures MPLS label ranges on the DUT using OpenConfig.
+func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	mplsObj := ni.GetOrCreateMpls().GetOrCreateGlobal()
+	// Map of local-id → [lowerBound, upperBound]
+	labelRanges := map[string][2]uint32{
+		"bgp-sr":                  {16, 0},
+		"dynamic":                 {16, 0},
+		"isis-sr":                 {16, 0},
+		"l2evpn":                  {16, 0},
+		"l2evpn ethernet-segment": {16, 0},
+		"ospf-sr":                 {16, 0},
+		"srlb":                    {16, 0},
+		"static":                  {16, 1048560},
+	}
+	t.Logf("Mpls Object %v, label range %v", mplsObj, labelRanges)
+	for localID, bounds := range labelRanges {
+		rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
+		rlb.LocalId = ygot.String(localID)
+		rlb.LowerBound = oc.UnionUint32(bounds[0])
+		rlb.UpperBound = oc.UnionUint32(bounds[1])
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+}

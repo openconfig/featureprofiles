@@ -431,3 +431,71 @@ func aristaConfigureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
 		`
 	helpers.GnmiCLIConfig(t, dut, jsonConfig)
 }
+
+// QosClassificationOCConfig builds an OpenConfig QoS classification configuration.
+func QosClassificationOCConfig(t *testing.T) {
+	t.Helper()
+	// TODO: OC commands for QOS are not in the place. Need to fix the below commented code once implemented the OC commands.
+	d := &oc.Root{}
+	qos := d.GetOrCreateQos()
+
+	// DSCP → traffic-class 0
+	classifier0 := qos.GetOrCreateClassifier("dscp-to-tc0")
+	classifier0.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier0.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term0 := classifier0.GetOrCreateTerm("tc0")
+	term0.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{0, 1, 2, 3, 4, 5, 6, 7}
+	// term0.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc0"),
+	// }
+
+	// DSCP → traffic-class 1
+	classifier1 := qos.GetOrCreateClassifier("dscp-to-tc1")
+	classifier1.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier1.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term1 := classifier1.GetOrCreateTerm("tc1")
+	term1.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{8, 9, 10, 11, 12, 13, 14, 15}
+	// term1.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc1"),
+	// }
+
+	// DSCP → traffic-class 4
+	classifier4 := qos.GetOrCreateClassifier("dscp-to-tc4")
+	classifier4.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier4.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term4 := classifier4.GetOrCreateTerm("tc4")
+	term4.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{40, 41, 42, 43, 44, 45, 46, 47}
+	// term4.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc4"),
+	// }
+
+	// DSCP → traffic-class 7
+	classifier7 := qos.GetOrCreateClassifier("dscp-to-tc7")
+	classifier7.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier7.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term7 := classifier7.GetOrCreateTerm("tc7")
+	term7.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{48, 49, 50, 51, 52, 53, 54, 55}
+	// term7.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc7"),
+	// }
+
+	// fg0 := qos.GetOrCreateForwardingGroup("forwarding-group-tc0")
+	// fg0.ForwardingClass = ygot.Uint8(0)
+
+	// fg1 := qos.GetOrCreateForwardingGroup("forwarding-group-tc1")
+	// fg1.ForwardingClass = ygot.Uint8(1)
+
+	// fg4 := qos.GetOrCreateForwardingGroup("forwarding-group-tc4")
+	// fg4.ForwardingClass = ygot.Uint8(4)
+
+	// fg7 := qos.GetOrCreateForwardingGroup("forwarding-group-tc7")
+	// fg7.ForwardingClass = ygot.Uint8(7)
+
+	// // Forwarding group for policy-map af3
+	// fg3 := qos.GetOrCreateForwardingGroup("forwarding-group-tc3")
+	// fg3.ForwardingClass = ygot.Uint8(3)
+
+	// policy := qos.GetOrCreatePolicy("af3")
+	// stmt := policy.GetOrCreateStatement("class-default")
+	// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
+}
