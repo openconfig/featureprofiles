@@ -305,6 +305,12 @@ tests:
       - agvarghe
     mustpass: true
     priority: 6
+  - name: gNMI-1.27: (gNMI Sample Mode Test)
+    path: feature/gnmi/subscribe/tests/gnmi_sample_mode_test
+    owners:
+      - arvbaska
+    mustpass: true
+    priority: 6    
   - name: DP-1.4 (QoS Interface Output Queue Counters)
     path: feature/qos/otg_tests/qos_output_queue_counters_test
     owners:
