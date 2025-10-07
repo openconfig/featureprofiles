@@ -15,7 +15,6 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -208,24 +207,6 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("BGP sessions not established: got %v", val)
 	}
 	t.Log("BGP sessions Established")
-}
-
-// juniperBgpPolicyMEDAdd is used to configure set metric add via native cli as an alternative for below xpath.
-// routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-func juniperBgpPolicyMEDAdd(polName string, metric int) string {
-	return fmt.Sprintf(`
-		policy-options {
- 		   policy-statement %s {
-        		term 1 {
-            		then {
-                		metric add %d;
-            		}
-        		}
-        		term 2 {
-            		then accept;
-        		}
-    		}
-		}`, polName, metric)
 }
 
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
