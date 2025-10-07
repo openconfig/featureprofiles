@@ -1675,3 +1675,8 @@ func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
 }
+
+// Same apply-policy under peer-group and peer-group/afi-safi
+func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSameAfiSafiAndPeergroupPoliciesUnsupported()
+}
