@@ -64,10 +64,10 @@ entries, parameterized by key scaling dimensions.
 3.  **VRF Configuration:**
 
     - Create required VRFs based on test profile:
-      - Profile 1: DEFAULT network instance only
+      - Profile 1: DEFAULT network instance plus 1 non-default VRF
       - Profiles 2-3: 1024 VRFs (VRF_001 through VRF_1024) plus DEFAULT
-      - Profile 4: DEFAULT network instance only
-      - Profile 5: DEFAULT network instance only
+      - Profile 4: DEFAULT network instance plus 1 non-default VRF
+      - Profile 5: DEFAULT network instance plus 1 non-default VRF
     - Use device-specific default network instance naming conventions
     - Apply policy-based forwarding rules for VRF selection using
       DSCP/source IP criteria
@@ -265,7 +265,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 #### Profile 1 (Single VRF)
 
 - **Goal:** Baseline single VRF scale (Exact Label Match scenario).
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 - **Total NHGs:** 20,000.
 - **NHs per NHG:** 1.
 - **MPLS Labels:** 1 (consistent with \#VRFs = 1). Same label used for
@@ -317,7 +317,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 #### Profile 4 (Single VRF)
 
 - **Goal:** Test ECMP scale within a single VRF.
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 - **Total NHGs:** 2,500.
 - **NHs per NHG:** 8 (each NH having a different destination IP).
 - **Total NHs:** 20,000 (2,500 NHGs × 8 NHs/NHG = 20,000 total NHs,
@@ -336,7 +336,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 - **Goal:** Test gRIBI control plane QPS scaling and impact on
   dataplane. Uses Profile 1 as the base state.
 
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 
 - **Total NHGs:** 20,000.
 
