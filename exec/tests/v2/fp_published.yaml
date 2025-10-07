@@ -305,7 +305,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 6
-  - name: gNMI-1.27: (gNMI Sample Mode Test)
+  - name: gNMI-1.27 (gNMI Sample Mode Test)
     path: feature/gnmi/subscribe/tests/gnmi_sample_mode_test
     owners:
       - arvbaska
