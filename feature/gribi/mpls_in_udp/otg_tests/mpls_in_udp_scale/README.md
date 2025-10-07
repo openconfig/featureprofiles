@@ -256,6 +256,10 @@ these dimensions.
   prefixes are distributed across the different VRFs as specified in
   each profile.
 
+**Important Note on AFT Entry Placement**
+
+A key requirement for all test profiles is the separation of gRIBI-programmed AFT entries. All **Next Hop** (NH) and **Next Hop Group** (NHG) entries must be programmed in the DEFAULT network instance. The corresponding **IPv4/IPv6 prefix entries** must be programmed in their respective, non-default network instances. This implies that even for profiles specified as testing a "Single VRF" scale (Profiles 1, 4, 5), the prefixes will reside in one or more non-default VRFs.
+
 ### TE-18.3: Scale Profiles
 
 #### Profile 1 (Single VRF)
