@@ -45,6 +45,7 @@ const (
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
 type DUTSubInterfaceData struct {
 	VlanID        int
+	VlanEnable    bool
 	IPv4Address   net.IP
 	IPv6Address   net.IP
 	IPv4PrefixLen int
@@ -863,6 +864,7 @@ func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 
 // AddSubInterface adds a subinterface to an interface.
 func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	vlanFlag := true
 	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
 	sub.Enabled = ygot.Bool(true)
 	if s.VlanID != 0 {
@@ -871,6 +873,13 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 		} else {
 			sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
 		}
+
+	if !s.VlanEnable {
+		vlanFlag = s.VlanEnable
+	}
+
+	if s.VlanID != 0 && vlanFlag {
+		sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
 	}
 	if s.IPv4Address == nil && s.IPv6Address == nil {
 		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
