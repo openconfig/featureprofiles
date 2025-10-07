@@ -366,6 +366,5 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 		gnmi.Replace(t, dut, gnmi.OC().Acl().AclSet(aclNamev6, aclSetv6.GetType()).Config(), aclSetv6)
 	}
 
-	// This part is common and can stay outside the if/else
 	configureAclInterface(t, dut, acl, tc)
 }
