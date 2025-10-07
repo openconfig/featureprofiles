@@ -58,9 +58,9 @@ outer_ip-ttl =        "64"
 
 ### TE-18.4 Match and Encapsulate using gRIBI aft modify
 
-## Canonical OC Configuration
+#### Canonical OC
 
-#### gRIBI RPC content
+##### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
 entries.
@@ -113,7 +113,7 @@ NH#101 -> {
   * Validate the ecmp hashing is working fine and load balance is happening 
     across all the 3 ports with tolerance of 1%.
 
-
+## Canonical OC
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
