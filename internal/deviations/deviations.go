@@ -1671,6 +1671,11 @@ func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
 
+// MatchAsPathSetUnsupported returns true if match-as-path-set policy configuration is not supported
+func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
+}
+
 // Mpls static pseudowire returns true if oc is not supported
 func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
