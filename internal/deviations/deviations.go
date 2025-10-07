@@ -1670,3 +1670,8 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
+
+// MatchAsPathSetUnsupported returns true if match-as-path-set policy configuration is not supported
+func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
+}
