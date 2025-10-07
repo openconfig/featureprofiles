@@ -2,10 +2,12 @@ package encapdecapgre_test
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -51,27 +53,64 @@ const (
 	decapDesIpv4IP      = "192.168.80.0/24"
 	decapGrpName        = "Decap1"
 	dscp                = 96 >> 2
-
-	ieee8023adLag = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 )
 
 var (
 	sfBatch      *gnmi.SetBatch
 	ni           *oc.NetworkInstance
-	aggID        string
+	custAggID    string
 	tunnelSrcIPs = []string{}
 	custPort     = "port1"
-	core1Ports   = []string{"port2", "port3"}
-	core2Ports   = []string{"port4", "port5"}
+	packetSource = []*gopacket.PacketSource{}
+
+	activity = oc.Lacp_LacpActivityType_ACTIVE
+	period   = oc.Lacp_LacpPeriodType_FAST
+
+	lacpParams = &cfgplugins.LACPParams{
+		Activity: &activity,
+		Period:   &period,
+	}
+
+	custLagData = []*cfgplugins.DUTAggData{
+		{
+			Attributes:      custIntf,
+			OndatraPortsIdx: []int{0},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_STATIC,
+			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
+				{
+					VlanID:        10,
+					VlanEnable:    false,
+					IPv4Address:   net.ParseIP("192.168.10.2"),
+					IPv6Address:   net.ParseIP("2001:db8::192:168:10:2"),
+					IPv4PrefixLen: plenIPv4,
+					IPv6PrefixLen: plenIPv6,
+				},
+			},
+		},
+	}
+
+	coreLagData = []*cfgplugins.DUTAggData{
+		{
+			Attributes:      coreIntf1,
+			OndatraPortsIdx: []int{1, 2},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_LACP,
+		},
+		{
+			Attributes:      coreIntf2,
+			OndatraPortsIdx: []int{3, 4},
+			LacpParams:      lacpParams,
+			AggType:         oc.IfAggregate_AggregationType_LACP,
+		},
+	}
 
 	custIntf = attrs.Attributes{
-		Desc:         "Customer_connect",
-		MTU:          defaultMTU,
-		IPv4:         "192.168.10.2",
-		IPv4Len:      plenIPv4,
-		IPv6:         "2001:db8::192:168:10:2",
-		IPv6Len:      plenIPv6,
-		Subinterface: 10,
+		Desc:    "Customer_connect",
+		MTU:     defaultMTU,
+		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
+		MAC:     "02:00:01:01:01:07",
 	}
 
 	coreIntf1 = attrs.Attributes{
@@ -91,6 +130,15 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6:    "2001:db8::192:168:30:2",
 		IPv6Len: plenIPv6,
+	}
+
+	agg1 = &otgconfighelpers.Port{
+		Name:        "Port-Channel1",
+		AggMAC:      "02:00:01:01:01:01",
+		MemberPorts: []string{"port1"},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{otgIntf1},
+		LagID:       1,
+		IsLag:       true,
 	}
 
 	agg2 = &otgconfighelpers.Port{
@@ -185,7 +233,7 @@ var (
 		ControlWordSequence: 0,
 	}
 
-	encapValidation = &packetvalidationhelpers.PacketValidation{
+	encapAgg2Validation = &packetvalidationhelpers.PacketValidation{
 		PortName:    agg2.MemberPorts[0],
 		Validations: Validations,
 		IPv4Layer:   OuterGREIPLayerIPv4,
@@ -203,13 +251,13 @@ var (
 		PortName:    custPort,
 		CaptureName: "decapCapture",
 		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateVlanHeader},
-		VlanLayer:   &packetvalidationhelpers.VlanLayer{VlanID: uint16(custIntf.Subinterface)},
+		VlanLayer:   &packetvalidationhelpers.VlanLayer{VlanID: uint16(custLagData[0].SubInterfaces[0].VlanID)},
 	}
 
 	decapFlowInnerIPv4 = &otgconfighelpers.Flow{
 		CustomFlow: &otgconfighelpers.CustomFlowParams{Bytes: "00000000"},
 		EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: "00:00:00:00:00:00"},
-		VLANFlow:   &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+		VLANFlow:   &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 		IPv4Flow:   &otgconfighelpers.IPv4FlowParams{IPv4Src: "22.1.1.1", IPv4Dst: strings.Split(staticTunnelDst, "/")[0]},
 		TCPFlow:    &otgconfighelpers.TCPFlowParams{TCPSrcPort: 49152, TCPDstPort: 80},
 	}
@@ -222,17 +270,22 @@ type BGPNeighbor struct {
 }
 
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams) {
-	p1 := dut.Port(t, custPort)
-	intf := &oc.Interface{Name: ygot.String(p1.Name())}
-	intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	configDUTInterface(intf, []*attrs.Attributes{&custIntf}, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), intf)
+	for _, l := range custLagData {
+		b := &gnmi.SetBatch{}
+		// Create LAG interface
+		l.LagName = netutil.NextAggregateInterface(t, dut)
+		custAggID = l.LagName
+		cfgplugins.NewAggregateInterface(t, dut, b, l)
+		b.Set(t, dut)
+	}
 
-	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, core1Ports, []*attrs.Attributes{&coreIntf1}, aggID)
-
-	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, core2Ports, []*attrs.Attributes{&coreIntf2}, aggID)
+	for _, l := range coreLagData {
+		b := &gnmi.SetBatch{}
+		// Create LAG interface
+		l.LagName = netutil.NextAggregateInterface(t, dut)
+		cfgplugins.NewAggregateInterface(t, dut, b, l)
+		b.Set(t, dut)
+	}
 
 	// Configure 16 tunnels having single destination address
 	for index := range tunnelCount {
@@ -298,45 +351,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	sfBatch.Set(t, dut)
 }
 
-func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
-	t.Helper()
-	d := gnmi.OC()
-	dutAggPorts := []*ondatra.Port{}
-	for _, port := range dutPorts {
-		dutAggPorts = append(dutAggPorts, dut.Port(t, port))
-	}
-	if deviations.AggregateAtomicUpdate(dut) {
-		cfgplugins.DeleteAggregate(t, dut, aggID, dutAggPorts)
-		cfgplugins.SetupAggregateAtomically(t, dut, aggID, dutAggPorts)
-	}
-
-	lacp := &oc.Lacp_Interface{Name: ygot.String(aggID)}
-	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-	lacpPath := d.Lacp().Interface(aggID)
-	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-
-	time.Sleep(5 * time.Second)
-
-	agg := &oc.Interface{Name: ygot.String(aggID)}
-	configDUTInterface(agg, subinterfaces, dut)
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
-	agg.Type = ieee8023adLag
-	aggPath := d.Interface(aggID)
-	fptest.LogQuery(t, aggID, aggPath.Config(), agg)
-	gnmi.Replace(t, dut, aggPath.Config(), agg)
-
-	for _, port := range dutAggPorts {
-		holdTimeConfig := &oc.Interface_HoldTime{
-			Up:   ygot.Uint32(3000),
-			Down: ygot.Uint32(150),
-		}
-		intfPath := gnmi.OC().Interface(port.Name())
-		gnmi.Update(t, dut, intfPath.HoldTime().Config(), holdTimeConfig)
-	}
-}
-
-func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string, subinterfaces uint32, mode string) {
+func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string, subinterfaces int, mode string) {
 	// Configuring port/attachment mode
 	pseudowireCfg := cfgplugins.MplsStaticPseudowire{
 		PseudowireName:   pseudowireName,
@@ -369,53 +384,6 @@ func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string,
 	}
 }
 
-func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut *ondatra.DUTDevice) {
-	for _, a := range subinterfaces {
-		i.Description = ygot.String(a.Desc)
-		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
-		}
-		e := i.GetOrCreateEthernet()
-		if a.MAC != "" {
-			e.MacAddress = ygot.String(a.MAC)
-		}
-		s1 := i.GetOrCreateSubinterface(0)
-		b4 := s1.GetOrCreateIpv4()
-		b6 := s1.GetOrCreateIpv6()
-		b4.Mtu = ygot.Uint16(a.MTU)
-		b6.Mtu = ygot.Uint32(uint32(a.MTU))
-
-		if deviations.InterfaceEnabled(dut) {
-			b4.Enabled = ygot.Bool(true)
-		}
-		if a.Subinterface != 0 {
-			s := i.GetOrCreateSubinterface(a.Subinterface)
-			configureInterfaceAddress(dut, s, a)
-		} else {
-			configureInterfaceAddress(dut, s1, a)
-		}
-	}
-}
-
-func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterface, a *attrs.Attributes) {
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-
-	if a.IPv4 != "" {
-		a4 := s4.GetOrCreateAddress(a.IPv4)
-		a4.PrefixLength = ygot.Uint8(a.IPv4Len)
-	}
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(dut) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	if a.IPv6 != "" {
-		s6.GetOrCreateAddress(a.IPv6).SetPrefixLength(a.IPv6Len)
-	}
-}
-
 func GetDefaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 	return cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: "DEFAULT",
@@ -426,14 +394,8 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	otgConfig := gosnappi.NewConfig()
 
-	port1 := otgConfig.Ports().Add().SetName(custPort)
-
-	iDut1Dev := otgConfig.Devices().Add().SetName(otgIntf1.Name)
-	iDut1Eth := iDut1Dev.Ethernets().Add().SetName(otgIntf1.Name + ".Eth").SetMac(otgIntf1.MAC)
-	iDut1Eth.Connection().SetPortName(port1.Name())
-
 	// Create a slice of aggPortData for easier iteration
-	aggs := []*otgconfighelpers.Port{agg2, agg3}
+	aggs := []*otgconfighelpers.Port{agg1, agg2, agg3}
 
 	// Configure OTG Interfaces
 	for _, agg := range aggs {
@@ -523,7 +485,7 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
-func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) {
+func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) error {
 	t.Log("Validating traffic equally distributed equally across 2 egress ports")
 	var totalEgressPkts uint64
 	tolerance := 0.10
@@ -533,7 +495,7 @@ func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		egressPktPath := gnmi.OC().Interface(port.Name()).Counters().OutUnicastPkts().State()
 		egressPkt, present := gnmi.Lookup(t, dut, egressPktPath).Val()
 		if !present {
-			t.Errorf("Get IsPresent status for path %q: got false, want true", egressPktPath)
+			return fmt.Errorf("isPresent status for path %q: got false, want true", egressPktPath)
 		}
 		totalEgressPkts += egressPkt
 	}
@@ -547,7 +509,7 @@ func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	if dutlossPct < tolerance*100 {
 		t.Log("The packet count of traffic sent from ATE port1 equal to the sum of all packets on DUT egress ports")
 	} else {
-		t.Errorf("The packet count of traffic sent from ATE port1 is not equal to the sum of all packets on DUT egress ports")
+		return fmt.Errorf("packet count of traffic sent from ATE port1 is not equal to the sum of all packets on DUT egress ports")
 	}
 
 	rxPortNames := []string{"port2", "port3", "port4", "port5"}
@@ -560,10 +522,6 @@ func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 		totalRxPkts += rxPkts
 	}
 
-	if totalRxPkts == 0 {
-		t.Skip("Skipping load balancing checks as no packets were received.")
-	}
-
 	lag1RxPkts = portRxPkts["port2"] + portRxPkts["port3"]
 	lag2RxPkts = portRxPkts["port4"] + portRxPkts["port5"]
 	t.Logf("LAG1 received %d packets, LAG2 received %d packets", lag1RxPkts, lag2RxPkts)
@@ -573,40 +531,48 @@ func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	}
 	ecmpError := ecmpDiff / float64(totalRxPkts)
 	if ecmpError > tolerance {
-		t.Errorf("ECMP hashing between LAG1 and LAG2 is unbalanced. Difference: %f%%, want < %f%%", ecmpError*100, tolerance*100)
+		return fmt.Errorf("ecmp hashing between LAG1 and LAG2 is unbalanced. Difference: %f%%, want < %f%%", ecmpError*100, tolerance*100)
 	} else {
 		t.Logf("ECMP hashing between LAGs is balanced. Difference: %f%%", ecmpError*100)
 	}
+
+	return nil
 }
 
-func verifyLoadBalanceAcrossGre(t *testing.T, singlePath bool) {
+func verifyLoadBalanceAcrossGre(t *testing.T, singlePath bool, packetSource []*gopacket.PacketSource, greTunnelCount ...int) {
+	tunnelCount := 16
+	if len(greTunnelCount) != 0 {
+		tunnelCount = greTunnelCount[0]
+	}
 	t.Log("Validating traffic equally load-balanced across GRE destinations")
 	srcIPs := make(map[string]int)
-	packetSource := packetvalidationhelpers.SourceObj()
-	for packet := range packetSource.Packets() {
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ipv4, _ := ipLayer.(*layers.IPv4)
-			srcIPs[ipv4.SrcIP.String()]++
+	for _, pkt := range packetSource {
+		for packet := range pkt.Packets() {
+			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+				ipv4, _ := ipLayer.(*layers.IPv4)
+				srcIPs[ipv4.SrcIP.String()]++
+			}
 		}
 	}
+
 	uniqueCount := len(srcIPs)
-	t.Logf("Found %d unique GRE source IPs in the capture.", uniqueCount)
+	t.Logf("Found %d unique GRE source IPs in the capture", uniqueCount)
 
 	if singlePath {
-		if uniqueCount > 1 || uniqueCount == 0 {
-			t.Errorf("FAIL: No GRE source IPs found, expected at least 1")
+		if uniqueCount == 1 {
+			t.Logf("PASS: Single-path mode: Found %d GRE source IP(s), as expected", uniqueCount)
 			return
 		}
-		t.Logf("PASS: Single-path mode: Found %d GRE source IP(s), as expected.", uniqueCount)
+		t.Errorf("no GRE source IPs found, expected at least 1")
 		return
 	}
 
-	if uniqueCount <= 1 {
-		t.Errorf("FAIL: Traffic was not load-balanced. Got %d unique GRE source IP(s), expected > 1.", uniqueCount)
+	if uniqueCount < tunnelCount {
+		t.Errorf("traffic was not load-balanced. Got %d unique GRE source IP(s), expected: %v", uniqueCount, tunnelCount)
 		return
 	}
 
-	t.Logf("PASS: Traffic was load-balanced across %d GRE sources.", uniqueCount)
+	t.Logf("PASS: Traffic was load-balanced across %d GRE sources", uniqueCount)
 }
 
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, otg *otg.OTG, flowName string) {
@@ -615,7 +581,7 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.
 
 	FlowIPv4Validation.Flow.Name = flowName
 	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("Validation on flows failed (): %q", err)
+		t.Errorf("validation on flows failed (): %q", err)
 	}
 }
 
@@ -640,7 +606,7 @@ func TestEncapDecapGre(t *testing.T) {
 
 	// Configure on OTG
 	otgConfig := ConfigureOTG(t, ate)
-	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapValidation)
+	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapAgg2Validation)
 	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapAgg3Validation)
 	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, decapValidation)
 
@@ -670,13 +636,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.1 : EthoCWoMPLSoGRE encapsulated for unencrytped IPv4 with entropy",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate action for unencrytped IPv4, IPv6 traffic with entropy on ethernet headers",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGREv4Entropy",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: agg1.AggMAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapIPv4WithEntropy,
@@ -685,13 +651,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.2 : EthoCWoMPLSoGRE encapsulated for unencrytped IPv4 without entropy",
 			description: "Verify no hashing of EthoCWoMPLSoGRE encapsulation for unencrytped IPv4 traffic without entropy",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGREv4WOEntropy ",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, DstMAC: "01:01:01:01:01:01"},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy,
@@ -700,13 +666,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.3 : EthoCWoMPLSoGRE encapsulate action for MACSec",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate action for MACSec encrytped IPv4, IPv6 traffic",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGREv4MACSec",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapMACSec,
@@ -715,13 +681,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.4 : EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				FlowName:          "EthoMPLSoGREJumboMTU",
 				SizeWeightProfile: &jumboWeightProfile,
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapJumboMTU,
@@ -730,13 +696,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.5 : Verify Control word for unencrypted traffic flow",
 			description: "Verify Control word for unencrypted traffic flow",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGRECWUnEncrypted",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testControlWordUnencrypted,
@@ -745,13 +711,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.6 : Verify Control word for encrypted traffic flow",
 			description: "Verify Control word for encrypted traffic flow",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGRECWEncrypted",
 				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testControlWordEncrypted,
@@ -760,13 +726,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.7 : Verify DSCP of EthoCWoMPLSoGRE encapsulated packets",
 			description: "Verify DSCP of EthoCWoMPLSoGRE encapsulated packets",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGREDSCP",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testDSCPEthoCWoMPLSoGRE,
@@ -775,13 +741,13 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.8 : Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown",
 			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Ports().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[0].Name(), otgConfig.Lags().Items()[1].Name()},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "EthoMPLSoGREv4",
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: custIntf.Subinterface},
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGRE,
@@ -791,15 +757,14 @@ func TestEncapDecapGre(t *testing.T) {
 			description: "Verify PF EthoCWoMPLSoGRE decapsulate action",
 			flow: otgconfighelpers.Flow{
 				TxPort:            otgConfig.Lags().Items()[1].Name(),
-				RxPorts:           []string{otgConfig.Ports().Items()[0].Name()},
+				RxPorts:           []string{otgConfig.Lags().Items()[0].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &decapSizeWeightProfile,
-				// FrameSize: 512,
-				FlowName: "EthoMPLSoGREv4Decap",
-				EthFlow:  &otgconfighelpers.EthFlowParams{SrcMAC: coreIntf1.MAC, DstMAC: gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, custPort).Name()).Ethernet().MacAddress().State())},
-				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.0", IPv4Dst: strings.Split(decapDesIpv4IP, "/")[0], IPv4SrcCount: 1000},
-				MPLSFlow: &otgconfighelpers.MPLSFlowParams{MPLSLabel: localLabel},
-				GREFlow:  &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
+				FlowName:          "EthoMPLSoGREv4Decap",
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: coreIntf1.MAC},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "100.64.0.0", IPv4Dst: strings.Split(decapDesIpv4IP, "/")[0], IPv4SrcCount: 1000},
+				MPLSFlow:          &otgconfighelpers.MPLSFlowParams{MPLSLabel: localLabel},
+				GREFlow:           &otgconfighelpers.GREFlowParams{Protocol: otgconfighelpers.IanaMPLSEthertype},
 			},
 			testFunc: testEthoCWoMPLSoGREDecap,
 		},
@@ -815,15 +780,15 @@ func TestEncapDecapGre(t *testing.T) {
 
 	// Run the test cases.
 	for _, tc := range testCases {
-		configureIngressVlan(t, dut, dut.Port(t, custPort).Name(), custIntf.Subinterface, "remove")
+		configureIngressVlan(t, dut, custAggID, custLagData[0].SubInterfaces[0].VlanID, "remove")
 		for _, cfg := range modeConfig {
 			switch cfg.mode {
 			case "port":
 				t.Log(cfg.name)
-				configureIngressVlan(t, dut, dut.Port(t, custPort).Name(), custIntf.Subinterface, "port")
+				configureIngressVlan(t, dut, custAggID, custLagData[0].SubInterfaces[0].VlanID, "port")
 			case "attachment":
 				t.Log(cfg.name)
-				configureIngressVlan(t, dut, dut.Port(t, custPort).Name(), custIntf.Subinterface, "attachment")
+				configureIngressVlan(t, dut, custAggID, custLagData[0].SubInterfaces[0].VlanID, "attachment")
 			}
 			t.Run(tc.name, func(t *testing.T) {
 				t.Logf("Description: %s - %s", tc.name, cfg.mode)
@@ -842,11 +807,15 @@ func testEthoCWoMPLSoGREEncapIPv4WithEntropy(t *testing.T, dut *ondatra.DUTDevic
 
 	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+	for _, encapValidation := range []*packetvalidationhelpers.PacketValidation{encapAgg2Validation, encapAgg3Validation} {
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
+
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false)
+	verifyLoadBalanceAcrossGre(t, false, packetSource)
 }
 
 func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -855,15 +824,20 @@ func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDev
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	err := validateEncapPacket(t, ate, encapValidation)
+	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
+
+	err := validateEncapPacket(t, ate, encapAgg2Validation)
 	if err != nil {
 		// If error validating the whether encap packet received on other lag port
 		if err = validateEncapPacket(t, ate, encapAgg3Validation); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+	} else {
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, true)
+	verifyLoadBalanceAcrossGre(t, true, packetSource)
 }
 
 func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -877,11 +851,24 @@ func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *o
 		sendTrafficCapture(t, ate, otgConfig)
 		verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+		if err := verifyECMPLagBalance(t, dut, ate, flow.FlowName); err != nil {
+			t.Logf("ecmp hashing between LAG1 and LAG2 is unbalanced as expected")
+		} else {
+			t.Errorf("ecmp hashing between LAG1 and LAG2 is balanced which is unexpected")
 		}
 
-		verifyLoadBalanceAcrossGre(t, true)
+		err := validateEncapPacket(t, ate, encapAgg2Validation)
+		if err != nil {
+			// If error validating the whether encap packet received on other lag port
+			if err = validateEncapPacket(t, ate, encapAgg3Validation); err != nil {
+				t.Errorf("capture and validatePackets failed (): %q", err)
+			}
+			packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		} else {
+			packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		}
+
+		verifyLoadBalanceAcrossGre(t, true, packetSource)
 	}
 
 }
@@ -892,11 +879,15 @@ func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate 
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+	for _, encapValidation := range []*packetvalidationhelpers.PacketValidation{encapAgg2Validation, encapAgg3Validation} {
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
+
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false)
+	verifyLoadBalanceAcrossGre(t, false, packetSource)
 }
 
 func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -906,12 +897,15 @@ func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 
 	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
-	encapValidation.MPLSLayer = controlWordMPLS
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+	for _, encapValidation := range []*packetvalidationhelpers.PacketValidation{encapAgg2Validation, encapAgg3Validation} {
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
+
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false)
+	verifyLoadBalanceAcrossGre(t, false, packetSource)
 }
 
 func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -919,17 +913,20 @@ func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	encapValidation.MPLSLayer = controlWordMPLS
-	err := validateEncapPacket(t, ate, encapValidation)
+	encapAgg2Validation.MPLSLayer = controlWordMPLS
+	err := validateEncapPacket(t, ate, encapAgg2Validation)
 	if err != nil {
 		// If error validating the whether encap packet received on other lag port
 		encapAgg3Validation.MPLSLayer = controlWordMPLS
 		if err = validateEncapPacket(t, ate, encapAgg3Validation); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+	} else {
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, true)
+	verifyLoadBalanceAcrossGre(t, true, packetSource)
 }
 
 func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -950,13 +947,16 @@ func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		Tos: dscp,
 	}
 
-	encapValidation.InnerIPLayerIPv4 = InnerIPLayerIPv4
+	for _, encapValidation := range []*packetvalidationhelpers.PacketValidation{encapAgg2Validation, encapAgg3Validation} {
+		encapValidation.InnerIPLayerIPv4 = InnerIPLayerIPv4
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false)
+	verifyLoadBalanceAcrossGre(t, false, packetSource)
 
 }
 
@@ -976,16 +976,27 @@ func testEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 
 	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+	for _, encapValidation := range []*packetvalidationhelpers.PacketValidation{encapAgg2Validation, encapAgg3Validation} {
+		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapValidation); err != nil {
+			t.Errorf("capture and validatePackets failed (): %q", err)
+		}
+
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false)
+	verifyLoadBalanceAcrossGre(t, false, packetSource, 15)
 }
 
 func testEthoCWoMPLSoGREDecap(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	sfBatch := &gnmi.SetBatch{}
 	cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, dut, strings.Split(decapDesIpv4IP, "/")[0], "trafficPolicyName", custPort, decapGrpName)
+
+	linklayerAddress := gnmi.GetAll(t, dut, gnmi.OC().Interface(custAggID).Subinterface(0).Ipv6().AddressAny().Ip().State())[0]
+
+	ip := net.ParseIP(linklayerAddress).To16()
+	mac := fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", ip[8]^2, ip[9], ip[10], ip[13], ip[14], ip[15])
+	flow.EthFlow.DstMAC = mac
+
 	createflow(otgConfig, &flow, true, decapFlowInnerIPv4)
 	sendTrafficCapture(t, ate, otgConfig)
 
@@ -997,6 +1008,6 @@ func testEthoCWoMPLSoGREDecapVLAN(t *testing.T, dut *ondatra.DUTDevice, ate *ond
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
 	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, decapValidation); err != nil {
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+		t.Errorf("capture and validatePackets failed (): %q", err)
 	}
 }
