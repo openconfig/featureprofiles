@@ -304,13 +304,6 @@ func MplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
 		}
-	} else {
-		t.Log("Currently do not have support to enable Mpls through OC, need to uncomment once implemented")
-		// TODO: Currently do not have support to enable Mpls through OC, need to uncomment once implemented.
-		// d := &oc.Root{}
-		// ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		// mpls := ni.GetOrCreateMpls()
-		// mpls.Enabled = ygot.Bool(true)
 	}
 }
 
@@ -323,9 +316,8 @@ func QosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
 		}
-	} else {
-		QosClassificationOCConfig(t)
 	}
+
 }
 
 // LabelRangeConfig configures the interface label range.
@@ -337,8 +329,6 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
 		}
-	} else {
-		LabelRangeOCConfig(t, dut)
 	}
 }
 
@@ -607,7 +597,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel type UDP
 							tunnel decap-ip %s
 							tunnel decap-interface %s
-							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -913,7 +903,6 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 	}
 }
 
-// ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
 func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	if deviations.DecapsulateGueOCUnsupported(dut) {
