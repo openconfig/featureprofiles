@@ -473,9 +473,6 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			// if params.Subinterface != 0 {
-			// 	params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
-			// }
 			cli = "patch panel\n no patch patch-1"
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
