@@ -417,14 +417,13 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 
-func MplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, pseudowireName string, nexthopGroupName string, localLabel string, remoteLabel string, intfName string, subinterface uint32) {
 type MplsStaticPseudowire struct {
 	PseudowireName   string
 	NexthopGroupName string
 	LocalLabel       string
 	RemoteLabel      string
 	IntfName         string
-	Subinterface     uint32
+	Subinterface     int
 }
 
 func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
@@ -460,7 +459,7 @@ func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *onda
 		endpointCfg := connectionCfg.GetOrCreateEndpoint("endpoint-1")
 		localCfg := endpointCfg.GetOrCreateLocal()
 		localCfg.SetInterface(params.IntfName)
-		localCfg.SetSubinterface(params.Subinterface)
+		localCfg.SetSubinterface(uint32(params.Subinterface))
 
 		remoteCfg := endpointCfg.GetOrCreateRemote()
 		remoteCfg.SetVirtualCircuitIdentifier(1001)
@@ -488,7 +487,7 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 
 type VlanClientEncapsulationParams struct {
 	IntfName         string
-	Subinterfaces    uint32
+	Subinterfaces    int
 	RemoveVlanConfig bool
 }
 
