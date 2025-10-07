@@ -890,28 +890,68 @@ type PbrRule struct {
 	EncapVrf  string
 }
 
-// NewPolicyForwardingVRFSelection creates policy-based routing configuration for VRF selection
-func NewPolicyForwardingVRFSelection(dut *ondatra.DUTDevice, name string) *oc.NetworkInstance_PolicyForwarding {
+// // NewPolicyForwardingVRFSelection creates policy-based routing configuration for VRF selection
+// func NewPolicyForwardingVRFSelection(dut *ondatra.DUTDevice, name string) *oc.NetworkInstance_PolicyForwarding {
+// 	d := &oc.Root{}
+// 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+// 	pf := ni.GetOrCreatePolicyForwarding()
+// 	p := pf.GetOrCreatePolicy(name)
+// 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+// 	for _, pRule := range getPbrRules(dut) {
+// 		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
+
+// 		if deviations.PfRequireMatchDefaultRule(dut) {
+// 			if pRule.EtherType != nil {
+// 				r.GetOrCreateL2().Ethertype = pRule.EtherType
+// 			}
+// 		}
+
+// 		if pRule.EncapVrf != "" {
+// 			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
+// 		}
+// 	}
+// 	return pf
+// }
+
+// PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
+type PolicyForwardingConfigName struct {
+	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
+}
+
+// NewPolicyForwardingVRFSelection configures Policy-Based Routing for VRF selection.
+func NewPolicyForwardingVRFSelection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg PolicyForwardingConfigName) *gnmi.SetBatch {
+	t.Helper()
+
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	pf := ni.GetOrCreatePolicyForwarding()
-	p := pf.GetOrCreatePolicy(name)
+	p := pf.GetOrCreatePolicy(cfg.Name)
 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
 	for _, pRule := range getPbrRules(dut) {
 		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
 
-		if deviations.PfRequireMatchDefaultRule(dut) {
-			if pRule.EtherType != nil {
-				r.GetOrCreateL2().Ethertype = pRule.EtherType
-			}
+		// Optional default rule match requirement.
+		if deviations.PfRequireMatchDefaultRule(dut) && pRule.EtherType != nil {
+			r.GetOrCreateL2().Ethertype = pRule.EtherType
 		}
 
+		// Set forwarding action (encap VRF)
 		if pRule.EncapVrf != "" {
 			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
 		}
 	}
-	return pf
+
+	// Push policy forwarding configuration via GNMI batch.
+	gnmi.BatchUpdate(sb,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(),
+		pf,
+	)
+
+	t.Logf("Configured policy forwarding VRF selection: policy=%s", cfg.Name)
+
+	return sb
 }
 
 // getPbrRules returns policy-based routing rules for VRF selection

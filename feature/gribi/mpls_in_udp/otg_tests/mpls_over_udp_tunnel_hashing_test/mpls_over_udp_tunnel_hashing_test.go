@@ -364,8 +364,12 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 // configureBaseconfig configures network instances and forwarding policy on the DUT
 func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	pf := cfgplugins.NewPolicyForwardingVRFSelection(dut, clusterPolicy)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+	b := &gnmi.SetBatch{}
+	cfg := cfgplugins.PolicyForwardingConfigName{
+		Name: clusterPolicy,
+	}
+	sb := cfgplugins.NewPolicyForwardingVRFSelection(t, dut, b, cfg)
+	sb.Set(t, dut)
 }
 
 // applyForwardingPolicy applies the VRF selection policy to the ingress interface
