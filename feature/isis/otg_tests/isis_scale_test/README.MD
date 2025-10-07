@@ -1,4 +1,4 @@
-# RT-2.14: IS-IS scale test
+# RT-2.17: IS-IS scale test
 
 ## Summary
 
@@ -16,7 +16,7 @@ different circumstances e.g static static (with no route flaps) dynamic state
 (with route flaps).. etc.
 
 
-## RT-2.14.1: IS-IS scale test with static routes (no churn and no new LSPs)
+## RT-2.17.1: IS-IS scale test with static routes (no churn and no new LSPs)
 
 ### Testbed type
 
@@ -552,3 +552,4 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
 ```
+
