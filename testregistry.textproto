@@ -1173,6 +1173,7 @@ test: {
   id: "RT-7.51"
   description: "BGP - Auto-generate Link Bandwidth community based on interface available capacity"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/auto_link_bandwidth_test/README.md"
+  exec: " "
 }
 test: {
   id: "RT-7.6"
