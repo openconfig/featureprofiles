@@ -31,6 +31,7 @@ platform_exceptions: {
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
+    match_as_path_set_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION
