@@ -890,30 +890,6 @@ type PbrRule struct {
 	EncapVrf  string
 }
 
-// // NewPolicyForwardingVRFSelection creates policy-based routing configuration for VRF selection
-// func NewPolicyForwardingVRFSelection(dut *ondatra.DUTDevice, name string) *oc.NetworkInstance_PolicyForwarding {
-// 	d := &oc.Root{}
-// 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-// 	pf := ni.GetOrCreatePolicyForwarding()
-// 	p := pf.GetOrCreatePolicy(name)
-// 	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-// 	for _, pRule := range getPbrRules(dut) {
-// 		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
-
-// 		if deviations.PfRequireMatchDefaultRule(dut) {
-// 			if pRule.EtherType != nil {
-// 				r.GetOrCreateL2().Ethertype = pRule.EtherType
-// 			}
-// 		}
-
-// 		if pRule.EncapVrf != "" {
-// 			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
-// 		}
-// 	}
-// 	return pf
-// }
-
 // PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
 type PolicyForwardingConfigName struct {
 	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
