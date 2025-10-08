@@ -1,4 +1,4 @@
-# TRANSCEIVER-9: Telemetry: 400ZR TX laser bias current telemetry values streaming. 
+# TRANSCEIVER-9.1: Telemetry: 400ZR TX laser bias current telemetry values streaming. 
 
 ## Summary
 
@@ -20,7 +20,7 @@ specified operating temperature and voltage.
 {}
 ```  
 
-## TRANSCEIVER-9.1
+## TRANSCEIVER-9.1.1
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module. Connection
@@ -39,7 +39,7 @@ specified operating temperature and voltage.
     *   /components/component/optical-channel/state/laser-bias-current/instant
 
 
-## TRANSCEIVER-9.2
+## TRANSCEIVER-9.1.2
 
 *   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf".
@@ -47,7 +47,7 @@ specified operating temperature and voltage.
 *   Laser bias current values must always be of type decimal64.
     When laser is in off state 0 must be reported as a valid value.
 
-## TRANSCEIVER-9.3
+## TRANSCEIVER-9.1.3
 
 *   Verify that the TX laser bias current is updated after an interface
     enable / disable state change.
@@ -64,7 +64,7 @@ specified operating temperature and voltage.
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
 
-## TRANSCEIVER-9.4
+## TRANSCEIVER-9.1.4
 
 *   Verify that the TX laser bias current is updated after transceiver power
     ON / OFF state change.
@@ -81,6 +81,11 @@ specified operating temperature and voltage.
     *   Verify the ZR optics TX laser bias current telemetry values are
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 
