@@ -58,8 +58,6 @@ outer_ip-ttl =        "64"
 
 ### TE-18.4 Match and Encapsulate using gRIBI aft modify
 
-#### Canonical OC
-
 ##### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
@@ -114,6 +112,38 @@ NH#101 -> {
     across all the 3 ports with tolerance of 1%.
 
 ## Canonical OC
+
+```json
+{
+  "paths": [
+    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id",
+    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp"
+  ],
+  "rpcs": {
+    "gribi": {
+      "gRIBI.Modify": [
+        "afts:next-hops:next-hop:encap-headers:encap-header:udp_v6",
+        "afts:next-hops:next-hop:encap-headers:encap-header:mpls"
+      ],
+      "gRIBI.Flush": []
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
