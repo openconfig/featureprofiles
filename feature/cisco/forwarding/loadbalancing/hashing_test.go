@@ -18,6 +18,7 @@
 package hashing
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -352,7 +353,8 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 	siteEDUTList := []*ondatra.DUTDevice{dut1E, dut2E}
 	siteVDUTList := []*ondatra.DUTDevice{dut1V, dut2V}
 	jupiterDUTList := []*ondatra.DUTDevice{dutJupiterE, dutJupiterR}
-
+	test := verifiers.Loadbalancingverifier().GetDumpPolarizationDebugCLI(t, context.Background(), dut1E, "0/0/CPU0")
+	t.Log("Dump Polarization CLI test:", test)
 	//Just to use variable and compile
 	t.Log("R,E,V and Jupiter sites", siteRDUTList, siteEDUTList, siteVDUTList, jupiterDUTList)
 

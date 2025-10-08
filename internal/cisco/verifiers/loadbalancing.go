@@ -6,16 +6,22 @@ import (
 	"fmt"
 	"os"
 
+	"context"
+	"strconv"
+
 	"github.com/olekukonko/tablewriter"
 
 	// "text/tabwriter"
 	// "fmt"
+	"testing"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
+	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	"github.com/openconfig/featureprofiles/internal/cisco/helper"
-	// "github.com/openconfig/featureprofiles/internal/cisco/util"
+	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/ondatra"
-	"testing"
 
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
@@ -28,6 +34,25 @@ type EgressLBDistribution struct {
 	OutPPS           uint64
 	WantDistribution float64
 	GotDistribution  float64
+}
+
+type extendedEntropy struct {
+	offset1 int
+	offset2 int
+	width1  int
+	width2  int
+}
+
+type HashingParameters struct {
+	LCId  string
+	NPUId int
+	EcmpSeed uint16
+	SpaSeed uint16
+	LBNodeID int
+	HardShift int
+	SoftShift int
+	RTFValue int
+	extendedEntropy map [string]extendedEntropy
 }
 
 // VerifyPacketEgressDistributionPerWeight verifies if loadbalancing distribution packet count is per give interface:weight map using OC IF counters.
@@ -200,4 +225,81 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 	}
 	table.Render()
 	return trafficDistribution, balancedPerWeight
+}
+
+func (v *loadbalancingVerifier) GetDumpPolarizationDebugCLI(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, lcIDs ...string) map[string][]HashingParameters {
+    result := make(map[string][]HashingParameters)
+
+    // Helper to parse seeds that may be hex (0xNNN) or decimal.
+    parseSeed := func(fieldName, val string) uint16 {
+        parsed, err := strconv.ParseInt(val, 0, 64) // base 0 handles 0x and decimal
+        if err != nil {
+            t.Fatalf("Failed to parse %s value %q: %v", fieldName, val, err)
+        }
+        return uint16(parsed)
+    }
+
+    for _, lcID := range lcIDs {
+        cliOutput := config.CMDViaGNMI(ctx, t, dut,
+            fmt.Sprintf("show controllers npu debugshell 0 'script lb_hash_info dump_polarization_info_all_np' location %s", lcID))
+
+        dumpPolarizeTextfsm := textfsm.ShowDebugDumpPolarization{}
+        if err := dumpPolarizeTextfsm.Parse(cliOutput); err != nil {
+            t.Fatalf("Failed to parse output for LC %s: %v", lcID, err)
+        }
+        t.Logf("LC %s raw parsed rows: %+v", lcID, dumpPolarizeTextfsm.Rows)
+
+        // Per-NPU aggregation
+        npuParams := make(map[string]*HashingParameters)
+
+        for _, entry := range dumpPolarizeTextfsm.Rows {
+            // Skip empty / malformed rows
+            if entry.Npu == "" || entry.Type == "" {
+                continue
+            }
+
+            npuID := entry.Npu
+            hp, exists := npuParams[npuID]
+            if !exists {
+                hp = &HashingParameters{
+                    LCId:            lcID,
+                    NPUId:           util.StringToInt(t, entry.Npu),
+                    EcmpSeed:        parseSeed("ECMP seed", entry.EcmpHashSeed),
+                    SpaSeed:         parseSeed("Bundle seed", entry.BundleSeed),
+                    LBNodeID:        util.StringToInt(t, entry.LbNodeId),
+                    HardShift:       util.StringToInt(t, entry.Hard),
+                    SoftShift:       util.StringToInt(t, entry.Soft),
+                    RTFValue:        util.StringToInt(t, entry.Rtf),
+                    extendedEntropy: make(map[string]extendedEntropy),
+                }
+                npuParams[npuID] = hp
+            } else {
+                // Re-parse seeds for consistency check (no util.StringToInt on hex)
+                ecmpParsed := parseSeed("ECMP seed", entry.EcmpHashSeed)
+                spaParsed := parseSeed("Bundle seed", entry.BundleSeed)
+                if hp.EcmpSeed != ecmpParsed || hp.SpaSeed != spaParsed ||
+                    hp.LBNodeID != util.StringToInt(t, entry.LbNodeId) {
+                    t.Logf("Warning: inconsistent scalar parameters for LC %s NPU %s", lcID, npuID)
+                }
+            }
+
+            // Attach / update extended entropy per type
+            hp.extendedEntropy[entry.Type] = extendedEntropy{
+                offset1: util.StringToInt(t, entry.Offset1),
+                width1:  util.StringToInt(t, entry.Width1),
+                offset2: util.StringToInt(t, entry.Offset2),
+                width2:  util.StringToInt(t, entry.Width2),
+            }
+        }
+
+        // Flatten per LC
+        var hashingParamsList []HashingParameters
+        for _, hp := range npuParams {
+            hashingParamsList = append(hashingParamsList, *hp)
+        }
+        result[lcID] = hashingParamsList
+    }
+
+    t.Log("Hashing parameters:", result)
+    return result
 }
