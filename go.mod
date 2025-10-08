@@ -42,14 +42,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 	go.mozilla.org/pkcs7 v0.9.0
->>>>>>> addressing comments
-=======
-	go.mozilla.org/pkcs7 v0.9.0
->>>>>>> ad26b78f2b758ebe5d1278b2cd6ce13fc5649575
 	golang.org/x/crypto v0.42.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
 	golang.org/x/text v0.29.0
