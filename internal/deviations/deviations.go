@@ -1666,6 +1666,22 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
 
+// OC state path for the lower priority next hop not supported
+func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
+}
+
+// MatchAsPathSetUnsupported returns true if match-as-path-set policy configuration is not supported
+func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
+}
+
+// SyslogOCUnsupported returns true if the device does not support syslog OC configuration for below OC paths.
+// '/system/logging/remote-servers/remote-server/config/network-instance'
+func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
+}
+
 func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
 }
