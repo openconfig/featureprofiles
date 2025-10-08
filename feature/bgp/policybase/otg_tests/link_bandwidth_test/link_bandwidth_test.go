@@ -277,11 +277,14 @@ func enableExtCommunityCLIConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		var extCommunityEnableCLIConfig string
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, cfgplugins.BGPPeerGroup1)
+			extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor  %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, atePort1.IPv4)
+			helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
+			time.Sleep(10 * time.Second)
+			extCommunityEnableCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor  %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", dutAS, atePort1.IPv6)
+			helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'BgpExplicitExtendedCommunityEnable'", dut.Vendor())
 		}
-		helpers.GnmiCLIConfig(t, dut, extCommunityEnableCLIConfig)
 	}
 }
 
@@ -333,6 +336,7 @@ func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
 	removeImportAndExportPolicy(t, dut)
+	applyImportPolicyDut(t, dut, "allow-all")
 
 	// Apply ipv4 policy to bgp neighbour.
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
@@ -799,7 +803,20 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		case ondatra.CISCO:
 			var communityCLIConfig string
 			communityCLIConfig = fmt.Sprintf("community-set %v\n dfa-regex '%v', \n match invert \n end-set", "regex_match_comm100", communitySet["regex_match_comm100"])
-			policySetCLIConfig := fmt.Sprintf("route-policy %v \n #statement-1 1-megabit-match \n if community is-empty then \n pass \n elseif community in %v then \n set extcommunity bandwidth %v \n endif \n pass \n #statement-2 accept_all_routes \n done \n  end-policy", "not_match_100_set_linkbw_1M", "regex_match_comm100", "linkbw_1M")
+			policySetCLIConfig := fmt.Sprintf(
+				"route-policy %v \n"+
+					" #statement-1 1-megabit-match \n"+
+					" if community in %v then \n"+
+					"  set extcommunity bandwidth %v \n"+
+					" endif \n"+
+					" pass \n"+
+					" #statement-2 accept_all_routes \n"+
+					" done \n"+
+					"end-policy",
+				"not_match_100_set_linkbw_1M",
+				"regex_match_comm100",
+				"linkbw_1M",
+			)
 			helpers.GnmiCLIConfig(t, dut, communityCLIConfig)
 			helpers.GnmiCLIConfig(t, dut, policySetCLIConfig)
 		default:
