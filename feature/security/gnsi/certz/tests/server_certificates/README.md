@@ -27,6 +27,10 @@ Be prepared to load the relevant trust_bundle.pem file for each test
 Certificate Authority(CA) under test on the DUT. Each CA has an RSA and ECDSA
 form, both must be tested.
 
+## TODO:Perform this for the permutations of 20000 CA due to longer 
+## TODO:trust_bundle configurations: ( 20000 CA testdata)
+## impacts runtime of the tests for certificate generation
+
 ## Tests
 
 ### Certz-2.1
