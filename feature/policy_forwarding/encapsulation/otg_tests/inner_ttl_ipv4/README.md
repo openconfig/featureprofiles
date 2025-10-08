@@ -187,7 +187,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1,                         
+                          "ip-ttl": 1
                         }
                       }
                     },
@@ -204,7 +204,7 @@ Verify:
                       "action": {
                         "config": {
                           "next-hop-group": "NHG-1",
-                          "ip-ttl": 1,                        
+                          "ip-ttl": 1
                         }
                       }
                     }
@@ -382,7 +382,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/config/identifier:
   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
+  # /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name: # TODO: currently dont have support
 
 
 rpcs:
