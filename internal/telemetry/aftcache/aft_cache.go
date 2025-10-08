@@ -737,7 +737,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			}
 			logDuration(checkNHStart, "Check Next Hops")
 			if nCorrect != nPrefixes {
-				t.Logf("AssertNextHopCount: Next hop count validation failed. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
+				t.Logf("AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
 				return false, nil
 			}
 			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
