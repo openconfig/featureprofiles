@@ -32,7 +32,7 @@ const (
 	dirPath = "../../test_data/"
 )
 
-// DUTCredentialer is an interface for getting credentials from a DUT bindin
+// DUTCredentialer is an interface for getting credentials from a DUT binding
 type DUTCredentialer interface {
 	RPCUsername() string
 	RPCPassword() string
@@ -41,7 +41,7 @@ type DUTCredentialer interface {
 var (
 	testProfile    = "newprofile"
 	serverAddr     string
-	expectedResult bool = true
+	expectedResult = true
 )
 
 func TestMain(m *testing.M) {
@@ -75,7 +75,6 @@ func TestServerCert(t *testing.T) {
 	if setupService.CertGeneration(t, dirPath) != nil {
 		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
 	}
-	time.Sleep(2 * time.Second)
 	certzClient := gnsiC.Certz()
 	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
@@ -184,7 +183,7 @@ func TestServerCert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
+			serverSAN:= setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
@@ -200,19 +199,19 @@ func TestServerCert(t *testing.T) {
 			}
 			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
 			//Load Client certificate
-			newclientcert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
+			newClientCert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
 			if err != nil {
 				t.Fatalf("Failed to load  client cert: %v", err)
 			}
 			//Certz Rotation in progress
-			success := setupService.CertzRotate(ctx, t, newcacert, certzClient, newclientcert, dut, username, password, san, serverAddr, testProfile, tc.mismatch, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(ctx, t, newcacert, certzClient, newClientCert, dut, username, password, san, serverAddr, testProfile, tc.mismatch, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s:STATUS: Certz rotation failed.", tc.desc)
 			}
 			t.Logf("%s:STATUS: Certz rotation completed!", tc.desc)
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate ", func(t *testing.T) {
-				result := setupService.PostValidationCheck(t, newcacert, expectedResult, san, serverAddr, username, password, newclientcert, tc.mismatch)
+				result := setupService.PostValidationCheck(t, newcacert, expectedResult, serverSAN, serverAddr, username, password, newclientcert, tc.mismatch)
 				if !result {
 					t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, expectedResult)
 				}
