@@ -62,6 +62,7 @@ type OcPolicyForwardingParams struct {
 	RwTTL             int
 	PolicyForwardName string
 	NHGName           string
+	RemovePolicy      bool
 }
 
 type PolicyForwardingRule struct {
@@ -349,7 +350,14 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 	if deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if params.ChangeCli {
+			if params.RemovePolicy {
+				removeCmd := fmt.Sprintf(`
+				Traffic-policies
+				  no traffic-policy %s
+				`, params.PolicyForwardName)
+				helpers.GnmiCLIConfig(t, dut, removeCmd)
+				return
+			} else if params.ChangeCli {
 				switch traffictype {
 				case "ipv4":
 					policyForwardingConfigv4Vrf := fmt.Sprintf(`

@@ -53,6 +53,8 @@ const (
 	IPv4TunnelDstB   = "10.100.102.1"
 	IPv4RoutePfx1    = "10.100.101.0/24"
 	IPv4RoutePfx2    = "10.100.102.0/24"
+	vrfIPv4Prefix    = "0.0.0.0/0"
+	vrfIPv6Prefix    = "::/0"
 	mplsLabel        = 100
 	srcIPCount       = 100
 	dstIPcount       = 10
@@ -116,7 +118,7 @@ func TestMain(m *testing.M) {
 func TestIngressInnerPktTTL(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	configureDUT(t, dut)
+	batch := configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
 	otg := ate.OTG()
 	configPush(t, otg, otgConfig)
@@ -129,6 +131,8 @@ func TestIngressInnerPktTTL(t *testing.T) {
 		matchSrcNet   string
 		unMatchSrcNet string
 		dstNet        string
+		protoStr      string
+		vrfIPPrefix   string
 		matchTTL      int
 		unMatchTTL    int
 	}{
@@ -140,6 +144,8 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			dstNet:        v4DstNet,
 			matchTTL:      matchTTL,
 			unMatchTTL:    unMatchTTL,
+			vrfIPPrefix:   vrfIPv4Prefix,
+			protoStr:      "ip",
 		},
 		{
 			name:          "IPv6 TTL Rewrite Verification",
@@ -149,6 +155,8 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			dstNet:        v6DstNet,
 			matchTTL:      matchTTL,
 			unMatchTTL:    unMatchTTL,
+			vrfIPPrefix:   vrfIPv6Prefix,
+			protoStr:      "ipv6",
 		},
 	}
 
@@ -161,17 +169,17 @@ func TestIngressInnerPktTTL(t *testing.T) {
 
 			// --- Matched case ---
 			ocPFParams.TTL = tc.matchTTL
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
 
-			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tunnelIPTTL))
+			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL+1))
 			configPush(t, otg, otgConfig)
 			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, tc.matchTTL)
 
 			// --- Unmatched case ---
-			ocPFParams.TTL = tc.unMatchTTL
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
-
-			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tunnelIPTTL))
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
+			configureVRFStaticRoute(t, dut, batch, vrfName, tc.vrfIPPrefix, nexthopGroupName, tc.protoStr)
+			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL+1))
 			configPush(t, otg, otgConfig)
 			otgOperation(t, dut, ate, otg, otgConfig, unMatchFlow, tc.family, tc.unMatchTTL)
 		})
@@ -231,7 +239,7 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 }
 
 // configureDUT orchestrates the entire DUT configuration.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Helper()
 	t.Logf("Configuring Hardware Init")
 	batch := &gnmi.SetBatch{}
@@ -257,6 +265,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		configureStaticRoute(t, dut, batch, r.prefix, r.indx, r.nextIP)
 	}
 	batch.Set(t, dut)
+
+	return batch
 }
 
 // configureDUTLag configures a LAG (Port-Channel) interface on the DUT, assigns its member interfaces, and applies IPv4/IPv6 addressing. It supports both untagged (default) and VLAN-tagged subinterfaces.
@@ -383,13 +393,27 @@ func clearLAGInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 // configureStaticRoute installs a static IPv4 route on the DUT.
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, ipRoutePfx, indx, nxtIP string) {
 	t.Helper()
-	sV4 := &cfgplugins.StaticRouteCfg{
+	staticRoute := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          ipRoutePfx,
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{indx: oc.UnionString(nxtIP)},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(batch, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route: %v", err)
+	if _, err := cfgplugins.NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
+		t.Fatalf("Failed to configure static routes: %v", err)
+	}
+}
+
+// configureVRFStaticRoute installs a static IPv4 route on the DUT.
+func configureVRFStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, vrfStr, ipRoutePfx, nxtHGName, protoStr string) {
+	t.Helper()
+	staticRoute := &cfgplugins.StaticVRFRouteCfg{
+		NetworkInstance: vrfStr,
+		Prefix:          ipRoutePfx,
+		NextHopGroup:    nxtHGName,
+		ProtocolStr:     protoStr,
+	}
+	if _, err := cfgplugins.NewStaticVRFRoute(t, batch, staticRoute, dut); err != nil {
+		t.Fatalf("Failed to configure VRF static routes: %v", err)
 	}
 }
 

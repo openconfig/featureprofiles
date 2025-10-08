@@ -153,11 +153,6 @@ Verify:
     inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 ## Canonical OC
-**[TODO]**: Add MATCH_ACTION policy-forwarding type to OpenConfig Public data
-            models.
-
-**[TODO]**: Add ip-ttl policy-forwarding action to OpenConfig Public data
-            models, pending https://github.com/openconfig/public/pull/1313.
 
 ```json
 {
@@ -191,7 +186,8 @@ Verify:
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "NHG-1",                          
+                          "next-hop-group": "NHG-1",
+                          "ip-ttl": 1,                         
                         }
                       }
                     },
@@ -207,7 +203,8 @@ Verify:
                       },
                       "action": {
                         "config": {
-                          "next-hop-group": "NHG-1",                          
+                          "next-hop-group": "NHG-1",
+                          "ip-ttl": 1,                        
                         }
                       }
                     }
@@ -369,7 +366,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
-  # /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:  # See TODO
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:
 
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
@@ -385,7 +382,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/config/identifier:
   /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  # /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
 
 
 rpcs:
