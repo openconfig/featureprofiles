@@ -470,14 +470,14 @@ func GnsiAuthzRotate(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.Di
 	for {
 		_, err := gnsiCStream.Recv()
 		switch {
-		case err != nil :
+		case err != nil:
 			if strings.Contains(err.Error(), "invalid policy") || status.Code(err) == codes.InvalidArgument || strings.Contains(err.Error(), "InvalidArgument") {
 				return nil
 			}
-		        return err
-		case err == io.EOF :
 			return err
-	        }
+		case err == io.EOF:
+			return err
+		}
 	}
 }
 
@@ -616,13 +616,13 @@ func GribiModify(ctx context.Context, dut *ondatra.DUTDevice, opts []grpc.DialOp
 	for {
 		msg, err := mStream.Recv()
 		switch {
-		case err == io.EOF  :
+		case err == io.EOF:
 			return nil
-		case err != nil :
+		case err != nil:
 			return err
-		case err == nil && msg.SessionParamsResult != nil :
+		case err == nil && msg.SessionParamsResult != nil:
 			return err
-	        }
+		}
 	}
 }
 
