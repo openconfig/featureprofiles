@@ -1,4 +1,4 @@
-# PF-1.9 Egress handling of TTL
+# PF-1.9: Egress handling of TTL
 
 ## Summary
 
@@ -278,9 +278,7 @@ Verify:
 
 *   Repeat `PF-1.9.16` using IPv6oMPLSoUDP (GUE Variant 1)
 
-
-## Canonical OpenConfig
-
+## Canonical OC
 ```json
 {
     "network-instances": {

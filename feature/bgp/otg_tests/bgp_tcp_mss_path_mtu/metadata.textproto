@@ -24,6 +24,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     isis_interface_afi_unsupported: true
+    fr_breakout_fix: true
   }
 }
 platform_exceptions: {

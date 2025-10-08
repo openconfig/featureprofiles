@@ -50,3 +50,4 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: false
   }
 }
+tags: TAGS_TRANSIT

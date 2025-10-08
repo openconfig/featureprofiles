@@ -1,0 +1,19 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "387879f4-785f-4f95-9132-33c611f19d2c"
+plan_id:  "SR-1.2"
+description:  "Egress Node Forwarding for MPLS traffic with Explicit Null label"
+testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations:  {
+    isis_instance_enabled_required:  true
+    interface_enabled:  true
+    default_network_instance:  "default"
+    isis_interface_afi_unsupported:  true
+    isis_srgb_srlb_unsupported:  true
+  }
+}
