@@ -262,8 +262,8 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 
 // InterfacelocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
-// are applied
-func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+// are applied.
+func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
 	if deviations.LocalProxyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -280,13 +280,24 @@ func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, params
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'local-proxy-arp'", dut.Vendor())
 		}
+		return nil
+	} else {
+		ocInterface := &oc.Interface{}
+		for i, a := range params.Interfaces {
+			s := ocInterface.GetOrCreateSubinterface(a.Subinterface)
+			b4 := s.GetOrCreateIpv4()
+			parp := b4.GetOrCreateProxyArp()
+			parp.SetMode(oc.E_ProxyArp_Mode(3))
+			gnmi.BatchUpdate(sb, gnmi.OC().Interface(a.Name).Subinterface(uint32(i)).Config(), s)
+		}
+		return sb
 	}
 }
 
 // InterfaceQosClassificationConfigScale configures qos-classification on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
-// are applied
-func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+// are applied.
+func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
 	if deviations.QosClassificationOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -301,13 +312,21 @@ func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice,
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
 		}
+		return nil
+	} else {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		ni.GetOrCreatePolicyForwarding()
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+		return sb
 	}
 }
 
 // InterfacePolicyForwardingConfigScale configures policy forwarding on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
-// are applied
-func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+// are applied.
+func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) *gnmi.SetBatch {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
@@ -328,9 +347,16 @@ func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, 
 			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
+		return nil
 	} else {
-		ApplyPolicyToInterfaceOC(t, pf, params.InterfaceID, params.AppliedPolicyName)
-
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		pf := ni.GetOrCreatePolicyForwarding()
+		iface := pf.GetOrCreateInterface(params.InterfaceID)
+		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+		return sb
 	}
 }
 
@@ -446,8 +472,8 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 
 // PolicyForwardingConfigScale configures policy forwarding using multiple traffic-policies.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
-// are applied
-func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, encapparams OCEncapsulationParams, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+// are applied.
+func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) *gnmi.SetBatch {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
@@ -457,7 +483,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, encappara
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			var PolicyForwardingConfig strings.Builder
 
-			PolicyForwardingConfig.WriteString("Traffic-policies\n")
+			PolicyForwardingConfig.WriteString("traffic-policies\n")
 
 			for i := 1; i <= encapparams.Count; i++ {
 
@@ -498,10 +524,21 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, encappara
 			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
+		return nil
 	} else {
-
-		RulesAndActions(params, pf)
-
+		var ruleSeq uint32 = 1
+		for i := 1; i <= encapparams.Count; i++ {
+			// https://partnerissuetracker.corp.google.com/issues/417988636
+			//  pols := pf.GetOrCreatePolicy(fmt.Sprintf("tp_cloud_id_3_%d", i))
+			// rule := pols.GetOrCreateRule(ruleSeq)
+			// rule.GetOrCreateAction().Count = ygot.Bool(true)
+			// groupName := fmt.Sprintf("V4_vlan_3_%d", i)
+			// rule.GetOrCreateAction().SetNextHopGroup(groupName)
+			// rule.GetOrCreateAction().SetTtl(1)
+		}
+		ruleSeq++
+		gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+		return sb
 	}
 }
 

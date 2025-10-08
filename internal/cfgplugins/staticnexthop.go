@@ -8,6 +8,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -170,7 +171,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 }
 
 // NextHopGroupConfigScale configures the interface next-hop-group config.
-func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, encapparams OCEncapsulationParams, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, ni *oc.NetworkInstance, params StaticNextHopGroupParams) *gnmi.SetBatch {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -199,9 +200,27 @@ nexthop-group %s%d type mpls-over-gre
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
+		return nil
 	} else {
-		configureNextHopGroups(t, ni, params)
+		ipPrefix := strings.Join(strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")[:3], ".")
+		for i := 1; i <= encapparams.Count; i++ {
+			nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup("MPLS_in_GRE_Encap")
+			nhg.GetOrCreateNextHop("Dest A-NH1").SetIndex("Dest A-NH1")
+			ni.GetOrCreateStatic().
+				GetOrCreateNextHop("Dest A-NH1").
+				SetNextHop(oc.UnionString(fmt.Sprintf("%s.%d", ipPrefix, i)))
+
+			eh := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+			ueh := eh.GetOrCreateUdpV4()
+			ueh.SetSrcIp(encapparams.GRETunnelSources[i])
+			ueh.SetDstIp(fmt.Sprintf("%s.%d", ipPrefix, i))
+
+			// https://partnerissuetracker.corp.google.com/issues/417988636
+			// ueh.GetOrCreateMpls().Label.Set(encapparams.MPLSStaticLabels[i])
+		}
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 	}
+	return sb
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.

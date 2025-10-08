@@ -37,6 +37,7 @@ const (
 	intStepV4                    = "0.0.0.4"
 	intStepV6                    = "0:0:0:1::"
 	greTunnelDestinationsStartIP = "10.99.1.1"
+	trafficDuration              = 20 * time.Second
 )
 
 var (
@@ -168,6 +169,7 @@ var (
 	}
 )
 
+// configureOTG configures the OTG interfaces and pushes the configuration.
 func configureOTG(t *testing.T) {
 	t.Helper()
 	top.Captures().Clear()
@@ -191,6 +193,7 @@ type networkConfig struct {
 	otgIPsV6 []string
 }
 
+// generateNetConfig generates IPv4 and IPv6 network configurations for DUT and OTG.
 func generateNetConfig(intCount int) (*networkConfig, error) {
 	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, intStepV4)
 	if err != nil {
@@ -223,14 +226,13 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 	}, nil
 }
 
-// PF-1.15.1: Generate DUT Configuration
-// Modified to create and pass OC root, ni, pf
+// configureDut configures DUT interfaces, static routes, and MPLS-in-GRE encapsulation.
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
 	for i := range encapParams.Count {
-		iface := &attrs.Attributes{
+		interfaces = append(interfaces, &attrs.Attributes{
 			Desc:         "Customer_connect",
 			MTU:          1500,
 			IPv4:         netConfig.dutIPs[i],
@@ -238,23 +240,23 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 			IPv6:         netConfig.dutIPsV6[i],
 			IPv6Len:      126,
 			Subinterface: uint32(i + 1),
-		}
-		interfaces = append(interfaces, iface)
+		})
 	}
 
 	configureInterfaces(t, dut, custPorts, interfaces, aggID)
 	configureInterfacePropertiesScale(t, dut, aggID, ocPFParams, interfaces)
 	aggID = netutil.NextAggregateInterface(t, dut)
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
-	configureStaticRoute(t, dut)
+	mustConfigureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
 	encapMPLSInGRE(t, dut, pf, ni, encapParams, ocPFParams, ocNHGParams)
 
 }
 
-func TestSetup(t *testing.T) {
-	t.Log("PF-1.15.1: Generate DUT Configuration")
+// mustConfigureSetup sets up the DUT and OTG configuration including encapsulation parameters.
+func mustConfigureSetup(t *testing.T) {
+	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
@@ -300,10 +302,9 @@ func TestSetup(t *testing.T) {
 		}
 		return r
 	}()
-	var interfaces []*otgconfighelpers.InterfaceProperties
 
 	for i := range ocEncapParams.Count {
-		iface := &otgconfighelpers.InterfaceProperties{
+		agg1.Interfaces = append(agg1.Interfaces, &otgconfighelpers.InterfaceProperties{
 			Name:        fmt.Sprintf("agg1port%d", i+1),
 			IPv4:        netConfig.otgIPs[i],
 			IPv4Gateway: netConfig.dutIPs[i],
@@ -313,11 +314,8 @@ func TestSetup(t *testing.T) {
 			IPv6Gateway: netConfig.dutIPsV6[i],
 			IPv6Len:     126,
 			MAC:         netConfig.otgMACs[i],
-		}
-		interfaces = append(interfaces, iface)
+		})
 	}
-
-	agg1.Interfaces = interfaces
 
 	// Pass ocPFParams to ConfigureDut
 	configureDut(t, dut, netConfig, ocEncapParams, ocPFParams, ocNHGParams)
@@ -355,78 +353,49 @@ func fetchDefaultOCEncapParams() cfgplugins.OCEncapsulationParams {
 	return cfgplugins.OCEncapsulationParams{}
 }
 
+// configureInterfacePropertiesScale configures interface properties for scale testing.
 func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, aggID string, ocPFParams cfgplugins.OcPolicyForwardingParams, interfaces []*attrs.Attributes) {
 	t.Helper()
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
 	ocPFParams.Interfaces = interfaces
 	ocPFParams.AggID = aggID
-	cfgplugins.InterfacelocalProxyConfigScale(t, dut, ocPFParams)
-	cfgplugins.InterfaceQosClassificationConfigScale(t, dut, ocPFParams)
-	cfgplugins.InterfacePolicyForwardingConfigScale(t, dut, pf, ocPFParams)
+	b := new(gnmi.SetBatch)
+	cfgplugins.InterfacelocalProxyConfigScale(t, dut, b, ocPFParams)
+	cfgplugins.InterfaceQosClassificationConfigScale(t, dut, b, ocPFParams)
+	cfgplugins.InterfacePolicyForwardingConfigScale(t, dut, b, pf, ocPFParams)
+	b.Set(t, dut)
 }
 
-// encapMPLsInGre function helps in configurating MPLSinGRE commands in the DUT
+// encapMPLSInGRE configures MPLS-in-GRE encapsulation on the DUT.
 func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
-	cfgplugins.NextHopGroupConfigScale(t, dut, encapParams, ni, ocNHGParams)
-	cfgplugins.PolicyForwardingConfigScale(t, dut, encapParams, pf, ocPFParams)
+	b := new(gnmi.SetBatch)
+	cfgplugins.NextHopGroupConfigScale(t, dut, b, encapParams, ni, ocNHGParams)
+	cfgplugins.PolicyForwardingConfigScale(t, dut, b, encapParams, pf, ocPFParams)
+	b.Set(t, dut)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
 		pushPolicyForwardingConfig(t, dut, ni)
 	}
 }
 
-// TestMPLSOGREEncapIPv4 tests MPLSOGRE Encap test case for IPv4 flow.
-func TestMPLSOGREEncapIPv4(t *testing.T) {
-	ate := ondatra.ATE(t, "ate")
-	t.Log("PF-1.15.2: Verify PF MPLSoGRE encapsulate action for IPv4/IPv6 traffic")
-	createFlow(top, flowIPv4, true)
-	createFlow(top, flowIPv6, false)
-	sendTraffic(t, ate)
-
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("Validation on flows failed (): %q", err)
-	}
-	if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
-		t.Errorf("Validation on flows failed (): %q", err)
-	}
-	flowIPv4.VLANFlow.VLANId = 20
-	flowIPv4.VLANFlow.VLANCount = 0
-	flowIPv4.IPv4Flow.RawPriority = 1
-	flowIPv4.IPv4Flow.RawPriorityCount = 0
-	flowIPv4.PacketsToSend = 1000
-
-	createFlow(top, flowIPv4, true)
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, encapPacketValidation)
-	sendTrafficCapture(t, ate)
-
-	defer packetvalidationhelpers.ClearCapture(t, top, ate)
-	if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
-		packetvalidationhelpers.ClearCapture(t, top, ate)
-		t.Errorf("Validation on flows failed (): %q", err)
-	}
-
-	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapPacketValidation); err != nil {
-		packetvalidationhelpers.ClearCapture(t, top, ate)
-		t.Errorf("Capture And ValidatePackets Failed (): %q", err)
-	}
-}
-
-func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+// mustSendTraffic sends traffic using OTG and waits for the configured duration.
+func mustSendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
 	ate.OTG().StartTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(30 * time.Second)
 }
 
+// createFlow creates and configures a traffic flow in the OTG configuration.
 func createFlow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool) {
 	if clearFlows {
 		top.Flows().Clear()
@@ -448,6 +417,7 @@ func createFlow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows b
 	}
 }
 
+// configureInterfaces configures aggregate interfaces and subinterfaces on the DUT.
 func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string, subinterfaces []*attrs.Attributes, aggID string) {
 	t.Helper()
 	d := gnmi.OC()
@@ -465,8 +435,6 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	lacpPath := d.Lacp().Interface(aggID)
 	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
 	gnmi.Replace(t, dut, lacpPath.Config(), lacp)
-	// TODO - to remove this sleep later
-	time.Sleep(5 * time.Second)
 
 	agg := &oc.Interface{Name: ygot.String(aggID)}
 	configDUTInterface(agg, subinterfaces, dut)
@@ -486,6 +454,7 @@ func configureInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []string
 	}
 }
 
+// configDUTInterface sets up interface configuration including subinterfaces and IP addressing.
 func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut *ondatra.DUTDevice) {
 	for _, a := range subinterfaces {
 		i.Description = ygot.String(a.Desc)
@@ -510,6 +479,7 @@ func configDUTInterface(i *oc.Interface, subinterfaces []*attrs.Attributes, dut 
 	}
 }
 
+// configureInterfaceAddress configures IPv4 and IPv6 addresses on a subinterface.
 func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterface, a *attrs.Attributes) {
 	s4 := s.GetOrCreateIpv4()
 	if deviations.InterfaceEnabled(dut) {
@@ -536,9 +506,10 @@ func configureInterfaceAddress(dut *ondatra.DUTDevice, s *oc.Interface_Subinterf
 	}
 }
 
-func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
+// mustConfigureStaticRoute configures a static IPv4 route on the DUT.
+func mustConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	b := &gnmi.SetBatch{}
+	b := new(gnmi.SetBatch)
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          "10.99.1.0/24",
@@ -552,19 +523,95 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 }
 
-func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
+// mustSendTrafficCapture sends traffic and captures packets for validation.
+func mustSendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
+	}
 	cs := packetvalidationhelpers.StartCapture(t, ate)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(trafficDuration)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(20 * time.Second)
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
+// pushPolicyForwardingConfig pushes the policy forwarding configuration to the DUT.
 func pushPolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance) {
 	t.Helper()
 	niPath := gnmi.OC().NetworkInstance(ni.GetName()).Config()
 	gnmi.Replace(t, dut, niPath, ni)
+}
+
+func TestMPLSOGREEncapScale(t *testing.T) {
+	ate := ondatra.ATE(t, "ate")
+	mustConfigureSetup(t)
+
+	tests := []struct {
+		name             string
+		setupFlows       func()
+		validateLoss     func(*testing.T, *ondatra.ATEDevice) error
+		packetValidation bool
+	}{
+		{
+			name: "IPv4 & IPv6 Flow Validation",
+			setupFlows: func() {
+				createFlow(top, flowIPv4, true)
+				createFlow(top, flowIPv6, false)
+			},
+			validateLoss: func(t *testing.T, ate *ondatra.ATEDevice) error {
+				if err := flowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+					return fmt.Errorf("ipv4 flow validation failed: %v", err)
+				}
+				if err := flowIPv6Validation.ValidateLossOnFlows(t, ate); err != nil {
+					return fmt.Errorf("ipv6 flow validation failed: %v", err)
+				}
+				return nil
+			},
+			packetValidation: false,
+		},
+		{
+			name: "IPv4 Flow with Packet Capture",
+			setupFlows: func() {
+				flowIPv4.VLANFlow.VLANId = 20
+				flowIPv4.VLANFlow.VLANCount = 0
+				flowIPv4.IPv4Flow.RawPriority = 1
+				flowIPv4.IPv4Flow.RawPriorityCount = 0
+				flowIPv4.PacketsToSend = 1000
+				createFlow(top, flowIPv4, true)
+			},
+			validateLoss:     flowIPv4Validation.ValidateLossOnFlows,
+			packetValidation: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tc.setupFlows()
+
+			if tc.packetValidation {
+				packetvalidationhelpers.ConfigurePacketCapture(t, top, encapPacketValidation)
+				mustSendTrafficCapture(t, ate)
+				defer packetvalidationhelpers.ClearCapture(t, top, ate)
+			} else {
+				mustSendTraffic(t, ate)
+			}
+
+			if err := tc.validateLoss(t, ate); err != nil {
+				t.Errorf("validation on flows failed: %q", err)
+				if tc.packetValidation {
+					packetvalidationhelpers.ClearCapture(t, top, ate)
+				}
+			}
+
+			if tc.packetValidation {
+				if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, encapPacketValidation); err != nil {
+					packetvalidationhelpers.ClearCapture(t, top, ate)
+					t.Errorf("capture and validatepackets failed: %q", err)
+				}
+			}
+		})
+	}
 }
