@@ -39,7 +39,7 @@ type DUTCredentialer interface {
 }
 
 var (
-	testProfile    = "newprofile2"
+	testProfile    = "newprofile3"
 	serverAddr     string
 	expectedResult = true
 )
@@ -72,9 +72,9 @@ func TestServerCert(t *testing.T) {
 	}
 	t.Logf("%s Precheck:gNSI connection is successful %v", time.Now().String(), gnsiC)
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	//if setupService.CertGeneration(t, dirPath) != nil {
-	//	t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
-	//}
+	if setupService.CertGeneration(t, dirPath) != nil {
+		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
+	}
 	certzClient := gnsiC.Certz()
 	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
@@ -104,6 +104,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
+			cversion:        "certz1",
+			bversion:        "bundle1",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1 CA configuration",
@@ -112,6 +114,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
+			cversion:        "certz2",
+			bversion:        "bundle2",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of rsa keytype with 2 CA configuration",
@@ -120,6 +124,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-rsa-a-key.pem",
+			cversion:        "certz3",
+			bversion:        "bundle3",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 2 CA configuration",
@@ -128,6 +134,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-02/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-02/client-ecdsa-a-key.pem",
+			cversion:        "certz4",
+			bversion:        "bundle4",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of rsa keytype with 10CA configuration",
@@ -136,6 +144,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_rsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-rsa-a-key.pem",
+			cversion:        "certz5",
+			bversion:        "bundle5",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 10CA configuration",
@@ -144,6 +154,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-10/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-10/client-ecdsa-a-key.pem",
+			cversion:        "certz6",
+			bversion:        "bundle6",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of rsa keytype with 1000CA configuration",
@@ -152,6 +164,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-rsa-a-key.pem",
+			cversion:        "certz7",
+			bversion:        "bundle7",
 		},
 		{
 			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1000CA configuration",
@@ -160,6 +174,8 @@ func TestServerCert(t *testing.T) {
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
 			clientCertFile:  dirPath + "ca-1000/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-1000/client-ecdsa-a-key.pem",
+			cversion:        "certz8",
+			bversion:        "bundle8",
 		},
 		{
 			desc:            "Certz2.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa server certificate from ca-01",
@@ -169,6 +185,8 @@ func TestServerCert(t *testing.T) {
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
 			mismatch:        true,
+			cversion:        "certz9",
+			bversion:        "bundle9",
 		},
 		{
 			desc:            "Certz2.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa server certificate from ca-01",
@@ -178,6 +196,8 @@ func TestServerCert(t *testing.T) {
 			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
 			mismatch:        true,
+			cversion:        "certz10",
+			bversion:        "bundle10",
 		},
 	}
 
@@ -219,9 +239,9 @@ func TestServerCert(t *testing.T) {
 			})
 		})
 	}
-	//t.Logf("Cleanup of test data.")
-	//if setupService.CertCleanup(t, dirPath) != nil {
-	//	t.Fatalf("could not run testdata cleanup command.")
-	//}
+	t.Logf("Cleanup of test data.")
+	if setupService.CertCleanup(t, dirPath) != nil {
+		t.Fatalf("could not run testdata cleanup command.")
+	}
 	t.Logf("STATUS: Testdata cleanup completed!")
 }
