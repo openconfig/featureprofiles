@@ -419,10 +419,10 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 			t.Log("Clearing interface counters on all the DUTs")
 			// helper.InterfaceHelper().ClearInterfaceCountersAll(t, dvtCiscoDUTList)
 
-			// Traffic flow map for v4, v6, IPinIP and IPv6inIP between R to E and E to R sites.
+			// Traffic flow map for v4, v6 traffic which is encap and decap between R to E and E to R site.
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
 			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4TunnelR2E, &v4TunnelE2R}
-			// trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
+			trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6TunnelR2E, &v6TunnelE2R}
 
 			//Get Prefix NH info for each of the DUTs in the R, E sites.
 			nhInfo := FIBNHInfo{}
