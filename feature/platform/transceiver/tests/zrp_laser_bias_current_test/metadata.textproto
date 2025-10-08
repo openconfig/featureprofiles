@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "6e374637-8d2b-4069-9b71-ffd980b8fa91"
-plan_id: "TRANSCEIVER-9 (400ZR_PLUS)"
+plan_id: "TRANSCEIVER-9.2"
 description: "Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming."
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {

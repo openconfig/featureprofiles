@@ -344,3 +344,75 @@ func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkIns
 		mplsGlobalStaticLspAttributes(t, ni, ocPFParams)
 	}
 }
+
+// MPLSSRConfigBasic holds all parameters needed to configure MPLS and SR on the DUT.
+type MPLSSRConfigBasic struct {
+	InstanceName   string
+	SrgbName       string
+	SrgbStartLabel uint32
+	SrgbEndLabel   uint32
+	SrgbID         string
+}
+
+// NewMPLSSRBasic configures MPLS on the DUT using OpenConfig.
+func NewMPLSSRBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg MPLSSRConfigBasic) {
+	if deviations.IsisSrgbSrlbUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf("mpls ip\nmpls label range isis-sr %v %v", cfg.SrgbStartLabel, cfg.SrgbEndLabel)
+		default:
+			t.Errorf("Deviation IsisSrgbSrlbUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	} else {
+		t.Helper()
+		d := &oc.Root{}
+		netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+		// Set Protocol Config
+		mpls := netInstance.GetOrCreateMpls()
+		mplsGlobal := mpls.GetOrCreateGlobal()
+
+		rlb := mplsGlobal.GetOrCreateReservedLabelBlock(cfg.SrgbName)
+
+		rlb.SetLowerBound(oc.UnionUint32(cfg.SrgbStartLabel))
+		rlb.SetUpperBound(oc.UnionUint32(cfg.SrgbEndLabel))
+
+		sr := netInstance.GetOrCreateSegmentRouting()
+		srgbConfig := sr.GetOrCreateSrgb(cfg.SrgbName)
+		srgbConfig.SetMplsLabelBlocks([]string{cfg.SrgbName})
+		srgbConfig.SetLocalId(cfg.SrgbID)
+
+		// === Add protocol subtree into the batch ===
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mpls)
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).SegmentRouting().Config(), sr)
+	}
+}
+
+// LabelRangeOCConfig configures MPLS label ranges on the DUT using OpenConfig.
+func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	mplsObj := ni.GetOrCreateMpls().GetOrCreateGlobal()
+	// Map of local-id → [lowerBound, upperBound]
+	labelRanges := map[string][2]uint32{
+		"bgp-sr":                  {16, 0},
+		"dynamic":                 {16, 0},
+		"isis-sr":                 {16, 0},
+		"l2evpn":                  {16, 0},
+		"l2evpn ethernet-segment": {16, 0},
+		"ospf-sr":                 {16, 0},
+		"srlb":                    {16, 0},
+		"static":                  {16, 1048560},
+	}
+	t.Logf("Mpls Object %v, label range %v", mplsObj, labelRanges)
+	for localID, bounds := range labelRanges {
+		rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
+		rlb.LocalId = ygot.String(localID)
+		rlb.LowerBound = oc.UnionUint32(bounds[0])
+		rlb.UpperBound = oc.UnionUint32(bounds[1])
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+}
