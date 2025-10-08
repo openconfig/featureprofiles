@@ -18,47 +18,31 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
-	"os"
 	"testing"
 	"time"
 
 	setupService "github.com/openconfig/featureprofiles/feature/security/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
-
 	certzpb "github.com/openconfig/gnsi/certz"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 )
 
 const (
 	dirPath = "../../test_data/"
 )
 
+// DUTCredentialer is an interface for getting credentials from a DUT bindin
+type DUTCredentialer interface {
+	RPCUsername() string
+	RPCPassword() string
+}
+
 var (
-	testProfile     = "newprofile2"
+	testProfile     = "newprofile"
 	serverAddr      string
-	username        = "certzuser"
-	password        = "certzpasswd"
 	expected_result bool
 )
-
-// createUser function to add an user in admin role.
-
-func createUser(t *testing.T, dut *ondatra.DUTDevice, user, pswd string) bool {
-	ocUser := &oc.System_Aaa_Authentication_User{
-		Username: ygot.String(user),
-		Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
-		Password: ygot.String(pswd),
-	}
-	res := gnmi.Update(t, dut, gnmi.OC().System().Aaa().Authentication().User(user).Config(), ocUser)
-	t.Logf("Update the user configuration:%v", res)
-	if res == nil {
-		t.Fatalf("Failed to create credentials.")
-	}
-	return true
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -68,12 +52,15 @@ func TestMain(m *testing.M) {
 // used for authentication to a device when used by a client connecting to each
 // gRPC service.
 func TestServerCert(t *testing.T) {
-
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
-	if !createUser(t, dut, username, password) {
-		t.Fatalf("%s: Failed to create certz user.", time.Now().String())
+	var creds DUTCredentialer
+	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
+		t.Fatalf("Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface", err, dut.Name())
 	}
+	username := creds.RPCUsername()
+	password := creds.RPCPassword()
+	t.Logf("Username: %s, Password: %s", username, password)
 	t.Logf("Validation of all services that are using gRPC before certz rotation.")
 	if !setupService.PreInitCheck(context.Background(), t, dut) {
 		t.Fatalf("%s: Failed in the preInit checks.", time.Now().String())
@@ -88,6 +75,7 @@ func TestServerCert(t *testing.T) {
 	if setupService.CertGeneration(t, dirPath) != nil {
 		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
 	}
+	time.Sleep(2 * time.Second)
 	certzClient := gnsiC.Certz()
 	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
@@ -106,163 +94,135 @@ func TestServerCert(t *testing.T) {
 		trustBundleFile string
 		clientCertFile  string
 		clientKeyFile   string
-		p7btrustBundle  string
 		mismatch        bool
+		cversion        string
+		bversion        string
 	}{
 		{
-			desc:            "Certz2.1:Load server certificate of rsa keytype with 1 CA configuration",
-			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-01/ca-01/trust_bundle_01_rsa.p7b",
-			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of rsa keytype with 1 CA configuration",
+			serverCertFile: dirPath + "ca-01/server-rsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-01/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-01/ca-01/trust_bundle_01_rsa.p7b",
+			clientCertFile: dirPath + "ca-01/client-rsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-01/client-rsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1 CA configuration",
-			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-01/trust_bundle_01_ecdsa.pem",
-			p7btrustBundle:  dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
-			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of ecdsa keytype with 1 CA configuration",
+			serverCertFile: dirPath + "ca-01/server-ecdsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-01/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
+			clientCertFile: dirPath + "ca-01/client-ecdsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-01/client-ecdsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of rsa keytype with 2 CA configuration",
-			serverCertFile:  dirPath + "ca-02/server-rsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-02/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_rsa.p7b",
-			clientCertFile:  dirPath + "ca-02/client-rsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-02/client-rsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of rsa keytype with 2 CA configuration",
+			serverCertFile: dirPath + "ca-02/server-rsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-02/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-02/trust_bundle_02_rsa.p7b",
+			clientCertFile: dirPath + "ca-02/client-rsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-02/client-rsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 2 CA configuration",
-			serverCertFile:  dirPath + "ca-02/server-ecdsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-02/server-ecdsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
-			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
-			clientCertFile:  dirPath + "ca-02/client-ecdsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-02/client-ecdsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of ecdsa keytype with 2 CA configuration",
+			serverCertFile: dirPath + "ca-02/server-ecdsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-02/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
+			clientCertFile: dirPath + "ca-02/client-ecdsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-02/client-ecdsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of rsa keytype with 10CA configuration",
-			serverCertFile:  dirPath + "ca-10/server-rsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-10/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-10/trust_bundle_10_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_rsa.p7b",
-			clientCertFile:  dirPath + "ca-10/client-rsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-10/client-rsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of rsa keytype with 10CA configuration",
+			serverCertFile: dirPath + "ca-10/server-rsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-10/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-10/trust_bundle_10_rsa.p7b",
+			clientCertFile: dirPath + "ca-10/client-rsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-10/client-rsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 10CA configuration",
-			serverCertFile:  dirPath + "ca-10/server-ecdsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-10/server-ecdsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-10/trust_bundle_10_ecdsa.pem",
-			p7btrustBundle:  dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
-			clientCertFile:  dirPath + "ca-10/client-ecdsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-10/client-ecdsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of ecdsa keytype with 10CA configuration",
+			serverCertFile: dirPath + "ca-10/server-ecdsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-10/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
+			clientCertFile: dirPath + "ca-10/client-ecdsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-10/client-ecdsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of rsa keytype with 1000CA configuration",
-			serverCertFile:  dirPath + "ca-1000/server-rsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-1000/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
-			clientCertFile:  dirPath + "ca-1000/client-rsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-1000/client-rsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of rsa keytype with 1000CA configuration",
+			serverCertFile: dirPath + "ca-1000/server-rsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-1000/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
+			clientCertFile: dirPath + "ca-1000/client-rsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-1000/client-rsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1000CA configuration",
-			serverCertFile:  dirPath + "ca-1000/server-ecdsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-1000/server-ecdsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_ecdsa.pem",
-			p7btrustBundle:  dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
-			clientCertFile:  dirPath + "ca-1000/client-ecdsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-1000/client-ecdsa-a-key.pem",
+			desc:           "Certz2.1:Load server certificate of ecdsa keytype with 1000CA configuration",
+			serverCertFile: dirPath + "ca-1000/server-ecdsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-1000/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
+			clientCertFile: dirPath + "ca-1000/client-ecdsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-1000/client-ecdsa-a-key.pem",
 		},
 		{
-			desc:            "Certz2.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa server certificate from ca-01",
-			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.pem",
-			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_rsa.p7b",
-			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
-			mismatch:        true,
+			desc:           "Certz2.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa server certificate from ca-01",
+			serverCertFile: dirPath + "ca-02/server-rsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-02/server-rsa-a-key.pem",
+			trustBundle:    dirPath + "ca-02/trust_bundle_02_rsa.p7b",
+			clientCertFile: dirPath + "ca-01/client-rsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-01/client-rsa-a-key.pem",
+			mismatch:       true,
 		},
 		{
-			desc:            "Certz2.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa server certificate from ca-01",
-			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
-			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.pem",
-			p7btrustBundle:  dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
-			clientCertFile:  dirPath + "ca-01/client-ecdsa-a-cert.pem",
-			clientKeyFile:   dirPath + "ca-01/client-ecdsa-a-key.pem",
-			mismatch:        true,
+			desc:           "Certz2.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa server certificate from ca-01",
+			serverCertFile: dirPath + "ca-02/server-ecdsa-a-cert.pem",
+			serverKeyFile:  dirPath + "ca-02/server-ecdsa-a-key.pem",
+			trustBundle:    dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
+			clientCertFile: dirPath + "ca-01/client-ecdsa-a-cert.pem",
+			clientKeyFile:  dirPath + "ca-01/client-ecdsa-a-key.pem",
+			mismatch:       true,
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-
 			san := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
 				ServerKeyFile:  tc.serverKeyFile})
-			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, "servercert")
-
-			trustCertChain := setupService.CreateCertChainFromTrustBundle(tc.trustBundleFile)
-			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, trustCertChain, "cabundle")
-			cert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
+			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, tc.cversion)
+			pkcs7certs, pkcs7data, err := setupService.Loadpkcs7TrustBundle(tc.trustBundleFile)
 			if err != nil {
-				t.Fatalf("%s Failed to load  client cert: %v", time.Now().String(), err)
+				t.Fatalf("failed to load trust bundle: %v", err)
 			}
-			cacert := x509.NewCertPool()
-			cacertBytes, err := os.ReadFile(tc.trustBundleFile)
+			newcacert := x509.NewCertPool()
+			for _, c := range pkcs7certs {
+				newcacert.AddCert(c)
+			}
+			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
+			//Load Client certificate
+			newclientcert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
 			if err != nil {
-				t.Fatalf("%s Failed to read ca bundle :%v", time.Now().String(), err)
+				t.Fatalf("Failed to load  client cert: %v", err)
 			}
-			if ok := cacert.AppendCertsFromPEM(cacertBytes); !ok {
-				t.Fatalf("%s Failed to parse %v", time.Now().String(), tc.trustBundleFile)
+			//Certz Rotation in progress
+			success := setupService.CertzRotate(ctx, t, newcacert, certzClient, newclientcert, dut, username, password, san, serverAddr, testProfile, tc.mismatch, &serverCertEntity, &trustBundleEntity)
+			if !success {
+				t.Fatalf("%s:STATUS: Certz rotation failed.", tc.desc)
 			}
-			switch tc.mismatch {
-			case true:
-				expected_result = false
-				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
-				if success {
-					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
+			t.Logf("%s:STATUS: Certz rotation completed!", tc.desc)
+			//Post rotate validation of all services.
+			t.Run("Verification of new connection after rotate ", func(t *testing.T) {
+				result := setupService.PostValidationCheck(t, newcacert, expectedResult, san, serverAddr, username, password, newclientcert, tc.mismatch)
+				if !result {
+					t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, expectedResult)
 				}
-				t.Logf("%s:Mismatch server certificate rotation failed as expected before finalize!", tc.desc)
-				t.Run("Verification of new connections with mismatch rotate of trustbundle.", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
-					if !result {
-						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, false)
-					}
-					t.Logf("%s postTestcase service validation done!", tc.desc)
-				})
-			case false:
-				expected_result = true
-				success := setupService.CertzRotate(ctx, t, cacert, certzClient, cert, dut, san, serverAddr, testProfile, &serverCertEntity, &trustBundleEntity)
-				if !success {
-					t.Fatalf("%s:Server Certificate rotation failed.", tc.desc)
-				}
-				t.Logf("%s:successfully completed server certificate rotation!", tc.desc)
-				// Verification check of the new connection post rotation.
-				t.Run("Verification of new connections after rotate ", func(t *testing.T) {
-					result := setupService.PostValidationCheck(t, cacert, expected_result, san, serverAddr, username, password, cert)
-					if !result {
-						t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, true)
-					}
-					t.Logf("%s postTestcase service validation done!", tc.desc)
-				})
-			}
+				t.Logf("%s:STATUS: postTestcase service validation done!", tc.desc)
+			})
 		})
-		t.Logf("PASS: %s successfully completed!", tc.desc)
 	}
 	t.Logf("Cleanup of test data.")
 	if setupService.CertCleanup(t, dirPath) != nil {
 		t.Fatalf("could not run testdata cleanup command.")
 	}
+	t.Logf("STATUS: Testdata cleanup completed!")
 }

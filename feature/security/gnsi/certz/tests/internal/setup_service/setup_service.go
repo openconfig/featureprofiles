@@ -18,7 +18,7 @@
 package setupservice
 
 import (
-	context "context"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
@@ -27,6 +27,8 @@ import (
 	"os/exec"
 	"testing"
 	"time"
+
+	"go.mozilla.org/pkcs7"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
@@ -44,18 +46,17 @@ import (
 )
 
 var (
-	username = "certzuser"
-	password = "certzpasswd"
-	sn       = "role001.pop55.net.example.com"
-	servers  []string
-	retries  int
+	sn      = "role001.pop55.net.example.com"
+	servers []string
+	retries int
 )
 
 type rpcCredentials struct {
 	*creds.UserPass
 }
 
-func (r *rpcCredentials) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+func (r *rpcCredentials) GetRequestMetadata(_ ...string) (map[string]string, error) {
+
 	return map[string]string{
 		"username": r.UserPass.Username,
 		"password": r.UserPass.Password,
@@ -66,18 +67,32 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 	return true
 }
 
+// DUTCredentialer is an interface for getting credentials from a DUT binding.
+type DUTCredentialer interface {
+	RPCUsername() string
+	RPCPassword() string
+}
+
 type entityType int8
 
 const (
 	// EntityTypeCertificateChain is type of entity of the certificate chain.
-	EntityTypeCertificateChain entityType = 0
+	EntityTypeCertificateChain entityType = 1
 	// EntityTypeTrustBundle is type of entity of the trust bundle.
-	EntityTypeTrustBundle entityType = 1
+	EntityTypeTrustBundle entityType = 2
 	// EntityTypeCRL is type of entity of the CRL.
-	EntityTypeCRL entityType = 2
+	EntityTypeCRL entityType = 3
 	// EntityTypeAuthPolicy is type of entity of the auth policy.
-	EntityTypeAuthPolicy entityType = 3
+	EntityTypeAuthPolicy entityType = 4
 )
+
+// CertificateChainRequest is an input argument for the  type definition for the CreateCertzChain.
+type CertificateChainRequest struct {
+	RequestType     entityType
+	ServerCertFile  string
+	ServerKeyFile   string
+	TrustBundleFile string
+}
 
 // CreateCertzEntity function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
 func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any, entityVersion string) certzpb.Entity {
@@ -98,7 +113,7 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 		return certzpb.Entity{
 			Version:   entityVersion,
 			CreatedOn: varClock,
-			Entity:    &certzpb.Entity_TrustBundle{TrustBundle: entityContent.(*certzpb.CertificateChain)}}
+			Entity:    &certzpb.Entity_TrustBundlePkcs7{TrustBundlePkcs7: &certzpb.TrustBundle{Pkcs7Block: entityContent.(string)}}}
 
 	case EntityTypeCRL:
 
@@ -115,17 +130,9 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 			Entity:    &certzpb.Entity_AuthenticationPolicy{AuthenticationPolicy: entityContent.(*certzpb.AuthenticationPolicy)}}
 
 	default:
-		t.Fatalf("Invalid entity type")
+		t.Fatalf("Invalid entity type %v", typeOfEntity)
 	}
 	return certzpb.Entity{}
-}
-
-// CertificateChainRequest is an input argument for the  type definition for the  CreateCertzChain.
-type CertificateChainRequest struct {
-	RequestType     entityType
-	ServerCertFile  string
-	ServerKeyFile   string
-	TrustBundleFile string
 }
 
 // CreateCertzChain function to get the certificate chain of type certificate chain/trust bundle.
@@ -147,16 +154,18 @@ func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.Ce
 				t.Fatalf("Error reading Server Key file at: %v with error: %v", certData.ServerKeyFile, err)
 			}
 			return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				Certificate: serverCertContent,
-				PrivateKey:  serverKeyContent}, Parent: nil}
+				Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: serverKeyContent},
+				CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: serverCertContent},
+			}, Parent: nil}
 		}
 		return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: serverCertContent,
-			PrivateKey:  nil}, Parent: nil}
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			PrivateKeyType:  nil,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: serverCertContent},
+		}, Parent: nil}
 
 	case EntityTypeTrustBundle:
 		if len(certData.TrustBundleFile) == 0 {
@@ -167,9 +176,10 @@ func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.Ce
 			t.Fatalf("Error reading trust bundle file at: %v with error: %v", certData.TrustBundleFile, err)
 		}
 		return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: trustBundleContent,
+			Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+			Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+			Certificate:     trustBundleContent,
+			CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: trustBundleContent},
 		}, Parent: nil}
 
 	default:
@@ -200,40 +210,53 @@ func CreateCertChainFromTrustBundle(fileName string) *certzpb.CertificateChain {
 		}
 		trust = append(trust, p)
 	}
-	//To check if trust is an empty slice
+	//a valid check for trust not empty
 	if len(trust) == 0 {
 		return &certzpb.CertificateChain{}
 	}
-	// Create the first certificate chain object
-	bundleToReturn := &certzpb.CertificateChain{
-		Certificate: &certzpb.Certificate{
-			Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
-			Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-			Certificate: trust[len(trust)-1],
-		},
-		Parent: nil,
-	}
-	prevCert := bundleToReturn
-	// Iterate over the remaining certificates to create the certificate chain
-	for i := len(trust) - 2; i >= 0; i-- {
-		parent := &certzpb.CertificateChain{
-			Certificate: &certzpb.Certificate{
+	var prevCert *certzpb.CertificateChain
+	var bundleToReturn *certzpb.CertificateChain
+	for i := len(trust) - 1; i >= 0; i-- {
+		if i == len(trust)-1 {
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
 				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
 				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
 				Certificate: trust[i],
-			},
-			Parent: prevCert,
+			}, Parent: nil}
+			prevCert = bundleToReturn
+		} else {
+			prevCert = bundleToReturn
+			bundleToReturn = &certzpb.CertificateChain{Certificate: &certzpb.Certificate{
+				Type:        certzpb.CertificateType_CERTIFICATE_TYPE_X509,
+				Encoding:    certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
+				Certificate: trust[i],
+			}, Parent: prevCert}
 		}
-		prevCert = parent
 	}
 	return bundleToReturn
 }
 
+// LoadTrustBundle reads a file that contains a PKCS#7 trust‑bundle.
+func Loadpkcs7TrustBundle(path string) ([]*x509.Certificate, []byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, nil, fmt.Errorf("reading %s: %w", path, err)
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		return nil, nil, fmt.Errorf("decoding PEM block from %s: %w", path, err)
+	}
+	p7, err := pkcs7.Parse(block.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("parsing PKCS#7: %w", err)
+	}
+	return p7.Certificates, data, nil
+}
+
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzClient certzpb.CertzClient, cert tls.Certificate, dut *ondatra.DUTDevice, san, serverAddr, profileID string, entities ...*certzpb.Entity) bool {
+func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, certzClient certzpb.CertzClient, newclientCert tls.Certificate, dut *ondatra.DUTDevice, username string, password string, san, serverAddr, profileID string, mismatch bool, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
-		t.Logf("At least one entity required for Rotate request.")
-		return false
+		t.Fatalf("At least one entity required for Rotate request.")
 	}
 	uploadRequest := &certzpb.UploadRequest{Entities: entities}
 	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
@@ -241,7 +264,7 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  rotateRequest}
-	rotateRequestClient, err := certzClient.Rotate(context.Background())
+	rotateRequestClient, err := certzClient.Rotate(ctx)
 	defer rotateRequestClient.CloseSend()
 	if err != nil {
 		t.Fatalf("Error creating rotate request client: %v", err)
@@ -251,7 +274,7 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		t.Fatalf("Error sending rotate request: %v", err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	retries = 6
+	retries = 12
 	for i := 0; i < retries; i++ {
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
@@ -261,8 +284,7 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 		time.Sleep(10 * time.Second)
 	}
 	if err != nil {
-		t.Logf("Error fetching rotate certificate response: %v", err)
-		return false
+		t.Fatalf("Error fetching rotate certificate response: %v", err)
 	}
 	t.Logf("Received Rotate certificate response: %v", rotateResponse)
 
@@ -275,38 +297,49 @@ func CertzRotate(_ context.Context, t *testing.T, caCert *x509.CertPool, certzCl
 	}
 	batch.Set(t, dut)
 	t.Logf("gNMI config is replaced with new ssl profile %s successfully.", profileID)
-	time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation
+	time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation//
+
 	success := false
 	//Trying for 60s for the connection to succeed.
 	for i := 0; i < retries; i++ {
-		success = VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
+		success = VerifyGnsi(t, newcaCert, san, serverAddr, username, password, newclientCert, mismatch)
 		if success {
 			break
 		}
-		t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
 		time.Sleep(10 * time.Second)
 	}
 	if !success {
-		t.Logf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
-		return false
+		t.Fatalf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 	}
 	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  finalizeRequest}
-
-	if err := rotateRequestClient.Send(rotateCertRequest); err != nil {
+	err = rotateRequestClient.Send(rotateCertRequest)
+	if err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
 	}
-
-	if err = rotateRequestClient.CloseSend(); err != nil {
+	err = rotateRequestClient.CloseSend()
+	if err != nil {
 		t.Fatalf("Error sending rotate close send request: %v", err)
 	}
 	return true
 }
 
 // CertGeneration function to create test data for use in TLS tests.
+// CertGeneration executes the certificate generation script "mk_cas.sh" located in the specified dir
+// It logs the execution and reports any errors encountered during the start or wait phases of the co
+// Returns an error if the certificate generation fails.
+//
+// Parameters:
+//
+//	t       - The testing context for logging and error reporting.
+//	dirPath - The directory path where the "mk_cas.sh" script is located.
+//
+// Returns:
+//
+//	error - An error if the certificate generation command fails, otherwise nil.
 func CertGeneration(t *testing.T, dirPath string) error {
 	cmd := exec.Cmd{
 		Path:   "./mk_cas.sh",
@@ -315,11 +348,10 @@ func CertGeneration(t *testing.T, dirPath string) error {
 	}
 	cmd.Dir = dirPath
 	t.Logf("Executing cert generation command %v.", cmd)
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		t.Fatalf("Cert generation command failed with error:%v.", err)
 	}
-	err = cmd.Wait()
+	err := cmd.Wait()
 	if err != nil {
 		t.Fatalf("Failed to run cert generation command during wait with error:%v.", err)
 	}
@@ -327,6 +359,9 @@ func CertGeneration(t *testing.T, dirPath string) error {
 }
 
 // CertCleanup function to  clean out the certificate content under test_data.
+// CertCleanup executes the "cleanup.sh" script located in the specified directory to clean up test data.
+// It logs the execution and fails the test if the command fails to start or wait.
+// Returns an error if the cleanup command fails during execution or waiting.
 func CertCleanup(t *testing.T, dirPath string) error {
 	cmd := exec.Cmd{
 		Path:   "./cleanup.sh",
@@ -335,11 +370,11 @@ func CertCleanup(t *testing.T, dirPath string) error {
 	}
 	cmd.Dir = dirPath
 	t.Logf("Executing cleanup command")
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		t.Fatalf("Testdata cleanup command failed with error:%v.", err)
 	}
-	err = cmd.Wait()
+
+	err := cmd.Wait()
 	if err != nil {
 		t.Fatalf("Testdata cleanup command failed during wait with the error:%v.", err)
 	}
@@ -347,7 +382,22 @@ func CertCleanup(t *testing.T, dirPath string) error {
 }
 
 // ReadDecodeServerCertificate function to read and decode server certificates to extract the SubjectAltName and validate.
+// ReadDecodeServerCertificate reads a PEM-encoded server certificate from the specified file,
+// decodes it, parses the x509 certificate, and returns the first DNS Subject Alternative Name (SAN).
+// It fails the test if the file does not exist, cannot be read, cannot be decoded, or the certificate
+// cannot be parsed. It also validates the SAN against an expected value and logs the SAN.
+// Parameters:
+//
+//	t - the testing context.
+//	serverCertzFile - path to the PEM-encoded certificate file.
+//
+// Returns:
+//
+//	san - the first DNS Subject Alternative Name from the certificate.
 func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san string) {
+	if _, err := os.Stat(serverCertzFile); os.IsNotExist(err) {
+		t.Fatalf("Certificate file does not exist: %v", serverCertzFile)
+	}
 	sc, err := os.ReadFile(serverCertzFile)
 	if err != nil {
 		t.Fatalf("Failed to read certificate with error: %v.", err)
@@ -369,7 +419,25 @@ func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san stri
 }
 
 // VerifyGnsi function to validate the gNSI service RPC after successful rotation.
-func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnsi establishes a gRPC connection to a gNSI server using TLS and user credentials,
+// then performs an authorization check via the Authz service. It verifies the connection
+// and response based on expected error scenarios, such as certificate mismatch or failed precondition.
+//
+// Parameters:
+//
+//	t         - The testing context.
+//	caCert    - The certificate pool containing trusted CA certificates.
+//	san       - The expected server name for TLS verification.
+//	serverAddr- The address of the gNSI server.
+//	username  - The username for authentication.
+//	password  - The password for authentication.
+//	cert      - The client TLS certificate.
+//	mismatch  - Indicates if a certificate mismatch scenario is expected.
+//
+// Returns:
+//
+//	bool - True if the connection and authorization check succeed or expected errors are observed; false otherwise.
+func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -379,8 +447,10 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
 	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Errorf("%sVerifyGnsi:gRPC NewClient failed to %q with err %v", time.Now().String(), target, err)
@@ -388,15 +458,17 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	}
 	t.Logf("Connection state: %v.", conn.GetState().String())
 	defer conn.Close()
+
 	authzClient := authzpb.NewAuthzClient(conn)
 	rsp, err := authzClient.Get(ctx, &authzpb.GetRequest{})
 	if err != nil {
 		statusError, _ := status.FromError(err)
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request with err:%v.", err)
+		} else if mismatch {
+			t.Logf("Expected error seen for mismatch scenario authz Get Request with err:%v.", err)
 		} else {
-			t.Logf("Unexpected error during authz Get Request with err:%v.", err)
-			return false
+			t.Fatalf("Unexpected error during authz Get Request with err:%v.", err)
 		}
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
@@ -405,7 +477,27 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 }
 
 // VerifyGnoi function to validate the gNOI service RPC after successful rotation.
-func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnoi attempts to establish a gRPC connection to a gNOI server using the provided TLS certificate,
+// CA certificate pool, server address, SAN, and user credentials. It sends a Ping request to verify connectivity.
+// If 'mismatch' is true, it expects the connection to fail due to certificate mismatch and logs the error;
+// otherwise, it fails the test on connection errors. Returns true if the connection and Ping succeed or if
+// a mismatch is expected and occurs.
+//
+// Parameters:
+//
+//	t         - The testing context.
+//	caCert    - The CA certificate pool for TLS verification.
+//	san       - The expected server name (SAN) for TLS verification.
+//	serverAddr- The address of the gNOI server.
+//	username  - The username for authentication.
+//	password  - The password for authentication.
+//	cert      - The client TLS certificate.
+//	mismatch  - Whether a certificate mismatch is expected.
+//
+// Returns:
+//
+//	bool - True if verification succeeds or expected mismatch occurs, false otherwise.
+func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -414,7 +506,9 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
+
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -425,16 +519,37 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	defer conn.Close()
 	sysClient := spb.NewSystemClient(conn)
 	_, err = sysClient.Ping(ctx, &spb.PingRequest{})
-	if err != nil {
-		t.Logf("Unable to connect gnoiClient %v", err)
-		return false
+
+	if err != nil && mismatch {
+		t.Logf("VerifyGnoi : Expected gNOI Ping to fail with mismatch certificates to %q with err %v", target, err)
+	} else if err != nil {
+		t.Fatalf("Unable to connect gnoiClient %v", err)
 	}
 	conn.Close()
 	return true
 }
 
 // VerifyGnmi function to validate the gNMI service RPC after successful rotation.
-func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGnmi establishes a gNMI client connection to a target server using TLS and user credentials,
+// sends a Capabilities request, and verifies the response. It supports testing certificate mismatches.
+// Returns true if the connection and request succeed, or false if the connection fails as expected when
+// mismatch is true. Logs detailed information about the connection and request process.
+//
+// Parameters:
+//
+//	t         - The testing context for logging and error reporting.
+//	caCert    - The certificate pool containing trusted CA certificates.
+//	san       - The expected server name for TLS verification.
+//	serverAddr- The address of the gNMI server.
+//	username  - The username for authentication.
+//	password  - The password for authentication.
+//	cert      - The client TLS certificate.
+//	mismatch  - If true, expects the connection to fail due to certificate mismatch.
+//
+// Returns:
+//
+//	bool - True if the connection and Capabilities request succeed, false otherwise.
+func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -444,6 +559,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -455,9 +571,10 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	gnmiClient := gnmipb.NewGNMIClient(conn)
 	t.Logf("%s:Sending gNMI Capability request.", time.Now().String())
 	response, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err != nil {
-		t.Logf("gNMI Capability request failed with err: %v", err)
-		return false
+	if err != nil && mismatch {
+		t.Logf("VerifyGnmi : Expected gRPC NewClient to fail with mismatch certificates to %q with err %v", target, err)
+	} else if err != nil {
+		t.Fatalf("gNMI Capability request failed with err: %v", err)
 	}
 	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	conn.Close()
@@ -465,7 +582,26 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 }
 
 // VerifyGribi function to validate the gRIBI service RPC after successful rotation.
-func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyGribi attempts to establish a gRPC connection to a gRIBI server using the provided
+// TLS certificate, CA certificate pool, and user credentials. It verifies the connection
+// by sending a GetRequest to the server. If the 'mismatch' flag is true, the function expects
+// the connection to fail due to certificate mismatch and logs the error; otherwise, it fails
+// the test on connection errors. Returns true if the connection and request succeed, false otherwise.
+// Parameters:
+//
+//	t         - The testing context.
+//	caCert    - The CA certificate pool for verifying the server's certificate.
+//	san       - The expected server name for TLS verification.
+//	serverAddr- The address of the gRIBI server.
+//	username  - The username for authentication.
+//	password  - The password for authentication.
+//	cert      - The client TLS certificate.
+//	mismatch  - Whether to expect a certificate mismatch (connection failure).
+//
+// Returns:
+//
+//	bool      - True if connection and request succeed, false otherwise.
+func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -475,6 +611,7 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -483,18 +620,37 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 		return false
 	}
 	defer conn.Close()
+
 	gRibiClient := gribipb.NewGRIBIClient(conn)
 	_, err = gRibiClient.Get(ctx, &gribipb.GetRequest{})
-	if err != nil {
-		t.Logf("Failed to connect GribiClient with error:%v.", err)
-		return false
+	if err != nil && mismatch {
+		t.Logf("VerifyGribi : Expected gRPC NewClient to fail with mismatch certificates to %q with err %v", target, err)
+	} else if err != nil {
+		t.Fatalf("Failed to connect GribiClient with error:%v.", err)
 	}
 	conn.Close()
 	return true
 }
 
 // VerifyP4rt function to validate the P4rt service RPC after successful rotation.
-func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate) bool {
+// VerifyP4rt establishes a gRPC connection to a P4Runtime server using TLS and user credentials,
+// verifies server capabilities, and returns true if the connection and capability check succeed.
+// It reports errors and failures using the provided testing.T instance.
+//
+// Parameters:
+//
+//	t         - The testing.T instance for reporting errors and failures.
+//	caCert    - The x509.CertPool containing trusted CA certificates.
+//	san       - The expected server name (SAN) for TLS verification.
+//	serverAddr- The address of the P4Runtime server.
+//	username  - The username for authentication.
+//	password  - The password for authentication.
+//	cert      - The client TLS certificate.
+//
+// Returns:
+//
+//	bool - true if the connection and capability check succeed; false otherwise.
+func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
 		&tls.Config{
 			Certificates: []tls.Certificate{cert},
@@ -504,6 +660,7 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -511,11 +668,13 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		t.Errorf("VerifyP4rt : gRPC NewClient failed to %q with error %v.", target, err)
 	}
 	defer conn.Close()
+
 	p4RtClient := p4rtpb.NewP4RuntimeClient(conn)
 	_, err = p4RtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
-	if err != nil {
-		t.Logf("Failed to connect P4rtClient with error %v.", err)
-		return false
+	if err != nil && mismatch {
+		t.Logf("VerifyP4rt : Expected gRPC NewClient to fail with mismatch certificates to %q with err %v", target, err)
+	} else if err != nil {
+		t.Fatalf("Failed to connect P4rtClient with error %v.", err)
 	}
 	conn.Close()
 	return true
@@ -557,28 +716,26 @@ func GetSslProfilelist(ctx context.Context, t *testing.T, certzClient certzpb.Ce
 }
 
 // PostValidationCheck function to do a validation of all services after certz rotation.
-func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate) bool {
-	t.Logf("%s:Verifying New gNSI connection.", time.Now().String())
-	result := VerifyGnsi(t, caCert, san, serverAddr, username, password, cert)
-	if expectedResult != result {
-		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expectedResult)
-	}
+func PostValidationCheck(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
 	t.Logf("%s:Verifying New gNOI connection.", time.Now().String())
-	result = VerifyGnoi(t, caCert, san, serverAddr, username, password, cert)
-	if expectedResult != result {
-		t.Fatalf("Failed with new gNOI Connection: got false, want %v", expectedResult)
+	if result := VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Fatalf("Failed with new gNOI Connection: got %v, want %v", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New gRIBI connection.", time.Now().String())
-	if expectedResult != VerifyGribi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gRIBI Connection: got false, want %v.", expectedResult)
+	if result := VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Fatalf("Failed with new gRIBI Connection: got %v, want %v.", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New P4rt connection.", time.Now().String())
-	if expectedResult != VerifyP4rt(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new P4rt Connection: got false, want %v.", expectedResult)
+	if result := VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Fatalf("Failed with new P4rt Connection: got %v, want %v.", result, expectedResult)
 	}
 	t.Logf("%s:Verifying New gNMI connection.", time.Now().String())
-	if expectedResult != VerifyGnmi(t, caCert, san, serverAddr, username, password, cert) {
-		t.Fatalf("Failed with new gNMI Connection: got false, want %v.", expectedResult)
+	if result := VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Fatalf("Failed with new gNMI Connection: got %v, want %v.", result, expectedResult)
+	}
+	t.Logf("%s:Verifying New gNSI connection.", time.Now().String())
+	if result := VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Fatalf("Failed with new gNSI Connection: got %v, want %v.", result, expectedResult)
 	}
 	return true
 }
