@@ -111,6 +111,10 @@ rpcs:
     certz.v1.Certz.AddProfile:
     certz.v1.Certz.Rotate:
 ```
+## Minimum DUT Platform Requirement
+
+vRX
+
 
 ## Canonical OC
 
@@ -121,6 +125,3 @@ rpcs:
   "description": "Canonical OC configuration for server certificates"
 }
 
-## Minimum DUT Platform Requirement
-
-vRX
