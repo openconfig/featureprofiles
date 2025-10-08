@@ -16,8 +16,11 @@ package cfgplugins
 
 import (
 	"errors"
+	"fmt"
+	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -29,6 +32,8 @@ type StaticRouteCfg struct {
 	NetworkInstance string
 	Prefix          string
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	NexthopGroup    bool
+	T               *testing.T
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
@@ -48,8 +53,25 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
-		nh := s.GetOrCreateNextHop(k)
-		nh.NextHop = v
+		if cfg.NexthopGroup {
+			if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+				switch d.Vendor() {
+				case ondatra.ARISTA:
+					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
+					helpers.GnmiCLIConfig(cfg.T, d, cli)
+
+				default:
+					cfg.T.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
+				}
+			} else {
+				ngName := fmt.Sprintf("%s", v)
+				s.GetOrCreateNextHopGroup().SetName(ngName)
+			}
+			return s, nil
+		} else {
+			nh := s.GetOrCreateNextHop(k)
+			nh.NextHop = v
+		}
 	}
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchUpdate(batch, sp.Config(), c)
