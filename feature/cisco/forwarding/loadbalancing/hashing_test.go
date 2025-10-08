@@ -235,10 +235,10 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 	cases := []testCase{
-		// {
-		// 	name: "Default",
-		// 	desc: "Default Hash parameters",
-		// },
+		{
+			name: "Default",
+			desc: "Default Hash parameters",
+		},
 		{
 			name:                  "Both auto-global",
 			desc:                  "Auto-global Hash parameters for both Extended Entropy and Algorithm Adjust options",
@@ -395,10 +395,10 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 	cases := []testCase{
-		// {
-		// 	name: "Default",
-		// 	desc: "Default Hash parameters",
-		// },
+		{
+			name: "Default",
+			desc: "Default Hash parameters",
+		},
 		{
 			name:                  "Both auto-global",
 			desc:                  "Auto-global Hash parameters for both Extended Entropy and Algorithm Adjust options",
