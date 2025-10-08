@@ -1267,15 +1267,17 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					DutAS:                         dutAS,
 					BgpNeighbors:                  bgpNeighbors,
 				}
-
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParamsERRLarge)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParamsERRLarge)
+				b.Set(t, dut)
 			},
 		},
 		{
 			name: "2_DUT_as_Helper_for_graceful_Restart",
 			fn: func(t *testing.T) {
-
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
@@ -1291,7 +1293,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			name: "3_ATE_Peer_Abrupt_Termination",
 			fn: func(t *testing.T) {
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Stop BGP on the ATE Peer")
@@ -1316,7 +1320,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			fn: func(t *testing.T) {
 
 				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
-					cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+					b := new(gnmi.SetBatch)
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+					b.Set(t, dut)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1339,7 +1345,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			name: "5_Administrative_Reset_Notification_Received_By_DUT_Graceful",
 			fn: func(t *testing.T) {
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
@@ -1356,7 +1364,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			fn: func(t *testing.T) {
 
 				if !deviations.GnoiBgpGracefulRestartUnsupported(dut) {
-					cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+					b := new(gnmi.SetBatch)
+					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+					b.Set(t, dut)
 
 					ate.OTG().StartTraffic(t)
 
@@ -1379,7 +1389,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 			name: "7_Administrative_Reset_Notification_Received_By_DUT_Hard_Reset",
 			fn: func(t *testing.T) {
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 				ate.OTG().StartTraffic(t)
 
 				t.Log("Send Graceful Restart Trigger from OTG to DUT")
@@ -1413,7 +1425,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 
 				ate.OTG().StartTraffic(t)
 
@@ -1428,7 +1442,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		{
 			name: "9_Default_Reject_Behavior",
 			fn: func(t *testing.T) {
-				cfgplugins.DeleteExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.DeleteExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 
 				t.Log("Stop BGP on the ATE Peer")
 				stopBgp := gosnappi.NewControlState()
@@ -1455,7 +1471,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		{
 			name: "10_Consecutive_BGP_Restarts",
 			fn: func(t *testing.T) {
-				cfgplugins.ApplyExtendedRouteRetention(t, dut, bgpGracefulRestartConfigParams)
+				b := new(gnmi.SetBatch)
+				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, bgpGracefulRestartConfigParams)
+				b.Set(t, dut)
 
 				ate.OTG().StartTraffic(t)
 
