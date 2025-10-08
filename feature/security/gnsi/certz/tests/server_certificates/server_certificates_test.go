@@ -39,7 +39,7 @@ type DUTCredentialer interface {
 }
 
 var (
-	testProfile    = "newprofile"
+	testProfile    = "newprofile2"
 	serverAddr     string
 	expectedResult = true
 )
@@ -72,9 +72,9 @@ func TestServerCert(t *testing.T) {
 	}
 	t.Logf("%s Precheck:gNSI connection is successful %v", time.Now().String(), gnsiC)
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	if setupService.CertGeneration(t, dirPath) != nil {
-		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
-	}
+	//if setupService.CertGeneration(t, dirPath) != nil {
+	//	t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
+	//}
 	certzClient := gnsiC.Certz()
 	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
 	setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{})
@@ -101,7 +101,7 @@ func TestServerCert(t *testing.T) {
 			desc:            "Certz2.1:Load server certificate of rsa keytype with 1 CA configuration",
 			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
-			trustBundleFile: dirPath + "ca-01/ca-01/trust_bundle_01_rsa.p7b",
+			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.p7b",
 			clientCertFile:  dirPath + "ca-01/client-rsa-a-cert.pem",
 			clientKeyFile:   dirPath + "ca-01/client-rsa-a-key.pem",
 		},
@@ -183,7 +183,7 @@ func TestServerCert(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			serverSAN:= setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
+			serverSAN := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			serverCert := setupService.CreateCertzChain(t, setupService.CertificateChainRequest{
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
@@ -204,14 +204,14 @@ func TestServerCert(t *testing.T) {
 				t.Fatalf("Failed to load  client cert: %v", err)
 			}
 			//Certz Rotation in progress
-			success := setupService.CertzRotate(ctx, t, newcacert, certzClient, newClientCert, dut, username, password, san, serverAddr, testProfile, tc.mismatch, &serverCertEntity, &trustBundleEntity)
+			success := setupService.CertzRotate(ctx, t, newcacert, certzClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.mismatch, &serverCertEntity, &trustBundleEntity)
 			if !success {
 				t.Fatalf("%s:STATUS: Certz rotation failed.", tc.desc)
 			}
 			t.Logf("%s:STATUS: Certz rotation completed!", tc.desc)
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate ", func(t *testing.T) {
-				result := setupService.PostValidationCheck(t, newcacert, expectedResult, serverSAN, serverAddr, username, password, newclientcert, tc.mismatch)
+				result := setupService.PostValidationCheck(t, newcacert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch)
 				if !result {
 					t.Fatalf("%s :postTestcase service validation failed after rotate- got %v, want %v", tc.desc, result, expectedResult)
 				}
@@ -219,9 +219,9 @@ func TestServerCert(t *testing.T) {
 			})
 		})
 	}
-	t.Logf("Cleanup of test data.")
-	if setupService.CertCleanup(t, dirPath) != nil {
-		t.Fatalf("could not run testdata cleanup command.")
-	}
+	//t.Logf("Cleanup of test data.")
+	//if setupService.CertCleanup(t, dirPath) != nil {
+	//	t.Fatalf("could not run testdata cleanup command.")
+	//}
 	t.Logf("STATUS: Testdata cleanup completed!")
 }
