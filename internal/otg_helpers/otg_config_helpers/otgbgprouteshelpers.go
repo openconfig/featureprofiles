@@ -3,7 +3,7 @@ package otgconfighelpers
 import (
 	"fmt"
 
-	"github.com/open-traffic-generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 // RoutePrefix represents an IPv4 route.

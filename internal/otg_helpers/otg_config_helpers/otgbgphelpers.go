@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-traffic-generator/gosnappi/gosnappi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 // BGPGracefulRestartAttrs defines attributes for BGP Graceful Restart.
