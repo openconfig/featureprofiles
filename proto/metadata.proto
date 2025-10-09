@@ -974,6 +974,12 @@ message Metadata {
     // Cisco: b/447513282
     bool syslog_oc_unsupported = 334;
 
+    // Device does not support to disable bgp GR-HELPER.
+    bool bgp_gr_helper_disable_unsupported = 335;
+
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 336;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
