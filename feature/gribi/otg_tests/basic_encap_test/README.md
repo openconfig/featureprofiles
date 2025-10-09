@@ -491,18 +491,9 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-fallback-network-instance:
 
   ## State paths
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
-  /interfaces/interface/tunnel/ipv4/state/enabled:
-  /interfaces/interface/tunnel/ipv4/state/counters/in-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/in-octets: 
-  /interfaces/interface/tunnel/ipv4/state/counters/in-error-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/in-forwarded-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/in-discarded-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-octets:  
-  /interfaces/interface/tunnel/ipv4/state/counters/out-error-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-forwarded-pkts:
-  /interfaces/interface/tunnel/ipv4/state/counters/out-discarded-pkts:
 rpcs:
   gnmi:
     gNMI.Set:
