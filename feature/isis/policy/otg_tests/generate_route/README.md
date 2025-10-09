@@ -72,6 +72,7 @@ TODO:
    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/advertise-aggregate = `"LOCAL-AGG"
    ```
 2. Add  a new OC path for attaching a routing-policy to ISIS to match the route.
+3. Add OC path for state verification as well.
 
 
 
@@ -285,3 +286,7 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+
+## Minimum DUT platform requirement
+
+FFF
