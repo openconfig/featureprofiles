@@ -1,0 +1,87 @@
+#**************************************************
+# Copyright (c) 2017 Cisco Systems, Inc.
+# All rights reserved.
+#**************************************************
+Value intf ([^\s]+)
+Value intf_state ([^,]+)
+Value intf_line_protocol ([^\n]+)
+Value intf_state_transitions ([^\n]+)
+Value hw ([^,]+)
+Value hw_addr ([^\n]+)
+Value internet_addr ([^\n]+)
+Value mtu ([^,]+)
+Value bw ([\s\d\w]+)
+Value max_bw ([\s\d\w]+)
+Value mtu_reliability ([^\,]+)
+Value mtu_txload ([^\,]+)
+Value mtu_rxload ([^\n]+)
+Value encapsulation ([^\,]+)
+Value loopback ([^\,]+)
+Value arp_type ([^\,]+)
+Value arp_timeout ([^\n]+)
+Value l2_overhead ([^\n]+)
+Value generic_intf_list ([^\n]+)
+Value five_min_bit_input_rate ([^\,]+)
+Value five_min_packet_input_rate ([^\n]+)
+Value five_min_bit_output_rate ([^\,]+)
+Value five_min_packet_output_rate ([^\n]+)
+Value thirty_sec_input_bps (\d+)
+Value thirty_sec_input_pps (\d+)
+Value thirty_sec_output_bps (\d+)
+Value thirty_sec_output_pps (\d+)
+Value num_bytes_input (\d+)
+Value total_input_drops (\d+)
+Value unrecognized_ul_protocol_drops (\d+)
+Value broadcast_packets_received (\d+)
+Value multicast_packets_received (\d+)
+Value runts ([0-9]+)
+Value giants ([0-9]+)
+Value throttles ([0-9]+)
+Value parity ([0-9]+)
+Value input_errors ([0-9]+)
+Value crc ([0-9]+)
+Value frame ([0-9]+)
+Value overrun ([0-9]+)
+Value ignored ([0-9]+)
+Value abort ([0-9]+)
+Value num_packets_output (\d+)
+Value num_bytes_output (\d+)
+Value total_output_drops (\d+)
+Value broadcast_packets_output (\d+)
+Value multicast_packets_output (\d+)
+Value output_errors ([0-9]+)
+Value underruns ([0-9]+)
+Value applique ([0-9]+)
+Value resets ([0-9]+)
+Value output_buffer_failures ([0-9]+)
+Value output_buffers_swapped_out ([0-9]+)
+Value carrier_transitions ([0-9]+)
+Value speed ([0-9]+)
+Value duplex (\w+)
+
+Start
+  ^${intf} is\s${intf_state}, line protocol is\s${intf_line_protocol}
+  ^\s*Interface state transitions:\s${intf_state_transitions}
+  ^\s*Hardware is\s${hw}, address is\s${hw_addr}
+  ^\s*Internet address is\s${internet_addr}
+  ^\s*MTU\s${mtu}, BW\s${bw}\s\(Max:\s${max_bw}\)
+  ^\s*reliability\s${mtu_reliability}, txload\s${mtu_txload}, rxload\s${mtu_rxload}
+  ^\s*Encapsulation\s${encapsulation},  loopback\s${loopback},
+  ^\s*${duplex}-duplex,\s${speed}Mb/s,
+  ^\s*ARP type\s${arp_type}, ARP timeout\s${arp_timeout}
+  ^\s*L2Overhead:\s${l2_overhead}
+  ^\s*Generic-Interface-List:\s${generic_intf_list}
+  ^\s*5 minute input rate\s${five_min_bit_input_rate},\s${five_min_packet_input_rate}
+  ^\s*5 minute output rate\s${five_min_bit_output_rate},\s${five_min_packet_output_rate}
+  ^\s*30\s+second\s+input\s+rate\s+${thirty_sec_input_bps}\s+bits/sec,\s+${thirty_sec_input_pps}\s+packets/sec
+  ^\s*30\s+second\s+output\s+rate\s+${thirty_sec_output_bps}\s+bits/sec,\s+${thirty_sec_output_pps}\s+packets/sec
+  ^\s*${num_packets_input}\spackets input,\s${num_bytes_input}\sbytes,\s${total_input_drops}\stotal input drops
+  ^\s*${unrecognized_ul_protocol_drops}\sdrops for unrecognized upper-level protocol
+  ^\s*Received\s${broadcast_packets_received}\sbroadcast packets,\s${multicast_packets_received}\smulticast packets
+  ^\s*${runts}\s*runts, ${giants} giants, ${throttles} throttles, ${parity} parity
+  ^\s*${input_errors}\s+input\s+errors,\s+${crc}\s+CRC,\s+${frame}\s+frame,\s+${overrun}\s+overrun,\s+${ignored}\s+ignored,\s+${abort}\s+abort
+  ^\s*${num_packets_output}\spackets output,\s${num_bytes_output}\sbytes,\s${total_output_drops}\stotal output drops
+  ^\s*Output\s${broadcast_packets_output}\sbroadcast packets,\s${multicast_packets_output}\smulticast packets
+  ^\s*${output_errors} output errors, ${underruns} underruns, ${applique} applique, ${resets} resets
+  ^\s*${output_buffer_failures} output buffer failures, ${output_buffers_swapped_out} output buffers swapped out
+  ^\s*${carrier_transitions} carrier transitions -> Record
