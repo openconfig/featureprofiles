@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -65,6 +66,29 @@ type DUTAggData struct {
 	LagName         string
 	LacpParams      *LACPParams
 	AggType         oc.E_IfAggregate_AggregationType
+}
+
+// Attributes is a type for the attributes of a port.
+type Attributes struct {
+	*attrs.Attributes
+	NumSubIntf       uint32
+	Index            uint8
+	AteISISSysID     string
+	V4Route          func(vlan int) string
+	V4ISISRouteCount uint32
+	V6Route          func(vlan int) string
+	V6ISISRouteCount uint32
+	Ip4              func(vlan int) string
+	Ip6              func(vlan int) string
+	Gateway          func(vlan int) string
+	Gateway6         func(vlan int) string
+	Ip4Loopback      func(vlan int) string
+	Ip6Loopback      func(vlan int) string
+	LagMAC   string
+	EthMAC   string
+	Port1MAC string
+	Pg4      string
+	Pg6      string
 }
 
 // PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
@@ -926,4 +950,181 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		}
 	}
 	return agg
+}
+
+// NewSubInterfaces creates the below configuration for the subinterfaces:
+func NewSubInterfaces(t *testing.T, dut *ondatra.DUTDevice, dutPorts []Attributes) {
+	t.Helper()
+	for _, dutPort := range dutPorts {
+		dutPort.configInterfaceDUT(t, dut)
+		dutPort.assignSubifsToDefaultNetworkInstance(t, dut)
+	}
+}
+
+// configInterfaceDUT configures the DUT with interface and subinterfaces.
+func (a *Attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
+	t.Helper()
+	p := d.Port(t, a.Name)
+	portName := p.Name()
+
+	if a.NumSubIntf > 1 && d.Vendor() == ondatra.ARISTA && d.Model() == "ceos" {
+		cliConfig := fmt.Sprintf("interface %s\n no switchport \n", portName)
+		helpers.GnmiCLIConfig(t, d, cliConfig)
+		t.Logf("Applied Arista cEOS specific config for %s: %s", portName, cliConfig)
+	}
+
+	var i *oc.Interface
+	if a.NumSubIntf > 1 {
+		i = &oc.Interface{
+			Name:        ygot.String(portName),
+			Description: ygot.String(a.Desc),
+			Type:        oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+			Enabled:     ygot.Bool(true),
+		}
+	} else {
+		i = a.NewOCInterface(portName, d)
+		i.Enabled = ygot.Bool(true)
+	}
+
+	ApplyEthernetConfig(t, i, p, d)
+
+	if a.NumSubIntf == 1 {
+		if deviations.RequireRoutedSubinterface0(d) {
+			EnsureRoutedSubinterface0(i, d, a.Ip4(1), a.Ip6(1), a.IPv4Len, a.IPv6Len)
+		}
+	} else {
+		// Configure subinterfaces 1..n for multi-subinterface cases
+		for idx := 1; idx <= int(a.NumSubIntf); idx++ {
+			subIntfIndex := uint32(a.Index*10) + uint32(idx)
+			s := i.GetOrCreateSubinterface(subIntfIndex)
+			a.configureSubinterface(t, s, d, idx)
+		}
+	}
+
+	t.Logf("Configuring interface %s on DUT %s", portName, d.ID())
+	intfPath := gnmi.OC().Interface(portName)
+	gnmi.Replace(t, d, intfPath.Config(), i)
+}
+
+// configureSubinterface is a helper to configure a single subinterface object.
+func (a *Attributes) configureSubinterface(t *testing.T, s *oc.Interface_Subinterface, dut *ondatra.DUTDevice, subIndex int) {
+	t.Helper()
+
+	if deviations.InterfaceEnabled(dut) {
+		s.Enabled = ygot.Bool(true)
+	}
+
+	vlanID := uint16(int(a.Index*10) + subIndex)
+	ConfigureVLAN(s, dut, vlanID)
+
+	ipv4Addr := a.Ip4(subIndex)
+	ipv6Addr := a.Ip6(subIndex)
+	ConfigureSubinterfaceIPs(s, dut, ipv4Addr, a.IPv4Len, ipv6Addr, a.IPv6Len)
+}
+
+// ApplyEthernetConfig configures Ethernet-specific settings like port speed and duplex.
+func ApplyEthernetConfig(t *testing.T, i *oc.Interface, p *ondatra.Port, d *ondatra.DUTDevice) {
+	t.Helper()
+	if p.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(d) {
+		eth := i.GetOrCreateEthernet()
+		speed := fptest.GetIfSpeed(t, p)
+		eth.PortSpeed = speed
+		eth.AutoNegotiate = ygot.Bool(false)
+		eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		t.Logf("Applied Ethernet config for %s: Speed %v, AutoNegotiate False, Duplex Full", i.GetName(), speed)
+	}
+}
+
+// EnsureRoutedSubinterface0 creates and enables IPv4/IPv6 on subinterface 0 if required by deviations.
+func EnsureRoutedSubinterface0(i *oc.Interface, d *ondatra.DUTDevice, ipv4Addr string, ipv6Addr string, ipv4Prefix uint8, ipv6Prefix uint8) {
+	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	s4.Enabled = ygot.Bool(true)
+	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	s6.Enabled = ygot.Bool(true)
+}
+
+// ConfigureVLAN configures VLAN settings for a subinterface.
+func ConfigureVLAN(s *oc.Interface_Subinterface, dut *ondatra.DUTDevice, vlanID uint16) {
+	if deviations.DeprecatedVlanID(dut) {
+		id := vlanID
+		if id > 256 {
+			id++
+		}
+		s.GetOrCreateVlan().VlanId = oc.UnionUint16(id)
+	} else {
+		s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(vlanID)
+	}
+}
+
+// ConfigureSubinterfaceIPs configures IPv4 and IPv6 addresses for a subinterface.
+func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevice, ipv4Addr string, ipv4Prefix uint8, ipv6Addr string, ipv6Prefix uint8) {
+	// IPv4 Configuration
+	if ipv4Addr != "" {
+		s4 := s.GetOrCreateIpv4()
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			s4.Enabled = ygot.Bool(true)
+		}
+		s4a := s4.GetOrCreateAddress(ipv4Addr)
+		s4a.PrefixLength = ygot.Uint8(ipv4Prefix)
+	}
+
+	// IPv6 Configuration
+	if ipv6Addr != "" {
+		s6 := s.GetOrCreateIpv6()
+		if deviations.InterfaceEnabled(dut) {
+			s6.Enabled = ygot.Bool(true)
+		}
+		s6a := s6.GetOrCreateAddress(ipv6Addr)
+		s6a.PrefixLength = ygot.Uint8(ipv6Prefix)
+	}
+}
+
+// assignSubifsToDefaultNetworkInstance assigns the subinterfaces to the default network instance.
+func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
+	if !deviations.ExplicitInterfaceInDefaultVRF(d) {
+		return
+	}
+	t.Helper()
+
+	p := d.Port(t, a.Name)
+	instanceName := deviations.DefaultNetworkInstance(d)
+	portName := p.Name()
+
+	assignFunc := fptest.AssignToNetworkInstance
+
+	if a.NumSubIntf == 1 {
+		t.Logf("Assigning interface %s to network instance %s", portName, instanceName)
+
+		assignFunc(t, d, portName, instanceName, 0)
+	} else {
+		for i := uint32(1); i <= a.NumSubIntf; i++ {
+			subIntfIndex := uint32(a.Index*10) + i
+			t.Logf("Assigning interface %s subinterface %d to network instance %s", portName, subIntfIndex, instanceName)
+			assignFunc(t, d, portName, instanceName, subIntfIndex)
+		}
+	}
+}
+
+// AddInterfaceMTUOps adds gNMI operations for interface MTU to the batch.
+func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, mtu uint16, isDelete bool) {
+    intf := gnmi.OC().Interface(intfName)
+
+    if deviations.OmitL2MTU(dut) {
+        ipv4MtuPath := intf.Subinterface(0).Ipv4().Mtu()
+        ipv6MtuPath := intf.Subinterface(0).Ipv6().Mtu()
+        if isDelete {
+            gnmi.BatchDelete(b, ipv4MtuPath.Config())
+            gnmi.BatchDelete(b, ipv6MtuPath.Config())
+        } else {
+            gnmi.BatchReplace(b, ipv4MtuPath.Config(), mtu)
+            gnmi.BatchReplace(b, ipv6MtuPath.Config(), uint32(mtu))
+        }
+    } else {
+        mtuPath := intf.Mtu()
+        if isDelete {
+            gnmi.BatchDelete(b, mtuPath.Config())
+        } else {
+            gnmi.BatchReplace(b, mtuPath.Config(), mtu)
+        }
+    }
 }
