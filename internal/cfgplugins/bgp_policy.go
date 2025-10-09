@@ -349,8 +349,9 @@ func configureSNHCommunityAndPolicy(t *testing.T, dut *ondatra.DUTDevice, rp *oc
 	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		tagSet := rp.GetOrCreateDefinedSets()
 		snh := tagSet.GetOrCreateTagSet("TAG_7")
+		tagValue := 7
 		snh.SetName("TAG_7")
-		snh.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(7)})
+		snh.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 
 		stmt3, err3 := pdef1.AppendNewStatement("id-1")
 		if err3 != nil {
