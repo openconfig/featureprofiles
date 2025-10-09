@@ -316,7 +316,7 @@ func rejectAllStmt(t *testing.T, pd *oc.RoutingPolicy_PolicyDefinition, name str
 	t.Helper()
 	stmt, err := pd.AppendNewStatement(name)
 	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) to %s failed: %v", name, pd.Name, err)
+		t.Fatalf("AppendNewStatement(%s) to %v failed: %v", name, pd.Name, err)
 	}
 	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE)
 }
