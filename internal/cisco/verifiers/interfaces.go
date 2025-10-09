@@ -1,11 +1,9 @@
-// Package verifiers provides verifiers APIs to verify oper data for different component verifications.
+// Package verifiers offers APIs to verify operational data for components.
 package verifiers
 
 import (
 	"context"
 	"fmt"
-
-	// "os"
 	"testing"
 
 	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
@@ -16,6 +14,7 @@ import (
 
 type interfaceVerifier struct{}
 
+// TODO - 10/9/2025: clean up in future PR
 // GetIngressTrafficInterfaces gets list of the interfaces which have active ingress unicast traffic,
 // this is based on counters incremented while traffic is running. "trafficType" is the type of traffic either "ipv4" or "ipv6", default is interface level unicast packets.
 // func (v *interfaceVerifier) VerifyInterfaceOperStatus(t testing.T, dut *ondatra.DUTDevice, trafficType string) bool {
@@ -40,7 +39,7 @@ func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Con
 	return intfTextfsm, matches
 }
 
-// GetInterfaceOutPPS returns the Output packets per second (PPS) for a given interface usin Show interface CLI.
+// GetInterfaceOutPPS returns the Output packets per second (PPS) for a given interface using Show interface CLI.
 func (v *interfaceVerifier) GetInterfaceOutPPS(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) uint64 {
 	ctx := context.Background()
 	var pps uint64

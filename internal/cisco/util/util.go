@@ -2589,6 +2589,7 @@ func SortOndatraPortsByID(ports []*ondatra.Port) {
 	})
 }
 
+// TODO - add unit test for this util and correct docstring
 // CompareRequiredFields compares the non-zero fields of two structs of same type recursively.
 func CompareStructRequiredFields(want, got interface{}) error {
 	vWant := reflect.ValueOf(want)

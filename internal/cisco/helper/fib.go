@@ -4,11 +4,10 @@ import (
 	"fmt"
 	"testing"
 
-	textfsm "github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
+	"github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	// "github.com/openconfig/ondatra/gnmi/oc"
 )
 
 type fibHelper struct{}
@@ -123,6 +122,7 @@ func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 	return aftObj
 }
 
+// TODO: add docstring and remove parameter afiType if not needed
 func (v *fibHelper) GetPrefixCEFObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBCEFObject {
 	cefObj := FIBCEFObject{}
 	NHInfo := CEFNHInfo{}

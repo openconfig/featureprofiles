@@ -1,4 +1,4 @@
-// Package verifier provides verifier functions for a given component or technology area.
+// Package verifiers offers APIs to verify operational data for components.
 package verifiers
 
 var (

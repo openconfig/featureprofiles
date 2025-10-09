@@ -1,9 +1,9 @@
+// Package verifiers offers APIs to verify operational data for components.
 package verifiers
 
 import (
 	"context"
 	"fmt"
-
 	// "os"
 	"testing"
 

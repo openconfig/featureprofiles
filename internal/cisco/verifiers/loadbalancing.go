@@ -1,19 +1,17 @@
-// Package verifiers provides verifiers APIs to verify oper data for different component verifications.
+// Package verifiers offers APIs to verify operational data for components.
 package verifiers
 
 import (
+	"context"
 	// "time"
 	"fmt"
 	"os"
-
-	"context"
 	"strconv"
-
-	"github.com/olekukonko/tablewriter"
-
 	// "text/tabwriter"
 	// "fmt"
 	"testing"
+
+	"github.com/olekukonko/tablewriter"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -84,7 +82,7 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 			distrStruct.OutPkts = intfCounter.GetOutUnicastPkts()
 		}
 
-		distrStruct.Weight = uint64(wt)
+		distrStruct.Weight = wt
 		trafficDistribution[intf] = distrStruct
 	}
 	wantWeights, _ = helper.LoadbalancingHelper().Normalize(weightList)
@@ -116,7 +114,7 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 		trafficDistribution[intf] = data
 
 		// Add a row to the table
-		table.Append([]string{
+		err := table.Append([]string{
 			dut.Name(),
 			intf,
 			fmt.Sprintf("%d", data.Weight),
@@ -124,6 +122,9 @@ func (v *loadbalancingVerifier) VerifyPacketEgressDistributionPerWeight(t *testi
 			fmt.Sprintf("%.4f", wantDist),
 			fmt.Sprintf("%.4f", gotDist),
 		})
+		if err != nil {
+			return nil, false
+		}
 		index++
 	}
 	table.Render()
@@ -220,7 +221,10 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 		// Prepare row data
 
 		// Add the row to the table
-		table.Append(row)
+		err := table.Append(row)
+		if err != nil {
+			return nil, false
+		}
 		index++
 	}
 	table.Render()
