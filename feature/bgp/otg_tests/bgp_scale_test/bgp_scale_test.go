@@ -597,7 +597,7 @@ func TestBGPScale(t *testing.T) {
 	}{
 		{
 			name:              "RT-1.65.1.1 - Steady State - 7 v4/v6 IBGP sessions",
-			dutSetup:          ateSetup,
+			dutSetup:          dutSetup,
 			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 7, "v4ISISRoutes": 100, "v6ISISRoutes": 100, "v4IBGPRoutes": 6000, "v6IBGPRoutes": 6000, "v4Convergence": 6100, "v6Convergence": 6005},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities, validateLinkBWNotAdvertised},
