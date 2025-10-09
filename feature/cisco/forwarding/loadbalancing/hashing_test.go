@@ -231,13 +231,14 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 
 	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
 		helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
-		time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
+		time.Sleep(10 * time.Second) // Wait for tgen traffic to completely stop.
 		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 	cases := []testCase{
 		{
-			name: "Default",
-			desc: "Default Hash parameters",
+			name:               "Default",
+			desc:               "Default Hash parameters",
+			confHashCLIdutList: dvtCiscoDUTList,
 		},
 		{
 			name:                  "Both auto-global",
@@ -288,7 +289,6 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
 			t.Log("Measure Traffic distribution from Site R-to-E on SiteE node going to Jupiter , & other way around")
-			time.Sleep(30 * time.Second)
 			for trafficType, trafficFlows := range trafficMap {
 				t.Run(fmt.Sprintf("%s flow", trafficType), func(t *testing.T) {
 					tgenParam.TrafficFlowParam = trafficFlows
@@ -299,11 +299,11 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						t.Log("Start Bidirectional Traffic flows")
-						helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 5*time.Minute, topo, false)
+						helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 8*time.Minute, topo, false)
 					}()
 					go func() {
 						defer wg.Done()
-						time.Sleep(3 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
+						time.Sleep(4 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
 						for _, device := range tt.confHashCLIdutList {
 							fmt.Printf(tt.name+" for device: %s", device.Name())
 							if trafficType == "v6" {
@@ -391,13 +391,14 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 
 	t.Run("Verify Traffic passes after init Bringup", func(t *testing.T) {
 		helper.TGENHelper().StartTraffic(t, useOTG, trafficFlows, 10*time.Second, topo, false)
-		time.Sleep(5 * time.Second) // Wait for tgen traffic to completely stop.
+		time.Sleep(10 * time.Second) // Wait for tgen traffic to completely stop.
 		verifiers.TGENverifier().ValidateTGEN(false, &tgenVerifyParam).ValidateTrafficLoss(t)
 	})
 	cases := []testCase{
 		{
-			name: "Default",
-			desc: "Default Hash parameters",
+			name:               "Default",
+			desc:               "Default Hash parameters",
+			confHashCLIdutList: dvtCiscoDUTList,
 		},
 		{
 			name:                  "Both auto-global",
@@ -445,7 +446,6 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 			}
 			//Run tests for each of Traffic Flow types (IPv4, IPv6, IPinIP, IPv6inIP).
 			t.Log("Measure Traffic distribution from Site R-to-E on SiteE node going to Jupiter , & other way around")
-			time.Sleep(30 * time.Second)
 			for trafficType, trafficFlows := range trafficMap {
 				t.Run(fmt.Sprintf("%s flow", trafficType), func(t *testing.T) {
 					tgenParam.TrafficFlowParam = trafficFlows
@@ -456,11 +456,11 @@ func TestGRIBIFlowsLoadBalancing(t *testing.T) {
 					go func() {
 						defer wg.Done()
 						t.Log("Start Bidirectional Traffic flows")
-						helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 5*time.Minute, topo, false)
+						helper.TGENHelper().StartTraffic(t, useOTG, trafficFlow, 8*time.Minute, topo, false)
 					}()
 					go func() {
 						defer wg.Done()
-						time.Sleep(3 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
+						time.Sleep(4 * time.Minute) // Wait for traffic to start and interface PPS to fully stabilize.
 						for _, device := range tt.confHashCLIdutList {
 							fmt.Printf(tt.name+" for device: %s", device.Name())
 							if trafficType == "v6" {

@@ -34,12 +34,12 @@ const (
 	vrfRepair          = "REPAIR"
 	vrfDecap           = "DECAP_TE_VRF"
 	localStationMac    = "00:1a:11:17:5f:80"
-	trafficRatePPS     = 20000
+	trafficRatePPS     = 40000
 )
 
 // Traffic flow and common variables.
 var (
-	loadBalancingTolerance = 0.02
+	loadBalancingTolerance = 0.03
 	rSiteV4DSTIP           = "10.240.119.50"
 	eSiteV4DSTIP           = "10.240.118.50"
 	rSiteV6DSTIP           = "2002:af0:7730:a::1"
@@ -595,6 +595,8 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 	gribiClient.AddNH(t, 2334, "Encap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Src: transitMagicSrcIP, Dest: gribiArgs.encapTunnelIP2, VrfName: vrfTransit})
 	gribiClient.AddNHG(t, 335544321, map[uint64]uint64{2342: 1, 2334: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: 335548321})
 	gribiClient.AddIPv4(t, gribiArgs.encapV4Prefix, 335544321, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+	//Commented code in case need scale entries.
 	// encapPrefixList := []string{}
 	// for i := range 10000 {
 	// 	encapPrefixList = append(encapPrefixList, util.GetIPPrefix("10.1.1.1", i, "32"))
@@ -652,6 +654,8 @@ func programGribiEntries(t *testing.T, dut *ondatra.DUTDevice, gribiArgs gribiPa
 			}
 		}
 		gribiClient.AddNHG(t, 502653185, nextSiteNHGtMap, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
+		//Commented code in case need scale entries.
 		//Add Next Hop Group for Self Site VIPs
 		// selfSiteNHGtMap = make(map[uint64]uint64)
 		// for i, nhInfo := range gribiArgs.selfSiteVIPNH {

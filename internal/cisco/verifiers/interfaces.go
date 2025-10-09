@@ -14,13 +14,6 @@ import (
 
 type interfaceVerifier struct{}
 
-// TODO - 10/9/2025: clean up in future PR
-// GetIngressTrafficInterfaces gets list of the interfaces which have active ingress unicast traffic,
-// this is based on counters incremented while traffic is running. "trafficType" is the type of traffic either "ipv4" or "ipv6", default is interface level unicast packets.
-// func (v *interfaceVerifier) VerifyInterfaceOperStatus(t testing.T, dut *ondatra.DUTDevice, trafficType string) bool {
-// 	return false
-// }
-
 // VerifyShowInterfaceCLI returns interface data from the "show interface" CLI. 'want' is optional parameter,
 // if its input it compares the want data with the corresponding fields in the CLI got output.
 func (v *interfaceVerifier) VerifyShowInterfaceCLI(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, intfName string, want ...*textfsm.ShowInterface) (textfsm.ShowInterface, bool) {

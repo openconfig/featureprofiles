@@ -161,6 +161,39 @@ func (v *loadbalancingVerifier) VerifyPPSEgressDistributionPerWeight(t *testing.
 			wantWeights = append(wantWeights, wt)
 		}
 	}
+
+	// Check if all PPS values are zero - indicates no traffic
+	totalPPS := uint64(0)
+	for _, pps := range outPacketPPS {
+		totalPPS += pps
+	}
+
+	if totalPPS == 0 {
+		t.Errorf("WARNING: All interfaces show 0 PPS - no traffic detected. Check traffic timing and ensure traffic is running when collecting stats.")
+		t.Logf("DEBUG: Interface PPS values: %v", outPacketPPS)
+		t.Logf("DEBUG: Interfaces checked: %v", func() []string {
+			var intfs []string
+			if len(OutIFWeightNormalized) == 0 {
+				for intf := range outIFWeight {
+					intfs = append(intfs, intf)
+				}
+			} else {
+				for intf := range OutIFWeightNormalized {
+					intfs = append(intfs, intf)
+				}
+			}
+			return intfs
+		}())
+
+		// Return early with error indication but don't crash
+		for intf, data := range trafficDistribution {
+			data.WantDistribution = 0.0
+			data.GotDistribution = 0.0
+			trafficDistribution[intf] = data
+		}
+		return trafficDistribution, false
+	}
+
 	gotWeights, _ = helper.LoadbalancingHelper().Normalize(outPacketPPS)
 
 	t.Log("compare", wantWeights, gotWeights)
