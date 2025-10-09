@@ -18,10 +18,10 @@ import (
 	"fmt"
 	"testing"
 
-        "github.com/openconfig/featureprofiles/internal/deviations/deviations"
+        "github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi/oc/oc"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
