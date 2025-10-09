@@ -975,9 +975,11 @@ message Metadata {
     bool syslog_oc_unsupported = 334;
 
     // Device does not support to disable bgp GR-HELPER.
+    // Nokia: b/455781430
     bool bgp_gr_helper_disable_unsupported = 335;
 
     // Device does not support bgp GR-RESTART under AFI/SAFI.
+    //  Cisco: b/455784294
     bool bgp_graceful_restart_under_afi_safi_unsupported = 336;
 
 
