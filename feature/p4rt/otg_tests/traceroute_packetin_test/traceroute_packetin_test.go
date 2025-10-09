@@ -364,6 +364,11 @@ func testPacketInAfterClientReconnection(ctx context.Context, t *testing.T, dut 
 	args.follower = newFollower
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
+			if deviations.P4RTExplicitTableEntryPerController(dut) {
+				if err := programmTableEntry(args.leader, args.packetIO, false /*delete*/, test.isIPv4, newLeaderElectionID); err != nil {
+					t.Fatalf("there is error when programming entry, %v", err)
+				}
+			}
 			defer programmTableEntry(args.leader, args.packetIO, true /*delete*/, test.isIPv4, newLeaderElectionID)
 			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
 		})
