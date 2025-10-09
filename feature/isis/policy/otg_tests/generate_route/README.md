@@ -1,4 +1,3 @@
-
 # RT-10.2: Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS
 
 ## Testcase summary
