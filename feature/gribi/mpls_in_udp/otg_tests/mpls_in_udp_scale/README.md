@@ -438,6 +438,11 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 
 - Stop high-rate programming and measure steady-state loss again.
 
+## Canonical OC
+```json
+{}
+```
+
 #### OpenConfig Path and RPC Coverage
 
 ```yaml
