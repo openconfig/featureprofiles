@@ -42,6 +42,7 @@ platform_exceptions: {
   deviations: {
     isis_level_enabled: true
     predefined_max_ecmp_paths: true
+    wecmp_set_weight_unsupported: true
   }
 }
 platform_exceptions: {

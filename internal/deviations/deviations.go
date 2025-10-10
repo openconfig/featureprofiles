@@ -1681,3 +1681,8 @@ func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
+
+// WecmpSetWeightUnsupported returns if device doesnt support setting weight for wecmp.
+func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpSetWeightUnsupported()
+}

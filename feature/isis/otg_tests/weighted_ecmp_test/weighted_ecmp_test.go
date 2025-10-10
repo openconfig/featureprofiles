@@ -172,10 +172,13 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		// isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 		gnmi.BatchReplace(b, isisPath.Global().WeightedEcmp().Config(), true)
-		for _, aggID := range aggIDs {
-			gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
-				LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
-			})
+
+		if !deviations.WecmpSetWeightUnsupported(dut) {
+			for _, aggID := range aggIDs {
+				gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
+					LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
+				})
+			}
 		}
 		b.Set(t, dut)
 	}
