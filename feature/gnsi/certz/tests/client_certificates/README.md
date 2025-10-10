@@ -121,6 +121,13 @@ rpcs:
     certz.v1.Certz.AddProfile:
     certz.v1.Certz.Rotate:
 ```
+## Canonical OC
+
+```json
+{
+  "name": "client_certificates",
+  "description": "Example canonical OC specification."
+}
 
 ## Minimum DUT Platform Requirement
 vRX
