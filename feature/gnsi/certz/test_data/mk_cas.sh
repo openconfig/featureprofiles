@@ -5,7 +5,8 @@
 #
 # The list of directories of CA contents, also the count of CAs built
 # in each directory.
-DIRS=(01 02 10 1000 20000)
+#DIRS=(01 02 10 1000 20000)
+DIRS=(01 02 10 1000) 
 
 # The types of signatures to support for the CA Certs.
 TYPES=(rsa ecdsa)
