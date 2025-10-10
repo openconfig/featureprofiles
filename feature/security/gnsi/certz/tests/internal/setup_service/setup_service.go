@@ -55,8 +55,7 @@ type rpcCredentials struct {
 	*creds.UserPass
 }
 
-func (r *rpcCredentials) GetRequestMetadata(_ ...string) (map[string]string, error) {
-
+func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": r.UserPass.Username,
 		"password": r.UserPass.Password,
