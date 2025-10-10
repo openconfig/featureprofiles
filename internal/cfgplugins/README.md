@@ -35,11 +35,54 @@ the DUT and is what is being tested.  In other words, we are not testing the
 configuration generation helper, but rather we are testing if the DUT will
 accept the configuration.
 
+## Function parameters
+
+All exported/public functions from a cfgplugin should have a parameter signature like:
+`(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg MyConfigToUpdateStruct)`
+
+The purpose of the `*gnmi.SetBatch` is so the caller can pass in a Batch object containing their
+configuration and the plugin can add to it.  This allows the caller to call many cfgplugins to
+accumulate configuration and then `.Set` that configuration all at once (or whenever the caller
+would like to `Set` the config to satisfy their workflow).
+
+An example function and struct should look like:
+
+```go
+// StaticARPConfig holds all per-port static ARP entries.
+type StaticARPConfig struct {
+ Entries []StaticARPEntry
+}
+
+// StaticARPWithMagicUniversalIP configures static ARP and static routes per-port.
+func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticARPConfig) *gnmi.SetBatch {
+   // implementaton goes here
+}
+```
+
+An example usage of the cfgplugin might look like:
+
+```go
+  b := &gnmi.SetBatch{}
+  cfg := cfgplugins.SecondaryIPConfig{
+   Entries: []cfgplugins.SecondaryIPEntry{
+    {PortName: "port2", PortAttr: dutPort2IP, DumIP: otgPort2IP.IPv4, MagicMAC: magicMac},
+    {PortName: "port3", PortAttr: dutPort3IP, DumIP: otgPort3IP.IPv4, MagicMAC: magicMac},
+    {PortName: "port4", PortAttr: dutPort4IP, DumIP: otgPort4IP.IPv4, MagicMAC: magicMac},
+   },
+  }
+
+  cfgplugins.StaticARPWithSecondaryIP(t, dut, b, cfg)
+  b.Set(t, dut)
+```
+
 ## Deviations and cfgplugins
 
-Deviations affecting configuration generation must be placed into the relevant
-`cfgplugins` functions.  This way the deviation is used consistently across all
-tests, is easier to discover and maintain compared to the deviations being
-defined in individual tests.  For example, if one wants to configure a static
-MPLS LSP, one can search the cfgplugins to find a suitable function and all
-relevant deviation(s) in one place.
+Deviations affecting configuration generation SHOULD be placed into the
+relevant `cfgplugins` functions.  This way the deviation is used consistently
+across all tests, is easier to discover and maintain compared to the deviations
+being implemented in individual tests.  
+
+For example, the sflow plugin includes a minimum sampling rate.  But a
+deviation exists for some platforms which do not support the required rate. The
+logic to implement the deviation is included in the [sflow
+cfgplugin](https://github.com/openconfig/featureprofiles/blob/18559420232e5208a5a75c3557cdc4fc0b70f164/internal/cfgplugins/sflow.go#L49).
