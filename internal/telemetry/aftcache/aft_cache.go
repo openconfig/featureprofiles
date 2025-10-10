@@ -38,7 +38,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 
-	log "github.com/golang/glog"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
@@ -204,10 +203,10 @@ func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[str
 }
 
 // ToAFT Creates AFT maps with cache information.
-func (c *aftCache) ToAFT(dut *ondatra.DUTDevice) (*AFTData, error) {
+func (c *aftCache) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error) {
 	a := newAFT()
 	prefixFunc := func(n *gnmipb.Notification) error {
-		p, nhg, err := parsePrefix(n)
+		p, nhg, err := parsePrefix(t, n)
 		if err != nil {
 			return err
 		}
@@ -215,10 +214,10 @@ func (c *aftCache) ToAFT(dut *ondatra.DUTDevice) (*AFTData, error) {
 		return nil
 	}
 	nhgFunc := func(n *gnmipb.Notification) error {
-		nhg, data, err := parseNHG(n)
+		nhg, data, err := parseNHG(t, n)
 		switch {
 		case errors.Is(err, ErrNotExist) || errors.Is(err, ErrUnsupported):
-			log.Warningf("error parsing NHG: %v", err)
+			t.Logf("error parsing NHG: %v", err)
 		case err != nil:
 			return err
 		default:
@@ -230,7 +229,7 @@ func (c *aftCache) ToAFT(dut *ondatra.DUTDevice) (*AFTData, error) {
 		nh, data, err := parseNH(n)
 		switch {
 		case errors.Is(err, ErrNotExist):
-			log.Warningf("error parsing NH: %v", err)
+			t.Logf("error parsing NH: %v", err)
 		case err != nil:
 			return err
 		default:
@@ -470,10 +469,12 @@ func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient,
 	}
 }
 
-// notificationHook is a function that will be called when each notification is received, before updating the AFT cache.
-type notificationHook struct {
-	description      string
-	notificationFunc func(c *aftCache, n *gnmipb.SubscribeResponse) error
+// NotificationHook is a function that will be called when each notification is received, before updating the AFT cache.
+type NotificationHook struct {
+	// Description is a human readable description of the hook.
+	Description string
+	// NotificationFunc is the function that will be called when each notification is received.
+	NotificationFunc func(c *aftCache, n *gnmipb.SubscribeResponse) error
 }
 
 // PeriodicHook is a function that will be called on a regular interval with the current AFT cache.
@@ -511,14 +512,20 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 // listening based on the stoppingCondition hook.
 func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeout time.Duration, stoppingCondition PeriodicHook) {
 	t.Helper()
-	ss.start = time.Now()
-	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
-	var pnhs []notificationHook
-	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
-	ss.listenUntil(ctx, t, timeout, pnhs, phs)
+	ss.ListenUntilPreUpdateHook(ctx, t, timeout, nil, stoppingCondition)
 }
 
-func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []notificationHook, periodicHooks []PeriodicHook) {
+// ListenUntilPreUpdateHook updates AFT with notifications from a gNMI client in streaming mode,
+// and stops listening based on the stoppingCondition hook. It also runs the preUpdateHooks before updating the AFT cache.
+func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
+	t.Helper()
+	ss.start = time.Now()
+	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
+	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
+	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
+}
+
+func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -532,9 +539,9 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			}
 
 			for _, hook := range preUpdateHooks {
-				err := hook.notificationFunc(ss.Cache, resp.notification)
+				err := hook.NotificationFunc(ss.Cache, resp.notification)
 				if err != nil {
-					t.Fatalf("error in notificationHook %q: %v", hook.description, err)
+					t.Fatalf("error in notificationHook %q: %v", hook.Description, err)
 				}
 			}
 			err := ss.Cache.addAFTNotification(resp.notification)
@@ -573,7 +580,7 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 	return PeriodicHook{
 		Description: "Route delete stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
-			a, err := c.ToAFT(dut)
+			a, err := c.ToAFT(t, dut)
 			if err != nil {
 				return false, err
 			}
@@ -605,7 +612,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 		Description: "Initial sync stopping condition",
 		PeriodicFunc: func(c *aftCache) (bool, error) {
 			start := time.Now()
-			a, err := c.ToAFT(dut)
+			a, err := c.ToAFT(t, dut)
 			logDuration(start, "Convert cache to AFT")
 			if err != nil {
 				return false, err
@@ -680,6 +687,88 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 	}
 }
 
+// AssertNextHopCount returns a PeriodicHook which can be used to check if all the given prefixes
+// resolve to the expected number of next hops.
+func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[string]bool, wantNHCount int) PeriodicHook {
+	logDuration := func(start time.Time, stage string) {
+		t.Logf("AssertNextHopCount: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
+	}
+	return PeriodicHook{
+		Description: "Assert next hop count",
+		PeriodicFunc: func(c *aftCache) (bool, error) {
+			start := time.Now()
+			a, err := c.ToAFT(t, dut)
+			logDuration(start, "Convert cache to AFT")
+			if err != nil {
+				return false, err
+			}
+
+			// Check prefixes.
+			checkPrefixStart := time.Now()
+			nPrefixes := len(wantPrefixes)
+			nGot := 0
+			for p := range wantPrefixes {
+				if _, ok := a.Prefixes[p]; ok {
+					nGot++
+				}
+			}
+			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
+			logDuration(checkPrefixStart, "Check Prefixes")
+			if nGot < nPrefixes {
+				return false, nil
+			}
+
+			// Check next hops.
+			checkNHStart := time.Now()
+			nCorrect := 0
+			for p := range wantPrefixes {
+				resolved, err := a.resolveRoute(p)
+				switch {
+				// Skip the check if NH is not found, retry on next periodic hook. Report missing NHs after timeout.
+				case errors.Is(err, ErrNotExist):
+				case err != nil:
+					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
+				default:
+					if len(resolved) != wantNHCount {
+						return false, fmt.Errorf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+					}
+					nCorrect++
+				}
+			}
+			logDuration(checkNHStart, "Check Next Hops")
+			if nCorrect != nPrefixes {
+				t.Logf("AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
+				return false, nil
+			}
+			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
+			return true, nil
+		},
+	}
+}
+
+// VerifyAtomicFlagHook returns a NotificationHook which verifies that the atomic flag is set to true.
+func VerifyAtomicFlagHook(t *testing.T) NotificationHook {
+	return NotificationHook{
+		Description: "Atomic update hook",
+		NotificationFunc: func(c *aftCache, n *gnmipb.SubscribeResponse) error {
+			if n.GetUpdate() == nil {
+				return nil
+			}
+			atomicFlag := n.GetUpdate().GetAtomic()
+			if n.GetUpdate().GetDelete() != nil {
+				if atomicFlag {
+					return fmt.Errorf("atomic flag is set to true for delete operation. Notification: %v", n.GetUpdate())
+				}
+				return nil
+			}
+			if !atomicFlag {
+				return fmt.Errorf("atomic flag is not set to true. Notification: %v", n.GetUpdate())
+			}
+			return nil
+		},
+	}
+}
+
 // parseNH parses AFT NH notification and returns NH, IP, and LSP information.
 func parseNH(n *gnmipb.Notification) (uint64, *aftNextHop, error) {
 	e := n.GetPrefix().GetElem()
@@ -737,7 +826,7 @@ func parseNH(n *gnmipb.Notification) (uint64, *aftNextHop, error) {
 }
 
 // parseNHG parses AFT NHG notification and return NHG and next hops from the notification.
-func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
+func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 	e := n.GetPrefix().GetElem()
 	if len(e) < 5 {
 		return 0, nil, fmt.Errorf("not enough elements in prefix.  Notification: %v", n)
@@ -787,7 +876,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 		}
 	}
 	if len(nhg.NHIDs) == 0 {
-		log.Warningf("no next hop values were found in notification %v, %v", n, ErrNotExist)
+		t.Logf("no next hop values were found in notification %v, %v", n, ErrNotExist)
 	}
 	if len(entries) != 1 {
 		err = fmt.Errorf("the NHG values do not match between Prefix and Update parts of message. Notification: %v, %w", n, err)
@@ -799,7 +888,7 @@ func parseNHG(n *gnmipb.Notification) (uint64, *aftNextHopGroup, error) {
 }
 
 // parsePrefix extracts the IP prefix and next-hop-group ID from an AFT prefix GNMI notification.
-func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
+func parsePrefix(t *testing.T, n *gnmipb.Notification) (string, uint64, error) {
 	// Normalizes paths for the "updates" in the gNMI notification.
 	updates := schema.NotificationToPoints(n)
 	if len(updates) == 0 {
@@ -832,7 +921,7 @@ func parsePrefix(n *gnmipb.Notification) (string, uint64, error) {
 		// known unused paths
 		case slices.Contains(unusedPaths, path):
 		default:
-			log.Warningf("unexpected path %q in prefix notification %v", path, n)
+			t.Logf("unexpected path %q in prefix notification %v", path, n)
 		}
 	}
 	if len(wantFields) < 2 {
@@ -855,7 +944,7 @@ func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, er
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse path: %v", err)
 			}
-			subReq.Subscribe.Subscription = append(subReq.Subscribe.Subscription, &gnmipb.Subscription{Path: pp})
+			subReq.Subscribe.Subscription = append(subReq.Subscribe.Subscription, &gnmipb.Subscription{Path: pp, Mode: gnmipb.SubscriptionMode_ON_CHANGE})
 		}
 	}
 	return &gnmipb.SubscribeRequest{Request: subReq}, nil
