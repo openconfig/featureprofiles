@@ -132,15 +132,6 @@ NH#101 -> {
     "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl",
     "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp"
   ],
-  "rpcs": {
-    "gribi": {
-      "gRIBI.Modify": [
-        "afts:next-hops:next-hop:encap-headers:encap-header:udp_v6",
-        "afts:next-hops:next-hop:encap-headers:encap-header:mpls"
-      ],
-      "gRIBI.Flush": []
-    }
-  }
 }
 ```
 
@@ -150,9 +141,9 @@ NH#101 -> {
 paths:
 
 # afts state paths set via gRIBI
-  # TODO: need new OC for user defined next-hop-group/state/id, needed for policy-forwarding rules pointing to a NHG
-  # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
-
+  # OC for user defined next-hop-group/state/id for policy-forwarding rules pointing to a NHG
+  /network-instances/network-instance/fdb/l2rib/mac-table/next-hop-groups/next-hop-group/id
+  
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
