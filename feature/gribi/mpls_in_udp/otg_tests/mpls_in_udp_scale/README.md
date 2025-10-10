@@ -368,9 +368,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
   forwarded using either the old or the new state, without being
   dropped.
 
-### TE-18.3.3 Validation Procedures
-
-#### Procedure - Single VRF Validation (Profiles 1, 4)
+#### TE-18.3.1 - Single VRF Validation (Profiles 1, 4)
 
 - Program all gRIBI entries (NHs, NHGs, Prefixes) according to the
   profile using baseline rate/batch.
@@ -386,7 +384,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 - Verify AFT state shows entries removed.
 - Verify traffic loss is 100%.
 
-#### Procedure - Multi-VRF Validation (Profiles 2, 3)
+#### TE-18.3.2 - Multi-VRF Validation (Profiles 2, 3)
 
 - Program all gRIBI entries across all specified VRFs according to the
   profile using baseline rate/batch.
@@ -402,7 +400,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 - Verify AFT state shows entries removed across VRFs.
 - Verify traffic loss is 100%.
 
-#### Procedure - ECMP Validation (Profile 4)
+#### TE-18.3.3 - ECMP Validation (Profile 4)
 
 - Perform Single VRF Validation steps.
 - Additionally, verify that traffic sent towards prefixes mapped to the
@@ -410,7 +408,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
   (requires ATE support for flow analysis or DUT counter validation for
   NH packet/octet counters).
 
-#### Procedure - gRIBI Rate Validation (Profile 5)
+#### TE-18.3.4 - gRIBI Rate Validation (Profile 5)
 
 - Establish the baseline state (e.g., program 20k entries as per Profile
   1).
@@ -439,13 +437,6 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
   phase.
 
 - Stop high-rate programming and measure steady-state loss again.
-
-#### Investigation - VRF Impact on QPS
-
-- As an extension, investigate if the number of VRFs impacts gRIBI QPS
-  or dataplane stability during high-rate updates. This could involve
-  running a variation of Profile 5 using the multi-VRF setup from
-  Profile 2 or 3 as the baseline state.
 
 #### OpenConfig Path and RPC Coverage
 
