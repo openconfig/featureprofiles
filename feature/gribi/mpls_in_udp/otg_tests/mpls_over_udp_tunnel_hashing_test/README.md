@@ -131,7 +131,7 @@ NH#101 -> {
     "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port",
     "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl",
     "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp"
-  ],
+  ]
 }
 ```
 
@@ -142,7 +142,7 @@ paths:
 
 # afts state paths set via gRIBI
   # OC for user defined next-hop-group/state/id for policy-forwarding rules pointing to a NHG
-  /network-instances/network-instance/fdb/l2rib/mac-table/next-hop-groups/next-hop-group/id
+  /network-instances/network-instance/fdb/l2rib/mac-table/next-hop-groups/next-hop-group/id:
   
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
