@@ -683,12 +683,10 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 		// remove CLI fallback and rely solely on OC configuration.
 		v4Multipath := af4.GetOrCreateUseMultiplePaths()
 		v4Multipath.SetEnabled(true)
-		v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 		v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
 		v6Multipath := af6.GetOrCreateUseMultiplePaths()
 		v6Multipath.SetEnabled(true)
-		v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 		v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
 		if !deviations.SkipSettingAllowMultipleAS(dut) {
