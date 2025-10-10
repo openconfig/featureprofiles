@@ -690,7 +690,6 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 // AssertNextHopCount returns a PeriodicHook which can be used to check if all the given prefixes
 // resolve to the expected number of next hops.
 func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[string]bool, wantNHCount int) PeriodicHook {
-	const nhFailLimit = 20
 	logDuration := func(start time.Time, stage string) {
 		t.Logf("AssertNextHopCount: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
@@ -738,10 +737,10 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			}
 			logDuration(checkNHStart, "Check Next Hops")
 			if nCorrect != nPrefixes {
-				t.Logf("AssertNextHopCount: Next hop count validation failed. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
+				t.Logf("AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
 				return false, nil
 			}
-			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
