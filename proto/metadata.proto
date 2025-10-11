@@ -973,7 +973,14 @@ message Metadata {
     // '/system/logging/remote-servers/remote-server/config/network-instance'
     // Cisco: b/447513282
     bool syslog_oc_unsupported = 334;
+    
+    // Arista b/434586172
+    // Device doesnot support configuring prefix list inside ACL
+    bool config_acl_with_prefixlist_unsupported = 335;
 
+    // Arista b/434815087
+    // Device doesnot support configuring source/destination address as ANY inside ACL
+    bool config_acl_value_any_oc_unsupported = 336;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
