@@ -194,3 +194,104 @@ func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
 
 	return out
 }
+
+// GenerateIPv6WithOffset increments the given IPv6 address by the specified offset. Returns nil if input is not a valid IPv6 address.
+func GenerateIPv6WithOffset(baseIP net.IP, offset int64) net.IP {
+	if baseIP == nil {
+		return nil
+	}
+	// Reject IPv4 (including IPv4-mapped IPv6)
+	if baseIP.To4() != nil {
+		return nil
+	}
+	ip16 := baseIP.To16()
+	if ip16 == nil {
+		return nil
+	}
+	// 2^128 modulus
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128)
+
+	baseInt := new(big.Int).SetBytes(baseIP.To16())
+	ipInt := new(big.Int).Add(baseInt, big.NewInt(offset))
+
+	// This will wrap around the IPv6 space if the offset pushes beyond the maximum address.
+	ipInt.Mod(ipInt, pmax)
+
+	ipBytes := ipInt.FillBytes(make([]byte, 16))
+	return net.IP(ipBytes)
+}
+
+// IncrementMAC increments the given MAC address by `i` and returns the result.
+// This is just a convenience wrapper around GenerateMACs.
+func IncrementMAC(startMAC string, i int) (string, error) {
+	macs := GenerateMACs(startMAC, i, "00:00:00:00:00:01")
+	if len(macs) == 0 {
+		return "", fmt.Errorf("failed to generate MAC address")
+	}
+	return macs[0], nil
+}
+
+// IncrementIPv4 increments the given IPv4 address by n. Returns the incremented IP, or an error if the input is invalid.
+func IncrementIPv4(ip net.IP, n uint32) (net.IP, error) {
+	if ip == nil {
+		return nil, fmt.Errorf("IP is nil")
+	}
+
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return nil, fmt.Errorf("invalid IPv4 address: %v", ip)
+	}
+
+	ipInt := big.NewInt(0).SetBytes(ip4)
+	increment := big.NewInt(int64(n))
+	result := big.NewInt(0).Add(ipInt, increment)
+
+	// IPv4 max = 2^32
+	max := big.NewInt(0).Lsh(big.NewInt(1), 32)
+
+	// Overflow check — return error if it exceeds 2^32 - 1
+	if result.Cmp(max) >= 0 {
+		return nil, fmt.Errorf("increment overflowed IPv4 space")
+	}
+
+	// Convert back to 4-byte IPv4 address
+	ipBytes := result.Bytes()
+	if len(ipBytes) < 4 {
+		padded := make([]byte, 4)
+		copy(padded[4-len(ipBytes):], ipBytes)
+		ipBytes = padded
+	}
+
+	return net.IP(ipBytes), nil
+}
+
+// IncrementIPv6 increments the given IPv6 address by n steps. Returns an error if the input IP is not a valid IPv6 address, if it is IPv4, or if the increment cannot be performed.
+func IncrementIPv6(ip net.IP, n uint64) (net.IP, error) {
+	if ip == nil {
+		return nil, fmt.Errorf("IP is nil")
+	}
+
+	// Reject IPv4 or IPv4-mapped IPv6
+	if ip.To4() != nil {
+		return nil, fmt.Errorf("invalid IPv6 address (IPv4 detected): %s", ip.String())
+	}
+
+	ip6 := ip.To16()
+	if ip6 == nil {
+		return nil, fmt.Errorf("invalid IPv6 address: %s", ip.String())
+	}
+
+	ipInt := ipToBigInt(ip6)
+	increment := big.NewInt(0).SetUint64(n)
+	result := big.NewInt(0).Add(ipInt, increment)
+
+	// 2^128 is the IPv6 space limit
+	max := big.NewInt(0).Exp(big.NewInt(2), big.NewInt(128), nil)
+
+	// Wrap around if overflow
+	if result.Cmp(max) >= 0 {
+		result.Mod(result, max)
+	}
+
+	return bigIntToIP(result), nil
+}
