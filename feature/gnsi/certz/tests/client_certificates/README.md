@@ -125,8 +125,9 @@ rpcs:
 
 ```json
 {
+
   "name": "client_certificates",
-  "description": "Example canonical OC specification."
+  "description": "certz-1"
 }
 ```
 ## Minimum DUT Platform Requirement
