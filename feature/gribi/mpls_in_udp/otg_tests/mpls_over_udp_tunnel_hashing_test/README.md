@@ -1,4 +1,4 @@
-# TUN-2.9: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
+# TE-18.4: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP with
@@ -56,9 +56,9 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TUn 2.9 Match and Encapsulate using gRIBI aft modify
+### TE-18.4 Match and Encapsulate using gRIBI aft modify
 
-#### gRIBI RPC content
+##### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
 entries.
@@ -111,6 +111,29 @@ NH#101 -> {
   * Validate the ecmp hashing is working fine and load balance is happening 
     across all the 3 ports with tolerance of 1%.
 
+## Canonical OC
+
+```json
+{
+  "paths": [
+    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id",
+    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl",
+    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp"
+  ]
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -118,9 +141,9 @@ NH#101 -> {
 paths:
 
 # afts state paths set via gRIBI
-  # TODO: need new OC for user defined next-hop-group/state/id, needed for policy-forwarding rules pointing to a NHG
-  # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
-
+  # OC for user defined next-hop-group/state/id for policy-forwarding rules pointing to a NHG
+  /network-instances/network-instance/fdb/l2rib/mac-table/next-hop-groups/next-hop-group/id:
+  
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
