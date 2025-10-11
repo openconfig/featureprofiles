@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: "f7bcfa59-dd84-4998-aa54-243dde4a99db"
-plan_id: "CERTZ-1"
+plan_id: "certz-1"
 description: "gNSI Client Certificate Tests"
 testbed: TESTBED_DUT_ATE_2LINKS
