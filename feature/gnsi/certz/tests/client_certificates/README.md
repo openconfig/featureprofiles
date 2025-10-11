@@ -128,6 +128,6 @@ rpcs:
   "name": "client_certificates",
   "description": "Example canonical OC specification."
 }
-
+```
 ## Minimum DUT Platform Requirement
 vRX
