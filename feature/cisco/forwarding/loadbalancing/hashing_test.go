@@ -265,8 +265,9 @@ func TestRoutedFlowsLoadBalancing(t *testing.T) {
 			trafficMap := make(map[string][]*helper.TrafficFlowAttr)
 			trafficMap["v4"] = []*helper.TrafficFlowAttr{&v4R2E, &v4E2R}
 			trafficMap["v6"] = []*helper.TrafficFlowAttr{&v6R2E, &v6E2R}
-			trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
-			trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
+			//Tunneled traffic covered in gRIBI flows
+			//trafficMap["IPinIP"] = []*helper.TrafficFlowAttr{&IPinIPR2E, &IPinIPE2R}
+			//trafficMap["IPv6inIP"] = []*helper.TrafficFlowAttr{&IPv6inIPR2E, &IPv6inIPE2R}
 
 			//Get Prefix NH info for each of the DUTs in the R, E sites.
 			nhInfo := FIBNHInfo{}
