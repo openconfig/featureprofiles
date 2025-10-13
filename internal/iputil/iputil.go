@@ -235,22 +235,18 @@ func IncrementIPv4(ip net.IP, n uint32) (net.IP, error) {
 	if ip == nil {
 		return nil, fmt.Errorf("IP is nil")
 	}
-
 	ip4 := ip.To4()
 	if ip4 == nil {
 		return nil, fmt.Errorf("invalid IPv4 address: %v", ip)
 	}
-
 	ipInt := ipv4ToInt(ip4)
 	if ipInt == 0 {
 			return nil, fmt.Errorf("base IP %q is invalid", ip4.String())
 	}
 	offset := ipInt + n
-	
 	if offset < ipInt {
 		return nil, fmt.Errorf("base IP %q plus increment %d overflowed IPv4 space", ip4.String(), n)
 	}
-	
 	return intToIPv4(offset), nil
 }
 
