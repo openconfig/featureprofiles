@@ -111,17 +111,17 @@ rpcs:
     certz.v1.Certz.AddProfile:
     certz.v1.Certz.Rotate:
 ```
-## Minimum DUT Platform Requirement
-
-vRX
-
-
 ## Canonical OC
 
 ```json
 {
+  "description": "Canonical OC configuration for server certificates",
   "module": "openconfig-gnsi-certz",
-  "version": "1.0",
-  "description": "Canonical OC configuration for server certificates"
+  "version": "1.0"
 }
+```
+
+## Minimum DUT Platform Requirement
+
+vRX
 
