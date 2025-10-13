@@ -115,7 +115,7 @@ rpcs:
 
 ```json
 {
-  "name": server_certificates
+  "name": "server_certificates",
   "description": "Canonical OC configuration for server certificates",
   "module": "openconfig-gnsi-certz",
   "version": "1.0"
