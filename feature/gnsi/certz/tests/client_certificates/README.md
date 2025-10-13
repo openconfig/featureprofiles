@@ -126,8 +126,6 @@ rpcs:
 ```json
 {
 
-  "name": "client_certificates",
-  "description": "certz-1"
 }
 ```
 ## Minimum DUT Platform Requirement
