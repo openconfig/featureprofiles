@@ -34,8 +34,8 @@ type FeatureType int
 type VRFConfig struct {
 	VRFCount      int
 	EnablePBF     bool
-	VrfPolicyName string
-	VrfIPv6       string
+	VRFPolicyName string
+	VRFIPv6       string
 }
 
 const (
@@ -496,7 +496,7 @@ func CreateVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch, c
 
 	// PBF
 	if cfg.EnablePBF {
-		pbf := ConfigurePBF(t, dut, PBFConfig{PBFCount: cfg.VRFCount, PolicyName: cfg.VrfPolicyName, PBFIPv6: cfg.VrfIPv6})
+		pbf := ConfigurePBF(t, dut, PBFConfig{PBFCount: cfg.VRFCount, PolicyName: cfg.VRFPolicyName, PBFIPv6: cfg.VRFIPv6})
 		gnmi.BatchReplace(vrfBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pbf)
 	}
 

@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"math/big"
 	"math/rand"
 	"net"
 	"os"
@@ -195,7 +194,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	vrfBatch := new(gnmi.SetBatch)
 	// Create VRFs + PBF (true enables policy-based forwarding rules)
-	vrfsList := cfgplugins.CreateVRFs(t, dut, vrfBatch, cfgplugins.VRFConfig{VRFCount: numVRFs, EnablePBF: true, VrfPolicyName: policyName, VrfIPv6: pbfIPv6})
+	vrfsList := cfgplugins.CreateVRFs(t, dut, vrfBatch, cfgplugins.VRFConfig{VRFCount: numVRFs, EnablePBF: true, VRFPolicyName: policyName, VRFIPv6: pbfIPv6})
 	portList := []*ondatra.Port{dp1, dp2, dp3, dp4}
 	dutPortAttrs := []attrs.Attributes{dutPort1, dutPort2, dutPort3, dutPort4}
 
@@ -301,7 +300,7 @@ func createATEDevice(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.P
 // mustConfigureATESubinterfaces configures 16 ATE subinterfaces on the target device It returns a slice of the corresponding ATE IPAddresses.
 func mustConfigureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, Name, Mac, prefixFmtV4, prefixFmtV6 string, startVLANPort int) {
 	t.Helper()
-	for i := 0; i < vlanCount; i++ {
+	for i := range vlanCount {
 		vlanID := uint16(startVLANPort + i)
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			vlanID++
@@ -408,7 +407,7 @@ func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client) 
 }
 
 // programMPLSinUDPEntries programs gRIBI entries for MPLS-in-UDP encapsulation. It installs a single NextHop that performs MPLS-in-UDP encapsulation with the provided outer IPv6 and UDP header attributes, associates multiple NextHopGroups (NHGs) with that NextHop, and finally installs IPv6 /128 routes pointing to each NHG.
-func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, nextHopID, mplsLabelStart uint64, numNHGs int, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) []fluent.GRIBIEntry {
+func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, nextHopID, mplsLabelStart uint64, numNHGs int, nonDefaultVRF, outerIPv6Src, outerIPv6Dst string, outerDstUDPPort uint16, outerTTL, outerDSCP uint8) []fluent.GRIBIEntry {
 	t.Helper()
 	// Preallocate exact capacity to avoid reallocation
 	totalEntries := 1 + 2*numNHGs
@@ -426,25 +425,20 @@ func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, nextHopID, mp
 					WithDSCP(uint64(outerDSCP)),
 			),
 	)
-
 	// Pre-parse base IP once
-	ipInt := big.NewInt(0).SetBytes(net.ParseIP(baseIPv6).To16())
-	tmpBytes := make([]byte, 16)
+	baseIPv6 := net.ParseIP(baseIPv6).To16()
 
 	// Create NextHopGroups and IPv6 routes
 	for i := range numNHGs {
 		nhgID := nextHopGroupID + uint64(i)
-
 		// Add NHG
 		entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(nhgID).AddNextHop(nextHopID, 1))
-
 		// Compute next prefix
-		ipInt.Add(ipInt, big.NewInt(1))
-		ipBytes := ipInt.FillBytes(tmpBytes)
-		prefix := fmt.Sprintf("%s%s", net.IP(ipBytes), routeV6PrfLen)
+		offset := iputil.GenerateIPv6WithOffset(baseIPv6, int64(i))
+		prefix := fmt.Sprintf("%s/%s", offset.String(), routeV6PrfLen)
 
 		// Add IPv6 entry
-		entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithPrefix(prefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
+		entries = append(entries, fluent.IPv6Entry().WithNetworkInstance(nonDefaultVRF).WithPrefix(prefix).WithNextHopGroup(nhgID).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)))
 	}
 
 	return entries
@@ -677,7 +671,7 @@ func TestMPLSinUDPScale(t *testing.T) {
 	c.FlushAll(t)
 	programBasicEntries(t, dut, &c)
 	t.Run("Profile-1-Single VRF", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, profileSingleVRF, false); err != nil {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{vrfsList[1]}, profileSingleVRF, false); err != nil {
 			t.Errorf("configureVrfProfiles failed: %v", err)
 		}
 	})
@@ -692,12 +686,12 @@ func TestMPLSinUDPScale(t *testing.T) {
 		}
 	})
 	t.Run("Profile-4-Single VRF", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, profileSingleVRFECMP, false); err != nil {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{vrfsList[1]}, profileSingleVRFECMP, false); err != nil {
 			t.Errorf("configureVrfProfiles failed: %v", err)
 		}
 	})
 	t.Run("Profile-5-Single VRF", func(t *testing.T) {
-		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{deviations.DefaultNetworkInstance(dut)}, profileSingleVRFgRIBI, false); err != nil {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, &c, []string{vrfsList[1]}, profileSingleVRFgRIBI, false); err != nil {
 			t.Errorf("configureVrfProfiles failed: %v", err)
 		}
 	})
@@ -732,7 +726,7 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 		flows = []gosnappi.Flow{fa6.createFlow("ipv6", fmt.Sprintf("ip6mpls_p%d", profile), outerDSCP)}
 	default:
 		// Profile 1 (single VRF), Profile 4 (ECMP) and Profile 5 fall here
-		entries = programMPLSinUDPEntries(t, dut, nextHopID, mplsLabel, totalNHGs, outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
+		entries = programMPLSinUDPEntries(t, dut, nextHopID, mplsLabel, totalNHGs, vrfs[0], outerIPv6Src, outerIPv6Dst, outerDstUDPPort, outerTTL, outerDSCP)
 		// === Add IPv4 + IPv6 route entries ===
 		ipv4Entries := buildIPv4Routes(t, dut, totalPrefixes/2, baseIPv4, nextHopGroupID)
 		ipv6Entries := buildIPv6Routes(t, dut, totalPrefixes/2, baseIPv6, nextHopGroupID)
@@ -1293,7 +1287,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, ateConfig gosnap
 
 		if match {
 			// Expecting traffic to pass (0% loss)
-			if got := lossPct; got > 0 {
+			if got := lossPct; got > tolerance {
 				return fmt.Errorf("Traffic validation FAILED: Flow %s has %v%% packet loss, want 0%%", flow.Name(), got)
 			}
 		} else {

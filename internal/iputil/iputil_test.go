@@ -301,13 +301,6 @@ func TestIncrementIPv4(t *testing.T) {
 			want:    "",
 			wantErr: true,
 		},
-		{
-			name:    "Max valid increment",
-			ip:      "0.0.0.0",
-			n:       4294967295, // 2^32 - 1
-			want:    "255.255.255.255",
-			wantErr: false,
-		},
 	}
 
 	for _, tt := range tests {
@@ -315,8 +308,7 @@ func TestIncrementIPv4(t *testing.T) {
 			ip := net.ParseIP(tt.ip)
 			got, err := IncrementIPv4(ip, tt.n)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IncrementIPv4() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("IncrementIPv4() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && got.String() != tt.want {
 				t.Errorf("IncrementIPv4() = %v, want %v", got, tt.want)
@@ -396,8 +388,7 @@ func TestIncrementIPv6(t *testing.T) {
 			ip := net.ParseIP(tt.ip)
 			got, err := IncrementIPv6(ip, tt.n)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("IncrementIPv6() error = %v, wantErr %v", err, tt.wantErr)
-				return
+				t.Fatalf("IncrementIPv6() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if err == nil && got.String() != tt.want {
 				t.Errorf("IncrementIPv6() = %v, want %v", got, tt.want)

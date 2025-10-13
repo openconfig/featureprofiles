@@ -914,7 +914,7 @@ func ConfigurePBF(t *testing.T, dut *ondatra.DUTDevice, cfg PBFConfig) *oc.Netwo
 	policy := pf.GetOrCreatePolicy(cfg.PolicyName)
 	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 
-	// Add one rule per VRF up to vrfCount
+	// Add one rule per VRF up to PBFCount
 	for i := 1; i <= cfg.PBFCount; i++ {
 		ruleID := uint32(i)
 		vrfName := fmt.Sprintf("VRF_%03d", i)
