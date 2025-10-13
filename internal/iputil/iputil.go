@@ -241,7 +241,7 @@ func IncrementIPv4(ip net.IP, n uint32) (net.IP, error) {
 	}
 	ipInt := ipv4ToInt(ip4)
 	if ipInt == 0 {
-			return nil, fmt.Errorf("base IP %q is invalid", ip4.String())
+		return nil, fmt.Errorf("base IP %q is invalid", ip4.String())
 	}
 	offset := ipInt + n
 	if offset < ipInt {
