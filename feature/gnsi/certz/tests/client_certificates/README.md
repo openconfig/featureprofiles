@@ -9,7 +9,6 @@ SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
 
 * SPIFFEE ID format
-  
 ```
 spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
 ```
@@ -54,7 +53,6 @@ gRPC service.
 
 Perform this for both RSA and ECDSA signed CA bundles and
 certificates.
-
 ## TODO:Perform this for the permutations of 20000 CA (not enabled due to longer execution time) 
 ## TODO:trust_bundle configurations: ( 20000 CA testdata)
 ##impacts runtime of the tests for certificate generation 
