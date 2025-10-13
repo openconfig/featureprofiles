@@ -1,4 +1,5 @@
 # CERTZ-1: gNSI Client Certificate Tests
+
 ## Summary
 
 Clients must be able to validate a remote server's TLS certificate
@@ -8,6 +9,7 @@ SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
 
 * SPIFFEE ID format
+  
 ```
 spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
 ```
@@ -17,6 +19,7 @@ spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
 ```
 URI:spiffe://ca-issuer.sdn.wan.example.com/role/controller-role
 ```
+
 ## Baseline Setup
 
 ### Input Args
