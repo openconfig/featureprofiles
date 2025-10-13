@@ -8,7 +8,15 @@ SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
 
 * SPIFFEE ID format
+```
+spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
+```
 
+* Example:
+
+```
+URI:spiffe://ca-issuer.sdn.wan.example.com/role/controller-role
+```
 ## Baseline Setup
 
 ### Input Args
