@@ -860,6 +860,8 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Logf("Telemetry path /components/component/state/model-name is not supported due to deviation ModelNameUnsupported. Skipping model name validation.")
 				} else if card.GetModelName() != dut.Model() {
 					t.Errorf("Component %s ModelName: got %s, want %s (dut's hardware model)", cName, card.GetModelName(), dut.Model())
+				} else {
+					t.Logf("Component %s ModelName: %s", cName, card.GetModelName())
 				}
 			}
 
