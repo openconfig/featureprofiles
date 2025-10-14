@@ -222,9 +222,7 @@ func applyPrefixSetPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet []*pre
 		}
 		ps := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 		ps.SetPrefixSet(pSet.name)
-		if !deviations.SkipSetRpMatchSetOptions(dut) {
-			ps.SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY))
-		}
+		ps.SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY))
 		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		if !pSet.actionAccept {
 			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
