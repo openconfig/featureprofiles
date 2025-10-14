@@ -536,7 +536,12 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+// fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
+// It waits until both collectors satisfy the provided stoppingCondition.
+// After the stopping condition is met, it compares the AFT data collected by both sessions.
+// If the data is identical, it returns a single copy of the collected AFT data.
+// Otherwise, it returns an error indicating the inconsistency.
+func (tc *testCase) fetchAFT(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 	streamContext, streamCancel := context.WithCancel(t.Context())
 	defer streamCancel()
@@ -612,7 +617,7 @@ func TestBGP(t *testing.T) {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.cache(t, stoppingCondition)
+		aft, err := tc.fetchAFT(t, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -657,7 +662,7 @@ func TestBGP(t *testing.T) {
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.cache(t, sc); err != nil {
+	if _, err := tc.fetchAFT(t, sc); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
@@ -671,3 +676,4 @@ func TestBGP(t *testing.T) {
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
+
