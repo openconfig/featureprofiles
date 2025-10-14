@@ -69,6 +69,17 @@ type PolicyForwardingRule struct {
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
 
+// ACLTrafficPolicyParams holds parameters for configuring ACL forwarding configs.
+type ACLTrafficPolicyParams struct {
+	PolicyName   string
+	ProtocolType string
+	SrcPrefix    []string
+	DstPrefix    string
+	SrcPort      string
+	DstPort      string
+	IntfName     string
+}
+
 var (
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
@@ -887,5 +898,35 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 		// transport := npRule.GetOrCreateTransport()
 		// transport.SetDestinationPort()
+	}
+}
+
+// ConfigureTrafficPolicyACL configures acl related configs
+func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLTrafficPolicyParams) {
+	if deviations.ConfigACLWithPrefixListNotSupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf(`
+			traffic-policies
+			traffic-policy %s
+			match rule1 %s
+			source prefix %s
+			destination prefix %s
+			protocol tcp source port %s destination port %s
+			interface %s
+			traffic-policy input %s
+			`, params.PolicyName, params.ProtocolType, strings.Join(params.SrcPrefix, " "), params.DstPrefix, params.SrcPort, params.DstPort, params.IntfName, params.PolicyName)
+		default:
+			t.Errorf("traffic policy CLI is not handled for the dut: %v", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	} else {
+		// TODO: Created issue 41616436 for unsupport of prefix list inside ACL
+		root := &oc.Root{}
+		rp := root.GetOrCreateRoutingPolicy()
+		prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(params.PolicyName)
+		prefixSet.GetOrCreatePrefix(strings.Join(params.SrcPrefix, " "), "exact")
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(params.PolicyName).Config(), prefixSet)
 	}
 }
