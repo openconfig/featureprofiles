@@ -69,6 +69,38 @@ outer_ip-ttl =        "64"
               }
             ]
           }
+        },
+        "mpls": {
+          "global": {
+            "interface-attributes": {
+              "interface": [
+                {
+                  "config": {
+                    "interface-id": "Aggregate4",
+                    "mpls-enabled": false
+                  },
+                  "interface-id": "Aggregate4"
+                }
+              ]
+            }
+          },
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  }
+                }
+              ]
+            }
+          }
         }
       }
     ]
@@ -121,6 +153,38 @@ outer_ip-ttl =        "64"
                 }
               }
             ]
+          }
+        },
+        "mpls": {
+          "global": {
+            "interface-attributes": {
+              "interface": [
+                {
+                  "config": {
+                    "interface-id": "Aggregate4",
+                    "mpls-enabled": false
+                  },
+                  "interface-id": "Aggregate4"
+                }
+              ]
+            }
+          },
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "Customer IPV4 in:40571 out:pop"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 40571,
+                      "next-hop": "169.254.1.138"
+                    }
+                  }
+                }
+              ]
+            }
           }
         }
       }
