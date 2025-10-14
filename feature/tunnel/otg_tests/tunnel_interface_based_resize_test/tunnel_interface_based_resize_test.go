@@ -1,6 +1,7 @@
 package tunnel_interface_based_resize_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -113,12 +114,12 @@ var (
 		IPv6Len:     126,
 	}
 
-	otgingress = &otgconfighelpers.Port{
+	otgIngress = &otgconfighelpers.Port{
 		Name:       "port1",
 		Interfaces: []*otgconfighelpers.InterfaceProperties{interface1},
 	}
 
-	otgagg1 = &otgconfighelpers.Port{
+	otgAgg1 = &otgconfighelpers.Port{
 		Name:        "Port-Channel1",
 		AggMAC:      "02:00:01:01:01:07",
 		Interfaces:  []*otgconfighelpers.InterfaceProperties{interface2},
@@ -126,7 +127,7 @@ var (
 		LagID:       1,
 		IsLag:       true,
 	}
-	otgagg2 = &otgconfighelpers.Port{
+	otgAgg2 = &otgconfighelpers.Port{
 		Name:        "Port-Channel2",
 		AggMAC:      "02:00:01:01:01:01",
 		MemberPorts: []string{"port4", "port5"},
@@ -135,13 +136,13 @@ var (
 		IsLag:       true,
 	}
 
-	otgegress = &otgconfighelpers.Port{
+	otgEgress = &otgconfighelpers.Port{
 		Name:       "port6",
 		Interfaces: []*otgconfighelpers.InterfaceProperties{interface4},
 	}
 
 	flowResolveArp = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Interfaces[0].Name}},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgIngress.Interfaces[0].Name}},
 	}
 	// IPv4 Payload
 	flowIPv4 = &otgconfighelpers.Flow{
@@ -155,7 +156,7 @@ var (
 	}
 
 	flowIPv4Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Name, otgegress.Name}},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgIngress.Name, otgEgress.Name}},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv4.FlowName, TolerancePct: 0.5},
 	}
 	flowIPv6 = &otgconfighelpers.Flow{
@@ -169,16 +170,16 @@ var (
 	}
 
 	flowIPv6Validation = &otgvalidationhelpers.OTGValidation{
-		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgingress.Name, otgegress.Name}},
+		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{otgIngress.Name, otgEgress.Name}},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv6.FlowName, TolerancePct: 0.5},
 	}
 	ecmpValidation = &otgvalidationhelpers.OTGECMPValidation{
 		PortWeightages: []otgvalidationhelpers.PortWeightage{
-			{PortName: otgagg1.MemberPorts[0], Weightage: 16.0},
-			{PortName: otgagg1.MemberPorts[1], Weightage: 16.0},
-			{PortName: otgagg2.MemberPorts[0], Weightage: 16.0},
-			{PortName: otgagg2.MemberPorts[1], Weightage: 16.0},
-			{PortName: otgegress.Name, Weightage: 32.0},
+			{PortName: otgAgg1.MemberPorts[0], Weightage: 16.0},
+			{PortName: otgAgg1.MemberPorts[1], Weightage: 16.0},
+			{PortName: otgAgg2.MemberPorts[0], Weightage: 16.0},
+			{PortName: otgAgg2.MemberPorts[1], Weightage: 16.0},
+			{PortName: otgEgress.Name, Weightage: 32.0},
 		},
 
 		Flows:        []string{flowIPv4.FlowName, flowIPv6.FlowName},
@@ -193,7 +194,7 @@ func configureOTG(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// Create a slice of aggPortData for easier iteration
-	ifaces := []*otgconfighelpers.Port{otgingress, otgagg1, otgagg2, otgegress}
+	ifaces := []*otgconfighelpers.Port{otgIngress, otgAgg1, otgAgg2, otgEgress}
 
 	// Configure OTG Interfaces
 	for _, iface := range ifaces {
@@ -202,8 +203,8 @@ func configureOTG(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 }
 
-// configureDut configures DUT interfaces, aggregates, static routes, and policy forwarding infrastructure.
-func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+// configureDUT configures DUT interfaces, aggregates, static routes, and policy forwarding infrastructure.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	config := &oc.Root{}
 
@@ -229,14 +230,14 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 // matching the values in the provided JSON example.
 func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 
-	var nhipaddrs []string
+	var nhIPAddrs []string
 
 	for i := 1; i <= 32; i++ {
-		nhipaddrs = append(nhipaddrs, fmt.Sprintf("10.99.%d.1", i))
+		nhIPAddrs = append(nhIPAddrs, fmt.Sprintf("10.99.%d.1", i))
 	}
 
 	return cfgplugins.StaticNextHopGroupParams{
-		NHIPAddrs:     nhipaddrs,
+		NHIPAddrs:     nhIPAddrs,
 		StaticNHGName: "gre_encap",
 	}
 }
@@ -435,13 +436,13 @@ func testSetup(t *testing.T) {
 	ocPFParams := fetchDefaultOCPolicyForwardingParams(t, dut)
 	ocNHGParams := fetchDefaultStaticNextHopGroupParams()
 
-	// Pass ocPFParams to ConfigureDut
-	configureDut(t, dut, ocPFParams, ocNHGParams)
+	// Pass ocPFParams to ConfigureDUT
+	configureDUT(t, dut, ocPFParams, ocNHGParams)
 	configureOTG(t)
 }
 
 // validateTrafficAndECMP validates IPv4/IPv6 loss and ECMP behavior and returns a slice of errors.
-func validateTrafficAndECMP(t *testing.T) []error {
+func validateTrafficAndECMP(t *testing.T) error {
 	t.Helper()
 	var errs []error
 	ate := ondatra.ATE(t, "ate")
@@ -455,7 +456,7 @@ func validateTrafficAndECMP(t *testing.T) []error {
 	if err := ecmpValidation.ValidateECMP(t, ate); err != nil {
 		errs = append(errs, fmt.Errorf("ecmp validation failed: %w", err))
 	}
-	return errs
+	return errors.Join(errs...)
 }
 
 func TestTunnelInterfaceBasedResize(t *testing.T) {
@@ -480,12 +481,9 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
 
-				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
-					for _, err := range errs {
-						t.Error(err)
-					}
+				if err := validateTrafficAndECMP(t); err != nil {
+					t.Error(err)
 				}
-
 			},
 		},
 		{
@@ -514,10 +512,8 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
-					for _, err := range errs {
-						t.Error(err)
-					}
+				if err := validateTrafficAndECMP(t); err != nil {
+					t.Error(err)
 				}
 			},
 		},
@@ -548,10 +544,8 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				if errs := validateTrafficAndECMP(t); len(errs) > 0 {
-					for _, err := range errs {
-						t.Error(err)
-					}
+				if err := validateTrafficAndECMP(t); err != nil {
+					t.Error(err)
 				}
 			},
 		},
