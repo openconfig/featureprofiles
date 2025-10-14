@@ -114,26 +114,65 @@ NH#101 -> {
 ## Canonical OC
 
 ```json
-{
-  "paths": [
-    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id",
-    "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/index",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/state/type",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/mpls/state/mpls-label-stack",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/src-ip",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-ip",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dst-udp-port",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/ip-ttl",
-    "/network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v6/state/dscp"
-  ]
-}
-```
+ { 
+   "network-instances": { 
+     "network-instance": [ 
+       { 
+         "config": { 
+           "name": "default" 
+         }, 
+         "name": "default", 
+         "policy-forwarding": { 
+           "interfaces": { 
+             "interface": [ 
+               { 
+                 "config": { 
+                   "apply-forwarding-policy": "vrf100policy", 
+                   "interface-id": "eth3/3/1" 
+                 }, 
+                 "interface-id": "eth3/3/1" 
+               } 
+             ] 
+           }, 
+           "policies": { 
+             "policy": [ 
+               { 
+                 "config": { 
+                   "policy-id": "vrf100policy", 
+                   "type": "VRF_SELECTION_POLICY" 
+                 }, 
+                 "policy-id": "vrf100policy", 
+                 "rules": { 
+                   "rule": [ 
+                     { 
+                       "action": { 
+                         "config": { 
+                           "network-instance": "vrf100" 
+                         } 
+                       }, 
+                       "config": { 
+                         "sequence-id": 10 
+                       }, 
+                       "sequence-id": 10 
+                     } 
+                   ] 
+                 } 
+               } 
+             ] 
+           } 
+         } 
+       }, 
+       { 
+         "config": { 
+           "name": "vrf100", 
+           "type": "L3VRF" 
+         }, 
+         "name": "vrf100" 
+       } 
+     ] 
+   } 
+ } 
+ ```
 
 ## OpenConfig Path and RPC Coverage
 
