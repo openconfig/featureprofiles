@@ -19,5 +19,6 @@ platform_exceptions: {
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
     static_protocol_name: "STATIC"
+    mpls_label_classification_unsupported: true
   }
 }
