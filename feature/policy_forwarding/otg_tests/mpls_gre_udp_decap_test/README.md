@@ -76,10 +76,10 @@ outer_ip-ttl =        "64"
               "interface": [
                 {
                   "config": {
-                    "interface-id": "Aggregate4",
+                    "interface-id": "Aggregate2",
                     "mpls-enabled": false
                   },
-                  "interface-id": "Aggregate4"
+                  "interface-id": "Aggregate2"
                 }
               ]
             }
@@ -112,8 +112,9 @@ outer_ip-ttl =        "64"
 * Configure ATE port 1 with traffic flow
   * Flow1 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv4
   * Flow2 should have a packet encap format : outer_decap_gre_ipv4 <- MPLS label <- inner_decap_ipv6
+* Configure MPLS Static route to point to a next hop IP that is resolved towards ATE port 2
 * Generate traffic from ATE port 1
-* Validate ATE port 2 receives both Flow1 and Flow2 innermost IPv4 and IPv6 traffic with correct VLAN.
+* Validate ATE port 2 receives both Flow1 and Flow2 innermost IPv4 and IPv6 traffic with correct VLAN and based on the MPLS static route
 
 ### PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
 
