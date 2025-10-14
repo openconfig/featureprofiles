@@ -676,4 +676,3 @@ func TestBGP(t *testing.T) {
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
-
