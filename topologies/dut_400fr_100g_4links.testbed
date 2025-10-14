@@ -1,0 +1,37 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, 4 port, 2 400FR and 2 100G optics
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_400GB
+    pmd: PMD_400GBASE_FR4
+  }
+  ports {
+    id: "port2"
+    speed: S_400GB
+    pmd: PMD_400GBASE_FR4
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB
+    pmd_regex: "PMD_100G_LR4|PMD_100G_FR"
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB
+    pmd_regex: "PMD_100G_LR4|PMD_100G_FR"
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}
+links {
+  a: "dut:port3"
+  b: "dut:port4"
+}

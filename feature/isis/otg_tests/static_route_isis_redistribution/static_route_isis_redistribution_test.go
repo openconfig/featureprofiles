@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -42,7 +43,7 @@ const (
 	v4Route         = "192.168.10.0"
 	v4TrafficStart  = "192.168.10.1"
 	v4RoutePrefix   = uint32(24)
-	v6Route         = "2024:db8:128:128::"
+	v6Route         = "2024:db8:128:128:0:0:0:0"
 	v6TrafficStart  = "2024:db8:128:128::1"
 	v6RoutePrefix   = uint32(64)
 	dp2v4Route      = "192.168.1.4"
@@ -65,6 +66,12 @@ const (
 	protoDst        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	dummyV6         = "2001:db8::192:0:2:d"
 	dummyMAC        = "00:1A:11:00:0A:BC"
+	tagValue        = 100
+	v4Metric        = uint32(104)
+	v6Metric        = uint32(106)
+	isisMetric      = uint32(1000)
+	metricZero      = uint32(0)
+	shouldBePresent = true
 	V4tagValue      = 40
 	V6tagValue      = 60
 )
@@ -137,8 +144,10 @@ func getAndVerifyIsisImportPolicy(t *testing.T,
 				if config.AddressFamily != addressFamilyMatchString {
 					t.Fatalf("address-family is not set to %s as expected", addressFamily)
 				}
-				if config.DisableMetricPropagation != DisableMetricValue {
-					t.Fatalf("disable-metric-propagation is not set to %v as expected", DisableMetricValue)
+				if !deviations.SkipSettingDisableMetricPropagation(dut) {
+					if config.DisableMetricPropagation != DisableMetricValue {
+						t.Fatalf("disable-metric-propagation is not set to %v as expected", DisableMetricValue)
+					}
 				}
 				for _, i := range config.ImportPolicy {
 					if i != RplName {
@@ -161,7 +170,7 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 	srcProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	dstProto oc.E_PolicyTypes_INSTALL_PROTOCOL_TYPE,
 	addfmly oc.E_Types_ADDRESS_FAMILY,
-	metricPropagation bool) {
+	metricPropagation bool, operation string) {
 
 	t.Log("configure redistribution under isis")
 
@@ -169,31 +178,35 @@ func isisImportPolicyConfig(t *testing.T, dut *ondatra.DUTDevice, policyName str
 
 	batchSet := &gnmi.SetBatch{}
 	d := oc.Root{}
-	tableConn := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
-	tableConn.SetImportPolicy([]string{policyName})
-	if !deviations.SkipSettingDisableMetricPropagation(dut) {
-		tableConn.SetDisableMetricPropagation(metricPropagation)
-	}
-	if deviations.EnableTableConnections(dut) {
-		fptest.ConfigEnableTbNative(t, dut)
-	}
-	gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
-
-	if deviations.SamePolicyAttachedToAllAfis(dut) {
-		if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
-			addfmly = oc.Types_ADDRESS_FAMILY_IPV6
-		} else {
-			addfmly = oc.Types_ADDRESS_FAMILY_IPV4
-		}
-		tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
-		tableConn1.SetImportPolicy([]string{policyName})
+	if operation == "set" {
+		tableConn := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
+		tableConn.SetImportPolicy([]string{policyName})
 		if !deviations.SkipSettingDisableMetricPropagation(dut) {
-			tableConn1.SetDisableMetricPropagation(metricPropagation)
+			tableConn.SetDisableMetricPropagation(metricPropagation)
 		}
-		gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
-	}
+		if deviations.EnableTableConnections(dut) {
+			fptest.ConfigEnableTbNative(t, dut)
+		}
+		gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn)
 
-	batchSet.Set(t, dut)
+		if deviations.SamePolicyAttachedToAllAfis(dut) {
+			if addfmly == oc.Types_ADDRESS_FAMILY_IPV4 {
+				addfmly = oc.Types_ADDRESS_FAMILY_IPV6
+			} else {
+				addfmly = oc.Types_ADDRESS_FAMILY_IPV4
+			}
+			tableConn1 := d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(srcProto, dstProto, addfmly)
+			tableConn1.SetImportPolicy([]string{policyName})
+			if !deviations.SkipSettingDisableMetricPropagation(dut) {
+				tableConn1.SetDisableMetricPropagation(metricPropagation)
+			}
+			gnmi.BatchReplace(batchSet, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config(), tableConn1)
+		}
+
+		batchSet.Set(t, dut)
+	} else if operation == "delete" {
+		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(dni).TableConnection(srcProto, dstProto, addfmly).Config())
+	}
 }
 
 func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement string, prefixSetCond, tagSetCond bool,
@@ -217,6 +230,9 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 		stmt1.GetOrCreateActions().SetPolicyResult(rplType)
+		stmt1.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
+		stmt1.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
+		stmt1.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetric(isisMetric)
 
 		stmt2, err := pdef.AppendNewStatement(v6Statement)
 		if err != nil {
@@ -230,6 +246,9 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 		}
 		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 		stmt2.GetOrCreateActions().SetPolicyResult(rplType)
+		stmt2.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
+		stmt2.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
+		stmt2.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetric(isisMetric)
 	} else if tagSetCond {
 		// Condition for tag set configuration
 		stmt1, err := pdef.AppendNewStatement(v4Statement)
@@ -237,7 +256,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 			return nil, err
 		}
 		tagSet1 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
-		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
+		tagSet1.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt1.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v4tagSet)
 		stmt1.GetOrCreateActions().SetPolicyResult(rplType)
 
@@ -246,7 +265,7 @@ func configureRoutePolicy(dut *ondatra.DUTDevice, rplName string, statement stri
 			return nil, err
 		}
 		tagSet2 := rp.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
-		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
+		tagSet2.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(tagValue)})
 		stmt2.GetOrCreateConditions().GetOrCreateMatchTagSet().SetTagSet(v6tagSet)
 		stmt2.GetOrCreateActions().SetPolicyResult(rplType)
 	} else {
@@ -367,6 +386,160 @@ func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, ta
 	}
 }
 
+func verifyPrefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
+
+	t.Run("Verify Route on OTG", func(t *testing.T) {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_ExtendedIpv4Reachability_Prefix]) bool {
+			prefix, present := v.Val()
+			if !shouldBePresent {
+				return !present
+			}
+			return present && prefix.GetPrefix() == v4Route
+		}).Await(t)
+		if shouldBePresent {
+			if !ok {
+				t.Errorf("Prefix not found, want: %s", v4Route)
+			}
+		} else {
+			if ok {
+				t.Errorf("Prefix found, not want: %s", v4Route)
+			}
+		}
+	})
+}
+
+func verifyV6Prefix(t *testing.T, ts *isissession.TestSession, shouldBePresent bool) {
+
+	t.Run("Verify Route on OTG", func(t *testing.T) {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).State(), 30*time.Second, func(v *ygnmi.Value[*otgtelemetry.IsisRouter_LinkStateDatabase_Lsps_Tlvs_Ipv6Reachability_Prefix]) bool {
+			prefix, present := v.Val()
+			return present && prefix.GetPrefix() == v6Route
+		}).Await(t)
+		if shouldBePresent {
+			if !ok {
+				t.Errorf("Prefix not found, want: %s", v6Route)
+			}
+		} else {
+			if ok {
+				t.Errorf("Prefix found, not want: %s", v6Route)
+			}
+		}
+	})
+}
+
+func verifyPrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
+
+	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().Prefix(v4Route).Metric().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+			if !v.IsPresent() {
+				return false
+			}
+			if metricInReceivedLsp, _ := v.Val(); metricInReceivedLsp == expectedMetric {
+				t.Logf("Metric matched for v4 route, got: %d & want: %d", metricInReceivedLsp, expectedMetric)
+				return true
+			}
+			return false
+		}).Await(t)
+		if !ok {
+			t.Error("ERROR: Metrics mismatched for v4 route")
+		}
+	})
+}
+
+func verifyV6PrefixMetric(t *testing.T, ts *isissession.TestSession, expectedMetric uint32) {
+
+	t.Run("Verify Route Metric on OTG", func(t *testing.T) {
+		_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().Ipv6Reachability().Prefix(v6Route).Metric().State(), 30*time.Second, func(v *ygnmi.Value[uint32]) bool {
+			if !v.IsPresent() {
+				return false
+			}
+			if metricInReceivedLsp, _ := v.Val(); metricInReceivedLsp == expectedMetric {
+				t.Logf("Metric matched for v6 route, got: %d & want: %d", metricInReceivedLsp, expectedMetric)
+				return true
+			}
+			return false
+		}).Await(t)
+		if !ok {
+			t.Error("ERROR: Metrics mismatched for v6 route")
+		}
+	})
+}
+
+func verifyMatchingPrefixWithoutMetricPropagation(t *testing.T, ts *isissession.TestSession) {
+
+	verifyPrefix(t, ts, shouldBePresent)
+	if !deviations.SkipSettingDisableMetricPropagation(ts.DUT) {
+		verifyPrefixMetric(t, ts, metricZero)
+	}
+}
+
+func verifyMatchingV6PrefixWithoutMetricPropagation(t *testing.T, ts *isissession.TestSession) {
+
+	verifyV6Prefix(t, ts, shouldBePresent)
+	if !deviations.SkipSettingDisableMetricPropagation(ts.DUT) {
+		verifyV6PrefixMetric(t, ts, metricZero)
+	}
+}
+
+func verifyMatchingPrefixWithMetricPropagation(t *testing.T, ts *isissession.TestSession) {
+
+	verifyPrefix(t, ts, shouldBePresent)
+	verifyPrefixMetric(t, ts, v4Metric)
+}
+
+func verifyMatchingV6PrefixWithMetricPropagation(t *testing.T, ts *isissession.TestSession) {
+
+	verifyV6Prefix(t, ts, shouldBePresent)
+	verifyV6PrefixMetric(t, ts, v6Metric)
+}
+
+func verifyNonMatchingPrefix(t *testing.T, ts *isissession.TestSession) {
+
+	verifyPrefix(t, ts, !shouldBePresent)
+}
+
+func verifyMatchingPrefixWithMetricPropagationWithRoutePolicy(t *testing.T, ts *isissession.TestSession) {
+
+	verifyPrefix(t, ts, shouldBePresent)
+	verifyPrefixMetric(t, ts, isisMetric)
+}
+
+func verifyMatchingV6PrefixWithMetricPropagationWithRoutePolicy(t *testing.T, ts *isissession.TestSession) {
+
+	verifyV6Prefix(t, ts, shouldBePresent)
+	verifyV6PrefixMetric(t, ts, isisMetric)
+}
+
+func verifyMatchingPrefixWithTag(t *testing.T, ts *isissession.TestSession) {
+
+	verifyPrefix(t, ts, !shouldBePresent)
+
+	t.Run("Configuring correct tag value", func(t *testing.T) {
+		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v4tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V4tagValue)})
+	})
+	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
+		t.Run("Verify Configuration for RPL TagSet in V4", func(t *testing.T) {
+			verifyRplConfig(t, ts.DUT, v4tagSet, oc.UnionUint32(V4tagValue))
+		})
+	}
+	verifyPrefix(t, ts, shouldBePresent)
+}
+
+func verifyMatchingV6PrefixWithTag(t *testing.T, ts *isissession.TestSession) {
+
+	verifyV6Prefix(t, ts, !shouldBePresent)
+
+	t.Run("Configuring correct tag value", func(t *testing.T) {
+		gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v6tagSet).TagValue().Config(), []oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionUint32(V6tagValue)})
+	})
+	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
+		t.Run("Verify Configuration for RPL TagSet in V6", func(t *testing.T) {
+			verifyRplConfig(t, ts.DUT, v6tagSet, oc.UnionUint32(V6tagValue))
+		})
+	}
+	verifyV6Prefix(t, ts, shouldBePresent)
+}
+
 func TestStaticToISISRedistribution(t *testing.T) {
 	var ts *isissession.TestSession
 
@@ -388,7 +561,8 @@ func TestStaticToISISRedistribution(t *testing.T) {
 			configureOTGFlows(t, ts.ATETop, ts)
 			advertiseRoutesWithISIS(t, ts)
 			ts.PushAndStart(t)
-			ts.MustAdjacency(t)
+			adj := ts.MustAdjacency(t)
+			t.Logf("ISIS adjacency established with ID: %s", adj)
 
 			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
 			otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
@@ -403,37 +577,42 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		RplName            string
 		RplStatement       string
 		verifyTrafficStats bool
+		verifyRouteFunc    func(t *testing.T, ts *isissession.TestSession)
 		trafficFlows       []string
 		TagSetCondition    bool
 		PrefixSetCondition bool
 	}{{
 		desc:              "RT-2.12.1: Redistribute IPv4 static route to IS-IS with metric propagation disabled",
-		metricPropogation: false,
+		metricPropogation: true,
 		protoAf:           oc.Types_ADDRESS_FAMILY_IPV4,
 		RplName:           "DEFAULT-POLICY-PASS-ALL-V4",
 		RplStatement:      "PASS-ALL",
 		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyRouteFunc:   verifyMatchingPrefixWithoutMetricPropagation,
 	}, {
 		desc:              "RT-2.12.2: Redistribute IPv6 static route to IS-IS with metric propagation disabled",
+		metricPropogation: true,
+		protoAf:           oc.Types_ADDRESS_FAMILY_IPV6,
+		RplName:           "DEFAULT-POLICY-PASS-ALL-V6",
+		RplStatement:      "PASS-ALL",
+		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyRouteFunc:   verifyMatchingV6PrefixWithoutMetricPropagation,
+	}, {
+		desc:              "RT-2.12.3: Redistribute IPv4 static route to IS-IS with metric propagation enabled",
+		metricPropogation: false,
+		protoAf:           oc.Types_ADDRESS_FAMILY_IPV4,
+		RplName:           "DEFAULT-POLICY-PASS-ALL-V4",
+		RplStatement:      "PASS-ALL",
+		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyRouteFunc:   verifyMatchingPrefixWithMetricPropagation,
+	}, {
+		desc:              "RT-2.12.4: Redistribute IPv6 static route to IS-IS with metric propogation enabled",
 		metricPropogation: false,
 		protoAf:           oc.Types_ADDRESS_FAMILY_IPV6,
 		RplName:           "DEFAULT-POLICY-PASS-ALL-V6",
 		RplStatement:      "PASS-ALL",
 		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-	}, {
-		desc:              "RT-2.12.3: Redistribute IPv4 static route to IS-IS with metric propagation enabled",
-		metricPropogation: true,
-		protoAf:           oc.Types_ADDRESS_FAMILY_IPV4,
-		RplName:           "DEFAULT-POLICY-PASS-ALL-V4",
-		RplStatement:      "PASS-ALL",
-		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-	}, {
-		desc:              "RT-2.12.4: Redistribute IPv6 static route to IS-IS with metric propogation enabled",
-		metricPropogation: true,
-		protoAf:           oc.Types_ADDRESS_FAMILY_IPV6,
-		RplName:           "DEFAULT-POLICY-PASS-ALL-V6",
-		RplStatement:      "PASS-ALL",
-		policyStmtType:    oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyRouteFunc:   verifyMatchingV6PrefixWithMetricPropagation,
 	}, {
 		desc:              "RT-2.12.5: Redistribute IPv4 and IPv6 static route to IS-IS with default-import-policy set to reject",
 		metricPropogation: false,
@@ -441,24 +620,27 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		RplName:           "DEFAULT-POLICY-PASS-ALL-V4",
 		RplStatement:      "PASS-ALL",
 		policyStmtType:    oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
+		verifyRouteFunc:   verifyNonMatchingPrefix,
 	}, {
 		desc:               "RT-2.12.6: Redistribute IPv4 static route to IS-IS matching a prefix using a route-policy",
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
 		RplName:            v4RoutePolicy,
-		metricPropogation:  true,
+		metricPropogation:  false,
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v4Flow},
 		PrefixSetCondition: true,
+		verifyRouteFunc:    verifyMatchingPrefixWithMetricPropagationWithRoutePolicy,
 	}, {
 		desc:               "RT-2.12.7: Redistribute IPv4 static route to IS-IS matching a tag",
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
 		RplName:            v4RoutePolicy,
-		metricPropogation:  true,
+		metricPropogation:  false,
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v4Flow},
 		TagSetCondition:    true,
+		verifyRouteFunc:    verifyMatchingPrefixWithTag,
 	}, {
 		desc:               "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
 		protoAf:            oc.Types_ADDRESS_FAMILY_IPV6,
@@ -468,15 +650,17 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		verifyTrafficStats: true,
 		trafficFlows:       []string{v6Flow},
 		PrefixSetCondition: true,
+		verifyRouteFunc:    verifyMatchingV6PrefixWithMetricPropagationWithRoutePolicy,
 	}, {
 		desc:               "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a tag",
-		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
+		protoAf:            oc.Types_ADDRESS_FAMILY_IPV6,
 		RplName:            v6RoutePolicy,
-		metricPropogation:  true,
+		metricPropogation:  false,
 		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		verifyTrafficStats: true,
-		trafficFlows:       []string{v4Flow},
+		trafficFlows:       []string{v6Flow},
 		TagSetCondition:    true,
+		verifyRouteFunc:    verifyMatchingV6PrefixWithTag,
 	}}
 
 	for _, tc := range cases {
@@ -494,23 +678,31 @@ func TestStaticToISISRedistribution(t *testing.T) {
 					fmt.Println("Error configuring route policy:", err)
 					return
 				}
-				gnmi.Update(t, ts.DUT, gnmi.OC().RoutingPolicy().Config(), rpl)
+				gnmi.Replace(t, ts.DUT, gnmi.OC().RoutingPolicy().Config(), rpl)
 			})
 
 			if tc.TagSetCondition {
-				t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
-					verifyRplConfig(t, ts.DUT, v4tagSet, oc.UnionUint32(V4tagValue))
-					verifyRplConfig(t, ts.DUT, v6tagSet, oc.UnionUint32(V6tagValue))
-				})
+				if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
+					t.Run("Verify Configuration for RPL TagSet", func(t *testing.T) {
+						if tc.protoAf == oc.Types_ADDRESS_FAMILY_IPV4 {
+							verifyRplConfig(t, ts.DUT, v4tagSet, oc.UnionUint32(tagValue))
+						} else {
+							verifyRplConfig(t, ts.DUT, v6tagSet, oc.UnionUint32(tagValue))
+						}
+					})
+				}
 			}
 
 			t.Run(fmt.Sprintf("Attach RPL %v Type %v to ISIS %v", tc.RplName, tc.policyStmtType.String(), dni), func(t *testing.T) {
-				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation)
+				isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation, "set")
 			})
+			defer isisImportPolicyConfig(t, ts.DUT, tc.RplName, protoSrc, protoDst, tc.protoAf, tc.metricPropogation, "delete")
 
 			t.Run(fmt.Sprintf("Verify RPL %v Attributes", tc.RplName), func(t *testing.T) {
 				getAndVerifyIsisImportPolicy(t, ts.DUT, tc.metricPropogation, tc.RplName, tc.protoAf.String())
 			})
+
+			tc.verifyRouteFunc(t, ts)
 
 			if tc.verifyTrafficStats {
 				t.Run(fmt.Sprintf("Verify traffic for %s", tc.trafficFlows), func(t *testing.T) {
@@ -529,24 +721,6 @@ func TestStaticToISISRedistribution(t *testing.T) {
 					}
 				})
 			}
-
-			t.Run("Verify Route on OTG", func(t *testing.T) {
-				configuredMetric := uint32(10)
-				_, ok := gnmi.WatchAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State(), time.Minute, func(v *ygnmi.Value[uint32]) bool {
-					metric, present := v.Val()
-					if present {
-						if metric == configuredMetric {
-							return true
-						}
-					}
-					return false
-				}).Await(t)
-
-				metricInReceivedLsp := gnmi.GetAll(t, ts.ATE.OTG(), gnmi.OTG().IsisRouter("devIsis").LinkStateDatabase().LspsAny().Tlvs().ExtendedIpv4Reachability().PrefixAny().Metric().State())[0]
-				if !ok {
-					t.Fatalf("Metric not matched. Expected %d got %d ", configuredMetric, metricInReceivedLsp)
-				}
-			})
 		})
 	}
 }

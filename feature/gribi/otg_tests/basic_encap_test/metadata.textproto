@@ -44,6 +44,9 @@ platform_exceptions:  {
     interface_enabled: true
     explicit_interface_in_default_vrf: true
     static_protocol_name: "static"
+    auto_negotiate_unsupported: true
+    duplex_mode_unsupported: true
+    port_speed_unsupported: true
   }
 }
 tags:  TAGS_DATACENTER_EDGE

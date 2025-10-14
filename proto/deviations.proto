@@ -1,0 +1,94 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// deviations.proto defines the protocol buffer messages required to manage the
+// lifecycle of deviations used in featureprofiles.
+
+syntax = "proto3";
+
+package openconfig.deviations;
+
+import "github.com/openconfig/featureprofiles/proto/metadata.proto";
+import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
+import "github.com/openconfig/gnmi/proto/gnmi/gnmi.proto";
+
+option go_package = "github.com/openconfig/featureprofiles/proto/deviations_go_proto;deviations";
+
+// DeviationType specifies the type of the deviation.
+enum DeviationType {
+  // DEVIATION_TYPE_UNSPECIFIED indicates that the deviation type is not
+  // specified.
+  DEVIATION_TYPE_UNSPECIFIED = 0;
+  // DEVIATION_TYPE_PATH indicates that the deviation impacts a particular path,
+  // which is then omitted and replaced with the contents of the deviation.
+  DEVIATION_TYPE_PATH = 1;
+  // DEVIATION_TYPE_VALUE indicates that the deviation impacts a particular
+  // path, which continues to be used but its value is changed.
+  DEVIATION_TYPE_VALUE = 2;
+  // DEVIATION_TYPE_CLI indicates that the deviation impacts a particular path
+  // which is then omitted and replaced with the contents of the deviation.
+  DEVIATION_TYPE_CLI = 3;
+}
+
+// DeviationRegistry contains a list of deviations.
+message DeviationRegistry {
+  repeated Deviation deviations = 1;
+}
+
+// Deviation specifies a single deviation.
+message Deviation {
+  // Name of the deviation.
+  string name = 1;
+  // Type of the deviation.
+  DeviationType type = 2;
+  // List of paths that are impacted by the deviation.
+  openconfig.ocpaths.OCPaths impacted_paths = 3;
+  // List of platforms for which the deviation is applicable.
+  repeated PlatformData platforms = 4;
+}
+
+// PlatformData comprises of the platform for which the deviation is applicable
+// along with the issue_url tracking the deviation.
+message PlatformData {
+  // issue_url is the URL for the issue tracking the deviation.
+  string issue_url = 1;
+  // platform is the platform for which the deviation is applicable.
+  // Missing value of hardware_model_regex implies that the deviation is
+  // hardware agnostic.
+  openconfig.testing.Metadata.Platform platform = 2;
+  // DeviationValues specifies the canonical and vendor specific values for a
+  // deviation.
+  message DeviationValues {
+    // OC standard value for the deviation.
+    gnmi.TypedValue oc_standard_value = 1;
+    // Vendor specific value for the deviation.
+    gnmi.TypedValue vendor_specific_value = 2;
+  }
+  // CliCommands specifies the CLI commands for a deviation.
+  message CliCommands {
+    // List of CLI commands. Each command is a regex to match cli command
+    // format.
+    repeated string commands = 1;
+  }
+  // deviation_field specifies the additional paths, CLI commands or deviation
+  // values.
+  oneof deviation_field {
+    // List of additional paths for the deviation.
+    openconfig.ocpaths.OCPaths additional_paths = 3;
+    // List of CLI commands for the deviation.
+    CliCommands clis = 4;
+    // Canonical and vendor specific values for the deviation.
+    DeviationValues deviation_values = 5;
+  }
+}

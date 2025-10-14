@@ -23,7 +23,6 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     qos_octets: true
     interface_enabled: true

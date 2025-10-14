@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -32,14 +33,17 @@ import (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
+
 }
 
 const (
-	SRReservedLabelblockName                  = "sr-reserved-label-block"
+
+	//SRReservedLabelblockName                  = "sr-reserved-label-block"
+	SRReservedLabelblockName                  = "default-srgb"
 	SRReservedLabelblockLowerbound            = 1000000
-	SRReservedLabelblockUpperbound            = 1048576
+	SRReservedLabelblockUpperbound            = 1048575
 	SRReservedLabelblockLowerboundReconfigure = 1110000
-	SRReservedLabelblockUpperboundReconfigure = 1119876
+	SRReservedLabelblockUpperboundReconfigure = 1048575
 	srgbMplsLabelBlockName                    = "400000 465001"
 	srlbMplsLabelBlockName                    = "40000 41000"
 	srgbGblBlockReconfigure                   = "101000 102001"
@@ -71,6 +75,53 @@ const (
 	v6FlowName                                = "v6Flow"
 	devIsisName                               = "devIsis"
 )
+
+// configureSRGBGlobalPath
+func configureSRGBViaMplsGlobalPath(LowerBoundLabel int, UpperBoundLabel int) *oc.Root {
+
+	d := &oc.Root{}
+
+	netInstance := d.GetOrCreateNetworkInstance("DEFAULT")
+	netInstance.Name = ygot.String("DEFAULT")
+	mplsGlobal := netInstance.GetOrCreateMpls().GetOrCreateGlobal()
+
+	rlb := mplsGlobal.GetOrCreateReservedLabelBlock(SRReservedLabelblockName)
+	rlb.LocalId = ygot.String(SRReservedLabelblockName)
+	rlb.LowerBound = oc.UnionUint32(LowerBoundLabel)
+	rlb.UpperBound = oc.UnionUint32(UpperBoundLabel)
+
+	sr := netInstance.GetOrCreateSegmentRouting()
+	srgb := sr.GetOrCreateSrgb(SRReservedLabelblockName)
+	srgb.LocalId = ygot.String(SRReservedLabelblockName)
+	srgb.SetMplsLabelBlocks([]string{SRReservedLabelblockName})
+
+	return d
+}
+
+func ReconfigureSRGBViaMplsGlobalPath(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Run("Segment Routing state checks - SR, SRGB and SRLB", func(t *testing.T) {
+
+		// Update SR Config
+		srgbGlobalReConfig := configureSRGBViaMplsGlobalPath(srgbGlobalLowerBound, srgbGlobalUpperBound)
+		gnmi.Update(t, dut, gnmi.OC().Config(), srgbGlobalReConfig)
+
+		// Verify Reconfig
+		srReconfigPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Global().ReservedLabelBlock(SRReservedLabelblockName).State()
+		srReconfigResponse := gnmi.Get(t, dut, srReconfigPath)
+
+		if got := srReconfigResponse.GetLowerBound(); got != oc.UnionUint32(srgbGlobalLowerBound) {
+			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, srgbGlobalLowerBound)
+		} else {
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, srgbGlobalLowerBound)
+		}
+
+		if got := srReconfigResponse.GetUpperBound(); got != oc.UnionUint32(srgbGlobalUpperBound) {
+			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, srgbGlobalUpperBound)
+		} else {
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, srgbGlobalUpperBound)
+		}
+	})
+}
 
 // configureISISMPLSSRReconfigure configures isis and MPLS SR on DUT with new label block bounds.
 func configureISISMPLSSRReconfigure(t *testing.T, ts *isissession.TestSession, SRReservedLabelblockLowerbound uint32, SRReservedLabelblockUpperbound uint32, srgbGblBlock string, srgbLclBlock string) {
@@ -305,7 +356,7 @@ func verifyISIS(t *testing.T, ts *isissession.TestSession) {
 }
 
 // verifyMPLSSR verifies MPLS SR on DUT.
-func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
+func verifyMPLSSR(t *testing.T, ts *isissession.TestSession, LowerBoundLabel int, UpperBoundLabel int) {
 	t.Helper()
 	netInstance := ts.DUTConf.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
@@ -314,45 +365,82 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 		if !SREnabled {
 			t.Errorf("FAIL- Segment Routing is not enabled on DUT")
 		}
-		srgbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
-		if srgbValue == "nil" || srgbValue == "" {
-			t.Errorf("FAIL- SRGB is not present on DUT")
-		} else {
-			t.Logf("SRGB is present on DUT value: %s", srgbValue)
+
+		switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+		case true:
+			// Handle the case where SR IGP config is unsupported
+			t.Log("Skipping Protocol Checks as SR IGP Configuration is not required or supported")
+
+		case false:
+			// Handle the case where SR IGP config is supported
+			srgbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
+			if srgbValue == "nil" || srgbValue == "" {
+				t.Errorf("FAIL- SRGB is not present on DUT")
+			} else {
+				t.Logf("SRGB is present on DUT value: %s", srgbValue)
+			}
+			srlbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrlb()
+			if srlbValue == "nil" || srlbValue == "" {
+				t.Errorf("FAIL- SRLB is not present on DUT")
+			} else {
+				t.Logf("SRLB is present on DUT value: %s", srlbValue)
+			}
 		}
-		srlbValue := pcl.GetIsis().GetGlobal().GetSegmentRouting().GetSrlb()
-		if srlbValue == "nil" || srlbValue == "" {
-			t.Errorf("FAIL- SRLB is not present on DUT")
-		} else {
-			t.Logf("SRLB is present on DUT value: %s", srlbValue)
-		}
+
 		mplsprot := netInstance.GetOrCreateMpls().GetOrCreateGlobal()
-		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetLowerBound(); got != oc.UnionUint32(SRReservedLabelblockLowerbound) {
-			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, SRReservedLabelblockLowerbound)
+		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetLowerBound(); got != oc.UnionUint32(LowerBoundLabel) {
+			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, LowerBoundLabel)
 		} else {
-			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, SRReservedLabelblockLowerbound)
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, LowerBoundLabel)
 		}
-		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetUpperBound(); got != oc.UnionUint32(SRReservedLabelblockUpperbound) {
-			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, SRReservedLabelblockUpperbound)
+		if got := mplsprot.GetReservedLabelBlock(SRReservedLabelblockName).GetUpperBound(); got != oc.UnionUint32(UpperBoundLabel) {
+			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, UpperBoundLabel)
 		} else {
-			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, SRReservedLabelblockUpperbound)
+			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, UpperBoundLabel)
 		}
 	})
 }
 
 // TestMPLSLabelBlockWithISIS verifies MPLS label block SRGB and SRLB on the DUT.
 func TestMPLSLabelBlockWithISIS(t *testing.T) {
+
+	dut := ondatra.DUT(t, "dut")
 	ts := isissession.MustNew(t).WithISIS()
 	configureISISMPLSSR(t, ts)
 
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
+		// Configures SRGB via network-instance/mpls/global/ OC Path as SR-IGP Not needed or supported
+		t.Log("configure SR label block via network-instance/mpls/global/ OC Path")
+		srgbGlobalConfig := configureSRGBViaMplsGlobalPath(SRReservedLabelblockLowerbound, SRReservedLabelblockUpperbound)
+		gnmi.Update(t, dut, gnmi.OC().Config(), srgbGlobalConfig)
+	case false:
+		// Other vendors
+		t.Log("SRGB configuration under only network-instance/MPLS")
+	}
+
 	configureOTG(t, ts)
 	otg := ts.ATE.OTG()
-	pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
-	fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
-	isissr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetIsis().GetGlobal().GetSegmentRouting()
-	fptest.LogQuery(t, "Protocol ISIS Global Segment Routing", isissession.ProtocolPath(ts.DUT).Config(), isissr)
-	sr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetMpls().GetGlobal()
-	fptest.LogQuery(t, "Protocol MPLS and SR", isissession.ProtocolPath(ts.DUT).Config(), sr)
+
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
+
+		//  Verify SR only under the
+		t.Log(" Verify SRGB via only the network-instance/mpls/global/ OC Path")
+		sr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetMpls().GetGlobal()
+		fptest.LogQuery(t, "Protocol MPLS and SR", isissession.ProtocolPath(ts.DUT).Config(), sr)
+
+	case false:
+
+		pcl := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
+		fptest.LogQuery(t, "Protocol ISIS", isissession.ProtocolPath(ts.DUT).Config(), pcl)
+		isissr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).GetIsis().GetGlobal().GetSegmentRouting()
+		fptest.LogQuery(t, "Protocol ISIS Global Segment Routing", isissession.ProtocolPath(ts.DUT).Config(), isissr)
+
+		sr := ts.DUTConf.GetNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).GetMpls().GetGlobal()
+		fptest.LogQuery(t, "Protocol MPLS and SR", isissession.ProtocolPath(ts.DUT).Config(), sr)
+
+	}
 
 	ts.PushAndStart(t)
 	time.Sleep(time.Minute * 2)
@@ -361,13 +449,19 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	verifyISIS(t, ts)
 
 	// Checking MPLS SR
-	verifyMPLSSR(t, ts)
+	verifyMPLSSR(t, ts, SRReservedLabelblockLowerbound, SRReservedLabelblockUpperbound)
 
 	// Reconfigure MPLS SR
-	configureISISMPLSSRReconfigure(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure, srgbGblBlockReconfigure, srgbLclBlockReconfigure)
-
-	// Checking MPLS SR
-	verifyMPLSSR(t, ts)
+	switch deviations.SrIgpConfigUnsupported(ts.DUT) {
+	case true:
+		// Verify SR Config via MPLS OC Path
+		t.Log("in this case we only need to reconfigure the SRGP block under MPLS")
+		ReconfigureSRGBViaMplsGlobalPath(t, ts.DUT)
+	case false:
+		configureISISMPLSSRReconfigure(t, ts, SRReservedLabelblockLowerboundReconfigure, SRReservedLabelblockUpperboundReconfigure, srgbGblBlockReconfigure, srgbLclBlockReconfigure)
+		// Checking MPLS SR
+		verifyMPLSSR(t, ts, srgbGlobalLowerBound, srgbGlobalUpperBound)
+	}
 
 	// Traffic checks
 	t.Run("Traffic checks", func(t *testing.T) {

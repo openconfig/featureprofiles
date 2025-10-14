@@ -61,3 +61,36 @@ func DeviationCiscoRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra
 	cliConfig += " done\nend-policy\n"
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
+
+// DeviationJuniperRoutingPolicyBGPActionSetCommunity is used as an alternative to
+// /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community
+// This deviation implements CLI to perform the equivalent function.
+func DeviationJuniperRoutingPolicyBGPActionSetCommunity(t *testing.T, dut *ondatra.DUTDevice, policyName string, statement string, community string) {
+	config := fmt.Sprintf(`
+	policy-options {
+		policy-statement %s {
+			term %s {
+				then {
+					community add %s;
+				}
+			}
+		}
+	}`, policyName, statement, community)
+	helpers.GnmiCLIConfig(t, dut, config)
+}
+
+// DeviationAristaRoutingPolicyBGPAsPathSetUnsupported is used for DUTs that don't support filtering by AS-Set (in tests such as RT-1.64)
+// This deviation implements CLI to perform the same function
+func DeviationAristaRoutingPolicyBGPAsPathSetUnsupported(t *testing.T, dut *ondatra.DUTDevice, aclName string, routeMap string, asPathRegex string) {
+	// ip as-path access-list "aclName" permit "asPathRegex"
+	// ip as-path access-list "aclName" deny .*
+	// route-map "routeMap" "sequence"
+	// 	match as-path "aclName"
+	config := fmt.Sprintf(`
+ip as-path access-list %s permit %s
+ip as-path access-list %s deny .*
+route-map %s
+match as-path %s
+`, aclName, asPathRegex, aclName, routeMap, aclName)
+	helpers.GnmiCLIConfig(t, dut, config)
+}
