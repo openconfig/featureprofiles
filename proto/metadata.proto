@@ -954,12 +954,29 @@ message Metadata {
     // Devices that need explicit breakout interface config.
     // Nokia: b/435502032
     bool explicit_breakout_interface_config = 330;
-
+ 
     // Devices do not support threshold container under
     // /components/component/transceiver. Translate from native ST with the
     // specified functional translator. See ciscoxr-laser-ft.
     // Cisco: b/429233045
     string ciscoxr_laser_ft = 331;
+
+    // OC state path for the lower priority next hop not supported.
+    // Arista: b/447502389
+    bool telemetry_not_supported_for_low_priority_nh = 332;
+
+    // Devices that do not support match-as-path-set
+    // Arista b/434583178
+    bool match_as_path_set_unsupported = 333;
+
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+    
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 335;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
