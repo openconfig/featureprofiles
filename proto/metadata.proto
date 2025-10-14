@@ -969,11 +969,14 @@ message Metadata {
     // Arista b/434583178
     bool match_as_path_set_unsupported = 333;
 
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+    
     // Devices that do not support syslog OC configuration for below OC paths.
     // '/system/logging/remote-servers/remote-server/config/network-instance'
     // Cisco: b/447513282
-    bool syslog_oc_unsupported = 334;
-
+    bool syslog_oc_unsupported = 335;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
