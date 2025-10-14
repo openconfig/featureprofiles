@@ -1,7 +1,8 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
+
 uuid: "e5b469c9-f765-4f95-b3dc-af4c926309f5"
-plan_id: "TRANSCEIVER-11 (400ZR_PLUS)"
+plan_id: "TRANSCEIVER-11.2"
 description: "Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry."
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
