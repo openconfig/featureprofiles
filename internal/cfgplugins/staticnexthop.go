@@ -172,7 +172,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 }
 
 // NextHopGroupConfigScale configures the interface next-hop-group config.
-func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, ni *oc.NetworkInstance, params StaticNextHopGroupParams) *gnmi.SetBatch {
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, ni *oc.NetworkInstance) *gnmi.SetBatch {
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -206,7 +206,6 @@ nexthop-group %s%d type mpls-over-gre
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
-		return nil
 	} else {
 		n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
 		if err != nil {
@@ -225,7 +224,7 @@ nexthop-group %s%d type mpls-over-gre
 			eh := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
 			ueh := eh.GetOrCreateUdpV4()
 			ueh.SetSrcIp(encapparams.GRETunnelSources[i])
-			ueh.SetDstIp(fmt.Sprintf("%s", ipPrefix))
+			ueh.SetDstIp(ipPrefix)
 
 			// https://partnerissuetracker.corp.google.com/issues/417988636
 			// ueh.GetOrCreateMpls().Label.Set(encapparams.MPLSStaticLabels[i])

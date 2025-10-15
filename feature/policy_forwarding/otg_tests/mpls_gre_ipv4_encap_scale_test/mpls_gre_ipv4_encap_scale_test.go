@@ -250,7 +250,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig
 	mustConfigureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
-	encapMPLSInGRE(t, dut, pf, ni, encapParams, ocPFParams, ocNHGParams)
+	encapMPLSInGRE(t, dut, pf, ni, encapParams, ocPFParams)
 
 }
 
@@ -368,13 +368,13 @@ func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, agg
 }
 
 // encapMPLSInGRE configures MPLS-in-GRE encapsulation on the DUT.
-func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+func encapMPLSInGRE(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ni *oc.NetworkInstance, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams) {
 	t.Helper()
 	cfgplugins.MplsConfig(t, dut)
 	cfgplugins.QosClassificationConfig(t, dut)
 	cfgplugins.LabelRangeConfig(t, dut)
 	b := new(gnmi.SetBatch)
-	cfgplugins.NextHopGroupConfigScale(t, dut, b, encapParams, ni, ocNHGParams)
+	cfgplugins.NextHopGroupConfigScale(t, dut, b, encapParams, ni)
 	cfgplugins.PolicyForwardingConfigScale(t, dut, b, encapParams, pf, ocPFParams)
 	b.Set(t, dut)
 	if !deviations.PolicyForwardingOCUnsupported(dut) {
