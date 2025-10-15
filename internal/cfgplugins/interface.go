@@ -1240,14 +1240,6 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
 	n4.LinkLayerAddress = ygot.String(macAddr)
 	return i
-// ConfigureAggregateInterfaces creates a aggregate interface
-func ConfigureAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutLags []*attrs.Attributes) {
-	for _, lagIntf := range dutLags {
-		agg := lagIntf.NewOCInterface(aggID, dut)
-		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
-		agg.Type = ieee8023adLag
-		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-	}
 }
 
 // URPFConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface. It includes the interface name and its IPv4/IPv6 subinterface objects.
