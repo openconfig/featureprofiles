@@ -408,7 +408,7 @@ func TestAtomic(t *testing.T) {
 
 	verifyBGPPrefixes := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4TwoNHs, ipv6TwoNHs)
 	verifyISISPrefixes := aftcache.AssertNextHopCount(t, dut, isisPrefixes, 1)
-	oneLinkDown := aftcache.AssertNextHopCount(t, dut, prefixes, 1)
+	verifyBGPOneLinkDown := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, postChurnIPv6(t, dut))
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
 	setOneLinkDown := func() {
@@ -440,7 +440,7 @@ func TestAtomic(t *testing.T) {
 			ate:  ate,
 
 			churn:             setOneLinkDown,
-			stoppingCondition: oneLinkDown,
+			stoppingCondition: verifyBGPOneLinkDown,
 			revert:            setOneLinkUp,
 		},
 		{
