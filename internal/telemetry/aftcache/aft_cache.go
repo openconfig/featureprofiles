@@ -730,16 +730,14 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
 				default:
 					if len(resolved) != wantNHCount {
-						return false, fmt.Errorf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						t.Logf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						t.Logf("verified %d of %d prefixes so far. Continuing to wait...", nCorrect, len(wantPrefixes))
+						return false, nil
 					}
 					nCorrect++
 				}
 			}
 			logDuration(checkNHStart, "Check Next Hops")
-			if nCorrect != nPrefixes {
-				t.Logf("AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
-				return false, nil
-			}
 			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
