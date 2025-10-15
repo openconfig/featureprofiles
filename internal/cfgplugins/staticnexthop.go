@@ -178,7 +178,7 @@ func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetB
 		case ondatra.ARISTA:
 			n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
 			if err != nil {
-				t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", err)
+				t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", encapparams.GRETunnelDestinationsStartIP, err)
 			}
 			buildConfig := func(prefix string, labels []int) string {
 				b := new(strings.Builder)
@@ -210,7 +210,7 @@ nexthop-group %s%d type mpls-over-gre
 	} else {
 		n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
 		if err != nil {
-			t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", err)
+			t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", encapparams.GRETunnelDestinationsStartIP, err)
 		}
 
 		for i := 1; i <= encapparams.Count; i++ {
