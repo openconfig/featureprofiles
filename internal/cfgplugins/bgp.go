@@ -42,6 +42,8 @@ type PortCount int
 const (
 	// RPLPermitAll policy
 	RPLPermitAll = "PERMIT-ALL"
+	// ALLOW policy
+	ALLOW = "ALLOW"
 
 	// DutAS dut AS
 	DutAS = uint32(65501)
@@ -160,18 +162,22 @@ type BGPSession struct {
 
 // BGPConfig holds all parameters needed to configure BGP on the DUT.
 type BGPConfig struct {
-	DutAS       uint32
+	// DutAS is the AS number of the DUT.
+	DutAS uint32
+	// ECMPMaxPath is the maximum number of paths to advertise per prefix for both iBGP and eBGP.
 	ECMPMaxPath uint32
-	RouterID    string
+	// RouterID is the router ID of the DUT. (Usually the IPv4 address.)
+	RouterID string
 }
 
 // BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
 type BGPNeighborConfig struct {
-	AteAS        uint32
-	PortName     string
-	NeighborIPv4 string
-	NeighborIPv6 string
-	IsLag        bool
+	AteAS            uint32
+	PortName         string
+	NeighborIPv4     string
+	NeighborIPv6     string
+	IsLag            bool
+	MultiPathEnabled bool
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
@@ -662,7 +668,7 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	// Handle multipath deviation
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		t.Log("Executing CLI commands for multipath deviation")
-		bgpRouteConfig := fmt.Sprintf(`		
+		bgpRouteConfig := fmt.Sprintf(`
 		router bgp %d
 		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
@@ -675,12 +681,20 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	} else {
 		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
 		// remove CLI fallback and rely solely on OC configuration.
-		af4.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
-		af4.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
-		af6.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
-		af6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().AllowMultipleAs = ygot.Bool(true)
-		af4.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-		af6.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+		v4Multipath := af4.GetOrCreateUseMultiplePaths()
+		v4Multipath.SetEnabled(true)
+		v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+		v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+
+		v6Multipath := af6.GetOrCreateUseMultiplePaths()
+		v6Multipath.SetEnabled(true)
+		v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+		v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+
+		if !deviations.SkipSettingAllowMultipleAS(dut) {
+			v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+		}
 	}
 	gnmi.BatchUpdate(batch, dutBgpConfPath.Config(), dutBgpConf)
 	return dutBgpConf
@@ -697,8 +711,8 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	pgafv4.Enabled = ygot.Bool(true)
 	rpl4 := pgafv4.GetOrCreateApplyPolicy()
-	rpl4.ImportPolicy = []string{"ALLOW"}
-	rpl4.ExportPolicy = []string{"ALLOW"}
+	rpl4.ImportPolicy = []string{ALLOW}
+	rpl4.ExportPolicy = []string{ALLOW}
 
 	// === Peer Group for IPv6 ===
 	pgv6Name := cfg.PortName + "BGP-PEER-GROUP-V6"
@@ -708,8 +722,18 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	pgafv6.Enabled = ygot.Bool(true)
 	rpl6 := pgafv6.GetOrCreateApplyPolicy()
-	rpl6.ImportPolicy = []string{"ALLOW"}
-	rpl6.ExportPolicy = []string{"ALLOW"}
+	rpl6.ImportPolicy = []string{ALLOW}
+	rpl6.ExportPolicy = []string{ALLOW}
+
+	if cfg.MultiPathEnabled {
+		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+			pgv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+			pgv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		} else {
+			pgafv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+			pgafv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		}
+	}
 
 	// === IPv4 Neighbor ===
 	nv4 := bgp.GetOrCreateNeighbor(cfg.NeighborIPv4)
