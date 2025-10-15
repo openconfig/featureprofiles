@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"net"
 	"strings"
 	"testing"
 
@@ -175,19 +176,24 @@ func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetB
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			ipPrefix := strings.Join(strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")[:3], ".")
+			n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
+			if err != nil {
+				t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", err)
+			}
 			buildConfig := func(prefix string, labels []int) string {
-				var b strings.Builder
+				b := new(strings.Builder)
 				for i := 1; i <= encapparams.Count; i++ {
-					b.WriteString(fmt.Sprintf(`
+					ip := incrementIP(n, i-1)
+					ipPrefix := ip.String()
+					fmt.Fprintf(b, `
 nexthop-group %s%d type mpls-over-gre
  tos 96
  ttl 64
- fec hierarchical`, prefix, i))
+ fec hierarchical`, prefix, i)
 					for entry, src := range encapparams.GRETunnelSources {
-						b.WriteString(fmt.Sprintf(`
- entry  %d push label-stack %d tunnel-destination %s.%d tunnel-source %s`,
-							entry, labels[i-1], ipPrefix, i, src))
+						fmt.Fprintf(b, `
+ entry  %d push label-stack %d tunnel-destination %s tunnel-source %s`,
+							entry, labels[i-1], ipPrefix, src)
 					}
 					b.WriteString("\n!")
 				}
@@ -202,8 +208,14 @@ nexthop-group %s%d type mpls-over-gre
 		}
 		return nil
 	} else {
-		ipPrefix := strings.Join(strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")[:3], ".")
+		n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
+		if err != nil {
+			t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", err)
+		}
+
 		for i := 1; i <= encapparams.Count; i++ {
+			ip := incrementIP(n, i-1)
+			ipPrefix := ip.String()
 			nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup("MPLS_in_GRE_Encap")
 			nhg.GetOrCreateNextHop("Dest A-NH1").SetIndex("Dest A-NH1")
 			ni.GetOrCreateStatic().
@@ -213,7 +225,7 @@ nexthop-group %s%d type mpls-over-gre
 			eh := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
 			ueh := eh.GetOrCreateUdpV4()
 			ueh.SetSrcIp(encapparams.GRETunnelSources[i])
-			ueh.SetDstIp(fmt.Sprintf("%s.%d", ipPrefix, i))
+			ueh.SetDstIp(fmt.Sprintf("%s", ipPrefix))
 
 			// https://partnerissuetracker.corp.google.com/issues/417988636
 			// ueh.GetOrCreateMpls().Label.Set(encapparams.MPLSStaticLabels[i])
@@ -285,4 +297,18 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
+}
+
+// incrementIP takes an IPv4 address and increments it by a given integer value.
+// It returns a new net.IP object representing the incremented IP address.
+func incrementIP(ip net.IP, inc int) net.IP {
+	ip = ip.To4()
+	newIP := make(net.IP, len(ip))
+	copy(newIP, ip)
+	for i := len(newIP) - 1; i >= 0; i-- {
+		inc += int(newIP[i])
+		newIP[i] = byte(inc % 256)
+		inc /= 256
+	}
+	return newIP
 }

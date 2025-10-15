@@ -34,9 +34,9 @@ const (
 	otgIntStartIP                = "169.254.0.2"
 	dutIntStartIPV6              = "2000:0:0:1::1"
 	otgIntStartIPV6              = "2000:0:0:1::2"
-	intStepV4                    = "0.0.0.4"
-	intStepV6                    = "0:0:0:1::"
-	greTunnelDestinationsStartIP = "10.99.1.1"
+	stepV4                       = "0.0.0.4"
+	stepV6                       = "0:0:0:1::"
+	greTunnelDestinationsStartIP = "10.99.1.1/32"
 	trafficDuration              = 20 * time.Second
 )
 
@@ -65,12 +65,12 @@ var (
 		Name:        "Port-Channel2",
 		AggMAC:      "02:00:01:01:01:01",
 		MemberPorts: []string{"port3", "port4"},
-		Interfaces:  []*otgconfighelpers.InterfaceProperties{agg2interface},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{agg2Interface},
 		LagID:       2,
 		IsLag:       true,
 	}
 
-	agg2interface = &otgconfighelpers.InterfaceProperties{
+	agg2Interface = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "194.0.2.2",
 		IPv6:        "2001:10:1:6::2",
 		IPv4Gateway: "194.0.2.1",
@@ -195,24 +195,24 @@ type networkConfig struct {
 
 // generateNetConfig generates IPv4 and IPv6 network configurations for DUT and OTG.
 func generateNetConfig(intCount int) (*networkConfig, error) {
-	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, intStepV4)
+	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, stepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIP, intCount, intStepV4)
+	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIP, intCount, stepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
 	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
 
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPV6, intCount, intStepV6)
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPV6, intCount, stepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPV6, intCount, intStepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPV6, intCount, stepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}
@@ -226,8 +226,8 @@ func generateNetConfig(intCount int) (*networkConfig, error) {
 	}, nil
 }
 
-// configureDut configures DUT interfaces, static routes, and MPLS-in-GRE encapsulation.
-func configureDut(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
+// configureDUT configures DUT interfaces, static routes, and MPLS-in-GRE encapsulation.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
@@ -318,7 +318,7 @@ func mustConfigureSetup(t *testing.T) {
 	}
 
 	// Pass ocPFParams to ConfigureDut
-	configureDut(t, dut, netConfig, ocEncapParams, ocPFParams, ocNHGParams)
+	configureDUT(t, dut, netConfig, ocEncapParams, ocPFParams, ocNHGParams)
 	flowIPv4Validation.Interface.Names = append(flowIPv4Validation.Interface.Names, agg1.Interfaces[0].Name)
 	flowIPv4.TxNames = append(flowIPv4.TxNames, agg1.Interfaces[0].Name+".IPv4")
 	flowIPv6Validation.Interface.Names = append(flowIPv6Validation.Interface.Names, agg1.Interfaces[0].Name)
@@ -361,7 +361,7 @@ func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, agg
 	ocPFParams.Interfaces = interfaces
 	ocPFParams.AggID = aggID
 	b := new(gnmi.SetBatch)
-	cfgplugins.InterfacelocalProxyConfigScale(t, dut, b, ocPFParams)
+	cfgplugins.InterfaceLocalProxyConfigScale(t, dut, b, ocPFParams)
 	cfgplugins.InterfaceQosClassificationConfigScale(t, dut, b, ocPFParams)
 	cfgplugins.InterfacePolicyForwardingConfigScale(t, dut, b, pf, ocPFParams)
 	b.Set(t, dut)

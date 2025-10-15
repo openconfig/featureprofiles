@@ -260,20 +260,20 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 
 }
 
-// InterfacelocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
+// InterfaceLocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
 // When the device does not support the OpenConfig path, vendor-specific CLI commands
 // are applied.
-func InterfacelocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
+func InterfaceLocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
 	if deviations.LocalProxyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			var interfacelocalproxy strings.Builder
+			interfacelocalproxy := new(strings.Builder)
 			for _, a := range params.Interfaces {
 				if a.IPv4 != "" {
-					interfacelocalproxy.WriteString(fmt.Sprintf(`
+					fmt.Fprintf(interfacelocalproxy, `
 					interface %s.%d
-					ip local-proxy-arp 
-					!`, params.AggID, a.Subinterface))
+					 ip local-proxy-arp 
+					!`, params.AggID, a.Subinterface)
 				}
 			}
 			helpers.GnmiCLIConfig(t, dut, interfacelocalproxy.String())
@@ -301,12 +301,12 @@ func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice,
 	if deviations.QosClassificationOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			var interfaceqosconfig strings.Builder
+			interfaceqosconfig := new(strings.Builder)
 			for _, a := range params.Interfaces {
-				interfaceqosconfig.WriteString(fmt.Sprintf(`
+				fmt.Fprintf(interfaceqosconfig, `
 				interface %s.%d
-				service-policy type qos input af3 
-				!`, params.AggID, a.Subinterface))
+				 service-policy type qos input af3 
+				!`, params.AggID, a.Subinterface)
 			}
 			helpers.GnmiCLIConfig(t, dut, interfaceqosconfig.String())
 		default:
@@ -335,12 +335,12 @@ func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, 
 		switch dut.Vendor() {
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Format and apply the CLI command for traffic policy input.
-			var trafficpolicyconfig strings.Builder
+			trafficpolicyconfig := new(strings.Builder)
 			for _, a := range params.Interfaces {
-				trafficpolicyconfig.WriteString(fmt.Sprintf(`
+				fmt.Fprintf(trafficpolicyconfig, `
 				interface %s.%d  
-				traffic-policy input tp_cloud_id_3_%d
-				!`, params.AggID, a.Subinterface, a.Subinterface))
+				 traffic-policy input tp_cloud_id_3_%d
+				!`, params.AggID, a.Subinterface, a.Subinterface)
 			}
 			helpers.GnmiCLIConfig(t, dut, trafficpolicyconfig.String())
 		default:
@@ -481,13 +481,13 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
-			var PolicyForwardingConfig strings.Builder
+			PolicyForwardingConfig := new(strings.Builder)
 
 			PolicyForwardingConfig.WriteString("traffic-policies\n")
 
 			for i := 1; i <= encapparams.Count; i++ {
 
-				PolicyForwardingConfig.WriteString(fmt.Sprintf(`
+				fmt.Fprintf(PolicyForwardingConfig, `
     traffic-policy tp_cloud_id_3_%d
     match setttlv6 ipv6
        ttl 1
@@ -516,7 +516,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
           count
           redirect next-hop group 1V6_vlan_3_%d
           set traffic class 3
-    !`, i, i, i, i, i))
+    !`, i, i, i, i, i)
 			}
 
 			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
@@ -526,7 +526,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 		}
 		return nil
 	} else {
-		var ruleSeq uint32 = 1
+		ruleSeq := uint32(1)
 		for i := 1; i <= encapparams.Count; i++ {
 			// https://partnerissuetracker.corp.google.com/issues/417988636
 			//  pols := pf.GetOrCreatePolicy(fmt.Sprintf("tp_cloud_id_3_%d", i))
