@@ -54,15 +54,15 @@ const (
 	isisATESystemID           = "640000000001"
 	isisDUTArea               = "49.0001"
 	isisDUTSystemID           = "1920.0000.2001"
-	isisRoute                 = "192.0.2.1" // Within TEST-NET-1 so we can assert NH count.
+	isisRoute                 = "192.0.2.1"
 	isisRouteCount            = 100
-	isisRouteV6               = "2001:db8::203:0:113:1"
+	isisRouteV6               = "2001:DB8::1"
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
 	mtu                       = 1500
 	startingBGPRouteIPv4      = "200.0.0.0/32"
 	startingBGPRouteIPv6      = "3001:1::0/128"
 	startingISISRouteIPv4     = "192.0.2.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
+	startingISISRouteIPv6     = "2001:DB8::1/128"
 	v4PrefixLen               = 30
 	v6PrefixLen               = 126
 
