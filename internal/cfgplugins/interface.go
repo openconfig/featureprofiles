@@ -1037,12 +1037,4 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
 	n4.LinkLayerAddress = ygot.String(macAddr)
 	return i
-// ConfigureAggregateInterfaces creates a aggregate interface
-func ConfigureAggregateInterfaces(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutLags []*attrs.Attributes) {
-	for _, lagIntf := range dutLags {
-		agg := lagIntf.NewOCInterface(aggID, dut)
-		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
-		agg.Type = ieee8023adLag
-		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-	}
 }
