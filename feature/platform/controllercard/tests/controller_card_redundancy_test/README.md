@@ -73,7 +73,7 @@
 
 ## Config Parameter coverage
 
-*   /components/component/controller_card/config/power-admin-state
+*   /components/component/controller-card/config/power-admin-state
 
 ## Telemetry Parameter coverage
 
@@ -153,6 +153,31 @@ rpcs:
   gnoi:
     system.System.SwitchControlProcessor:
     system.System.Reboot:
+```
+
+## Canonical OC
+
+```json
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "controller-1"
+        },
+        "controller-card": {
+          "config": {
+            "openconfig-platform-controller-card:power-admin-state": "POWER_ENABLED"
+          }
+        },
+        "name": "controller-1",
+        "state": {
+          "type": "openconfig-platform-types:CONTROLLER_CARD"
+        }
+      }
+    ]
+  }
+}
 ```
 
 ## Minimum DUT platform requirement
