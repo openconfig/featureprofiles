@@ -35,6 +35,8 @@ type StaticRouteCfg struct {
 	IPType          string
 	NextHopAddr     string
 	NexthopGroup    bool
+	Metric          uint32
+	Recurse         bool
 	T               *testing.T
 }
 
@@ -61,18 +63,24 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 				case ondatra.ARISTA:
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
-
 				default:
-					cfg.T.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %v", d.Vendor())
+					return s, fmt.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %s", d.Vendor())
 				}
+				return s, nil
 			} else {
 				ngName := fmt.Sprintf("%s", v)
-				s.GetOrCreateNextHopGroup().SetName(ngName)
+				nhg := s.GetOrCreateNextHopGroup()
+				nhg.SetName(ngName)
 			}
-			return s, nil
-		} else {
-			nh := s.GetOrCreateNextHop(k)
-			nh.NextHop = v
+		}
+		nh := s.GetOrCreateNextHop(k)
+		nh.SetIndex(k)
+		nh.NextHop = v
+		if cfg.Metric != 0 {
+			nh.SetMetric(cfg.Metric)
+		}
+		if cfg.Recurse {
+			nh.SetRecurse(cfg.Recurse)
 		}
 	}
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
