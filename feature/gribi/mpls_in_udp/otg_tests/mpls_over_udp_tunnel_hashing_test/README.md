@@ -1,4 +1,4 @@
-# TUN-2.9: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
+# TE-18.4: ECMP hashing on outer and inner packets with MPLSoUDP encapsulation
 
 Create AFT entries using gRIBI to match on next hop group in a
 network-instance and encapsulate the matching packets in MPLS in UDP with
@@ -56,9 +56,9 @@ outer_ip-ttl =        "64"
 
 ## Procedure
 
-### TUn 2.9 Match and Encapsulate using gRIBI aft modify
+### TE-18.4 Match and Encapsulate using gRIBI aft modify
 
-#### gRIBI RPC content
+##### gRIBI RPC content
 
 The gRIBI client should send this proto message to the DUT to create AFT
 entries.
@@ -111,6 +111,68 @@ NH#101 -> {
   * Validate the ecmp hashing is working fine and load balance is happening 
     across all the 3 ports with tolerance of 1%.
 
+## Canonical OC
+
+```json
+ { 
+   "network-instances": { 
+     "network-instance": [ 
+       { 
+         "config": { 
+           "name": "default" 
+         }, 
+         "name": "default", 
+         "policy-forwarding": { 
+           "interfaces": { 
+             "interface": [ 
+               { 
+                 "config": { 
+                   "apply-forwarding-policy": "vrf100policy", 
+                   "interface-id": "eth3/3/1" 
+                 }, 
+                 "interface-id": "eth3/3/1" 
+               } 
+             ] 
+           }, 
+           "policies": { 
+             "policy": [ 
+               { 
+                 "config": { 
+                   "policy-id": "vrf100policy", 
+                   "type": "VRF_SELECTION_POLICY" 
+                 }, 
+                 "policy-id": "vrf100policy", 
+                 "rules": { 
+                   "rule": [ 
+                     { 
+                       "action": { 
+                         "config": { 
+                           "network-instance": "vrf100" 
+                         } 
+                       }, 
+                       "config": { 
+                         "sequence-id": 10 
+                       }, 
+                       "sequence-id": 10 
+                     } 
+                   ] 
+                 } 
+               } 
+             ] 
+           } 
+         } 
+       }, 
+       { 
+         "config": { 
+           "name": "vrf100", 
+           "type": "L3VRF" 
+         }, 
+         "name": "vrf100" 
+       } 
+     ] 
+   } 
+ } 
+ ```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -118,9 +180,9 @@ NH#101 -> {
 paths:
 
 # afts state paths set via gRIBI
-  # TODO: need new OC for user defined next-hop-group/state/id, needed for policy-forwarding rules pointing to a NHG
-  # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/next-hop-group-id:
-
+  # OC for user defined next-hop-group/state/id for policy-forwarding rules pointing to a NHG
+  /network-instances/network-instance/fdb/l2rib/mac-table/next-hop-groups/next-hop-group/id:
+  
   # TODO: new OC path for aft NHG pointing to a different network-instance
   # /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/network-instance:
 
