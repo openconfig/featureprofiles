@@ -20,6 +20,10 @@ import (
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	ethertypeIPv4 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
+	ethertypeIPv6 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
+	seqIDBase     = uint32(10)
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -299,6 +303,13 @@ func MplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
 		}
+	} else {
+		t.Log("Currently do not have support to enable Mpls through OC, need to uncomment once implemented")
+		// TODO: Currently do not have support to enable Mpls through OC, need to uncomment once implemented.
+		// d := &oc.Root{}
+		// ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		// mpls := ni.GetOrCreateMpls()
+		// mpls.Enabled = ygot.Bool(true)
 	}
 }
 
@@ -311,8 +322,9 @@ func QosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
 		}
+	} else {
+		QosClassificationOCConfig(t)
 	}
-
 }
 
 // LabelRangeConfig configures the interface label range.
@@ -324,6 +336,8 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
 		}
+	} else {
+		LabelRangeOCConfig(t, dut)
 	}
 }
 
@@ -846,6 +860,7 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 	}
 }
 
+// ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
 func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	if deviations.DecapsulateGueOCUnsupported(dut) {
@@ -878,4 +893,85 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 		// transport := npRule.GetOrCreateTransport()
 		// transport.SetDestinationPort()
 	}
+}
+
+// PbrRule defines a policy-based routing rule configuration
+type PbrRule struct {
+	Sequence  uint32
+	EtherType oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
+	EncapVrf  string
+}
+
+// PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
+type PolicyForwardingConfigName struct {
+	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
+}
+
+// NewPolicyForwardingVRFSelection configures Policy-Based Routing for VRF selection.
+func NewPolicyForwardingVRFSelection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg PolicyForwardingConfigName) *gnmi.SetBatch {
+	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	p := pf.GetOrCreatePolicy(cfg.Name)
+	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	for _, pRule := range getPbrRules(dut) {
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
+
+		// Optional default rule match requirement.
+		if deviations.PfRequireMatchDefaultRule(dut) && pRule.EtherType != nil {
+			r.GetOrCreateL2().Ethertype = pRule.EtherType
+		}
+
+		// Set forwarding action (encap VRF)
+		if pRule.EncapVrf != "" {
+			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
+		}
+	}
+
+	// Push policy forwarding configuration via GNMI batch.
+	gnmi.BatchUpdate(sb,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(),
+		pf,
+	)
+
+	t.Logf("Configured policy forwarding VRF selection: policy=%s", cfg.Name)
+
+	return sb
+}
+
+// getPbrRules returns policy-based routing rules for VRF selection
+func getPbrRules(dut *ondatra.DUTDevice) []PbrRule {
+	vrfDefault := deviations.DefaultNetworkInstance(dut)
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		return []PbrRule{
+			{
+				Sequence:  17,
+				EtherType: ethertypeIPv4,
+				EncapVrf:  vrfDefault,
+			},
+			{
+				Sequence:  18,
+				EtherType: ethertypeIPv6,
+				EncapVrf:  vrfDefault,
+			},
+		}
+	}
+	return []PbrRule{
+		{
+			Sequence: 17,
+			EncapVrf: vrfDefault,
+		},
+	}
+}
+
+// seqIDOffset returns sequence ID with base offset to ensure proper ordering
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
 }
