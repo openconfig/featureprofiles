@@ -103,6 +103,11 @@ func TestLowPowerMode(t *testing.T) {
 
 			// Derive transceiver names from ports.
 			tr := gnmi.Get(t, dut, gnmi.OC().Interface(dp.Name()).Transceiver().State())
+
+			// Debug logging for deviation
+			t.Logf("GetTransceiverMfgDateUnsupported returns: %v", deviations.GetTransceiverMfgDateUnsupported(dut))
+			t.Logf("SkipTransceiverDescription returns: %v", deviations.SkipTransceiverDescription(dut))
+
 			// Stream all inventory information.
 			streamSerialNo := samplestream.New(t, dut, gnmi.OC().Component(tr).SerialNo().State(), samplingInterval)
 			defer streamSerialNo.Close()
@@ -112,8 +117,6 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamType.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
-			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
-			defer streamMfgDate.Close()
 			streamHwVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).HardwareVersion().State(), samplingInterval)
 			defer streamHwVersion.Close()
 			streamFirmwareVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).FirmwareVersion().State(), samplingInterval)
@@ -123,16 +126,26 @@ func TestLowPowerMode(t *testing.T) {
 				"serialNo":        streamSerialNo,
 				"partNo":          streamPartNo,
 				"mfgName":         streamMfgName,
-				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
 
+			// Conditionally add mfgDate stream based on device support
+			if !deviations.GetTransceiverMfgDateUnsupported(dut) {
+				streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
+				defer streamMfgDate.Close()
+				allStream["mfgDate"] = streamMfgDate
+			}
+
+			// Conditionally add description stream based on device support
 			if !deviations.SkipTransceiverDescription(dut) {
 				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
 				defer streamDescription.Close()
 				allStream["description"] = streamDescription
 			}
+
+			// Debug logging to show what streams are being validated
+			t.Logf("Stream map contents: %v", reflect.ValueOf(allStream).MapKeys())
 
 			validateStreamOutput(t, allStream)
 

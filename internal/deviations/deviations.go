@@ -1686,3 +1686,8 @@ func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
+
+// GetTransceiverMfgDateUnsupported returns true if transceiver mfg-date leaf is unsupported
+func GetTransceiverMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverMfgDateUnsupported()
+}
