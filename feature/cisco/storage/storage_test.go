@@ -9,6 +9,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
+// Test configuration constants
 const (
 	dst                   = "202.1.0.1"
 	v4mask                = "32"
@@ -29,6 +30,9 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// TestStorageFileSystemCheck validates OpenConfig storage counter functionality
+// Tests include: soft-read-error-rate, reallocated-sectors, end-to-end-error,
+// offline-uncorrectable-sectors-count, life-left, percentage-used, and system-events
 func TestStorageFileSystemCheck(t *testing.T) {
 
 	// write log message for "MDT/EDT support for storage IO error leafs in openconfig"
@@ -47,7 +51,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 		ctx: ctx,
 	}
 
-	// Define test cases based on the test plan
+	// Storage counter test cases with different subscription modes and GET requests
 	testCases := []storageTestCase{
 		{
 			name:        "soft-read-error-rate",
@@ -91,15 +95,23 @@ func TestStorageFileSystemCheck(t *testing.T) {
 			description: "Validate storage percentage used",
 			fn:          testPercentageUsed,
 		},
+		{
+			name:        "system-events",
+			counterType: "counter64",
+			description: "Validate storage system events counter",
+			fn:          testStorageSystemEvents,
+		},
 	}
+	
+	// Execute all test cases
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.fn(ctx, t, args, tt.path)
 		})
 	}
-
 }
 
+// testSoftReadErrorRate validates soft read error rate counters across all subscription modes
 func testSoftReadErrorRate(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
@@ -108,12 +120,26 @@ func testSoftReadErrorRate(ctx context.Context, t *testing.T, args *testArgs, pa
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
+
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
 
 }
 
+// testReallocatedSectors validates reallocated sectors counters across all subscription modes
 func testReallocatedSectors(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
@@ -122,12 +148,26 @@ func testReallocatedSectors(ctx context.Context, t *testing.T, args *testArgs, p
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
+
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
 
 }
 
+// testEndToEndError validates end-to-end error counters across all subscription modes
 func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
@@ -136,12 +176,26 @@ func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSu
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
+
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
 
 }
 
+// testOfflineUncorrectableSectors validates offline uncorrectable sectors counters across all subscription modes
 func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
@@ -150,12 +204,26 @@ func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *te
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
+
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
 
 }
 
+// testLifeLeft validates storage life left percentage counters across all subscription modes
 func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
@@ -164,9 +232,25 @@ func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix 
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
+
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("life-left-trigger-scenario", func(t *testing.T) {
+	// 	testLifeLeftTriggerScenario(t, args, ctx, pathSuffix)
+	// })
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
 
 }
 
@@ -178,8 +262,32 @@ func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathS
 	t.Run("subscription-mode-once", func(t *testing.T) {
 		testStorageCounterOnceMode(t, args, pathSuffix)
 	})
-	t.Run("system-events", func(t *testing.T) {
-		testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+
+	t.Run("subscription-mode-target-defined", func(t *testing.T) {
+		testStorageCounterTargetMode(t, args, pathSuffix)
 	})
 
+	t.Run("subscription-mode-on-change", func(t *testing.T) {
+		testStorageCounterOnChangeMode(t, args, pathSuffix)
+	})
+
+	t.Run("gnmi-get-request", func(t *testing.T) {
+		testStorageCounterGetMode(t, args, pathSuffix)
+	})
+
+	// t.Run("trigger scenario", func(t *testing.T) {
+	// 	testStorageCounterTriggerScenario(t, args, ctx, pathSuffix)
+	// })
+	// t.Run("system-events", func(t *testing.T) {
+	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
+	// })
+
+}
+
+func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, path string) {
+	t.Log("Description: System Events Test - Validate all storage counters before and after system events")
+
+	t.Run("comprehensive-system-events-test", func(t *testing.T) {
+		testStorageSystemEventsComprehensive(t, args)
+	})
 }
