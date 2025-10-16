@@ -1,12 +1,13 @@
 package helper
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/exec/utils/textfsm/textfsm"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	// "github.com/openconfig/ondatra/gnmi/oc"
 )
 
 type fibHelper struct{}
@@ -23,19 +24,36 @@ type FIBAFTObject struct {
 	NextHop      []AFTNHInfo
 }
 
-// GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix.
-func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) []uint64 {
-	t.Helper()
+type CEFNHInfo struct {
+	NextHopAddress   string
+	NextHopInterface string
+	NextHopWeight    float64
+}
+
+type FIBCEFObject struct {
+	Prefix string
+	VRF    string
+	CEFNH  []CEFNHInfo
+}
+
+// GetPrefixAFTNHG retrieves all outgoing NHG(next hop group) for a given prefix , with afiType string "ipv4" or "ipv6".
+func (v *fibHelper) GetPrefixAFTNHG(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) []uint64 {
 	var NHG []uint64
-	aftIPv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
-	aftGet := gnmi.Get(t, dut, aftIPv4Path)
-	NHG = []uint64{aftGet.GetNextHopGroup()}
+	switch afiType {
+	case "ipv4":
+		aftIPv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix).State()
+		aftGet := gnmi.Get(t, dut, aftIPv4Path)
+		NHG = []uint64{aftGet.GetNextHopGroup()}
+	case "ipv6":
+		aftIPv6Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv6Entry(prefix).State()
+		aftGet := gnmi.Get(t, dut, aftIPv6Path)
+		NHG = []uint64{aftGet.GetNextHopGroup()}
+	}
 	return NHG
 }
 
-// GetPrefixAFTNH returns a map of NH index and corresponding weight for a given NHG.
+// GetPrefixAFTNHIndex returns a map of NH index and corresponding weight for a given NHG.
 func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NHG uint64, vrf string) map[uint64]uint64 {
-	t.Helper()
 	nhMap := make(map[uint64]uint64)
 	aftNHG := gnmi.OC().NetworkInstance(vrf).Afts().NextHopGroup(NHG).State()
 	aftGet := gnmi.Get(t, dut, aftNHG)
@@ -50,7 +68,6 @@ func (v *fibHelper) GetPrefixAFTNHIndex(t testing.TB, dut *ondatra.DUTDevice, NH
 
 // GetAFTNHIPAddr retrieves next-hop IP for a given NHIndex list.
 func (v *fibHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
-	t.Helper()
 	var nhIP []string
 	for _, nhI := range nhIndex {
 		aftNH := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHop(nhI).State()
@@ -63,7 +80,6 @@ func (v *fibHelper) GetAFTNHIPAddr(t testing.TB, dut *ondatra.DUTDevice, nhIndex
 
 // GetAFTNHInterface retrieves next-hop Interface for a given NHIndex list.
 func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIndex []uint64, vrf string) []string {
-	t.Helper()
 	var nhInterface []string
 	for _, nhI := range nhIndex {
 		aftNH := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHop(nhI).State()
@@ -74,12 +90,14 @@ func (v *fibHelper) GetAFTNHInterface(t testing.TB, dut *ondatra.DUTDevice, nhIn
 	return nhInterface
 }
 
-func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf string) FIBAFTObject {
-	t.Helper()
+// GetPrefixAFTObjects retrieves the AFT (Abstract Forwarding Table) objects for a given prefix.
+// It collects information about the next-hop group and next-hop details, including IP addresses,
+// weights, and interfaces.
+func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBAFTObject {
 	aftObj := FIBAFTObject{}
 	NHInfo := AFTNHInfo{}
 	aftObj.Prefix = prefix
-	aftObj.NextHopGroup = v.GetPrefixAFTNHG(t, dut, prefix, vrf)
+	aftObj.NextHopGroup = v.GetPrefixAFTNHG(t, dut, prefix, vrf, afiType)
 	for nhI := range v.GetPrefixAFTNHIndex(t, dut, aftObj.NextHopGroup[0], vrf) {
 		NHInfo.NextHopIndex = nhI
 		NHInfo.NextHopIP = v.GetAFTNHIPAddr(t, dut, []uint64{NHInfo.NextHopIndex}, vrf)[0]
@@ -87,8 +105,14 @@ func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 		aftObj.NextHop = append(aftObj.NextHop, NHInfo)
 	}
 
+	var nhPfxLength string
+	if afiType == "ipv4" {
+		nhPfxLength = "/32"
+	} else {
+		nhPfxLength = "/128"
+	}
 	for i, NH := range aftObj.NextHop {
-		pathNHG := v.GetPrefixAFTNHG(t, dut, NH.NextHopIP+"/32", deviations.DefaultNetworkInstance(dut))
+		pathNHG := v.GetPrefixAFTNHG(t, dut, NH.NextHopIP+nhPfxLength, deviations.DefaultNetworkInstance(dut), afiType)
 		pathNHI := v.GetPrefixAFTNHIndex(t, dut, pathNHG[0], deviations.DefaultNetworkInstance(dut))
 		for nhI := range pathNHI {
 			pathIntf := v.GetAFTNHInterface(t, dut, []uint64{nhI}, deviations.DefaultNetworkInstance(dut))
@@ -96,4 +120,44 @@ func (v *fibHelper) GetPrefixAFTObjects(t testing.TB, dut *ondatra.DUTDevice, pr
 		}
 	}
 	return aftObj
+}
+
+// TODO: add docstring and remove parameter afiType if not needed
+func (v *fibHelper) GetPrefixCEFObjects(t testing.TB, dut *ondatra.DUTDevice, prefix, vrf, afiType string) FIBCEFObject {
+	cefObj := FIBCEFObject{}
+	NHInfo := CEFNHInfo{}
+	cefObj.Prefix = prefix
+	cefObj.VRF = vrf
+	cliOutput := dut.CLI().Run(t, fmt.Sprintf("show cef vrf %s %s detail", vrf, prefix))
+	//Build cef textfsm struct.
+	var nhAddList []string
+	ipCount := make(map[string]int)
+	cefVrfTextfsm := textfsm.ShowCefVrfDetail{}
+	if err := cefVrfTextfsm.Parse(cliOutput); err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, cefCliVal := range cefVrfTextfsm.Rows {
+		nhAddList = cefCliVal.GetAddressVal()
+		for i, ip := range nhAddList {
+			ipCount[ip]++
+			if len(cefCliVal.GetInterfaceValue()) > 0 {
+				NHInfo.NextHopInterface = cefCliVal.GetInterfaceValue()[i]
+			}
+		}
+
+	}
+	uniqueNH := make(map[string]bool)
+	for _, nh := range nhAddList {
+		if uniqueNH[nh] { // Skip if already exist
+			continue
+
+		}
+		uniqueNH[nh] = true
+		total := float64(len(nhAddList))
+		wt := float64(ipCount[nh]) / total
+		NHInfo.NextHopAddress = nh
+		NHInfo.NextHopWeight = wt
+		cefObj.CEFNH = append(cefObj.CEFNH, NHInfo)
+	}
+	return cefObj
 }
