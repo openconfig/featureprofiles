@@ -102,7 +102,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 			fn:          testStorageSystemEvents,
 		},
 	}
-	
+
 	// Execute all test cases
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {

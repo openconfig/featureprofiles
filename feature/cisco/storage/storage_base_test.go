@@ -53,11 +53,11 @@ var lcList = []string{}
 // instead of streaming subscriptions. This allows testing GET-based data retrieval.
 type getSubscriber struct {
 	gpb.GNMI_SubscribeClient
-	client gpb.GNMIClient       // gNMI client for making requests
-	ctx    context.Context      // Request context
-	notifs []*gpb.Notification  // Cached GET response notifications
-	index  int                  // Current notification index
-	done   bool                 // Indicates if all notifications processed
+	client gpb.GNMIClient      // gNMI client for making requests
+	ctx    context.Context     // Request context
+	notifs []*gpb.Notification // Cached GET response notifications
+	index  int                 // Current notification index
+	done   bool                // Indicates if all notifications processed
 }
 
 // Send converts a SubscribeRequest to a GetRequest and executes it
