@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -117,27 +118,35 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamPartNo.Close()
 			streamType := samplestream.New(t, dut, gnmi.OC().Component(tr).Type().State(), samplingInterval)
 			defer streamType.Close()
-			// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
-			// streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
-			// defer streamDescription.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
-			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
-			defer streamMfgDate.Close()
 			streamHwVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).HardwareVersion().State(), samplingInterval)
 			defer streamHwVersion.Close()
 			streamFirmwareVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).FirmwareVersion().State(), samplingInterval)
 			defer streamFirmwareVersion.Close()
 
 			allStream := map[string]*samplestream.SampleStream[string]{
-				"serialNo": streamSerialNo,
-				"partNo":   streamPartNo,
-				// "description":     streamDescription,
+				"serialNo":        streamSerialNo,
+				"partNo":          streamPartNo,
 				"mfgName":         streamMfgName,
-				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+
+			// Conditionally add mfgDate stream based on device support
+			if !deviations.GetTransceiverMfgDateUnsupported(dut) {
+				streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
+				defer streamMfgDate.Close()
+				allStream["mfgDate"] = streamMfgDate
+			}
+
+			// Conditionally add description stream based on device support
+			if !deviations.SkipTransceiverDescription(dut) {
+				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+				defer streamDescription.Close()
+				allStream["description"] = streamDescription
+			}
+
 			validateStreamOutput(t, allStream)
 
 			// Disable interface

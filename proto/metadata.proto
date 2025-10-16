@@ -978,6 +978,9 @@ message Metadata {
     // Cisco: b/447513282
     bool syslog_oc_unsupported = 335;
 
+    // Device does not support mfg-date leaf for transceiver components.
+    bool transceiver_mfg_date_unsupported = 336;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
