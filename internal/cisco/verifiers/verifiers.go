@@ -1,10 +1,11 @@
-// Package verifier provides verifier functions for a given component or technology area.
+// Package verifiers offers APIs to verify operational data for components.
 package verifiers
 
 var (
 	loadbalancing *loadbalancingVerifier
 	interfaces    *interfaceVerifier
 	tgen          *tgenVerifier
+	fib           *fibVerifier
 	// rib     = &ribverifier{}
 )
 
@@ -30,4 +31,12 @@ func TGENverifier() *tgenVerifier {
 		tgen = &tgenVerifier{}
 	}
 	return tgen
+}
+
+// FIBverifier accessor for CEF verifier functions.
+func FIBverifier() *fibVerifier {
+	if fib == nil {
+		fib = &fibVerifier{}
+	}
+	return fib
 }
