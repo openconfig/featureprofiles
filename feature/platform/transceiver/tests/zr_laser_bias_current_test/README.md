@@ -78,9 +78,41 @@ specified operating temperature and voltage.
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
 
-### Canonical OC
+## Canonical OC
 ```json
-{}
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "Ethernet1/1"
+        },
+        "name": "Ethernet1/1",
+        "transceiver": {
+          "config": {
+            "enabled": true
+          },
+          "state": {
+            "form-factor": "QSFP28"
+          }
+        }
+      },
+      {
+        "config": {
+          "name": "Ethernet1/1-channel1"
+        },
+        "name": "Ethernet1/1-channel1",
+        "optical-channel": {
+          "state": {
+            "laser-bias-current": {
+              "instant": "1.23456789"
+            }
+          }
+        }
+      }
+    ]
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
