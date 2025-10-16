@@ -77,6 +77,7 @@ specified operating temperature and voltage.
     *   Verify the ZR optics TX laser bias current telemetry values are
         updated to the value in the normal range again.
         * Typical measurement range 0 to 131 mA.
+
 ## Canonical OC
 ```json
 {
@@ -112,9 +113,6 @@ specified operating temperature and voltage.
     ]
   }
 }
-### Canonical OC
-```json
-{}
 ```
 
 ## OpenConfig Path and RPC Coverage
