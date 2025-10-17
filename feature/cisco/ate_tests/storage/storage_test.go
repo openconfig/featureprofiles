@@ -181,7 +181,6 @@ func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSu
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-
 }
 
 // testOfflineUncorrectableSectors validates offline uncorrectable sectors counters across all subscription modes
@@ -205,7 +204,6 @@ func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *te
 	t.Run("gnmi-get-request", func(t *testing.T) {
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
-
 
 }
 
