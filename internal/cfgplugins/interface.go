@@ -315,6 +315,7 @@ type ConfigParameters struct {
 	Allocation          float64
 	HWPortNames         map[string]string
 	TransceiverNames    map[string]string
+	TempSensorNames     map[string]string
 	OpticalChannelNames map[string]string
 	OTNIndexes          map[string]uint32
 	ETHIndexes          map[string]uint32
@@ -325,6 +326,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	t.Helper()
 	params.HWPortNames = make(map[string]string)
 	params.TransceiverNames = make(map[string]string)
+	params.TempSensorNames = make(map[string]string)
 	params.OpticalChannelNames = make(map[string]string)
 	for _, p := range dut.Ports() {
 		if hwPortName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()).Val(); !ok {
@@ -337,6 +339,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		} else {
 			params.TransceiverNames[p.Name()] = transceiverName
 		}
+		params.TempSensorNames[p.Name()] = "TempSensor-" + params.TransceiverNames[p.Name()]
 		params.OpticalChannelNames[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 		params.OTNIndexes = AssignOTNIndexes(t, dut)
 		params.ETHIndexes = AssignETHIndexes(t, dut)
