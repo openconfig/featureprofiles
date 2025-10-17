@@ -159,18 +159,16 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 	dutBgp := cfgplugins.ConfigureDUTBGP(t, dut, bgpBatch, bgpCfg)
 	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, dutBgp.Bgp, cfgplugins.BGPNeighborConfig{
-		AteAS:            ateAS,
-		PortName:         port1Name,
-		NeighborIPv4:     ateP1.IPv4,
-		NeighborIPv6:     ateP1.IPv6,
-		MultiPathEnabled: true,
+		AteAS:        ateAS,
+		PortName:     port1Name,
+		NeighborIPv4: ateP1.IPv4,
+		NeighborIPv6: ateP1.IPv6,
 	})
 	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, dutBgp.Bgp, cfgplugins.BGPNeighborConfig{
-		AteAS:            ateAS,
-		PortName:         port2Name,
-		NeighborIPv4:     ateP2.IPv4,
-		NeighborIPv6:     ateP2.IPv6,
-		MultiPathEnabled: true,
+		AteAS:        ateAS,
+		PortName:     port2Name,
+		NeighborIPv4: ateP2.IPv4,
+		NeighborIPv6: ateP2.IPv6,
 	})
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), dutBgp)
 

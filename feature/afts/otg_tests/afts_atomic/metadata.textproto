@@ -16,7 +16,6 @@ platform_exceptions: {
     isis_instance_enabled_required: true
     isis_interface_afi_unsupported: true
     isis_mpls_unsupported: true
-    multipath_unsupported_neighbor_or_afisafi: true
     skip_setting_allow_multiple_as: true
   }
 }

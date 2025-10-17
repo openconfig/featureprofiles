@@ -725,9 +725,14 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	rpl6.ImportPolicy = []string{ALLOW}
 	rpl6.ExportPolicy = []string{ALLOW}
 
-	if cfg.MultiPathEnabled && !deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
-		pgv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
-		pgv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	if cfg.MultiPathEnabled {
+		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+			pgv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+			pgv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		} else {
+			pgafv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+			pgafv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		}
 	}
 
 	// === IPv4 Neighbor ===
