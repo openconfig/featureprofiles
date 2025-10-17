@@ -1572,57 +1572,6 @@ func extractComponentNameFromPath(path string) string {
 	return path[start : start+end]
 }
 
-// parseLifeLeftFromMdtOutput parses life-left values from mdt_exec JSON output
-func parseLifeLeftFromMdtOutput(t *testing.T, output string) map[string]uint64 {
-	t.Helper()
-
-	lifeLeftValues := make(map[string]uint64)
-
-	// Split output into lines
-	lines := strings.Split(output, "\n")
-
-	for _, line := range lines {
-		// Look for lines containing JSON data with life-left
-		if strings.Contains(line, "life-left") && strings.Contains(line, "\"data_json\"") {
-			t.Logf("Found life-left data line: %s", line)
-
-			// Extract component name and life-left value using simple string parsing
-			// This is a simplified parser - in production, use proper JSON parsing
-
-			// Look for component name pattern like "0/RP0/CPU0"
-			if strings.Contains(line, "\"name\":") {
-				// Extract component name
-				nameStart := strings.Index(line, "\"name\":\"")
-				if nameStart != -1 {
-					nameStart += len("\"name\":\"")
-					nameEnd := strings.Index(line[nameStart:], "\"")
-					if nameEnd != -1 {
-						componentName := line[nameStart : nameStart+nameEnd]
-
-						// Extract life-left value
-						lifeLeftStart := strings.Index(line, "\"life-left\":")
-						if lifeLeftStart != -1 {
-							lifeLeftStart += len("\"life-left\":")
-							// Find the next comma or closing brace
-							lifeLeftEnd := strings.IndexAny(line[lifeLeftStart:], ",}")
-							if lifeLeftEnd != -1 {
-								lifeLeftStr := strings.TrimSpace(line[lifeLeftStart : lifeLeftStart+lifeLeftEnd])
-								// Convert to uint64
-								if lifeLeftValue := parseUint64Safe(lifeLeftStr); lifeLeftValue != 0 || lifeLeftStr == "0" {
-									lifeLeftValues[componentName] = lifeLeftValue
-									t.Logf("Parsed: Component=%s, life-left=%d", componentName, lifeLeftValue)
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return lifeLeftValues
-}
-
 // parseUint64Safe safely parses a string to uint64, returns 0 if parsing fails
 func parseUint64Safe(s string) uint64 {
 	// Remove any non-numeric characters
