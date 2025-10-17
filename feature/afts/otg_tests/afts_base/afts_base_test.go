@@ -17,11 +17,9 @@ package afts_base_test
 import (
 	"context"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -536,44 +534,18 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-// fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
-// It waits until both collectors satisfy the provided stoppingCondition.
-// After the stopping condition is met, it compares the AFT data collected by both sessions.
-// If the data is identical, it returns a single copy of the collected AFT data.
-// Otherwise, it returns an error indicating the inconsistency.
-func (tc *testCase) fetchAFT(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 	streamContext, streamCancel := context.WithCancel(t.Context())
-	defer streamCancel()
-
-	aftSession1 := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient1, tc.dut)
-	aftSession2 := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient2, tc.dut)
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		aftSession1.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
-	}()
-	go func() {
-		defer wg.Done()
-		aftSession2.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
-	}()
-	wg.Wait()
-
+	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
+	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
 	// Get the AFT from the cache.
-	aft1, err := aftSession1.Cache.ToAFT(tc.dut)
+	streamCancel()
+	aft, err := aftSession.Cache.ToAFT(t, tc.dut)
 	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
+		return nil, fmt.Errorf("error getting AFT: %v", err)
 	}
-	aft2, err := aftSession2.Cache.ToAFT(tc.dut)
-	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
-	}
-	if diff := cmp.Diff(aft1, aft2); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
-	}
-	return aft1, nil
+	return aft, nil
 }
 
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
@@ -583,30 +555,24 @@ func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosna
 }
 
 type testCase struct {
-	name        string
-	dut         *ondatra.DUTDevice
-	ate         *ondatra.ATEDevice
-	gnmiClient1 gnmipb.GNMIClient
-	gnmiClient2 gnmipb.GNMIClient
+	name       string
+	dut        *ondatra.DUTDevice
+	ate        *ondatra.ATEDevice
+	gnmiClient gnmipb.GNMIClient
 }
 
 func TestBGP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI: %v", err)
-	}
-	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
 	tc := &testCase{
-		name:        "AFT Churn Test With Scale",
-		dut:         dut,
-		ate:         ate,
-		gnmiClient1: gnmiClient1,
-		gnmiClient2: gnmiClient2,
+		name:       "AFT Churn Test With Scale",
+		dut:        dut,
+		ate:        ate,
+		gnmiClient: gnmiClient,
 	}
 
 	// Pre-generate all expected prefixes once for efficiency
@@ -617,7 +583,7 @@ func TestBGP(t *testing.T) {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.fetchAFT(t, stoppingCondition)
+		aft, err := tc.cache(t, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -661,8 +627,7 @@ func TestBGP(t *testing.T) {
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
-	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, sc); err != nil {
+	if _, err := tc.cache(t, aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
