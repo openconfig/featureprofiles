@@ -3472,6 +3472,7 @@ replace: {
     " description not connected interface\n"
     " shutdown\n"
     "!\n"
+    "ztp bootz vrf mgmtVrf\n"
     "end\n"
 }
 }
