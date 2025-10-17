@@ -133,10 +133,6 @@ func testSoftReadErrorRate(ctx context.Context, t *testing.T, args *testArgs, pa
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
-
 }
 
 // testReallocatedSectors validates reallocated sectors counters across all subscription modes
@@ -160,10 +156,6 @@ func testReallocatedSectors(ctx context.Context, t *testing.T, args *testArgs, p
 	t.Run("gnmi-get-request", func(t *testing.T) {
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
-
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
 
 }
 
@@ -189,9 +181,6 @@ func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSu
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
 
 }
 
@@ -217,9 +206,6 @@ func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *te
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
 
 }
 
@@ -248,10 +234,6 @@ func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix 
 	// t.Run("life-left-trigger-scenario", func(t *testing.T) {
 	// 	testLifeLeftTriggerScenario(t, args, ctx, pathSuffix)
 	// })
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
-
 }
 
 func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
@@ -275,12 +257,9 @@ func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathS
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	// t.Run("trigger scenario", func(t *testing.T) {
-	// 	testStorageCounterTriggerScenario(t, args, ctx, pathSuffix)
-	// })
-	// t.Run("system-events", func(t *testing.T) {
-	// 	testStorageCounterSystemEvents(t, args, ctx, pathSuffix)
-	// })
+	t.Run("trigger scenario", func(t *testing.T) {
+		testStorageCounterTriggerScenario(t, args, ctx, pathSuffix)
+	})
 
 }
 

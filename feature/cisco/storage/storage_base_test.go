@@ -1138,185 +1138,163 @@ func extremeWearAcceleration(t *testing.T, args *testArgs, durationHours int) {
 func testStorageCounterTriggerScenario(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
 	t.Helper()
 
-	// Create queries for monitoring storage counters before workload
-	data := createQueries(t, args, pathSuffix)
+	t.Log("=== STORAGE COUNTER TRIGGER SCENARIO TEST ===")
+	t.Log("Testing storage counter changes using /tmp/edt trigger mechanism")
 
-	// Collect initial counter values
-	t.Log("Collecting initial storage counter values before heavy write workload...")
-	collectAndLogCounters(t, data)
+	// Step 1: Subscribe and fetch values of all storage counter leaves before event trigger
+	t.Log("Step 1: Subscribing and fetching initial values of all storage counter leaves...")
 
-	// Start heavy write workload to increase SSD usage and percentage-used counter
-	t.Log("Starting heavy write workload to trigger storage counter changes...")
-
-	// Create test directory first
-	mkdirCmd := "bash mkdir -p /tmp/storage_test"
-	mkdirResp := args.dut.CLI().RunResult(t, mkdirCmd)
-	if mkdirResp.Error() != "" {
-		t.Logf("Warning: Failed to create test directory: %v", mkdirResp.Error())
+	// Define all storage counter paths
+	storageCounterPaths := []string{
+		"storage/state/counters/soft-read-error-rate",
+		"storage/state/counters/reallocated-sectors",
+		"storage/state/counters/end-to-end-error",
+		"storage/state/counters/offline-uncorrectable-sectors-count",
+		"storage/state/counters/life-left",
+		"storage/state/counters/percentage-used",
 	}
 
-	// Execute EXTREME write workload to accelerate SSD wear and increase percentage-used
-	// WARNING: This will significantly wear the SSD for testing purposes
-	t.Log("Starting EXTREME write workload to accelerate SSD wear...")
+	// Collect initial values for all storage counter leaves
+	initialValues := make(map[string]map[string]uint64)
 
-	// Get available disk space first to determine safe write size
-	dfCmd := "bash df -BG /tmp | tail -1 | awk '{print $4}' | sed 's/G//'"
-	dfResp := args.dut.CLI().RunResult(t, dfCmd)
-	availableGB := 10 // Default conservative value
-	if dfResp.Error() == "" {
-		if space, err := fmt.Sscanf(dfResp.Output(), "%d", &availableGB); err == nil && space == 1 {
-			availableGB = availableGB / 2 // Use only half of available space
-			t.Logf("Available space: %dGB, will use %dGB for testing", availableGB*2, availableGB)
+	for _, counterPath := range storageCounterPaths {
+		t.Logf("Fetching initial values for %s...", counterPath)
+		data := createQueries(t, args, counterPath)
+
+		counterValues := make(map[string]uint64)
+		for path, query := range data {
+			value, err := getData(t, path, query)
+			if err != nil {
+				t.Logf("Warning: Failed to get initial value for %s: %v", path, err)
+				continue
+			}
+			componentName := extractComponentNameFromPath(path)
+			counterValues[componentName] = value
+			t.Logf("Initial %s %s: %d", componentName, counterPath, value)
 		}
+		initialValues[counterPath] = counterValues
 	}
 
-	// Phase 1: Conservative sustained writes (minimal to prevent connection resets)
-	t.Log("Phase 1: Conservative sustained write operations...")
-	iterations := 5              // Further reduced from 10 to 5
-	fileSize := availableGB / 30 // Even smaller files
-	if fileSize < 1 {
-		fileSize = 1 // Minimum 1GB per file
+	if len(initialValues) == 0 {
+		t.Fatal("No initial storage counter values found")
 	}
 
-	for i := 1; i <= iterations; i++ {
-		t.Logf("Write iteration %d/%d (File size: %dGB)", i, iterations, fileSize)
+	// Step 2: Touch /tmp/edt to trigger event
+	t.Log("Step 2: Triggering storage counter changes with 'touch /tmp/edt'...")
 
-		// Write file with direct I/O
-		writeCmd := fmt.Sprintf("bash dd if=/dev/zero of=/tmp/storage_test/testfile_%d bs=1M count=%d oflag=direct", i, fileSize*1024)
-		writeResp := args.dut.CLI().RunResult(t, writeCmd)
-		if writeResp.Error() != "" {
-			t.Logf("Warning: Write operation %d failed: %v", i, writeResp.Error())
-			// Longer recovery pause on network/system issues
-			time.Sleep(20 * time.Second)
-			continue
-		}
-
-		// Gentle sync with error handling
-		syncCmd := "bash sync"
-		syncResp := args.dut.CLI().RunResult(t, syncCmd)
-		if syncResp.Error() != "" {
-			t.Logf("Warning: Sync operation failed: %v", syncResp.Error())
-		}
-
-		// Remove file with error handling
-		rmCmd := fmt.Sprintf("bash rm -f /tmp/storage_test/testfile_%d", i)
-		rmResp := args.dut.CLI().RunResult(t, rmCmd)
-		if rmResp.Error() != "" {
-			t.Logf("Warning: File removal failed: %v", rmResp.Error())
-		}
-
-		// Log progress every 5 iterations instead of 10
-		if i%5 == 0 {
-			t.Logf("Completed %d/%d write cycles", i, iterations)
-		}
-
-		// Much longer pause to prevent overwhelming system and network
-		time.Sleep(15 * time.Second) // Increased from 5 to 15 seconds
+	triggerCmd := "touch /tmp/edt"
+	triggerResp := args.dut.CLI().RunResult(t, triggerCmd)
+	if triggerResp.Error() != "" {
+		t.Fatalf("Failed to trigger event: %v", triggerResp.Error())
 	}
+	t.Log("Trigger file /tmp/edt created successfully")
 
-	// Phase 2: Light random pattern writes (reduced intensity)
-	t.Log("Phase 2: Light random pattern write operations...")
-	for i := 1; i <= 2; i++ { // Reduced from 5 to 2
-		t.Logf("Random write iteration %d/2", i)
-
-		// Write smaller random data to reduce system stress
-		randomWriteCmd := fmt.Sprintf("bash dd if=/dev/urandom of=/tmp/storage_test/random_%d bs=1M count=%d oflag=direct", i, fileSize*128) // Much smaller size
-		randomResp := args.dut.CLI().RunResult(t, randomWriteCmd)
-		if randomResp.Error() != "" {
-			t.Logf("Warning: Random write %d failed: %v", i, randomResp.Error())
-			time.Sleep(10 * time.Second) // Longer recovery pause
-			continue
-		}
-
-		// Gentle sync and remove with error handling
-		syncResp := args.dut.CLI().RunResult(t, "bash sync")
-		if syncResp.Error() != "" {
-			t.Logf("Warning: Sync failed in random phase: %v", syncResp.Error())
-		}
-
-		rmRandomCmd := fmt.Sprintf("bash rm -f /tmp/storage_test/random_%d", i)
-		rmResp := args.dut.CLI().RunResult(t, rmRandomCmd)
-		if rmResp.Error() != "" {
-			t.Logf("Warning: Random file cleanup failed: %v", rmResp.Error())
-		}
-
-		// Much longer pause to prevent connection resets
-		time.Sleep(30 * time.Second)
-	}
-
-	// Phase 3: Single batch of small writes (eliminate loop to prevent connection resets)
-	t.Log("Phase 3: Single batch small write operation...")
-
-	// Use a single command to create multiple small files instead of many individual commands
-	batchSmallWriteCmd := `bash -c "
-		for i in {1..10}; do
-			dd if=/dev/zero of=/tmp/storage_test/small_\$i bs=4K count=100 oflag=direct 2>/dev/null
-		done
-		sync
-		rm -f /tmp/storage_test/small_*
-	"`
-
-	batchResp := args.dut.CLI().RunResult(t, batchSmallWriteCmd)
-	if batchResp.Error() != "" {
-		t.Logf("Warning: Batch small write failed: %v", batchResp.Error())
-	} else {
-		t.Log("Completed batch small write operations")
-	}
-
-	t.Logf("MODERATE write workload completed. Total estimated writes: ~%dGB", (iterations*fileSize + 5*fileSize/8 + 1))
-
-	// Optional: Enable extreme wear acceleration for maximum wear testing
-	// Uncomment the following lines to run sustained extreme wear for higher percentage-used values
-	// WARNING: This will significantly wear the SSD!
-	enableExtremeWear := false // Change to true for maximum wear testing
-	if enableExtremeWear {
-		t.Log("=== STARTING EXTREME WEAR ACCELERATION PHASE ===")
-		t.Log("WARNING: This will run sustained high-intensity writes to maximize SSD wear!")
-		extremeWearAcceleration(t, args, 2) // Run for 2 hours of extreme wear
-	}
-
-	// Wait for some write operations to complete
-	t.Log("Allowing write workload to run for 60 seconds...")
+	// Step 3: Wait for trigger to take effect
+	t.Log("Step 3: Waiting for trigger to take effect (60 seconds)...")
 	time.Sleep(60 * time.Second)
 
-	// Monitor counters during the workload
-	t.Log("Collecting storage counter values during heavy write workload...")
-	collectAndLogCounters(t, data)
+	// Step 4: Subscribe to the leaves and fetch new values
+	t.Log("Step 4: Subscribing to storage counter leaves and fetching new values...")
 
-	// Continue workload for additional time to ensure measurable impact
-	t.Log("Continuing write workload for another 60 seconds...")
-	time.Sleep(60 * time.Second)
+	postTriggerValues := make(map[string]map[string]uint64)
 
-	// Collect final counter values
-	t.Log("Collecting final storage counter values after heavy write workload...")
-	collectAndLogCounters(t, data)
+	for _, counterPath := range storageCounterPaths {
+		t.Logf("Fetching post-trigger values for %s...", counterPath)
+		data := createQueries(t, args, counterPath)
 
-	// Use mdt_exec to fetch updated storage counter values directly
-	// Use mdt_exec to fetch detailed storage counter values
-	t.Log("Fetching detailed storage counters using mdt_exec via run command...")
+		counterValues := make(map[string]uint64)
+		for path, query := range data {
+			value, err := getData(t, path, query)
+			if err != nil {
+				t.Logf("Warning: Failed to get post-trigger value for %s: %v", path, err)
+				continue
+			}
+			componentName := extractComponentNameFromPath(path)
+			counterValues[componentName] = value
+			t.Logf("Post-trigger %s %s: %d", componentName, counterPath, value)
+		}
+		postTriggerValues[counterPath] = counterValues
+	}
 
-	// Clean up - remove test files and sync
-	t.Log("Cleaning up test files...")
-	cleanupCmd1 := "bash rm -rf /tmp/storage_test"
-	cleanupResp1 := args.dut.CLI().RunResult(t, cleanupCmd1)
-	if cleanupResp1.Error() != "" {
-		t.Logf("Warning: Failed to cleanup test files: %v", cleanupResp1.Error())
+	if len(postTriggerValues) == 0 {
+		t.Fatal("No post-trigger storage counter values found")
+	}
+
+	// Step 5: Compare pre and post trigger values for all leaves
+	t.Log("Step 5: Comparing pre and post trigger values for all storage counter leaves...")
+
+	hasChanges := false
+	for counterPath, initialCounterValues := range initialValues {
+		t.Logf("\n=== Analyzing %s ===", counterPath)
+
+		if postCounterValues, exists := postTriggerValues[counterPath]; exists {
+			for componentName, initialValue := range initialCounterValues {
+				if postValue, componentExists := postCounterValues[componentName]; componentExists {
+					t.Logf("Component %s (%s):", componentName, counterPath)
+					t.Logf("  Initial value: %d", initialValue)
+					t.Logf("  Post-trigger value: %d", postValue)
+
+					if initialValue != postValue {
+						hasChanges = true
+						change := int64(postValue) - int64(initialValue)
+						t.Logf("  Change: %+d", change)
+						t.Logf("CHANGE DETECTED for component %s in %s", componentName, counterPath)
+
+						// Log expected behavior based on counter type
+						if strings.Contains(counterPath, "percentage-used") {
+							if postValue > initialValue {
+								t.Logf("EXPECTED: percentage-used increased (more storage used)")
+							} else {
+								t.Logf("UNEXPECTED: percentage-used decreased")
+							}
+						} else if strings.Contains(counterPath, "life-left") {
+							if postValue < initialValue {
+								t.Logf("EXPECTED: life-left decreased (wear increased)")
+							} else {
+								t.Logf("UNEXPECTED: life-left increased")
+							}
+						} else {
+							// For error counters, increase indicates more errors
+							if postValue > initialValue {
+								t.Logf("DETECTED: Error counter increased")
+							} else {
+								t.Logf("DETECTED: Error counter decreased")
+							}
+						}
+					} else {
+						t.Logf("  No change detected for component %s", componentName)
+					}
+				} else {
+					t.Logf("Component %s not found in post-trigger values for %s", componentName, counterPath)
+				}
+			}
+		} else {
+			t.Logf("Counter path %s not found in post-trigger values", counterPath)
+		}
+	}
+
+	// Step 6: Summary and validation
+	t.Log("\n=== TEST SUMMARY ===")
+	if hasChanges {
+		t.Log("SUCCESS: Storage counter changes detected after /tmp/edt trigger")
 	} else {
-		t.Log("Test files cleaned up successfully")
+		t.Log("WARNING: No storage counter changes detected - this may indicate:")
+		t.Log("   - Trigger mechanism not working")
+		t.Log("   - Storage counter simulation not active")
+		t.Log("   - Changes below detection threshold")
 	}
 
-	// Force filesystem sync
-	syncCmd := "bash sync"
-	syncResp := args.dut.CLI().RunResult(t, syncCmd)
-	if syncResp.Error() != "" {
-		t.Logf("Warning: Failed to sync filesystem: %v", syncResp.Error())
+	// Step 7: Cleanup trigger file
+	t.Log("Step 7: Cleaning up trigger file...")
+	cleanupCmd := "rm -f /tmp/edt"
+	cleanupResp := args.dut.CLI().RunResult(t, cleanupCmd)
+	if cleanupResp.Error() != "" {
+		t.Logf("Warning: Failed to cleanup trigger file: %v", cleanupResp.Error())
+	} else {
+		t.Log("Trigger file cleaned up successfully")
 	}
 
-	// Validate test results by comparing telemetry data with smartctl output
-	t.Log("=== TEST VALIDATION: Comparing telemetry vs smartctl data ===")
-	validateStorageCounters(t, args, data)
-
-	t.Log("Heavy write workload scenario completed. Check logs for storage counter changes.")
+	t.Log("=== STORAGE COUNTER TRIGGER SCENARIO TEST COMPLETED ===")
 }
 
 // testLifeLeftTriggerScenario tests life-left counter changes using trigger mechanism with gNMI
