@@ -78,9 +78,9 @@ func TestClientCert(t *testing.T) {
 	t.Logf("%s Precheck:gNMI connection is successful %v", time.Now().String(), gnmiClient)
 	//Generate testdata certificates
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	/*if setupService.CertGeneration(t, dirPath) != nil {
+	if setupService.CertGeneration(t, dirPath) != nil {
 		t.Fatalf("%s:Failed to generate the testdata certificates.", time.Now().String())
-	}*/
+	}
 	//Create a certz client
 	certzClient := gnsiC.Certz()
 	t.Logf("%s Precheck:checking baseline ssl profile list.", time.Now().String())
@@ -325,9 +325,9 @@ func TestClientCert(t *testing.T) {
 		})
 		t.Logf("%s:STATUS: Test case completed: %s", time.Now().String(), tc.desc)
 	}
-	/*t.Logf("Cleanup of test data.")
+        t.Logf("Cleanup of test data.")
 	if setupService.CertCleanup(t, dirPath) != nil {
 		t.Fatalf("could not run testdata cleanup command.")
-	}*/
+	}
 	t.Logf("STATUS: Testdata cleanup completed!")
 }
