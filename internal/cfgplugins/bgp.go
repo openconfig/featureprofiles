@@ -725,7 +725,7 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	rpl6.ImportPolicy = []string{ALLOW}
 	rpl6.ExportPolicy = []string{ALLOW}
 
-	if cfg.MultiPathEnabled {
+	if cfg.MultiPathEnabled && !deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		pgv4.GetOrCreateUseMultiplePaths().SetEnabled(true)
 		pgv6.GetOrCreateUseMultiplePaths().SetEnabled(true)
 	}
