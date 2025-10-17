@@ -250,10 +250,16 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
-	globalISIS.SetMaxEcmpPaths(maxEcmpPaths)
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", areaAddress, sysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+
+	if deviations.GlobalMaxEcmpPathsUnsupported(dut) {
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxEcmpPaths)
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxEcmpPaths)
+	} else {
+		globalISIS.SetMaxEcmpPaths(maxEcmpPaths)
+	}
 
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)

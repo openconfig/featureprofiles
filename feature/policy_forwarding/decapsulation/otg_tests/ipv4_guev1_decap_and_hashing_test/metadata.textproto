@@ -4,4 +4,19 @@
 uuid:  "55c4eb1d-a363-44b9-94df-a9e73c9e1234"
 plan_id:  "PF-1.22"
 description:  "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    multipath_unsupported_neighbor_or_afisafi: true
+    static_mpls_lsp_oc_unsupported: true
+    gue_gre_decap_unsupported: true
+    load_interval_not_supported: true
+    load_balance_policy_oc_unsupported: true
+  }
+}
