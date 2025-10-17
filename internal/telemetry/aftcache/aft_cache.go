@@ -628,6 +628,7 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
+	const maxSamplePrefixes = 10
 	logDuration := func(start time.Time, stage string) {
 		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
@@ -658,9 +659,10 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			logDuration(checkPrefixStart, "Check Prefixes")
 			if nGot < nPrefixes {
 				t.Logf("%d missing prefixes", len(missingPrefixes))
+				// Log a sample of missing prefixes for easier debugging.
 				i := 0
 				for p := range missingPrefixes {
-					if i >= 10 {
+					if i >= maxSamplePrefixes {
 						break
 					}
 					t.Logf("Example missing prefix: %s", p)
