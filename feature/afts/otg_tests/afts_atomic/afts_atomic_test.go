@@ -109,19 +109,6 @@ var (
 	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
-func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) error {
-	d := &oc.Root{}
-	routePolicy := d.GetOrCreateRoutingPolicy()
-	policyDefinition := routePolicy.GetOrCreatePolicyDefinition(cfgplugins.ALLOW)
-	policyStatement, err := policyDefinition.AppendNewStatement("policy-1")
-	if err != nil {
-		return fmt.Errorf("failed to append new statement to policy definition %s: %v", cfgplugins.ALLOW, err)
-	}
-	policyStatement.GetOrCreateActions().PolicyResult = applyPolicyType
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
-	return nil
-}
-
 // configureDUT configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
@@ -146,31 +133,27 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 
-	if err := configureRoutePolicy(t, dut); err != nil {
-		return err
+	t.Log("Configure BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	nbrsP1 := []*cfgplugins.BGPNeighborInfo{
+		{AS: ateAS, NeighborIP: ateP1.IPv4, Version: cfgplugins.IPv4},
+		{AS: ateAS, NeighborIP: ateP1.IPv6, Version: cfgplugins.IPv6},
+	}
+	dutConf := cfgplugins.CreateBGPNeighbor(dutAS, dutP1.IPv4, ateAS, "BGP-PEER-GROUP-V4-P1", "BGP-PEER-GROUP-V6-P1", nbrsP1, dut)
+	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrsP1)
 	}
 
-	t.Log("Configure BGP")
-	bgpBatch := &gnmi.SetBatch{}
-	bgpCfg := cfgplugins.BGPConfig{
-		DutAS:       dutAS,
-		RouterID:    dutP1.IPv4,
-		ECMPMaxPath: 2,
+	nbrsP2 := []*cfgplugins.BGPNeighborInfo{
+		{AS: ateAS, NeighborIP: ateP2.IPv4, Version: cfgplugins.IPv4},
+		{AS: ateAS, NeighborIP: ateP2.IPv6, Version: cfgplugins.IPv6},
 	}
-	dutBgp := cfgplugins.ConfigureDUTBGP(t, dut, bgpBatch, bgpCfg)
-	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, dutBgp.Bgp, cfgplugins.BGPNeighborConfig{
-		AteAS:        ateAS,
-		PortName:     port1Name,
-		NeighborIPv4: ateP1.IPv4,
-		NeighborIPv6: ateP1.IPv6,
-	})
-	cfgplugins.AppendBGPNeighbor(t, dut, bgpBatch, dutBgp.Bgp, cfgplugins.BGPNeighborConfig{
-		AteAS:        ateAS,
-		PortName:     port2Name,
-		NeighborIPv4: ateP2.IPv4,
-		NeighborIPv6: ateP2.IPv6,
-	})
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), dutBgp)
+	dutConf = cfgplugins.CreateBGPNeighbor(dutAS, dutP1.IPv4, ateAS, "BGP-PEER-GROUP-V4-P2", "BGP-PEER-GROUP-V6-P2", nbrsP2, dut)
+	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrsP2)
+	}
 
 	t.Log("Configure ISIS")
 	b := &gnmi.SetBatch{}
@@ -386,6 +369,8 @@ type testCase struct {
 	churn func()
 	// stoppingCondition provides the expected prefixes after the churn.
 	stoppingCondition aftcache.PeriodicHook
+	// additionalVerification provides additional verification after churn, if any.
+	additionalVerification func(*aftcache.AFTStreamSession)
 	// revert restores the port(s) to the original state.
 	revert func()
 }
@@ -406,7 +391,7 @@ func TestAtomic(t *testing.T) {
 
 	verifyBGPPrefixes := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4TwoNHs, ipv6TwoNHs)
 	verifyISISPrefixes := aftcache.AssertNextHopCount(t, dut, isisPrefixes, 1)
-	verifyBGPOneLinkDown := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, postChurnIPv6(t, dut))
+	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, postChurnIPv6(t, dut))
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
 	setOneLinkDown := func() {
@@ -438,8 +423,12 @@ func TestAtomic(t *testing.T) {
 			ate:  ate,
 
 			churn:             setOneLinkDown,
-			stoppingCondition: verifyBGPOneLinkDown,
-			revert:            setOneLinkUp,
+			stoppingCondition: oneLinkDownBGP,
+			additionalVerification: func(aftSession *aftcache.AFTStreamSession) {
+				t.Helper()
+				aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
+			},
+			revert: setOneLinkUp,
 		},
 		{
 			name: "AFT-3.1.2: AFT Atomic Flag Check Link Down and Up scenario 2",
@@ -479,6 +468,10 @@ func TestAtomic(t *testing.T) {
 			t.Log("Modifying port state to create churn.")
 			tc.churn()
 			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, tc.stoppingCondition)
+			if tc.additionalVerification != nil {
+				t.Log("Running additional verification.")
+				tc.additionalVerification(aftSession)
+			}
 			t.Log("Done listening for churn.")
 
 			t.Log("Reverting port state to restore missing routes.")
