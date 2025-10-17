@@ -28,16 +28,17 @@ import (
 	"testing"
 	"time"
 
+	"go.mozilla.org/pkcs7"
+
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
+	ognmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/knebind/creds"
 	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
-	"go.mozilla.org/pkcs7"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -54,7 +55,7 @@ type rpcCredentials struct {
 	*creds.UserPass
 }
 
-func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+func (r *rpcCredentials) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	return map[string]string{
 		"username": r.UserPass.Username,
 		"password": r.UserPass.Password,
@@ -75,13 +76,13 @@ type entityType int8
 
 const (
 	// EntityTypeCertificateChain is type of entity of the certificate chain.
-	EntityTypeCertificateChain entityType = 1
+	EntityTypeCertificateChain entityType = 0
 	// EntityTypeTrustBundle is type of entity of the trust bundle.
-	EntityTypeTrustBundle entityType = 2
+	EntityTypeTrustBundle entityType = 1
 	// EntityTypeCRL is type of entity of the CRL.
-	EntityTypeCRL entityType = 3
+	EntityTypeCRL entityType = 2
 	// EntityTypeAuthPolicy is type of entity of the auth policy.
-	EntityTypeAuthPolicy entityType = 4
+	EntityTypeAuthPolicy entityType = 3
 )
 
 // CertificateChainRequest is an input argument for the  type definition for the CreateCertzChain.
@@ -90,6 +91,26 @@ type CertificateChainRequest struct {
 	ServerCertFile  string
 	ServerKeyFile   string
 	TrustBundleFile string
+}
+
+// CreateDialOptions function to create the gRPC dial options for certz client and retruns connection handle.
+func CreateNewDialOption(t *testing.T, newClientCert tls.Certificate, newCaCert *x509.CertPool, san, username, password, serverAddr string) (conn *grpc.ClientConn) {
+	credOpts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(
+		&tls.Config{
+			Certificates: []tls.Certificate{newClientCert},
+			RootCAs:      newCaCert,
+			ServerName:   san,
+		}))}
+
+	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
+	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
+
+	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+	conn, err := grpc.NewClient(target, credOpts...)
+	if err != nil {
+		t.Fatalf("%s STATUS: gRPC NewClient failed to %q with err %v", time.Now().String(), target, err)
+	}
+	return conn
 }
 
 // CreateCertzEntity function to create certificate entity of type certificate chain/trust bundle/CRL/Authpolicy.
@@ -154,8 +175,8 @@ func CreateCertzChain(t *testing.T, certData CertificateChainRequest) certzpb.Ce
 			return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
 				Type:            certzpb.CertificateType_CERTIFICATE_TYPE_X509,
 				Encoding:        certzpb.CertificateEncoding_CERTIFICATE_ENCODING_PEM,
-				PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: serverKeyContent},
 				CertificateType: &certzpb.Certificate_RawCertificate{RawCertificate: serverCertContent},
+				PrivateKeyType:  &certzpb.Certificate_RawPrivateKey{RawPrivateKey: serverKeyContent},
 			}, Parent: nil}
 		}
 		return certzpb.CertificateChain{Certificate: &certzpb.Certificate{
@@ -252,7 +273,7 @@ func Loadpkcs7TrustBundle(path string) ([]*x509.Certificate, []byte, error) {
 }
 
 // CertzRotate function to request the server certificate rotation and returns true on successful rotation.
-func CertzRotate(ctx context.Context, t *testing.T, newCaCert *x509.CertPool, certzClient certzpb.CertzClient, newClientCert tls.Certificate, dut *ondatra.DUTDevice, username string, password string, san, serverAddr, profileID string, mismatch bool, entities ...*certzpb.Entity) bool {
+func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, certzClient certzpb.CertzClient, gnmiClient gnmipb.GNMIClient, newclientCert tls.Certificate, dut *ondatra.DUTDevice, username string, password string, san, serverAddr, profileID string, newTLS bool, mismatch bool, scale bool, entities ...*certzpb.Entity) bool {
 	if len(entities) == 0 {
 		t.Fatalf("At least one entity required for Rotate request.")
 	}
@@ -264,16 +285,17 @@ func CertzRotate(ctx context.Context, t *testing.T, newCaCert *x509.CertPool, ce
 		RotateRequest:  rotateRequest}
 	rotateRequestClient, err := certzClient.Rotate(ctx)
 	if err != nil {
-		t.Fatalf("Error creating rotate request client: %v", err)
+		t.Fatalf("STATUS:%s:Error creating rotate request client: %v", time.Now().String(), err)
 	}
 	defer rotateRequestClient.CloseSend()
 	err = rotateRequestClient.Send(rotateCertRequest)
 	if err != nil {
-		t.Fatalf("Error sending rotate request: %v", err)
+		t.Fatalf("STATUS:%s:Error sending rotate request: %v", time.Now().String(), err)
 	}
 	rotateResponse := &certzpb.RotateCertificateResponse{}
-	retries = 12
+	retries = 30
 	for i := 0; i < retries; i++ {
+		t.Logf("STATUS:%s: Waiting in loop for the rotateResponse from server %v/%v ", time.Now().String(), i, retries)
 		rotateResponse, err = rotateRequestClient.Recv()
 		if err == nil {
 			break
@@ -285,29 +307,35 @@ func CertzRotate(ctx context.Context, t *testing.T, newCaCert *x509.CertPool, ce
 		t.Fatalf("Error fetching rotate certificate response: %v", err)
 	}
 	t.Logf("Received Rotate certificate response: %v", rotateResponse)
-
-	// Replace config with newly added ssl profile after successful rotate.
-	servers = gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().Name().State())
-	batch := gnmi.SetBatch{}
-	for _, server := range servers {
-		t.Logf("Server:%s", server)
-		gnmi.BatchReplace(&batch, gnmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID)
+	if !newTLS {
+		// Replace config with newly added ssl profile during successful rotate.
+		servers = ognmi.GetAll(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServerAny().Name().State())
+		batch := ognmi.SetBatch{}
+		for _, server := range servers {
+			t.Logf("Server:%s", server)
+			ognmi.BatchReplace(&batch, ognmi.OC().System().GrpcServer(server).CertificateId().Config(), profileID)
+		}
+		batch.Set(t, dut.GNMIOpts().WithClient(gnmiClient))
+		t.Logf("gNMI config is replaced with new ssl profile %s successfully.", profileID)
+		time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation//
 	}
-	batch.Set(t, dut)
-	t.Logf("gNMI config is replaced with new ssl profile %s successfully.", profileID)
-	time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation//
+
+	//Verify gNSI service with new TLS credentials in loop with retries before finalize.
 	success := false
-	//Trying for 60s for the connection to succeed.
 	for i := 0; i < retries; i++ {
-		success = VerifyGnsi(t, newCaCert, san, serverAddr, username, password, newClientCert, mismatch)
+		t.Logf("STATUS: %s Verifying gNSI service RPC before finalize rotate req.", time.Now().String())
+		success = VerifyGnsi(t, newcaCert, san, serverAddr, username, password, newclientCert, mismatch)
 		if success {
 			break
 		}
+		t.Logf("gNSI service RPC did not succeed ~ %vs after rotate. Sleeping 10s to retry...", i*10)
 		time.Sleep(10 * time.Second)
 	}
 	if !success {
 		t.Fatalf("gNSI service RPC  did not succeed ~%d*10s after rotate. Certz/Rotate failed. FinalizeRequest will not be sent", retries)
 	}
+
+	//finalize the rotation after successful gNSI service verification.
 	finalizeRequest := &certzpb.RotateCertificateRequest_FinalizeRotation{FinalizeRotation: &certzpb.FinalizeRequest{}}
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
@@ -370,6 +398,7 @@ func CertCleanup(t *testing.T, dirPath string) error {
 	if err := cmd.Start(); err != nil {
 		t.Fatalf("Testdata cleanup command failed with error:%v.", err)
 	}
+
 	err := cmd.Wait()
 	if err != nil {
 		t.Fatalf("Testdata cleanup command failed during wait with the error:%v.", err)
@@ -443,8 +472,10 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+
 	conn, err := grpc.NewClient(target, credOpts...)
 	if err != nil {
 		t.Errorf("%sVerifyGnsi:gRPC NewClient failed to %q with err %v", time.Now().String(), target, err)
@@ -452,14 +483,13 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	}
 	t.Logf("Connection state: %v.", conn.GetState().String())
 	defer conn.Close()
+
 	authzClient := authzpb.NewAuthzClient(conn)
 	rsp, err := authzClient.Get(ctx, &authzpb.GetRequest{})
 	if err != nil {
 		statusError, _ := status.FromError(err)
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request with err:%v.", err)
-		} else if mismatch {
-			t.Logf("Expected error seen for mismatch scenario authz Get Request with err:%v.", err)
 		} else {
 			t.Fatalf("Unexpected error during authz Get Request with err:%v.", err)
 		}
@@ -499,7 +529,9 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		}))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
+
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -510,6 +542,7 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	defer conn.Close()
 	sysClient := spb.NewSystemClient(conn)
 	_, err = sysClient.Ping(ctx, &spb.PingRequest{})
+
 	if err != nil && mismatch {
 		t.Logf("VerifyGnoi : Expected gNOI Ping to fail with mismatch certificates to %q with err %v", target, err)
 	} else if err != nil {
@@ -549,6 +582,7 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -600,6 +634,7 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -608,6 +643,7 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 		return false
 	}
 	defer conn.Close()
+
 	gRibiClient := gribipb.NewGRIBIClient(conn)
 	_, err = gRibiClient.Get(ctx, &gribipb.GetRequest{})
 	if err != nil && mismatch {
@@ -647,6 +683,7 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
+
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	conn, err := grpc.NewClient(target, credOpts...)
@@ -654,6 +691,7 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 		t.Errorf("VerifyP4rt : gRPC NewClient failed to %q with error %v.", target, err)
 	}
 	defer conn.Close()
+
 	p4RtClient := p4rtpb.NewP4RuntimeClient(conn)
 	_, err = p4RtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
 	if err != nil && mismatch {
