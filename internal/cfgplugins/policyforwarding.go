@@ -51,15 +51,16 @@ type OcPolicyForwardingParams struct {
 	AppliedPolicyName   string
 
 	// Policy Rule specific params
-	InnerDstIPv6 string
-	InnerDstIPv4 string
-	CloudV4NHG   string
-	CloudV6NHG   string
-	DecapPolicy  DecapPolicyParams
-	GUEPort      uint32
-	IPType       string
-	Dynamic      bool
-	TunnelIP     string
+	InnerDstIPv6  string
+	InnerDstIPv4  string
+	CloudV4NHG    string
+	CloudV6NHG    string
+	DecapPolicy   DecapPolicyParams
+	GuePort       uint32
+	IpType        string
+	Dynamic       bool
+	TunnelIP      string
+	DecapProtocol string
 }
 
 type PolicyForwardingRule struct {
@@ -553,7 +554,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel type UDP
 							tunnel decap-ip %s
 							tunnel decap-interface %s
-							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GuePort, params.DecapProtocol, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
