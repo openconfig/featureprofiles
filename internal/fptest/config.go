@@ -51,9 +51,15 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				intf.ForwardingViable = nil
 				intf.Mtu = nil
 				intf.HoldTime = nil
-				if intf.Subinterface != nil {
-					if intf.Subinterface[0].Ipv6 != nil {
-						intf.Subinterface[0].Ipv6.Autoconf = nil
+				for _, sub := range intf.Subinterface {
+					if sub.Ipv6 != nil {
+						sub.Ipv6.Autoconf = nil
+						if adv := sub.Ipv6.GetRouterAdvertisement(); adv != nil {
+							adv.Suppress = nil
+							for _, p := range sub.Ipv6.GetRouterAdvertisement().Prefix {
+								p.DisableAdvertisement = nil
+							}
+						}
 					}
 				}
 				config.AppendInterface(intf)
@@ -108,11 +114,9 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 			}
 			// Ethernet config may not contain meaningful values if it wasn't explicitly
 			// configured, so use its current state for the config, but prune non-config leaves.
-			intf := gnmi.Get(t, dev, gnmi.OC().Interface(iname).State())
-			e := intf.GetEthernet()
-			if len(intf.GetHardwarePort()) != 0 {
-				breakout := config.GetComponent(intf.GetHardwarePort()).GetPort().GetBreakoutMode()
-				e := intf.GetEthernet()
+			e := iface.GetEthernet()
+			if len(iface.GetHardwarePort()) != 0 {
+				breakout := config.GetComponent(iface.GetHardwarePort()).GetPort().GetBreakoutMode()
 				// Set port speed to unknown for non breakout interfaces
 				if breakout.GetGroup(1) == nil && e != nil {
 					e.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN)
@@ -123,7 +127,7 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				iface.Ethernet = e
 			}
 			// need to set mac address for mgmt interface to nil
-			if intf.GetName() == "MgmtEth0/RP0/CPU0/0" || intf.GetName() == "MgmtEth0/RP1/CPU0/0" && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
+			if iname == "MgmtEth0/RP0/CPU0/0" || iname == "MgmtEth0/RP1/CPU0/0" && deviations.SkipMacaddressCheck(ondatra.DUT(t, "dut")) {
 				e.MacAddress = nil
 			}
 			// need to set mac address for bundle interface to nil
