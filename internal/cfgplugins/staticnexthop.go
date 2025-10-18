@@ -1,14 +1,31 @@
 package cfgplugins
 
 import (
+	"fmt"
+	"net"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
+
+// OCEncapsulationParams holds parameters for generating the OC Encapsulations config.
+type OCEncapsulationParams struct {
+	Count                        int
+	MPLSLabelCount               int
+	MPLSStaticLabels             []int
+	MPLSStaticLabelsForIPv6      []int
+	MPLSLabelStartForIPv4        int
+	MPLSLabelStartForIPv6        int
+	MPLSLabelStep                int
+	GRETunnelSources             []string
+	GRETunnelDestinationsStartIP string
+}
 
 var (
 	nextHopGroupConfigIPV4Arista = `
@@ -154,6 +171,69 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 
 }
 
+// NextHopGroupConfigScale configures the interface next-hop-group config.
+func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, ni *oc.NetworkInstance) *gnmi.SetBatch {
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
+			if err != nil {
+				t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", encapparams.GRETunnelDestinationsStartIP, err)
+			}
+			buildConfig := func(prefix string, labels []int) string {
+				b := new(strings.Builder)
+				for i := 1; i <= encapparams.Count; i++ {
+					ip := incrementIP(n, i-1)
+					ipPrefix := ip.String()
+					fmt.Fprintf(b, `
+nexthop-group %s%d type mpls-over-gre
+ tos 96
+ ttl 64
+ fec hierarchical`, prefix, i)
+					for entry, src := range encapparams.GRETunnelSources {
+						fmt.Fprintf(b, `
+ entry  %d push label-stack %d tunnel-destination %s tunnel-source %s`,
+							entry, labels[i-1], ipPrefix, src)
+					}
+					b.WriteString("\n!")
+				}
+				return b.String()
+			}
+
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", encapparams.MPLSStaticLabels))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", encapparams.MPLSStaticLabelsForIPv6))
+
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
+		if err != nil {
+			t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", encapparams.GRETunnelDestinationsStartIP, err)
+		}
+
+		for i := 1; i <= encapparams.Count; i++ {
+			ip := incrementIP(n, i-1)
+			ipPrefix := ip.String()
+			nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup("MPLS_in_GRE_Encap")
+			nhg.GetOrCreateNextHop("Dest A-NH1").SetIndex("Dest A-NH1")
+			ni.GetOrCreateStatic().
+				GetOrCreateNextHop("Dest A-NH1").
+				SetNextHop(oc.UnionString(fmt.Sprintf("%s.%d", ipPrefix, i)))
+
+			eh := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+			ueh := eh.GetOrCreateUdpV4()
+			ueh.SetSrcIp(encapparams.GRETunnelSources[i])
+			ueh.SetDstIp(ipPrefix)
+
+			// https://partnerissuetracker.corp.google.com/issues/417988636
+			// ueh.GetOrCreateMpls().Label.Set(encapparams.MPLSStaticLabels[i])
+		}
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+	}
+	return sb
+}
+
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
 type StaticNextHopGroupParams struct {
 
@@ -216,4 +296,18 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
+}
+
+// incrementIP takes an IPv4 address and increments it by a given integer value.
+// It returns a new net.IP object representing the incremented IP address.
+func incrementIP(ip net.IP, inc int) net.IP {
+	ip = ip.To4()
+	newIP := make(net.IP, len(ip))
+	copy(newIP, ip)
+	for i := len(newIP) - 1; i >= 0; i-- {
+		inc += int(newIP[i])
+		newIP[i] = byte(inc % 256)
+		inc /= 256
+	}
+	return newIP
 }
