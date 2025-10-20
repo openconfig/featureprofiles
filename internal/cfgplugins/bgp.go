@@ -181,8 +181,9 @@ type BGPGracefulRestartConfig struct {
 	GracefulRestartStaleRouteTime uint16
 	HelperOnly                    bool
 	DutAS                         uint32
-	ERRRetentionTime              uint32
+	ERRetentionTime               uint32
 	BgpNeighbors                  []string
+	BgpPeerGroups                 []string
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
@@ -753,15 +754,22 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 // This function configures extended route retention on the DUT for the
 // provided BGP neighbors. When the OC path is unsupported on the DUT, this function
 // applies vendor CLI using helpers.GnmiCLIConfig.
-func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params BGPGracefulRestartConfig) *gnmi.SetBatch {
+func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, bgpPeerGroups bool, params BGPGracefulRestartConfig) *gnmi.SetBatch {
 	t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-		for _, nbr := range params.BgpNeighbors {
-			exrrConfig := fmt.Sprintf(`router bgp %d
-    neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, nbr, params.ERRRetentionTime)
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
+		if bgpPeerGroups {
+			for _, peerGroup := range params.BgpPeerGroups {
+				exrrConfig := fmt.Sprintf(`router bgp %d
+    				neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, peerGroup, params.ERRetentionTime)
+				helpers.GnmiCLIConfig(t, dut, exrrConfig)
+			}
+		} else {
+			for _, nbr := range params.BgpNeighbors {
+				exrrConfig := fmt.Sprintf(`router bgp %d
+					neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, nbr, params.ERRetentionTime)
+				helpers.GnmiCLIConfig(t, dut, exrrConfig)
+			}
 		}
-		return nil
 	} else {
 		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
 	}
@@ -771,15 +779,22 @@ func ApplyExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 // This function removes extended route retention configuration on the DUT
 // for the provided BGP neighbors. When the OC path is unsupported on the DUT, this
 // function removes the configuration via vendor CLI using helpers.GnmiCLIConfig.
-func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params BGPGracefulRestartConfig) *gnmi.SetBatch {
+func DeleteExtendedRouteRetention(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, bgpPeerGroups bool, params BGPGracefulRestartConfig) *gnmi.SetBatch {
 	t.Helper()
 	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
-		for _, nbr := range params.BgpNeighbors {
-			exrrConfig := fmt.Sprintf(`router bgp %d
-    no neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, nbr, params.ERRRetentionTime)
-			helpers.GnmiCLIConfig(t, dut, exrrConfig)
+		if bgpPeerGroups {
+			for _, peerGroup := range params.BgpPeerGroups {
+				exrrConfig := fmt.Sprintf(`router bgp %d
+    				no neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, peerGroup, params.ERRetentionTime)
+				helpers.GnmiCLIConfig(t, dut, exrrConfig)
+			}
+		} else {
+			for _, nbr := range params.BgpNeighbors {
+				exrrConfig := fmt.Sprintf(`router bgp %d
+    				no neighbor %s graceful-restart-helper restart-time %d  stale-route route-map STALE-ROUTE-POLICY`, params.DutAS, nbr, params.ERRetentionTime)
+				helpers.GnmiCLIConfig(t, dut, exrrConfig)
+			}
 		}
-		return nil
 	} else {
 		t.Log("Add OC path when available :/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/extended-route-retention/state/retention-time")
 	}
