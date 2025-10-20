@@ -180,7 +180,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	isisData := &cfgplugins.ISISGlobalParams{
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
-		ISISInterfaceNames:  []string{dutPort1, dutPort2},
+		ISISInterfaceNames:  []string{dutPort1},
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
 
@@ -207,19 +207,19 @@ func (tc *testCase) configureATE(t *testing.T) {
 		portName      string
 		ateAttrs      attrs.Attributes
 		dutAttrs      attrs.Attributes
-		addISISRoutes bool
+		configureISIS bool
 	}{
 		{
 			portName:      port1Name,
 			ateAttrs:      ateP1,
 			dutAttrs:      dutP1,
-			addISISRoutes: true,
+			configureISIS: true,
 		},
 		{
 			portName:      port2Name,
 			ateAttrs:      ateP2,
 			dutAttrs:      dutP2,
-			addISISRoutes: false,
+			configureISIS: false,
 		},
 	}
 
@@ -243,25 +243,26 @@ func (tc *testCase) configureATE(t *testing.T) {
 			SetGateway(p.dutAttrs.IPv6).
 			SetPrefix(v6PrefixLen)
 
-		isis := dev.Isis().SetName(dev.Name() + ".isis").
-			SetSystemId(isisATESystemID)
-		isis.Basic().
-			SetIpv4TeRouterId(ipv4.Address()).
-			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
-		isis.Advanced().SetAreaAddresses([]string{isisATEArea})
-		isis.Advanced().SetEnableHelloPadding(false)
-		isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
-			SetEthName(eth.Name()).
-			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-			SetMetric(10)
-		isisInt.TrafficEngineering().Add().PriorityBandwidths()
-		isisInt.Advanced().
-			SetAutoAdjustMtu(true).
-			SetAutoAdjustArea(true).
-			SetAutoAdjustSupportedProtocols(true)
+		// Only configure ISIS on port1 to ensure single next-hop for ISIS routes
+		if p.configureISIS {
+			isis := dev.Isis().SetName(dev.Name() + ".isis").
+				SetSystemId(isisATESystemID)
+			isis.Basic().
+				SetIpv4TeRouterId(ipv4.Address()).
+				SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
+			isis.Advanced().SetAreaAddresses([]string{isisATEArea})
+			isis.Advanced().SetEnableHelloPadding(false)
+			isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
+				SetEthName(eth.Name()).
+				SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+				SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+				SetMetric(10)
+			isisInt.TrafficEngineering().Add().PriorityBandwidths()
+			isisInt.Advanced().
+				SetAutoAdjustMtu(true).
+				SetAutoAdjustArea(true).
+				SetAutoAdjustSupportedProtocols(true)
 
-		if p.addISISRoutes {
 			v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
 			v4Route.Addresses().Add().SetAddress(isisRoute).
 				SetPrefix(advertisedRoutesV4Prefix).
@@ -355,7 +356,7 @@ func generateBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
 	return wantPrefixes
 }
 
-func generateISISPrefixes(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
+func generateISISPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
 	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv4, isisRouteCount) {
 		wantPrefixes[pfix] = true
@@ -374,6 +375,7 @@ func setOTGInterfaceState(t *testing.T, ate *ondatra.ATEDevice, portName string,
 }
 
 func postChurnIPv6(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
+	t.Helper()
 	if deviations.LinkLocalInsteadOfNh(dut) {
 		return ipv6LinkLocalNH
 	}
@@ -400,7 +402,7 @@ func TestAtomic(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	bgpPrefixes := generateBGPPrefixes(t, dut)
-	isisPrefixes := generateISISPrefixes(t, dut)
+	isisPrefixes := generateISISPrefixes(t)
 	prefixes := make(map[string]bool)
 	for pfx := range bgpPrefixes {
 		prefixes[pfx] = true
