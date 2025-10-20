@@ -66,6 +66,11 @@ const (
 	v4PrefixLen               = 30
 	v6PrefixLen               = 126
 
+	peerGrpNameV4P1 = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1 = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2 = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2 = "BGP-PEER-GROUP-V6-P2"
+
 	IPv4 = "IPv4"
 	IPv6 = "IPv6"
 )
@@ -98,6 +103,11 @@ var (
 		IPv6Len: v6PrefixLen,
 	}
 
+	ateAttrs       = []attrs.Attributes{ateP1, ateP2}
+	dutAttrs       = []attrs.Attributes{dutP1, dutP2}
+	v4PeerGrpNames = []string{peerGrpNameV4P1, peerGrpNameV4P2}
+	v6PeerGrpNames = []string{peerGrpNameV6P1, peerGrpNameV6P2}
+
 	port1Name = "port1"
 	port2Name = "port2"
 
@@ -112,13 +122,13 @@ var (
 // configureDUT configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
-	p1 := dut.Port(t, port1Name).Name()
-	i1 := dutP1.NewOCInterface(p1, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(p1).Config(), i1)
+	dutPort1 := dut.Port(t, port1Name).Name()
+	dutIntf1 := dutP1.NewOCInterface(dutPort1, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1).Config(), dutIntf1)
 
-	p2 := dut.Port(t, port2Name).Name()
-	i2 := dutP2.NewOCInterface(p2, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2).Config(), i2)
+	dutPort2 := dut.Port(t, port2Name).Name()
+	dutIntf2 := dutP2.NewOCInterface(dutPort2, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
 
 	// Configure default network instance.
 	t.Log("Configure Default Network Instance")
@@ -129,30 +139,26 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	nbrsP1 := []*cfgplugins.BGPNeighborInfo{
-		{AS: ateAS, NeighborIP: ateP1.IPv4, Version: cfgplugins.IPv4},
-		{AS: ateAS, NeighborIP: ateP1.IPv6, Version: cfgplugins.IPv6},
-	}
-	dutConf := cfgplugins.CreateBGPNeighbor(dutAS, dutP1.IPv4, ateAS, "BGP-PEER-GROUP-V4-P1", "BGP-PEER-GROUP-V6-P1", nbrsP1, dut)
-	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrsP1)
-	}
-
-	nbrsP2 := []*cfgplugins.BGPNeighborInfo{
-		{AS: ateAS, NeighborIP: ateP2.IPv4, Version: cfgplugins.IPv4},
-		{AS: ateAS, NeighborIP: ateP2.IPv6, Version: cfgplugins.IPv6},
-	}
-	dutConf = cfgplugins.CreateBGPNeighbor(dutAS, dutP1.IPv4, ateAS, "BGP-PEER-GROUP-V4-P2", "BGP-PEER-GROUP-V6-P2", nbrsP2, dut)
-	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
-	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrsP2)
+	for ix, ateAttr := range ateAttrs {
+		nbrs := []*cfgplugins.BgpNeighbor{
+			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
+			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
+		}
+		routerID := dutP1.IPv4
+		dutConf, err := cfgplugins.CreateBGPNeighbors(t, routerID, v4PeerGrpNames[ix], v6PeerGrpNames[ix], nbrs, dut)
+		if err != nil {
+			return err
+		}
+		gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+		if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+			cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrs)
+		}
 	}
 
 	t.Log("Configure ISIS")
@@ -160,7 +166,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	isisData := &cfgplugins.ISISGlobalParams{
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
-		ISISInterfaceNames:  []string{p1, p2},
+		ISISInterfaceNames:  []string{dutPort1, dutPort2},
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
 
