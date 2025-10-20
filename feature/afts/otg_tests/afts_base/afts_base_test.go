@@ -1,5 +1,5 @@
-// Copyright 2025 Google LLC
 //
+// Copyright 2025 Google LLC
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -69,8 +69,8 @@ const (
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 2 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 100000
-	bgpRouteCountIPv6LowScale = 100000
+	bgpRouteCountIPv4LowScale = 1200000
+	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
 )
@@ -539,9 +539,9 @@ func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook)
 	streamContext, streamCancel := context.WithCancel(t.Context())
 	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
 	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
-	streamCancel()
 	// Get the AFT from the cache.
-	aft, err := aftSession.Cache.ToAFT(tc.dut)
+	streamCancel()
+	aft, err := aftSession.Cache.ToAFT(t, tc.dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT: %v", err)
 	}
