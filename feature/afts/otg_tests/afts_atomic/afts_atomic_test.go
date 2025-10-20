@@ -104,7 +104,6 @@ var (
 	}
 
 	ateAttrs       = []attrs.Attributes{ateP1, ateP2}
-	dutAttrs       = []attrs.Attributes{dutP1, dutP2}
 	v4PeerGrpNames = []string{peerGrpNameV4P1, peerGrpNameV4P2}
 	v6PeerGrpNames = []string{peerGrpNameV6P1, peerGrpNameV6P2}
 
