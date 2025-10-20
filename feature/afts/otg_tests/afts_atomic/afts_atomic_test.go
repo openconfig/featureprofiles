@@ -119,6 +119,20 @@ var (
 	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
+func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
+	t.Helper()
+	d := &oc.Root{}
+	routePolicy := d.GetOrCreateRoutingPolicy()
+	policyDefinition := routePolicy.GetOrCreatePolicyDefinition(cfgplugins.ALLOW)
+	statement, err := policyDefinition.AppendNewStatement("id-1")
+	if err != nil {
+		return fmt.Errorf("failed to append new statement to policy definition %s: %v", cfgplugins.ALLOW, err)
+	}
+	statement.GetOrCreateActions().PolicyResult = applyPolicyType
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
+	return nil
+}
+
 // configureDUT configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
@@ -142,6 +156,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
 	}
+	configureAllowPolicy(t, dut)
 
 	t.Log("Configure BGP")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
