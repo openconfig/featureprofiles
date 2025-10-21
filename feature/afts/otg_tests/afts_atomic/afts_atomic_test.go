@@ -180,7 +180,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	isisData := &cfgplugins.ISISGlobalParams{
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
-		ISISInterfaceNames:  []string{dutPort1},
+		ISISInterfaceNames:  []string{dutPort1, dutPort2},
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
 
@@ -204,22 +204,19 @@ func (tc *testCase) configureATE(t *testing.T) {
 	config := gosnappi.NewConfig()
 
 	portData := []struct {
-		portName      string
-		ateAttrs      attrs.Attributes
-		dutAttrs      attrs.Attributes
-		configureISIS bool
+		portName string
+		ateAttrs attrs.Attributes
+		dutAttrs attrs.Attributes
 	}{
 		{
-			portName:      port1Name,
-			ateAttrs:      ateP1,
-			dutAttrs:      dutP1,
-			configureISIS: true,
+			portName: port1Name,
+			ateAttrs: ateP1,
+			dutAttrs: dutP1,
 		},
 		{
-			portName:      port2Name,
-			ateAttrs:      ateP2,
-			dutAttrs:      dutP2,
-			configureISIS: false,
+			portName: port2Name,
+			ateAttrs: ateP2,
+			dutAttrs: dutP2,
 		},
 	}
 
@@ -243,35 +240,33 @@ func (tc *testCase) configureATE(t *testing.T) {
 			SetGateway(p.dutAttrs.IPv6).
 			SetPrefix(v6PrefixLen)
 
-		// Only configure ISIS on port1 to ensure single next-hop for ISIS routes
-		if p.configureISIS {
-			isis := dev.Isis().SetName(dev.Name() + ".isis").
-				SetSystemId(isisATESystemID)
-			isis.Basic().
-				SetIpv4TeRouterId(ipv4.Address()).
-				SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
-			isis.Advanced().SetAreaAddresses([]string{isisATEArea})
-			isis.Advanced().SetEnableHelloPadding(false)
-			isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
-				SetEthName(eth.Name()).
-				SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-				SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-				SetMetric(10)
-			isisInt.TrafficEngineering().Add().PriorityBandwidths()
-			isisInt.Advanced().
-				SetAutoAdjustMtu(true).
-				SetAutoAdjustArea(true).
-				SetAutoAdjustSupportedProtocols(true)
+		isis := dev.Isis().SetName(dev.Name() + ".isis").
+			SetSystemId(isisATESystemID)
+		isis.Basic().
+			SetIpv4TeRouterId(ipv4.Address()).
+			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
+		isis.Advanced().SetAreaAddresses([]string{isisATEArea})
+		isis.Advanced().SetEnableHelloPadding(false)
+		isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
+			SetEthName(eth.Name()).
+			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
+			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+			SetMetric(10)
+		isisInt.TrafficEngineering().Add().PriorityBandwidths()
+		isisInt.Advanced().
+			SetAutoAdjustMtu(true).
+			SetAutoAdjustArea(true).
+			SetAutoAdjustSupportedProtocols(true)
 
-			v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
-			v4Route.Addresses().Add().SetAddress(isisRoute).
-				SetPrefix(advertisedRoutesV4Prefix).
-				SetCount(isisRouteCount)
-			v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
-			v6Route.Addresses().Add().SetAddress(isisRouteV6).
-				SetPrefix(advertisedRoutesV6Prefix).
-				SetCount(isisRouteCount)
-		}
+		// Why do we need to advertise routes on both ports?
+		v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
+		v4Route.Addresses().Add().SetAddress(isisRoute).
+			SetPrefix(advertisedRoutesV4Prefix).
+			SetCount(isisRouteCount)
+		v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
+		v6Route.Addresses().Add().SetAddress(isisRouteV6).
+			SetPrefix(advertisedRoutesV6Prefix).
+			SetCount(isisRouteCount)
 		tc.configureBGPDev(dev, ipv4, ipv6)
 	}
 
