@@ -48,7 +48,7 @@ const (
 	bgpRouteCountIPv6Default  = 200
 	bgpRouteCountIPv6LowScale = 200
 	bgpRouteV6                = "3001:1::0"
-	bgpTimeout                = 2 * time.Minute
+	gnmiTimeout               = 2 * time.Minute
 	dutAS                     = 65501
 	isisATEArea               = "49"
 	isisATESystemID           = "640000000001"
@@ -276,8 +276,6 @@ func (tc *testCase) configureATE(t *testing.T) {
 
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := bgpPath.Neighbor(ateP2.IPv4)
-	nbrPathv6 := bgpPath.Neighbor(ateP2.IPv6)
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
@@ -287,14 +285,44 @@ func (tc *testCase) waitForBGPSession(t *testing.T) error {
 		return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}
 
-	if _, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t); !ok {
-		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
-		return fmt.Errorf("no BGP neighbor formed yet")
+	for i, ateAttr := range ateAttrs {
+		nbrPath := bgpPath.Neighbor(ateAttr.IPv4)
+		if _, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), gnmiTimeout, verifySessionState).Await(t); !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
+			return fmt.Errorf("no BGP neighbor formed for port%d IPv4 (%s)", i+1, ateAttr.IPv4)
+		}
+
+		nbrPathv6 := bgpPath.Neighbor(ateAttr.IPv6)
+		if _, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), gnmiTimeout, verifySessionState).Await(t); !ok {
+			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
+			return fmt.Errorf("no BGPv6 neighbor formed for port%d IPv6 (%s)", i+1, ateAttr.IPv6)
+		}
 	}
 
-	if _, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t); !ok {
-		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
-		return fmt.Errorf("no BGPv6 neighbor formed yet")
+	return nil
+}
+
+func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
+	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(tc.dut)).Isis()
+
+	verifyAdjacencyState := func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+		state, ok := val.Val()
+		if !ok {
+			return false
+		}
+		t.Logf("ISIS adjacency state: %s", state.String())
+		return state == oc.Isis_IsisInterfaceAdjState_UP
+	}
+
+	dutPort1 := tc.dut.Port(t, port1Name).Name()
+	dutPort2 := tc.dut.Port(t, port2Name).Name()
+
+	for i, dutPort := range []string{dutPort1, dutPort2} {
+		adjPath := isisPath.Interface(dutPort).Level(2).Adjacency(isisATESystemID)
+		if _, ok := gnmi.Watch(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
+			fptest.LogQuery(t, "ISIS reported state", adjPath.State(), gnmi.Get(t, tc.dut, adjPath.State()))
+			return fmt.Errorf("no ISIS adjacency formed for port%d (%s)", i+1, dutPort)
+		}
 	}
 
 	return nil
@@ -473,6 +501,11 @@ func TestAtomic(t *testing.T) {
 			t.Log("Waiting for BGP neighbor to establish...")
 			if err := tc.waitForBGPSession(t); err != nil {
 				t.Fatalf("Unable to establish BGP session: %v", err)
+			}
+
+			t.Log("Waiting for ISIS adjacency to form...")
+			if err := tc.waitForISISAdjacency(t); err != nil {
+				t.Fatalf("Unable to establish ISIS adjacency: %v", err)
 			}
 
 			aftSession := aftcache.NewAFTStreamSession(t.Context(), t, gnmiClient, tc.dut)
