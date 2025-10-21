@@ -259,15 +259,17 @@ func (tc *testCase) configureATE(t *testing.T) {
 			SetAutoAdjustArea(true).
 			SetAutoAdjustSupportedProtocols(true)
 
-		// Why do we need to advertise routes on both ports?
-		v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
-		v4Route.Addresses().Add().SetAddress(isisRoute).
-			SetPrefix(advertisedRoutesV4Prefix).
-			SetCount(isisRouteCount)
-		v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
-		v6Route.Addresses().Add().SetAddress(isisRouteV6).
-			SetPrefix(advertisedRoutesV6Prefix).
-			SetCount(isisRouteCount)
+		// Advertise ISIS routes only from port1 to ensure single next-hop
+		if p.portName == port1Name {
+			v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
+			v4Route.Addresses().Add().SetAddress(isisRoute).
+				SetPrefix(advertisedRoutesV4Prefix).
+				SetCount(isisRouteCount)
+			v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
+			v6Route.Addresses().Add().SetAddress(isisRouteV6).
+				SetPrefix(advertisedRoutesV6Prefix).
+				SetCount(isisRouteCount)
+		}
 		tc.configureBGPDev(dev, ipv4, ipv6)
 	}
 
