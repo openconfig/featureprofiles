@@ -297,8 +297,7 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 	if err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
 	}
-	err = rotateRequestClient.CloseSend()
-	if err != nil {
+	if err = rotateRequestClient.CloseSend();err != nil {
 		t.Fatalf("Error sending rotate close send request: %v", err)
 	}
 	return true
