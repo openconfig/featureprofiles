@@ -10,15 +10,15 @@ The tests ensure that a DUT correctly generates and attaches the link-bandwidth 
 
 ## **Testbed Topology**
 
-**Testbed Type:**[ atedut_5](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_5.testbed).
+**Testbed Type:**[ atedut5](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_5.testbed).
 
 The test requires a single DUT with at least 5 ports connected to an ATE/OTG with at least 5 ports. The topology consists of one traffic-source ATE port and two sets of BGP peer links, each configured as a LAG.
 
 
 
-*   `ATE Port 1 &lt;--> DUT Port 1`: Used as the source for the test traffic.
-*   `ATE Ports 2,3 &lt;--> DUT Ports 2,3`: Forms `LAG-1` for the eBGP session with Peer 1.
-*   `ATE Ports 4,5 &lt;--> DUT Ports 4,5`: Forms `LAG-2` for the eBGP session with Peer 2.
+*   `ATE Port 1 <--> DUT Port 1`: Used as the source for the test traffic.
+*   `ATE Ports 2,3 <--> DUT Ports 2,3`: Forms `LAG-1` for the eBGP session with Peer 1.
+*   `ATE Ports 4,5 <--> DUT Ports 4,5`: Forms `LAG-2` for the eBGP session with Peer 2.
 
 
 ## **RPCs and Protocols**
@@ -49,7 +49,7 @@ This test validates this functionality by creating a classic wECMP scenario:
 The following JSON provides a reference for configuring the feature on a BGP peer-group for both IPv4 and IPv6 neighbors. This includes the necessary base BGP configuration for multipath to function.
 
 
-```
+```json
 {
   "network-instances": {
     "network-instance": [
@@ -154,7 +154,7 @@ The following JSON provides a reference for configuring the feature on a BGP pee
   }
 }
 
-```json
+```
 
 
 
@@ -486,9 +486,9 @@ neighbors/neighbor/auto-link-bandwidth/import/config/transitive
 
 
 
-## **OpenConfig Path and Telemetry Coverage**
+## OpenConfig Path and RPC Coverage
 
-```
+```yaml
 config:
   - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/enabled
   - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/hold-down-time
@@ -509,4 +509,4 @@ telemetry:
 rpc:
   []
 
-```yaml
+```
