@@ -15,6 +15,7 @@ package afts_atomic_test
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,7 +52,7 @@ const (
 	gnmiTimeout               = 2 * time.Minute
 	dutAS                     = 65501
 	isisATEArea               = "49"
-	isisATESystemID           = "640000000001"
+	isisATESystemID           = "6400.0000.0001"
 	isisDUTArea               = "49.0001"
 	isisDUTSystemID           = "1920.0000.2001"
 	isisRoute                 = "192.0.2.1"
@@ -241,7 +242,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 			SetPrefix(v6PrefixLen)
 
 		isis := dev.Isis().SetName(dev.Name() + ".isis").
-			SetSystemId(isisATESystemID)
+			SetSystemId(strings.ReplaceAll(isisATESystemID, ".", ""))
 		isis.Basic().
 			SetIpv4TeRouterId(ipv4.Address()).
 			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
