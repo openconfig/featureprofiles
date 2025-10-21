@@ -50,7 +50,7 @@ const (
 	bgpRouteV6                = "3001:1::0"
 	bgpTimeout                = 2 * time.Minute
 	dutAS                     = 65501
-	isisATEArea               = "490002"
+	isisATEArea               = "49"
 	isisATESystemID           = "640000000001"
 	isisDUTArea               = "49.0001"
 	isisDUTSystemID           = "1920.0000.2001"
