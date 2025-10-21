@@ -498,6 +498,12 @@ func TestAtomic(t *testing.T) {
 				t.Fatalf("Failed to dial GNMI: %v", err)
 			}
 
+			subtestCTX, cancel := context.WithCancel(t.Context())
+			defer cancel() // At end of subtest.
+			// This, surprisingly, spawns a goroutine... which is why we need to
+			// cancel the context. TODO: don't do that.
+			aftSession := aftcache.NewAFTStreamSession(subtestCTX, t, gnmiClient, tc.dut)
+
 			if err := tc.configureDUT(t); err != nil {
 				t.Fatalf("failed to configure DUT: %v", err)
 			}
@@ -512,12 +518,6 @@ func TestAtomic(t *testing.T) {
 			if err := tc.waitForISISAdjacency(t); err != nil {
 				t.Fatalf("Unable to establish ISIS adjacency: %v", err)
 			}
-
-			subtestCTX, cancel := context.WithCancel(t.Context())
-			defer cancel() // At end of subtest.
-			// This, surprisingly, spawns a goroutine... which is why we need to
-			// cancel the context. TODO: don't do that.
-			aftSession := aftcache.NewAFTStreamSession(subtestCTX, t, gnmiClient, tc.dut)
 
 			t.Logf("Initial verification of %d bgp prefixes and %d isis prefixes", len(bgpPrefixes), len(isisPrefixes))
 			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyBGPPrefixes)
