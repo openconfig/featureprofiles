@@ -45,10 +45,6 @@ This test validates this functionality by creating a classic wECMP scenario:
 
 
 ## **Canonical OpenConfig**
-
-The following JSON provides a reference for configuring the feature on a BGP peer-group for both IPv4 and IPv6 neighbors. This includes the necessary base BGP configuration for multipath to function.
-
-
 ```json
 {
   "network-instances": {
@@ -506,6 +502,6 @@ telemetry:
 /interfaces/interface/aggregation/state/member: {}
 /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state: {}
 
-rpc: {}
+rpcs: {}
 
 ```
