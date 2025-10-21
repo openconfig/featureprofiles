@@ -125,19 +125,27 @@ This test validates this functionality by creating a classic wECMP scenario:
                   "neighbor": [
                     {
                       "neighbor-address": "192.0.2.2",
-                      "peer-group": "ATE-PEERS-V4"
+                      "config": {
+                        "peer-group": "ATE-PEERS-V4"
+                      }
                     },
                     {
                       "neighbor-address": "192.0.2.4",
-                      "peer-group": "ATE-PEERS-V4"
+                      "config": {
+                        "peer-group": "ATE-PEERS-V4"
+                      }
                     },
                     {
                       "neighbor-address": "2001:db8::2",
-                      "peer-group": "ATE-PEERS-V6"
+                      "config": {
+                        "peer-group": "ATE-PEERS-V6"
+                      }
                     },
                     {
                       "neighbor-address": "2001:db8::4",
-                      "peer-group": "ATE-PEERS-V6"
+                      "config": {
+                        "peer-group": "ATE-PEERS-V6"
+                      }
                     }
                   ]
                 }
@@ -505,9 +513,5 @@ neighbors/neighbor/auto-link-bandwidth/import/config/transitive
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
     gNMI.Subscribe:
-      on_change: true
-
-
 ```
