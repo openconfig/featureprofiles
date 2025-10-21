@@ -38,4 +38,11 @@ platform_exceptions: {
     multipath_unsupported_neighbor_or_afisafi: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA 
+  }
+  deviations: {
+    multipath_unsupported_neighbor_or_afisafi: true
+  }
+}
