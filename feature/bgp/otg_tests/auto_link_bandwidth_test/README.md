@@ -490,23 +490,22 @@ neighbors/neighbor/auto-link-bandwidth/import/config/transitive
 
 ```yaml
 config:
-  - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/enabled
-  - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/hold-down-time
-  - /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/transitive
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/enabled
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/hold-down-time
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/transitive
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/enabled : {}
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/hold-down-time: {}
+/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/auto-link-bandwidth/import/config/transitive: {}
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/enabled: {}
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/hold-down-time: {}
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/auto-link-bandwidth/import/config/transitive: {}
 
 telemetry:
-  - /interfaces/interface/subinterfaces/subinterface/state/counters/in-octets
-  - /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index
-  - /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index
-  - /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight
-  - /interfaces/interface/state/oper-status
-  - /interfaces/interface/aggregation/state/member
-  - /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+/interfaces/interface/subinterfaces/subinterface/state/counters/in-octets: {}
+/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index: {}
+/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/ext-community-index: {}
+/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight: {}
+/interfaces/interface/state/oper-status: {}
+/interfaces/interface/aggregation/state/member: {}
+/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state: {}
 
-rpc:
-  []
+rpc: {}
 
 ```
