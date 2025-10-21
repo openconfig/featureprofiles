@@ -420,6 +420,9 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
+// TODO : This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
+// on return.) Split out the watching logic into a blocking function.
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
@@ -547,6 +550,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
+				t.Logf("Received stale notification with timestamp %v (time.Now() = %v)", resp.notification.GetUpdate().GetTimestamp(), time.Now())
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}

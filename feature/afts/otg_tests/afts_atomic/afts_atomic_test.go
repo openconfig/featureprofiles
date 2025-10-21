@@ -14,6 +14,7 @@
 package afts_atomic_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -52,7 +53,7 @@ const (
 	gnmiTimeout               = 2 * time.Minute
 	dutAS                     = 65501
 	isisATEArea               = "49"
-	isisATESystemID           = "6400.0000.0001"
+	isisATESystemIDPrefix     = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
 	isisDUTArea               = "49.0001"
 	isisDUTSystemID           = "1920.0000.2001"
 	isisRoute                 = "192.0.2.1"
@@ -242,7 +243,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 			SetPrefix(v6PrefixLen)
 
 		isis := dev.Isis().SetName(dev.Name() + ".isis").
-			SetSystemId(strings.ReplaceAll(isisATESystemID, ".", ""))
+			SetSystemId(fmt.Sprintf("%s%d", strings.ReplaceAll(isisATESystemIDPrefix, ".", ""), i+1)) // Unique system ID for each port.
 		isis.Basic().
 			SetIpv4TeRouterId(ipv4.Address()).
 			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
@@ -321,7 +322,8 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	dutPort2 := tc.dut.Port(t, port2Name).Name()
 
 	for i, dutPort := range []string{dutPort1, dutPort2} {
-		adjPath := isisPath.Interface(dutPort).Level(2).Adjacency(isisATESystemID)
+		systemID := fmt.Sprintf("%s%d", isisATESystemIDPrefix, i+1)
+		adjPath := isisPath.Interface(dutPort).Level(2).Adjacency(systemID)
 		if _, ok := gnmi.Watch(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
 			fptest.LogQuery(t, "ISIS reported state", adjPath.State(), gnmi.Get(t, tc.dut, adjPath.State()))
 			return fmt.Errorf("no ISIS adjacency formed for port%d (%s)", i+1, dutPort)
@@ -511,16 +513,20 @@ func TestAtomic(t *testing.T) {
 				t.Fatalf("Unable to establish ISIS adjacency: %v", err)
 			}
 
-			aftSession := aftcache.NewAFTStreamSession(t.Context(), t, gnmiClient, tc.dut)
+			subtestCTX, cancel := context.WithCancel(t.Context())
+			defer cancel() // At end of subtest.
+			// This, surprisingly, spawns a goroutine... which is why we need to
+			// cancel the context. TODO: don't do that.
+			aftSession := aftcache.NewAFTStreamSession(subtestCTX, t, gnmiClient, tc.dut)
 
 			t.Logf("Initial verification of %d bgp prefixes and %d isis prefixes", len(bgpPrefixes), len(isisPrefixes))
-			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyBGPPrefixes)
-			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyBGPPrefixes)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
 			t.Log("Done listening for initial verification.")
 
 			t.Log("Modifying port state to create churn.")
 			tc.churn()
-			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, tc.stoppingCondition)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, tc.stoppingCondition)
 			if tc.additionalVerification != nil {
 				t.Log("Running additional verification.")
 				tc.additionalVerification(aftSession)
@@ -529,8 +535,8 @@ func TestAtomic(t *testing.T) {
 
 			t.Log("Reverting port state to restore missing routes.")
 			tc.revert()
-			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyBGPPrefixes)
-			aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyBGPPrefixes)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
 			t.Log("Done listening after revert.")
 		})
 	}
