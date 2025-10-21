@@ -293,8 +293,7 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
 		RotateRequest:  finalizeRequest}
-	err = rotateRequestClient.Send(rotateCertRequest)
-	if err != nil {
+	if err = rotateRequestClient.Send(rotateCertRequest);err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
 	}
 	if err = rotateRequestClient.CloseSend();err != nil {
@@ -334,7 +333,7 @@ func CertGeneration(t *testing.T, dirPath string) error {
 	return err
 }
 
-// CertCleanup function to  clean out the certificate content under test_data.
+// CertCleanup function to clean out the certificate content under test_data.
 // CertCleanup executes the "cleanup.sh" script located in the specified directory to clean up test data.
 // It logs the execution and fails the test if the command fails to start or wait.
 // Returns an error if the cleanup command fails during execution or waiting.
