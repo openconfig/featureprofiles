@@ -325,7 +325,7 @@ func TestClientCert(t *testing.T) {
 		})
 		t.Logf("%s:STATUS: Test case completed: %s", time.Now().String(), tc.desc)
 	}
-    t.Logf("Cleanup of test data.")
+	//Cleanup of test data.
 	if setupService.CertCleanup(t, dirPath) != nil {
 		t.Fatalf("could not run testdata cleanup command.")
 	}
