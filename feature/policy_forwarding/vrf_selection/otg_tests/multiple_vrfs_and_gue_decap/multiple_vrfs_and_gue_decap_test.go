@@ -145,9 +145,9 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 
 	// Configure DUT interfaces.
 	createVRF(t, dut)
-	ConfigureDUTIntf(t, dut)
-	ConfigureBgp(t, dut)
-	ConfigureQoSDUTIpv4Ipv6(t, dut)
+	configureDUTIntf(t, dut)
+	configureBgp(t, dut)
+	configureQoSDUTIpv4Ipv6(t, dut)
 
 	configureRouteLeaking(t, dut)
 	configureDutWithGueDecap(t, dut, guePort, "ipv4")
@@ -221,8 +221,8 @@ func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 	}
 }
 
-// ConfigureDUTIntf configure DUT interface IP address
-func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
+// configureDUTIntf configure DUT interface IP address
+func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
@@ -233,64 +233,23 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-type bgpNeighbor struct {
-	as            uint32
-	neighborip    string
-	isV4          bool
-	PeerGroupName string
-}
-
-// ConfigureBgp configure dut with BGP configuration
-func ConfigureBgp(t *testing.T, dut *ondatra.DUTDevice) {
+// configureBgp configure dut with BGP configuration
+func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	d := &oc.Root{}
 
-	nbr1v4 := &bgpNeighbor{as: ate1Asn, neighborip: atePort1.IPv4, isV4: true, PeerGroupName: peerv4Grp1Name}
-	nbr1v6 := &bgpNeighbor{as: ate1Asn, neighborip: atePort1.IPv6, isV4: false, PeerGroupName: peerv6Grp1Name}
-	nbr2v4 := &bgpNeighbor{as: ate2Asn, neighborip: atePort2.IPv4, isV4: true, PeerGroupName: peerv4Grp2Name}
-	nbr2v6 := &bgpNeighbor{as: ate2Asn, neighborip: atePort2.IPv6, isV4: false, PeerGroupName: peerv6Grp2Name}
+	nbr1v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv4, IsV4: true, PeerGrp: peerv4Grp1Name}
+	nbr1v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv6, IsV4: false, PeerGrp: peerv6Grp1Name}
+	nbr2v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv4, IsV4: true, PeerGrp: peerv4Grp2Name}
+	nbr2v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv6, IsV4: false, PeerGrp: peerv6Grp2Name}
 
-	nbrList := []*bgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
+	nbrList := []*cfgplugins.BgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
 
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	// Create a batch and build config
+	sb := &gnmi.SetBatch{}
+	sb = cfgplugins.ConfigureSimpleBgpNeighbour(t, dut, sb, dutPort2.IPv4, nbrList)
 
-	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgp := niProto.GetOrCreateBgp()
-
-	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(dutAsn)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
-	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	g.RouterId = ygot.String(dutPort2.IPv4)
-
-	pg1v4 := bgp.GetOrCreatePeerGroup(peerv4Grp1Name)
-	pg1v4.PeerAs = ygot.Uint32(ate1Asn)
-
-	pg1v6 := bgp.GetOrCreatePeerGroup(peerv6Grp1Name)
-	pg1v6.PeerAs = ygot.Uint32(ate1Asn)
-
-	pg2v4 := bgp.GetOrCreatePeerGroup(peerv4Grp2Name)
-	pg2v4.PeerAs = ygot.Uint32(ate2Asn)
-
-	pg2v6 := bgp.GetOrCreatePeerGroup(peerv6Grp2Name)
-	pg2v6.PeerAs = ygot.Uint32(ate2Asn)
-
-	for _, nbr := range nbrList {
-		nv4 := bgp.GetOrCreateNeighbor(nbr.neighborip)
-		nv4.PeerGroup = ygot.String(nbr.PeerGroupName)
-		nv4.PeerAs = ygot.Uint32(nbr.as)
-		nv4.Enabled = ygot.Bool(true)
-		if nbr.isV4 {
-			af4 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-			af4.Enabled = ygot.Bool(true)
-		} else {
-			af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-			af6.Enabled = ygot.Bool(true)
-		}
-	}
-	gnmi.Replace(t, dut, dutConfPath.Config(), niProto)
-
+	// Apply the batch
+	sb.Set(t, dut)
 }
 
 // configInterfaceDUT Configures the given DUT interface.
@@ -301,8 +260,8 @@ func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDe
 	return i
 }
 
-// ConfigureQoSDUTIpv4Ipv6 configure dut with QoS configuration
-func ConfigureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
+// configureQoSDUTIpv4Ipv6 configure dut with QoS configuration
+func configureQoSDUTIpv4Ipv6(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, "port1")
 	d := &oc.Root{}

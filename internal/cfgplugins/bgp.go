@@ -762,3 +762,48 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 
 	return bgp
 }
+
+func ConfigureSimpleBgpNeighbour(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, dutRouterID string, nbrList []*BgpNeighbor) *gnmi.SetBatch {
+
+	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	proto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := proto.GetOrCreateBgp()
+
+	// --- Global config
+	global := bgp.GetOrCreateGlobal()
+	global.As = ygot.Uint32(nbrList[0].LocalAS)
+	global.RouterId = ygot.String(dutRouterID)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+
+	// --- Neighbors and peer groups
+	for _, nbr := range nbrList {
+		pg := bgp.GetOrCreatePeerGroup(nbr.PeerGrp)
+		pg.PeerAs = ygot.Uint32(nbr.PeerAS)
+
+		n := bgp.GetOrCreateNeighbor(nbr.Neighborip)
+		n.PeerGroup = ygot.String(nbr.PeerGrp)
+		n.PeerAs = ygot.Uint32(nbr.PeerAS)
+		n.Enabled = ygot.Bool(true)
+
+		if nbr.IsV4 {
+			n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		} else {
+			n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+		}
+	}
+
+	gnmi.BatchUpdate(
+		sb,
+		gnmi.OC().
+			NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
+			Config(),
+		proto,
+	)
+
+	return sb
+}
