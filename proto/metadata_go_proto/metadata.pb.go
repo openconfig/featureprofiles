@@ -1185,7 +1185,13 @@ type Metadata_Deviations struct {
 	TransceiverConfigEnableUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=transceiverConfigEnableUnsupported,proto3" json:"transceiver_config_enable_unsupported,omitempty"`
 	// Devices that do not support aft summary oc path
     // Cisco: b/450898206
-	AftSummaryOcUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=aftSummaryOcUnsupported,proto3" json:"aft_summary_oc_unsupported,omitempty"`
+	AftSummaryOcUnsupported bool `protobuf:"varint,337,opt,name=aft_summary_oc_unsupported,json=aftSummaryOcUnsupported,proto3" json:"aft_summary_oc_unsupported,omitempty"`
+	// Devices that do not support isis lsp tlvs
+    // Arista: b/450898200
+	IsisLspTlvsOcUnsupported bool `protobuf:"varint,338,opt,name=isis_lsp_tlvs_oc_unsupported,json=isisLspTlvsOcUnsupported,proto3" json:"isis_lsp_tlvs_oc_unsupported,omitempty"`
+	// Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: b/452295044
+	IsisAdjacencyStreamUnsupported bool `protobuf:"varint,339,opt,name=isis_adjacency_stream_unsupported,json=isisAdjacencyStreamUnsupported,proto3" json:"isis_adjacency_stream_unsupported,omitempty"`
 
 	unknownFields                      protoimpl.UnknownFields
 	sizeCache                          protoimpl.SizeCache
@@ -3345,6 +3351,20 @@ func (x *Metadata_Deviations) GetTransceiverConfigEnableUnsupported() bool {
 func (x *Metadata_Deviations) GetAftSummaryOcUnsupported() bool {
 	if x != nil {
 		return x.AftSummaryOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisLspTlvsOcUnsupported() bool {
+	if x != nil {
+		return x.IsisLspTlvsOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisAdjacencyStreamUnsupported() bool {
+	if x != nil {
+		return x.IsisAdjacencyStreamUnsupported
 	}
 	return false
 }
