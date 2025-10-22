@@ -763,6 +763,7 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	return bgp
 }
 
+// ConfigureSimpleBgpNeighbour configures BGP instance, peer groups and neighbors
 func ConfigureSimpleBgpNeighbour(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, dutRouterID string, nbrList []*BgpNeighbor) *gnmi.SetBatch {
 
 	t.Helper()
