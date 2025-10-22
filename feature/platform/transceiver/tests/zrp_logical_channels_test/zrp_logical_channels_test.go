@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -29,16 +28,6 @@ const (
 )
 
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-	}
 	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -55,28 +44,22 @@ func TestMain(m *testing.M) {
 
 func Test400ZRLogicalChannels(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
+	operationalMode = uint16(*operationalModeFlag)
+	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, p1)
+	cfgplugins.InterfaceConfig(t, dut, p2)
 
 	oc1 := components.OpticalChannelComponentFromPort(t, dut, p1)
 	oc2 := components.OpticalChannelComponentFromPort(t, dut, p2)
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(p2.Name()).Transceiver().State())
 
-	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc1, otnIndex1, ethernetIndex1)
 	cfgplugins.ConfigETHChannel(t, dut, p1.Name(), tr1, otnIndex1, ethernetIndex1)
-	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, operationalMode)
 	cfgplugins.ConfigOTNChannel(t, dut, oc2, otnIndex2, ethernetIndex2)
 	cfgplugins.ConfigETHChannel(t, dut, p2.Name(), tr2, otnIndex2, ethernetIndex2)
 
@@ -237,7 +220,7 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, otnChIdx 
 	}
 	tcs = append(tcs, opticalChannelAssignmentIndexTestcases...)
 
-	if !deviations.OTNChannelTribUnsupported(dut) {
+	if deviations.OTNChannelTribUnsupported(dut) {
 		logicalChannelAssignmentTestcases := []testcase{
 			{
 				desc: "Ethernet Assignment: Index",
