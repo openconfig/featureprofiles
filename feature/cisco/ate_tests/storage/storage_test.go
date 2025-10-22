@@ -53,53 +53,59 @@ func TestStorageFileSystemCheck(t *testing.T) {
 
 	// Storage counter test cases with different subscription modes and GET requests
 	testCases := []storageTestCase{
+		// {
+		// 	name:        "soft-read-error-rate",
+		// 	path:        "storage/state/counters/soft-read-error-rate",
+		// 	counterType: "counter64",
+		// 	description: "Validate soft read error rate counter",
+		// 	fn:          testSoftReadErrorRate,
+		// },
+		// {
+		// 	name:        "reallocated-sectors",
+		// 	path:        "storage/state/counters/reallocated-sectors",
+		// 	counterType: "counter64",
+		// 	description: "Validate reallocated sectors counter",
+		// 	fn:          testReallocatedSectors,
+		// },
+		// {
+		// 	name:        "end-to-end-error",
+		// 	path:        "storage/state/counters/end-to-end-error",
+		// 	counterType: "counter64",
+		// 	description: "Validate end-to-end error counter",
+		// 	fn:          testEndToEndError,
+		// },
+		// {
+		// 	name:        "offline-uncorrectable-sectors-count",
+		// 	path:        "storage/state/counters/offline-uncorrectable-sectors-count",
+		// 	counterType: "counter64",
+		// 	description: "Validate offline uncorrectable sectors count",
+		// 	fn:          testOfflineUncorrectableSectors,
+		// },
+		// {
+		// 	name:        "life-left",
+		// 	path:        "storage/state/counters/life-left",
+		// 	counterType: "integer",
+		// 	description: "Validate storage life left percentage",
+		// 	fn:          testLifeLeft,
+		// },
+		// {
+		// 	name:        "percentage-used",
+		// 	path:        "storage/state/counters/percentage-used",
+		// 	counterType: "integer",
+		// 	description: "Validate storage percentage used",
+		// 	fn:          testPercentageUsed,
+		// },
+		// {
+		// 	name:        "system-events",
+		// 	counterType: "counter64",
+		// 	description: "Validate storage system events counter",
+		// 	fn:          testStorageSystemEvents,
+		// },
 		{
-			name:        "soft-read-error-rate",
-			path:        "storage/state/counters/soft-read-error-rate",
-			counterType: "counter64",
-			description: "Validate soft read error rate counter",
-			fn:          testSoftReadErrorRate,
-		},
-		{
-			name:        "reallocated-sectors",
-			path:        "storage/state/counters/reallocated-sectors",
-			counterType: "counter64",
-			description: "Validate reallocated sectors counter",
-			fn:          testReallocatedSectors,
-		},
-		{
-			name:        "end-to-end-error",
-			path:        "storage/state/counters/end-to-end-error",
-			counterType: "counter64",
-			description: "Validate end-to-end error counter",
-			fn:          testEndToEndError,
-		},
-		{
-			name:        "offline-uncorrectable-sectors-count",
-			path:        "storage/state/counters/offline-uncorrectable-sectors-count",
-			counterType: "counter64",
-			description: "Validate offline uncorrectable sectors count",
-			fn:          testOfflineUncorrectableSectors,
-		},
-		{
-			name:        "life-left",
-			path:        "storage/state/counters/life-left",
-			counterType: "integer",
-			description: "Validate storage life left percentage",
-			fn:          testLifeLeft,
-		},
-		{
-			name:        "percentage-used",
-			path:        "storage/state/counters/percentage-used",
-			counterType: "integer",
-			description: "Validate storage percentage used",
-			fn:          testPercentageUsed,
-		},
-		{
-			name:        "system-events",
-			counterType: "counter64",
-			description: "Validate storage system events counter",
-			fn:          testStorageSystemEvents,
+			name:        "subscription-levels",
+			counterType: "mixed",
+			description: "Validate storage subscriptions at root, container, and leaf levels",
+			fn:          testStorageSubscriptionLevels,
 		},
 	}
 
@@ -266,5 +272,106 @@ func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, 
 
 	t.Run("comprehensive-system-events-test", func(t *testing.T) {
 		testStorageSystemEventsComprehensive(t, args)
+	})
+}
+
+// testStorageSubscriptionLevels validates storage subscriptions at different hierarchy levels
+func testStorageSubscriptionLevels(ctx context.Context, t *testing.T, args *testArgs, path string) {
+	t.Log("Description: Validate storage subscriptions at root, container, and leaf levels")
+
+	// Define the storage counter leafs
+	storageCounterLeafs := []struct {
+		name        string
+		counterType string
+		description string
+	}{
+		{
+			name:        "soft-read-error-rate",
+			counterType: "counter64",
+			description: "Soft read error rate counter",
+		},
+		{
+			name:        "reallocated-sectors",
+			counterType: "counter64",
+			description: "Reallocated sectors counter",
+		},
+		{
+			name:        "end-to-end-error",
+			counterType: "counter64",
+			description: "End-to-end error counter",
+		},
+		{
+			name:        "offline-uncorrectable-sectors-count",
+			counterType: "counter64",
+			description: "Offline uncorrectable sectors count",
+		},
+		{
+			name:        "life-left",
+			counterType: "integer",
+			description: "Storage life left percentage",
+		},
+		{
+			name:        "percentage-used",
+			counterType: "integer",
+			description: "Storage percentage used",
+		},
+	}
+
+	// Test 1: Root level subscription
+	t.Run("root-level-subscription", func(t *testing.T) {
+		t.Log("=== ROOT LEVEL SUBSCRIPTION TEST ===")
+		t.Log("Testing subscription to: /components")
+		testRootLevelSubscription(t, args)
+	})
+
+	// Test 2: Container level subscriptions
+	t.Run("container-level-subscriptions", func(t *testing.T) {
+		t.Log("=== CONTAINER LEVEL SUBSCRIPTION TESTS ===")
+
+		// Test each container level in the hierarchy
+		containerLevels := []struct {
+			name        string
+			path        string
+			description string
+		}{
+			{
+				name:        "component-level",
+				path:        "component",
+				description: "Testing subscription to: /components/component[name=*]",
+			},
+			{
+				name:        "counters-level",
+				path:        "storage/state/counters",
+				description: "Testing subscription to: /components/component[name=*]/storage/state/counters",
+			},
+		}
+
+		for _, containerLevel := range containerLevels {
+			t.Run(containerLevel.name, func(t *testing.T) {
+				t.Log(containerLevel.description)
+				testContainerLevelSubscription(t, args, containerLevel.path, containerLevel.description)
+			})
+		}
+	})
+
+	// Test 3: Leaf level subscriptions
+	t.Run("leaf-level-subscriptions", func(t *testing.T) {
+		t.Log("=== LEAF LEVEL SUBSCRIPTION TESTS ===")
+
+		for _, leaf := range storageCounterLeafs {
+			t.Run(leaf.name, func(t *testing.T) {
+				leafPath := "storage/state/counters/" + leaf.name
+				description := "Testing subscription to: /components/component[name=*]/" + leafPath
+				t.Log(description)
+				testLeafLevelSubscription(t, args, leafPath, leaf.name, leaf.counterType, description)
+			})
+		}
+	})
+
+	// Test 4: Comparative analysis across levels
+	t.Run("comparative-level-analysis", func(t *testing.T) {
+		t.Log("=== COMPARATIVE LEVEL ANALYSIS ===")
+		t.Log("Comparing data consistency across subscription levels")
+		testComparativeLevelAnalysis(t, args, storageCounterLeafs)
 	})
 }

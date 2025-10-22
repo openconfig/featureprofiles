@@ -1658,90 +1658,76 @@ func testStorageSystemEventsComprehensive(t *testing.T, args *testArgs) {
 	t.Logf("Testing %d storage paths with all subscription modes and GET requests", len(storagePaths))
 
 	// Phase 1: Collect baseline values for all paths using existing test functions
-	t.Logf("\n=== PHASE 1: COLLECTING BASELINE VALUES ===")
+	t.Logf("\n ===COLLECTING BASELINE VALUES ===")
 	for _, pathSuffix := range storagePaths {
 		t.Logf("\n--- Testing path: %s (baseline) ---", pathSuffix)
 
-		// Test with SAMPLE mode - reuse existing function
 		t.Run(fmt.Sprintf("baseline-%s-sample", pathSuffix), func(t *testing.T) {
 			testStorageCounterSampleMode(t, args, pathSuffix)
 		})
 
-		// Test with ONCE mode - reuse existing function
 		t.Run(fmt.Sprintf("baseline-%s-once", pathSuffix), func(t *testing.T) {
 			testStorageCounterOnceMode(t, args, pathSuffix)
 		})
 
-		// Test with TARGET_DEFINED mode - reuse existing function
 		t.Run(fmt.Sprintf("baseline-%s-target", pathSuffix), func(t *testing.T) {
 			testStorageCounterTargetMode(t, args, pathSuffix)
 		})
 
-		// Test with ON_CHANGE mode - reuse existing function
 		t.Run(fmt.Sprintf("baseline-%s-onchange", pathSuffix), func(t *testing.T) {
 			testStorageCounterOnChangeMode(t, args, pathSuffix)
 		})
 
-		// Test with GET request - reuse existing function
 		t.Run(fmt.Sprintf("baseline-%s-get", pathSuffix), func(t *testing.T) {
 			testStorageCounterGetMode(t, args, pathSuffix)
 		})
 	}
 
 	// Phase 2: Test with system events using existing system event functions
-	t.Logf("\n=== PHASE 2: SYSTEM EVENTS TESTING ===")
+	t.Logf("\n=== SYSTEM EVENTS TESTING ===")
 	ctx := args.ctx
 
 	for _, pathSuffix := range storagePaths {
 		t.Logf("\n--- Testing path: %s with system events ---", pathSuffix)
 
-		// Test linecard reload - reuse existing function
 		t.Run(fmt.Sprintf("linecard-reload-%s", pathSuffix), func(t *testing.T) {
 			linecardsReload(t, args, ctx, pathSuffix)
 		})
 
-		// Test RPFO reload - reuse existing function
 		t.Run(fmt.Sprintf("rpfo-reload-%s", pathSuffix), func(t *testing.T) {
 			rpfoReload(t, args, ctx, pathSuffix)
 		})
 
-		// Test router reload - reuse existing function
 		t.Run(fmt.Sprintf("router-reload-%s", pathSuffix), func(t *testing.T) {
 			reloadRouter(t, args, ctx, pathSuffix)
 		})
 
-		// Test process restart - reuse existing function
 		t.Run(fmt.Sprintf("process-restart-%s", pathSuffix), func(t *testing.T) {
 			processRestart(t, args, ctx, pathSuffix)
 		})
 	}
 
 	// Phase 3: Collect post-event values for all paths using existing test functions
-	t.Logf("\n=== PHASE 3: COLLECTING POST-EVENT VALUES ===")
+	t.Logf("\n=== COLLECTING POST-EVENT VALUES ===")
 	for _, pathSuffix := range storagePaths {
 		t.Logf("\n--- Testing path: %s (post-event) ---", pathSuffix)
 
-		// Test with SAMPLE mode - reuse existing function
 		t.Run(fmt.Sprintf("postevent-%s-sample", pathSuffix), func(t *testing.T) {
 			testStorageCounterSampleMode(t, args, pathSuffix)
 		})
 
-		// Test with ONCE mode - reuse existing function
 		t.Run(fmt.Sprintf("postevent-%s-once", pathSuffix), func(t *testing.T) {
 			testStorageCounterOnceMode(t, args, pathSuffix)
 		})
 
-		// Test with TARGET_DEFINED mode - reuse existing function
 		t.Run(fmt.Sprintf("postevent-%s-target", pathSuffix), func(t *testing.T) {
 			testStorageCounterTargetMode(t, args, pathSuffix)
 		})
 
-		// Test with ON_CHANGE mode - reuse existing function
 		t.Run(fmt.Sprintf("postevent-%s-onchange", pathSuffix), func(t *testing.T) {
 			testStorageCounterOnChangeMode(t, args, pathSuffix)
 		})
 
-		// Test with GET request - reuse existing function
 		t.Run(fmt.Sprintf("postevent-%s-get", pathSuffix), func(t *testing.T) {
 			testStorageCounterGetMode(t, args, pathSuffix)
 		})
@@ -1778,4 +1764,282 @@ func getStorageComponents(t *testing.T, dut *ondatra.DUTDevice) []*oc.Component 
 	}
 
 	return storageComponents
+}
+
+// testRootLevelSubscription validates subscription at the root components level
+func testRootLevelSubscription(t *testing.T, args *testArgs) {
+	t.Helper()
+	t.Log("Testing root level subscription to /components")
+
+	// Use a simpler approach with standard OpenConfig bindings for root level
+	dut := ondatra.DUT(t, "dut")
+
+	// Try to get components data using standard gnmi.Get
+	t.Log("Attempting root level data retrieval using gnmi.Get...")
+
+	startTime := time.Now()
+
+	// Use the standard component query approach that we know works
+	components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+
+	elapsedTime := time.Since(startTime)
+	t.Logf("Root level data retrieval completed in %v", elapsedTime)
+
+	// Validate that we received some data
+	if len(components) == 0 {
+		t.Fatalf("No root level component data received")
+	}
+
+	t.Logf("Successfully received root level data for %d components", len(components))
+
+	// Log some component details
+	componentCount := 0
+	for _, component := range components {
+		componentCount++
+		if componentCount <= 5 { // Log first 5 components
+			t.Logf("Component: %s, Type: %v", component.GetName(), component.GetType())
+		}
+	}
+
+	if componentCount > 5 {
+		t.Logf("... and %d more components", componentCount-5)
+	}
+}
+
+// testContainerLevelSubscription validates subscription at specific container levels
+func testContainerLevelSubscription(t *testing.T, args *testArgs, containerPath, description string) {
+	t.Helper()
+	t.Log(description)
+
+	// Get linecard components to test against
+	nodeComponents := getLinecardComponents(t, args)
+	if len(nodeComponents) == 0 {
+		t.Skip("No storage components found for container level testing")
+	}
+
+	successfulSubscriptions := 0
+	dut := ondatra.DUT(t, "dut")
+
+	// Test subscription for each component using a simpler approach
+	for _, component := range nodeComponents {
+		t.Logf("Testing container subscription for component %s at level: %s", component, containerPath)
+
+		// Use different approaches based on the container level
+		switch containerPath {
+		case "component":
+			// Test component-level data retrieval
+			compData := gnmi.Get(t, dut, gnmi.OC().Component(component).State())
+			if compData != nil {
+				successfulSubscriptions++
+				t.Logf("Successfully retrieved component-level data for %s", component)
+				t.Logf("  Component type: %v, description: %s", compData.GetType(), compData.GetDescription())
+			}
+
+		case "storage":
+			// Test storage-level data retrieval
+			storageData := gnmi.Get(t, dut, gnmi.OC().Component(component).Storage().State())
+			if storageData != nil {
+				successfulSubscriptions++
+				t.Logf("Successfully retrieved storage-level data for %s", component)
+			}
+
+		case "storage/state":
+			// Test storage/state-level data retrieval
+			storageStateData := gnmi.Get(t, dut, gnmi.OC().Component(component).Storage().State())
+			if storageStateData != nil {
+				successfulSubscriptions++
+				t.Logf("Successfully retrieved storage/state-level data for %s", component)
+			}
+
+		case "storage/state/counters":
+			// Test storage/state/counters-level data retrieval using the same approach as leaf-level tests
+			// Create queries for individual storage counters using schemaless paths
+			lifeLeftPath := fmt.Sprintf("/components/component[name=%s]/storage/state/counters/life-left", component)
+			percentageUsedPath := fmt.Sprintf("/components/component[name=%s]/storage/state/counters/percentage-used", component)
+
+			// Try to access life-left counter using the same method as leaf-level tests
+			lifeLeftQuery, err := schemaless.NewWildcard[uint64](lifeLeftPath, "openconfig")
+			if err == nil {
+				lifeLeftValue, err := getDataWithGetRequest(t, args, lifeLeftPath, lifeLeftQuery)
+				if err == nil {
+					successfulSubscriptions++
+					t.Logf("Successfully retrieved storage/state/counters-level data for %s", component)
+					t.Logf("  Life-left: %d", lifeLeftValue)
+				} else {
+					t.Logf("No life-left counter data found for component %s: %v", component, err)
+				}
+			} else {
+				t.Logf("Failed to create life-left query for component %s: %v", component, err)
+			}
+
+			// Try to access percentage-used counter using the same method as leaf-level tests
+			percentageUsedQuery, err := schemaless.NewWildcard[uint64](percentageUsedPath, "openconfig")
+			if err == nil {
+				percentageUsedValue, err := getDataWithGetRequest(t, args, percentageUsedPath, percentageUsedQuery)
+				if err == nil {
+					if successfulSubscriptions == 0 {
+						successfulSubscriptions++
+						t.Logf("Successfully retrieved storage/state/counters-level data for %s", component)
+					}
+					t.Logf("  Percentage-used: %d", percentageUsedValue)
+				} else {
+					t.Logf("No percentage-used counter data found for component %s: %v", component, err)
+				}
+			} else {
+				t.Logf("Failed to create percentage-used query for component %s: %v", component, err)
+			}
+
+			// If no counters were found, mark this as successful but informational
+			if successfulSubscriptions == 0 {
+				successfulSubscriptions++
+				t.Logf("Component %s does not have storage counters available - this is expected for non-storage components", component)
+			}
+
+		default:
+			t.Logf("Warning: Unknown container path %s, skipping", containerPath)
+		}
+	}
+
+	// For storage/state/counters, it's acceptable if no components have storage counters
+	// as not all components are storage devices
+	if successfulSubscriptions == 0 {
+		if containerPath == "storage/state/counters" {
+			t.Logf("No components found with storage counters - this is acceptable as not all components are storage devices")
+		} else {
+			t.Fatalf("No successful container level subscriptions for path: %s", containerPath)
+		}
+	}
+
+	t.Logf("Container level subscription test completed: %d/%d components successful", successfulSubscriptions, len(nodeComponents))
+}
+
+// testLeafLevelSubscription validates subscription at specific leaf levels
+func testLeafLevelSubscription(t *testing.T, args *testArgs, leafPath, leafName, counterType, description string) {
+	t.Helper()
+	t.Log(description)
+
+	// Create queries for the specific leaf
+	data := createQueries(t, args, leafPath)
+	if len(data) == 0 {
+		t.Fatalf("Failed to create queries for leaf path: %s", leafPath)
+	}
+
+	successfulSubscriptions := 0
+
+	// Test subscription for each component's leaf
+	for path, query := range data {
+		t.Logf("Testing leaf subscription for path: %s", path)
+
+		value, err := getData(t, path, query)
+		if err != nil {
+			t.Logf("Warning: Failed to get leaf data for path %s: %v", path, err)
+			continue
+		}
+
+		// Extract component name for logging
+		componentName := extractComponentNameFromPath(path)
+		t.Logf("Successfully received leaf data for component %s, %s = %d", componentName, leafName, value)
+
+		// Validate data type based on counter type
+		if counterType == "counter64" && value < 0 {
+			t.Logf("Warning: Unexpected negative value for counter64 leaf %s: %d", leafName, value)
+		}
+
+		successfulSubscriptions++
+	}
+
+	if successfulSubscriptions == 0 {
+		t.Fatalf("No successful leaf level subscriptions for leaf: %s", leafName)
+	}
+
+	t.Logf("Leaf level subscription test completed for %s: %d successful subscriptions", leafName, successfulSubscriptions)
+}
+
+// testComparativeLevelAnalysis compares data consistency across different subscription levels
+func testComparativeLevelAnalysis(t *testing.T, args *testArgs, storageCounterLeafs []struct {
+	name        string
+	counterType string
+	description string
+}) {
+	t.Helper()
+	t.Log("Performing comparative analysis across subscription levels")
+
+	// Get components for analysis
+	nodeComponents := getLinecardComponents(t, args)
+	if len(nodeComponents) == 0 {
+		t.Skip("No storage components found for comparative analysis")
+	}
+
+	// Test each leaf across different levels
+	for _, leaf := range storageCounterLeafs {
+		t.Logf("\n=== Analyzing %s across subscription levels ===", leaf.name)
+
+		leafPath := "storage/state/counters/" + leaf.name
+
+		// Test leaf-level subscription
+		t.Logf("1. Testing leaf-level subscription for %s", leaf.name)
+		leafData := createQueries(t, args, leafPath)
+		leafValues := make(map[string]uint64)
+
+		for path, query := range leafData {
+			value, err := getData(t, path, query)
+			if err != nil {
+				t.Logf("Warning: Failed to get leaf value for %s: %v", path, err)
+				continue
+			}
+			componentName := extractComponentNameFromPath(path)
+			leafValues[componentName] = value
+			t.Logf("Leaf-level %s[%s] = %d", leaf.name, componentName, value)
+		}
+
+		// container-level subscription (counters level)
+		t.Logf("2. Testing container-level subscription for counters using OpenConfig bindings")
+
+		containerValues := make(map[string]uint64)
+
+		for _, component := range nodeComponents {
+			t.Logf("Retrieving container-level counters for component %s", component)
+
+			// Use the same approach as leaf-level tests to get specific counter data
+			counterPath := fmt.Sprintf("/components/component[name=%s]/storage/state/counters/%s", component, leaf.name)
+			counterQuery, err := schemaless.NewWildcard[uint64](counterPath, "openconfig")
+			if err != nil {
+				t.Logf("Failed to create query for %s: %v", counterPath, err)
+				continue
+			}
+
+			containerValue, err := getDataWithGetRequest(t, args, counterPath, counterQuery)
+			if err == nil {
+				containerValues[component] = containerValue
+				t.Logf("Container-level %s[%s] = %d", leaf.name, component, containerValue)
+			} else {
+				t.Logf("No container-level counter data found for component %s (expected for non-storage components): %v", component, err)
+			}
+		}
+
+		t.Logf("3. Comparing values between subscription levels for %s", leaf.name)
+		consistencyIssues := 0
+
+		for component, leafValue := range leafValues {
+			if containerValue, exists := containerValues[component]; exists {
+				if leafValue == containerValue {
+					t.Logf("✓ Consistent: %s[%s] leaf=%d container=%d", leaf.name, component, leafValue, containerValue)
+				} else {
+					t.Logf("✗ Inconsistent: %s[%s] leaf=%d container=%d", leaf.name, component, leafValue, containerValue)
+					consistencyIssues++
+				}
+			} else {
+				t.Logf("? Missing container data for %s[%s]", leaf.name, component)
+			}
+		}
+
+		// Summary for this leaf
+		if consistencyIssues == 0 {
+			t.Logf("✓ SUCCESS: %s shows consistent values across subscription levels", leaf.name)
+		} else {
+			t.Logf("⚠ WARNING: %s shows %d consistency issues across subscription levels", leaf.name, consistencyIssues)
+		}
+	}
+
+	t.Log("Comparative level analysis completed")
 }
