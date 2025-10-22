@@ -86,7 +86,6 @@ tests:
     mustpass: true
     priority: 3
     internal: false
-    pr: 4082
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
