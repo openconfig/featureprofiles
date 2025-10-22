@@ -10,17 +10,17 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers/otgconfighelpers"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 func TestMain(m *testing.M) {
