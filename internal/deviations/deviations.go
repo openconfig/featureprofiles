@@ -1691,3 +1691,18 @@ func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
 }
+
+// AFTSummaryOCUnsupported returns true if the device does not support aft summary oc path.
+func AFTSummaryOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftSummaryOcUnsupported()
+}
+
+// ISISLSPTlvsOCUnsupported returns true if the device does not support isis lsp tlvs.
+func ISISLSPTlvsOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisLspTlvsOcUnsupported()
+}
+
+// ISISAdjacencyStreamUnsupported returns true if the device does not support isis adjacency with STREAM telemetry.
+func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
+}
