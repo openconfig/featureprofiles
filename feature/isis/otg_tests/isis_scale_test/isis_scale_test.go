@@ -19,7 +19,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
