@@ -652,6 +652,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 			"0": oc.UnionString(ateDst.IPv6),
 		},
 	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {

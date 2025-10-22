@@ -1,4 +1,4 @@
-# TRANSCEIVER-4: Telemetry: 400ZR RX input and TX output power telemetry values streaming. 
+# TRANSCEIVER-4.1: Telemetry: 400ZR RX input and TX output power telemetry values streaming. 
 
 ## Summary
 
@@ -19,7 +19,7 @@ power.
 
 The test must be repeated for each supported operational-mode or as agreed between the vendor and customer.
 
-## TRANSCEIVER-4.1
+## TRANSCEIVER-4.1.1
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module. Connection
@@ -47,7 +47,7 @@ The test must be repeated for each supported operational-mode or as agreed betwe
     *   /components/component/transceiver/physical-channel/channel/state/input-power/max
     *   /components/component/transceiver/physical-channel/channel/state/input-power/avg
 
-## TRANSCEIVER-4.2
+## TRANSCEIVER-4.1.2
 
 *   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf" until valid values
@@ -61,7 +61,7 @@ The test must be repeated for each supported operational-mode or as agreed betwe
           10 seconds is not supported, the sampling interval used must be
           communicated.
 
-## TRANSCEIVER-4.3
+## TRANSCEIVER-4.1.3
 
 *   Verify that the optics RX input and TX output power is updated after the
     interface flaps.
@@ -79,7 +79,7 @@ The test must be repeated for each supported operational-mode or as agreed betwe
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
         * Typical min/max value range for TX Output Power -10 to -6 dbm.
 
-## TRANSCEIVER-4.4
+## TRANSCEIVER-4.1.4
 
 *   Verify that the optics RX input and TX output power is updated after a
     fiber cut.
@@ -97,6 +97,11 @@ The test must be repeated for each supported operational-mode or as agreed betwe
         updated to the value in the normal range again.
         * Typical min/max value range for RX Signal Power -14 to 0 dbm.
         * Typical min/max value range for TX Output Power -10 to -6 dbm.
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

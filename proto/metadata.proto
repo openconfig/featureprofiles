@@ -883,6 +883,7 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+
     // Cisco: b/402672689
     // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
@@ -913,7 +914,7 @@ message Metadata {
 
     // Devices that support pre-defined max ecmp paths
     // Juniper b/422688435
-     bool predefined_max_ecmp_paths = 320;
+    bool predefined_max_ecmp_paths = 320;
 
     // b/425503156
     // Device does not support decapsulation group
@@ -954,6 +955,33 @@ message Metadata {
     // Devices that need explicit breakout interface config.
     // Nokia: b/435502032
     bool explicit_breakout_interface_config = 330;
+ 
+    // Devices do not support threshold container under
+    // /components/component/transceiver. Translate from native ST with the
+    // specified functional translator. See ciscoxr-laser-ft.
+    // Cisco: b/429233045
+    string ciscoxr_laser_ft = 331;
+
+    // OC state path for the lower priority next hop not supported.
+    // Arista: b/447502389
+    bool telemetry_not_supported_for_low_priority_nh = 332;
+
+    // Devices that do not support match-as-path-set
+    // Arista b/434583178
+    bool match_as_path_set_unsupported = 333;
+
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+    
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 335;
+
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

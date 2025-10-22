@@ -1645,6 +1645,12 @@ func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
 }
 
+// CiscoxrLaserFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrLaserFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrLaserFt()
+}
+
 // BreakoutModeUnsupportedForEightHundredGb returns true if the device does not support breakout mode for 800G ports.
 func BreakoutModeUnsupportedForEightHundredGb(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBreakoutModeUnsupportedForEightHundredGb()
@@ -1658,4 +1664,30 @@ func PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut *ondatra.DUTDevice) bo
 // ExplicitBreakoutInterfaceConfig returns true if the device needs explicit breakout interface config.
 func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
+}
+
+// OC state path for the lower priority next hop not supported
+func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
+}
+
+// MatchAsPathSetUnsupported returns true if match-as-path-set policy configuration is not supported
+func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
+}
+
+// Same apply-policy under peer-group and peer-group/afi-safi
+func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSameAfiSafiAndPeergroupPoliciesUnsupported()
+}
+
+// SyslogOCUnsupported returns true if the device does not support syslog OC configuration for below OC paths.
+// '/system/logging/remote-servers/remote-server/config/network-instance'
+func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
+}
+
+// TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
+func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
 }
