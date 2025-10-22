@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -20,7 +21,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/open-traffic-generator/snappi/gosnappi"
 )
 
 func TestMain(m *testing.M) {
@@ -885,4 +885,3 @@ func TestISISScale(t *testing.T) {
 		})
 	}
 }
-
