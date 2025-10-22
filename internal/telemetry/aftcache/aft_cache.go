@@ -63,14 +63,19 @@ const (
 	aftBufferSize = 4000000
 	// missingPrefixesFile is the name of the file where missing prefixes are written.
 	missingPrefixesFile = "missing_prefixes.txt"
+	// failingNHPrefixesFile is the name of the file where prefixes with failing next hop validation are written.
+	failingNHPrefixesFile = "failing_prefixes.txt"
+	// notificationsFile is the name of the file where all gNMI notifications are written.
+	notificationsFile = "notifications.txt"
 )
 
 var (
 	// ErrNotExist is an error returned when expected AFT elements are not found and so AFT is inconsistent.
 	ErrNotExist = errors.New("does not exist")
 	// ErrUnsupported is an error returned when AFT elements are not supported.
-	ErrUnsupported  = errors.New("unsupported")
-	missingPrefixes = make(map[string]bool)
+	ErrUnsupported    = errors.New("unsupported")
+	missingPrefixes   = make(map[string]bool)
+	failingNHPrefixes = make(map[string]bool)
 )
 
 var unusedPaths = []string{
@@ -459,16 +464,18 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *o
 // AFTStreamSession represents a single gNMI AFT streaming session and cached AFT state. It contains
 // a subscription that can be used across multiple calls to ListenUntil().
 type AFTStreamSession struct {
-	buffer <-chan *aftSubscriptionResponse
-	Cache  *aftCache
-	start  time.Time
+	buffer        <-chan *aftSubscriptionResponse
+	Cache         *aftCache
+	start         time.Time
+	notifications []*gnmipb.SubscribeResponse
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
 func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) *AFTStreamSession {
 	return &AFTStreamSession{
-		buffer: aftSubscribe(ctx, t, c, dut),
-		Cache:  newAFTCache(dut.Name()),
+		buffer:        aftSubscribe(ctx, t, c, dut),
+		Cache:         newAFTCache(dut.Name()),
+		notifications: []*gnmipb.SubscribeResponse{},
 	}
 }
 
@@ -500,14 +507,29 @@ func loggingPeriodicHook(t *testing.T, start time.Time) PeriodicHook {
 func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	ss.Cache.logMetadata(t, ss.start)
 	t.Logf("After %v: Finished streaming.", time.Since(ss.start).Truncate(time.Millisecond))
-	if len(missingPrefixes) == 0 {
-		return
+	if len(ss.notifications) > 0 {
+		filename, err := writeNotifications(t, ss.notifications)
+		if err != nil {
+			t.Errorf("error writing notifications: %v", err)
+		} else {
+			t.Logf("Wrote all received notifications to %s", filename)
+		}
 	}
-	filename, err := writeMissingPrefixes(missingPrefixes)
-	if err != nil {
-		t.Errorf("error writing missing prefixes: %v", err)
-	} else {
-		t.Logf("Wrote missing prefixes to %s", filename)
+	if len(missingPrefixes) > 0 {
+		filename, err := writeMissingPrefixes(t, missingPrefixes)
+		if err != nil {
+			t.Errorf("error writing missing prefixes: %v", err)
+		} else {
+			t.Logf("Wrote missing prefixes to %s", filename)
+		}
+	}
+	if len(failingNHPrefixes) > 0 {
+		filename, err := writeFailingNHPrefixes(t, failingNHPrefixes)
+		if err != nil {
+			t.Errorf("error writing failing NH prefixes: %v", err)
+		} else {
+			t.Logf("Wrote failing NH prefixes to %s", filename)
+		}
 	}
 }
 
@@ -540,6 +562,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				// Context cancellation can hit this code path from the stream sending a context cancellation error.
 				t.Fatalf("error from gNMI stream: %v", resp.err)
 			}
+			ss.notifications = append(ss.notifications, resp.notification)
 
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
@@ -609,6 +632,7 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes, wantIPV4NHs, wantIPV6NHs map[string]bool) PeriodicHook {
 	nhFailCount := 0
 	const nhFailLimit = 20
+	const maxSamplePrefixes = 10
 	logDuration := func(start time.Time, stage string) {
 		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
 	}
@@ -627,7 +651,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
-			missingPrefixes := map[string]bool{}
+			missingPrefixes = make(map[string]bool)
 			for p := range wantPrefixes {
 				if _, ok := gotPrefixes[p]; ok {
 					nGot++
@@ -638,14 +662,25 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
 			logDuration(checkPrefixStart, "Check Prefixes")
 			if nGot < nPrefixes {
-				t.Logf("%d missing prefixes\n", len(missingPrefixes))
+				t.Logf("%d missing prefixes", len(missingPrefixes))
+				// Log a sample of missing prefixes for easier debugging.
+				i := 0
+				for p := range missingPrefixes {
+					if i >= maxSamplePrefixes {
+						break
+					}
+					t.Logf("Example missing prefix: %s", p)
+					i++
+				}
 				return false, nil
 			}
+			missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
 
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
+			failingNHPrefixes = make(map[string]bool)
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				got := map[string]bool{}
@@ -668,6 +703,7 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 					nCorrect++
 					continue
 				}
+				failingNHPrefixes[p] = true
 				if _, ok := diffs[diff]; !ok {
 					diffs[diff] = 0
 				}
@@ -683,8 +719,18 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				if nhFailCount == nhFailLimit {
 					return false, fmt.Errorf("after %d tries, next hop validation still fails", nhFailLimit)
 				}
+				t.Logf("%d prefixes with failing next hop validation", len(failingNHPrefixes))
+				i := 0
+				for p := range failingNHPrefixes {
+					if i >= 10 {
+						break
+					}
+					t.Logf("Example prefix with failing next hop validation: %s", p)
+					i++
+				}
 				return false, nil
 			}
+			failingNHPrefixes = make(map[string]bool) // All NHs are correct, so clear the list.
 			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
@@ -952,12 +998,19 @@ func checkForRoutesRequest(dut *ondatra.DUTDevice) (*gnmipb.SubscribeRequest, er
 	return &gnmipb.SubscribeRequest{Request: subReq}, nil
 }
 
-func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
-	absFilename, err := filepath.Abs(missingPrefixesFile)
-	if err != nil {
-		return "", err
+// getTestLogPath returns a path to a file in a directory suitable for test logs.
+// If running under Bazel, it uses the undeclared outputs directory.
+// Otherwise, it uses the test's temporary directory.
+func getTestLogPath(t *testing.T, filename string) string {
+	if outDir := os.Getenv("TEST_UNDECLARED_OUTPUTS_DIR"); outDir != "" {
+		return filepath.Join(outDir, filename)
 	}
-	f, err := os.OpenFile(absFilename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	return filepath.Join(t.TempDir(), filename)
+}
+
+func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) (string, error) {
+	path := getTestLogPath(t, missingPrefixesFile)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
 	}
@@ -967,5 +1020,35 @@ func writeMissingPrefixes(missingPrefixes map[string]bool) (string, error) {
 			return "", err
 		}
 	}
-	return absFilename, nil
+	return path, nil
+}
+
+func writeFailingNHPrefixes(t *testing.T, failingNHPrefixes map[string]bool) (string, error) {
+	path := getTestLogPath(t, failingNHPrefixesFile)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	for p := range failingNHPrefixes {
+		if _, err := fmt.Fprintln(f, p); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
+}
+
+func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse) (string, error) {
+	path := getTestLogPath(t, notificationsFile)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	for _, n := range notifications {
+		if _, err := fmt.Fprintln(f, n.String()); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
 }
