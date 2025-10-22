@@ -1,4 +1,4 @@
-# gNMI-1.24: Telemetry: Interface Last Change Timestamp
+# gNMI-1.25: Telemetry: Interface Last Change Timestamp
 
 ## Summary
 
