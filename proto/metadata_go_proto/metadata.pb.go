@@ -1183,6 +1183,10 @@ type Metadata_Deviations struct {
 	// Devices that do not support transceiver config enable leaf
 	// Nokia b/414842051
 	TransceiverConfigEnableUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=transceiverConfigEnableUnsupported,proto3" json:"transceiver_config_enable_unsupported,omitempty"`
+	// Devices that do not support aft summary oc path
+    // Cisco: b/450898206
+	AftSummaryOcUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=aftSummaryOcUnsupported,proto3" json:"aft_summary_oc_unsupported,omitempty"`
+
 	unknownFields                      protoimpl.UnknownFields
 	sizeCache                          protoimpl.SizeCache
 }
@@ -3334,6 +3338,13 @@ func (x *Metadata_Deviations) GetSyslogOcUnsupported() bool {
 func (x *Metadata_Deviations) GetTransceiverConfigEnableUnsupported() bool {
 	if x != nil {
 		return x.TransceiverConfigEnableUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftSummaryOcUnsupported() bool {
+	if x != nil {
+		return x.AftSummaryOcUnsupported
 	}
 	return false
 }
