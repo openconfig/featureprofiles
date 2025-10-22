@@ -240,6 +240,7 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 	}
 	if eRouter.ISISSPLifetime != 0 {
 		isis.Advanced().SetLspLifetime(uint32(eRouter.ISISSPLifetime))
+	}
 	isisInt := isis.Interfaces().Add().
 		SetEthName(dev.Ethernets().Items()[0].Name()).SetName(eRouter.Name + ".ISISInt").
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
