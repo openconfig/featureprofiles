@@ -100,7 +100,8 @@ func CreateNewDialOption(t *testing.T, newClientCert tls.Certificate, newCaCert 
 			Certificates: []tls.Certificate{newClientCert},
 			RootCAs:      newCaCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
@@ -125,28 +126,32 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 		return certzpb.Entity{
 			Version:   entityVersion,
 			CreatedOn: varClock,
-			Entity:    &certzpb.Entity_CertificateChain{CertificateChain: entityContent.(*certzpb.CertificateChain)}}
+			Entity:    &certzpb.Entity_CertificateChain{CertificateChain: entityContent.(*certzpb.CertificateChain)},
+		}
 
 	case EntityTypeTrustBundle:
 
 		return certzpb.Entity{
 			Version:   entityVersion,
 			CreatedOn: varClock,
-			Entity:    &certzpb.Entity_TrustBundlePkcs7{TrustBundlePkcs7: &certzpb.TrustBundle{Pkcs7Block: entityContent.(string)}}}
+			Entity:    &certzpb.Entity_TrustBundlePkcs7{TrustBundlePkcs7: &certzpb.TrustBundle{Pkcs7Block: entityContent.(string)}},
+		}
 
 	case EntityTypeCRL:
 
 		return certzpb.Entity{
 			Version:   entityVersion,
 			CreatedOn: varClock,
-			Entity:    &certzpb.Entity_CertificateRevocationListBundle{CertificateRevocationListBundle: entityContent.(*certzpb.CertificateRevocationListBundle)}}
+			Entity:    &certzpb.Entity_CertificateRevocationListBundle{CertificateRevocationListBundle: entityContent.(*certzpb.CertificateRevocationListBundle)},
+		}
 
 	case EntityTypeAuthPolicy:
 
 		return certzpb.Entity{
 			Version:   entityVersion,
 			CreatedOn: varClock,
-			Entity:    &certzpb.Entity_AuthenticationPolicy{AuthenticationPolicy: entityContent.(*certzpb.AuthenticationPolicy)}}
+			Entity:    &certzpb.Entity_AuthenticationPolicy{AuthenticationPolicy: entityContent.(*certzpb.AuthenticationPolicy)},
+		}
 
 	default:
 		t.Fatalf("Invalid entity type %v", typeOfEntity)
@@ -234,7 +239,8 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
-		RotateRequest:  rotateRequest}
+		RotateRequest:  rotateRequest,
+	}
 	rotateRequestClient, err := certzClient.Rotate(ctx)
 	if err != nil {
 		t.Fatalf("STATUS:%s:Error creating rotate request client: %v", time.Now().String(), err)
@@ -292,7 +298,8 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 	rotateCertRequest = &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
-		RotateRequest:  finalizeRequest}
+		RotateRequest:  finalizeRequest,
+	}
 	if err = rotateRequestClient.Send(rotateCertRequest);err != nil {
 		t.Fatalf("Error sending rotate finalize request: %v", err)
 	}
@@ -418,7 +425,8 @@ func VerifyGnsi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
@@ -476,7 +484,8 @@ func VerifyGnoi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 
@@ -528,7 +537,8 @@ func VerifyGnmi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9339)
@@ -580,7 +590,8 @@ func VerifyGribi(t *testing.T, caCert *x509.CertPool, san, serverAddr, username,
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9340)
@@ -629,7 +640,8 @@ func VerifyP4rt(t *testing.T, caCert *x509.CertPool, san, serverAddr, username, 
 			Certificates: []tls.Certificate{cert},
 			RootCAs:      caCert,
 			ServerName:   san,
-		}))}
+		},
+	))}
 	creds := &rpcCredentials{&creds.UserPass{Username: username, Password: password}}
 	credOpts = append(credOpts, grpc.WithPerRPCCredentials(creds))
 	target := fmt.Sprintf("%s:%d", serverAddr, 9559)
