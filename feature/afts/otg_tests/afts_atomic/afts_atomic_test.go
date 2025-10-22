@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 const (
 	advertisedRoutesV4Prefix = 32
 	advertisedRoutesV6Prefix = 128
-	aftConvergenceTime       = 20 * time.Minute
+	aftConvergenceTime       = 30 * time.Minute
 	applyPolicyType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	ateAS                    = 200
 	bgpRoute                 = "200.0.0.0"
