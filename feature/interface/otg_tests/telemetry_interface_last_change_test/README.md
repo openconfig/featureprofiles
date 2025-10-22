@@ -1,4 +1,4 @@
-# gNMI-1.25: Telemetry: Interface Last Change Timestamp
+# gNMI-1.24: Telemetry: Interface Last Change Timestamp
 
 ## Summary
 
@@ -15,22 +15,39 @@ A single DUT with at least one port connected to an ATE is required.
 
 ### gNMI-1.24.1: TestEthernetInterfaceLastChangeState
 
+This test verifies that the `last-change` timestamp for a physical Ethernet
+interface and its subinterface is updated correctly when the interface state
+changes.
+
 1.  **Configure Ethernet Interface**:
     *   Select a port on the DUT.
     *   Configure it as an Ethernet interface.
     *   Create a subinterface with index 0.
     *   Configure IPv4 and IPv6 addresses on the subinterface.
     *   Enable the interface and the subinterface.
-2.  **Verify Initial State**:
-    *   Wait for the `oper-status` of both the interface and subinterface to become `UP`.
-    *   Read and store the initial `last-change` timestamp for the interface from `/interfaces/interface[name=<port>]/state/last-change`.
-    *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<port>]/subinterfaces/subinterface[index=0]/state/last-change`.
-3.  **Flap Interface**:
-    *   Disable the interface by setting `/interfaces/interface[name=<port>]/config/enabled` to `false`.
-    *   Wait for the `oper-status` of both the interface and subinterface to become `DOWN`.
-4.  **Verify Final State**:
-    *   Read and store the final `last-change` timestamp for the interface and subinterface from the same paths as in step 2.
-    *   Verify that the final `last-change` timestamp is greater than the initial timestamp for both the interface and subinterface.
+
+2.  **Common Flap Procedure**:
+    For each sub-test below, the following steps are performed:
+    *   **Verify Initial State**:
+        *   Wait for the `oper-status` of the interface to become `UP`.
+        *   Read and store the initial `last-change` timestamp for the interface from `/interfaces/interface[name=<port>]/state/last-change`.
+        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<port>]/subinterfaces/subinterface[index=0]/state/last-change`.
+    *   **Repeated Flap and Verify**: The interface is flapped multiple times (e.g., 10 cycles of disable/enable).
+        *   **Flap Interface**: The interface state is changed (e.g., disabled then enabled) as per the specific sub-test.
+        *   **Wait for Oper-Status**: Wait for the `oper-status` of both the interface and subinterface to reflect the flap (e.g., `DOWN` then `UP`).
+        *   **Verify Last-Change**: Read the `last-change` timestamps again.
+            Verify that the final `last-change` timestamp is greater than the
+            timestamp recorded *before* the current flap cycle for both the
+            interface and subinterface.
+
+#### Sub-tests:
+
+*   **OCInterfaceFlap**: The interface flap is triggered by updating the
+    `/interfaces/interface[name=<port>]/config/enabled` path on the DUT via
+    gNMI.
+
+*   **OTGInterfaceFlap**: An ATE port is connected to the DUT port. The flap is
+    triggered by changing the link state of the ATE port using OTG controls.
 
 #### Canonical OC
 
@@ -97,23 +114,44 @@ A single DUT with at least one port connected to an ATE is required.
 
 ### gNMI-1.24.2: TestLAGInterfaceLastChangeState
 
+This test verifies that the `last-change` timestamp for a Link Aggregation Group
+(LAG) interface and its subinterface is updated correctly when the LAG state
+changes.
+
 1.  **Configure LAG Interface**:
     *   Select a port on the DUT to be a member of a LAG.
     *   Create a LAG interface.
     *   Assign the selected port as a member of the LAG.
     *   Create a subinterface with index 0 on the LAG interface.
     *   Configure an IPv4 address on the subinterface.
-2.  **Verify Initial State**:
-    *   Enable the LAG interface.
-    *   Wait for the `oper-status` of both the LAG interface and its subinterface to become `UP`.
-    *   Read and store the initial `last-change` timestamp for the LAG interface from `/interfaces/interface[name=<lag>]/state/last-change`.
-    *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<lag>]/subinterfaces/subinterface[index=0]/state/last-change`.
-3.  **Flap Interface**:
-    *   Disable the LAG interface by setting `/interfaces/interface[name=<lag>]/config/enabled` to `false`.
-    *   Wait for the `oper-status` of both the LAG interface and its subinterface to become `DOWN`.
-4.  **Verify Final State**:
-    *   Read and store the final `last-change` timestamp for the LAG interface and subinterface from the same paths as in step 2.
-    *   Verify that the final `last-change` timestamp is greater than the initial timestamp for both the interface and subinterface.
+
+2.  **Common Flap Procedure**:
+    For each sub-test below, the following steps are performed:
+    *   **Verify Initial State**:
+        *   Ensure the LAG interface is UP.
+        *   Wait for the `oper-status` of both the LAG interface and its subinterface to become `UP`.
+        *   Read and store the initial `last-change` timestamp for the LAG interface from `/interfaces/interface[name=<lag>]/state/last-change`.
+        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<lag>]/subinterfaces/subinterface[index=0]/state/last-change`.
+    *   **Repeated Flap and Verify**: The LAG state is flapped multiple times (e.g., 10 cycles of disable/enable).
+        *   **Flap LAG State**: The LAG state is changed as per the specific sub-test.
+        *   **Wait for Oper-Status**: Wait for the `oper-status` of both the LAG
+            interface and its subinterface to reflect the flap.
+        *   **Verify Last-Change**: Read the `last-change` timestamps again.
+            Verify that the final `last-change` timestamp is greater than the
+            timestamp recorded *before* the current flap cycle for both the LAG
+            interface and its subinterface.
+
+#### Sub-tests:
+
+*   **LAGInterfaceFlap**: The LAG interface flap is triggered by updating the
+    `/interfaces/interface[name=<lag>]/config/enabled` path on the DUT via gNMI.
+
+*   **LAGMemberFlap**: The LAG state change is triggered by flapping the
+    `enabled` state of the *member port(s)* of the LAG on the DUT via gNMI.
+
+*   **OTGLAGFlap**: An ATE port is configured as a member of a LAG on the OTG.
+    The LAG state change on the DUT is triggered by changing the link state of
+    the ATE member port using OTG controls.
 
 #### Canonical OC
 ```json
