@@ -1692,17 +1692,18 @@ func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
 }
 
-// AFTSummaryOCUnsupported returns true if the device does not support aft summary oc path.
+// AFTSummaryOCUnsupported returns true "/network-instances/network-instance/afts/aft-summaries" OC path is not supported.
 func AFTSummaryOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftSummaryOcUnsupported()
 }
 
-// ISISLSPTlvsOCUnsupported returns true if the device does not support isis lsp tlvs.
+// ISISLSPTlvsOCUnsupported returns true if "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs" OC path is not supported.
 func ISISLSPTlvsOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLspTlvsOcUnsupported()
 }
 
-// ISISAdjacencyStreamUnsupported returns true if the device does not support isis adjacency with STREAM telemetry.
+// ISISAdjacencyStreamUnsupported returns if "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies" OC path 
+// is not supported or malfunctioning when STREAM subscription is used .
 func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }

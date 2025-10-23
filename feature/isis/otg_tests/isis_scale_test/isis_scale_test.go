@@ -782,10 +782,6 @@ func setupTest(t *testing.T, testInfo *testData) *ondatra.DUTDevice {
 	return dut
 }
 
-func TestBook(t *testing.T) {
-	ondatra.Debug().Breakpoint(t)
-}
-
 func TestISISScale(t *testing.T) {
 	for _, f := range []func(*testing.T) *testData{
 		initializeStaticTestData,
@@ -824,8 +820,8 @@ func TestISISScale(t *testing.T) {
 			}
 
 			t.Logf("===========Sleep for 3 minutes to check DUT stabilty===========")
-			// Test will not check any metrics for 3 minutes to make sure DUT is stable.
-			time.Sleep(3 * 60 * time.Second)
+			// Test will not check any metrics for 5 minutes to make sure DUT is stable.
+			time.Sleep(5 * 60 * time.Second)
 			t.Run("LSP_Count", func(t *testing.T) {
 				// Check LSP Count
 				if deviations.ISISLSPTlvsOCUnsupported(dut) {
