@@ -71,14 +71,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// lastChangeTestCase holds the initial and final last-change timestamps for an interface.
-type lastChangeTestCase struct {
-	desc      string
-	intfName  string // The interface or subinterface name.
-	initialLC uint64
-	finalLC   uint64
-}
-
 // configureOTGLAG configures a LAG on the ATE.
 func configureOTGLAG(t *testing.T, ate *ondatra.ATEDevice, aggPorts []*ondatra.Port, aggID string) {
 	t.Helper()
