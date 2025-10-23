@@ -68,12 +68,7 @@ func configureISISSegmentRouting(t *testing.T, ts *isissession.TestSession, dut 
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 	prot := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		prot.Enabled = ygot.Bool(true)
-	default:
-		// prot.Enabled = ygot.Bool(true)
-	}
+	prot.Enabled = ygot.Bool(true)
 
 	// Configure MPLS
 	mplsCfg := networkInstance.GetOrCreateMpls().GetOrCreateGlobal()
@@ -170,12 +165,9 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 			t.Errorf("FAIL - Segment Routing is not enabled on DUT")
 		}
 
-		switch deviations.SrIgpConfigUnsupported(ts.DUT) {
-		case true:
-			// Handle the case where SR IGP config is unsupported
+		if deviations.SrIgpConfigUnsupported(ts.DUT) {
 			t.Log("Skipping Protocol Checks as SR IGP Configuration is not required or supported")
-
-		case false:
+		} else {
 			srgbValue := routing.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
 			if srgbValue == "nil" || srgbValue == "" {
 				t.Errorf("FAIL- SRGB is not present on DUT")
