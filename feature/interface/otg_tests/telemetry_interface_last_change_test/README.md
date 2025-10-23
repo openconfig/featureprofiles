@@ -13,7 +13,7 @@ A single DUT with at least one port connected to an ATE is required.
 
 ## Procedure
 
-### gNMI-1.24.1: TestEthernetInterfaceLastChangeState
+### gNMI-1.25.1: TestEthernetInterfaceLastChangeState
 
 This test verifies that the `last-change` timestamp for a physical Ethernet
 interface and its subinterface is updated correctly when the interface state
@@ -48,6 +48,13 @@ changes.
 
 *   **OTGInterfaceFlap**: An ATE port is connected to the DUT port. The flap is
     triggered by changing the link state of the ATE port using OTG controls.
+
+*   **LaserCutFlap**: The interface flap is triggered by simulating a "laser
+    cut" on the DUT port. This is done by disabling the transmit laser on the
+    DUT port using the path
+    `/components/component/transceiver/physical-channels/channel/config/tx-laser`.
+
+    [TODO] Implement when OC path is supported.
 
 #### Canonical OC
 
@@ -112,7 +119,7 @@ changes.
 }
 ```
 
-### gNMI-1.24.2: TestLAGInterfaceLastChangeState
+### gNMI-1.25.2: TestLAGInterfaceLastChangeState
 
 This test verifies that the `last-change` timestamp for a Link Aggregation Group
 (LAG) interface and its subinterface is updated correctly when the LAG state
@@ -152,6 +159,13 @@ changes.
 *   **OTGLAGFlap**: An ATE port is configured as a member of a LAG on the OTG.
     The LAG state change on the DUT is triggered by changing the link state of
     the ATE member port using OTG controls.
+
+*   **LaserCutFlap**: The LAG state change is triggered by simulating a "laser
+    cut" on one of the member ports. This is done by disabling the transmit
+    laser on the DUT member port using the path
+    `/components/component/transceiver/physical-channels/channel/config/tx-laser`.
+
+    [TODO] Implement when OC path is supported.
 
 #### Canonical OC
 ```json

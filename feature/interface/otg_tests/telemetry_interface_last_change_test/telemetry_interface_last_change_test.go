@@ -118,7 +118,7 @@ func configureDUTLAG(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 	subIntf := agg.GetOrCreateSubinterface(0)
 	subIntf.SetEnabled(true)
 	if !deviations.IPv4MissingEnabled(dut) {
-		subIntf.GetOrCreateIpv4().Enabled = ygot.Bool(true)
+		subIntf.GetOrCreateIpv4().SetEnabled(true)
 	}
 	a := subIntf.GetOrCreateIpv4().GetOrCreateAddress(ipv4LagAddress)
 	a.SetPrefixLength(ipv4PrefixLen)
@@ -296,7 +296,7 @@ func configureInterface(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port
 
 	v4 := s.GetOrCreateIpv4()
 	if !deviations.IPv4MissingEnabled(dut) {
-		v4.Enabled = ygot.Bool(true)
+		v4.SetEnabled(true)
 	}
 	a4 := v4.GetOrCreateAddress(dutSrc.IPv4)
 	a4.SetPrefixLength(dutSrc.IPv4Len)
@@ -437,4 +437,3 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 		performFlapTest(t, "OCInterfaceFlap", flapFunc)
 	})
 }
-
