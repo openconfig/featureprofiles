@@ -961,11 +961,14 @@ message Metadata {
     // specified functional translator. See ciscoxr-laser-ft.
     // Cisco: b/429233045
     string ciscoxr_laser_ft = 331;
+<<<<<<< HEAD
    
     //  Juniper does not support localhost yet
     //  b/448173472
     bool localhost_for_containerz = 332;
 
+=======
+>>>>>>> cc3dfaff (Fixed metadata.proto tag conflict by reassigning fields (337-340))
 
     // OC state path for the lower priority next hop not supported.
     // Arista: b/447502389
@@ -987,6 +990,7 @@ message Metadata {
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
     bool transceiver_config_enable_unsupported = 336;
+<<<<<<< HEAD
     
     // Juniper does not support localhost yet
     // b/448173472
@@ -1004,9 +1008,6 @@ message Metadata {
     // Nokia: https://issuetracker.google.com/452295044
     bool isis_adjacency_stream_unsupported = 340;
 
-
-    
-    // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
 
