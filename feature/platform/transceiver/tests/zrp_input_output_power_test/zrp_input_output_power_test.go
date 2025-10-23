@@ -38,12 +38,13 @@ func TestMain(m *testing.M) {
 
 func TestOpticalPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
+	
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
+    operationalMode = uint16(*operationalModeFlag)
+    operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+    cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+    cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	var (
 		trs  = make(map[string]string)
@@ -69,7 +70,9 @@ func TestOpticalPower(t *testing.T) {
 				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 			}
 
-			// Create sample steams for each port.
+            t.Logf(" Frequency: %v, targetOpticalPower: %v", frequency, targetOptical
+Power)
+			// Create sample streams for each port.
 			ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component_OpticalChannel])
 			trStreams := make(map[string]*samplestream.SampleStream[*oc.Component_Transceiver_Channel])
 			interfaceStreams := make(map[string]*samplestream.SampleStream[*oc.Interface])
@@ -92,7 +95,7 @@ func TestOpticalPower(t *testing.T) {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
 
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
 			// Disable interface.
@@ -104,7 +107,7 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
 			}
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, false, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 
@@ -117,7 +120,7 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 			}
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+			time.Sleep(8 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateAllSampleStreams(t, dut, true, interfaceStreams, ochStreams, trStreams, targetOpticalPower)
 		}
