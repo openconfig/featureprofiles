@@ -35,5 +35,5 @@ platform_exceptions: {
     interface_enabled: true
     explicit_dco_config: true
     eth_channel_ingress_parameters_unsupported: true
-   }
+  }
 }
