@@ -984,15 +984,15 @@ message Metadata {
     bool transceiver_config_enable_unsupported = 336;
     
     // Devices that do not support aft summary oc path
-    // Cisco: b/450898206
+    // Cisco: https://issuetracker.google.com/450898206
     bool aft_summary_oc_unsupported = 337;
 
     // Devices that do not support isis lsp tlvs
-    // Arista: b/450898200
+    // Arista: https://issuetracker.google.com/450898200
     bool isis_lsp_tlvs_oc_unsupported = 338;
 
     // Devices that do not support isis adjancy with STREAM telemetry
-    // Nokia: b/452295044
+    // Nokia: https://issuetracker.google.com/452295044
     bool isis_adjacency_stream_unsupported = 339;
 
     // Reserved field numbers and identifiers.

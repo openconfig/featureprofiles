@@ -819,7 +819,7 @@ func TestISISScale(t *testing.T) {
 				t.Fatalf("check failed: not all ISIS adjacencies are up : need %v up adjacencies got %v", testInfo.correctISISAdjCount, count)
 			}
 
-			t.Logf("===========Sleep for 3 minutes to check DUT stabilty===========")
+			t.Logf("===========Sleep for 5 minutes to check DUT stabilty===========")
 			// Test will not check any metrics for 5 minutes to make sure DUT is stable.
 			time.Sleep(5 * 60 * time.Second)
 			t.Run("LSP_Count", func(t *testing.T) {
