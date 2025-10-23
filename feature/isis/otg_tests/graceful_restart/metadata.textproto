@@ -20,4 +20,12 @@ platform_exceptions:  {
     gnoi_switchover_reason_missing_user_initiated: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
 
