@@ -38,9 +38,7 @@ func TestMain(m *testing.M) {
 
 func TestOpticalPower(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	operationalMode = uint16(*operationalModeFlag)
 	operationalMode = cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
@@ -69,7 +67,6 @@ func TestOpticalPower(t *testing.T) {
 			for _, p := range dut.Ports() {
 				cfgplugins.ConfigOpticalChannel(t, dut, ochs[p.Name()], frequency, targetOpticalPower, operationalMode)
 			}
-
 			t.Logf(" Frequency: %v, targetOpticalPower: %v", frequency, targetOpticalPower)
 			// Create sample streams for each port.
 			ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component_OpticalChannel])
