@@ -165,7 +165,7 @@ func (tc *testCase) configDstAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 }
 
 func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
-	i.Description = ygot.String(a.Desc)
+	i.Description = ygot.String(dut1Src.Desc)
 	if deviations.InterfaceEnabled(tc.dut1) {
 		i.Enabled = ygot.Bool(true)
 	}
@@ -215,17 +215,20 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	agg1 := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg1, &dut1Src)
 	fptest.LogQuery(t, tc.aggID+" on DUT1", aggPath.Config(), agg1)
-	gnmi.Replace(t, tc.dut1, aggPath.Config(), agg1)
+	gnmi.Update(t, tc.dut1, aggPath.Config(), agg1)
 
 	// Configure DUT2's aggregate interface
 	agg2 := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configDstAggregateDUT(agg2, &dut2Src)
 	fptest.LogQuery(t, tc.aggID+" on DUT2", aggPath.Config(), agg2)
-	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
+	gnmi.Update(t, tc.dut2, aggPath.Config(), agg2)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
-		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
-		fptest.AssignToNetworkInstance(t, tc.dut1, dut1Src.Name, deviations.DefaultNetworkInstance(tc.dut1), 0)
+		duts := []*ondatra.DUTDevice{tc.dut1, tc.dut2}
+		for _, dut := range duts {
+			fptest.AssignToNetworkInstance(t, dut, tc.aggID,
+				deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 	for _, port := range tc.dut1Ports {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
