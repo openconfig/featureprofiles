@@ -168,12 +168,15 @@ func getLinecardComponents(t *testing.T, args *testArgs) []string {
 			!strings.Contains(name, "-") &&
 			!strings.Contains(strings.ToUpper(name), "IOSXR-NODE") {
 
-			// Include linecard components (e.g., "0/0/CPU0", "0/1/CPU0")
+			// Include linecard components (e.g., "0/0/CPU0" to "0/9/CPU0")
 			// AND RP components (e.g., "0/RP0/CPU0", "0/RP1/CPU0")
 			if strings.Contains(name, "/RP") ||
 				(!strings.Contains(name, "/RP") &&
 					(strings.Contains(name, "/0/") || strings.Contains(name, "/1/") ||
-						strings.Contains(name, "/2/") || strings.Contains(name, "/3/"))) {
+						strings.Contains(name, "/2/") || strings.Contains(name, "/3/") ||
+						strings.Contains(name, "/4/") || strings.Contains(name, "/5/") ||
+						strings.Contains(name, "/6/") || strings.Contains(name, "/7/") ||
+						strings.Contains(name, "/8/") || strings.Contains(name, "/9/"))) {
 				nodeComponents = append(nodeComponents, name)
 			}
 		}

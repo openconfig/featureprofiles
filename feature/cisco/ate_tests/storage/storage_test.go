@@ -6,24 +6,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi/oc"
-)
-
-// Test configuration constants
-const (
-	dst                   = "202.1.0.1"
-	v4mask                = "32"
-	dstCount              = 1
-	totalBgpPfx           = 1
-	minInnerDstPrefixBgp  = "202.1.0.1"
-	totalIsisPrefix       = 1 //set value for scale isis setup ex: 10000
-	minInnerDstPrefixIsis = "201.1.0.1"
-	policyTypeIsis        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
-	dutAreaAddress        = "47.0001"
-	dutSysId              = "0000.0000.0001"
-	isisName              = "osisis"
-	policyTypeBgp         = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
-	bgpAs                 = 65000
 )
 
 func TestMain(m *testing.M) {
@@ -53,54 +35,54 @@ func TestStorageFileSystemCheck(t *testing.T) {
 
 	// Storage counter test cases with different subscription modes and GET requests
 	testCases := []storageTestCase{
-		// {
-		// 	name:        "soft-read-error-rate",
-		// 	path:        "storage/state/counters/soft-read-error-rate",
-		// 	counterType: "counter64",
-		// 	description: "Validate soft read error rate counter",
-		// 	fn:          testSoftReadErrorRate,
-		// },
-		// {
-		// 	name:        "reallocated-sectors",
-		// 	path:        "storage/state/counters/reallocated-sectors",
-		// 	counterType: "counter64",
-		// 	description: "Validate reallocated sectors counter",
-		// 	fn:          testReallocatedSectors,
-		// },
-		// {
-		// 	name:        "end-to-end-error",
-		// 	path:        "storage/state/counters/end-to-end-error",
-		// 	counterType: "counter64",
-		// 	description: "Validate end-to-end error counter",
-		// 	fn:          testEndToEndError,
-		// },
-		// {
-		// 	name:        "offline-uncorrectable-sectors-count",
-		// 	path:        "storage/state/counters/offline-uncorrectable-sectors-count",
-		// 	counterType: "counter64",
-		// 	description: "Validate offline uncorrectable sectors count",
-		// 	fn:          testOfflineUncorrectableSectors,
-		// },
-		// {
-		// 	name:        "life-left",
-		// 	path:        "storage/state/counters/life-left",
-		// 	counterType: "integer",
-		// 	description: "Validate storage life left percentage",
-		// 	fn:          testLifeLeft,
-		// },
-		// {
-		// 	name:        "percentage-used",
-		// 	path:        "storage/state/counters/percentage-used",
-		// 	counterType: "integer",
-		// 	description: "Validate storage percentage used",
-		// 	fn:          testPercentageUsed,
-		// },
-		// {
-		// 	name:        "system-events",
-		// 	counterType: "counter64",
-		// 	description: "Validate storage system events counter",
-		// 	fn:          testStorageSystemEvents,
-		// },
+		{
+			name:        "soft-read-error-rate",
+			path:        "storage/state/counters/soft-read-error-rate",
+			counterType: "counter64",
+			description: "Validate soft read error rate counter",
+			fn:          testSoftReadErrorRate,
+		},
+		{
+			name:        "reallocated-sectors",
+			path:        "storage/state/counters/reallocated-sectors",
+			counterType: "counter64",
+			description: "Validate reallocated sectors counter",
+			fn:          testReallocatedSectors,
+		},
+		{
+			name:        "end-to-end-error",
+			path:        "storage/state/counters/end-to-end-error",
+			counterType: "counter64",
+			description: "Validate end-to-end error counter",
+			fn:          testEndToEndError,
+		},
+		{
+			name:        "offline-uncorrectable-sectors-count",
+			path:        "storage/state/counters/offline-uncorrectable-sectors-count",
+			counterType: "counter64",
+			description: "Validate offline uncorrectable sectors count",
+			fn:          testOfflineUncorrectableSectors,
+		},
+		{
+			name:        "life-left",
+			path:        "storage/state/counters/life-left",
+			counterType: "integer",
+			description: "Validate storage life left percentage",
+			fn:          testLifeLeft,
+		},
+		{
+			name:        "percentage-used",
+			path:        "storage/state/counters/percentage-used",
+			counterType: "integer",
+			description: "Validate storage percentage used",
+			fn:          testPercentageUsed,
+		},
+		{
+			name:        "system-events",
+			counterType: "counter64",
+			description: "Validate storage system events counter",
+			fn:          testStorageSystemEvents,
+		},
 		{
 			name:        "subscription-levels",
 			counterType: "mixed",
