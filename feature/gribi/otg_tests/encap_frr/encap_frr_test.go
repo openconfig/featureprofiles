@@ -310,7 +310,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
 	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
+	if len(ipv4Addrs) == 0 || len(ipv6Addrs) == 0 {
 		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
 		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
