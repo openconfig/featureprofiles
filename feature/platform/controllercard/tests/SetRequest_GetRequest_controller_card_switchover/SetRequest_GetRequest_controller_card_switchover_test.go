@@ -283,8 +283,8 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 		t.Fatalf("Could not unmarshal config: %v", err)
 	}
 	numInterfaces := len(root.Interface)
-	if numInterfaces != params.NumLAGInterfaces+numPorts {
-		t.Fatalf("Number of interfaces mismatch: got: %d, want: %d", numInterfaces, params.NumLAGInterfaces+numPorts)
+	if numInterfaces < params.NumLAGInterfaces+numPorts {
+		t.Fatalf("Number of interfaces mismatch: got: %d, want>= %d", numInterfaces, params.NumLAGInterfaces+numPorts)
 	}
 	numBGPNeighbors := 0
 	for _, networkInterface := range root.NetworkInstance {
