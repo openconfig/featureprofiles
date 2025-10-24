@@ -44,7 +44,7 @@ replace: {
 "controller Optics0/4/0/0\n"
 " breakout 4x100\n"
 "!\n"
-"controller Optics0/4/0/2\n"
+"controller Optics0/4/0/25\n"
 " breakout 4x100\n"
 "!\n"
 "interface Loopback0\n"

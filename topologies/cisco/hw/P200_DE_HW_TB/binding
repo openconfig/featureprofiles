@@ -65,19 +65,19 @@ duts {
   }
   ports {
     id: "port5"                   
-    name: "HundredGigE0/4/0/2/0"
+    name: "HundredGigE0/4/0/25/0"
   }
   ports {
     id: "port6"                  
-    name: "HundredGigE0/4/0/2/1"  	
+    name: "HundredGigE0/4/0/25/1"  	
   }
   ports {
     id: "port7"                   
-    name: "HundredGigE0/4/0/2/2"
+    name: "HundredGigE0/4/0/25/2"
   }
   ports {
     id: "port8"                   
-    name: "HundredGigE0/4/0/2/3" 
+    name: "HundredGigE0/4/0/25/3" 
   }
 }
 
