@@ -43,6 +43,7 @@ const (
 	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
 	maxSwitchoverTime   = 1200
 )
+
 // Function for verifying the stability of SUP cards after switchover
 func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	startSwitchover := time.Now()
@@ -108,8 +109,8 @@ func testControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controll
 	if got := switchoverResponse.GetUptime(); got == 0 {
 		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
 	}
-    // Waiting for device to be stable after the switchover.
-    waitForSwitchover(t, dut)
+	// Waiting for device to be stable after the switchover.
+	waitForSwitchover(t, dut)
 
 	// RP roles after the switchover
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
@@ -308,7 +309,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
 	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
-t.Logf("SwitchoverReady for active RP: %v, standby RP: %v", gnmi.Get(t, dut, switchoverReadyActiverp.State()), gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
+	t.Logf("SwitchoverReady for active RP: %v, standby RP: %v", gnmi.Get(t, dut, switchoverReadyActiverp.State()), gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
 
 	want := rpStandbyBeforeSwitch
 	got := ""
