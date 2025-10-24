@@ -32,6 +32,7 @@ const (
 	FeatureVrfSelectionExtended
 	FeaturePolicyForwarding
 	FeatureQOSCounters
+	FeatureEnableAFTSummaries
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -382,6 +383,13 @@ hardware tcam
       hardware counter feature qos in
       !
    `
+	aristaEnableAFTSummaries = `
+   management api models
+      !
+      provider aft
+         route-summary
+   agent OpenConfig terminate
+   `
 )
 
 var (
@@ -390,6 +398,7 @@ var (
 		FeatureVrfSelectionExtended: aristaTcamProfileVrfSelectionExtended,
 		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
 		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
+		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
 	}
 )
 

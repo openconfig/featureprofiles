@@ -1170,6 +1170,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/link_bandwidth_test/README.md"
 }
 test: {
+  id: "RT-7.51"
+  description: "BGP - Auto-generate Link Bandwidth community based on interface available capacity"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/auto_link_bandwidth_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-7.6"
   description: "RT-7.6: BGP Link Bandwidth Community - Aggregation"
   readme: ""
@@ -1705,30 +1711,7 @@ test: {
   readme: ""
   exec: " "
 }
-test: {
-  id: "TUN-2.11"
-  description: "Filter based GUE decap with IPv4 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.12"
-  description: "Filter based GUE decap with IPv6 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.13"
-  description: "Interface based GUE decap with IPv4 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.14"
-  description: "Interface based GUE decap with IPv6 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
+
 test: {
   id: "TUN-2.15"
   description: "Interface based GUE encapsulation with IPv4 outer header"

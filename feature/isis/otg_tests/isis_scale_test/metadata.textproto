@@ -16,6 +16,7 @@ platform_exceptions: {
     explicit_port_speed: true
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
+    isis_lsp_tlvs_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -24,6 +25,7 @@ platform_exceptions: {
   }
   deviations: {
     missing_isis_interface_afi_safi_enable: true
+    aft_summary_oc_unsupported: true
   }
 }
 platform_exceptions: {
@@ -43,5 +45,7 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
     isis_mpls_unsupported: true
     ipv4_missing_enabled: true
+    aggregate_atomic_update: true
+    isis_adjacency_stream_unsupported: true
   }
 }
