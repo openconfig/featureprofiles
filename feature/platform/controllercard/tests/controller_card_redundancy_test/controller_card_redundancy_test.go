@@ -308,7 +308,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
 	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+t.Logf("SwitchoverReady for active RP: %v, standby RP: %v", gnmi.Get(t, dut, switchoverReadyActiverp.State()), gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
 
 	want := rpStandbyBeforeSwitch
 	got := ""
