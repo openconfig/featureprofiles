@@ -34,14 +34,14 @@ const (
 	connectionAttempts        = 2
 	connectionRetryInterval   = 10 * time.Second
 	connectionTimeout         = 2 * time.Minute
-	trafficTime               = 40 * time.Second
+	trafficTime               = 1 * time.Minute
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
-	flowCountTolerancePct     = 0.2
-	gnpsiClientsInParallel    = 2
-	packetRate                = 500000
-	packetsToSend             = 10000000
-	samplingRate              = 1000000
+	flowCountTolerancePct     = 0.1
 	subscriptionTolerance     = 2
+	gnpsiClientsInParallel    = 2
+	packetRate                = 1000000
+	packetsToSend             = 50000000
+	samplingRate              = 1000000
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
@@ -139,6 +139,7 @@ var (
 )
 
 type sFlowPacket struct {
+	sequenceNum  uint32
 	ingressIntf  uint32
 	egressIntf   uint32
 	samplingRate uint32
@@ -237,11 +238,11 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.G
 	for {
 		select {
 		case <-timeout:
-			return nil, fmt.Errorf("failed to connect to gNPSI server within %v seconds", connectionTimeout)
+			return nil, fmt.Errorf("failed to connect to GNPSI server within %v seconds", connectionTimeout)
 		case <-ticker.C:
 			stream, err := gnpsiClient.Subscribe(ctx, &gnpsi.Request{})
 			if err != nil {
-				t.Logf("Unable to connect to gNPSI server: %v, retrying", err)
+				t.Logf("Unable to connect to GNPSI server: %v, retrying", err)
 				continue
 			}
 			return stream, nil
@@ -252,7 +253,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.G
 func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
 	sampleCount := 0
-	t.Log("Waiting for gNPSI samples")
+	t.Log("Waiting for GNPSI samples")
 	for {
 		resp, err := stream.Recv()
 		if err != nil {
@@ -262,13 +263,13 @@ func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacke
 			case errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.EOF.Error()):
 				t.Log("GNPSI connection closed by server")
 			default:
-				t.Errorf("error receiving gNPSI sample: %v", err)
+				t.Errorf("error receiving GNPSI sample: %v", err)
 			}
 			return
 		}
 
 		if resp == nil {
-			t.Logf("Received empty response from gNPSI stream")
+			t.Logf("Received empty response from GNPSI stream")
 			return
 		}
 
@@ -287,7 +288,7 @@ func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacke
 				case layers.SFlowRawPacketFlowRecord:
 					sampleCount++
 					sflowPacketsToValidateChannel <- wrapSFlowPacket(r, flow)
-					t.Logf("Received gNPSI flow sample no %d:", sampleCount)
+					t.Logf("Received GNPSI flow sample no %d:", sampleCount)
 				default:
 					continue
 				}
@@ -302,16 +303,16 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	gnpsiClient := dut.RawAPIs().GNPSI(t)
 	stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 	if err != nil {
-		t.Fatalf("Failed to connect to gNPSI server: %v", err)
+		t.Fatalf("Failed to connect to GNPSI server: %v", err)
 	}
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
 	sflowPacketsToValidateChannel := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
-	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
 	t.Logf("Starting traffic for %s", fc.name)
 	otg.StartTraffic(t)
+	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
 	waitForTraffic(t, otg, fc.name, trafficTime)
 	stream.CloseSend()
 	closeContext()
@@ -319,7 +320,7 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 
 	sampleCount := len(sflowPacketsToValidateChannel)
 	if sampleCount == 0 {
-		t.Errorf("no samples received from gNPSI")
+		t.Errorf("no samples received from GNPSI")
 		return
 	}
 
@@ -341,7 +342,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	for range gnpsiClientsInParallel {
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
-			t.Fatalf("Failed to connect to gNPSI server: %v", err)
+			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
 		gnpsiClients = append(gnpsiClients, stream)
 	}
@@ -406,7 +407,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		defer closeContext()
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
-			t.Fatalf("Failed to connect to gNPSI server: %v", err)
+			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
 		go receiveSamples(t, stream, sflowPacketsToValidate)
 		t.Logf("Starting traffic for %s", flow.name)
@@ -414,7 +415,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		waitForTraffic(t, otg, flow.name, trafficTime)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
-			t.Errorf("no samples received from gNPSI")
+			t.Errorf("no samples received from GNPSI")
 			return
 		}
 		if sampleCountAtDisconnect == 0 {
@@ -451,7 +452,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
 		stream, err = subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
-			t.Fatalf("Failed to connect to gNPSI server: %v", err)
+			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
 		go receiveSamples(t, stream, sflowPacketsToValidate)
 		t.Logf("Starting traffic for %s", flow.name)
@@ -459,7 +460,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		waitForTraffic(t, otg, flow.name, trafficTime)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
-			t.Errorf("no samples received from gNPSI")
+			t.Errorf("no samples received from GNPSI")
 			return
 		}
 		if sampleCountAtRestart == 0 {
@@ -501,10 +502,10 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 
 	flowCountTolerance := int(math.Round(float64(expectedSFlowSamplesCount) * flowCountTolerancePct))
 	if receivedSamples < expectedSFlowSamplesCount-flowCountTolerance || receivedSamples > expectedSFlowSamplesCount+flowCountTolerance {
-		t.Errorf("unexpected number of sFlow packets: got %d, want %d ± %d", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
 		return
 	}
-	t.Logf("Received sFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+	t.Logf("Received SFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
 }
 
 func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
@@ -531,7 +532,7 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 		t.Errorf("SFlow packet %d: Egress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.egressIntf, egressIntf)
 	}
 
-	t.Logf("SFlow Packet %d: Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, flowConfig.frameSize, samplingRate, ingressIntf, egressIntf)
+	t.Logf("SFlow Packet %d: Sequence Number %d, Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, sFlowPkt.sequenceNum, flowConfig.frameSize, samplingRate, ingressIntf, egressIntf)
 }
 
 func verifyIpv4SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
@@ -699,6 +700,7 @@ func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) {
 
 func wrapSFlowPacket(record layers.SFlowRawPacketFlowRecord, flow layers.SFlowFlowSample) sFlowPacket {
 	return sFlowPacket{
+		sequenceNum:  flow.SequenceNumber,
 		ingressIntf:  flow.InputInterface,
 		egressIntf:   flow.OutputInterface,
 		samplingRate: flow.SamplingRate,
