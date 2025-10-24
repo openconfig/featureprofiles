@@ -35,13 +35,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
 	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
-	"github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
@@ -900,18 +900,26 @@ func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort str
 
 func configureDUTforPopGate(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
 
-	// configure interfaces
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	// Define port configurations
+	portConfigs := []portConfig{
+		{"port1", "Bundle-Ether1", &dutPort1},
+		{"port2", "Bundle-Ether2", &dutPort2},
+		{"port3", "Bundle-Ether3", &dutPort3},
+		{"port4", "Bundle-Ether4", &dutPort4},
+		{"port5", "Bundle-Ether5", &dutPort5},
+		{"port8", "Bundle-Ether8", &dutPort8},
+	}
+
+	// Configure interfaces
+	for _, cfg := range portConfigs {
+		port := dut.Port(t, cfg.portName)
+		if *bundleMode {
+			configureBundleInterfaces(t, dut, port, cfg.bundleName, cfg.dutAttr)
+		} else {
+			gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), cfg.dutAttr.NewOCInterface(port.Name(), dut))
+		}
+	}
 
 	// configure base PBF policies and network-instances
 	t.Log("Configure VRFs")
@@ -1704,10 +1712,16 @@ func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames 
 	return bundleMemberIfIndexes
 }
 
-func getIfIndex(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
+func getIfIndex(t *testing.T, cliClient binding.CLIClient, intfs []string) {
 	for _, intf := range intfs {
 		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
-		util.SshRunCommand(t, dut, cmd)
+		output, err := cliClient.RunCommand(context.Background(), cmd)
+		if err != nil {
+			t.Errorf("Error running CLI command '%s': %v", cmd, err)
+			return
+		}
+
+		t.Logf("CLI output:\n%s", output.Output())
 	}
 }
 

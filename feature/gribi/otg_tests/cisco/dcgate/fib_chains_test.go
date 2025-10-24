@@ -57,23 +57,7 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
-
-	// Set sflow config details
-	dutPorts := dut.Ports()
-	intfs := []string{}
-	for i, port := range dutPorts {
-		intfs = append(intfs, port.Name())
-		intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
-	}
-	getIfIndex(t, dut, intfs)
-
-	// Uncomment below code when sflow feature is available
-	// This code may be later moved to each major test base configuration
-	// Or just modify erd.SetNextHop(otgPort5.IPv4) as per the egress port used in the test.
-	// erd := sfAttr.AddSflowSample().AddExtendedRouterData()
-	// erd.SetNextHop(otgPort5.IPv4)
-	// erd.SetNextHopDestinationMask(0)
-	// erd.SetNextHopSourceMask(0)
+	cliClient := dut.RawAPIs().CLI(t)
 
 	for _, tc := range test {
 
@@ -90,6 +74,23 @@ func TestFibChains(t *testing.T) {
 		case "popgate_unoptimized":
 			configureDUTforPopGate(t, dut)
 		}
+
+		// Set sflow config details
+		dutPorts := dut.Ports()
+		intfs := []string{}
+		for i, port := range dutPorts {
+			intfs = append(intfs, port.Name())
+			intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
+		}
+		getIfIndex(t, cliClient, intfs)
+
+		// Uncomment below code when sflow feature is available
+		// This code may be later moved to each major test base configuration
+		// Or just modify erd.SetNextHop(otgPort5.IPv4) as per the egress port used in the test.
+		// erd := sfAttr.AddSflowSample().AddExtendedRouterData()
+		// erd.SetNextHop(otgPort5.IPv4)
+		// erd.SetNextHopDestinationMask(0)
+		// erd.SetNextHopSourceMask(0)
 
 		sfAttr.InputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether1", "port1", *bundleMode)
 		// sfAttr.OutputInterface will change per subtest based on the egress interface for the traffic.
