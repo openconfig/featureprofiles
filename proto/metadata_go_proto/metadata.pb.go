@@ -16,17 +16,18 @@
 // versions:
 // 	protoc-gen-go v1.36.10
 // 	protoc        v6.31.1
-// source: proto/metadata.proto
+// source: metadata.proto
 
 package metadata_go_proto
 
 import (
-	proto "github.com/openconfig/ondatra/proto"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	proto "github.com/openconfig/ondatra/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
