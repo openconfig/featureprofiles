@@ -7,7 +7,6 @@ import (
 	"io"
 	"math"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -103,6 +102,9 @@ var (
 	adjustedFrameSizeMap = map[uint32]map[string]uint32{
 		64: {cfgplugins.IPv4: 66, cfgplugins.IPv6: 86},
 	}
+
+	// ifIndexMap maps interface names to their ifIndex values
+	ifIndexMap = map[string]uint32{}
 
 	flow64IPv4 = flowConfig{
 		name:      "FlowIPv4_64",
@@ -508,8 +510,8 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
 	dp1 := dut.Port(t, port1)
 	dp2 := dut.Port(t, port2)
-	ingressIntf := processInterfaceNumber(dut, dp1.Name())
-	egressIntf := processInterfaceNumber(dut, dp2.Name())
+	ingressIntf := ifIndexMap[dp1.Name()]
+	egressIntf := ifIndexMap[dp2.Name()]
 
 	adjustedSize := flowConfig.frameSize
 	if adjustedValues, found := adjustedFrameSizeMap[flowConfig.frameSize]; found {
@@ -523,10 +525,10 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, samplingRate)
 	}
 	if sFlowPkt.ingressIntf != ingressIntf {
-		t.Errorf("SFlow packet %d: Ingress interface %d does not match expected interface %d", pktIndex, sFlowPkt.ingressIntf, ingressIntf)
+		t.Errorf("SFlow packet %d: Ingress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.ingressIntf, ingressIntf)
 	}
 	if sFlowPkt.egressIntf != egressIntf {
-		t.Errorf("SFlow packet %d: Egress interface %d does not match expected interface %d", pktIndex, sFlowPkt.egressIntf, egressIntf)
+		t.Errorf("SFlow packet %d: Egress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.egressIntf, egressIntf)
 	}
 
 	t.Logf("SFlow Packet %d: Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, flowConfig.frameSize, samplingRate, ingressIntf, egressIntf)
@@ -570,29 +572,6 @@ func verifyIpv6SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
 	}
 }
 
-func processInterfaceNumber(dut *ondatra.DUTDevice, intfName string) uint32 {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		if strings.HasPrefix(intfName, "Ethernet") {
-			num, _ := strings.CutPrefix(intfName, "Ethernet")
-			parts := strings.Split(num, "/")
-			if len(parts) == 2 {
-				slot, _ := strconv.Atoi(parts[0])
-				port, _ := strconv.Atoi(parts[1])
-				return uint32(slot*1000 + port)
-			}
-			if n, err := strconv.Atoi(num); err == nil {
-				return uint32(n)
-			}
-		}
-	default:
-		if n, err := strconv.Atoi(intfName); err == nil {
-			return uint32(n)
-		}
-	}
-	return 0
-}
-
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dp1 := dut.Port(t, port1)
@@ -604,11 +583,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Configuring Interfaces")
 	configureDUTPort(t, dut, &dutPort1, dp1)
 	configureDUTPort(t, dut, &dutPort2, dp2)
+	retrieveIfIndexValues(t, dut, []string{dp1.Name(), dp2.Name()})
 
-	t.Log("Configuring sFlow")
+	t.Log("Configuring SFlow")
 	configureSFlow(t, dut)
 
-	t.Log("Configuring gNPSI")
+	t.Log("Configuring GNPSI")
 	svc := introspect.GNPSI
 	dialer := introspect.DUTDialer(t, dut, svc)
 	gnpsiPort := dialer.DevicePort
@@ -617,6 +597,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		SSLProfile: profileName,
 	}
 	cfgplugins.ConfigureGNPSI(t, dut, params)
+}
+
+func retrieveIfIndexValues(t *testing.T, dut *ondatra.DUTDevice, interfaceNames []string) {
+	t.Helper()
+	for _, intfName := range interfaceNames {
+		ifPath := gnmi.OC().Interface(intfName).Ifindex().State()
+		ifIndex := gnmi.Get(t, dut, ifPath)
+		ifIndexMap[intfName] = ifIndex
+		t.Logf("Got interface %s ifIndex: %d", intfName, ifIndex)
+	}
 }
 
 func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Duration) {
