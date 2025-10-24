@@ -982,23 +982,24 @@ message Metadata {
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
     bool transceiver_config_enable_unsupported = 336;
- 
-   // Devices that do not support aft summary oc path
-    // Cisco: b/450898206
+    
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
     bool aft_summary_oc_unsupported = 337;
 
     // Devices that do not support isis lsp tlvs
-    // Arista: b/450898200
+    // Arista: https://issuetracker.google.com/450898200
     bool isis_lsp_tlvs_oc_unsupported = 338;
 
     // Devices that do not support isis adjancy with STREAM telemetry
-    // Nokia: b/452295044
+    // Nokia: https://issuetracker.google.com/452295044
     bool isis_adjacency_stream_unsupported = 339;
 
     //  Juniper does not support localhost yet
     //  b/448173472
     bool localhost_for_containerz = 340;
 
+    // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
 

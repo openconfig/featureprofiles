@@ -21,12 +21,13 @@
 package metadata_go_proto
 
 import (
-	proto "github.com/openconfig/ondatra/proto"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	proto "github.com/openconfig/ondatra/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -1183,13 +1184,13 @@ type Metadata_Deviations struct {
 	// Nokia b/414842051
 	TransceiverConfigEnableUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=transceiverConfigEnableUnsupported,proto3" json:"transceiver_config_enable_unsupported,omitempty"`
 	// Devices that do not support aft summary oc path
-	// Cisco: b/450898206
+	// Cisco: https://issuetracker.google.com/450898206
 	AftSummaryOcUnsupported bool `protobuf:"varint,337,opt,name=aft_summary_oc_unsupported,json=aftSummaryOcUnsupported,proto3" json:"aft_summary_oc_unsupported,omitempty"`
 	// Devices that do not support isis lsp tlvs
-	// Arista: b/450898200
+	// Arista: https://issuetracker.google.com/450898200
 	IsisLspTlvsOcUnsupported bool `protobuf:"varint,338,opt,name=isis_lsp_tlvs_oc_unsupported,json=isisLspTlvsOcUnsupported,proto3" json:"isis_lsp_tlvs_oc_unsupported,omitempty"`
 	// Devices that do not support isis adjancy with STREAM telemetry
-	// Nokia: b/452295044
+	// Nokia: https://issuetracker.google.com/452295044
 	IsisAdjacencyStreamUnsupported bool `protobuf:"varint,339,opt,name=isis_adjacency_stream_unsupported,json=isisAdjacencyStreamUnsupported,proto3" json:"isis_adjacency_stream_unsupported,omitempty"`
 	// Juniper does not support localhost yet
 	// b/448173472
@@ -3787,7 +3788,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
 	"\x14TAGS_DATACENTER_EDGE\x10\x02\x12\r\n" +
 	"\tTAGS_EDGE\x10\x03\x12\x10\n" +
-	"\fTAGS_TRANSIT\x10\x04B?Z=github.com/openconfig/featureprofiles/proto/metadata_go_protob\x06proto3"
+	"\fTAGS_TRANSIT\x10\x04b\x06proto3"
 
 var (
 	file_metadata_proto_rawDescOnce sync.Once
