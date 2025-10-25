@@ -166,3 +166,24 @@ func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cf
 
 	return protocol
 }
+
+// HandleSingleTopologyDeviation handles the single topology deviation for ISIS by
+// setting the v6 multi-topology to have the same AFISAFI as v4.
+func HandleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root) {
+	t.Helper()
+	if !deviations.ISISSingleTopologyRequired(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		protocol := root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut))
+		v6MultiTopology := protocol.GetOrCreateIsis().GetOrCreateGlobal().
+			GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).
+			GetOrCreateMultiTopology()
+		v6MultiTopology.SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		v6MultiTopology.SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+	default:
+		t.Fatalf("Unsupported vendor: %s", dut.Vendor())
+	}
+}
