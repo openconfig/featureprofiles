@@ -16,7 +16,6 @@ package afts_atomic_test
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -48,19 +47,9 @@ const (
 	bgpRouteCountV6          = 200
 	bgpRouteV6               = "3001:1::0"
 	gnmiTimeout              = 2 * time.Minute
-	dutAS                    = 65501
-	isisATEArea              = "49"
-	isisATESystemIDPrefix    = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
 	isisDUTArea              = "49.0001"
 	isisDUTSystemID          = "1920.0000.2001"
-	isisRoute                = "199.0.0.1"
-	isisRouteCount           = 100
-	isisRouteV6              = "2001:db8::203:0:113:1"
 	mtu                      = 1500
-	startingBGPRouteIPv4     = "200.0.0.0/32"
-	startingBGPRouteIPv6     = "3001:1::0/128"
-	startingISISRouteIPv4    = "199.0.0.1/32"
-	startingISISRouteIPv6    = "2001:db8::203:0:113:1/128"
 	v4PrefixLen              = 30
 	v6PrefixLen              = 126
 
@@ -80,6 +69,7 @@ var (
 		IPv6:    "2001:db8::2",
 		IPv6Len: v6PrefixLen,
 		MAC:     "00:00:02:02:02:02",
+		MTU:     mtu,
 	}
 	ateP2 = attrs.Attributes{
 		IPv4:    "192.0.2.6",
@@ -87,6 +77,7 @@ var (
 		IPv6:    "2001:db8::6",
 		IPv6Len: v6PrefixLen,
 		MAC:     "00:00:03:03:03:03",
+		MTU:     mtu,
 	}
 	dutP1 = attrs.Attributes{
 		IPv4:    "192.0.2.1",
@@ -102,6 +93,7 @@ var (
 	}
 
 	ateAttrs       = []attrs.Attributes{ateP1, ateP2}
+	dutAttrs       = []attrs.Attributes{dutP1, dutP2}
 	v4PeerGrpNames = []string{peerGrpNameV4P1, peerGrpNameV4P2}
 	v6PeerGrpNames = []string{peerGrpNameV6P1, peerGrpNameV6P2}
 
@@ -151,8 +143,8 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	allNbrs := []*cfgplugins.BgpNeighbor{}
 	for ix, ateAttr := range ateAttrs {
 		nbrs := []*cfgplugins.BgpNeighbor{
-			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
-			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
+			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
+			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
 		}
 		allNbrs = append(allNbrs, nbrs...)
 		routerID := dutP1.IPv4
@@ -184,93 +176,11 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 
 func (tc *testCase) configureATE(t *testing.T) {
 	ate := tc.ate
-	config := gosnappi.NewConfig()
-
-	portData := []struct {
-		portName string
-		ateAttrs attrs.Attributes
-		dutAttrs attrs.Attributes
-	}{
-		{
-			portName: port1Name,
-			ateAttrs: ateP1,
-			dutAttrs: dutP1,
-		},
-		{
-			portName: port2Name,
-			ateAttrs: ateP2,
-			dutAttrs: dutP2,
-		},
-	}
-
-	for i, p := range portData {
-		atePort := ate.Port(t, p.portName)
-		port := config.Ports().Add().SetName(atePort.ID())
-		dev := config.Devices().Add().SetName(fmt.Sprintf("%s.dev", p.portName))
-
-		eth := dev.Ethernets().Add().SetName(dev.Name() + ".eth").
-			SetMac(p.ateAttrs.MAC).
-			SetMtu(mtu)
-		eth.Connection().SetPortName(port.Name())
-
-		ipv4 := eth.Ipv4Addresses().Add().SetName(eth.Name() + ".IPv4").
-			SetAddress(p.ateAttrs.IPv4).
-			SetGateway(p.dutAttrs.IPv4).
-			SetPrefix(v4PrefixLen)
-
-		ipv6 := eth.Ipv6Addresses().Add().SetName(eth.Name() + ".IPv6").
-			SetAddress(p.ateAttrs.IPv6).
-			SetGateway(p.dutAttrs.IPv6).
-			SetPrefix(v6PrefixLen)
-
-		isis := dev.Isis().SetName(dev.Name() + ".isis").
-			SetSystemId(fmt.Sprintf("%s%d", strings.ReplaceAll(isisATESystemIDPrefix, ".", ""), i+1)) // Unique system ID for each port.
-		isis.Basic().
-			SetIpv4TeRouterId(ipv4.Address()).
-			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
-		isis.Advanced().SetAreaAddresses([]string{isisATEArea})
-		isis.Advanced().SetEnableHelloPadding(false)
-		isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
-			SetEthName(eth.Name()).
-			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
-			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-			SetMetric(10)
-		isisInt.TrafficEngineering().Add().PriorityBandwidths()
-		isisInt.Advanced().
-			SetAutoAdjustMtu(true).
-			SetAutoAdjustArea(true).
-			SetAutoAdjustSupportedProtocols(true)
-
-		// Advertise ISIS routes only from port1 to ensure single next-hop
-		if p.portName == port1Name {
-			v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
-			v4Route.Addresses().Add().SetAddress(isisRoute).
-				SetPrefix(advertisedRoutesV4Prefix).
-				SetCount(isisRouteCount)
-			v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
-			v6Route.Addresses().Add().SetAddress(isisRouteV6).
-				SetPrefix(advertisedRoutesV6Prefix).
-				SetCount(isisRouteCount)
-		}
-
-		// Advertise BGP routes
-		v4Routes := cfgplugins.BGPAdvertisedRoutes{
-			StartingAddress: bgpRoute,
-			PrefixLength:    advertisedRoutesV4Prefix,
-			Count:           bgpRouteCountV4,
-			ATEAS:           ateAS,
-		}
-		v6Routes := cfgplugins.BGPAdvertisedRoutes{
-			StartingAddress: bgpRouteV6,
-			PrefixLength:    advertisedRoutesV6Prefix,
-			Count:           bgpRouteCountV6,
-			ATEAS:           ateAS,
-		}
-		cfgplugins.AdvertiseRoutes(dev, ipv4, ipv6, v4Routes, v6Routes)
-	}
-
-	ate.OTG().PushConfig(t, config)
-	ate.OTG().StartProtocols(t)
+	cfgplugins.ConfigureATEWithISISAndBGPRoutes(t, &cfgplugins.ATEAdvertiseRoutes{
+		ATE:      ate,
+		ATEAttrs: ateAttrs,
+		DUTAttrs: dutAttrs,
+	})
 }
 
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
@@ -317,7 +227,7 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	dutPort2 := tc.dut.Port(t, port2Name).Name()
 
 	for i, dutPort := range []string{dutPort1, dutPort2} {
-		systemID := fmt.Sprintf("%s%d", isisATESystemIDPrefix, i+1)
+		systemID := fmt.Sprintf("%s%d", cfgplugins.ISISATESystemIDPrefix, i+1)
 		adjPath := isisPath.Interface(dutPort).Level(2).Adjacency(systemID)
 		if _, ok := gnmi.Watch(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
 			fptest.LogQuery(t, "ISIS reported state", adjPath.State(), gnmi.Get(t, tc.dut, adjPath.State()))
@@ -330,10 +240,10 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 
 func generateBGPPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(bgpRouteCountV4)) {
+	for pfix := range netutil.GenCIDRs(t, cfgplugins.StartingBGPRouteIPv4, int(cfgplugins.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(bgpRouteCountV6)) {
+	for pfix6 := range netutil.GenCIDRs(t, cfgplugins.StartingBGPRouteIPv6, int(cfgplugins.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -341,10 +251,10 @@ func generateBGPPrefixes(t *testing.T) map[string]bool {
 
 func generateISISPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingISISRouteIPv4, isisRouteCount) {
+	for pfix := range netutil.GenCIDRs(t, cfgplugins.StartingISISRouteIPv4, int(cfgplugins.DefaultISISRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingISISRouteIPv6, isisRouteCount) {
+	for pfix6 := range netutil.GenCIDRs(t, cfgplugins.StartingISISRouteIPv6, int(cfgplugins.DefaultISISRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
