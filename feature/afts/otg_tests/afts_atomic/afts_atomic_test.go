@@ -252,7 +252,21 @@ func (tc *testCase) configureATE(t *testing.T) {
 				SetPrefix(advertisedRoutesV6Prefix).
 				SetCount(isisRouteCount)
 		}
-		tc.configureBGPDev(dev, ipv4, ipv6)
+
+		// Advertise BGP routes
+		v4Routes := cfgplugins.BGPAdvertisedRoutes{
+			StartingAddress: bgpRoute,
+			PrefixLength:    advertisedRoutesV4Prefix,
+			Count:           bgpRouteCountV4,
+			ATEAS:           ateAS,
+		}
+		v6Routes := cfgplugins.BGPAdvertisedRoutes{
+			StartingAddress: bgpRouteV6,
+			PrefixLength:    advertisedRoutesV6Prefix,
+			Count:           bgpRouteCountV6,
+			ATEAS:           ateAS,
+		}
+		cfgplugins.AdvertiseRoutes(dev, ipv4, ipv6, v4Routes, v6Routes)
 	}
 
 	ate.OTG().PushConfig(t, config)
@@ -312,32 +326,6 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	}
 
 	return nil
-}
-
-func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosnappi.DeviceIpv6) {
-	bgp := dev.Bgp().SetRouterId(ipv4.Address())
-	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
-	bgp4Peer.SetPeerAddress(ipv4.Gateway()).SetAsNumber(uint32(ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
-	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(uint32(ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-
-	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ".v4route")
-	routes.SetNextHopIpv4Address(ipv4.Address()).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	routes.Addresses().Add().
-		SetAddress(bgpRoute).
-		SetPrefix(advertisedRoutesV4Prefix).
-		SetCount(bgpRouteCountV4)
-
-	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
-	routesV6.SetNextHopIpv6Address(ipv6.Address()).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	routesV6.Addresses().Add().
-		SetAddress(bgpRouteV6).
-		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(bgpRouteCountV6)
 }
 
 func generateBGPPrefixes(t *testing.T) map[string]bool {

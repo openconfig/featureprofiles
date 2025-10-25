@@ -885,3 +885,42 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 
 	return bgp
 }
+
+// BGPAdvertisedRoutes represents the BGP advertised routes configuration.
+type BGPAdvertisedRoutes struct {
+	// Starting address of the routes.
+	StartingAddress string
+	// Prefix length for each prefix advertised.
+	PrefixLength uint32
+	// Number of routes advertised.
+	Count uint32
+	// ATE AS of the peer, advertised routes are sent from.
+	ATEAS uint32
+}
+
+// AdvertiseRoutes configures BGP advertised routes on the dev over the ipv4 and ipv6 interfaces.
+func AdvertiseRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosnappi.DeviceIpv6, v4Advertised, v6Advertised BGPAdvertisedRoutes) {
+	bgp := dev.Bgp().SetRouterId(ipv4.Address())
+	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+	bgp4Peer.SetPeerAddress(ipv4.Gateway()).SetAsNumber(v4Advertised.ATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
+	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(v6Advertised.ATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+
+	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ".v4route")
+	routes.SetNextHopIpv4Address(ipv4.Address()).
+		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+	routes.Addresses().Add().
+		SetAddress(v4Advertised.StartingAddress).
+		SetPrefix(v4Advertised.PrefixLength).
+		SetCount(v4Advertised.Count)
+
+	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
+	routesV6.SetNextHopIpv6Address(ipv6.Address()).
+		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	routesV6.Addresses().Add().
+		SetAddress(v6Advertised.StartingAddress).
+		SetPrefix(v6Advertised.PrefixLength).
+		SetCount(v6Advertised.Count)
+}
