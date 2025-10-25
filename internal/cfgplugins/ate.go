@@ -16,20 +16,16 @@ const (
 	ISISATESystemIDPrefix = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
 	ISISArea              = "49"
 
-	StartingISISRouteV4 = "199.0.0.1"
-	StartingISISRouteV6 = "2001:db8::203:0:113:1"
-
+	StartingISISRouteV4   = "199.0.0.1"
+	StartingISISRouteV6   = "2001:db8::203:0:113:1"
 	DefaultISISRouteCount = 100
 
-	StartingBGPRouteIPv4  = "200.0.0.0/32"
-	StartingBGPRouteIPv6  = "3001:1::0/128"
-	StartingISISRouteIPv4 = "199.0.0.1/32"
-	StartingISISRouteIPv6 = "2001:db8::203:0:113:1/128"
-
+	StartingBGPRouteIPv4 = "200.0.0.0"
+	StartingBGPRouteIPv6 = "3001:1::0"
 	DefaultBGPRouteCount = 200
 
-	V4PrefixLen = 30
-	V6PrefixLen = 126
+	AdvertisePrefixLenV4 = 32
+	AdvertisePrefixLenV6 = 128
 )
 
 // AdvertisedRoutes represents the advertised routes configuration.
@@ -103,7 +99,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.ISISV4Routes == nil {
 		ar.ISISV4Routes = &AdvertisedRoutes{
 			StartingAddress: StartingISISRouteV4,
-			PrefixLength:    V4PrefixLen,
+			PrefixLength:    AdvertisePrefixLenV4,
 			Count:           DefaultISISRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -111,7 +107,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.ISISV6Routes == nil {
 		ar.ISISV6Routes = &AdvertisedRoutes{
 			StartingAddress: StartingISISRouteV6,
-			PrefixLength:    V6PrefixLen,
+			PrefixLength:    AdvertisePrefixLenV6,
 			Count:           DefaultISISRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -119,7 +115,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.BGPV4Routes == nil {
 		ar.BGPV4Routes = &AdvertisedRoutes{
 			StartingAddress: StartingBGPRouteIPv4,
-			PrefixLength:    V4PrefixLen,
+			PrefixLength:    AdvertisePrefixLenV4,
 			Count:           DefaultBGPRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -127,7 +123,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.BGPV6Routes == nil {
 		ar.BGPV6Routes = &AdvertisedRoutes{
 			StartingAddress: StartingBGPRouteIPv6,
-			PrefixLength:    V6PrefixLen,
+			PrefixLength:    AdvertisePrefixLenV6,
 			Count:           DefaultBGPRouteCount,
 			ATEAS:           ATEAS,
 		}

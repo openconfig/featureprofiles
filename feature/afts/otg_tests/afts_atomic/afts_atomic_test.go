@@ -37,21 +37,15 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesV4Prefix = 32
-	advertisedRoutesV6Prefix = 128
-	aftConvergenceTime       = 30 * time.Minute
-	applyPolicyType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	ateAS                    = 200
-	bgpRoute                 = "200.0.0.0"
-	bgpRouteCountV4          = 200
-	bgpRouteCountV6          = 200
-	bgpRouteV6               = "3001:1::0"
-	gnmiTimeout              = 2 * time.Minute
-	isisDUTArea              = "49.0001"
-	isisDUTSystemID          = "1920.0000.2001"
-	mtu                      = 1500
-	v4PrefixLen              = 30
-	v6PrefixLen              = 126
+	aftConvergenceTime = 30 * time.Minute
+	applyPolicyType    = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	ateAS              = 200
+	gnmiTimeout        = 2 * time.Minute
+	isisDUTArea        = "49.0001"
+	isisDUTSystemID    = "1920.0000.2001"
+	mtu                = 1500
+	v4PrefixLen        = 30
+	v6PrefixLen        = 126
 
 	peerGrpNameV4P1 = "BGP-PEER-GROUP-V4-P1"
 	peerGrpNameV6P1 = "BGP-PEER-GROUP-V6-P1"
@@ -240,10 +234,12 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 
 func generateBGPPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, cfgplugins.StartingBGPRouteIPv4, int(cfgplugins.DefaultBGPRouteCount)) {
+	cidrV4 := cfgplugins.StartingBGPRouteIPv4 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV4)
+	for pfix := range netutil.GenCIDRs(t, cidrV4, int(cfgplugins.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, cfgplugins.StartingBGPRouteIPv6, int(cfgplugins.DefaultBGPRouteCount)) {
+	cidrV6 := cfgplugins.StartingBGPRouteIPv6 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV6)
+	for pfix6 := range netutil.GenCIDRs(t, cidrV6, int(cfgplugins.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -251,10 +247,12 @@ func generateBGPPrefixes(t *testing.T) map[string]bool {
 
 func generateISISPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, cfgplugins.StartingISISRouteIPv4, int(cfgplugins.DefaultISISRouteCount)) {
+	v4Cidr := cfgplugins.StartingISISRouteV4 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV4)
+	for pfix := range netutil.GenCIDRs(t, v4Cidr, int(cfgplugins.DefaultISISRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, cfgplugins.StartingISISRouteIPv6, int(cfgplugins.DefaultISISRouteCount)) {
+	v6Cidr := cfgplugins.StartingISISRouteV6 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV6)
+	for pfix6 := range netutil.GenCIDRs(t, v6Cidr, int(cfgplugins.DefaultISISRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
