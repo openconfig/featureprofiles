@@ -44,29 +44,25 @@ const (
 	applyPolicyType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	ateAS                    = 200
 	bgpRoute                 = "200.0.0.0"
-	// REVERT TO SCALE BEFORE SUBMITTING
-	bgpRouteCountIPv4Default  = 200
-	bgpRouteCountIPv4LowScale = 200
-	bgpRouteCountIPv6Default  = 200
-	bgpRouteCountIPv6LowScale = 200
-	bgpRouteV6                = "3001:1::0"
-	gnmiTimeout               = 2 * time.Minute
-	dutAS                     = 65501
-	isisATEArea               = "49"
-	isisATESystemIDPrefix     = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
-	isisDUTArea               = "49.0001"
-	isisDUTSystemID           = "1920.0000.2001"
-	isisRoute                 = "199.0.0.1"
-	isisRouteCount            = 100
-	isisRouteV6               = "2001:db8::203:0:113:1"
-	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	mtu                       = 1500
-	startingBGPRouteIPv4      = "200.0.0.0/32"
-	startingBGPRouteIPv6      = "3001:1::0/128"
-	startingISISRouteIPv4     = "199.0.0.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	v4PrefixLen               = 30
-	v6PrefixLen               = 126
+	bgpRouteCountV4          = 200
+	bgpRouteCountV6          = 200
+	bgpRouteV6               = "3001:1::0"
+	gnmiTimeout              = 2 * time.Minute
+	dutAS                    = 65501
+	isisATEArea              = "49"
+	isisATESystemIDPrefix    = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
+	isisDUTArea              = "49.0001"
+	isisDUTSystemID          = "1920.0000.2001"
+	isisRoute                = "199.0.0.1"
+	isisRouteCount           = 100
+	isisRouteV6              = "2001:db8::203:0:113:1"
+	mtu                      = 1500
+	startingBGPRouteIPv4     = "200.0.0.0/32"
+	startingBGPRouteIPv6     = "3001:1::0/128"
+	startingISISRouteIPv4    = "199.0.0.1/32"
+	startingISISRouteIPv6    = "2001:db8::203:0:113:1/128"
+	v4PrefixLen              = 30
+	v6PrefixLen              = 126
 
 	peerGrpNameV4P1 = "BGP-PEER-GROUP-V4-P1"
 	peerGrpNameV6P1 = "BGP-PEER-GROUP-V6-P1"
@@ -115,9 +111,8 @@ var (
 	ipv4OneNH  = map[string]bool{ateP1.IPv4: true}
 	ipv4TwoNHs = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
 
-	ipv6LinkLocalNH = map[string]bool{linkLocalAddress: true}
-	ipv6OneNH       = map[string]bool{ateP1.IPv6: true}
-	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	ipv6OneNH  = map[string]bool{ateP1.IPv6: true}
+	ipv6TwoNHs = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
 func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
@@ -149,33 +144,27 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
-		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
-	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
-	}
 	configureAllowPolicy(t, dut)
 
 	t.Log("Configure BGP")
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	d := &oc.Root{}
+	allNbrs := []*cfgplugins.BgpNeighbor{}
 	for ix, ateAttr := range ateAttrs {
 		nbrs := []*cfgplugins.BgpNeighbor{
 			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
 			{LocalAS: dutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
 		}
+		allNbrs = append(allNbrs, nbrs...)
 		routerID := dutP1.IPv4
-		dutConf, err := cfgplugins.CreateBGPNeighbors(t, routerID, v4PeerGrpNames[ix], v6PeerGrpNames[ix], nbrs, dut)
-		if err != nil {
+		if err := cfgplugins.CreateBGPNeighbors(t, d, routerID, v4PeerGrpNames[ix], v6PeerGrpNames[ix], nbrs, dut); err != nil {
 			return err
 		}
-		gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
-		if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-			cfgplugins.UpdateNeighborMaxPrefix(t, dut, nbrs)
-		}
 	}
+	niName := deviations.DefaultNetworkInstance(dut)
+	dutConfPath := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	protocol := d.GetNetworkInstance(niName).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	gnmi.Update(t, dut, dutConfPath.Config(), protocol)
+	cfgplugins.HandleMaxPrefixesDeviation(t, dut, allNbrs)
 
 	t.Log("Configure ISIS")
 	b := &gnmi.SetBatch{}
@@ -183,19 +172,11 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
 		ISISInterfaceNames:  []string{dutPort1, dutPort2},
-		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
+		NetworkInstanceName: niName,
 	}
 
 	root := cfgplugins.NewISIS(t, dut, isisData, b)
-	if deviations.ISISSingleTopologyRequired(dut) {
-		protocol := root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut))
-		multiTopology := protocol.GetOrCreateIsis().GetOrCreateGlobal().
-			GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).
-			GetOrCreateMultiTopology()
-		multiTopology.SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
-		multiTopology.SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
-	}
+	cfgplugins.HandleSingleTopologyDeviation(t, dut, root)
 	b.Set(t, dut)
 
 	return nil
@@ -333,20 +314,6 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	return nil
 }
 
-// bgpRouteCount returns the expected route count for the given dut and IP family.
-func bgpRouteCount(dut *ondatra.DUTDevice, afi string) uint32 {
-	if deviations.LowScaleAft(dut) {
-		if afi == IPv4 {
-			return bgpRouteCountIPv4LowScale
-		}
-		return bgpRouteCountIPv6LowScale
-	}
-	if afi == IPv4 {
-		return bgpRouteCountIPv4Default
-	}
-	return bgpRouteCountIPv6Default
-}
-
 func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosnappi.DeviceIpv6) {
 	bgp := dev.Bgp().SetRouterId(ipv4.Address())
 	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
@@ -361,7 +328,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routes.Addresses().Add().
 		SetAddress(bgpRoute).
 		SetPrefix(advertisedRoutesV4Prefix).
-		SetCount(bgpRouteCount(tc.dut, IPv4))
+		SetCount(bgpRouteCountV4)
 
 	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
@@ -370,15 +337,15 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.Addresses().Add().
 		SetAddress(bgpRouteV6).
 		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(bgpRouteCount(tc.dut, IPv6))
+		SetCount(bgpRouteCountV6)
 }
 
-func generateBGPPrefixes(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
+func generateBGPPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(bgpRouteCount(dut, IPv4))) {
+	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(bgpRouteCountV4)) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(bgpRouteCount(dut, IPv6))) {
+	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(bgpRouteCountV6)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -402,14 +369,6 @@ func setOTGInterfaceState(t *testing.T, ate *ondatra.ATEDevice, portName string,
 	ate.OTG().SetControlState(t, portStateAction)
 }
 
-func postChurnIPv6(t *testing.T, dut *ondatra.DUTDevice) map[string]bool {
-	t.Helper()
-	if deviations.LinkLocalInsteadOfNh(dut) {
-		return ipv6LinkLocalNH
-	}
-	return ipv6OneNH
-}
-
 type testCase struct {
 	name string
 	dut  *ondatra.DUTDevice
@@ -429,7 +388,7 @@ func TestAtomic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	bgpPrefixes := generateBGPPrefixes(t, dut)
+	bgpPrefixes := generateBGPPrefixes(t)
 	isisPrefixes := generateISISPrefixes(t)
 	prefixes := make(map[string]bool)
 	for pfx := range bgpPrefixes {
@@ -441,7 +400,7 @@ func TestAtomic(t *testing.T) {
 
 	verifyBGPPrefixes := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4TwoNHs, ipv6TwoNHs)
 	verifyISISPrefixes := aftcache.AssertNextHopCount(t, dut, isisPrefixes, 1)
-	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, postChurnIPv6(t, dut))
+	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
 	setOneLinkDown := func() {

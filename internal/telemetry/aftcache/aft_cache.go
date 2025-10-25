@@ -425,7 +425,7 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
-// TODO : This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// TODO: This is somewhat bad practice. I was surprised that this function spawned a goroutine.
 // Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
 // on return.) Split out the watching logic into a blocking function.
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
@@ -771,6 +771,8 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
+			defer t.Logf("verified %d of %d prefixes in AssertNextHopCount.", nCorrect, len(wantPrefixes))
+			defer logDuration(checkNHStart, "Check Next Hops")
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				switch {
@@ -781,14 +783,14 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 				default:
 					if len(resolved) != wantNHCount {
 						t.Logf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
-						t.Logf("verified %d of %d prefixes so far. Continuing to wait...", nCorrect, len(wantPrefixes))
 						return false, nil
 					}
 					nCorrect++
 				}
 			}
-			logDuration(checkNHStart, "Check Next Hops")
-			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
+			if nCorrect != nPrefixes {
+				return false, nil
+			}
 			return true, nil
 		},
 	}
