@@ -356,7 +356,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		case ondatra.ARISTA:
 			if params.RemovePolicy {
 				removeCmd := fmt.Sprintf(`
-				Traffic-policies
+				traffic-policies
 				  no traffic-policy %s
 				`, params.PolicyForwardName)
 				helpers.GnmiCLIConfig(t, dut, removeCmd)
@@ -365,7 +365,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 				switch traffictype {
 				case "ipv4":
 					policyForwardingConfigv4Vrf := fmt.Sprintf(`
-					Traffic-policies
+					traffic-policies
 						traffic-policy %[1]s
 							match rewritettlv4 ipv4
 								ttl %[2]d
@@ -388,7 +388,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv4Vrf)
 				case "ipv6":
 					policyForwardingConfigv6Vrf := fmt.Sprintf(`
-					Traffic-policies
+					traffic-policies
 						no traffic-policy %[1]s
 						traffic-policy %[1]s
 							match rewritettlv6 ipv6
