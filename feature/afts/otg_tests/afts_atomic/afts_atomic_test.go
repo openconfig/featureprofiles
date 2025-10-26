@@ -64,6 +64,7 @@ var (
 		IPv6Len: v6PrefixLen,
 		MAC:     "00:00:02:02:02:02",
 		MTU:     mtu,
+		Name:    "port1",
 	}
 	ateP2 = attrs.Attributes{
 		IPv4:    "192.0.2.6",
@@ -72,6 +73,7 @@ var (
 		IPv6Len: v6PrefixLen,
 		MAC:     "00:00:03:03:03:03",
 		MTU:     mtu,
+		Name:    "port2",
 	}
 	dutP1 = attrs.Attributes{
 		IPv4:    "192.0.2.1",
