@@ -663,12 +663,19 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.Netw
 		return
 	}
 
-	bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+		GetOrCreateUseMultiplePaths().
 		GetOrCreateEbgp().
 		SetMaximumPaths(2)
-	bgp.GetOrCreatePeerGroup(pgV4).GetOrCreateUseMultiplePaths().
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
+		GetOrCreateUseMultiplePaths().
+		GetOrCreateEbgp().
+		SetMaximumPaths(2)
+	bgp.GetOrCreatePeerGroup(pgV4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
+		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
-	bgp.GetOrCreatePeerGroup(pgV6).GetOrCreateUseMultiplePaths().
+	bgp.GetOrCreatePeerGroup(pgV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
+		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
 }
 
