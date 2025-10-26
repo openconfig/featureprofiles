@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	v4VlanPlen                                 = uint8(16)
+	v4VlanPlen                                 = uint8(24)
 	v6VlanPlen                                 = uint8(64)
 	dutAS                                      = 65000
 	ateAS1                                     = 65003
@@ -52,12 +52,10 @@ const (
 	ateAS2V4                                   = 65001
 	ateAS1V6                                   = 65103
 	ateAS2V6                                   = 65101
-	dutP1IPv4                                  = "101.1.1.1"
-	dutP1IPv6                                  = "1000::101:1:1:1"
-	ateP1IPv4                                  = "101.1.2.1"
-	ateP1IPv6                                  = "1000::101:1:2:1"
-	ateP2IPv4                                  = "102.1.2.2"
-	ateP2IPv6                                  = "1000::102:1:2:2"
+	atePort1IPV4                               = "101.1.%d.2"
+	atePort1IPV6                               = "1000::101:1:%d:2"
+	atePort2IPV4                               = "102.1.%d.2"
+	atePort2IPV6                               = "1000::102:1:%d:2"
 	peerv41GrpName                             = "UPSTREAM-V41"
 	peerv61GrpName                             = "UPSTREAM-V61"
 	peerv42GrpName                             = "DOWNSTREAM-V42"
@@ -86,9 +84,9 @@ var (
 	dutPort1 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port1",
-			IPv4:    "101.1.1.1",
+			IPv4:    "101.1.0.1",
 			IPv4Len: v4VlanPlen,
-			IPv6:    "1000::101:1:1:1",
+			IPv6:    "1000::101:1:0:1",
 			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf: 64,
@@ -103,11 +101,11 @@ var (
 			IPv6:    "1000::102:1:1:1",
 			IPv6Len: v6VlanPlen,
 		},
-		ip4: func(_ uint8) (string, string) {
-			return "102.1.1.1", ""
+		ip4: func(_ uint8) string {
+			return "102.1.1.1"
 		},
-		ip6: func(_ uint8) (string, string) {
-			return "1000::102:1:1:1", ""
+		ip6: func(_ uint8) string {
+			return "1000::102:1:1:1"
 		},
 		numSubIntf: 1,
 	}
@@ -116,9 +114,9 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port1",
 			MAC:     "02:00:02:01:01:01",
-			IPv4:    "101.1.2.1",
+			IPv4:    "101.1.0.2",
 			IPv4Len: v4VlanPlen,
-			IPv6:    "1000::101:1:2:1",
+			IPv6:    "1000::101:1:0:2",
 			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf: 64,
@@ -131,23 +129,23 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port2",
 			MAC:     "02:00:04:01:01:01",
-			IPv4:    "102.1.2.1",
+			IPv4:    "102.1.1.2",
 			IPv4Len: v4VlanPlen,
-			IPv6:    "1000::102:1:2:1",
+			IPv6:    "1000::102:1:1:2",
 			IPv6Len: v6VlanPlen,
 		},
-		ip4: func(_ uint8) (string, string) {
-			return "102.1.2.1", ""
+		ip4: func(_ uint8) string {
+			return "102.1.1.2"
 		},
-		ip6: func(_ uint8) (string, string) {
-			return "1000::102:1:2:1", ""
+		ip6: func(_ uint8) string {
+			return "1000::102:1:1:2"
 		},
 		numSubIntf: 1,
-		gateway: func(_ uint8) (string, string) {
-			return "102.1.1.1", ""
+		gateway: func(_ uint8) string {
+			return "102.1.1.1"
 		},
-		gateway6: func(_ uint8) (string, string) {
-			return "1000::102:1:1:1", ""
+		gateway6: func(_ uint8) string {
+			return "1000::102:1:1:1"
 		},
 	}
 )
@@ -155,34 +153,31 @@ var (
 type attributes struct {
 	*attrs.Attributes
 	numSubIntf uint32
-	ip4        func(vlan uint8) (string, string)
-	ip6        func(vlan uint8) (string, string)
-	gateway    func(vlan uint8) (string, string)
-	gateway6   func(vlan uint8) (string, string)
+	ip4        func(vlan uint8) string
+	ip6        func(vlan uint8) string
+	gateway    func(vlan uint8) string
+	gateway6   func(vlan uint8) string
 }
 
-// dutPort1IPv4 returns ipv4 addresses for every vlanID.
-func dutPort1IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP1IPv4, int(vlan))
-	return ip, err
+// dutPort1IPv4 returns ip addresses starting 101.1.%d.1 for every vlanID.
+func dutPort1IPv4(vlan uint8) string {
+	return fmt.Sprintf("101.1.%d.1", vlan)
 }
 
-// dutPort1IPv6 returns ip6 addresses for every vlanID.
-func dutPort1IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP1IPv6, int(vlan))
-	return ip, err
+// dutPort1IPv6 returns ip addresses starting 1000::101.1.%d.1 for every vlanID.
+func dutPort1IPv6(vlan uint8) string {
+	return fmt.Sprintf("1000::101:1:%d:1", vlan)
 }
 
-// atePort1IPv4 returns ip4 addresses for every vlanID.
-func atePort1IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP1IPv4, int(vlan))
-	return ip, err
+// atePort1IPv4 returns ip addresses starting 101.1.%d.2, increasing by 1
+// for every vlanID.
+func atePort1IPv4(vlan uint8) string {
+	return fmt.Sprintf("101.1.%d.2", vlan)
 }
 
-// atePort1IPv6 returns ip6 addresses for every vlanID.
-func atePort1IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP1IPv6, int(vlan))
-	return ip, err
+// atePort1IPv6 returns ip addresses starting 1000::101:1:%d:2 for every vlanID.
+func atePort1IPv6(vlan uint8) string {
+	return fmt.Sprintf("1000::101:1:%d:2", vlan)
 }
 
 // cidr takes as input the IPv4 address and the mask and returns the IP string in
@@ -217,8 +212,8 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 	eBgpConfig1 := &cfgplugins.EBgpConfigScale{
 		AteASV4:       ateAS1V4,
 		AteASV6:       ateAS1V6,
-		AtePortIPV4:   atePort1.IPv4,
-		AtePortIPV6:   atePort1.IPv6,
+		AtePortIPV4:   atePort1IPV4,
+		AtePortIPV6:   atePort1IPV6,
 		PeerV4GrpName: peerv41GrpName,
 		PeerV6GrpName: peerv61GrpName,
 		NumOfPeers:    atePort1.numSubIntf,
@@ -228,8 +223,8 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 	eBgpConfig2 := &cfgplugins.EBgpConfigScale{
 		AteASV4:       ateAS2V4,
 		AteASV6:       ateAS2V6,
-		AtePortIPV4:   atePort2.IPv4,
-		AtePortIPV6:   atePort2.IPv6,
+		AtePortIPV4:   atePort2IPV4,
+		AtePortIPV6:   atePort2IPV6,
 		PeerV4GrpName: peerv42GrpName,
 		PeerV6GrpName: peerv62GrpName,
 		NumOfPeers:    atePort2.numSubIntf,
@@ -489,18 +484,12 @@ func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut
 		}
 
 		if a.Name == "port1" {
-			ip, eMsg := a.ip4(uint8(i))
-			if eMsg != "" {
-				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
-			}
+			ip := a.ip4(uint8(i))
 			s4a := s4.GetOrCreateAddress(ip)
 			s4a.PrefixLength = ygot.Uint8(v4VlanPlen)
 			t.Logf("Adding DUT Subinterface with ID: %d, Vlan ID: %d and IPv4 address: %s", i, i, ip)
 
-			ip6, eMsg := a.ip6(uint8(i))
-			if eMsg != "" {
-				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
-			}
+			ip6 := a.ip6(uint8(i))
 			s6 := s.GetOrCreateIpv6()
 			if deviations.InterfaceEnabled(dut) {
 				s6.Enabled = ygot.Bool(true)
@@ -531,22 +520,16 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 
 	top.Ports().Add().SetName(p.ID())
 	if a.numSubIntf == 1 {
-		gateway, eMsg := a.gateway(1)
-		if eMsg != "" {
-			t.Fatalf("Failed to generate gateway address with error '%s'", eMsg)
-		}
-		gateway6, eMsg := a.gateway6(1)
-		if eMsg != "" {
-			t.Fatalf("Failed to generate gateway6 address with error '%s'", eMsg)
-		}
+		gateway := a.gateway(1)
+		gateway6 := a.gateway6(1)
 		dev := top.Devices().Add().SetName(a.Name)
 		eth := dev.Ethernets().Add().SetName(a.Name + ".Eth").SetMac(a.MAC)
 		eth.Connection().SetPortName(p.ID())
 		ipObj4 := eth.Ipv4Addresses().Add().SetName(dev.Name() + ".IPv4")
-		ipObj4.SetAddress(ateP2IPv4).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
+		ipObj4.SetAddress(a.IPv4).SetGateway(gateway).SetPrefix(uint32(a.IPv4Len))
 		t.Logf("Adding ATE Ipv4 address: %s with gateway: %s", cidr(a.IPv4, int(a.IPv4Len)), gateway)
 		ipObj6 := eth.Ipv6Addresses().Add().SetName(dev.Name() + ".IPv6")
-		ipObj6.SetAddress(ateP2IPv6).SetGateway(gateway6).SetPrefix(uint32(a.IPv6Len))
+		ipObj6.SetAddress(a.IPv6).SetGateway(gateway6).SetPrefix(uint32(a.IPv6Len))
 		t.Logf("Adding ATE Ipv6 address: %s with gateway: %s", cidr(a.IPv6, int(a.IPv6Len)), gateway)
 		return
 	}
@@ -554,15 +537,8 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 	for i := uint32(1); i <= a.numSubIntf; i++ {
 		name := fmt.Sprintf(`%sdst%d`, a.Name, i)
 
-		gateway, eMsg := a.gateway(uint8(i))
-		if eMsg != "" {
-			t.Fatalf("Failed to generate gateway address with error '%s'", eMsg)
-		}
-		gateway6, eMsg := a.gateway6(uint8(i))
-		if eMsg != "" {
-			t.Fatalf("Failed to generate gateway6 address with error '%s'", eMsg)
-		}
-
+		gateway := a.gateway(uint8(i))
+		gateway6 := a.gateway6(uint8(i))
 		mac, err := incrementMAC(a.MAC, int(i)+1)
 		if err != nil {
 			t.Fatalf("Failed to generate mac address with error %s", err)
@@ -573,20 +549,43 @@ func (a *attributes) configureATE(t *testing.T, top gosnappi.Config, ate *ondatr
 		eth.Connection().SetPortName(p.ID())
 		eth.Vlans().Add().SetName(name).SetId(uint32(i))
 		if a.Name == "port1" {
-			ip, eMsg := a.ip4(uint8(i))
-			if eMsg != "" {
-				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
-			}
+			ip := a.ip4(uint8(i))
 			eth.Ipv4Addresses().Add().SetName(name + ".IPv4").SetAddress(ip).SetGateway(gateway).SetPrefix(uint32(v4VlanPlen))
 			t.Logf("Adding ATE Ipv4 address: %s with gateway: %s and VlanID: %d", cidr(ip, int(v4VlanPlen)), gateway, i)
-			ip6, eMsg := a.ip6(uint8(i))
-			if eMsg != "" {
-				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
-			}
+			ip6 := a.ip6(uint8(i))
 			eth.Ipv6Addresses().Add().SetName(name + ".IPv6").SetAddress(ip6).SetGateway(gateway6).SetPrefix(uint32(v6VlanPlen))
 			t.Logf("Adding ATE Ipv6 address: %s with gateway: %s and VlanID: %d", cidr(ip6, int(v6VlanPlen)), gateway6, i)
 		}
 	}
+}
+
+func (a *attributes) buildIPv4v6NbrList(asn, asn6 uint32, v4pg, v6pg string, numSubIntf uint32) []*bgpNeighbor {
+	var nbrList []*bgpNeighbor
+	for i := uint32(1); i <= numSubIntf; i++ {
+		if a.ip4 != nil {
+			ip := a.ip4(uint8(i))
+			bgpNbr := &bgpNeighbor{
+				as:         asn,
+				neighborip: ip,
+				isV4:       true,
+				pg:         v4pg,
+			}
+			nbrList = append(nbrList, bgpNbr)
+		}
+		if a.ip6 != nil {
+			ip := a.ip6(uint8(i))
+			bgpNbr := &bgpNeighbor{
+				as:         asn6,
+				neighborip: ip,
+				isV4:       false,
+				pg:         v6pg,
+			}
+			nbrList = append(nbrList, bgpNbr)
+		}
+		asn = asn + 1
+		asn6 = asn6 + 1
+	}
+	return nbrList
 }
 
 func advertiseRoutesWithEBGPExtCommunitys(t *testing.T, top gosnappi.Config) {
@@ -638,6 +637,7 @@ func createPrefixesV4(t *testing.T, numberOfPrefixes uint32) []netip.Prefix {
 	t.Helper()
 
 	var ips []netip.Prefix
+	// Create /24
 	v4VlanPlenStr := strconv.FormatUint(uint64(v4VlanPlen), 10)
 	testPrefixV4 := testPrefixV4Add + "/" + v4VlanPlenStr
 	for i := uint32(0); i < numberOfPrefixes; i++ {
@@ -651,6 +651,7 @@ func createPrefixesV6(t *testing.T, numberOfPrefixes uint32) []netip.Prefix {
 	t.Helper()
 	var ips []netip.Prefix
 
+	// Create /126
 	v6VlanPlenStr := strconv.FormatUint(uint64(v6VlanPlen), 10)
 	testPrefixV6 := testPrefixV6Add + "/" + v6VlanPlenStr
 	for i := uint32(0); i < numberOfPrefixes; i++ {
@@ -737,28 +738,17 @@ func disableEnableBgpWithNbr(t *testing.T, dut *ondatra.DUTDevice, enablePeers b
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 
-	cfg := &cfgplugins.EBgpConfigScale{
-		AteASV4:       ateAS1V4,
-		AteASV6:       ateAS1V6,
-		AtePortIPV4:   atePort1.IPv4,
-		AtePortIPV6:   atePort1.IPv6,
-		PeerV4GrpName: peerv41GrpName,
-		PeerV6GrpName: peerv61GrpName,
-		NumOfPeers:    uint32(disablePeers),
-		PortName:      atePort1.Name,
-	}
-
-	nbrs := cfgplugins.BuildIPv4v6NbrScale(t, cfg)
+	nbrs := atePort1.buildIPv4v6NbrList(ateAS1V4, ateAS1V6, peerv41GrpName, peerv61GrpName, disablePeers)
 
 	for _, nbr := range nbrs {
-		bgpNbr := bgp.GetOrCreateNeighbor(nbr.Neighborip)
-		bgpNbr.PeerAs = ygot.Uint32(nbr.As)
+		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
 		if enablePeers {
 			bgpNbr.Enabled = ygot.Bool(true)
 		} else {
 			bgpNbr.Enabled = ygot.Bool(false)
 		}
-		bgpNbr.PeerGroup = ygot.String(nbr.Pg)
+		bgpNbr.PeerGroup = ygot.String(nbr.pg)
 	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
