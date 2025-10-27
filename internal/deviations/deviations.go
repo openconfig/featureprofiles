@@ -1687,6 +1687,11 @@ func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
 
+// SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
+func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()
+}
+
 // TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
