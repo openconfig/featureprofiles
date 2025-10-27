@@ -41,6 +41,14 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
         *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 
+
+### RT-1.31.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2612]
+#### IPv4 BGP 3 levels of nested import policy with match-prefix-set conditions
+#### Canonical OC
+```json
+{}
+```
+
 ##### Parent Route Policy: Configure a route-policy to inverse match any prefix in the given prefix-set (INVERT)
 *   Note: This parent policy will be applied to both import and export route policy on the neighbor.
 *   This policy will call unique nested policies for both import and export scenarios defined in the sub-tests
@@ -48,7 +56,7 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```invert-policy-v4``` configure a statement with the name ```invert-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```invert-policy-v4``` statement ```invert-statement-v4``` set policy-result as ```NEXT_STATEMENT```
+*   For routing-policy ```invert-policy-v4``` statement ```invert-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
@@ -64,11 +72,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```invert-policy-v4``` statement ```invert-statement-v4``` set prefix set to ```prefix-set-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
-
-### RT-1.31.1 [TODO: https://github.com/openconfig/featureprofiles/issues/2612]
-#### IPv4 BGP 3 levels of nested import policy with match-prefix-set conditions
----
-
 ##### 2nd Route Policy: Configure a route-policy to match the a prefix in the given prefix-set (ANY)
 *   Configure an IPv4 route-policy definition with the name ```match-import-policy-v4```
     *   /routing-policy/policy-definitions/policy-definition/config/name
@@ -77,16 +80,16 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
-*   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
+*   Configure a prefix-set with the name ```match-prefix-set-v4``` and mode ```IPV4```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   For prefix-set ```prefix-set-v4``` set the ip-prefix to ```ipv4-network-1``` i.e. ```192.168.10.0/24``` and masklength to ```exact```
+*   For prefix-set ```match-prefix-set-v4``` set the ip-prefix to ```ipv4-network-1``` i.e. ```192.168.10.0/24``` and masklength to ```exact```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
 ##### Attach the prefix-set to route-policy
 *   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set match options to ```ANY```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set prefix set to ```prefix-set-v4```
+*   For routing-policy ```match-import-policy-v4``` statement ```match-statement-v4``` set prefix set to ```match-prefix-set-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
 
@@ -160,7 +163,34 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 ### RT-1.31.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2612]
 #### IPv4 BGP 3 levels of nested export policy with match-prefix-set conditions
----
+#### Canonical OC
+```json
+{}
+```
+
+
+##### Parent Route Policy: Configure a route-policy to inverse match any prefix in the given prefix-set (INVERT)
+*   Note: This parent policy will be applied to both import and export route policy on the neighbor.
+*   This policy will call unique nested policies for both import and export scenarios defined in the sub-tests
+*   Configure an IPv6 route-policy definition with the name ```invert-policy-v6```
+    *   /routing-policy/policy-definitions/policy-definition/config/name
+*   For routing-policy ```invert-policy-v6``` configure a statement with the name ```invert-statement-v6```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+*   For routing-policy ```invert-policy-v6``` statement ```invert-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+##### Configure a prefix-set for route filtering/matching
+*   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
+    *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
+    *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
+*   For prefix-set ```prefix-set-v6``` set the ip-prefix to ```1970::/64``` and masklength to ```exact```
+    *   Our intention is to allow the prefix that does not match 1970::/64 (inverse the match result)
+    *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
+    *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
+##### Attach the prefix-set to route-policy
+*   For routing-policy ```invert-policy-v6``` statement ```invert-statement-v6``` set match options to ```INVERT```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
+*   For routing-policy ```invert-policy-v6``` statement ```invert-statement-v6``` set prefix set to ```prefix-set-v6```
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
 ##### 2nd Route Policy: Configure a route-policy to match the a prefix in the given prefix-set (ANY)
 *   Configure an IPv4 route-policy definition with the name ```match-export-policy-v4```
@@ -249,7 +279,10 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 ### RT-1.31.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2612]
 #### IPv6 BGP 3 levels of nested import policy with match-prefix-set conditions
----
+#### Canonical OC
+```json
+{}
+```
 
 ##### 2nd Route Policy: Configure a route-policy to match the a prefix in the given prefix-set (ANY)
 *   Configure an IPv6 route-policy definition with the name ```match-import-policy-v6```
@@ -259,16 +292,16 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set policy-result as ```NEXT_STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
-*   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
+*   Configure a prefix-set with the name ```match-prefix-set-v6``` and mode ```IPV6```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   For prefix-set ```prefix-set-v6``` set the ip-prefix to ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` and masklength to ```exact```
+*   For prefix-set ```match-prefix-set-v6``` set the ip-prefix to ```ipv6-network-1``` i.e. ```2024:db8:128:128::/64``` and masklength to ```exact```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
 ##### Attach the prefix-set to route-policy
 *   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set match options to ```ANY```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set prefix set to ```prefix-set-v6```
+*   For routing-policy ```match-import-policy-v6``` statement ```match-statement-v6``` set prefix set to ```match-prefix-set-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 
 
@@ -341,7 +374,10 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 ### RT-1.31.4 [TODO: https://github.com/openconfig/featureprofiles/issues/2612]
 #### IPv6 BGP 3 levels of nested export policy with match-prefix-set conditions
----
+#### Canonical OC
+```json
+{}
+```
 
 ##### 2nd Route Policy: Configure a route-policy to match the a prefix in the given prefix-set (ANY)
 *   Configure an IPv6 route-policy definition with the name ```match-export-policy-v6```
@@ -427,47 +463,49 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   Initiate traffic from ATE Port-1 towards the DUT destined ```ipv6-network-2``` i.e. ```2024:db8:64:64::/64```
     *   Validate that the traffic is received on ATE Port-2
 
+## OpenConfig Path and RPC Coverage
 
-## Config parameter coverage
+The below yaml defines the OC paths intended to be covered by this test.
 
-*   /network-instances/network-instance/protocols/protocol/bgp/global/config
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
-*   /routing-policy/policy-definitions/policy-definition/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-*   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
-*   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
+```yaml
+paths:
+    ## Config parameter coverage
+    /routing-policy/policy-definitions/policy-definition/config/name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/config/call-policy:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+    /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+    /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/send-community-type:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
 
-## Telemetry parameter coverage
 
-*   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix
-*   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index
+    ## Telemetry parameter coverage
+    /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/state/call-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/prefix:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
+    /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/community-index:
 
-## Protocol/RPC Parameter Coverage
-
-* gNMI
-  * Get
-  * Set
+    ## Protocol/RPC Parameter Coverage
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
 ## Required DUT platform
 

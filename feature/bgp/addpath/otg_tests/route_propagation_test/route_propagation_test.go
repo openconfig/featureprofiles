@@ -265,7 +265,7 @@ func (d *dutData) AwaitBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 func getPeerGroup(pgn string, aftype oc.E_BgpTypes_AFI_SAFI_TYPE, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol_Bgp_PeerGroup {
 	bgp := &oc.NetworkInstance_Protocol_Bgp{}
 	pg := bgp.GetOrCreatePeerGroup(pgn)
-
+	pg.GetOrCreateTimers().SetMinimumAdvertisementInterval(10)
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		//policy under peer group
 		rpl := pg.GetOrCreateApplyPolicy()

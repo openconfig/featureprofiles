@@ -23,12 +23,13 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/functional-translators/registrar"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/platform"
 	"github.com/openconfig/ygnmi/ygnmi"
-
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -61,8 +62,111 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, i
 	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
 }
 
+type checkThresholdParams struct {
+	transceiver string
+	isPortUp    bool
+	opts        []ygnmi.Option
+	lowerPath   ygnmi.SingletonQuery[float64]
+	upperPath   ygnmi.SingletonQuery[float64]
+	instantPath ygnmi.SingletonQuery[float64]
+	name        string
+}
+
+// checkThreshold validates a pair of lower and upper thresholds.
+func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdParams) {
+	t.Helper()
+	lV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(params.opts...), params.lowerPath)
+	uV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(params.opts...), params.upperPath)
+	l, lOK := lV.Val()
+	u, uOK := uV.Val()
+
+	if !lOK {
+		t.Errorf("Transceiver %s: threshold %s-lower is not set", params.transceiver, params.name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-lower: %v", params.transceiver, params.name, l)
+	}
+	if !uOK {
+		t.Errorf("Transceiver %s: threshold %s-upper is not set", params.transceiver, params.name)
+	} else {
+		t.Logf("Transceiver %s threshold %s-upper: %v", params.transceiver, params.name, u)
+	}
+
+	// OC path /components/component/transceiver/physical-channels/channel/state/laser-temperature/instant
+	// is not supported by some vendors, so we skip the check.
+	if params.name == "module-temperature" && dut.Vendor() != ondatra.CISCO {
+		t.Logf("Skipping instant path check for module-temperature on non-Cisco vendor.")
+	} else {
+		iV := gnmi.Lookup(t, dut.GNMIOpts(), params.instantPath)
+		i, iOK := iV.Val()
+		if !iOK {
+			t.Errorf("Transceiver %s: instant %s is not set", params.transceiver, params.name)
+		} else {
+			t.Logf("Transceiver %s instant %s: %v", params.transceiver, params.name, i)
+		}
+
+		if lOK && uOK && iOK {
+			if !params.isPortUp {
+				t.Logf("Skipping range check for transceiver %s because port is not UP.", params.transceiver)
+			} else if (params.name == "input-power" || params.name == "output-power") && i == minOpticsPower {
+				t.Logf("Skipping range check for transceiver %s for %s because instant value is %v, indicating link is not stable.", params.transceiver, params.name, minOpticsPower)
+			} else if i < l || i > u {
+				t.Errorf("Transceiver %s: instant %s %v is outside threshold range [%v, %v]", params.transceiver, params.name, i, l, u)
+			} else {
+				t.Logf("Transceiver %s: instant %s %v is within threshold range [%v, %v]", params.transceiver, params.name, i, l, u)
+			}
+		}
+	}
+
+	if lOK && uOK && l >= u {
+		t.Errorf("Transceiver %s: %s-lower (%v) must be less than %s-upper (%v)", params.transceiver, params.name, l, params.name, u)
+	}
+}
+
+// validateThresholds checks that threshold leaves are populated,
+// are within a plausible range, and that lower thresholds are less than upper thresholds.
+func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string, isPortUp bool, sev oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY, component *platform.ComponentPath, opts []ygnmi.Option) {
+	t.Helper()
+	t.Logf("Validating transceiver %s thresholds for severity: %v", transceiver, sev)
+	threshold := component.Transceiver().Threshold(sev)
+
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		isPortUp:    isPortUp,
+		opts:        opts,
+		lowerPath:   threshold.ModuleTemperatureLower().State(),
+		upperPath:   threshold.ModuleTemperatureUpper().State(),
+		instantPath: component.Transceiver().Channel(0).LaserTemperature().Instant().State(),
+		name:        "module-temperature",
+	})
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		isPortUp:    isPortUp,
+		opts:        opts,
+		lowerPath:   threshold.InputPowerLower().State(),
+		upperPath:   threshold.InputPowerUpper().State(),
+		instantPath: component.Transceiver().Channel(0).InputPower().Instant().State(),
+		name:        "input-power",
+	})
+	checkThreshold(t, dut, checkThresholdParams{
+		transceiver: transceiver,
+		isPortUp:    isPortUp,
+		opts:        opts,
+		lowerPath:   threshold.OutputPowerLower().State(),
+		upperPath:   threshold.OutputPowerUpper().State(),
+		instantPath: component.Transceiver().Channel(0).OutputPower().Instant().State(),
+		name:        "output-power",
+	})
+}
 func TestOpticsPowerBiasCurrent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	transceiverToInterface := make(map[string]string)
+	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+	for _, intf := range intfs {
+		if intf.GetTransceiver() != "" {
+			transceiverToInterface[intf.GetTransceiver()] = intf.GetName()
+		}
+	}
 
 	transceivers := components.FindComponentsByType(t, dut, transceiverType)
 	t.Logf("Found transceiver list: %v", transceivers)
@@ -130,54 +234,37 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
-			} else {
-				// TODO(ankursaikia): Validate the values for each leaf.
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiver, th.GetSeverity().String())
-
-					if th.ModuleTemperatureLower == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-lower: %v", transceiver, th.GetModuleTemperatureLower())
-					}
-
-					if th.ModuleTemperatureUpper == nil {
-						t.Errorf("Transceiver %s: threshold module-temperature-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold module-temperature-upper: %v", transceiver, th.GetModuleTemperatureUpper())
-					}
-
-					if th.Severity == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
-						t.Errorf("Transceiver %s: threshold severity is unset", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold severity: %v", transceiver, th.GetSeverity())
-					}
-
-					if th.InputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold input-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-lower: %v", transceiver, th.GetInputPowerLower())
-					}
-
-					if th.InputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold input-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold input-power-upper: %v", transceiver, th.GetInputPowerUpper())
-					}
-
-					if th.OutputPowerLower == nil {
-						t.Errorf("Transceiver %s: threshold output-power-lower is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-lower: %v", transceiver, th.GetOutputPowerLower())
-					}
-
-					if th.OutputPowerUpper == nil {
-						t.Errorf("Transceiver %s: threshold output-power-upper is nil", transceiver)
-					} else {
-						t.Logf("Transceiver %s threshold output-power-upper: %v", transceiver, th.GetOutputPowerUpper())
-					}
+				return
+			}
+			// TODO(ankursaikia): Validate the values for each leaf.
+			var opts []ygnmi.Option
+			if deviations.CiscoxrLaserFt(dut) != "" {
+				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
+				if !ok {
+					t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
 				}
+				opts = append(opts, ygnmi.WithFT(ft))
+			}
+			var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+			for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+				val, ok := s.Val()
+				if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+					t.Errorf("Transceiver %s: threshold severity is not set", transceiver)
+					continue
+				}
+				sevs = append(sevs, val)
+			}
+
+			portName := transceiverToInterface[transceiver]
+			var isPortUp bool
+			if portName != "" {
+				operStatus := gnmi.Get(t, dut, gnmi.OC().Interface(portName).OperStatus().State())
+				isPortUp = operStatus == oc.Interface_OperStatus_UP
+			} else {
+				t.Logf("Could not find interface for transceiver %s, assuming port is down for threshold checks", transceiver)
+			}
+			for _, sev := range sevs {
+				validateThresholds(t, dut, transceiver, isPortUp, sev, component, opts)
 			}
 		})
 	}
@@ -266,12 +353,28 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
-				ths := gnmi.GetAll(t, dut, component.Transceiver().ThresholdAny().State())
-				for _, th := range ths {
-					t.Logf("Transceiver: %s, Threshold Severity: %s", transceiverName, th.GetSeverity().String())
-					t.Logf("Laser Temperature: lower %v, upper %v", th.GetLaserTemperatureLower(), th.GetLaserTemperatureUpper())
-					t.Logf("Output Power: lower: %v, upper: %v", th.GetOutputPowerLower(), th.GetOutputPowerUpper())
-					t.Logf("Input Power: lower: %v, upper: %v", th.GetInputPowerLower(), th.GetInputPowerUpper())
+				var opts []ygnmi.Option
+				if deviations.CiscoxrLaserFt(dut) != "" {
+					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
+					if !ok {
+						t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
+					}
+					t.Logf("Using functional translator %s for transceiver %s", deviations.CiscoxrLaserFt(dut), transceiverName)
+					opts = append(opts, ygnmi.WithFT(ft))
+				}
+				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
+				for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
+					val, ok := s.Val()
+					if !ok || val == oc.AlarmTypes_OPENCONFIG_ALARM_SEVERITY_UNSET {
+						t.Errorf("Transceiver %s: threshold severity is not set", transceiverName)
+						continue
+					}
+					sevs = append(sevs, val)
+				}
+
+				isPortUp := tc.expectedStatus == oc.Interface_OperStatus_UP
+				for _, sev := range sevs {
+					validateThresholds(t, dut, transceiverName, isPortUp, sev, component, opts)
 				}
 			}
 		})

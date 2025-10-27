@@ -67,6 +67,7 @@ The directory tree is organized as follows:
 *   `proto/` contains protobuf files for feature profiles.
 *   `tools/` contains code used for CI checks.
 *   `topologies/` contains the testbed topology definitions.
+*   All README and _test.go files should be nested underneath a `tests/` or `otg_tests/` folder.
 
 Directory names are not allowed to contain hyphen (-) characters.
 
@@ -153,20 +154,24 @@ were discovered when implementing the code.
 Generally, a Feature Profiles ONDATRA test has the following stages: configure
 DUT, configure OTG, generate and verify traffic, verify telemetry. The
 configuration generation code should be factored out to their own functions and
-placed in the `/internal/cfgplugins` folder.  Subtests should be run under `t.Run` 
-so the test output clearly reflects which parts of the test passed and which parts
-failed.
+placed in the `/internal/cfgplugins` folder.  See the [cfgplugins README](https://github.com/openconfig/featureprofiles/blob/main/internal/cfgplugins/README.md)
+for details.
 
-They typically just report the error using `t.Error()` for checks. This way, the
-error message is accurately attributed to the line of code where the error
-occurred.
+Subtests should be run under `t.Run` so the test output clearly reflects which
+parts of the test passed and which parts failed.  This way using `t.Error()` will
+produce a message that is easily related back to the test README.
 
 ```
+func TestMain (m (testing.M) {
+  setupEnvironment()    // configuration that is not a specific target of the test and is required for all Test functions
+  fptest.RunTests(m)
+}
+
 func TestFoo(t *testing.T) {
-  configureDUT(t) // calls t.Fatal() on error.
+  configureDUT(t) // config unique to this test, calls t.Fatal() on error.
   configureOTG(t) // calls t.Fatal() on error.
-  t.Run("Traffic", func(t *testing.T) { ... })
-  t.Run("Telemetry", func(t *testing.T) { ... })
+  t.Run("RT-1.1.1 Traffic", func(t *testing.T) { ... })
+  t.Run("RT-1.1.2 Telemetry", func(t *testing.T) { ... })
 }
 ```
 
@@ -174,6 +179,11 @@ In the above example, `configureDUT` and `configureOTG` should not be subtests,
 otherwise they could be skipped when someone specifies a test filter. The
 "Traffic" and "Telemetry" subtests will both run even if there is a fatal
 condition during `t.Run()`.
+
+Likewise, `setupEnvironment` should contain configuration that is required for
+all Tests in this _test.go file and is not part of the focus of the test.  For
+example, DUT interface configuration can be placed here for tests that are
+focused on BGP.
 
 ### Table Driven Tests
 

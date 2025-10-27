@@ -8,8 +8,7 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
     DUT port-3, and ATE port-4 to DUT port-4.
-*   Create a L3 routing instance (VRF-A), and assign DUT port-1 to VRF-A.
-*   Create a L3 routing instance (VRF-B) that includes no interface.
+*   Create a L3 routing instance (VRF-A & VRF-B).
 *   Connect a gRIBI client to the DUT, make it become leader and inject the
     following:
     *   An IPv4Entry in VRF-A, pointing to a NextHopGroup (in DEFAULT VRF)

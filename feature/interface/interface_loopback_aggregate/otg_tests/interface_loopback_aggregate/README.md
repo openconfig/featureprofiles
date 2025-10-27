@@ -11,7 +11,7 @@ Ensure Interface mode can be set to loopback mode and can be added as part of st
 *   Configure DUT port-1 to OTG port-1.
 *   Admin down OTG port-1.
 *   Verify DUT port-1 is down.
-*   On DUT port-1, set interface “loopback mode” to “FACILITY”.
+*   On DUT port-1, set interface “loopback mode” to “TERMINAL”.
 *   Add port-1 as part of Static LAG (lacp mode static(on)).
 *   Validate that port-1 operational status is “UP”.
 *   Validate on DUT that LAG interface status is “UP”.
@@ -37,3 +37,40 @@ rpcs:
   gnmi:
     gNMI.Set:
     gNMI.Subscribe:
+```
+
+#### Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "aggregation": {
+          "config": {
+            "lag-type": "LACP",
+            "min-links": 1
+          }
+        },
+        "config": {
+          "name": "ae0"
+        },
+        "name": "ae0"
+      },
+      {
+        "config": {
+          "loopback-mode": "FACILITY",
+          "name": "eth0"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "ae0",
+            "duplex-mode": "FULL",
+            "port-speed": "SPEED_10GB"
+          }
+        },
+        "name": "eth0"
+      }
+    ]
+  }
+}
+```

@@ -483,11 +483,16 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		myAspath := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(myAsPathName)
 		myAspath.SetAsPathSetMember([]string{strconv.Itoa(int(cfgplugins.AteAS2))})
 
-		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
-		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		if !deviations.MatchAsPathSetUnsupported(dut) {
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		}
 	}
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	stmt5.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	if deviations.CommunityMemberRegexUnsupported(dut) {
@@ -843,7 +848,7 @@ func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *on
 			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == ipAddr &&
 				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == prefixLen {
 				foundPrefix = true
-				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.Address, ipAddr)
+				t.Logf("Prefix recevied on OTG is correct, got prefix %v, want prefix %v", bgpPrefix.GetAddress(), ipAddr)
 				switch pathAttr {
 				case otgMED:
 					if bgpPrefix.GetMultiExitDiscriminator() != metric[0] {
