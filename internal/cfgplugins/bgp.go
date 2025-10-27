@@ -1,3 +1,4 @@
+
 // Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,8 +17,6 @@ package cfgplugins
 
 import (
 	"fmt"
-	"math/big"
-	"net"
 	"sort"
 	"strconv"
 	"testing"
@@ -182,12 +181,11 @@ type BGPNeighborConfig struct {
 	MultiPathEnabled bool
 }
 
-// BgpNeighborScale holds parameters for configuring BGP neighbors in a scale test.
-type BgpNeighborScale struct {
-	As         uint32
-	Neighborip string
-	IsV4       bool
-	Pg         string
+type bgpNeighborScale struct {
+	as         uint32
+	neighborip string
+	isV4       bool
+	pg         string
 }
 
 // EBgpConfigScale holds parameters for configuring eBGP peers in a scale test.
@@ -785,35 +783,27 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	return bgp
 }
 
-// BuildIPv4v6NbrScale generates a list of BgpNeighborScale configurations for IPv4 and IPv6 peers.
-func BuildIPv4v6NbrScale(t *testing.T, cfg *EBgpConfigScale) []*BgpNeighborScale {
-	var nbrList []*BgpNeighborScale
-	asn := cfg.AteASV4
-	asn6 := cfg.AteASV6
-	for i := uint32(1); i <= cfg.NumOfPeers; i++ {
-		if cfg.AtePortIPV4 != "" {
-			ip, err := IncrementIP(cfg.AtePortIPV4, int(i))
-			if err != "" {
-				t.Fatalf("Failed to increment IP address with error '%s'", err)
-			}
-			bgpNbr := &BgpNeighborScale{
-				As:         asn,
-				Neighborip: ip,
-				IsV4:       true,
-				Pg:         cfg.PeerV4GrpName,
+func buildIPv4v6NbrScale(asn, asn6 uint32, v4pg, v6pg string, numSubIntf uint32, ip4, ip6 string) []*bgpNeighborScale {
+	// ipv4 and ipv6 string format "x.x.%d.x" and "x::x:x:%d:x"
+	var nbrList []*bgpNeighborScale
+	for i := uint32(1); i <= numSubIntf; i++ {
+		if ip4 != "" {
+			ip := fmt.Sprintf(ip4, uint8(i))
+			bgpNbr := &bgpNeighborScale{
+				as:         asn,
+				neighborip: ip,
+				isV4:       true,
+				pg:         v4pg,
 			}
 			nbrList = append(nbrList, bgpNbr)
 		}
-		if cfg.AtePortIPV6 != "" {
-			ip, err := IncrementIP(cfg.AtePortIPV6, int(i))
-			if err != "" {
-				t.Fatalf("Failed to increment IP address with error '%s'", err)
-			}
-			bgpNbr := &BgpNeighborScale{
-				As:         asn6,
-				Neighborip: ip,
-				IsV4:       false,
-				Pg:         cfg.PeerV6GrpName,
+		if ip6 != "" {
+			ip := fmt.Sprintf(ip6, uint8(i))
+			bgpNbr := &bgpNeighborScale{
+				as:         asn6,
+				neighborip: ip,
+				isV4:       false,
+				pg:         v6pg,
 			}
 			nbrList = append(nbrList, bgpNbr)
 		}
@@ -823,7 +813,7 @@ func BuildIPv4v6NbrScale(t *testing.T, cfg *EBgpConfigScale) []*BgpNeighborScale
 	return nbrList
 }
 
-func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, c *EBgpConfigScale) {
+func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, asn, asn6, numSubIntf uint32, atePortName string, atePortIPV4, atePortIPV6 string) {
 	t.Helper()
 
 	devices := top.Devices().Items()
@@ -832,17 +822,14 @@ func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, c *EBgpConfigScal
 		devMap[dev.Name()] = dev
 	}
 
-	var asn uint32 = c.AteASV4
-	var asn6 uint32 = c.AteASV6
-
-	for i := uint32(1); i <= c.NumOfPeers; i++ {
-		di := c.PortName
-		if c.PortName == "port1" {
-			di = fmt.Sprintf("%sdst%d.Dev", c.PortName, i)
+	for i := uint32(1); i <= numSubIntf; i++ {
+		di := atePortName
+		if atePortName == "port1" {
+			di = fmt.Sprintf("%sdst%d.Dev", atePortName, i)
 		}
 		device := devMap[di]
-		if c.AtePortIPV4 != "" {
-			bgp := device.Bgp().SetRouterId(c.AtePortIPV4)
+		if atePortIPV4 != "" {
+			bgp := device.Bgp().SetRouterId(fmt.Sprintf(atePortIPV4, uint8(i)))
 			ipv4 := device.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 			bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(device.Name() + ".BGP4.peer")
 			bgp4Peer.SetPeerAddress(ipv4.Gateway())
@@ -851,8 +838,8 @@ func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, c *EBgpConfigScal
 			bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 			bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 		}
-		if c.AtePortIPV6 != "" {
-			bgp := device.Bgp().SetRouterId(c.AtePortIPV4)
+		if atePortIPV6 != "" {
+			bgp := device.Bgp().SetRouterId(fmt.Sprintf(atePortIPV4, uint8(i)))
 			ipv6 := device.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
 			bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(device.Name() + ".BGP6.peer")
 			bgp6Peer.SetPeerAddress(ipv6.Gateway())
@@ -866,18 +853,19 @@ func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, c *EBgpConfigScal
 	}
 }
 
-// ConfigureEBgpPeersScale configures EBGP peers between DUT and ATE ports.
+// ConfigureEBgpPeersScale configures a max of 64 EBGP peers between 2 DUT and 2 ATE ports.
 func ConfigureEBgpPeersScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config,
 	cfg []*EBgpConfigScale) (gosnappi.Config, *oc.NetworkInstance_Protocol) {
 
-	var nbrList []*BgpNeighborScale
+	var nbrList []*bgpNeighborScale
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 
 	for _, c := range cfg {
-		nbr := BuildIPv4v6NbrScale(t, c)
+		nbr := buildIPv4v6NbrScale(c.AteASV4, c.AteASV6, c.PeerV4GrpName, c.PeerV6GrpName,
+			c.NumOfPeers, c.AtePortIPV4, c.AtePortIPV6)
 		nbrList = append(nbrList, nbr...)
 		pgv4 := bgp.GetOrCreatePeerGroup(c.PeerV4GrpName)
 		pgv4.PeerAs = ygot.Uint32(c.AteASV4)
@@ -888,11 +876,11 @@ func ConfigureEBgpPeersScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	for _, nbr := range nbrList {
-		bgpNbr := bgp.GetOrCreateNeighbor(nbr.Neighborip)
-		bgpNbr.PeerAs = ygot.Uint32(nbr.As)
+		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
 		bgpNbr.Enabled = ygot.Bool(true)
-		bgpNbr.PeerGroup = ygot.String(nbr.Pg)
-		if nbr.IsV4 {
+		bgpNbr.PeerGroup = ygot.String(nbr.pg)
+		if nbr.isV4 {
 			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 			af4.Enabled = ygot.Bool(true)
 			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -906,35 +894,8 @@ func ConfigureEBgpPeersScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	for _, c := range cfg {
-		configureBGPScaleOnATE(t, top, c)
+		configureBGPScaleOnATE(t, top, c.AteASV4, c.AteASV6, c.NumOfPeers, c.PortName, c.AtePortIPV4, c.AtePortIPV6)
 	}
 
 	return top, niProto
-}
-
-// IncrementIP increments an IPv4 or IPv6 address by a specified number of addresses.
-func IncrementIP(ipStr string, num int) (string, string) {
-	ip := net.ParseIP(ipStr)
-	err := ""
-	if ip == nil {
-		err = fmt.Sprintf("invalid IP address: %s", ipStr)
-		return "", err
-	}
-
-	ipInt := big.NewInt(0)
-	if ip.To4() != nil {
-		ipInt.SetBytes(ip.To4())
-	} else {
-		ipInt.SetBytes(ip.To16())
-	}
-
-	ipInt.Add(ipInt, big.NewInt(int64(num)))
-
-	var newIP net.IP
-	if ip.To4() != nil {
-		newIP = net.IP(ipInt.Bytes()).To4()
-	} else {
-		newIP = net.IP(ipInt.Bytes()).To16()
-	}
-	return newIP.String(), err
 }
