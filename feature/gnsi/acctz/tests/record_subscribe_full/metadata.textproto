@@ -5,3 +5,13 @@ uuid:  "c1352e24-e45c-4f6d-9b16-d28cc1a5093a"
 plan_id:  "ACCTZ-1.1"
 description:  "Record Subscribe Full"
 testbed:  TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+    gribi_records_unsupported: true
+  }
+}
+

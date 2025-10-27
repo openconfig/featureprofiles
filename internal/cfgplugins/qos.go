@@ -147,9 +147,15 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 		}
 		if len(class.DscpSet) > 0 {
 			condition := term.GetOrCreateConditions()
-			condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
+			if class.Name == "dscp_based_classifier_ipv4" {
+				condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
+			} else {
+				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
+			}
 		}
-		if class.RemarkDscp != 0 {
+
+		// DSCP remark configuration is not supported. Adding external static configuration after QoS OC configuration
+		if !deviations.QosRemarkOCUnsupported(dut) {
 			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
 		}
 	}
@@ -275,7 +281,6 @@ func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string,
 		return ""
 	}
 }
-
 func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []string) {
 	for index, q := range queues {
 		queue := qos.GetOrCreateQueue(q)
@@ -371,4 +376,126 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	default:
 		return ""
 	}
+}
+
+// ConfigureQoSDSCPRemarkFix adds configuration that may be needed
+// to rewrite DSCP packet fields.  It is intended to be called only if DSCP
+// remarking is used.  It must be called after NewQoSClassifierConfiguration
+// and SetInputClassifier
+func ConfigureQoSDSCPRemarkFix(t *testing.T, dut *ondatra.DUTDevice) {
+	if deviations.QosRemarkOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			aristaConfigureRemarkIpv4(t, dut)
+			aristaConfigureRemarkIpv6(t, dut)
+		}
+	}
+}
+
+// aristaConfigureRemarkIpv4 configure remark for ipv4 through CLI
+func aristaConfigureRemarkIpv4(t *testing.T, dut *ondatra.DUTDevice) {
+	jsonConfig := `
+    policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
+	class __yang_[dscp_based_classifier_ipv4]_[0]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[1]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[2]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[3]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[4]
+	set dscp 0
+	class __yang_[dscp_based_classifier_ipv4]_[6]
+	set dscp 6
+		`
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
+}
+
+// aristaConfigureRemarkIpv6 configure remark for ipv6 through CLI
+func aristaConfigureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
+	jsonConfig := `
+    policy-map type quality-of-service __yang_[IPV4__dscp_based_classifier_ipv4][IPV6__dscp_based_classifier_ipv6]
+   class __yang_[dscp_based_classifier_ipv6]_[0]
+      set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[1]
+      set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[3]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[2]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[4]
+   set dscp 0
+   class __yang_[dscp_based_classifier_ipv6]_[6]
+   set dscp 6
+		`
+	helpers.GnmiCLIConfig(t, dut, jsonConfig)
+}
+
+// QosClassificationOCConfig builds an OpenConfig QoS classification configuration.
+func QosClassificationOCConfig(t *testing.T) {
+	t.Helper()
+	// TODO: OC commands for QOS are not in the place. Need to fix the below commented code once implemented the OC commands.
+	d := &oc.Root{}
+	qos := d.GetOrCreateQos()
+
+	// DSCP → traffic-class 0
+	classifier0 := qos.GetOrCreateClassifier("dscp-to-tc0")
+	classifier0.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier0.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term0 := classifier0.GetOrCreateTerm("tc0")
+	term0.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{0, 1, 2, 3, 4, 5, 6, 7}
+	// term0.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc0"),
+	// }
+
+	// DSCP → traffic-class 1
+	classifier1 := qos.GetOrCreateClassifier("dscp-to-tc1")
+	classifier1.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier1.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term1 := classifier1.GetOrCreateTerm("tc1")
+	term1.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{8, 9, 10, 11, 12, 13, 14, 15}
+	// term1.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc1"),
+	// }
+
+	// DSCP → traffic-class 4
+	classifier4 := qos.GetOrCreateClassifier("dscp-to-tc4")
+	classifier4.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier4.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term4 := classifier4.GetOrCreateTerm("tc4")
+	term4.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{40, 41, 42, 43, 44, 45, 46, 47}
+	// term4.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc4"),
+	// }
+
+	// DSCP → traffic-class 7
+	classifier7 := qos.GetOrCreateClassifier("dscp-to-tc7")
+	classifier7.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier7.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term7 := classifier7.GetOrCreateTerm("tc7")
+	term7.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{48, 49, 50, 51, 52, 53, 54, 55}
+	// term7.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc7"),
+	// }
+
+	// fg0 := qos.GetOrCreateForwardingGroup("forwarding-group-tc0")
+	// fg0.ForwardingClass = ygot.Uint8(0)
+
+	// fg1 := qos.GetOrCreateForwardingGroup("forwarding-group-tc1")
+	// fg1.ForwardingClass = ygot.Uint8(1)
+
+	// fg4 := qos.GetOrCreateForwardingGroup("forwarding-group-tc4")
+	// fg4.ForwardingClass = ygot.Uint8(4)
+
+	// fg7 := qos.GetOrCreateForwardingGroup("forwarding-group-tc7")
+	// fg7.ForwardingClass = ygot.Uint8(7)
+
+	// // Forwarding group for policy-map af3
+	// fg3 := qos.GetOrCreateForwardingGroup("forwarding-group-tc3")
+	// fg3.ForwardingClass = ygot.Uint8(3)
+
+	// policy := qos.GetOrCreatePolicy("af3")
+	// stmt := policy.GetOrCreateStatement("class-default")
+	// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
 }

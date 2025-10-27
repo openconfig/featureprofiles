@@ -20,6 +20,10 @@ import (
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	ethertypeIPv4 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
+	ethertypeIPv6 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
+	seqIDBase     = uint32(10)
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -37,6 +41,7 @@ type DecapPolicyParams struct {
 	StaticLSPNameMulticast    string
 	StaticLSPLabelMulticast   uint32
 	StaticLSPNextHopMulticast string
+	DecapMPLSParams           DecapMPLSParams
 }
 
 // OcPolicyForwardingParams holds parameters for generating the OC Policy Forwarding config.
@@ -51,8 +56,8 @@ type OcPolicyForwardingParams struct {
 	CloudV4NHG   string
 	CloudV6NHG   string
 	DecapPolicy  DecapPolicyParams
-	GuePort      uint32
-	IpType       string
+	GUEPort      uint32
+	IPType       string
 	Dynamic      bool
 	TunnelIP     string
 }
@@ -63,6 +68,7 @@ type PolicyForwardingRule struct {
 	IpType             string
 	SourceAddress      string
 	DestinationAddress string
+	TTL                []uint8
 	Dscp               uint8
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
@@ -87,7 +93,7 @@ Traffic-policies
             set traffic class 3
       match ipv6-all-default ipv6
    !
-	 `
+     `
 	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
 	PolicyForwardingConfigv6Arista = `
 Traffic-policies
@@ -296,6 +302,13 @@ func MplsConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls ip'", dut.Vendor())
 		}
+	} else {
+		t.Log("Currently do not have support to enable Mpls through OC, need to uncomment once implemented")
+		// TODO: Currently do not have support to enable Mpls through OC, need to uncomment once implemented.
+		// d := &oc.Root{}
+		// ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		// mpls := ni.GetOrCreateMpls()
+		// mpls.Enabled = ygot.Bool(true)
 	}
 }
 
@@ -308,8 +321,9 @@ func QosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
 		}
+	} else {
+		QosClassificationOCConfig(t)
 	}
-
 }
 
 // LabelRangeConfig configures the interface label range.
@@ -321,6 +335,8 @@ func LabelRangeConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls label range'", dut.Vendor())
 		}
+	} else {
+		LabelRangeOCConfig(t, dut)
 	}
 }
 
@@ -474,22 +490,6 @@ func DecapPolicyRulesandActionsGue(t *testing.T, pf *oc.NetworkInstance_PolicyFo
 	rule10.GetOrCreateAction().DecapsulateGue = ygot.Bool(true)
 }
 
-// MplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
-func MplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-	mplsCfgv4 := ni.GetOrCreateMpls()
-	staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
-	egressv4 := staticMplsCfgv4.GetOrCreateEgress()
-	egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
-	egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
-
-	mplsCfgv6 := ni.GetOrCreateMpls()
-	staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
-	egressv6 := staticMplsCfgv6.GetOrCreateEgress()
-	egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
-	egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
-}
-
 // ApplyPolicyToInterfaceOC configures the policy-forwarding interfaces section to apply the specified
 // policy to the given interface ID.
 func ApplyPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, interfaceID string, appliedPolicyName string) {
@@ -553,7 +553,7 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel type UDP
 							tunnel decap-ip %s
 							tunnel decap-interface %s
-							`, params.GuePort, params.IpType, params.IpType, params.GuePort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -568,20 +568,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
-}
-
-// MPLSStaticLSPConfig configures the interface mpls static lsp.
-func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
-	if deviations.StaticMplsUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, staticLSPArista)
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
-		}
-	} else {
-		MplsGlobalStaticLspAttributes(t, ni, ocPFParams)
-	}
 }
 
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
@@ -719,11 +705,12 @@ func newPolicyForwardingEncapGreFromOC(t *testing.T, pf *oc.NetworkInstance_Poli
 func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		var matchRules, matchTarget string
+		var matchRules string
 		var nhGroupTargets = make(map[string][]string)
 		var nhGroupsBySource = make(map[string]string)
 		var nhTTlBySource = make(map[string]uint8)
 		for _, ruleConfig := range rules {
+			var matchTarget string
 			t.Logf("Processing rule %s", ruleConfig.Name)
 			if ruleConfig.Action == nil ||
 				ruleConfig.Name == "" {
@@ -731,11 +718,21 @@ func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName 
 				return ""
 			}
 			if ruleConfig.DestinationAddress != "" {
-				matchTarget = fmt.Sprintf("destination prefix %s", ruleConfig.DestinationAddress)
-			} else if ruleConfig.SourceAddress != "" {
-				matchTarget = fmt.Sprintf("source prefix %s", ruleConfig.SourceAddress)
-			} else {
-				t.Errorf("Rule %s must have either SourceAddress or DestinationAddress defined", ruleConfig.Name)
+				matchTarget += fmt.Sprintf("destination prefix %s\n", ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.SourceAddress != "" {
+				matchTarget += fmt.Sprintf("source prefix %s\n", ruleConfig.SourceAddress)
+			}
+			if len(ruleConfig.TTL) > 0 {
+				ttlStrs := make([]string, len(ruleConfig.TTL))
+				for i, v := range ruleConfig.TTL {
+					ttlStrs[i] = fmt.Sprintf("%d", v)
+				}
+				ttlValues := strings.Join(ttlStrs, ", ")
+				matchTarget += fmt.Sprintf("ttl %s\n", ttlValues)
+			}
+			if matchTarget == "" {
+				t.Errorf("Rule %s must have either SourceAddress, DestinationAddress or TTL defined", ruleConfig.Name)
 				return ""
 			}
 			switch ruleConfig.IpType {
@@ -862,6 +859,7 @@ func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string,
 	}
 }
 
+// ConfigureDutWithGueDecap configures the DUT to decapsulate GUE (Generic UDP Encapsulation) traffic. It supports both native CLI configuration (for vendors like Arista) and OpenConfig (GNMI) configuration.
 func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int, ipType, tunIp, decapInt, policyName string, policyId int) {
 	t.Logf("Configure DUT with decapsulation UDP port %v", guePort)
 	if deviations.DecapsulateGueOCUnsupported(dut) {
@@ -894,4 +892,85 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 		// transport := npRule.GetOrCreateTransport()
 		// transport.SetDestinationPort()
 	}
+}
+
+// PbrRule defines a policy-based routing rule configuration
+type PbrRule struct {
+	Sequence  uint32
+	EtherType oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
+	EncapVrf  string
+}
+
+// PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
+type PolicyForwardingConfigName struct {
+	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
+}
+
+// NewPolicyForwardingVRFSelection configures Policy-Based Routing for VRF selection.
+func NewPolicyForwardingVRFSelection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg PolicyForwardingConfigName) *gnmi.SetBatch {
+	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	p := pf.GetOrCreatePolicy(cfg.Name)
+	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	for _, pRule := range getPbrRules(dut) {
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
+
+		// Optional default rule match requirement.
+		if deviations.PfRequireMatchDefaultRule(dut) && pRule.EtherType != nil {
+			r.GetOrCreateL2().Ethertype = pRule.EtherType
+		}
+
+		// Set forwarding action (encap VRF)
+		if pRule.EncapVrf != "" {
+			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
+		}
+	}
+
+	// Push policy forwarding configuration via GNMI batch.
+	gnmi.BatchUpdate(sb,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(),
+		pf,
+	)
+
+	t.Logf("Configured policy forwarding VRF selection: policy=%s", cfg.Name)
+
+	return sb
+}
+
+// getPbrRules returns policy-based routing rules for VRF selection
+func getPbrRules(dut *ondatra.DUTDevice) []PbrRule {
+	vrfDefault := deviations.DefaultNetworkInstance(dut)
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		return []PbrRule{
+			{
+				Sequence:  17,
+				EtherType: ethertypeIPv4,
+				EncapVrf:  vrfDefault,
+			},
+			{
+				Sequence:  18,
+				EtherType: ethertypeIPv6,
+				EncapVrf:  vrfDefault,
+			},
+		}
+	}
+	return []PbrRule{
+		{
+			Sequence: 17,
+			EncapVrf: vrfDefault,
+		},
+	}
+}
+
+// seqIDOffset returns sequence ID with base offset to ensure proper ordering
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
 }
