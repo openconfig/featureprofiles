@@ -151,11 +151,9 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			continue
 		}
 
-		if deviations.PowerDisableEnableLeafRefValidation(dut) {
-			gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{
-				Name: ygot.String(f),
-			})
-		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{
+			Name: ygot.String(f),
+		})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
@@ -169,11 +167,9 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
-		if deviations.PowerDisableEnableLeafRefValidation(dut) {
-			gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{
-				Name: ygot.String(f),
-			})
-		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{
+			Name: ygot.String(f),
+		})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
