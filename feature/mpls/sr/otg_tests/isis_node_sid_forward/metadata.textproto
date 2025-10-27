@@ -21,3 +21,12 @@ platform_exceptions:  {
     isis_metric_style_telemetry_unsupported:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_srgb_srlb_unsupported: true
+    sid_per_interface_counter_unsupported: true
+  }
+}
