@@ -1192,9 +1192,12 @@ type Metadata_Deviations struct {
 	// Devices that do not support isis adjancy with STREAM telemetry
 	// Nokia: https://issuetracker.google.com/452295044
 	IsisAdjacencyStreamUnsupported bool `protobuf:"varint,339,opt,name=isis_adjacency_stream_unsupported,json=isisAdjacencyStreamUnsupported,proto3" json:"isis_adjacency_stream_unsupported,omitempty"`
+	// Device does not support sid_per_interface_counter_unsupported
+	// Cisco b/447350490
+	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
 	// Juniper does not support localhost yet
 	// b/448173472
-	LocalhostForContainerz bool `protobuf:"varint,340,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
+	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
 	unknownFields          protoimpl.UnknownFields
 	sizeCache              protoimpl.SizeCache
 }
@@ -3371,6 +3374,13 @@ func (x *Metadata_Deviations) GetIsisAdjacencyStreamUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetSidPerInterfaceCounterUnsupported() bool {
+	if x != nil {
+		return x.SidPerInterfaceCounterUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetLocalhostForContainerz() bool {
 	if x != nil {
 		return x.LocalhostForContainerz
@@ -3434,7 +3444,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"ٺ\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xac\xbb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3446,7 +3456,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe2\xb0\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb5\xb1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3757,8 +3767,9 @@ const file_metadata_proto_rawDesc = "" +
 	"%transceiver_config_enable_unsupported\x18\xd0\x02 \x01(\bR\"transceiverConfigEnableUnsupported\x12<\n" +
 	"\x1aaft_summary_oc_unsupported\x18\xd1\x02 \x01(\bR\x17aftSummaryOcUnsupported\x12?\n" +
 	"\x1cisis_lsp_tlvs_oc_unsupported\x18\xd2\x02 \x01(\bR\x18isisLspTlvsOcUnsupported\x12J\n" +
-	"!isis_adjacency_stream_unsupported\x18\xd3\x02 \x01(\bR\x1eisisAdjacencyStreamUnsupported\x129\n" +
-	"\x18localhost_for_containerz\x18\xd4\x02 \x01(\bR\x16localhostForContainerzJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"!isis_adjacency_stream_unsupported\x18\xd3\x02 \x01(\bR\x1eisisAdjacencyStreamUnsupported\x12Q\n" +
+	"%sid_per_interface_counter_unsupported\x18\xd4\x02 \x01(\bR!sidPerInterfaceCounterUnsupported\x129\n" +
+	"\x18localhost_for_containerz\x18\xd5\x02 \x01(\bR\x16localhostForContainerzJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
