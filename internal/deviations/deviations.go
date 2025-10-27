@@ -1712,3 +1712,9 @@ func ISISLSPTlvsOCUnsupported(dut *ondatra.DUTDevice) bool {
 func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }
+
+// TemperatureSensorCheck returns true if /components/component/transceiver subcomponent should check for the temperature sensor
+// Default value is false.
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}

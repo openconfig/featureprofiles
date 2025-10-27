@@ -999,6 +999,9 @@ message Metadata {
     // Cisco b/447350490
     bool sid_per_interface_counter_unsupported = 340;
 
+    // Check is transceiver subcomponent should look for the temperature sensor
+    bool temperature_sensor_check = 341;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

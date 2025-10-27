@@ -28,6 +28,8 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
+    transceiver_thresholds_unsupported:  true
+    temperature_sensor_check: true
     ciscoxr_laser_ft:  "ciscoxr-laser-ft"
   }
 }
