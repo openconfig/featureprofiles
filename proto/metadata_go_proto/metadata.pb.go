@@ -1203,12 +1203,9 @@ type Metadata_Deviations struct {
 	// Device does not support sid_per_interface_counter_unsupported
 	// Cisco b/447350490
 	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
-
 	// Juniper does not support localhost yet
 	// b/448173472
 	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
