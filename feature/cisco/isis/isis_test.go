@@ -20,6 +20,9 @@ func TestISISState(t *testing.T) {
 	}
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(10 * time.Second)
+
+	configureBaseconfig(t, inputObj, dut)
+
 	inputObj.StartAteProtocols(ate)
 	time.Sleep(15 * time.Second)
 	isis := inputObj.Device(dut).Features().Isis[0]
