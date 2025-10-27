@@ -84,6 +84,12 @@ func TestStorageFileSystemCheck(t *testing.T) {
 			fn:          testStorageSystemEvents,
 		},
 		{
+			name:        "trigger-events",
+			counterType: "counter64",
+			description: "Validate storage trigger events counter",
+			fn:          testCounterTriggerScenario,
+		},
+		{
 			name:        "subscription-levels",
 			counterType: "mixed",
 			description: "Validate storage subscriptions at root, container, and leaf levels",
@@ -217,9 +223,6 @@ func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix 
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	// t.Run("life-left-trigger-scenario", func(t *testing.T) {
-	// 	testLifeLeftTriggerScenario(t, args, ctx, pathSuffix)
-	// })
 }
 
 func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
@@ -243,10 +246,6 @@ func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathS
 		testStorageCounterGetMode(t, args, pathSuffix)
 	})
 
-	t.Run("trigger scenario", func(t *testing.T) {
-		testStorageCounterTriggerScenario(t, args, ctx, pathSuffix)
-	})
-
 }
 
 func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, path string) {
@@ -254,6 +253,14 @@ func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, 
 
 	t.Run("comprehensive-system-events-test", func(t *testing.T) {
 		testStorageSystemEventsComprehensive(t, args)
+	})
+}
+
+func testCounterTriggerScenario(ctx context.Context, t *testing.T, args *testArgs, path string) {
+	t.Log("Description: Counter Trigger Scenario - Validate storage counters on specific triggers")
+
+	t.Run("trigger scenario", func(t *testing.T) {
+		testStorageCounterTriggerScenario(t, args, ctx, path)
 	})
 }
 
