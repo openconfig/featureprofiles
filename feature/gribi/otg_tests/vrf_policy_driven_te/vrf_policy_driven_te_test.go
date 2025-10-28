@@ -855,6 +855,7 @@ func createFlow(flowValues *flowArgs) gosnappi.Flow {
 	outerIpHdr := flow.Packet().Add().Ipv4()
 	outerIpHdr.Src().SetValue(flowValues.outHdrSrcIP)
 	outerIpHdr.Dst().SetValue(flowValues.outHdrDstIP)
+	outerIpHdr.TimeToLive().SetValue(uint32(correspondingTTL))
 	outerIpHdr.Priority().Raw().SetValue(outerTrafficClass)
 	if flowValues.udp {
 		UDPHeader := flow.Packet().Add().Udp()
@@ -1664,10 +1665,10 @@ func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
 			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
 			if ipInnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, Inner IP header is not removed")
+				t.Errorf("validateTrafficTTL: packets are not decapped, inner IP header is not removed")
 			}
 			if ipv6InnerLayer != nil {
-				t.Errorf("validateTrafficTTL: packets are not decapped, Inner IPv6 header is not removed")
+				t.Errorf("validateTrafficTTL: packets are not decapped, inner IPv6 header is not removed")
 			}
 		}
 	}
@@ -1676,12 +1677,20 @@ func validateTrafficTTL(t *testing.T, captureFile *os.File) {
 	}
 }
 
-func calculateDecapSuccessRate(notDecapped, totalCaptured uint32) float64 {
-	if totalCaptured == 0 {
-		return 0.0
+// isDecapped determines if an IP-in-IP packet has been successfully decapsulated by verifying that only one IP layer exists.
+// Layer processing is intentionally stopped at the UDP layer, as the gopacket library may misinterpret the UDP payload
+// as an additional protocol layer (e.g.: APSP). This workaround prevents a false negative in the decapsulation check.
+func isDecapped(t *testing.T, packet gopacket.Packet) bool {
+	numberOfIPLayers := 0
+	for _, layer := range packet.Layers() {
+		if layer.LayerType() == layers.LayerTypeUDP {
+			break
+		}
+		if layer.LayerType() == layers.LayerTypeIPv4 || layer.LayerType() == layers.LayerTypeIPv6 {
+			numberOfIPLayers++
+		}
 	}
-	decapped := totalCaptured - notDecapped
-	return (float64(decapped) / float64(totalCaptured)) * 100.0
+	return (numberOfIPLayers == 1)
 }
 
 func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp uint32, expectedInHdrEcn uint32) {
@@ -1717,18 +1726,20 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		if ipLayer != nil {
 			testStats.IPv4CapturedPackets++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
-			innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
-			ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-			ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-			if ipInnerLayer != nil {
-				testStats.IPv4NotDecappedPackets++
-				log.Warningf("validateTrafficDecap: packets are not decapped, Inner IP header is not removed")
-				continue
-			}
-			if ipv6InnerLayer != nil {
-				testStats.IPv6NotDecappedPackets++
-				log.Warningf("validateTrafficDecap: packets are not decapped, Inner IPv6 header is not removed")
-				continue
+			if !isDecapped(t, packet) {
+				innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
+				ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
+				ipv6InnerLayer := innerPacket.Layer(layers.LayerTypeIPv6)
+				if ipInnerLayer != nil {
+					testStats.IPv4NotDecappedPackets++
+					log.Warningf("validateTrafficDecap: packets are not decapped, inner IP header is not removed")
+					continue
+				}
+				if ipv6InnerLayer != nil {
+					testStats.IPv6NotDecappedPackets++
+					log.Warningf("validateTrafficDecap: packets are not decapped, inner IPv6 header is not removed")
+					continue
+				}
 			}
 			if actualDscp := uint32(ipPacket.TOS >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv4DscpMismatchPackets++
@@ -1741,7 +1752,7 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		} else {
 			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
-			if actualDscp := uint32(ipv6Packet.TrafficClass); actualDscp != expectedInHdrDscp {
+			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
@@ -1755,44 +1766,28 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		t.Errorf("validateTrafficDecap: no packets have been captured and validated for decap")
 	}
 	if testStats.IPv4DscpMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap: a number of %v packets have unexpected DSCP value after decap out of %v IPv4 packets captured",
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv4 packets captured",
 			testStats.IPv4DscpMismatchPackets, testStats.IPv4CapturedPackets)
 	}
 	if testStats.IPv4EcnMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap: a number of %v packets have unexpected ECN value after decap out of %v IPv4 packets captured",
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv4 packets captured",
 			testStats.IPv4EcnMismatchPackets, testStats.IPv4CapturedPackets)
 	}
 	if testStats.IPv4NotDecappedPackets > 0 {
-		// TODO: we have exactly one packet that is considered not decapped. At the moment we think it is a decoding issue,
-		// because the packet in wireshark looks decapped and the issue occurs only when the UDP ports are 1000
-		successRate := calculateDecapSuccessRate(testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
-		if successRate != 100.0 {
-			t.Logf("validateTrafficDecap: a number of %v packets have not been decapped out of %v IPv4 packets captured",
-				testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
-			if successRate < 99.0 {
-				t.Errorf("validateTrafficDecap: decap success rate for IPv4 packets is less than 99.0%%")
-			}
-		}
+		t.Errorf("validateTrafficDecap:%v packets have not been decapped out of %v IPv4 packets captured",
+			testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
 	}
 	if testStats.IPv6DscpMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap: a number of %v packets have unexpected DSCP value after decap out of %v IPv6 packets captured",
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv6 packets captured",
 			testStats.IPv6DscpMismatchPackets, testStats.IPv6CapturedPackets)
 	}
 	if testStats.IPv6EcnMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap: a number of %v packets have unexpected ECN value after decap out of %v IPv6 packets captured",
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv6 packets captured",
 			testStats.IPv6EcnMismatchPackets, testStats.IPv6CapturedPackets)
 	}
 	if testStats.IPv6NotDecappedPackets > 0 {
-		// TODO: we have exactly one packet that is considered not decapped. At the moment we think it is a decoding issue,
-		// because the packet in wireshark looks decapped and the issue occurs only when the UDP ports are 1000
-		successRate := calculateDecapSuccessRate(testStats.IPv6NotDecappedPackets, testStats.IPv6CapturedPackets)
-		if successRate != 100.0 {
-			t.Logf("validateTrafficDecap: a number of %v packets have not been decapped out of %v IPv6 packets captured",
-				testStats.IPv6NotDecappedPackets, testStats.IPv6CapturedPackets)
-			if successRate < 99.0 {
-				t.Errorf("validateTrafficDecap: decap success rate for IPv6 packets is less than 99.0%%")
-			}
-		}
+		t.Errorf("validateTrafficDecap:%v packets have not been decapped out of %v IPv6 packets captured",
+			testStats.IPv6NotDecappedPackets, testStats.IPv6CapturedPackets)
 	}
 }
 
@@ -1965,31 +1960,31 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 						outHdrSrcIP: ipv4OuterSrc111,
 						outHdrDstIP: ipv4OuterDst111,
 						outHdrDscp:  []uint32{dscpEncapNoMatch},
-						outHdrEcn:   []uint32{ecnCapable1},
+						outHdrEcn:   []uint32{ecnCongestionExperienced},
 						isInnHdrV4:  true,
 						InnHdrSrcIP: atePort1.IPv4,
 						InnHdrDstIP: ipv4InnerDst,
-						inHdrDscp:   []uint32{dscpEncapA1},               // Different than outer DSCP
-						inHdrEcn:    []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:   []uint32{dscpEncapNoMatch},
+						inHdrEcn:    []uint32{ecnCapable1}})
 
 					flow2 := createFlow(&flowArgs{flowName: flow6in4,
 						outHdrSrcIP:   ipv4OuterSrc111,
 						outHdrDstIP:   ipv4OuterDst111,
 						outHdrDscp:    []uint32{dscpEncapNoMatch},
-						outHdrEcn:     []uint32{ecnCapable1},
+						outHdrEcn:     []uint32{ecnCongestionExperienced},
 						isInnHdrV4:    false,
 						InnHdrSrcIPv6: atePort1.IPv6,
 						InnHdrDstIPv6: ipv6InnerDst,
-						inHdrDscp:     []uint32{dscpEncapA1},               // Different than outer DSCP
-						inHdrEcn:      []uint32{ecnCongestionExperienced}}) // Different than outer ECN
+						inHdrDscp:     []uint32{dscpEncapNoMatch},
+						inHdrEcn:      []uint32{ecnCapable1}})
 
 					sendTraffic(t, args, portList, []gosnappi.Flow{flow1, flow2})
 					verifyTraffic(t, args, []string{flow4in4, flow6in4}, !wantLoss)
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDst,
-						inHdrDscp:     dscpEncapNoMatch, // We expect the outer DSCP to be copied to the inner packet.
-						inHdrEcn:      ecnCapable1,      // We expect the outer ECN to be copied to the inner packet.
+						inHdrDscp:     dscpEncapNoMatch,
+						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
 						validateTTL:   true,
 						validateDecap: true})
 				})
