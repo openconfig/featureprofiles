@@ -1713,6 +1713,11 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }
 
+// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
+}
+
 // BMPOCUnsupported returns true if BMP configuration is not supported
 func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
