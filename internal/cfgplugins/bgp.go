@@ -191,6 +191,7 @@ type BgpNeighborScale struct {
 }
 
 // EBgpConfigScale holds parameters for configuring eBGP peers in a scale test.
+// Use same value for AteASV4 and AteASV6 to configures ipv4 and ipv6 in the same AS.
 type EBgpConfigScale struct {
 	AteASV4       uint32
 	AteASV6       uint32
@@ -820,6 +821,7 @@ func BuildIPv4v6NbrScale(t *testing.T, cfg *EBgpConfigScale) []*BgpNeighborScale
 		asn = asn + 1
 		asn6 = asn6 + 1
 	}
+	// Required data to create neighbours is updated in nbrList
 	return nbrList
 }
 
