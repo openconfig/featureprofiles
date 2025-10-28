@@ -4,7 +4,7 @@
 uuid:  "fce08e5f-1fba-49cb-beee-f72478ffb5f3"
 plan_id:  "TE-18.3"
 description:  "MPLS in UDP Encapsulation Scale Test"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
@@ -15,6 +15,7 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     gribi_encap_header_unsupported:  true
+    omit_l2_mtu: true
   }
 }
 platform_exceptions:  {

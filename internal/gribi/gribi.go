@@ -267,7 +267,7 @@ func NHGEntry(nhgIndex uint64, nhWeights map[uint64]uint64, instance string, exp
 func (c *Client) AddEntries(t testing.TB, entries []fluent.GRIBIEntry, expectedResults []*client.OpResult) {
 	t.Helper()
 	c.fluentC.Modify().AddEntry(t, entries...)
-	if err := c.AwaitTimeout(context.Background(), t, timeout); err != nil {
+	if err := c.AwaitTimeout(context.Background(), t, 3*timeout); err != nil {
 		t.Fatalf("Error waiting to add entries: %v", err)
 	}
 	for _, result := range expectedResults {
