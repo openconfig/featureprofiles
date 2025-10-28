@@ -442,9 +442,10 @@ func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipTyp
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
 		TunnelIP:            dcapIP,
-		GUEPort:             uint32(decapPort),
-		IPType:              ipType,
+		GuePort:             uint32(decapPort),
+		IpType:              ipType,
 		Dynamic:             true,
+		DecapProtocol:       ipType,
 	}
 }
 
