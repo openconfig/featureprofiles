@@ -36,7 +36,7 @@ const (
 	otgStartIPV6                 = "2000:0:0:1::2"
 	stepV4                       = "0.0.0.4"
 	stepV6                       = "0:0:0:1::"
-	greTunnelDestinationsStartIP = "10.99.1.1/32"
+	greTunnelDestinationsStartIP = "10.99.1.1/24"
 	trafficDuration              = 20 * time.Second
 )
 
@@ -126,7 +126,7 @@ var (
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv6.FlowName, TolerancePct: 0.5},
 	}
 	outerGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
-		DstIP:    "10.99.1.20",
+		DstIP:    "10.99.1.19",
 		Protocol: greProtocol,
 		Tos:      96,
 		TTL:      64,
