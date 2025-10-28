@@ -45,6 +45,7 @@ const (
 	lossTolerance   = 1
 	mgmtVRF         = "mvrf1"
 	sampleTolerance = 0.8
+	ciscominSamplingRate = 1000000
 )
 
 var (
@@ -466,7 +467,7 @@ func validatePackets(t *testing.T, dut *ondatra.DUTDevice, filename string, ip I
 	sflowSamples := uint32(0)
 	var minSamplingRate uint32
 	if dut.Vendor() == ondatra.CISCO {
-		minSamplingRate = 1000000
+		minSamplingRate = ciscominSamplingRate
 	} else {
 		minSamplingRate = fc.minSamplingRate
 	}
