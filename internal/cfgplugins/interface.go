@@ -84,11 +84,11 @@ type Attributes struct {
 	Gateway6         func(vlan int) string
 	Ip4Loopback      func(vlan int) string
 	Ip6Loopback      func(vlan int) string
-	LagMAC   string
-	EthMAC   string
-	Port1MAC string
-	Pg4      string
-	Pg6      string
+	LagMAC           string
+	EthMAC           string
+	Port1MAC         string
+	Pg4              string
+	Pg6              string
 }
 
 // PopulateOndatraPorts populates the OndatraPorts field of the DutLagData from the OndatraPortsIdx
@@ -1105,26 +1105,26 @@ func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondat
 
 // AddInterfaceMTUOps adds gNMI operations for interface MTU to the batch.
 func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, mtu uint16, isDelete bool) {
-    intf := gnmi.OC().Interface(intfName)
+	intf := gnmi.OC().Interface(intfName)
 
-    if deviations.OmitL2MTU(dut) {
-        ipv4MtuPath := intf.Subinterface(0).Ipv4().Mtu()
-        ipv6MtuPath := intf.Subinterface(0).Ipv6().Mtu()
-        if isDelete {
-            gnmi.BatchDelete(b, ipv4MtuPath.Config())
-            gnmi.BatchDelete(b, ipv6MtuPath.Config())
-        } else {
-            gnmi.BatchReplace(b, ipv4MtuPath.Config(), mtu)
-            gnmi.BatchReplace(b, ipv6MtuPath.Config(), uint32(mtu))
-        }
-    } else {
-        mtuPath := intf.Mtu()
-        if isDelete {
-            gnmi.BatchDelete(b, mtuPath.Config())
-        } else {
-            gnmi.BatchReplace(b, mtuPath.Config(), mtu)
-        }
-    }
+	if deviations.OmitL2MTU(dut) {
+		ipv4MtuPath := intf.Subinterface(0).Ipv4().Mtu()
+		ipv6MtuPath := intf.Subinterface(0).Ipv6().Mtu()
+		if isDelete {
+			gnmi.BatchDelete(b, ipv4MtuPath.Config())
+			gnmi.BatchDelete(b, ipv6MtuPath.Config())
+		} else {
+			gnmi.BatchReplace(b, ipv4MtuPath.Config(), mtu)
+			gnmi.BatchReplace(b, ipv6MtuPath.Config(), uint32(mtu))
+		}
+	} else {
+		mtuPath := intf.Mtu()
+		if isDelete {
+			gnmi.BatchDelete(b, mtuPath.Config())
+		} else {
+			gnmi.BatchReplace(b, mtuPath.Config(), mtu)
+		}
+	}
 }
 
 // StaticARPEntry defines per-port static ARP mapping.

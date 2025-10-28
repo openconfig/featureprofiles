@@ -271,12 +271,12 @@ type BGPRouteAttrs struct {
 	ExtendedCommunities []gosnappi.BgpExtendedCommunity
 	AsPath              gosnappi.BgpAsPath
 	LocalPref           *uint32
-	Origin       gosnappi.BgpAttributesOriginEnum
-	Med          *uint32
-	NextHopIpv4  string
-	NextHopIpv6  string
-	NextHopMode  string // MANUAL or LOCAL_IP
-	AddressCount uint32
+	Origin              gosnappi.BgpAttributesOriginEnum
+	Med                 *uint32
+	NextHopIpv4         string
+	NextHopIpv6         string
+	NextHopMode         string // MANUAL or LOCAL_IP
+	AddressCount        uint32
 }
 
 // BGPRouteOption is a function to set BGPRouteAttrs options.
@@ -465,7 +465,6 @@ func CreateBGPASPath(asNumbers []uint32, segmentType gosnappi.BgpAsPathSegmentTy
 	return asPath
 }
 
-
 // ConfigureISIS configures the ISIS protocol on a device.
 func ConfigureISIS(t *testing.T, dev gosnappi.Device, attrs *ISISAttrs) gosnappi.DeviceIsisRouter {
 	t.Helper()
@@ -496,4 +495,3 @@ func AddISISRoutesV6(isis gosnappi.DeviceIsisRouter, name string, linkMetric uin
 	route := isis.V6Routes().Add().SetName(name).SetLinkMetric(linkMetric)
 	route.Addresses().Add().SetAddress(address).SetPrefix(prefix).SetCount(count)
 }
-

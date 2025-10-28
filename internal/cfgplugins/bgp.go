@@ -1068,7 +1068,7 @@ func WithPGTransport(transportAddress string) PeerGroupOption {
 // WithPGMultipath configures multipath settings for the peer group.
 func WithPGMultipath(pgName string, enableMultipath bool) PeerGroupOption {
 	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
-	  // skip multipath for IBGP peers
+		// skip multipath for IBGP peers
 		if !enableMultipath {
 			return
 		}
@@ -1129,55 +1129,55 @@ func ConfigurePeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *onda
 
 // addBGPNeighborTCPMSSOps adds gNMI operations for BGP neighbor TCP MSS to the batch.
 func addBGPNeighborTCPMSSOps(t *testing.T, b *gnmi.SetBatch, dut *ondatra.DUTDevice, nbrList []string, isDelete bool, mss uint16) {
-    // TODO: will investigate if we need to add a deviation for Arista.
-    if dut.Vendor() == ondatra.ARISTA {
-        t.Logf("TCP MSS: dut.Vendor() == ondatra.ARISTA, PMTU discovery is enabled by default, skipping explicit TCP MSS operations.")
-        return // No explicit TCP MSS operations for Arista.
-    }
+	// TODO: will investigate if we need to add a deviation for Arista.
+	if dut.Vendor() == ondatra.ARISTA {
+		t.Logf("TCP MSS: dut.Vendor() == ondatra.ARISTA, PMTU discovery is enabled by default, skipping explicit TCP MSS operations.")
+		return // No explicit TCP MSS operations for Arista.
+	}
 
-    ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-    bgpPath := ni.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	bgpPath := ni.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-    for _, nbr := range nbrList {
-            tcpMssPath := bgpPath.Neighbor(nbr).Transport().TcpMss().Config()
-            if isDelete {
-                gnmi.BatchDelete(b, tcpMssPath)
-            } else {
-                gnmi.BatchReplace(b, tcpMssPath, mss)
-            }
-    }
+	for _, nbr := range nbrList {
+		tcpMssPath := bgpPath.Neighbor(nbr).Transport().TcpMss().Config()
+		if isDelete {
+			gnmi.BatchDelete(b, tcpMssPath)
+		} else {
+			gnmi.BatchReplace(b, tcpMssPath, mss)
+		}
+	}
 }
 
 // ConfigureDUTBGPMaxSegmentSize configures the DUT interface MTU and BGP neighbor TCP MSS.
 // intfName is the name of the interface to configure MTU on.
 func ConfigureDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16) {
-    t.Helper()
-    b := &gnmi.SetBatch{}
-    isDelete := false
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	isDelete := false
 
-    t.Logf("Configuring MTU %d on interface: %s", mtu, intfName)
-    AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete)
+	t.Logf("Configuring MTU %d on interface: %s", mtu, intfName)
+	AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete)
 
-    t.Logf("Configuring DUT BGP TCP-MSS for relevant neighbors")
-    addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
+	t.Logf("Configuring DUT BGP TCP-MSS for relevant neighbors")
+	addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
 
-    b.Set(t, dut)
+	b.Set(t, dut)
 }
 
 // DeleteDUTBGPMaxSegmentSize removes the DUT interface MTU and BGP neighbor TCP MSS configurations.
 // intfName is the name of the interface to remove MTU config from.
-func DeleteDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16)  {
-    t.Helper()
-		b := &gnmi.SetBatch{}
-    isDelete := true
+func DeleteDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	isDelete := true
 
-    t.Logf("Deleting MTU config on interface: %s", intfName)
-    AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete) // MTU value not used for delete
+	t.Logf("Deleting MTU config on interface: %s", intfName)
+	AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete) // MTU value not used for delete
 
-    t.Logf("Deleting DUT BGP TCP-MSS config for relevant neighbors")
-    addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
+	t.Logf("Deleting DUT BGP TCP-MSS config for relevant neighbors")
+	addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
 
-    b.Set(t, dut)
+	b.Set(t, dut)
 }
 
 // BuildIPv4v6NbrScale generates a list of BgpNeighborScale configurations for IPv4 and IPv6 peers.

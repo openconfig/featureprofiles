@@ -46,9 +46,9 @@ type Port struct {
 	MemberPorts []string
 	LagID       uint32
 	IsLag       bool
-	IsLoopbackNeeded bool
-	IsMTU            bool
-	MTU              uint32
+	IsLo0Needed bool
+	IsMTU       bool
+	MTU         uint32
 }
 
 // InterfaceProperties is a struct to hold interface data.
@@ -126,7 +126,7 @@ func ConfigureInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port)
 		eth.Ipv6Addresses().Add().SetName(intf.Name + ".IPv6").SetAddress(intf.IPv6).SetGateway(intf.IPv6Gateway).SetPrefix(intf.IPv6Len)
 	}
 	// Loopback configuration
-	if a.IsLoopbackNeeded {
+	if a.IsLo0Needed {
 		if intf.LoopbackV4 != "" {
 			iDut4LoopV4 := dev.Ipv4Loopbacks().Add().SetName(intf.Name + ".Loopback.IPv4").SetEthName(intf.Name + ".Eth")
 			iDut4LoopV4.SetAddress(intf.LoopbackV4)

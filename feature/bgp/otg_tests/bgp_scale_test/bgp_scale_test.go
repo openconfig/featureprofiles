@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ygot/ygot"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -35,14 +34,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	netinstbgp "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	netinstbgp "github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -368,15 +368,15 @@ type attributes struct {
 	gateway6         func(vlan int) string
 	ip4Loopback      func(vlan int) string
 	ip6Loopback      func(vlan int) string
-	lagMAC       string
-	ethMAC       string
-	port1MAC     string
-	pg4          string
-	pg6          string
-	asn          func(vlan int) uint32
-	pgList       []string
-	importPolicy string // Import policy of the neighbor
-	exportPolicy string // Export policy of the neighbor
+	lagMAC           string
+	ethMAC           string
+	port1MAC         string
+	pg4              string
+	pg6              string
+	asn              func(vlan int) uint32
+	pgList           []string
+	importPolicy     string // Import policy of the neighbor
+	exportPolicy     string // Export policy of the neighbor
 }
 
 type dutInfo struct {
@@ -593,7 +593,7 @@ func TestBGPScale(t *testing.T) {
 		verifyTelemetry   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor)
 		verifyConvergence func(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4RouteCount, v6RouteCount uint32, isRouteWithdrawn bool)
 		verifyTraffic     []func(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config)
-		testCleanup []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16)
+		testCleanup       []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16)
 	}{
 		{
 			name:              "RT-1.65.1.1 - Steady State - 7 v4/v6 IBGP sessions",
@@ -684,7 +684,7 @@ func TestBGPScale(t *testing.T) {
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
 			verifyTraffic:     []func(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config){sendTraffic, verifyTraffic},
-			testCleanup: []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16){cfgplugins.DeleteDUTBGPMaxSegmentSize},
+			testCleanup:       []func(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16){cfgplugins.DeleteDUTBGPMaxSegmentSize},
 		},
 		{
 			name:              "RT-1.65.4.1 - BGP Session and Route Scale with BGP events_Alter_BGP_attributes",
@@ -1012,13 +1012,13 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 			})
 		}
 		port := otgconfighelpers.Port{
-			Name:             atePort.Name,
-			AggMAC:           atePort.MAC,
-			Interfaces:       intefaces,
-			IsLag:            isLag,
-			IsLoopbackNeeded: isLoopback,
-			IsMTU:            isMTU,
-			MTU:              mtu,
+			Name:        atePort.Name,
+			AggMAC:      atePort.MAC,
+			Interfaces:  intefaces,
+			IsLag:       isLag,
+			IsLo0Needed: isLoopback,
+			IsMTU:       isMTU,
+			MTU:         mtu,
 		}
 		if isLag {
 			port.MemberPorts = []string{atePort.Name}
@@ -2272,4 +2272,3 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 	otgconfighelpers.AddISISRoutesV4(isis, "ISISPort4V4"+strconv.Itoa(int(i)), 10, atePort.ip4Loopback(i), 32, 1)
 	otgconfighelpers.AddISISRoutesV6(isis, "ISISPort4V6"+strconv.Itoa(int(i)), 10, atePort.ip6Loopback(i), 128, 1)
 }
-
