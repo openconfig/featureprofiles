@@ -1178,6 +1178,8 @@ func DeleteDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName s
     addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
 
     b.Set(t, dut)
+}
+
 // BuildIPv4v6NbrScale generates a list of BgpNeighborScale configurations for IPv4 and IPv6 peers.
 func BuildIPv4v6NbrScale(t *testing.T, cfg *EBgpConfigScale) []*BgpNeighborScale {
 	var nbrList []*BgpNeighborScale

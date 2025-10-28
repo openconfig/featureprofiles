@@ -1125,6 +1125,8 @@ func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName strin
             gnmi.BatchReplace(b, mtuPath.Config(), mtu)
         }
     }
+}
+
 // StaticARPEntry defines per-port static ARP mapping.
 type StaticARPEntry struct {
 	PortName string // DUT port name (e.g., "port2")
