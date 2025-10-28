@@ -1017,6 +1017,14 @@ message Metadata {
     // bandwidth.
     bool advertised_cumulative_lbw_oc_unsupported = 344;
 
+    // Device does not support to disable bgp GR-HELPER.
+    // Nokia: b/455781430
+    bool bgp_gr_helper_disable_unsupported = 345;
+    
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    // Cisco: b/455784294
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 346;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
