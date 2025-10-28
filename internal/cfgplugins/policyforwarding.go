@@ -492,13 +492,13 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 			for i := 1; i <= encapparams.Count; i++ {
 
 				fmt.Fprintf(PolicyForwardingConfig, `
-    traffic-policy tp_cloud_id_3_%d
+    traffic-policy tp_cloud_id_3_%[1]d
     match setttlv6 ipv6
        ttl 1
        !
        actions
           count
-          redirect next-hop group 1V6_vlan_3_%d
+          redirect next-hop group 1V6_vlan_3_%[1]d
           set traffic class 3
     !
     match setttlv4 ipv4
@@ -506,21 +506,21 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
        !
        actions
           count
-          redirect next-hop group 1V4_vlan_3_%d
+          redirect next-hop group 1V4_vlan_3_%[1]d
           set traffic class 3
     !
     match ipv4-all-default ipv4
        actions
           count
-          redirect next-hop group 1V4_vlan_3_%d
+          redirect next-hop group 1V4_vlan_3_%[1]d
           set traffic class 3
     !
     match ipv6-all-default ipv6
        actions
           count
-          redirect next-hop group 1V6_vlan_3_%d
+          redirect next-hop group 1V6_vlan_3_%[1]d
           set traffic class 3
-    !`, i, i, i, i, i)
+    !`, i)
 			}
 
 			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())

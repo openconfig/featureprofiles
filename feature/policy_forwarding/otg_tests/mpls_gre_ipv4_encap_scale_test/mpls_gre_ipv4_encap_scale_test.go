@@ -30,10 +30,10 @@ func TestMain(m *testing.M) {
 const (
 	ieee8023adLag                = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	greProtocol                  = 47
-	dutIntStartIP                = "169.254.0.1"
-	otgIntStartIP                = "169.254.0.2"
-	dutIntStartIPV6              = "2000:0:0:1::1"
-	otgIntStartIPV6              = "2000:0:0:1::2"
+	dutStartIP                   = "169.254.0.1"
+	otgStartIP                   = "169.254.0.2"
+	dutStartIPV6                 = "2000:0:0:1::1"
+	otgStartIPV6                 = "2000:0:0:1::2"
 	stepV4                       = "0.0.0.4"
 	stepV6                       = "0:0:0:1::"
 	greTunnelDestinationsStartIP = "10.99.1.1/32"
@@ -65,12 +65,12 @@ var (
 		Name:        "Port-Channel2",
 		AggMAC:      "02:00:01:01:01:01",
 		MemberPorts: []string{"port3", "port4"},
-		Interfaces:  []*otgconfighelpers.InterfaceProperties{agg2Interface},
+		Interfaces:  []*otgconfighelpers.InterfaceProperties{agg2Intf},
 		LagID:       2,
 		IsLag:       true,
 	}
 
-	agg2Interface = &otgconfighelpers.InterfaceProperties{
+	agg2Intf = &otgconfighelpers.InterfaceProperties{
 		IPv4:        "194.0.2.2",
 		IPv6:        "2001:10:1:6::2",
 		IPv4Gateway: "194.0.2.1",
@@ -125,11 +125,6 @@ var (
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}, Ports: append(agg1.MemberPorts, agg2.MemberPorts...)},
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv6.FlowName, TolerancePct: 0.5},
 	}
-	validations = []packetvalidationhelpers.ValidationType{
-		packetvalidationhelpers.ValidateIPv4Header,
-		packetvalidationhelpers.ValidateMPLSLayer,
-		packetvalidationhelpers.ValidateInnerIPv4Header,
-	}
 	outerGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
 		DstIP:    "10.99.1.20",
 		Protocol: greProtocol,
@@ -151,10 +146,14 @@ var (
 		HopLimit:     63,
 	}
 	encapPacketValidation = &packetvalidationhelpers.PacketValidation{
-		PortName:         "port3",
-		IPv4Layer:        outerGREIPLayerIPv4,
-		MPLSLayer:        mplsLayer,
-		Validations:      validations,
+		PortName:  "port3",
+		IPv4Layer: outerGREIPLayerIPv4,
+		MPLSLayer: mplsLayer,
+		Validations: []packetvalidationhelpers.ValidationType{
+			packetvalidationhelpers.ValidateIPv4Header,
+			packetvalidationhelpers.ValidateMPLSLayer,
+			packetvalidationhelpers.ValidateInnerIPv4Header,
+		},
 		InnerIPLayerIPv4: innerIPLayerIPv4,
 		InnerIPLayerIPv6: innerIPLayerIPv6,
 		TCPLayer:         &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 179},
@@ -194,25 +193,25 @@ type networkConfig struct {
 }
 
 // generateNetConfig generates IPv4 and IPv6 network configurations for DUT and OTG.
-func generateNetConfig(intCount int) (*networkConfig, error) {
-	dutIPs, err := iputil.GenerateIPsWithStep(dutIntStartIP, intCount, stepV4)
+func generateNetConfig(intfCount int) (*networkConfig, error) {
+	dutIPs, err := iputil.GenerateIPsWithStep(dutStartIP, intfCount, stepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPsWithStep(otgIntStartIP, intCount, stepV4)
+	otgIPs, err := iputil.GenerateIPsWithStep(otgStartIP, intfCount, stepV4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
-	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intCount, "00:00:00:00:00:01")
+	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intfCount, "00:00:00:00:00:01")
 
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutIntStartIPV6, intCount, stepV6)
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutStartIPV6, intfCount, stepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgIntStartIPV6, intCount, stepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgStartIPV6, intfCount, stepV6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}

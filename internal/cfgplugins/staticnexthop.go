@@ -8,6 +8,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -207,24 +208,21 @@ nexthop-group %s%d type mpls-over-gre
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
 	} else {
-		n, _, err := net.ParseCIDR(encapparams.GRETunnelDestinationsStartIP)
-		if err != nil {
-			t.Fatalf("invalid IP address %q provided in GRETunnelDestinationsStartIP - err: %v", encapparams.GRETunnelDestinationsStartIP, err)
-		}
+
+		greTunnelDestinations := iputil.GenerateIPs(encapparams.GRETunnelDestinationsStartIP, encapparams.Count)
 
 		for i := 1; i <= encapparams.Count; i++ {
-			ip := incrementIP(n, i-1)
-			ipPrefix := ip.String()
+
 			nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup("MPLS_in_GRE_Encap")
 			nhg.GetOrCreateNextHop("Dest A-NH1").SetIndex("Dest A-NH1")
 			ni.GetOrCreateStatic().
 				GetOrCreateNextHop("Dest A-NH1").
-				SetNextHop(oc.UnionString(fmt.Sprintf("%s.%d", ipPrefix, i)))
+				SetNextHop(oc.UnionString(fmt.Sprintf("%s.%d", greTunnelDestinations[i], i)))
 
 			eh := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
 			ueh := eh.GetOrCreateUdpV4()
 			ueh.SetSrcIp(encapparams.GRETunnelSources[i])
-			ueh.SetDstIp(ipPrefix)
+			ueh.SetDstIp(greTunnelDestinations[i])
 
 			// https://partnerissuetracker.corp.google.com/issues/417988636
 			// ueh.GetOrCreateMpls().Label.Set(encapparams.MPLSStaticLabels[i])
