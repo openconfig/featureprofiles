@@ -550,11 +550,11 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession *aftcache.AFTStreamSession
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		aftSession1.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 	}()
 	go func() {
 		defer wg.Done()
-		aftSession2.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 	}()
 	wg.Wait()
 
