@@ -907,56 +907,6 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 	}
 }
 
-// ConfigurePBF builds a Policy-Based Forwarding (PBF) config for the default NI. Returns the constructed PolicyForwarding config object.
-func ConfigurePBF(t *testing.T, dut *ondatra.DUTDevice, cfg PBFConfig) *oc.NetworkInstance_PolicyForwarding {
-	t.Helper()
-	d := new(oc.Root)
-	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	pf := ni.GetOrCreatePolicyForwarding()
-
-	// Create one policy to hold multiple rules
-	policy := pf.GetOrCreatePolicy(cfg.PolicyName)
-	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
-	// Add one rule per VRF up to PBFCount
-	for i := 1; i <= cfg.PBFCount; i++ {
-		ruleID := uint32(i)
-		vrfName := fmt.Sprintf("VRF_%03d", i)
-		rule := policy.GetOrCreateRule(ruleID)
-		rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf(cfg.PBFIPv6, i))
-		// Assign different DSCP values per rule to test DSCP-based VRF selection
-		rule.GetOrCreateIpv6().DscpSet = []uint8{uint8(i % 64)}
-		rule.GetOrCreateAction().NetworkInstance = ygot.String(vrfName)
-	}
-
-	// Add default catch-all rule (optional but recommended)
-	defaultRuleID := uint32(10000)
-	defaultRule := policy.GetOrCreateRule(defaultRuleID)
-	defaultRule.GetOrCreateIpv6().SourceAddress = ygot.String("::/0")
-	defaultRule.GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
-
-	return pf
-}
-
-// VRFPolicy applies the forwarding policy on the interface.
-func VRFPolicy(t *testing.T, vrfBatch *gnmi.SetBatch, cfg VRFPolicyConfig) {
-	t.Helper()
-	t.Logf("Applying forwarding policy on interface %v ... ", cfg.IngressPort)
-	d := new(oc.Root)
-	dut := ondatra.DUT(t, "dut")
-	interfaceID := cfg.IngressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		interfaceID = cfg.IngressPort + ".0"
-	}
-	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
-	pfCfg.ApplyVrfSelectionPolicy = ygot.String(cfg.PolicyName)
-	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.IngressPort)
-	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		pfCfg.InterfaceRef = nil
-	}
-	gnmi.BatchUpdate(vrfBatch, pfPath.Config(), pfCfg)
 // PbrRule defines a policy-based routing rule configuration
 type PbrRule struct {
 	Sequence  uint32
@@ -1036,4 +986,56 @@ func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
 		return i + seqIDBase
 	}
 	return i
+}
+
+// ConfigurePBF builds a Policy-Based Forwarding (PBF) config for the default NI. Returns the constructed PolicyForwarding config object.
+func ConfigurePBF(t *testing.T, dut *ondatra.DUTDevice, cfg PBFConfig) *oc.NetworkInstance_PolicyForwarding {
+	t.Helper()
+	d := new(oc.Root)
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+
+	// Create one policy to hold multiple rules
+	policy := pf.GetOrCreatePolicy(cfg.PolicyName)
+	policy.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	// Add one rule per VRF up to PBFCount
+	for i := 1; i <= cfg.PBFCount; i++ {
+		ruleID := uint32(i)
+		vrfName := fmt.Sprintf("VRF_%03d", i)
+		rule := policy.GetOrCreateRule(ruleID)
+		rule.GetOrCreateIpv6().SourceAddress = ygot.String(fmt.Sprintf(cfg.PBFIPv6, i))
+		// Assign different DSCP values per rule to test DSCP-based VRF selection
+		// rule.GetOrCreateIpv6().DscpSet = []uint8{uint8(i % 64)}
+		rule.GetOrCreateAction().NetworkInstance = ygot.String(vrfName)
+	}
+
+	// Add default catch-all rule (optional but recommended)
+	defaultRuleID := uint32(10000)
+	defaultRule := policy.GetOrCreateRule(defaultRuleID)
+	defaultRule.GetOrCreateIpv6().SourceAddress = ygot.String("::/0")
+	defaultRule.GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
+
+	return pf
+}
+
+// VRFPolicy applies the forwarding policy on the interface.
+func VRFPolicy(t *testing.T, vrfBatch *gnmi.SetBatch, cfg VRFPolicyConfig) {
+	t.Helper()
+	t.Logf("Applying forwarding policy on interface %v ... ", cfg.IngressPort)
+	d := new(oc.Root)
+	dut := ondatra.DUT(t, "dut")
+	interfaceID := cfg.IngressPort
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = cfg.IngressPort + ".0"
+	}
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	pfCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreatePolicyForwarding().GetOrCreateInterface(interfaceID)
+	pfCfg.ApplyVrfSelectionPolicy = ygot.String(cfg.PolicyName)
+	pfCfg.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.IngressPort)
+	pfCfg.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		pfCfg.InterfaceRef = nil
+	}
+	gnmi.BatchUpdate(vrfBatch, pfPath.Config(), pfCfg)
 }
