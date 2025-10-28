@@ -540,7 +540,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 // After the stopping condition is met, it compares the AFT data collected by both sessions.
 // If the data is identical, it returns a single copy of the collected AFT data.
 // Otherwise, it returns an error indicating the inconsistency.
-func (tc *testCase) fetchAFT(t *testing.T, aftSession *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 
 	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
@@ -609,15 +609,16 @@ func TestBGP(t *testing.T) {
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
-	// Create a single AFTStreamSession to be reused.
-	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut)
+	// Create an AFTStreamSession per gnmiClient
+	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
+	aftSession2 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient2, tc.dut)
 
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.fetchAFT(t, aftSession, stoppingCondition)
+		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -662,7 +663,7 @@ func TestBGP(t *testing.T) {
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, aftSession, sc); err != nil {
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
