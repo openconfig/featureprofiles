@@ -77,7 +77,7 @@ outer_ip-ttl =        "64"
                 {
                   "config": {
                     "interface-id": "Aggregate2",
-                    "mpls-enabled": false
+                    "mpls-enabled": true
                   },
                   "interface-id": "Aggregate2"
                 }
@@ -212,6 +212,7 @@ paths:
   # Paths added for PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
+  #TODO: Add OC for next-network-instance
 
 rpcs:
   gnmi:
