@@ -71,8 +71,8 @@ const (
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 2 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 100000
-	bgpRouteCountIPv6LowScale = 100000
+	bgpRouteCountIPv4LowScale = 1200000
+	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
 )

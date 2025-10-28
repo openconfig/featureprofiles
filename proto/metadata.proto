@@ -883,6 +883,7 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+
     // Cisco: b/402672689
     // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
@@ -977,6 +978,30 @@ message Metadata {
     // '/system/logging/remote-servers/remote-server/config/network-instance'
     // Cisco: b/447513282
     bool syslog_oc_unsupported = 335;
+
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
+    
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
+    bool aft_summary_oc_unsupported = 337;
+
+    // Devices that do not support isis lsp tlvs
+    // Arista: https://issuetracker.google.com/450898200
+    bool isis_lsp_tlvs_oc_unsupported = 338;
+
+    // Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: https://issuetracker.google.com/452295044
+    bool isis_adjacency_stream_unsupported = 339;
+
+    // Device does not support sid_per_interface_counter_unsupported
+    // Cisco b/447350490
+    bool sid_per_interface_counter_unsupported = 340;
+
+    //  Juniper does not support localhost yet
+    //  b/448173472
+    bool localhost_for_containerz = 341;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
