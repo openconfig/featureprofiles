@@ -608,7 +608,7 @@ func TestBGP(t *testing.T) {
 
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
-	
+
 	// Create a single AFTStreamSession to be reused.
 	aftSession := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient, tc.dut)
 
