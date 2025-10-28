@@ -999,6 +999,10 @@ message Metadata {
     // Cisco b/447350490
     bool sid_per_interface_counter_unsupported = 340;
 
+    // Device does not support bmp_oc_unsupported
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 341;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

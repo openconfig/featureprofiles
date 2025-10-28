@@ -180,6 +180,15 @@ type BGPNeighborConfig struct {
 	MultiPathEnabled bool
 }
 
+type BMPConfigParams struct {
+	DutAS        uint32
+	BGPObj       *oc.NetworkInstance_Protocol_Bgp
+	LocalAddr    string
+	StationAddr  string
+	StationPort  uint16
+	StatsTimeOut uint16
+}
+
 // NewBGPSession creates a new BGPSession using the default global config, and
 // configures the interfaces on the dut and the ate based in given topology port count.
 // Only supports 2 and 4 port DUT-ATE topology
@@ -668,8 +677,7 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	// Handle multipath deviation
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		t.Log("Executing CLI commands for multipath deviation")
-		bgpRouteConfig := fmt.Sprintf(`
-		router bgp %d
+		bgpRouteConfig := fmt.Sprintf(`router bgp %d
 		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
@@ -761,4 +769,40 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config(), bgp)
 
 	return bgp
+}
+
+// ConfigureBMP applies BMP station configuration on DUT.
+func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
+	t.Helper()
+	if deviations.BMPOCUnsupported(dut) {
+		t.Log("Executing CLI commands for multipath deviation")
+		bmpRouteConfig := fmt.Sprintf(`router bgp %[1]d
+		bgp monitoring
+		! BMP station
+		monitoring station BMP_STN1
+			connection mode active port %[2]d
+			connection address %[3]s
+			connection keepalive %[4]d 10 3
+			description "ATE BMP station"
+		no monitoring received routes pre-policy
+		`, cfgParams.DutAS, cfgParams.StationPort, cfgParams.StationAddr, cfgParams.StatsTimeOut)
+		helpers.GnmiCLIConfig(t, dut, bmpRouteConfig)
+	} else {
+		// TODO: Enable the OpenConfig path for BMP configuration once it is supported.
+		// // === BMP Configuration ===
+		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
+		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)
+		// bmp.StatisticsTimeout = ygot.Uint16(cfgParams.StatsTimeOut)
+
+		// // --- Create BMP Station ---
+		// st := bmp.GetOrCreateStation("BMP_STN1")
+		// st.Address = ygot.String(cfgParams.StationAddr)
+		// st.Port = ygot.Uint16(cfgParams.StationPort)
+		// st.ConnectionMode = oc.BgpTypes_BMPStationMode_ACTIVE
+		// st.Description = ygot.String("ATE BMP station")
+		// st.PolicyType = oc.BgpTypes_BMPPolicyType_POST_POLICY
+		// st.ExcludeNoneligible = ygot.Bool(true)
+		// // Push configuration
+		// gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bmp)
+	}
 }
