@@ -174,7 +174,7 @@ func TestIngressInnerPktTTL(t *testing.T) {
 
 			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL+1))
 			configPush(t, otg, otgConfig)
-			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, tc.matchTTL)
+			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, rewrittenIPTTL)
 
 			// --- Unmatched case ---
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
