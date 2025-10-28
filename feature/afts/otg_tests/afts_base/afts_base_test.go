@@ -562,11 +562,11 @@ func (tc *testCase) fetchAFT(t *testing.T, stoppingCondition aftcache.PeriodicHo
 	wg.Wait()
 
 	// Get the AFT from the cache.
-	aft1, err := aftSession1.Cache.ToAFT(tc.dut)
+	aft1, err := aftSession1.Cache.ToAFT(t, tc.dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
 	}
-	aft2, err := aftSession2.Cache.ToAFT(tc.dut)
+	aft2, err := aftSession2.Cache.ToAFT(t, tc.dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
