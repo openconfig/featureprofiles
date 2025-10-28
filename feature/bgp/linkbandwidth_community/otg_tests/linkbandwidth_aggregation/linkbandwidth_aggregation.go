@@ -677,13 +677,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-type bgpNeighbor struct {
-	as         uint32
-	neighborip string
-	isV4       bool
-	pg         string
-}
-
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := &oc.Root{}
