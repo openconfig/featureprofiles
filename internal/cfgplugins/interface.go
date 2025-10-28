@@ -112,11 +112,6 @@ var (
 	}
 )
 
-// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
-func init() {
-	opmode = 1
-}
-
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
 
@@ -344,6 +339,7 @@ type ConfigParameters struct {
 	Allocation          float64
 	HWPortNames         map[string]string
 	TransceiverNames    map[string]string
+	TempSensorNames     map[string]string
 	OpticalChannelNames map[string]string
 	OTNIndexes          map[string]uint32
 	ETHIndexes          map[string]uint32
@@ -354,6 +350,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	t.Helper()
 	params.HWPortNames = make(map[string]string)
 	params.TransceiverNames = make(map[string]string)
+	params.TempSensorNames = make(map[string]string)
 	params.OpticalChannelNames = make(map[string]string)
 	for _, p := range dut.Ports() {
 		if hwPortName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()).Val(); !ok {
@@ -366,6 +363,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		} else {
 			params.TransceiverNames[p.Name()] = transceiverName
 		}
+		params.TempSensorNames[p.Name()] = "TempSensor-" + params.TransceiverNames[p.Name()]
 		params.OpticalChannelNames[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 		params.OTNIndexes = AssignOTNIndexes(t, dut)
 		params.ETHIndexes = AssignETHIndexes(t, dut)
@@ -1127,4 +1125,115 @@ func AddInterfaceMTUOps(b *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName strin
             gnmi.BatchReplace(b, mtuPath.Config(), mtu)
         }
     }
+// StaticARPEntry defines per-port static ARP mapping.
+type StaticARPEntry struct {
+	PortName string // DUT port name (e.g., "port2")
+	MagicIP  string // Per-port IP (e.g., "192.0.2.1")
+	MagicMAC string // Per-port MAC (e.g., "00:1A:2B:3C:4D:5E")
+}
+
+// StaticARPConfig holds all per-port static ARP entries.
+type StaticARPConfig struct {
+	Entries []StaticARPEntry
+}
+
+// StaticARPWithMagicUniversalIP configures static ARP and static routes per-port.
+func StaticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg StaticARPConfig) *gnmi.SetBatch {
+	t.Helper()
+
+	// Group entries by MagicIP so each prefix can have multiple next-hops.
+	entriesByIP := make(map[string][]StaticARPEntry)
+	for _, entry := range cfg.Entries {
+		entriesByIP[entry.MagicIP] = append(entriesByIP[entry.MagicIP], entry)
+	}
+
+	for magicIP, entries := range entriesByIP {
+		// 1. Build all next-hops for this MagicIP.
+		nextHops := make(map[string]*oc.NetworkInstance_Protocol_Static_NextHop)
+		for i, entry := range entries {
+			port := dut.Port(t, entry.PortName)
+			nextHops[strconv.Itoa(i)] = &oc.NetworkInstance_Protocol_Static_NextHop{
+				Index: ygot.String(strconv.Itoa(i)),
+				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
+					Interface: ygot.String(port.Name()),
+				},
+			}
+		}
+
+		// 2. Define the static route with all built next-hops.
+		s := &oc.NetworkInstance_Protocol_Static{
+			Prefix:  ygot.String(magicIP + "/32"),
+			NextHop: nextHops,
+		}
+
+		// Add static route config to batch.
+		sp := gnmi.OC().
+			NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		gnmi.BatchUpdate(sb, sp.Static(magicIP+"/32").Config(), s)
+
+		// 3. Add static ARP entries separately for each port.
+		for _, entry := range entries {
+			port := dut.Port(t, entry.PortName)
+			gnmi.BatchUpdate(sb,
+				gnmi.OC().Interface(port.Name()).Config(),
+				configStaticArp(port.Name(), entry.MagicIP, entry.MagicMAC),
+			)
+
+			t.Logf("Configuring ARP: port=%s, ip=%s, mac=%s",
+				entry.PortName, entry.MagicIP, entry.MagicMAC)
+		}
+
+		t.Logf("Configuring static route for MagicIP %s with %d next-hops", magicIP, len(entries))
+	}
+
+	return sb
+}
+
+// SecondaryIPEntry defines per-port dummy IP + ARP mapping for secondary IP config.
+type SecondaryIPEntry struct {
+	PortName      string           // DUT port name (e.g., "port2")
+	PortDummyAttr attrs.Attributes //  DUT dummy IP attributes
+	DummyIP       string           // OTG Dummy IPv4 address (e.g., "192.0.2.10")
+	MagicMAC      string           // MAC to use for static ARP (e.g., "00:1A:2B:3C:4D:FF")
+
+}
+
+// SecondaryIPConfig holds all per-port secondary IP configurations.
+type SecondaryIPConfig struct {
+	Entries []SecondaryIPEntry
+}
+
+// StaticARPWithSecondaryIP configures secondary IPs and static ARP for gRIBI compatibility
+func StaticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg SecondaryIPConfig) *gnmi.SetBatch {
+
+	t.Helper()
+
+	for _, entry := range cfg.Entries {
+		port := dut.Port(t, entry.PortName)
+
+		// Configure secondary IP on the DUT port.
+		gnmi.BatchUpdate(sb, gnmi.OC().Interface(port.Name()).Config(), entry.PortDummyAttr.NewOCInterface(port.Name(), dut))
+
+		// Configure static ARP entry.
+		gnmi.BatchUpdate(sb,
+			gnmi.OC().Interface(port.Name()).Config(),
+			configStaticArp(port.Name(), entry.DummyIP, entry.MagicMAC),
+		)
+
+		t.Logf("Configuring secondary IP + static ARP: port=%s, dummyIP=%s, mac=%s",
+			entry.PortName, entry.DummyIP, entry.MagicMAC)
+	}
+	return sb
+}
+
+// configStaticArp configures static ARP entries for gRIBI next hop resolution
+func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }

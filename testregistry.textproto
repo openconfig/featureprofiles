@@ -1711,30 +1711,7 @@ test: {
   readme: ""
   exec: " "
 }
-test: {
-  id: "TUN-2.11"
-  description: "Filter based GUE decap with IPv4 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.12"
-  description: "Filter based GUE decap with IPv6 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.13"
-  description: "Interface based GUE decap with IPv4 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
-test: {
-  id: "TUN-2.14"
-  description: "Interface based GUE decap with IPv6 tunnel endpoints"
-  readme: ""
-  exec: " "
-}
+
 test: {
   id: "TUN-2.15"
   description: "Interface based GUE encapsulation with IPv4 outer header"
@@ -2205,3 +2182,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_weight_resolution_pbf_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/hierarchical_weight_resolution_pbf_test/hierarchical_weight_resolution_pbf_test.go"
 }
+test: {
+  id: "gNMI-1.25"
+  description: "Telemetry: Interface Last Change Timestamp"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/telemetry_interface_last_change_test.go"
+}
+
