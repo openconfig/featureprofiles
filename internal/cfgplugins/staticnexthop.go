@@ -288,6 +288,8 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
+
+			newPolicyForwardingGueEncap(t, dut, params, "GUE-Policy")
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
@@ -308,4 +310,32 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
 	}
 
+}
+
+// newPolicyForwardingGueEncap configures policy forwading for gue encapsulation
+func newPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams, policyName string) {
+	t.Helper()
+	groupType := ""
+
+	switch params.TrafficType {
+	case oc.Aft_EncapsulationHeaderType_UDPV4:
+		groupType = "ipv4"
+	case oc.Aft_EncapsulationHeaderType_UDPV6:
+		groupType = "ipv6"
+	}
+
+	// Configure traffic policy
+	cli := ""
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, policyName, fmt.Sprintf("rule%v", params.Index), groupType, params.NexthopGrpName)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+	}
 }

@@ -215,16 +215,16 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, v4NexthopUDPParams, false)
 
-	gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
-		TrafficType:      "V4Udp",
-		PolicyName:       GuePolicyName,
-		NexthopGroupName: nexthopGroupName,
-		SrcIntfName:      dut.Port(t, "port1").Name(),
-		DstAddr:          dstAddr,
-		Ttl:              ttl,
-		Rule:             1,
-	}
-	cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
+	// gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
+	// 	TrafficType:      "V4Udp",
+	// 	PolicyName:       GuePolicyName,
+	// 	NexthopGroupName: nexthopGroupName,
+	// 	SrcIntfName:      dut.Port(t, "port1").Name(),
+	// 	DstAddr:          dstAddr,
+	// 	Ttl:              ttl,
+	// 	Rule:             1,
+	// }
+	// cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV4EncapPolicyParams)
 
 	v6NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
 		TrafficType:    oc.Aft_EncapsulationHeaderType_UDPV6,
@@ -238,24 +238,26 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, v6NexthopUDPParams, false)
 
-	gueV6EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
-		TrafficType:      "V6Udp",
-		PolicyName:       GuePolicyName,
-		NexthopGroupName: nexthopGroupNameV6,
-		SrcIntfName:      dut.Port(t, "port1").Name(),
-		DstAddr:          dstAddr,
-		Ttl:              ttl,
-		Rule:             2,
-	}
-	// Create nexthop group for v6
-	cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV6EncapPolicyParams)
+	// gueV6EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
+	// 	TrafficType:      "V6Udp",
+	// 	PolicyName:       GuePolicyName,
+	// 	NexthopGroupName: nexthopGroupNameV6,
+	// 	SrcIntfName:      dut.Port(t, "port1").Name(),
+	// 	DstAddr:          dstAddr,
+	// 	Ttl:              ttl,
+	// 	Rule:             2,
+	// }
+	// // Create nexthop group for v6
+	// cfgplugins.NewPolicyForwardingGueEncap(t, dut, gueV6EncapPolicyParams)
 
 	// Apply traffic policy on interface
-	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-		InterfaceID:       dut.Port(t, "port1").Name(),
-		AppliedPolicyName: GuePolicyName,
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceID:       dut.Port(t, "port1").Name(),
+			AppliedPolicyName: GuePolicyName,
+		}
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GuePolicyName, ni, interfacePolicyParams)
 	}
-	cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GuePolicyName, ni, interfacePolicyParams)
 }
 
 type tunnelCfg struct {
