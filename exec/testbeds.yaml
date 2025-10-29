@@ -601,8 +601,19 @@ testbeds:
       dut1V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/1v.conf
       dut2V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/2v.conf 
       JupiterR: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_r.conf
-      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf                            
-      
+      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf
+  8808-P200-2DUT-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT2_baseconfig.conf
+  8808-P200-2DUT-Scale:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT2_baseconfig.conf
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
