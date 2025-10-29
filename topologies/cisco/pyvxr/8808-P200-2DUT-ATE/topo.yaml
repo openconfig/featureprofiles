@@ -26,7 +26,10 @@ devices:
     xr_config: |
         ssh server v2
         ssh server netconf
-        grpc port 57777    
+        grpc port 57777
+    cli_commands: reload location all noprompt
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt
   dut2: 
     dual_rp: true
     rp_type: 8800-rp2
@@ -50,7 +53,10 @@ devices:
     xr_config: |
         ssh server v2
         ssh server netconf
-        grpc port 57777    
+        grpc port 57777
+    cli_commands: reload location all noprompt
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt  
   ixia:
     data_ports: [1/1, 1/2, 1/3]
     platform: ixia

@@ -35,7 +35,10 @@ devices:
     xr_config: |
         ssh server v2
         ssh server netconf
-        grpc port 57777    
+        grpc port 57777
+    cli_commands: reload location all noprompt
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt  
   dut2: 
     dual_rp: true
     image: /auto/l3fib_img_archive/abhayk/BOBCAT_25.10.0.1556_V2/8000-x64.iso
@@ -67,8 +70,10 @@ devices:
     xr_config: |
         ssh server v2
         ssh server netconf
-        grpc port 57777    
- 
+        grpc port 57777
+    cli_commands: reload location all noprompt
+    pre_config: hw-module profile npu-compatibility P200
+    pre_cli: reload location all noprompt   
 connections: 
   hubs:
 
