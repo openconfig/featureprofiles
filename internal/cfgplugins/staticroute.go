@@ -64,7 +64,7 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
 				default:
-					return s, fmt.Errorf("Deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %s", d.Vendor())
+					return s, fmt.Errorf("deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %s", d.Vendor())
 				}
 				return s, nil
 			} else {
