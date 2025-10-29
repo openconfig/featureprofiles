@@ -33,7 +33,7 @@ const (
 	FeaturePolicyForwarding
 	FeatureQOSCounters
 	FeatureEnableAFTSummaries
-   FeatureTTLPolicyForwarding
+	FeatureTTLPolicyForwarding
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -391,7 +391,7 @@ hardware tcam
          route-summary
    agent OpenConfig terminate
    `
-   aristaTcamProfilePreserveTTL = `
+	aristaTcamProfilePreserveTTL = `
       hardware tcam
       profile customProfile
          system-rule overriding-action redirect
@@ -526,7 +526,7 @@ var (
 		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
 		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
 		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
-      FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
+		FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
 	}
 )
 
