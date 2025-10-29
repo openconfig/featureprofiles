@@ -37,9 +37,9 @@ const (
 	devSuffix = ".dev"
 	ethSuffix = ".eth"
 	intfSuffix = ".intf"
-	isisSuffix = ".isis"
 	ipv4Suffix = ".ipv4"
 	ipv6Suffix = ".ipv6"
+	isisSuffix = ".isis"
 )
 
 // AdvertisedRoutes represents the advertised routes configuration.
