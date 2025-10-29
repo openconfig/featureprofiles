@@ -16,7 +16,6 @@ package passwordconsolelogin_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -48,10 +47,10 @@ func TestCredentialz(t *testing.T) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Logf("Arista vendor, adding CLI config for ssh authentication set to public-key")
-		cliConfig := fmt.Sprintf(`
+		cliConfig := `
 				management ssh
 			  	 authentication protocol password
-				 `)
+				 `
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	default:
 		t.Logf("Vendor %s, does not need CLI configuration in this test", dut.Vendor())
