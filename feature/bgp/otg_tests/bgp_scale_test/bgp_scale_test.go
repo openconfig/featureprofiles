@@ -1871,6 +1871,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 		aggID := &oc.Interface{Name: ygot.String(agg.GetName())}
 		aggs = append(aggs, aggID)
 		aggIDs = append(aggIDs, agg.GetName())
+		agg.DeleteSubinterface(0)
 		b.Set(t, dut)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			for k := range agg.GetOrCreateSubinterfaceMap() {
