@@ -707,7 +707,7 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.Netw
 // assuming that all neighbors provided have the same local AS and the same peer AS.
 func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, peerGrpNameV6 string, nbrs []*BgpNeighbor, dut *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol, error) {
 	if len(nbrs) == 0 {
-		t.Logf("No BGP neighbors found for router ID: %s, peer group names: %s, peer group names: %s", routerID, peerGrpNameV4, peerGrpNameV6)
+		t.Logf("No BGP neighbors found for router ID: %s, peer group name v4: %s, peer group name v6: %s", routerID, peerGrpNameV4, peerGrpNameV6)
 		return nil, nil
 	}
 	if !sameAS(nbrs) {
@@ -757,7 +757,7 @@ func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, 
 				SetPeerGroup(peerGrpNameV4)
 			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
 				SetEnabled(true)
-		case !nbr.IsV4:
+		default:
 			neighbor.
 				SetPeerGroup(peerGrpNameV6)
 			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
