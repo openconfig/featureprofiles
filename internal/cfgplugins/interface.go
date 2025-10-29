@@ -878,7 +878,11 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
 	sub.Enabled = ygot.Bool(true)
 	if s.VlanID != 0 {
-		sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
+		if deviations.DeprecatedVlanID(dut) {
+			sub.GetOrCreateVlan().VlanId = oc.UnionUint16(int(s.VlanID))
+		} else {
+			sub.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(s.VlanID))
+		}
 	}
 	if s.IPv4Address == nil && s.IPv6Address == nil {
 		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
@@ -908,7 +912,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) {
+	if deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
