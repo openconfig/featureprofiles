@@ -117,7 +117,7 @@ func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
-// configureDUT configures all the interfaces and BGP on the DUT.
+// configureDUT configures all the interfaces, BGP, and ISIS on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
 	dutPort1 := dut.Port(t, port1Name).Name()
@@ -132,7 +132,9 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
-	configureAllowPolicy(t, dut)
+	if err := configureAllowPolicy(t, dut); err != nil {
+		return err
+	}
 
 	t.Log("Configure BGP")
 	d := &oc.Root{}
@@ -230,7 +232,6 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 			return fmt.Errorf("no ISIS adjacency formed for port%d (%s)", i+1, dutPort)
 		}
 	}
-
 	return nil
 }
 
