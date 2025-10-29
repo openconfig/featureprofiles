@@ -85,28 +85,18 @@ var (
 	defaultNetworkInstance        = ""
 	dutIntfs                      = []string{}
 	start                         = time.Now()
-	ciscoLimitation               = "route-policy TAG_7\nif community in SNH then\n set tag 7\nendif\npass\nend-policy\nrouter bgp 64500 instance BGP\n address-family ipv4 unicast\n table-policy TAG_7\naddress-family ipv6 unicast\n table-policy TAG_7\n"
 	delLinkbwCLIConfig            = ""
 	isSetupPhase                  = false
 	isMSSTest                     = false
 	v4IBGPRouteCount       uint32 = 100
 	v6IBGPRouteCount       uint32 = 100
-	v4EBGPRouteCount       uint32 = 100
-	v6EBGPRouteCount       uint32 = 100
 	ipv4Traffic                   = map[int][]string{}
 	ipv6Traffic                   = map[int][]string{}
 	aggIDs                 []string
 	aggs                   []*oc.Interface
-	v4RoutePolicy          = "route-policy-v4"
 	distanceConfigv4       = ""
 	distanceConfigv6       = ""
-	lbwConfig              = ""
 	weightNHConfig         = ""
-	weightConfigV4         = []string{}
-	weightConfigV6         = []string{}
-	nhConfigV4             = []string{}
-	nhConfigV6             = []string{}
-	rrPeers                = []string{}
 	kneDeviceModelList     = []string{"ncptx", "ceos", "srlinux", "xrd", "8000e"}
 	lb                     string
 	dutPort1               = attributes{
@@ -381,18 +371,12 @@ type attributes struct {
 
 type dutInfo struct {
 	processes map[string]processesInfo
-	alarms    []alarmInfo
 }
 
 type processesInfo struct {
 	pid    uint64
 	cpuPct uint8
 	memPct uint8
-}
-
-type alarmInfo struct {
-	alarmSeverity oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
-	alarmDesc     string
 }
 
 type bgpNeighbor struct {
@@ -1837,7 +1821,7 @@ func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, flowSrcEndPoi
 
 			v4 := flow.Packet().Add().Ipv4()
 			v4.Src().SetValue(srcIP)
-			v4.Dst().Increment().SetStart(fmt.Sprintf(`%s`, dstip)).SetStep("0.0.0.1").SetCount(100)
+			v4.Dst().Increment().SetStart(dstip).SetStep("0.0.0.1").SetCount(100)
 			tcp := flow.Packet().Add().Tcp()
 			tcp.DstPort().Increment().SetStart(12345).SetCount(200)
 		}
@@ -1866,7 +1850,7 @@ func configureTrafficFlow(t *testing.T, otgConfig gosnappi.Config, flowSrcEndPoi
 			e.Src().SetValue(srcMac)
 			v6 := flow.Packet().Add().Ipv6()
 			v6.Src().SetValue(atePort1.IPv6)
-			v6.Dst().Increment().SetStart(fmt.Sprintf(`%s`, dstip)).SetStep("0:0:0:0:0:0:0:1").SetCount(100)
+			v6.Dst().Increment().SetStart(dstip).SetStep("0:0:0:0:0:0:0:1").SetCount(100)
 			tcp := flow.Packet().Add().Tcp()
 			tcp.DstPort().Increment().SetStart(12345).SetCount(200)
 		}
@@ -2198,25 +2182,25 @@ func (a *attributes) configureATEIBGP(t *testing.T, top gosnappi.Config, ate *on
 			// VF Routes
 			prefixesV4 := createPrefixesV4(t, 2, i)
 			prefixesV6 := createPrefixesV6(t, 2)
-			var prefixesV4Str, prefixesV6Str []string
+			var prefixesP2V4Str, prefixesP2V6Str, prefixesP3V4Str, prefixesP3V6Str []string
 			for _, prefix := range prefixesV4 {
-				prefixesV4Str = append(prefixesV4Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
+				prefixesP2V4Str = append(prefixesP2V4Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
 			}
 			for _, prefix := range prefixesV6 {
-				prefixesV6Str = append(prefixesV6Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
+				prefixesP2V6Str = append(prefixesP2V6Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
 			}
 			asPathVF := otgconfighelpers.CreateBGPASPath([]uint32{ateAS4Byte(1) + uint32(atePort2.index)}, gosnappi.BgpAsPathSegmentType.AS_SEQ, gosnappi.BgpAsPathAsSetMode.DO_NOT_INCLUDE_LOCAL_AS)
 
 			otgconfighelpers.AddBGPV4Routes(bgp4Peer, fmt.Sprintf("v4-bgpNet-VF-P2-dev%d%d", a.index, i+int(a.index*10)),
-				prefixesV4Str,
-				otgconfighelpers.WithBGPRouteNextHopIPv4(fmt.Sprintf("50.1.1.2")),
+				prefixesP2V4Str,
+				otgconfighelpers.WithBGPRouteNextHopIPv4("50.1.1.2"),
 				otgconfighelpers.WithBGPRouteCommunities(communitiesSet2),
 				otgconfighelpers.WithBGPRouteAddressCount(1),
 				otgconfighelpers.WithBGPRouteASPath(asPathVF),
 			)
 			otgconfighelpers.AddBGPV6Routes(bgp6Peer, fmt.Sprintf("v6-bgpNet-VF-P2-dev%d%d", a.index, i+int(a.index*10)),
-				prefixesV6Str,
-				otgconfighelpers.WithBGPRouteNextHopIPv6(fmt.Sprintf("1000:1:11:0:50:1:1:2")),
+				prefixesP2V6Str,
+				otgconfighelpers.WithBGPRouteNextHopIPv6("1000:1:11:0:50:1:1:2"),
 				otgconfighelpers.WithBGPRouteCommunities(communitiesSet2),
 				otgconfighelpers.WithBGPRouteAddressCount(1),
 				otgconfighelpers.WithBGPRouteASPath(asPathVF),
@@ -2224,19 +2208,25 @@ func (a *attributes) configureATEIBGP(t *testing.T, top gosnappi.Config, ate *on
 
 			prefixesV4 = createPrefixesV4(t, 3, i)
 			prefixesV6 = createPrefixesV6(t, 3)
+			for _, prefix := range prefixesV4 {
+				prefixesP3V4Str = append(prefixesP3V4Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
+			}
+			for _, prefix := range prefixesV6 {
+				prefixesP3V6Str = append(prefixesP3V6Str, prefix.Addr().String()+"/"+strconv.Itoa(prefix.Bits()))
+			}
 
 			asPathVF = otgconfighelpers.CreateBGPASPath([]uint32{ateAS4Byte(int(atePort3.index-1)) + uint32(atePort3.index)}, gosnappi.BgpAsPathSegmentType.AS_SEQ, gosnappi.BgpAsPathAsSetMode.DO_NOT_INCLUDE_LOCAL_AS)
 
 			otgconfighelpers.AddBGPV4Routes(bgp4Peer, fmt.Sprintf("v4-bgpNet-VF-P3-dev%d%d", a.index, i+int(a.index*10)),
-				prefixesV4Str,
-				otgconfighelpers.WithBGPRouteNextHopIPv4(fmt.Sprintf("50.2.1.2")),
+				prefixesP3V4Str,
+				otgconfighelpers.WithBGPRouteNextHopIPv4("50.2.1.2"),
 				otgconfighelpers.WithBGPRouteCommunities(communitiesSet2),
 				otgconfighelpers.WithBGPRouteAddressCount(1),
 				otgconfighelpers.WithBGPRouteASPath(asPathVF),
 			)
 			otgconfighelpers.AddBGPV6Routes(bgp6Peer, fmt.Sprintf("v6-bgpNet-VF-P3-dev%d%d", a.index, i+int(a.index*10)),
-				prefixesV6Str,
-				otgconfighelpers.WithBGPRouteNextHopIPv6(fmt.Sprintf("1000:2:21:0:50:2:1:2")),
+				prefixesP3V6Str,
+				otgconfighelpers.WithBGPRouteNextHopIPv6("1000:2:21:0:50:2:1:2"),
 				otgconfighelpers.WithBGPRouteCommunities(communitiesSet2),
 				otgconfighelpers.WithBGPRouteAddressCount(1),
 				otgconfighelpers.WithBGPRouteASPath(asPathVF),
