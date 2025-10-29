@@ -1687,6 +1687,11 @@ func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
 
+// SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
+func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()
+}
+
 // TransceiverConfigEnableUnsupported returns true if devices cannot set transceiver config enable
 func TransceiverConfigEnableUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverConfigEnableUnsupported()
@@ -1706,4 +1711,24 @@ func ISISLSPTlvsOCUnsupported(dut *ondatra.DUTDevice) bool {
 // is not supported or malfunctioning when STREAM subscription is used .
 func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
+}
+
+// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
+}
+
+// AggregateBandwidthPolicyActionUnsupported returns true if device does not support aggregate bandwidth policy action.
+func AggregateBandwidthPolicyActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateBandwidthPolicyActionUnsupported()
+}
+
+// AutoLinkBandwidthUnsupported returns true if device does not support auto link bandwidth.
+func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAutoLinkBandwidthUnsupported()
+}
+
+// AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
+func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
 }
