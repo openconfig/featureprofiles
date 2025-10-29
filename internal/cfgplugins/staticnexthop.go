@@ -325,6 +325,8 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
+
+			newPolicyForwardingGueEncap(t, dut, params, "GUE-Policy")
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}

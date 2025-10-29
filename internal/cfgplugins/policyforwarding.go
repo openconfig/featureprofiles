@@ -643,59 +643,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-// createPolicyForwardingNexthopCli to configure policyforwading through CLI using vendor specific cli
-func createPolicyForwardingNexthopCli(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
-	t.Helper()
-	groupType := ""
-
-	switch params.TrafficType {
-	case "V4Udp":
-		groupType = "ipv4"
-	case "V6Udp":
-		groupType = "ipv6"
-	}
-
-	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			cli = fmt.Sprintf(`
-				traffic-policies
-				traffic-policy %s
-      			match %s %s
-         		actions
-            	redirect next-hop group %s`, params.PolicyName, fmt.Sprintf("rule%d", params.Rule), groupType, params.NexthopGroupName)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			// Log a message if the vendor is not supported for this specific CLI deviation.
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-		}
-	}
-}
-
-// configurePolicyForwardingNextHopFromOC to configure policyforwading through OC
-func configurePolicyForwardingNextHopFromOC(pf *oc.NetworkInstance_PolicyForwarding, params GueEncapPolicyParams) {
-	policy := pf.GetOrCreatePolicy(params.PolicyName)
-	policy.Type = oc.Policy_Type_PBR_POLICY
-
-	rule1 := policy.GetOrCreateRule(uint32(params.Rule))
-	rule1.GetOrCreateTransport()
-	if len(params.DstAddr) != 0 {
-		for _, addr := range params.DstAddr {
-			rule1.GetOrCreateIpv4().SetDestinationAddress(addr)
-		}
-	}
-	if len(params.SrcAddr) != 0 {
-		for _, addr := range params.SrcAddr {
-			rule1.GetOrCreateIpv4().SetSourceAddress(addr)
-		}
-	}
-	rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
-}
-
 func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
 	t.Helper()
 
