@@ -86,7 +86,6 @@ tests:
     mustpass: true
     priority: 3
     internal: false
-    pr: 4082
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -1092,7 +1091,6 @@ tests:
       - arvbaska
     timeout: 3600    
     mustpass: true
-    pr: 2889  
   - name: TE-14.2 (DCGate - encap and decap scale)
     path: feature/gribi/otg_tests/encap_decap_scale
     owners:
@@ -2418,13 +2416,21 @@ tests:
   #   priority: 3
   #   groups: [newfnt]
 
-  - name: ContainerZ (Deploy and Start a Container)
+  - name: Container-1 (Deploy and Start a Container)
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
+
+  - name: Container-2 (Container network connectivity tests)
+    path: feature/container/networking/tests/container_connectivity
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]    
 
   - name: AFT-1.1 (AFT Streaming)
     path: feature/afts/otg_tests/afts_base
