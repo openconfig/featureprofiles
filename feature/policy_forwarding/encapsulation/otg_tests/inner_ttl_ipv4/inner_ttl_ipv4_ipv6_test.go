@@ -172,14 +172,14 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
 
-			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL+1))
+			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL))
 			configPush(t, otg, otgConfig)
 			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, rewrittenIPTTL)
 
 			// --- Unmatched case ---
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
 			configureVRFStaticRoute(t, dut, batch, vrfName, tc.vrfIPPrefix, nexthopGroupName, tc.protoStr)
-			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL+1))
+			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL))
 			configPush(t, otg, otgConfig)
 			otgOperation(t, dut, ate, otg, otgConfig, unMatchFlow, tc.family, tc.unMatchTTL)
 		})
@@ -335,11 +335,13 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	hardwareVrfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
 	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	hardwarePFTTLCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureTTLPolicyForwarding)
 	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
 		return
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePFTTLCfg)
 }
 
 // updateLagInterfaceDetails updates the IPv4/IPv6 addressing details on a LAG subinterface after a VRF has been configured.
