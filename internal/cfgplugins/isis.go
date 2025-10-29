@@ -184,6 +184,6 @@ func HandleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, root *o
 		v6MultiTopology.SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
 		v6MultiTopology.SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
 	default:
-		t.Fatalf("Unsupported vendor: %s", dut.Vendor())
+		t.Fatalf("Single ISIS topology deviation not supported for vendor: %s", dut.Vendor())
 	}
 }
