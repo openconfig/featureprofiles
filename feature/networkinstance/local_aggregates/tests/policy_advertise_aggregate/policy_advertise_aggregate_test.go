@@ -129,10 +129,12 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	neighborPath := bgpPath.Neighbor(atePort1.IPv4)
 
-	_, ok := gnmi.Watch(t, dut, neighborPath.SessionState().State(), 2*time.Minute, func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	verifySessionState := func(v *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, present := v.Val()
 		return present && state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
-	}).Await(t)
+	}
+
+	_, ok := gnmi.Watch(t, dut, neighborPath.SessionState().State(), 2*time.Minute, verifySessionState).Await(t)
 	if !ok {
 		t.Fatal("BGP session did not establish.")
 	}
@@ -145,20 +147,20 @@ func verifyRIBRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, shouldE
 	dni := deviations.DefaultNetworkInstance(dut)
 	ribQuery := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(prefix)
 
+	verifyRouteState := func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return v.IsPresent()
+	}
+
 	if shouldExist {
 		t.Logf("Verifying route %s is present in RIB...", prefix)
-		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			return v.IsPresent()
-		}).Await(t)
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, verifyRouteState).Await(t)
 		if !ok {
 			t.Fatalf("Route %s was not installed in the RIB, but it should be.", prefix)
 		}
 		t.Logf("Route %s is present in the RIB as expected.", prefix)
 	} else {
 		t.Logf("Verifying route %s is absent from RIB...", prefix)
-		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			return !v.IsPresent()
-		}).Await(t)
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, verifyRouteState).Await(t)
 		if !ok {
 			t.Fatalf("Route %s was not withdrawn from the RIB, but it should have been.", prefix)
 		}
