@@ -1,4 +1,4 @@
-# TRANSCEIVER-3: Telemetry: 400ZR Optics firmware version streaming
+# TRANSCEIVER-3.1: Telemetry: 400ZR Optics firmware version streaming
 
 ## Summary
 
@@ -28,6 +28,11 @@ Validate 400ZR optics module reports correct firmware version.
 ## Telemetry Parameter coverage
 
     *  /platform/components/component/state/firmware-version
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
