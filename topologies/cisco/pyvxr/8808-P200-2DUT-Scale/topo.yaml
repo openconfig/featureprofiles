@@ -5,7 +5,6 @@ simulation:
 devices:
   dut1: 
     dual_rp: true
-    image: /auto/l3fib_img_archive/abhayk/BOBCAT_25.10.0.1556_V2/8000-x64.iso
     rp_type: 8800-rp2
     num_linecards: 8
     lcc_type: '8808'
@@ -41,7 +40,6 @@ devices:
     pre_cli: reload location all noprompt  
   dut2: 
     dual_rp: true
-    image: /auto/l3fib_img_archive/abhayk/BOBCAT_25.10.0.1556_V2/8000-x64.iso
     rp_type: 8800-rp2
     num_linecards: 8
     lcc_type: '8808'
