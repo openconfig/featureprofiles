@@ -19,11 +19,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/openconfig/ondatra/gnmi"
-
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 const (
@@ -42,6 +42,19 @@ func TestMain(m *testing.M) {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// target := credz.GetDutTarget(t, dut)
+
+	// Add any vendor specific cli to enable the ssh login using password
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Arista vendor, adding CLI config for ssh authentication set to public-key")
+		cliConfig := `
+				management ssh
+			  	 authentication protocol password
+				 `
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	default:
+		t.Logf("Vendor %s, does not need CLI configuration in this test", dut.Vendor())
+	}
 
 	// Setup test user and password.
 	credz.SetupUser(t, dut, username)
