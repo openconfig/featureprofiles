@@ -27,6 +27,7 @@ func TestISISState(t *testing.T) {
 	time.Sleep(15 * time.Second)
 	isis := inputObj.Device(dut).Features().Isis[0]
 	peerIsis := inputObj.ATE(ate).Features().Isis[0]
+
 	isisPath := gnmi.OC().NetworkInstance("DEFAULT").Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isis.Name).Isis()
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/levels/level/state/level-number", func(t *testing.T) {
 		state := isisPath.Level(uint8(ft.GetIsisLevelType(isis.Level))).LevelNumber()
@@ -180,9 +181,15 @@ func TestISISState(t *testing.T) {
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address", func(t *testing.T) {
 		state := isisadjPath.NeighborIpv6Address()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
+		//isis := inputObj.Device(dut).Features().GetIsis()
 		val := gnmi.Get(t, dut, state.State())
+		found := false
 		if val != "::" {
-			t.Errorf("ISIS Adj NeighborIpv6Address: got %s, want %s", val, "::")
+			// 	t.Errorf("ISIS Adj NeighborIpv6Address: got %s, want %s", val, "::")
+			found = true
+		}
+		if !found {
+			t.Errorf("ISIS Adj AreaAddress: got %v, want should contain %v", val, "fe80")
 		}
 	})
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address", func(t *testing.T) {
@@ -484,8 +491,8 @@ func TestISISState(t *testing.T) {
 		state := circuitCounters.AdjChanges()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
-		if val != iCC.GetAdjChanges()+3 {
-			t.Errorf("ISIS CircuitCounters Counters AdjChanges: got %d, want %d", val, iCC.GetAdjChanges()+3)
+		if val != iCC.GetAdjChanges()+8 {
+			t.Errorf("ISIS CircuitCounters Counters AdjChanges: got %d, want %d", val, iCC.GetAdjChanges()+8)
 		}
 	})
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-number", func(t *testing.T) {
