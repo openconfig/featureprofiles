@@ -34,6 +34,7 @@ type StaticRouteCfg struct {
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 }
 
+// StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
 type StaticVRFRouteCfg struct {
 	NetworkInstance string
 	Prefix          string
