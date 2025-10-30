@@ -1733,7 +1733,7 @@ func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
 }
 
-// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF
+// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
 func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
     return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
