@@ -38,6 +38,9 @@ type StaticRouteCfg struct {
 	Metric          uint32
 	Recurse         bool
 	T               *testing.T
+	TrafficType     oc.E_Aft_EncapsulationHeaderType
+	PolicyName      string
+	Rule            string
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
@@ -58,11 +61,12 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
 		if cfg.NexthopGroup {
-			if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+			if deviations.StaticRouteToNextHopGroupOCNotSupported(d) {
 				switch d.Vendor() {
 				case ondatra.ARISTA:
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
+					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
 				default:
 					return s, fmt.Errorf("deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %s", d.Vendor())
 				}
