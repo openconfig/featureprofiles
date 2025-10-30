@@ -307,7 +307,9 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 				AuthArtifacts: []*cpb.ServerKeysRequest_AuthenticationArtifacts{
 					&cpb.ServerKeysRequest_AuthenticationArtifacts{
 						PrivateKey:  keyData,
-						Certificate: certData}},
+						Certificate: certData,
+					},
+				},
 				Version:   version,
 				CreatedOn: createdOn,
 			},
