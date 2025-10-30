@@ -588,17 +588,17 @@ func TestStaticToISISRedistribution(t *testing.T) {
 	})
 
 	cases := []struct {
-		desc                            string
-		policyStmtType                  oc.E_RoutingPolicy_PolicyResultType
-		metricPropogation               bool
-		protoAf                         oc.E_Types_ADDRESS_FAMILY
-		RplName                         string
-		RplStatement                    string
-		verifyTrafficStats              bool
-		verifyRouteFunc                 func(t *testing.T, ts *isissession.TestSession)
-		trafficFlows                    []string
-		TagSetCondition                 bool
-		PrefixSetCondition              bool
+		desc               string
+		policyStmtType     oc.E_RoutingPolicy_PolicyResultType
+		metricPropogation  bool
+		protoAf            oc.E_Types_ADDRESS_FAMILY
+		RplName            string
+		RplStatement       string
+		verifyTrafficStats bool
+		verifyRouteFunc    func(t *testing.T, ts *isissession.TestSession)
+		trafficFlows       []string
+		TagSetCondition    bool
+		PrefixSetCondition bool
 		IsisSetMetricStyleTypeCondition bool
 	}{{
 		desc:              "RT-2.12.1: Redistribute IPv4 static route to IS-IS with metric propagation disabled",
@@ -641,15 +641,15 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		policyStmtType:    oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE,
 		verifyRouteFunc:   verifyNonMatchingPrefix,
 	}, {
-		desc:                            "RT-2.12.6: Redistribute IPv4 static route to IS-IS matching a prefix using a route-policy",
-		protoAf:                         oc.Types_ADDRESS_FAMILY_IPV4,
-		RplName:                         v4RoutePolicy,
-		metricPropogation:               false,
-		policyStmtType:                  oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		verifyTrafficStats:              true,
-		trafficFlows:                    []string{v4Flow},
-		PrefixSetCondition:              true,
-		verifyRouteFunc:                 verifyMatchingPrefixWithMetricPropagationWithRoutePolicy,
+		desc:               "RT-2.12.6: Redistribute IPv4 static route to IS-IS matching a prefix using a route-policy",
+		protoAf:            oc.Types_ADDRESS_FAMILY_IPV4,
+		RplName:            v4RoutePolicy,
+		metricPropogation:  false,
+		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyTrafficStats: true,
+		trafficFlows:       []string{v4Flow},
+		PrefixSetCondition: true,
+		verifyRouteFunc:    verifyMatchingPrefixWithMetricPropagationWithRoutePolicy,
 		IsisSetMetricStyleTypeCondition: true,
 	}, {
 		desc:               "RT-2.12.7: Redistribute IPv4 static route to IS-IS matching a tag",
@@ -662,15 +662,15 @@ func TestStaticToISISRedistribution(t *testing.T) {
 		TagSetCondition:    true,
 		verifyRouteFunc:    verifyMatchingPrefixWithTag,
 	}, {
-		desc:                            "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
-		protoAf:                         oc.Types_ADDRESS_FAMILY_IPV6,
-		RplName:                         v6RoutePolicy,
-		metricPropogation:               true,
-		policyStmtType:                  oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		verifyTrafficStats:              true,
-		trafficFlows:                    []string{v6Flow},
-		PrefixSetCondition:              true,
-		verifyRouteFunc:                 verifyMatchingV6PrefixWithMetricPropagationWithRoutePolicy,
+		desc:               "RT-2.12.8: Redistribute IPv6 static route to IS-IS matching a prefix using a route-policy",
+		protoAf:            oc.Types_ADDRESS_FAMILY_IPV6,
+		RplName:            v6RoutePolicy,
+		metricPropogation:  true,
+		policyStmtType:     oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		verifyTrafficStats: true,
+		trafficFlows:       []string{v6Flow},
+		PrefixSetCondition: true,
+		verifyRouteFunc:    verifyMatchingV6PrefixWithMetricPropagationWithRoutePolicy,
 		IsisSetMetricStyleTypeCondition: true,
 	}, {
 		desc:               "RT-2.12.9: Redistribute IPv6 static route to IS-IS matching a prefix using a tag",
@@ -685,17 +685,17 @@ func TestStaticToISISRedistribution(t *testing.T) {
 	}}
 
 	for _, tc := range cases {
-		if deviations.MatchTagSetConditionUnsupported(ts.DUT) && tc.TagSetCondition {
-			t.Skipf("Skipping test case %s due to match tag set condition not supported", tc.desc)
-		}
-
-		if deviations.SkipIsisSetMetricStyleType(ts.DUT) && tc.IsisSetMetricStyleTypeCondition {
-			t.Skipf("Skipping test case %s due to ISIS set-metric-style-type not supported", tc.desc)
-		}
-
-		dni := deviations.DefaultNetworkInstance(ts.DUT)
-
 		t.Run(tc.desc, func(t *testing.T) {
+			if deviations.SkipIsisSetMetricStyleType(ts.DUT) && tc.IsisSetMetricStyleTypeCondition {
+				t.Skipf("Skipping test case %s due to ISIS set-metric-style-type not supported", tc.desc)
+			}
+
+			if deviations.MatchTagSetConditionUnsupported(ts.DUT) && tc.TagSetCondition {
+				t.Skipf("Skipping test case %s due to match tag set condition not supported", tc.desc)
+			}
+
+			dni := deviations.DefaultNetworkInstance(ts.DUT)
+
 			t.Run(fmt.Sprintf("Configure Policy Type %s", tc.policyStmtType.String()), func(t *testing.T) {
 				rpl, err := configureRoutePolicy(ts.DUT, tc.RplName, tc.RplStatement, tc.PrefixSetCondition,
 					tc.TagSetCondition, tc.policyStmtType)
