@@ -280,38 +280,52 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 
 // RotateAuthenticationArtifacts read dut key/certificate contents from the specified directory & apply it as host authentication artifacts on the dut.
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
-	// var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
+	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
 	var keyData []byte
 	var certData []byte
 	var err error
 	if keyDir != "" {
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		keyData, err = os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	PrivateKey: data,
+		// })
 	}
 
 	if certDir != "" {
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		certData, err = os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	Certificate: data,
+		// })
 	}
+
+	artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		PrivateKey:  keyData,
+		Certificate: certData,
+	})
+
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
 			ServerKeys: &cpb.ServerKeysRequest{
-				// AuthArtifacts: artifactContents,
-				// Version:       version,
-				// CreatedOn:     createdOn,
-				AuthArtifacts: []*cpb.ServerKeysRequest_AuthenticationArtifacts{
-					&cpb.ServerKeysRequest_AuthenticationArtifacts{
-						PrivateKey:  keyData,
-						Certificate: certData,
-					},
-				},
-				Version:   version,
-				CreatedOn: createdOn,
+				AuthArtifacts: artifactContents,
+				Version:       version,
+				CreatedOn:     createdOn,
+				// AuthArtifacts: []*cpb.ServerKeysRequest_AuthenticationArtifacts{
+				// 	&cpb.ServerKeysRequest_AuthenticationArtifacts{
+				// 		PrivateKey:  keyData,
+				// 		Certificate: certData,
+				// 	},
+				// },
+				// Version:   version,
+				// CreatedOn: createdOn,
 			},
 		},
 	}
