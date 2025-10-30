@@ -364,6 +364,16 @@ func advertiseRoutesWithISIS(t *testing.T, ts *isissession.TestSession) {
 	net2v6.Addresses().Add().SetAddress(advertisedIPv6.address).SetPrefix(advertisedIPv6.prefix)
 }
 
+func configureTagSet(t *testing.T, dut *ondatra.DUTDevice, tagSet string, tagValue int) {
+	t.Helper()
+	dutOcRoot := &oc.Root{}
+	tagSetPath := gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSet)
+	rpl := dutOcRoot.GetOrCreateRoutingPolicy()
+	tagSetPolicyDefinition := rpl.GetOrCreateDefinedSets().GetOrCreateTagSet(tagSet)
+	tagSetPolicyDefinition.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionString(fmt.Sprintf("%v", tagValue))})
+	gnmi.Replace(t, dut, tagSetPath.Config(), tagSetPolicyDefinition)
+}
+
 func verifyRplConfig(t *testing.T, dut *ondatra.DUTDevice, tagSetName string, tagValue oc.UnionUint32) {
 	tagSetState := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSetName).TagValue().State())
 	tagNameState := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet(tagSetName).Name().State())
@@ -523,12 +533,7 @@ func verifyMatchingPrefixWithTag(t *testing.T, ts *isissession.TestSession) {
 	verifyPrefix(t, ts, !shouldBePresent)
 
 	t.Run("Configuring correct tag value", func(t *testing.T) {
-		dutOcRoot := &oc.Root{}
-		tagSetPath := gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v4tagSet)
-		tagSet := dutOcRoot.GetOrCreateRoutingPolicy()
-		tagSetPolicyDefinition := tagSet.GetOrCreateDefinedSets().GetOrCreateTagSet(v4tagSet)
-		tagSetPolicyDefinition.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionString(fmt.Sprintf("%v", V4tagValue))})
-		gnmi.Replace(t, ts.DUT, tagSetPath.Config(), tagSetPolicyDefinition)
+		configureTagSet(t, ts.DUT, v4tagSet, V4tagValue)
 	})
 	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
 		t.Run("Verify Configuration for RPL TagSet in V4", func(t *testing.T) {
@@ -543,12 +548,7 @@ func verifyMatchingV6PrefixWithTag(t *testing.T, ts *isissession.TestSession) {
 	verifyV6Prefix(t, ts, !shouldBePresent)
 
 	t.Run("Configuring correct tag value", func(t *testing.T) {
-		dutOcRoot := &oc.Root{}
-		tagSetPath := gnmi.OC().RoutingPolicy().DefinedSets().TagSet(v6tagSet)
-		tagSet := dutOcRoot.GetOrCreateRoutingPolicy()
-		tagSetPolicyDefinition := tagSet.GetOrCreateDefinedSets().GetOrCreateTagSet(v6tagSet)
-		tagSetPolicyDefinition.SetTagValue([]oc.RoutingPolicy_DefinedSets_TagSet_TagValue_Union{oc.UnionString(fmt.Sprintf("%v", V6tagValue))})
-		gnmi.Replace(t, ts.DUT, tagSetPath.Config(), tagSetPolicyDefinition)
+		configureTagSet(t, ts.DUT, v6tagSet, V6tagValue)
 	})
 	if !deviations.RoutingPolicyTagSetEmbedded(ts.DUT) {
 		t.Run("Verify Configuration for RPL TagSet in V6", func(t *testing.T) {
