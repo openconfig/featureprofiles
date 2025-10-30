@@ -329,7 +329,6 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 			},
 		},
 	}
-
 	sendHostParametersRequest(t, dut, request)
 }
 
