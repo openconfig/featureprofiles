@@ -50,6 +50,7 @@ devices:
     fabcard_version: p1
     fabcard_slots: 
       - 0
+      - 1
     linecard_types: 
       - 88-LC2-36EF-M
       - 88-LC2-36EF-M
