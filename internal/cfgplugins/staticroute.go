@@ -36,6 +36,9 @@ type StaticRouteCfg struct {
 	Metric          uint32
 	Recurse         bool
 	T               *testing.T
+	TrafficType     oc.E_Aft_EncapsulationHeaderType
+	PolicyName      string
+	Rule            string
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
@@ -56,11 +59,12 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	s := c.GetOrCreateStatic(cfg.Prefix)
 	for k, v := range cfg.NextHops {
 		if cfg.NexthopGroup {
-			if deviations.IPv4StaticRouteWithIPv6NextHopUnsupported(d) {
+			if deviations.StaticRouteToNextHopGroupOCNotSupported(d) {
 				switch d.Vendor() {
 				case ondatra.ARISTA:
 					cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, v)
 					helpers.GnmiCLIConfig(cfg.T, d, cli)
+					staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
 				default:
 					return s, fmt.Errorf("deviation IPv4StaticRouteWithIPv6NextHopUnsupported is not handled for the dut: %s", d.Vendor())
 				}
@@ -86,4 +90,32 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
+}
+
+// staticRouteToNextHopGroupCLI configures routes to a next-hop-group for gue encapsulation
+func staticRouteToNextHopGroupCLI(t *testing.T, dut *ondatra.DUTDevice, params StaticRouteCfg) {
+	t.Helper()
+	groupType := ""
+
+	switch params.TrafficType {
+	case oc.Aft_EncapsulationHeaderType_UDPV4:
+		groupType = "ipv4"
+	case oc.Aft_EncapsulationHeaderType_UDPV6:
+		groupType = "ipv6"
+	}
+
+	// Configure traffic policy
+	cli := ""
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, params.PolicyName, params.Rule, groupType, params.NextHops["0"])
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+	}
 }

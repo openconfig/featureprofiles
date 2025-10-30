@@ -173,15 +173,17 @@ type StaticNextHopGroupParams struct {
 }
 
 type NexthopGroupUDPParams struct {
-	TrafficType    oc.E_Aft_EncapsulationHeaderType
-	NexthopGrpName string
-	Index          string
-	DstIp          []string
-	SrcIp          string
-	DstUdpPort     uint16
-	SrcUdpPort     uint16
-	TTL            uint8
-	DSCP           uint8
+	TrafficType     oc.E_Aft_EncapsulationHeaderType
+	NexthopGrpName  string
+	Index           string
+	DstIp           []string
+	SrcIp           string
+	DstUdpPort      uint16
+	SrcUdpPort      uint16
+	TTL             uint8
+	DSCP            uint8
+	NetworkInstance *oc.NetworkInstance
+	DeleteTtl       bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -232,7 +234,7 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 }
 
 // NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
-func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, params NexthopGroupUDPParams, deleteTtl bool) {
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
 	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		cli := ""
@@ -276,7 +278,7 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
-			if deleteTtl {
+			if params.DeleteTtl {
 				cli = fmt.Sprintf(
 					`nexthop-group %s type %s
 					no ttl %v
@@ -288,16 +290,14 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
-
-			newPolicyForwardingGueEncap(t, dut, params, "GUE-Policy")
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
 	} else {
-		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
+		nhg := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
 		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
 
-		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
+		ueh1 := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
 			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
 		}
@@ -310,32 +310,4 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
 	}
 
-}
-
-// newPolicyForwardingGueEncap configures policy forwading for gue encapsulation
-func newPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams, policyName string) {
-	t.Helper()
-	groupType := ""
-
-	switch params.TrafficType {
-	case oc.Aft_EncapsulationHeaderType_UDPV4:
-		groupType = "ipv4"
-	case oc.Aft_EncapsulationHeaderType_UDPV6:
-		groupType = "ipv6"
-	}
-
-	// Configure traffic policy
-	cli := ""
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cli = fmt.Sprintf(`
-				traffic-policies
-				traffic-policy %s
-      			match %s %s
-         		actions
-            	redirect next-hop group %s`, policyName, fmt.Sprintf("rule%v", params.Index), groupType, params.NexthopGrpName)
-		helpers.GnmiCLIConfig(t, dut, cli)
-	default:
-		t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-	}
 }

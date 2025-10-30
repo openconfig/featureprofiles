@@ -14,11 +14,9 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     next_hop_group_config_unsupported:  true
-    ipv4_static_route_with_ipv6_nh_unsupported: true
-    policy_forwarding_unsupported: true
-    load_interval_not_supported: true
     interface_policy_forwarding_unsupported: true
     qos_classification_unsupported: true
     load_balance_policy_oc_unsupported: true
+    static_route_to_nhg_oc_unsupported: true
   }
 }

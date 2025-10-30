@@ -171,7 +171,10 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString(nexthopGroupName),
 		},
-		T: t,
+		T:           t,
+		TrafficType: oc.Aft_EncapsulationHeaderType_UDPV4,
+		PolicyName:  GuePolicyName,
+		Rule:        "rule1",
 	}
 
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -184,9 +187,12 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		Prefix:          staticpngv6IPv6,
 		NexthopGroup:    true,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"1": oc.UnionString(nexthopGroupNameV6),
+			"0": oc.UnionString(nexthopGroupNameV6),
 		},
-		T: t,
+		T:           t,
+		TrafficType: oc.Aft_EncapsulationHeaderType_UDPV6,
+		PolicyName:  GuePolicyName,
+		Rule:        "rule2",
 	}
 
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -204,28 +210,32 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:    oc.Aft_EncapsulationHeaderType_UDPV4,
-		NexthopGrpName: nexthopGroupName,
-		Index:          "0",
-		SrcIp:          dut.Port(t, "port1").Name(),
-		DstIp:          dstAddr,
-		TTL:            ttl,
-		DstUdpPort:     gueProtocolPort,
+		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+		NexthopGrpName:  nexthopGroupName,
+		Index:           "0",
+		SrcIp:           dut.Port(t, "port1").Name(),
+		DstIp:           dstAddr,
+		TTL:             ttl,
+		DstUdpPort:      gueProtocolPort,
+		NetworkInstance: ni,
+		DeleteTtl:       false,
 	}
 	// Create nexthop group for v4
-	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, v4NexthopUDPParams, false)
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
 
 	v6NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:    oc.Aft_EncapsulationHeaderType_UDPV6,
-		NexthopGrpName: nexthopGroupNameV6,
-		Index:          "1",
-		SrcIp:          dut.Port(t, "port1").Name(),
-		DstIp:          dstAddr,
-		TTL:            ttl,
-		DstUdpPort:     gueProtocolPort,
+		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+		NexthopGrpName:  nexthopGroupNameV6,
+		Index:           "1",
+		SrcIp:           dut.Port(t, "port1").Name(),
+		DstIp:           dstAddr,
+		TTL:             ttl,
+		DstUdpPort:      gueProtocolPort,
+		NetworkInstance: ni,
+		DeleteTtl:       false,
 	}
 	// Create nexthop group for v4
-	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, v6NexthopUDPParams, false)
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v6NexthopUDPParams)
 
 	// Apply traffic policy on interface
 	if deviations.NextHopGroupOCUnsupported(dut) {
@@ -259,14 +269,16 @@ func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg *tunnelCf
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-			TrafficType:    cfg.protocolType,
-			NexthopGrpName: cfg.nexthopGroupName,
-			DstUdpPort:     gueProtocolPort,
-			TTL:            cfg.ttl,
-			Index:          cfg.index,
+			TrafficType:     cfg.protocolType,
+			NexthopGrpName:  cfg.nexthopGroupName,
+			DstUdpPort:      gueProtocolPort,
+			TTL:             cfg.ttl,
+			Index:           cfg.index,
+			NetworkInstance: ni,
+			DeleteTtl:       cfg.deleteTtl,
 		}
 
-		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, nexthopUDPParams, cfg.deleteTtl)
+		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, nexthopUDPParams)
 	}
 
 }
