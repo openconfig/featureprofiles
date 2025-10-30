@@ -23,6 +23,9 @@ package metadata_go_proto
 import (
 	reflect "reflect"
 	sync "sync"
+
+	reflect "reflect"
+	sync "sync"
 	unsafe "unsafe"
 
 	proto "github.com/openconfig/ondatra/proto"
