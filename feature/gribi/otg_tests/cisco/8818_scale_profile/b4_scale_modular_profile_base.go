@@ -1791,10 +1791,12 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 
 	t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer, "bundle")
+	configureLoopbackAndSFlow(t, dut)
 	t.Log("Configure TGEN OTG")
 	topo := configureOTG(t, otg, dut, peer)
 	t.Log("OTG CONFIG: ", topo)
 	tcArgs := initializeTestResources(t, dut, peer, otg, topo, client, ctx)
+
 	initTriggers(tcArgs)
 
 	t.Run("Verify default BGP traffic", func(t *testing.T) {

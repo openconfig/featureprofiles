@@ -32,6 +32,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -140,9 +141,20 @@ const (
 	ateAS                    = 67777
 	switchovertime           = 315000.0 //msec
 	fps                      = 10000    //100000
+	samplingRate             = 262144
+	sampleTolerance          = 0.8
 )
 
 var (
+	dutLoopback1 = attrs.Attributes{
+		Name:    "Loopback1",
+		Desc:    "dutLoopback1",
+		IPv4:    "203.0.113.255",
+		IPv4Len: 32,
+		IPv6:    "2001:db8::203:0:113:255",
+		IPv6Len: 128,
+	}
+
 	dutSrc1 = attrs.Attributes{
 		Desc:    "dutSrc1",
 		MAC:     "02:01:00:00:00:01",
@@ -1450,7 +1462,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		t.Log("Configure DUT-TGEN Bundle Interface")
 		aggID1, aggID2 = configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
-		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
+		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 1, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
 		if len(bundleListAll) < 2 {
 			t.Fatalf("Expected at least 2 bundles (one for bgp/isis other for test), got %d", len(bundleList))
 		}
@@ -1954,4 +1966,61 @@ func reconnectGribi(t *testing.T, gribiClient gribis.GRIBIClient, deviceName str
 		}
 	}
 	t.Logf("%s gRIBI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
+}
+
+// configureLoopback configures the Loopback0 interface with IPv4 and IPv6 addresses
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
+	root := &oc.Root{}
+
+	// Configure Loopback0 interface
+	lo := root.GetOrCreateInterface(loopback.Name)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo.Enabled = ygot.Bool(true)
+	sub := lo.GetOrCreateSubinterface(0)
+
+	// IPv4 configuration
+	v4 := sub.GetOrCreateIpv4()
+	a4 := v4.GetOrCreateAddress(loopback.IPv4)
+	a4.PrefixLength = ygot.Uint8(32)
+
+	// IPv6 configuration
+	v6 := sub.GetOrCreateIpv6()
+	a6 := v6.GetOrCreateAddress(loopback.IPv6)
+	a6.PrefixLength = ygot.Uint8(128)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback.Name).Config(), lo)
+}
+
+// configureLoopbackAndSFlow configures Loopback0 and sFlow on the DUT.
+// call it after configuring DUT interfaces, which populates aggID1.
+func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
+	config := NewDefaultSflowAttr(aggID1)
+
+	// Configure Loopback0 interface
+	configureLoopback(t, dut, dutLoopback1)
+
+	// Configure sFlow
+	s.ConfigureSFlow(t, dut, config)
+
+	// Configure unsupported features
+	s.ConfigureUnsupportedSFlowFeatures(t, dut, config)
+}
+
+// NewDefaultSflowAttr returns a SflowAttr with default values
+func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
+	return &s.SFlowConfig{
+		SourceIPv4:          dutLoopback1.IPv4,
+		SourceIPv6:          dutLoopback1.IPv6,
+		CollectorIPv6:       otgSrc2.IPv6,
+		CollectorIPv4:       otgSrc2.IPv4,
+		IP:                  s.IPv6,
+		CollectorPort:       6343,
+		DSCP:                32,
+		SampleSize:          343,
+		IngressSamplingRate: samplingRate,
+		InterfaceName:       ingressInterface,
+		ExporterMapName:     "OC-FEM-GLOBAL",
+		PacketLength:        8968,
+		DfBitSet:            true,
+	}
 }
