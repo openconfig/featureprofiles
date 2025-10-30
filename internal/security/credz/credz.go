@@ -298,10 +298,12 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
 	}
-
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
 			ServerKeys: &cpb.ServerKeysRequest{
+				// AuthArtifacts: artifactContents,
+				// Version:       version,
+				// CreatedOn:     createdOn,
 				AuthArtifacts: []*cpb.ServerKeysRequest_AuthenticationArtifacts{
 					&cpb.ServerKeysRequest_AuthenticationArtifacts{
 						PrivateKey:  keyData,
