@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
+	s "github.com/openconfig/featureprofiles/internal/cisco/helper"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 )
@@ -22,8 +22,8 @@ var sfAttr = &s.SflowAttr{
 // NewDefaultSflowAttr returns a SflowAttr with default values
 func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
 	return &s.SFlowConfig{
-		SourceIPv4:          dutLoopback0.IPv4,
-		SourceIPv6:          dutLoopback0.IPv6,
+		SourceIPv4:          dutLoopback1.IPv4,
+		SourceIPv6:          dutLoopback1.IPv6,
 		CollectorIPv6:       otgPort8.IPv6,
 		CollectorIPv4:       otgPort8.IPv4,
 		IP:                  s.IPv6,
@@ -54,7 +54,7 @@ func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	config := NewDefaultSflowAttr(getPolicyInterface(t, dut, *bundleMode))
 
 	// Configure Loopback0 interface
-	configureLoopback0(t, dut, dutLoopback0)
+	configureLoopback(t, dut, dutLoopback1)
 
 	// Configure sFlow
 	s.ConfigureSFlow(t, dut, config)

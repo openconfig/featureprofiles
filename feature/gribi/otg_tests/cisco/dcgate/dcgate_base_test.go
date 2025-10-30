@@ -34,7 +34,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
-	s "github.com/openconfig/featureprofiles/internal/cisco/sflow"
+	s "github.com/openconfig/featureprofiles/internal/cisco/helper"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
@@ -197,9 +197,9 @@ var (
 )
 
 var (
-	dutLoopback0 = attrs.Attributes{
-		Name:    "Loopback0",
-		Desc:    "dutLoopback0",
+	dutLoopback1 = attrs.Attributes{
+		Name:    "Loopback1",
+		Desc:    "dutLoopback1",
 		IPv4:    "203.0.113.255",
 		IPv4Len: 32,
 		IPv6:    "2001:db8::203:0:113:255",
@@ -1673,8 +1673,8 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 	time.Sleep(5 * time.Second)
 }
 
-// configureLoopback0 configures the Loopback0 interface with IPv4 and IPv6 addresses
-func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
+// configureLoopback configures the Loopback0 interface with IPv4 and IPv6 addresses
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
 	root := &oc.Root{}
 
 	// Configure Loopback0 interface
@@ -1693,7 +1693,7 @@ func configureLoopback0(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Att
 	a6 := v6.GetOrCreateAddress(loopback.IPv6)
 	a6.PrefixLength = ygot.Uint8(128)
 
-	gnmi.Replace(t, dut, gnmi.OC().Interface("Loopback0").Config(), lo)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback.Name).Config(), lo)
 }
 
 func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames []string) map[string][]uint32 {

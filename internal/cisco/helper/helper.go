@@ -6,8 +6,17 @@ var (
 	loadbalancing *loadbalancingHelper
 	interfaces    *interfaceHelper
 	tgen          *tgenHelper
+	sflow         *sflowHelper
 	// rib     = &ribHelper{}
 )
+
+// SFlowHelper accessor for sflow helper functions.
+func SflowHelper() *sflowHelper {
+	if sflow == nil {
+		sflow = &sflowHelper{}
+	}
+	return sflow
+}
 
 // FIBHelper accessor for fib helper functions.
 func FIBHelper() *fibHelper {
