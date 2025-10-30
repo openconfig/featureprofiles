@@ -64,6 +64,7 @@ var (
 	}
 
 	dut2Src = attrs.Attributes{
+		Desc:    "dutdut",
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
@@ -165,7 +166,7 @@ func (tc *testCase) configDstAggregateDUT(i *oc.Interface, a *attrs.Attributes) 
 }
 
 func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
-	i.Description = ygot.String(dut1Src.Desc)
+	i.Description = ygot.String(a.Desc)
 	if deviations.InterfaceEnabled(tc.dut1) {
 		i.Enabled = ygot.Bool(true)
 	}
