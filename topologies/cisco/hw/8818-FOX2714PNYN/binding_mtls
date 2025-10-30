@@ -58,7 +58,9 @@ duts {
     cert_file: "$CERT_FILE"
     key_file:  "$KEY_FILE"
   }
-
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
     target: "10.85.72.52:8818"
