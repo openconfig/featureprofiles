@@ -69,7 +69,7 @@ const (
 	BGPPeerGroup4 = "BGP-PEER-GROUP4"
 
 	// PTBGP is shorthand for the long oc protocol type constant
-	PTBGP = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	PTBGP        = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 	routeTimeout = 30 * time.Second
 )
 
@@ -982,8 +982,8 @@ func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName st
 }
 
 type RouteInfo struct {
-	VRF    string
-	IPType string
+	VRF         string
+	IPType      string
 	DefaultName string
 }
 
