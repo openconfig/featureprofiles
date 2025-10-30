@@ -1169,9 +1169,48 @@ type Metadata_Deviations struct {
 	// OC state path for the lower priority next hop not supported.
 	// Arista: b/447502389
 	TelemetryNotSupportedForLowPriorityNh bool `protobuf:"varint,332,opt,name=telemetry_not_supported_for_low_priority_nh,json=telemetryNotSupportedForLowPriorityNh,proto3" json:"telemetry_not_supported_for_low_priority_nh,omitempty"`
+	// Devices that do not support match-as-path-set
+	// Arista b/434583178
+	MatchAsPathSetUnsupported bool `protobuf:"varint,333,opt,name=match_as_path_set_unsupported,json=matchAsPathSetUnsupported,proto3" json:"match_as_path_set_unsupported,omitempty"`
+	// Same apply-policy under peer-group and peer-group/afi-safi unsupported
+	// Arista b/413225712
+	SameAfiSafiAndPeergroupPoliciesUnsupported bool `protobuf:"varint,334,opt,name=same_afi_safi_and_peergroup_policies_unsupported,json=sameAfiSafiAndPeergroupPoliciesUnsupported,proto3" json:"same_afi_safi_and_peergroup_policies_unsupported,omitempty"`
+	// Devices that do not support syslog OC configuration for below OC paths.
+	// '/system/logging/remote-servers/remote-server/config/network-instance'
+	// Cisco: b/447513282
+	SyslogOcUnsupported bool `protobuf:"varint,335,opt,name=syslog_oc_unsupported,json=syslogOcUnsupported,proto3" json:"syslog_oc_unsupported,omitempty"`
+	// Devices that do not support transceiver config enable leaf
+	// Nokia b/414842051
+	TransceiverConfigEnableUnsupported bool `protobuf:"varint,336,opt,name=transceiver_config_enable_unsupported,json=transceiverConfigEnableUnsupported,proto3" json:"transceiver_config_enable_unsupported,omitempty"`
+	// Devices that do not support aft summary oc path
+	// Cisco: https://issuetracker.google.com/450898206
+	AftSummaryOcUnsupported bool `protobuf:"varint,337,opt,name=aft_summary_oc_unsupported,json=aftSummaryOcUnsupported,proto3" json:"aft_summary_oc_unsupported,omitempty"`
+	// Devices that do not support isis lsp tlvs
+	// Arista: https://issuetracker.google.com/450898200
+	IsisLspTlvsOcUnsupported bool `protobuf:"varint,338,opt,name=isis_lsp_tlvs_oc_unsupported,json=isisLspTlvsOcUnsupported,proto3" json:"isis_lsp_tlvs_oc_unsupported,omitempty"`
+	// Devices that do not support isis adjancy with STREAM telemetry
+	// Nokia: https://issuetracker.google.com/452295044
+	IsisAdjacencyStreamUnsupported bool `protobuf:"varint,339,opt,name=isis_adjacency_stream_unsupported,json=isisAdjacencyStreamUnsupported,proto3" json:"isis_adjacency_stream_unsupported,omitempty"`
+	// Device does not support sid_per_interface_counter_unsupported
+	// Cisco b/447350490
+	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
+	// Juniper does not support localhost yet
+	// b/448173472
+	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
+	// Juniper: b/434633267
+	// Devices that do not support oc path for aggregate bandwidth policy
+	// action.
+	AggregateBandwidthPolicyActionUnsupported bool `protobuf:"varint,342,opt,name=aggregate_bandwidth_policy_action_unsupported,json=aggregateBandwidthPolicyActionUnsupported,proto3" json:"aggregate_bandwidth_policy_action_unsupported,omitempty"`
+	// Juniper: b/434633267
+	// Devices that do not support oc path for auto link bandwidth.
+	AutoLinkBandwidthUnsupported bool `protobuf:"varint,343,opt,name=auto_link_bandwidth_unsupported,json=autoLinkBandwidthUnsupported,proto3" json:"auto_link_bandwidth_unsupported,omitempty"`
+	// Juniper: b/434633267
+	// Devices that do not support oc path for advertised cumulative link
+	// bandwidth.
+	AdvertisedCumulativeLbwOcUnsupported bool `protobuf:"varint,344,opt,name=advertised_cumulative_lbw_oc_unsupported,json=advertisedCumulativeLbwOcUnsupported,proto3" json:"advertised_cumulative_lbw_oc_unsupported,omitempty"`
 	// Devices does not support uRPF configuration.
 	// Arista https://partnerissuetracker.corp.google.com/issues/444942109
-	UrpfConfigOcUnsupported bool `protobuf:"varint,333,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
+	UrpfConfigOcUnsupported bool `protobuf:"varint,345,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -3299,6 +3338,90 @@ func (x *Metadata_Deviations) GetTelemetryNotSupportedForLowPriorityNh() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetMatchAsPathSetUnsupported() bool {
+	if x != nil {
+		return x.MatchAsPathSetUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSameAfiSafiAndPeergroupPoliciesUnsupported() bool {
+	if x != nil {
+		return x.SameAfiSafiAndPeergroupPoliciesUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSyslogOcUnsupported() bool {
+	if x != nil {
+		return x.SyslogOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTransceiverConfigEnableUnsupported() bool {
+	if x != nil {
+		return x.TransceiverConfigEnableUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAftSummaryOcUnsupported() bool {
+	if x != nil {
+		return x.AftSummaryOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisLspTlvsOcUnsupported() bool {
+	if x != nil {
+		return x.IsisLspTlvsOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisAdjacencyStreamUnsupported() bool {
+	if x != nil {
+		return x.IsisAdjacencyStreamUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSidPerInterfaceCounterUnsupported() bool {
+	if x != nil {
+		return x.SidPerInterfaceCounterUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetLocalhostForContainerz() bool {
+	if x != nil {
+		return x.LocalhostForContainerz
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAggregateBandwidthPolicyActionUnsupported() bool {
+	if x != nil {
+		return x.AggregateBandwidthPolicyActionUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAutoLinkBandwidthUnsupported() bool {
+	if x != nil {
+		return x.AutoLinkBandwidthUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAdvertisedCumulativeLbwOcUnsupported() bool {
+	if x != nil {
+		return x.AdvertisedCumulativeLbwOcUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetUrpfConfigOcUnsupported() bool {
 	if x != nil {
 		return x.UrpfConfigOcUnsupported
@@ -3362,7 +3485,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\u07b6\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xee\xbd\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3374,7 +3497,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe7\xac\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf7\xb3\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3678,8 +3801,20 @@ const file_metadata_proto_rawDesc = "" +
 	"7port_speed_duplex_mode_unsupported_for_interface_config\x18\xc9\x02 \x01(\bR0portSpeedDuplexModeUnsupportedForInterfaceConfig\x12L\n" +
 	"\"explicit_breakout_interface_config\x18\xca\x02 \x01(\bR\x1fexplicitBreakoutInterfaceConfig\x12)\n" +
 	"\x10ciscoxr_laser_ft\x18\xcb\x02 \x01(\tR\x0eciscoxrLaserFt\x12[\n" +
-	"+telemetry_not_supported_for_low_priority_nh\x18\xcc\x02 \x01(\bR%telemetryNotSupportedForLowPriorityNh\x12<\n" +
-	"\x1aurpf_config_oc_unsupported\x18\xcd\x02 \x01(\bR\x17urpfConfigOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"+telemetry_not_supported_for_low_priority_nh\x18\xcc\x02 \x01(\bR%telemetryNotSupportedForLowPriorityNh\x12A\n" +
+	"\x1dmatch_as_path_set_unsupported\x18\xcd\x02 \x01(\bR\x19matchAsPathSetUnsupported\x12e\n" +
+	"0same_afi_safi_and_peergroup_policies_unsupported\x18\xce\x02 \x01(\bR*sameAfiSafiAndPeergroupPoliciesUnsupported\x123\n" +
+	"\x15syslog_oc_unsupported\x18\xcf\x02 \x01(\bR\x13syslogOcUnsupported\x12R\n" +
+	"%transceiver_config_enable_unsupported\x18\xd0\x02 \x01(\bR\"transceiverConfigEnableUnsupported\x12<\n" +
+	"\x1aaft_summary_oc_unsupported\x18\xd1\x02 \x01(\bR\x17aftSummaryOcUnsupported\x12?\n" +
+	"\x1cisis_lsp_tlvs_oc_unsupported\x18\xd2\x02 \x01(\bR\x18isisLspTlvsOcUnsupported\x12J\n" +
+	"!isis_adjacency_stream_unsupported\x18\xd3\x02 \x01(\bR\x1eisisAdjacencyStreamUnsupported\x12Q\n" +
+	"%sid_per_interface_counter_unsupported\x18\xd4\x02 \x01(\bR!sidPerInterfaceCounterUnsupported\x129\n" +
+	"\x18localhost_for_containerz\x18\xd5\x02 \x01(\bR\x16localhostForContainerz\x12a\n" +
+	"-aggregate_bandwidth_policy_action_unsupported\x18\xd6\x02 \x01(\bR)aggregateBandwidthPolicyActionUnsupported\x12F\n" +
+	"\x1fauto_link_bandwidth_unsupported\x18\xd7\x02 \x01(\bR\x1cautoLinkBandwidthUnsupported\x12W\n" +
+	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12<\n" +
+	"\x1aurpf_config_oc_unsupported\x18\xd9\x02 \x01(\bR\x17urpfConfigOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

@@ -965,9 +965,60 @@ message Metadata {
     // Arista: b/447502389
     bool telemetry_not_supported_for_low_priority_nh = 332;
 
+    // Devices that do not support match-as-path-set
+    // Arista b/434583178
+    bool match_as_path_set_unsupported = 333;
+
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+    
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 335;
+
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
+    
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
+    bool aft_summary_oc_unsupported = 337;
+
+    // Devices that do not support isis lsp tlvs
+    // Arista: https://issuetracker.google.com/450898200
+    bool isis_lsp_tlvs_oc_unsupported = 338;
+
+    // Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: https://issuetracker.google.com/452295044
+    bool isis_adjacency_stream_unsupported = 339;
+
+    // Device does not support sid_per_interface_counter_unsupported
+    // Cisco b/447350490
+    bool sid_per_interface_counter_unsupported = 340;
+
+    //  Juniper does not support localhost yet
+    //  b/448173472
+    bool localhost_for_containerz = 341;
+    
+    // Juniper: b/434633267
+    // Devices that do not support oc path for aggregate bandwidth policy
+    // action.
+    bool aggregate_bandwidth_policy_action_unsupported = 342;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for auto link bandwidth.
+    bool auto_link_bandwidth_unsupported = 343;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for advertised cumulative link
+    // bandwidth.
+    bool advertised_cumulative_lbw_oc_unsupported = 344;
+
     // Devices does not support uRPF configuration.
     // Arista https://partnerissuetracker.corp.google.com/issues/444942109
-    bool urpf_config_oc_unsupported = 333;
+    bool urpf_config_oc_unsupported = 345;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
