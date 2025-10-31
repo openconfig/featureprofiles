@@ -32,6 +32,7 @@ import (
 
 const (
 	hostCertificateVersion = "v1.0"
+	devFqdn                = "net.google.com"
 )
 
 var (
@@ -81,7 +82,7 @@ func TestCredentialz(t *testing.T) {
 			t.Fatalf("Failed to get SSH certificate")
 		}
 		wantHostKey := strings.Trim(string(ssh.MarshalAuthorizedKey(cert.Key)), "\n")
-		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519")
+		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519", devFqdn)
 		if err != nil {
 			t.Fatalf("Failed parsing host certificate from device: %s", err)
 		}
