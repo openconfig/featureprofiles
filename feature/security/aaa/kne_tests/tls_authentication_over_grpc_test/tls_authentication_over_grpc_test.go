@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
