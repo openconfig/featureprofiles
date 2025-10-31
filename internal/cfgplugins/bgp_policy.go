@@ -107,7 +107,7 @@ match as-path %s
 
 // NewInterInstancePolicy configures BGP route leaking between default and non-default VRFs. It automatically chooses between OC or CLI based on deviation.
 func NewInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, cfg InstanceRoutePolicy) {
-	t.Helper()	
+	t.Helper()
 	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
