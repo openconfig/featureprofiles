@@ -430,7 +430,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// asp-policy-v4 (AS-PATH prepend)
 	pdAsp := rp.GetOrCreatePolicyDefinition(v4ASPPolicy)
-	stAsp, err := pdAsp.AppendNewStatement(v4ASPStatement)
+	stAsp, _ := pdAsp.AppendNewStatement(v4ASPStatement)
 	aspBgp := stAsp.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspBgp.SetRepeatN(asPathRepeat)
 	aspBgp.SetAsn(dutAS)
@@ -701,7 +701,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// asp-policy-v6 (AS-PATH prepend)
 	pdAsp := rp.GetOrCreatePolicyDefinition(v6ASPPolicy)
-	stAsp, err := pdAsp.AppendNewStatement(v6ASPStatement)
+	stAsp, _ := pdAsp.AppendNewStatement(v6ASPStatement)
 
 	bgpAspAction := stAsp.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	bgpAspAction.SetRepeatN(asPathRepeat)
