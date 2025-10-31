@@ -54,3 +54,39 @@ func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, 
 		// Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
 	})
 }
+
+// FindLineCardParent traverses up the component hierarchy starting from the given component name
+// to find the nearest ancestor component of type LINECARD. It returns the name of the LINECARD
+// component if found, or an error otherwise.
+func FindLineCardParent(t *testing.T, dut *ondatra.DUTDevice, startComponentName string) string {
+	t.Helper()
+
+	currentComponentName := startComponentName
+	depth := 0
+	maxDepth := 10
+	for {
+		if depth >= maxDepth {
+			t.Fatalf("Exceeded maximum search depth while searching for LINECARD parent for starting component %s.", startComponentName)
+		}
+		componentTypePath := gnmi.OC().Component(currentComponentName).Type().State()
+		currentType, ok := gnmi.Lookup(t, dut, componentTypePath).Val()
+		if !ok {
+			t.Logf("Component %s not found or missing state data.", currentComponentName)
+		}
+
+		t.Logf("Component %s has type: %v", currentComponentName, currentType)
+		if currentType == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+			t.Logf("Successfully traced to parent line card: %s", currentComponentName)
+			return currentComponentName
+		}
+
+		parentPath := gnmi.OC().Component(currentComponentName).Parent().State()
+		parentName, ok := gnmi.Lookup(t, dut, parentPath).Val()
+
+		if !ok || parentName == "" {
+			t.Fatalf("Failed to find a parent component of type LINECARD for starting component %s. Reached root at %s.", startComponentName, currentComponentName)
+		}
+		currentComponentName = parentName
+		depth++
+	}
+}
