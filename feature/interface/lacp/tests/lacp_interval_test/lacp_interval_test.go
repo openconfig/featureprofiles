@@ -144,8 +144,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	dut2Batch.Set(t, tc.dut2)
 	t.Logf("Configured DUT2 aggregate interface %s", tc.aggID)
 
-	// TODO - to remove this sleep later
-	time.Sleep(10 * time.Second)
+	gnmi.Await(t, tc.dut2, gnmi.OC().Interface(tc.aggID).Type().State(), time.Minute, ieee8023adLag)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
 		duts := []*ondatra.DUTDevice{tc.dut1, tc.dut2}
@@ -179,6 +178,9 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 		tc.verifyInterfaceDUT(t, port, tc.dut2)
 		tc.verifyAggID(t, port, tc.dut2)
 	}
+}
+
+func (tc *testCase) verifyLACPInterval(t *testing.T) {
 	lacpIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval().State()
 	lacpIntervalDUT1 := gnmi.Get(t, tc.dut1, lacpIntervals)
 	lacpIntervalDUT2 := gnmi.Get(t, tc.dut2, lacpIntervals)
@@ -226,6 +228,7 @@ func TestLacpTimers(t *testing.T) {
 		t.Run(fmt.Sprintf("lacpInterval=%s", lacpInterval), func(t *testing.T) {
 			tc.configureDUT(t)
 			tc.verifyDUT(t)
+			tc.verifyLACPInterval(t)
 		})
 	}
 }
