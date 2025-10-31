@@ -318,14 +318,6 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 				AuthArtifacts: artifactContents,
 				Version:       version,
 				CreatedOn:     createdOn,
-				// AuthArtifacts: []*cpb.ServerKeysRequest_AuthenticationArtifacts{
-				// 	&cpb.ServerKeysRequest_AuthenticationArtifacts{
-				// 		PrivateKey:  keyData,
-				// 		Certificate: certData,
-				// 	},
-				// },
-				// Version:   version,
-				// CreatedOn: createdOn,
 			},
 		},
 	}
@@ -653,7 +645,7 @@ func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Logf("Arista vendor, performing SSH cleanup")
-		cliConfig := fmt.Sprintf(`no management ssh`)
+		cliConfig := `no management ssh`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	default:
 		t.Logf("Need cleanup support from Vendor %s", dut.Vendor())
