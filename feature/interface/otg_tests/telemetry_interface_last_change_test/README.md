@@ -22,7 +22,7 @@ changes.
 1.  **Configure Ethernet Interface**:
     *   Select a port on the DUT.
     *   Configure it as an Ethernet interface.
-    *   Create a subinterface with index 0.
+    *   Create a subinterface with index 1.
     *   Configure IPv4 and IPv6 addresses on the subinterface.
     *   Enable the interface and the subinterface.
 
@@ -31,7 +31,7 @@ changes.
     *   **Verify Initial State**:
         *   Wait for the `oper-status` of the interface to become `UP`.
         *   Read and store the initial `last-change` timestamp for the interface from `/interfaces/interface[name=<port>]/state/last-change`.
-        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<port>]/subinterfaces/subinterface[index=0]/state/last-change`.
+        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<port>]/subinterfaces/subinterface[index=1]/state/last-change`.
     *   **Repeated Flap and Verify**: The interface is flapped multiple times (e.g., 10 cycles of disable/enable).
         *   **Flap Interface**: The interface state is changed (e.g., disabled then enabled) as per the specific sub-test.
         *   **Wait for Oper-Status**: Wait for the `oper-status` of both the interface and subinterface to reflect the flap (e.g., `DOWN` then `UP`).
@@ -75,9 +75,9 @@ changes.
             {
               "config": {
                 "enabled": true,
-                "index": 0
+                "index": 1
               },
-              "index": 0,
+              "index": 1,
               "ipv4": {
                 "addresses": {
                   "address": [
@@ -129,7 +129,7 @@ changes.
     *   Select a port on the DUT to be a member of a LAG.
     *   Create a LAG interface.
     *   Assign the selected port as a member of the LAG.
-    *   Create a subinterface with index 0 on the LAG interface.
+    *   Create a subinterface with index 1 on the LAG interface.
     *   Configure an IPv4 address on the subinterface.
 
 2.  **Common Flap Procedure**:
@@ -138,7 +138,7 @@ changes.
         *   Ensure the LAG interface is UP.
         *   Wait for the `oper-status` of both the LAG interface and its subinterface to become `UP`.
         *   Read and store the initial `last-change` timestamp for the LAG interface from `/interfaces/interface[name=<lag>]/state/last-change`.
-        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<lag>]/subinterfaces/subinterface[index=0]/state/last-change`.
+        *   Read and store the initial `last-change` timestamp for the subinterface from `/interfaces/interface[name=<lag>]/subinterfaces/subinterface[index=1]/state/last-change`.
     *   **Repeated Flap and Verify**: The LAG state is flapped multiple times (e.g., 10 cycles of disable/enable).
         *   **Flap LAG State**: The LAG state is changed as per the specific sub-test.
         *   **Wait for Oper-Status**: Wait for the `oper-status` of both the LAG
@@ -204,9 +204,9 @@ changes.
             {
               "config": {
                 "enabled": true,
-                "index": 0
+                "index": 1
               },
-              "index": 0,
+              "index": 1,
               "ipv4": {
                 "addresses": {
                   "address": [
@@ -248,4 +248,5 @@ rpcs:
 ## Minimum DUT platform requirement
 
 * FFF - fixed form factor
+
 
