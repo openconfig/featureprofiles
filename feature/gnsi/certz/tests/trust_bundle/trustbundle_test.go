@@ -279,4 +279,3 @@ func TestTrustBundleCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Test completed!", logTime)
 }
-
