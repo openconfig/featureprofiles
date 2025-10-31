@@ -280,7 +280,7 @@ func TestServerCert(t *testing.T) {
 				t.Logf("%s:STATUS:%s:Using existing TLS credentials for client connection in first iteration.", logTime, tc.desc)
 			}
 			//Initiate server certificate rotation.
-			t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", logTime,tc.desc, tc.serverCertFile, tc.trustBundleFile)
+			t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.",logTime,tc.desc,tc.serverCertFile,tc.trustBundleFile)
 			if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
 				t.Fatalf("%s:STATUS: %s:Certz rotation failed.", logTime, tc.desc)
 			}
