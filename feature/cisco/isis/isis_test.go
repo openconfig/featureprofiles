@@ -484,9 +484,11 @@ func TestISISState(t *testing.T) {
 	//store initial values of CircuitCounters
 	iCCPath := isisPath.Interface(intf.Name).CircuitCounters()
 	iCC := gnmi.Get(t, dut, iCCPath.State())
+	t.Log(iCC.GetAdjChanges())
 	flapInterface(t, dut, intf.Name, 30)
 	circuitCounters := isisPath.Interface(intf.Name).CircuitCounters()
 	time.Sleep(20 * time.Second)
+	t.Log(iCC.GetAdjChanges())
 	t.Run("Subscribe//network-instances/network-instance/protocols/protocol/isis/interfaces/interface/circuit-counters/state/adj-changes", func(t *testing.T) {
 		state := circuitCounters.AdjChanges()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)

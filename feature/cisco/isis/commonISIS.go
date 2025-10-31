@@ -21,7 +21,6 @@ const (
 
 func configureBaseconfig(t *testing.T, inyaml testinput.TestInput,
 	dut *ondatra.DUTDevice) {
-	inyaml.ConfigVrf(dut)
 	configIsis(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121"})
 }
 
