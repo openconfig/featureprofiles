@@ -381,7 +381,7 @@ func TestP4rtConnect(t *testing.T) {
 	t.Logf("DUT Port for Node 1 (%s, ID %d): %s", p4rtNode1Name, deviceID1, dutPort1Name)
 	t.Logf("DUT Port for Node 2 (%s, ID %d): %s", p4rtNode2Name, deviceID2, dutPort2Name)
 
-	lc2ComponentName := cfgplugins.FindLineCardParent(t, dut, p4rtNode2Name)
+	lc2ComponentName = cfgplugins.FindLineCardParent(t, dut, p4rtNode2Name)
 
 	configureDeviceIDs(t, dut, portToNodeMap)
 
