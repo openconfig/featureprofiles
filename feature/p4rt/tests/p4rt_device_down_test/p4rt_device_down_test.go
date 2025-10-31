@@ -367,7 +367,7 @@ func TestP4rtConnect(t *testing.T) {
 	if len(portToNodeMap) < 2 {
 		t.Fatalf("findP4RTNodes was expected to find 2 P4RT nodes, but found %d: %+v", len(portToNodeMap), portToNodeMap)
 	}
-	
+
 	for portName, p4rtNodeName := range p4rtutils.P4RTNodesByPort(t, dut) {
 		if portName == "port1" {
 			p4rtNode1Name = p4rtNodeName
@@ -382,7 +382,7 @@ func TestP4rtConnect(t *testing.T) {
 	t.Logf("DUT Port for Node 2 (%s, ID %d): %s", p4rtNode2Name, deviceID2, dutPort2Name)
 
 	lc2ComponentName := cfgplugins.FindLineCardParent(t, dut, p4rtNode2Name)
-	
+
 	configureDeviceIDs(t, dut, portToNodeMap)
 
 	configureDUT(t, dut, dutPort1Name, dutPort2Name)
