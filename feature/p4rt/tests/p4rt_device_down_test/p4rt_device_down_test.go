@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
@@ -62,7 +63,7 @@ const (
 
 var (
 	// Path to the p4Info file for sending it with SetFwdPipelineConfig
-	p4InfoFile  = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile  = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName1 = "p4rt1"
 	streamName2 = "p4rt2"
 
@@ -213,21 +214,15 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, port1Name, port2Name str
 	return top
 }
 
-// disableLinecard powers down the linecard associated with port2
-func disableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
+func disableLinecard(t *testing.T, dut *ondatra.DUTDevice, lineCardName string) {
 	t.Helper()
+	expectedDownStatus := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
 	t.Logf("Attempting to disable Linecard component associated with port2 (presumed device_id %d)", deviceID2)
-	nodes := p4rtutils.P4RTNodesByPort(t, dut)
-	lc2ComponentName, ok := nodes["port2"]
-	t.Logf("The state of LC before powering down is: %v", gnmi.Get(t, dut, gnmi.OC().Component(lc2ComponentName).State()))
-	if !ok {
-		t.Fatalf("Couldn't find P4RT Node/Component Name for port: port2 via p4rtutils")
-	}
-	t.Logf("Found component name '%s' associated with port2. Proceeding to disable.", lc2ComponentName)
+	t.Logf("Found component name '%s' associated with port2. Proceeding to disable.", lineCardName)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	subCompPath := components.GetSubcomponentPath(lc2ComponentName, useNameOnly)
+	subCompPath := components.GetSubcomponentPath(lineCardName, useNameOnly)
 	subCompPath.Origin = ""
 	powerDownSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_POWERDOWN,
@@ -240,15 +235,17 @@ func disableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient power down response: %v, err: %v", powerDownResponse, err)
+	gnmi.Await(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State(), 10*time.Minute, expectedDownStatus)
+	t.Logf("The state of LC after powering down is: %v", gnmi.Get(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State()))
 }
 
-func enableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
+func enableLinecard(t *testing.T, dut *ondatra.DUTDevice, linceCardName string) {
 	t.Helper()
 	expectedUpStatus := oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 	t.Logf("Attempting to enable Linecard component associated with port2 (presumed device_id %d)", deviceID2)
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	subCompPath := components.GetSubcomponentPath(lc2ComponentName, useNameOnly)
+	subCompPath := components.GetSubcomponentPath(linceCardName, useNameOnly)
 	subCompPath.Origin = ""
 	powerUpSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_POWERUP,
@@ -260,10 +257,10 @@ func enableLinecard(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
 	}
-	gnmi.Await(t, dut, gnmi.OC().Component(lc2ComponentName).OperStatus().State(), 10*time.Minute, expectedUpStatus)
+	gnmi.Await(t, dut, gnmi.OC().Component(linceCardName).OperStatus().State(), 10*time.Minute, expectedUpStatus)
 	t.Logf("gnoiClient PowerUp response: %v, err: %v", powerUpResponse, err)
-	finalState := gnmi.Get(t, dut, gnmi.OC().Component(lc2ComponentName).OperStatus().State())
-	t.Logf("Component '%s' state AFTER power up command: %v", lc2ComponentName, finalState)
+	finalState := gnmi.Get(t, dut, gnmi.OC().Component(linceCardName).OperStatus().State())
+	t.Logf("Component '%s' state AFTER power up command: %v", linceCardName, finalState)
 }
 
 // setupP4RTClient sends client arbitration message for both clients.
@@ -377,28 +374,22 @@ func TestP4rtConnect(t *testing.T) {
 	if len(portToNodeMap) < 2 {
 		t.Fatalf("findP4RTNodes was expected to find 2 P4RT nodes, but found %d: %+v", len(portToNodeMap), portToNodeMap)
 	}
-
-	var dutPort1Name, dutPort2Name string
-	// var discoveredP4RTNode1, discoveredP4RTNode2 string
-
-	i := 0
-	for p4rtNode, portName := range portToNodeMap {
-		if i == 0 {
-			p4rtNode1Name = p4rtNode
+	
+	for portName, p4rtNodeName := range p4rtutils.P4RTNodesByPort(t, dut) {
+		if portName == "port1" {
+			p4rtNode1Name = p4rtNodeName
 			dutPort1Name = portName
-		} else if i == 1 {
-			p4rtNode2Name = p4rtNode
+		} else if portName == "port2" {
+			p4rtNode2Name = p4rtNodeName
 			dutPort2Name = portName
-			break
 		}
-		i++
 	}
-
-	lc2ComponentName = p4rtNode2Name
 
 	t.Logf("DUT Port for Node 1 (%s, ID %d): %s", p4rtNode1Name, deviceID1, dutPort1Name)
 	t.Logf("DUT Port for Node 2 (%s, ID %d): %s", p4rtNode2Name, deviceID2, dutPort2Name)
 
+	lc2ComponentName := cfgplugins.FindLineCardParent(t, dut, p4rtNode2Name)
+	
 	configureDeviceIDs(t, dut, portToNodeMap)
 
 	configureDUT(t, dut, dutPort1Name, dutPort2Name)
@@ -431,7 +422,7 @@ func TestP4rtConnect(t *testing.T) {
 	}
 
 	// Disable line card associated with port2
-	disableLinecard(t, dut)
+	disableLinecard(t, dut, lc2ComponentName)
 
 	lldpACLEntry := p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 		{
@@ -542,7 +533,7 @@ func TestP4rtConnect(t *testing.T) {
 				if err := verifyReadReceiveMatch(t, lldpUpdate, readResp2); err == nil {
 					t.Errorf("P4RT Read for INACTIVE node %d unexpectedly succeeded AND found the LLDP entry.", deviceID2)
 				} else {
-					t.Errorf("P4RT Read for INACTIVE node %d unexpectedly succeeded but did not find the LLDP entry, as expected.", deviceID2)
+					t.Logf("P4RT Read for INACTIVE node %d unexpectedly succeeded but did not find the LLDP entry, as expected.", deviceID2)
 					readFailedAsExpected = true
 				}
 			}
@@ -557,6 +548,6 @@ func TestP4rtConnect(t *testing.T) {
 
 	// Re-enable line card associated with port2
 	t.Logf("Re-enabling Linecard %s", lc2ComponentName)
-	enableLinecard(t, dut)
+	enableLinecard(t, dut, lc2ComponentName)
 
 }
