@@ -71,13 +71,13 @@ func TestClientCert(t *testing.T) {
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(),t,dut)
 	//Generate testdata certificates
 	t.Logf("%sSTATUS:Generation of test data certificates.", logTime)
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar,"./mk_cas.sh"); err != nil {
-		t.Fatalf("%sSTATUS:Generation of testdata certificates failed!: %v", logTime, err)
+	if err := setupService.TestdataMakeCleanup(t,dirPath,timeOutVar,"./mk_cas.sh"); err != nil {
+		t.Fatalf("%sSTATUS:Generation of testdata certificates failed!: %v",logTime,err)
 	}
 	//Create a certz client
 	ctx := context.Background()
 	certzClient := gnsiC.Certz()
-	t.Logf("%sSTATUS:Precheck:checking baseline ssl profile list.", logTime)
+	t.Logf("%sSTATUS:Precheck:checking baseline ssl profile list.",logTime)
 	//Get ssl profile list.
 	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
 		t.Fatalf("%sSTATUS:profileID %s already exists.",logTime,testProfile)
@@ -85,12 +85,12 @@ func TestClientCert(t *testing.T) {
 	//Add a new ssl profileID
 	t.Logf("%sSTATUS:Adding new empty ssl profile ID %s.",logTime,testProfile)
 	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("%sSTATUS:Add profile request failed with %v!", logTime, err)
+		t.Fatalf("%sSTATUS:Add profile request failed with %v!",logTime,err)
 	} else {
 		t.Logf("%sSTATUS:Received the AddProfileResponse %v.",logTime,addProfileResponse)
 	}
 	//Get ssl profile list after new ssl profile addition.
-	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
+	if getResp := setupService.GetSslProfilelist(ctx,t,certzClient,&certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
 		t.Fatalf("%sSTATUS:newly added profileID is not seen.",logTime)
 	} else {
 		t.Logf("%sSTATUS: new profileID %s is seen in ssl profile list.",logTime,testProfile)
@@ -224,7 +224,7 @@ func TestClientCert(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			t.Logf("%s:STATUS:Starting test case: %s", logTime, tc.desc)
+			t.Logf("%s:STATUS:Starting test case: %s",logTime,tc.desc)
 			//Read the serverSAN (Subject Alternative Name) from the certificate used for TLS verification.
 			serverSAN := setupService.ReadDecodeServerCertificate(t, tc.serverCertFile)
 			//Build serverCertEntity for the server certificate rotation.
@@ -232,33 +232,33 @@ func TestClientCert(t *testing.T) {
 				RequestType:    setupService.EntityTypeCertificateChain,
 				ServerCertFile: tc.serverCertFile,
 				ServerKeyFile:  tc.serverKeyFile})
-			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, tc.cversion)
+			serverCertEntity := setupService.CreateCertzEntity(t,setupService.EntityTypeCertificateChain,&serverCert,tc.cversion)
 			//Create a new Cert Pool and add the certs from the trustbundle.
 			pkcs7certs, pkcs7data, err := setupService.Loadpkcs7TrustBundle(tc.trustBundleFile)
 			if err != nil {
-				t.Fatalf("%sSTATUS:failed to load trust bundle: %v", logTime, err)
+				t.Fatalf("%sSTATUS:failed to load trust bundle: %v",logTime,err)
 			}
 			newCaCert := x509.NewCertPool()
 			for _, c := range pkcs7certs {
 				newCaCert.AddCert(c)
 			}
 			//Build trustBundleEntity for the server certificate rotation.
-			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
+			trustBundleEntity := setupService.CreateCertzEntity(t,setupService.EntityTypeTrustBundle,string(pkcs7data),tc.bversion)
 			//Load Client certificate
-			newClientCert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
+			newClientCert, err := tls.LoadX509KeyPair(tc.clientCertFile,tc.clientKeyFile)
 			if err != nil {
-				t.Fatalf("%sSTATUS:Failed to load client cert: %v", logTime, err)
+				t.Fatalf("%sSTATUS:Failed to load client cert: %v",logTime,err)
 			}
 			if tc.newTLScreds {
-				t.Logf("%s:STATUS:%s: Creating new TLS credentials for client connection.", logTime, tc.desc)
+				t.Logf("%s:STATUS:%s: Creating new TLS credentials for client connection.",logTime,tc.desc)
 				//Load the prior client keypair for new client TLS credentials.
 				prevClientCert, err := tls.LoadX509KeyPair(prevClientCertFile, prevClientKeyFile)
 				if err != nil {
-					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v", logTime, tc.desc, err)
+					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v",logTime,tc.desc,err)
 				}
 				oldPkcs7certs, oldPkcs7data, err := setupService.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
-					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v", logTime, tc.desc, oldPkcs7data, err)
+					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v",logTime,tc.desc,oldPkcs7data,err)
 				}
 				//Create a old set of Cert Pool and append the certs from previous trust bundle.
 				prevCaCert := x509.NewCertPool()
@@ -266,29 +266,29 @@ func TestClientCert(t *testing.T) {
 					prevCaCert.AddCert(c)
 				}
 				//Before rotation, validation of all services with existing certificates.
-				if result := setupService.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
-					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
+				if result := setupService.ServicesValidationCheck(t,prevCaCert,expectedResult,serverSAN,serverAddr,username,password,prevClientCert,tc.mismatch); !result {
+					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.",logTime,tc.desc,result,expectedResult)
 				}
 				//Retrieve the connection with previous TLS credentials for certz rotation.
-				conn := setupService.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
+				conn := setupService.CreateNewDialOption(t,prevClientCert,prevCaCert,serverSAN,username,password,serverAddr)
 				defer conn.Close()
 				certzClient = certzpb.NewCertzClient(conn)
 				gnmiClient = gnmi.NewGNMIClient(conn)
 			} else {
-				t.Logf("%s:STATUS:%s:Using existing TLS credentials for client connection in first iteration.", logTime, tc.desc)
+				t.Logf("%s:STATUS:%s:Using existing TLS credentials for client connection in first iteration.",logTime,tc.desc)
 			}
 			//Initiate certz rotation.
-			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s", tc.desc, tc.serverCertFile, tc.trustBundleFile)
-			if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
-				t.Fatalf("%sSTATUS: %s:Certz rotation failed.", logTime, tc.desc)
+			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s",tc.desc,tc.serverCertFile,tc.trustBundleFile)
+			if success := setupService.CertzRotate(ctx,t,newCaCert,certzClient,gnmiClient,newClientCert,dut,username,password,serverSAN,serverAddr,testProfile,tc.newTLScreds,tc.mismatch,tc.scale,&serverCertEntity,&trustBundleEntity); !success {
+				t.Fatalf("%sSTATUS: %s:Certz rotation failed.",logTime,tc.desc)
 			}
-			t.Logf("%s:STATUS:%s: Certz rotation completed!", logTime, tc.desc)
+			t.Logf("%s:STATUS:%s: Certz rotation completed!",logTime,tc.desc)
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate ", func(t *testing.T) {
-				if result := setupService.ServicesValidationCheck(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
-					t.Fatalf("%s:STATUS:%s:service validation failed after rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
+				if result := setupService.ServicesValidationCheck(t,newCaCert,expectedResult,serverSAN,serverAddr,username,password,newClientCert,tc.mismatch); !result {
+					t.Fatalf("%s:STATUS:%s:service validation failed after rotate- got %v, want %v.",logTime,tc.desc,result,expectedResult)
 				}
-				t.Logf("%s:STATUS:%s:service validation done!", logTime, tc.desc)
+				t.Logf("%s:STATUS:%s:service validation done!",logTime,tc.desc)
 			})
 			//Archiving previous client cert/key and trustbundle.
 			prevClientCertFile = tc.clientCertFile
@@ -296,10 +296,10 @@ func TestClientCert(t *testing.T) {
 			prevTrustBundleFile = tc.trustBundleFile
 		})
 	}
-	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
+	t.Logf("%s:STATUS:Cleanup of test data.",logTime)
 	//Cleanup of test data.
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
-		t.Errorf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
+		t.Errorf("%s:STATUS:Cleanup of testdata certificates failed!: %v",logTime,err)
 	}
 	t.Logf("%s:STATUS:Test completed!",logTime)
 }
