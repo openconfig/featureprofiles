@@ -72,7 +72,7 @@ func TestClientCert(t *testing.T) {
 	//Generate testdata certificates
 	t.Logf("%sSTATUS:Generation of test data certificates.", logTime)
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar,"./mk_cas.sh"); err != nil {
-		t.Logf("%sSTATUS:Generation of testdata certificates failed!: %v", logTime, err)
+		t.Fatalf("%sSTATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client
 	ctx := context.Background()
@@ -299,7 +299,7 @@ func TestClientCert(t *testing.T) {
 	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
 	//Cleanup of test data.
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
-		t.Logf("STATUS:Cleanup of testdata certificates failed!: %v", err)
+		t.Errorf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
 	}
 	t.Logf("%s:STATUS:Test completed!",logTime)
 }
