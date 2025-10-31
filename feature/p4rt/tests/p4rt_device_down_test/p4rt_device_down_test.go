@@ -365,6 +365,7 @@ func verifyReadReceiveMatch(t *testing.T, expectedTable *p4pb.Update, receivedEn
 // It then calls setupP4RTClient which sets the arbitration request and sends SetForwardingPipelineConfig with P4Info
 func TestP4rtConnect(t *testing.T) {
 
+	var dutPort1Name, dutPort2Name string
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
 	ate := ondatra.ATE(t, "ate")
