@@ -214,53 +214,45 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, port1Name, port2Name str
 	return top
 }
 
-func disableLinecard(t *testing.T, dut *ondatra.DUTDevice, lineCardName string) {
+// toggleLinecardPower enables and disables the linecard when set to true and false respectively
+func toggleLinecardPower(t *testing.T, dut *ondatra.DUTDevice, lineCardName string, powerUp bool) {
 	t.Helper()
-	expectedDownStatus := oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
-	t.Logf("Attempting to disable Linecard component associated with port2 (presumed device_id %d)", deviceID2)
-	t.Logf("Found component name '%s' associated with port2. Proceeding to disable.", lineCardName)
+
+	var powerMethod spb.RebootMethod
+	var expectedStatus oc.E_PlatformTypes_COMPONENT_OPER_STATUS
+	var logAction string
+
+	if powerUp {
+		powerMethod = spb.RebootMethod_POWERUP
+		expectedStatus = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
+		logAction = "enable"
+	} else {
+		powerMethod = spb.RebootMethod_POWERDOWN
+		expectedStatus = oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
+		logAction = "disable"
+	}
+
+	t.Logf("Attempting to %s Linecard component %s (presumed device_id %d)", logAction, lineCardName, deviceID2)
 
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	subCompPath := components.GetSubcomponentPath(lineCardName, useNameOnly)
 	subCompPath.Origin = ""
-	powerDownSubComponentRequest := &spb.RebootRequest{
-		Method: spb.RebootMethod_POWERDOWN,
-		Subcomponents: []*tpb.Path{
-			subCompPath,
-		},
-	}
-	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownSubComponentRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient power down response: %v, err: %v", powerDownResponse, err)
-	gnmi.Await(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State(), 10*time.Minute, expectedDownStatus)
-	t.Logf("The state of LC after powering down is: %v", gnmi.Get(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State()))
-}
 
-func enableLinecard(t *testing.T, dut *ondatra.DUTDevice, linceCardName string) {
-	t.Helper()
-	expectedUpStatus := oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
-	t.Logf("Attempting to enable Linecard component associated with port2 (presumed device_id %d)", deviceID2)
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	subCompPath := components.GetSubcomponentPath(linceCardName, useNameOnly)
-	subCompPath.Origin = ""
-	powerUpSubComponentRequest := &spb.RebootRequest{
-		Method: spb.RebootMethod_POWERUP,
+	powerRequest := &spb.RebootRequest{
+		Method: powerMethod,
 		Subcomponents: []*tpb.Path{
 			subCompPath,
 		},
 	}
-	powerUpResponse, err := gnoiClient.System().Reboot(context.Background(), powerUpSubComponentRequest)
+	response, err := gnoiClient.System().Reboot(context.Background(), powerRequest)
 	if err != nil {
-		t.Fatalf("Failed to perform line card reboot with unexpected err: %v", err)
+		t.Fatalf("Failed to perform line card power %s with unexpected err: %v", logAction, err)
 	}
-	gnmi.Await(t, dut, gnmi.OC().Component(linceCardName).OperStatus().State(), 10*time.Minute, expectedUpStatus)
-	t.Logf("gnoiClient PowerUp response: %v, err: %v", powerUpResponse, err)
-	finalState := gnmi.Get(t, dut, gnmi.OC().Component(linceCardName).OperStatus().State())
-	t.Logf("Component '%s' state AFTER power up command: %v", linceCardName, finalState)
+	t.Logf("gnoiClient power %s response: %v, err: %v", logAction, response, err)
+	gnmi.Await(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State(), 10*time.Minute, expectedStatus)
+	finalState := gnmi.Get(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State())
+	t.Logf("Component '%s' state AFTER power %s command: %v", lineCardName, logAction, finalState)
 }
 
 // setupP4RTClient sends client arbitration message for both clients.
@@ -423,7 +415,7 @@ func TestP4rtConnect(t *testing.T) {
 	}
 
 	// Disable line card associated with port2
-	disableLinecard(t, dut, lc2ComponentName)
+	toggleLinecardPower(t, dut, lc2ComponentName, false)
 
 	lldpACLEntry := p4rtutils.ACLWbbIngressTableEntryGet([]*p4rtutils.ACLWbbIngressTableEntryInfo{
 		{
@@ -549,6 +541,6 @@ func TestP4rtConnect(t *testing.T) {
 
 	// Re-enable line card associated with port2
 	t.Logf("Re-enabling Linecard %s", lc2ComponentName)
-	enableLinecard(t, dut, lc2ComponentName)
+	toggleLinecardPower(t, dut, lc2ComponentName, true)
 
 }
