@@ -82,6 +82,13 @@ rpcs:
     certz.v1.Certz.Rotate:
 ```
 
+## Canonical OC
+
+```json
+{
+
+}
+```
 
 ## Minimum DUT Platform Requirement
 
