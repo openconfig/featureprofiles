@@ -71,7 +71,7 @@ func FindLineCardParent(t *testing.T, dut *ondatra.DUTDevice, startComponentName
 		componentTypePath := gnmi.OC().Component(currentComponentName).Type().State()
 		currentType, ok := gnmi.Lookup(t, dut, componentTypePath).Val()
 		if !ok {
-			t.Logf("Component %s not found or missing state data.", currentComponentName)
+			t.Logf("Component %s not found or missing state data. Continuing to search for parent", currentComponentName)
 		}
 
 		t.Logf("Component %s has type: %v", currentComponentName, currentType)
@@ -84,7 +84,7 @@ func FindLineCardParent(t *testing.T, dut *ondatra.DUTDevice, startComponentName
 		parentName, ok := gnmi.Lookup(t, dut, parentPath).Val()
 
 		if !ok || parentName == "" {
-			t.Fatalf("Failed to find a parent component of type LINECARD for starting component %s. Reached root at %s.", startComponentName, currentComponentName)
+			t.Fatalf("Failed to find a parent component of type LINECARD for starting component %s.", startComponentName)
 		}
 		currentComponentName = parentName
 		depth++
