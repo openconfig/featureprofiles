@@ -137,6 +137,17 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Arista vendor, performing SSH cleanup")
+		cliConfig := `
+				management ssh
+					authentication protocol password
+				`
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	default:
+		t.Logf("No CLI config required for vendor %s", dut.Vendor())
+	}
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", "password", "admin")
 	} else {
