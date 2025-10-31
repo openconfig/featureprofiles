@@ -1,4 +1,7 @@
 simulation: 
+  vxr_sim_config:
+    default:
+      ConfigEnableNgdp: 'true'
   slurm_flags:    
     hours: 48    
     pending_timeout: 3600 
