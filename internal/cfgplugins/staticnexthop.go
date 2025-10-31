@@ -172,15 +172,18 @@ type StaticNextHopGroupParams struct {
 
 }
 
+// NexthopGroupUDPParams defines the parameters used to create or configure a Next Hop Group that performs UDP encapsulation for traffic forwarding.
 type NexthopGroupUDPParams struct {
-	TrafficType    string
-	NexthopGrpName string
-	DstIp          []string
-	SrcIp          string
-	DstUdpPort     uint16
-	SrcUdpPort     uint16
-	TTL            uint8
-	DSCP           uint8
+	TrafficType        string
+	NexthopGrpName     string
+	DstIp              []string
+	SrcIp              string
+	DstUdpPort         uint16
+	SrcUdpPort         uint16
+	TTL                uint8
+	DSCP               uint8
+	NetworkInstanceObj *oc.NetworkInstance
+	DeleteTtl          bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -231,7 +234,7 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 }
 
 // NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
-func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, params NexthopGroupUDPParams, deleteTtl bool) {
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
 	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		var cli string
@@ -275,28 +278,29 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
-			if deleteTtl {
+			if params.DeleteTtl {
 				cli = fmt.Sprintf(
 					`nexthop-group %s type %s
 					no ttl %v
 					`, params.NexthopGrpName, groupType, params.TTL)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
+
+			if params.DstUdpPort != 0 {
+				// Select and apply the appropriate CLI snippet based on 'traffictype'.
+				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
-
-		if params.DstUdpPort != 0 {
-			configureUDPEncapHeader(t, dut, groupType, params.DstUdpPort)
-		}
-
 	} else {
 		t.Helper()
-		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
+		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
 		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
 
 		// Set the encap header for each next-hop
-		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
 			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
 		}
@@ -307,21 +311,5 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, ni *oc
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
 		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
-	}
-}
-
-// configureUDPEncapHeader configure UDP encapsulation header.
-func configureUDPEncapHeader(t *testing.T, dut *ondatra.DUTDevice, tunnelType string, dstPort uint16) {
-	if deviations.NextHopGroupOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, tunnelType, dstPort)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			t.Logf("Unsupported vendor %s for native command support", dut.Vendor())
-		}
 	}
 }

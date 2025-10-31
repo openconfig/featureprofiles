@@ -1040,27 +1040,34 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	return i
 }
 
+// URPFConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface. It includes the interface name and its IPv4/IPv6 subinterface objects.
+type URPFConfigParams struct {
+	InterfaceName string
+	IPv4Obj       *oc.Interface_Subinterface_Ipv4
+	IPv6Obj       *oc.Interface_Subinterface_Ipv6
+}
+
 // ConfigureUrpfonDutInt configures URPF on the interface.
-func ConfigureUrpfonDutInt(t *testing.T, dut *ondatra.DUTDevice, intName string, stackObjV4 *oc.Interface_Subinterface_Ipv4, stackObjV6 *oc.Interface_Subinterface_Ipv6) {
+func ConfigureUrpfonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigParams) {
 	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		if deviations.URPFConfigOCUnsupported(dut) {
+	if deviations.URPFConfigOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
 			urpfCliConfig := fmt.Sprintf(`
 			interface %s
 			ip verify unicast source reachable-via any
 			ipv6 verify unicast source reachable-via any
-			`, intName)
+			`, cfg.InterfaceName)
 			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
-		} else {
-			stackObjV4.GetOrCreateUrpf()
-			stackObjV4.Urpf.Enabled = ygot.Bool(true)
-			stackObjV4.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
-			stackObjV6.GetOrCreateUrpf()
-			stackObjV6.Urpf.Enabled = ygot.Bool(true)
-			stackObjV6.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
-	default:
-		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	} else {
+		cfg.IPv4Obj.GetOrCreateUrpf()
+		cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		cfg.IPv6Obj.GetOrCreateUrpf()
+		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
 	}
 }

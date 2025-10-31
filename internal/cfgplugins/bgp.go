@@ -205,6 +205,12 @@ type EBgpConfigScale struct {
 	PortName      string
 }
 
+// VrfBGPState holds the parameters to verify BGP neighbors state.
+type VrfBGPState struct {
+	NetworkInstanceName string
+	NeighborIPs         []string
+}
+
 // NewBGPSession creates a new BGPSession using the default global config, and
 // configures the interfaces on the dut and the ate based in given topology port count.
 // Only supports 2 and 4 port DUT-ATE topology
@@ -943,12 +949,11 @@ func IncrementIP(ipStr string, num int) (string, string) {
 	return newIP.String(), err
 }
 
-// VerifyDUTVrfBGPEstablished verify BGP neighbor status with configured DUT VRF configuration.
-func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName string, nbrIPs []string) {
+// VerifyDUTVrfBGPState verify BGP neighbor status with configured DUT VRF configuration.
+func VerifyDUTVrfBGPState(t *testing.T, dut *ondatra.DUTDevice, cfg VrfBGPState) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(vrfName).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	for _, nbrIp := range nbrIPs {
+	statePath := gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbrIp := range cfg.NeighborIPs {
 		nbrPath := statePath.Neighbor(nbrIp)
 		t.Logf("Waiting for BGP neighbor to establish...")
 		status, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
@@ -957,7 +962,8 @@ func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName st
 		}).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-			t.Fatal("No BGP neighbor formed")
+			t.Errorf("BGP neighbor %s did not reach ESTABLISHED", nbrIp)
+			continue
 		}
 		state, _ := status.Val()
 		t.Logf("BGP adjacency for %s: %s", nbrIp, state)
@@ -975,7 +981,7 @@ func VerifyDUTVrfBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, vrfName st
 		}
 		for cap, present := range capabilities {
 			if !present {
-				t.Errorf("Capability not reported: %v", cap)
+				t.Errorf("Capability %v not reported for neighbor %s", cap, nbrIp)
 			}
 		}
 	}
@@ -990,7 +996,6 @@ type RouteInfo struct {
 // VerifyRoutes checks if advertised routes are installed in DUT AFT.
 func VerifyRoutes(t *testing.T, dut *ondatra.DUTDevice, routesToAdvertise map[string]RouteInfo) {
 	t.Helper()
-
 	for route, info := range routesToAdvertise {
 		vrfName := info.VRF
 		if vrfName == info.DefaultName {

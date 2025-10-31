@@ -51,15 +51,18 @@ type OcPolicyForwardingParams struct {
 	AppliedPolicyName   string
 
 	// Policy Rule specific params
-	InnerDstIPv6 string
-	InnerDstIPv4 string
-	CloudV4NHG   string
-	CloudV6NHG   string
-	DecapPolicy  DecapPolicyParams
-	GUEPort      uint32
-	IPType       string
-	Dynamic      bool
-	TunnelIP     string
+	InnerDstIPv6       string
+	InnerDstIPv4       string
+	CloudV4NHG         string
+	CloudV6NHG         string
+	DecapPolicy        DecapPolicyParams
+	GUEPort            uint32
+	IPType             string
+	Dynamic            bool
+	TunnelIP           string
+	InterfaceName      string
+	PolicyName         string
+	NetworkInstanceObj *oc.NetworkInstance
 }
 
 type PolicyForwardingRule struct {
@@ -1007,7 +1010,22 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
-		configurePolicyForwardingNextHopFromOC(t, dut, pf, params.PolicyName, 1, params.DstAddr, params.SrcAddr, params.NexthopGroupName)
+		policy := pf.GetOrCreatePolicy(params.PolicyName)
+		policy.Type = oc.Policy_Type_PBR_POLICY
+
+		rule1 := policy.GetOrCreateRule(1)
+		rule1.GetOrCreateTransport()
+		if len(params.DstAddr) != 0 {
+			for _, addr := range params.DstAddr {
+				rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+			}
+		}
+		if len(params.SrcAddr) != 0 {
+			for _, addr := range params.SrcAddr {
+				rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+			}
+		}
+		rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
 	}
 }
 
@@ -1035,41 +1053,23 @@ func createPolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, p
 	}
 }
 
-// configurePolicyForwardingNextHopFromOC configure nexthop policy forwarding through OC.
-func configurePolicyForwardingNextHopFromOC(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
-	t.Helper()
-	policy := pf.GetOrCreatePolicy(policyName)
-	policy.Type = oc.Policy_Type_PBR_POLICY
-
-	rule1 := policy.GetOrCreateRule(rule)
-	rule1.GetOrCreateTransport()
-	if len(dstAddr) != 0 {
-		for _, addr := range dstAddr {
-			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
-		}
-	}
-	if len(srcAddr) != 0 {
-		for _, addr := range srcAddr {
-			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
-		}
-	}
-	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
-}
-
 // InterfacePolicyForwardingApply configure to apply policy forwarding.
-func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	t.Helper()
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
 	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
+			pfa := fmt.Sprintf(`interface %s
+				traffic-policy input %s`, params.InterfaceName, params.PolicyName)
+			helpers.GnmiCLIConfig(t, dut, pfa)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
-		policyForward := ni.GetOrCreatePolicyForwarding()
-		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
+		policyForward := params.NetworkInstanceObj.GetOrCreatePolicyForwarding()
+		iface := policyForward.GetOrCreateInterface(params.InterfaceID)
+		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
 	}
 }

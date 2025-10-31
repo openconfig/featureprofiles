@@ -109,7 +109,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	configureDUTLoopback(t, dut, intBatch)
 	t.Log("Configuring Hardware Init")
 	configureHardwareInit(t, dut)
-	// configureGueEncap(t, dut)
 
 	cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, dutAS)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -132,23 +131,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 // configureRouteLeaking configure/delete route leaking.
 func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice, enable bool) {
 	t.Helper()
-	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
-		if enable {
-			t.Log("Configuring route leaking through CLI")
-			cfgplugins.ConfigureRouteLeakingFromCLI(t, dut, nonDefaultVRF)
-		} else {
-			t.Log("Delete configured route leaking through CLI")
-			cfgplugins.RemoveRouteLeakingFromCLI(t, dut)
-		}
-
+	if enable {
+		cfgplugins.NewInterInstancePolicy(t, dut, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF, ImportCommunity: importCommunity, ExportCommunity: exportCommunity})
 	} else {
-		if enable {
-			t.Log("Configuring route leaking through OC")
-			cfgplugins.ConfigureRouteLeakingFromOC(t, dut, nonDefaultVRF, importCommunity, exportCommunity)
-		} else {
-			t.Log("Delete configured route leaking through OC")
-			cfgplugins.RemoveRouteLeakingFromOC(t, dut, nonDefaultVRF)
-		}
+		cfgplugins.RemoveInterInstancePolicy(t, dut, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF})
 	}
 }
 
@@ -174,7 +160,7 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, intBatch *gnmi.
 	a6 := i6.GetOrCreateAddress(attrs.IPv6)
 	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
 	if urpf {
-		cfgplugins.ConfigureUrpfonDutInt(t, dut, p.Name(), i4, i6)
+		cfgplugins.ConfigureUrpfonDutInt(t, dut, cfgplugins.URPFConfigParams{InterfaceName: p.Name(), IPv4Obj: i4, IPv6Obj: i6})
 	}
 	gnmi.BatchUpdate(intBatch, d.Interface(p.Name()).Config(), i)
 }
@@ -237,14 +223,16 @@ func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHo
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:    trafficType,
-		NexthopGrpName: nextHopGrpName,
-		SrcIp:          srcIP,
-		DstIp:          dstIP,
-		DstUdpPort:     UDPDstPort,
+		TrafficType:        trafficType,
+		NexthopGrpName:     nextHopGrpName,
+		SrcIp:              srcIP,
+		DstIp:              dstIP,
+		DstUdpPort:         UDPDstPort,
+		NetworkInstanceObj: ni,
+		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
-	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, ni, v4NexthopUDPParams, false)
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
 
 	gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
 		TrafficType:      trafficType,
@@ -258,10 +246,13 @@ func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHo
 
 	// Apply traffic policy on interface
 	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-		InterfaceID:       dut.Port(t, "port1").Name(),
-		AppliedPolicyName: GUEPolicyName,
+		InterfaceID:        dut.Port(t, "port1").Name(),
+		AppliedPolicyName:  GUEPolicyName,
+		InterfaceName:      dut.Port(t, "port1").Name(),
+		PolicyName:         GUEPolicyName,
+		NetworkInstanceObj: ni,
 	}
-	cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GUEPolicyName, ni, interfacePolicyParams)
+	cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 }
 
 // configureATE configures the ATE topology with two BGP peers.
@@ -395,8 +386,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
 
-	cfgplugins.VerifyDUTVrfBGPEstablished(t, dut, defaultNIName, []string{atePort2.IPv4, atePort2.IPv6})
-	cfgplugins.VerifyDUTVrfBGPEstablished(t, dut, nonDefaultVRF, []string{atePort1.IPv4, atePort1.IPv6})
+	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort2.IPv4, atePort2.IPv6}})
+	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: nonDefaultVRF, NeighborIPs: []string{atePort1.IPv4, atePort1.IPv6}})
 	bgpRouteVerification(t, dut)
 
 	testCases := []struct {
