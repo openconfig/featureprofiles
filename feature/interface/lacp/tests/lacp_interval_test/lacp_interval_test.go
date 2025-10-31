@@ -65,6 +65,7 @@ var (
 	}
 
 	dut2Src = attrs.Attributes{
+		Desc:    "dutdut",
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
