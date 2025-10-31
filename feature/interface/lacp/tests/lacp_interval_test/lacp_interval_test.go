@@ -64,6 +64,7 @@ var (
 	}
 
 	dut2Src = attrs.Attributes{
+		Desc:    "dutdut",
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
@@ -224,8 +225,11 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
-		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
-		fptest.AssignToNetworkInstance(t, tc.dut1, dut1Src.Name, deviations.DefaultNetworkInstance(tc.dut1), 0)
+		duts := []*ondatra.DUTDevice{tc.dut1, tc.dut2}
+		for _, dut := range duts {
+			fptest.AssignToNetworkInstance(t, dut, tc.aggID,
+				deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 	for _, port := range tc.dut1Ports {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
