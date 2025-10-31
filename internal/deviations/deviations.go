@@ -1453,14 +1453,14 @@ func PortSpeedUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPortSpeedUnsupported()
 }
 
-// PolicyForwardingToNextHopOcUnsupported returns true if policy forwarding to next hop is not supported on vendors
-func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
-}
-
 // BGPSetMedActionUnsupported returns true if there's no OC support for BGP set med action
 func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
+}
+
+// noECMPwithEncapDecapNhMix returns true if mixed encap and decap next hops are not supported.
+func NoEcmpWithEncapDecapNhMix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoEcmpWithEncapDecapNhMix()
 }
 
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
@@ -1606,6 +1606,11 @@ func SkipOrigin(dut *ondatra.DUTDevice) bool {
 // PredefinedMaxEcmpPaths returns true if max ecmp paths are predefined.
 func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
+}
+
+// PolicyForwardingToNextHopOcUnsupported returns true if policy forwarding to next hop is not supported on vendors
+func PolicyForwardingToNextHopOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingToNextHopOcUnsupported()
 }
 
 // DecapGroupOCUnsupported returns true if decapsulation group is not supported
