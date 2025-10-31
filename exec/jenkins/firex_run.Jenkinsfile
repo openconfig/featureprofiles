@@ -386,6 +386,8 @@ pipeline {
                             def firex_plugins = []
                             if (params['Include repo runner plugin']) {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/runner.py")
+                            } else {
+                                firex_plugins.add("b4_runner.py")
                             }
 
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
