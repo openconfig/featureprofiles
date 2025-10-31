@@ -15,9 +15,9 @@
 package hostcertificates_test
 
 import (
-	"context"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -71,19 +71,17 @@ func TestCredentialz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
-		wantHostKey, _, _, _, err := ssh.ParseAuthorizedKey(certificateContents)
+		publicKey, _, _, _, err := ssh.ParseAuthorizedKey(certificateContents)
 		if err != nil {
 			t.Fatalf("Failed parsing host certificate authorized (cert)key: %s", err)
 		}
 
-		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
-		defer cancel()
-		client, err := credz.SSHWithPassword(ctx, dut, username, password)
-		if err != nil {
-			t.Fatalf("Failed dialing ssh with password: %s", err)
+		cert, ok := publicKey.(*ssh.Certificate)
+		if !ok {
+			t.Fatalf("Failed to get SSH certificate")
 		}
-
-		gotHostKey, _, _, _, err := ssh.ParseAuthorizedKey(client.HostKey())
+		wantHostKey := strings.Trim(string(ssh.MarshalAuthorizedKey(cert.Key)), "\n")
+		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519")
 		if err != nil {
 			t.Fatalf("Failed parsing host certificate from device: %s", err)
 		}
