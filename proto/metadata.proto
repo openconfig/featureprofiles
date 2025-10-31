@@ -1002,6 +1002,20 @@ message Metadata {
     //  Juniper does not support localhost yet
     //  b/448173472
     bool localhost_for_containerz = 341;
+    
+    // Juniper: b/434633267
+    // Devices that do not support oc path for aggregate bandwidth policy
+    // action.
+    bool aggregate_bandwidth_policy_action_unsupported = 342;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for auto link bandwidth.
+    bool auto_link_bandwidth_unsupported = 343;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for advertised cumulative link
+    // bandwidth.
+    bool advertised_cumulative_lbw_oc_unsupported = 344;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

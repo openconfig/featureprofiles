@@ -126,6 +126,6 @@ func TestCredentialz(t *testing.T) {
 
 	t.Cleanup(func() {
 		// Cleanup user authorized key after test.
-		credz.RotateAuthorizedKey(t, dut, "", username, "", uint64(authorizedKeysListCreatedOn))
+		credz.RotateAuthorizedKey(t, dut, "", username, authorizedKeysListVersion, uint64(authorizedKeysListCreatedOn))
 	})
 }

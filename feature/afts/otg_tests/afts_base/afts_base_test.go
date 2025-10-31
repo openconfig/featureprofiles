@@ -15,7 +15,6 @@
 package afts_base_test
 
 import (
-	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -71,7 +70,7 @@ const (
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 2 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 1200000
+	bgpRouteCountIPv4LowScale = 2000000
 	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
@@ -541,23 +540,18 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 // After the stopping condition is met, it compares the AFT data collected by both sessions.
 // If the data is identical, it returns a single copy of the collected AFT data.
 // Otherwise, it returns an error indicating the inconsistency.
-func (tc *testCase) fetchAFT(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
-	streamContext, streamCancel := context.WithCancel(t.Context())
-	defer streamCancel()
-
-	aftSession1 := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient1, tc.dut)
-	aftSession2 := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient2, tc.dut)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		aftSession1.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 	}()
 	go func() {
 		defer wg.Done()
-		aftSession2.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
 	}()
 	wg.Wait()
 
@@ -612,12 +606,16 @@ func TestBGP(t *testing.T) {
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
+	// Create an AFTStreamSession per gnmiClient
+	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
+	aftSession2 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient2, tc.dut)
+
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.fetchAFT(t, stoppingCondition)
+		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -662,7 +660,7 @@ func TestBGP(t *testing.T) {
 	t.Log("Stopping Port1 interface to create Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, sc); err != nil {
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
