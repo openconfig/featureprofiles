@@ -6,6 +6,7 @@ var (
 	loadbalancing *loadbalancingHelper
 	interfaces    *interfaceHelper
 	tgen          *tgenHelper
+  p4rt          *p4rtHelper
 	sflow         *sflowHelper
 	// rib     = &ribHelper{}
 )
@@ -16,6 +17,14 @@ func SflowHelper() *sflowHelper {
 		sflow = &sflowHelper{}
 	}
 	return sflow
+)
+
+// P4RTHelper accessor for P4RT helper functions.
+func P4rtHelper() *p4rtHelper {
+	if p4rt == nil {
+		p4rt = &p4rtHelper{}
+	}
+	return p4rt
 }
 
 // FIBHelper accessor for fib helper functions.

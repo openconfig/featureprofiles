@@ -10,10 +10,10 @@ testbeds:
       controller_port: 40055
       gnmi_port: 50055
       rest_port: 30055
-    dhcp:
-      host: ott-ucs4-b4
-      api_port: 8001
-      gateway: 10.85.84.225
+    godhcpd:
+      url: http://ott-ucs4-b4:8001
+      mgmt_ip: 10.85.84.231/24
+      mgmt_gw: 10.85.84.225
 
   8808_FOX2506P2QT_ZR_OPTICS:
     <<: *8808_FOX2506P2QT_DEFAULTS
@@ -68,10 +68,10 @@ testbeds:
       controller_port: 40058
       gnmi_port: 50058
       rest_port: 30058
-    dhcp:
-      host: ott-ucs4-b4
-      api_port: 8001
-      gateway: 5.78.11.49
+    godhcpd:
+      url: http://ott-ucs4-b4:8001
+      mgmt_ip: 5.78.24.106/16
+      mgmt_gw: 5.78.11.49
 
   8808-FOX2508P0JU_MGMT_GRPC:
     << : *8808_FOX2508P0JU_DEFAULTS
@@ -198,6 +198,15 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
+    godhcpd:
+      url: http://ott-ucs1-b4:8001
+      mgmt_ip: 1:1:1:1::1/64
+      mgmt_gw: 1:1:1:1::4
+
+  8818-FOX2714PNYN_mtls:
+    <<: *8818-FOX2714PNYN_DEFAULTS
+    binding: topologies/cisco/hw/8818-FOX2714PNYN/binding_mtls
+    baseconf: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
@@ -279,10 +288,6 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
-    dhcp:
-      host: ott-ucs1-b4
-      api_port: 8001
-      gateway: 10.85.72.55
 
   8818-DUT-PEER-MTLS-V6-OOB:
     hw:
@@ -601,8 +606,19 @@ testbeds:
       dut1V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/1v.conf
       dut2V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/2v.conf 
       JupiterR: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_r.conf
-      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf                            
-      
+      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf
+  8808-P200-2DUT-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT2_baseconfig.conf
+  8808-P200-2DUT-Scale:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT2_baseconfig.conf
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG

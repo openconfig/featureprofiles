@@ -86,7 +86,6 @@ tests:
     mustpass: true
     priority: 3
     internal: false
-    pr: 4082
   - name: TE-3.2 (Traffic Balancing According to Weights)
     path: feature/gribi/otg_tests/weighted_balancing_test
     mustpass: true
@@ -1872,8 +1871,8 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: PF-1.4 (Interface based GUE Decapsulation to IPv4 tunnel)
-    path:  
+  - name: PF-1.4 (GUEv1 Decapsulation using destination-address-prefix-set and TTL and DSCP behavior)
+    path: feature/policy_forwarding/encapsulation/otg_tests/ip_guev1_static_decap_subnet_range
     owners:
       - mananpat
     mustpass: false
@@ -1992,8 +1991,8 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: PF-1.22 (ECMP hashing for GUE flows with IPv4|UDP outer header)
-    path: main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test
+  - name: PF-1.22 (GUEv1 Decapsulation and ECMP test for IPv4 and IPv6)
+    path: feature/policy_forwarding/decapsulation/otg_tests/ipv4_guev1_decap_and_hashing_test
     owners:
       - mananpat
     mustpass: false
@@ -2152,13 +2151,37 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: RT-3.52 (Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination.)
+  - name: RT-3.52 (Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking based on tunnel destination)
     path: feature/policy_forwarding/encapsulation/otg_tests/staticgueencap_and_bgp_path_selection
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
+    
+  - name: RT-3.53 (Static route based GUE Encapsulation to IPv4 tunnel)
+    path: feature/static/otg_tests/next_hop_encap_udp
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]
+
+  - name: PF-2.3 (Multiple VRFs and GUE DECAP in Default VRF)
+    path: feature/policy_forwarding/vrf_selection/otg_tests/multiple_vrfs_and_gue_decap
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]    
+
+  - name: URPF-1.1 (uRPF validation from non-default network-instance)
+    path: feature/urpf/otg_tests/urpf_vrf_test
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]    
 
   - name: RT-4.11 ( Scale AFTs Route Summary)
     path: feature/afts/summary/otg_tests/scale_aft_summary
@@ -2417,13 +2440,21 @@ tests:
   #   priority: 3
   #   groups: [newfnt]
 
-  - name: ContainerZ (Deploy and Start a Container)
+  - name: Container-1 (Deploy and Start a Container)
     path: feature/container/containerz/tests/container_lifecycle
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
+
+  - name: Container-2 (Container network connectivity tests)
+    path: feature/container/networking/tests/container_connectivity
+    owners:
+      - mananpat
+    mustpass: false
+    priority: 3
+    groups: [newfnt]    
 
   - name: AFT-1.1 (AFT Streaming)
     path: feature/afts/otg_tests/afts_base
