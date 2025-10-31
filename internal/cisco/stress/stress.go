@@ -175,24 +175,24 @@ func StressMem(t testing.TB, dut *ondatra.DUTDevice, numWorkers int, duration ti
 
 // allocates dummy file to disk0 for stress testing purposes
 // WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
-func StressDisk0(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration time.Duration) {
+func StressDisk0(t testing.TB, dut *ondatra.DUTDevice, megabytes int, duration time.Duration) {
 	t.Helper()
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second)/1000000000)
+	cmd := fmt.Sprintf("run fallocate -l %dMB big_file.iso; sleep %ds; rm big_file.iso", megabytes, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 
 // allocates dummy file to harddisk for stress testing purposes
 // WARNING: Recommended use on sim only, as it can fill hard drive and bring system to a halt.
-func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, gigabytes int, duration time.Duration) {
+func StressHardDisk(t testing.TB, dut *ondatra.DUTDevice, megabytes int, duration time.Duration) {
 	t.Helper()
 	// allocate very large file
 	if duration < time.Second {
 		t.Fatalf("stress time must be at least 1 second")
 	}
-	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dG big_file.iso; sleep %ds; rm big_file.iso", gigabytes, duration.Round(time.Second)/1000000000)
+	cmd := fmt.Sprintf("run cd /harddisk:; fallocate -l %dMB big_file.iso; sleep %ds; rm big_file.iso", megabytes, duration.Round(time.Second)/1000000000)
 	dut.CLI().RunResult(t, cmd)
 }
 

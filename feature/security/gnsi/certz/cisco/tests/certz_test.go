@@ -594,7 +594,8 @@ func OCVerification(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string, c
 	afterConnRej, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionRejects().State()).Val()
 
 	endTime := time.Now().Unix()
-	elapsedTime := uint64(endTime-startTime) + 2
+	// XR Bug fix CSCwr63471 - oc: certz: Change time unit for last-connection-accept/last-connection-reject from secs to nanosec to align with OC model
+	elapsedTime := (uint64(endTime-startTime) + 2) * uint64(1_000_000_000)
 
 	afterConnAcceptOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionAccept().State()).Val()
 	afterConnRejOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionReject().State()).Val()

@@ -1,0 +1,53 @@
+#**************************************************
+# Copyright (c) 2019 Cisco Systems, Inc.
+# All rights reserved.
+#**************************************************
+Value Filldown ip_address ([0-9a-fA-f:/.]+)
+Value Filldown version (\d+)
+Value nexthopsid ([a-fA-F0-9:/._]+)
+Value overlay_sid ([a-fA-F0-9:]+)
+Value overlay_transit (\S+)
+Value List underlay_sid ([a-fA-F0-9:]+)
+Value List underlay_transit (\S+)
+Value backup_path (backup)
+Value bgp_multipath (bgp-multipath)
+Value local_label (\d+)
+Value List next_hop (\b[\da-fA-F:.]+\b)
+Value List out_interface ([\w\-/]+(?:[\.\d]+)?)
+Value List weight (\d+)
+Value List in_label (\w+)
+Value List out_labels ([^\}]+)
+#
+# Hash
+#
+Value List Hash_value ([\d\-]+)
+Value List Ok_value (\S+)
+Value List Interface_value ([a-zA-Z0-9-\/\._]+)
+Value List Address_val (\S+)
+Value List pd_context (.*)
+
+Start
+  ^\s*${ip_address}, version ${version}
+  ^\s*via\s*local-srv6-sid\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))?
+  ^\s*via\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))?
+  ^\s*via local-label ${local_label}, \d+ dependencies,\s+recursive
+  ^\s*via [\da-f:\.]+(?:/\d+)?(?:, ${out_interface})?, \d+ (dependencies|dependency),\s+weight ${weight},
+  ^\s*next hop $^\s*next hop (?P<next_hop>\b[\da-fA-F:.]+\b)/\d+\s*$
+  ^\s*next hop ${next_hop}/\d+\s+${out_interface}\s+labels imposed\s+\{${out_labels}\}
+  ^\s*next hop ${next_hop}.*\s*[a-zA-Z\d\.\/]+\s*labels imposed\s*\{${out_labels}\}
+  ^\s*next hop ${next_hop}\s*labels imposed\s*\{${out_labels}\}
+  ^\s*next hop ${next_hop}\s*
+  ^\s*labels imposed \{${out_labels}\}
+  ^\s*local label ${in_label}\s+labels imposed {${out_labels}}
+  ^\s*local label ${local_label}?
+  ^\s{4}SRv6 $overlay_transit SID-list\s+\{${overlay_sid}\}
+  ^\s{6}SRv6 $underlay_transit SID-list\s+\{${underlay_sid}\}
+  ^\s*Hash -> Hash
+  ^\s*via\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))? -> Start
+  ^\s*via\s*local-srv6-sid\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))? -> Start
+
+Hash
+  ^\s*${Hash_value}\s*${Ok_value}\s*${Interface_value}\s*${Address_val}
+  ^\s*via -> Continue.Record
+  ^\s*via\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))? -> Start
+  ^\s*via\s*local-srv6-sid\s*${nexthopsid},\s*\d+\s*dependencies,\s*recursive(,\s*(${backup_path}|$bgp_multipath))? -> Start

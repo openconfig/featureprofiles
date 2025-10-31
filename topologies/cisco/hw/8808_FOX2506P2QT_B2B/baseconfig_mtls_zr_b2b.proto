@@ -291,6 +291,7 @@ ascii_val:
     "!\n"
     "interface FourHundredGigE0/7/0/12\n"
     " description FourHundredGigE0/7/0/12\n"
+    " no shutdown\n"
     "!\n"
     "interface FourHundredGigE0/7/0/13\n"
     " description FourHundredGigE0/7/0/13\n"
@@ -352,6 +353,7 @@ ascii_val:
     "!\n"
     "interface HundredGigE0/7/0/32\n"
     " description to_SFD_2\n"
+    " no shutdown\n"
     "!\n"
     "interface FourHundredGigE0/7/0/33\n"
     " description FourHundredGigE0/7/0/33\n"
@@ -501,6 +503,8 @@ ascii_val:
     "hw-module profile pbr vrf-redirect\n"
     "hw-module profile qos qos-stats-push-collection\n"
     "hw-module profile npu-compatibility Q200\n"
+    "hw-module profile netflow sflow-enable location 0/0/CPU0\n"
+    "hw-module profile netflow sflow-enable location 0/7/CPU0\n"
     "end\n"
     }
     }

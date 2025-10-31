@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "d8e552be-5a50-4fae-8c2a-5bcbffdfb9bd"
+plan_id:  "DP-2.6"
+description:  "Police traffic on input matching all packets using 2 rate, 3 color marker with classifier"
+testbed:  TESTBED_DUT_ATE_2LINKS

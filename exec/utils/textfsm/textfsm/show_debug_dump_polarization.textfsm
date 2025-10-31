@@ -1,0 +1,29 @@
+Value Filldown NPU (\d+)
+Value Filldown ECMP_HASH_SEED (0x[0-9a-fA-F]+)
+Value Filldown BUNDLE_SEED (0x[0-9a-fA-F]+)
+Value Filldown LB_NODE_ID (\d+)
+Value Filldown HARD (\d+)
+Value Filldown SOFT (\d+)
+Value Filldown RTF (\d+)
+Value Filldown DEFAULT_OVERLAY_MODE (\w+)
+Value TYPE (\S+)
+Value OFFSET1 (\d+)
+Value WIDTH1 (\d+)
+Value OFFSET2 (\d+)
+Value WIDTH2 (\d+)
+
+Start
+  ^Load Balancing Hash Info for NPU:\s+${NPU}
+  ^ECMP Hash seed:\s+${ECMP_HASH_SEED}\s+Bundle seed:\s+${BUNDLE_SEED}
+  ^Load balancing config:\s+LB node id = ${LB_NODE_ID}\s+hard:\s+${HARD},\s+soft:\s+${SOFT},\s+rtf:\s+${RTF}
+  ^default_overlay_mode:\s+${DEFAULT_OVERLAY_MODE}
+  ^Configured values -> Configured
+  ^Load Balancing Hash Info for NPU:\s+${NPU} -> Start
+  ^================================================= -> Start
+  ^\s*$ -> Continue
+
+Configured
+  ^${TYPE}\s+Offset:\s+${OFFSET1}\s+Width:\s+${WIDTH1}\s+Offset:\s+${OFFSET2}\s+Width:\s+${WIDTH2} -> Record
+  ^Load Balancing Hash Info for NPU:\s+${NPU} -> Start
+  ^================================================= -> Start
+  ^\s*$ -> Continue

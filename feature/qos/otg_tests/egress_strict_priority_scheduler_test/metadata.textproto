@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "a6d9700a-2c77-4f31-bffc-52e664b20a79"
+plan_id:  "DP-1.15"
+description:  "Egress Strict Priority scheduler"
+testbed:  TESTBED_DUT_ATE_2LINKS

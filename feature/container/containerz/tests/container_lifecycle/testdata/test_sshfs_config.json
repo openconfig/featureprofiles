@@ -1,0 +1,90 @@
+{
+  "description": "sshFS plugin for Docker (Test Configuration)",
+  "documentation": "https://docs.docker.com/engine/extend/plugins/",
+  "entrypoint": [
+    "/docker-volume-sshfs"
+  ],
+  "env": [
+    {
+      "name": "DEBUG",
+      "settable": [
+        "value"
+      ],
+      "value": "0"
+    },
+    {
+      "name": "SSH_HOST",
+      "settable": [
+        "value"
+      ],
+      "value": "localhost"
+    },
+    {
+      "name": "SSH_USER",
+      "settable": [
+        "value"
+      ],
+      "value": "testuser"
+    },
+    {
+      "name": "SSH_PASSWORD",
+      "settable": [
+        "value"
+      ],
+      "value": "testpass"
+    },
+    {
+      "name": "SSHFS_OPTS",
+      "settable": [
+        "value"
+      ],
+      "value": "allow_other,reconnect"
+    }
+  ],
+  "interface": {
+    "socket": "sshfs.sock",
+    "types": [
+      "docker.volumedriver/1.0"
+    ]
+  },
+  "linux": {
+    "capabilities": [
+      "CAP_SYS_ADMIN"
+    ],
+    "devices": [
+      {
+        "path": "/dev/fuse"
+      }
+    ]
+  },
+  "mounts": [
+    {
+      "destination": "/mnt/state",
+      "options": [
+        "rbind"
+      ],
+      "name": "state",
+      "source": "/var/lib/docker/plugins/",
+      "settable": [
+        "source"
+      ],
+      "type": "bind"
+    },
+    {
+      "destination": "/root/.ssh",
+      "options": [
+        "rbind"
+      ],
+      "name": "sshkey",
+      "source": "",
+      "settable": [
+        "source"
+      ],
+      "type": "bind"
+    }
+  ],
+  "network": {
+    "type": "host"
+  },
+  "propagatedmount": "/mnt/volumes"
+}

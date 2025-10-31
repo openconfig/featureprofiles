@@ -196,12 +196,28 @@ func New(t testing.TB) (*TestSession, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to connect to gNMI on %v: %w", s.DUT, err)
 	}
+	s.DUTConf = &oc.Root{}
 	s.DUTPort1 = s.DUT.Port(t, "port1")
 	s.DUTPort2 = s.DUT.Port(t, "port2")
-	s.DUTConf = &oc.Root{}
 	// configure dut ports
-	DUTISISAttrs.ConfigOCInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name()), s.DUT)
-	DUTTrafficAttrs.ConfigOCInterface(s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name()), s.DUT)
+	dutIntf1 := s.DUTConf.GetOrCreateInterface(s.DUTPort1.Name())
+	dutIntf2 := s.DUTConf.GetOrCreateInterface(s.DUTPort2.Name())
+
+	dutPortsMap := map[*ondatra.Port]*oc.Interface{
+		s.DUTPort1: dutIntf1,
+		s.DUTPort2: dutIntf2,
+	}
+
+	for port, dutIntf := range dutPortsMap {
+		if deviations.FrBreakoutFix(s.DUT) && port.PMD() == ondatra.PMD100GBASEFR {
+			dutIntf.GetOrCreateEthernet().SetAutoNegotiate(false)
+			dutIntf.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			dutIntf.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+		}
+	}
+
+	DUTISISAttrs.ConfigOCInterface(dutIntf1, s.DUT)
+	DUTTrafficAttrs.ConfigOCInterface(dutIntf2, s.DUT)
 
 	// If there is no ate, any operation that requires the ATE will call
 	// t.Fatal() instead. This is helpful for debugging the parts of the test

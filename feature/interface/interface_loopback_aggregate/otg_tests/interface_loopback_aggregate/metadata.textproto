@@ -18,7 +18,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    interface_loopback_mode_raw_gnmi: true
   }
 }
 platform_exceptions: {

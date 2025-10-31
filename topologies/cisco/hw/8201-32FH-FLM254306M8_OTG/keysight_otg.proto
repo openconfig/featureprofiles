@@ -49,6 +49,8 @@ replace: {
 " breakout 4x10\n"
 "!\n"
 "router static\n"
+" maximum path ipv4 140000\n"
+" maximum path ipv6 140000\n"
 " address-family ipv4 unicast\n"
 "  5.0.0.0/8 5.78.0.1\n"
 "  5.255.252.11/32 5.78.0.1\n"
@@ -68,6 +70,7 @@ replace: {
 "ssh server v2\n"
 "ssh server vrf default\n"
 "ssh server netconf vrf default\n"
+"hw-module profile netflow sflow-enable location 0/RP0/CPU0\n"
 "end\n"
   }
 }
