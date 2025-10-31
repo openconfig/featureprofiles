@@ -78,7 +78,7 @@ func TestServerCertRotation(t *testing.T) {
 	//Create a certz client.
 	ctx := context.Background()
 	certzClient := gnsiC.Certz()
-	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.",logTime)
+	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", logTime)
 	//Get sslprofile list.
 	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
 		t.Fatalf("%s:STATUS:profileID %s already exists.", logTime, testProfile)
@@ -243,4 +243,3 @@ func TestServerCertRotation(t *testing.T) {
 	}
 	t.Logf("%s:STATUS: Testdata cleanup completed!", logTime)
 }
-
