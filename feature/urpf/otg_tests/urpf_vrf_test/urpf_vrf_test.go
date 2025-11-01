@@ -129,12 +129,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 }
 
 // configureRouteLeaking configure/delete route leaking.
-func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice, enable bool) {
+func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, enable bool) {
 	t.Helper()
 	if enable {
-		cfgplugins.NewInterInstancePolicy(t, dut, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF, ImportCommunity: importCommunity, ExportCommunity: exportCommunity})
+		cfgplugins.NewInterInstancePolicy(t, dut, batch, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF, ImportCommunity: importCommunity, ExportCommunity: exportCommunity})
 	} else {
-		cfgplugins.RemoveInterInstancePolicy(t, dut, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF})
+		cfgplugins.RemoveInterInstancePolicy(t, dut, batch, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF})
 	}
 }
 
@@ -160,7 +160,7 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, intBatch *gnmi.
 	a6 := i6.GetOrCreateAddress(attrs.IPv6)
 	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
 	if urpf {
-		cfgplugins.ConfigureUrpfonDutInt(t, dut, cfgplugins.URPFConfigParams{InterfaceName: p.Name(), IPv4Obj: i4, IPv6Obj: i6})
+		cfgplugins.ConfigureURPFonDutInt(t, dut, cfgplugins.URPFConfigParams{InterfaceName: p.Name(), IPv4Obj: i4, IPv6Obj: i6})
 	}
 	gnmi.BatchUpdate(intBatch, d.Interface(p.Name()).Config(), i)
 }
@@ -223,19 +223,18 @@ func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHo
 	d := &oc.Root{}
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:        trafficType,
+		IPFamily:           trafficType,
 		NexthopGrpName:     nextHopGrpName,
 		SrcIp:              srcIP,
 		DstIp:              dstIP,
 		DstUdpPort:         UDPDstPort,
 		NetworkInstanceObj: ni,
-		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
 
 	gueV4EncapPolicyParams := cfgplugins.GueEncapPolicyParams{
-		TrafficType:      trafficType,
+		IPFamily:         trafficType,
 		PolicyName:       GUEPolicyName,
 		NexthopGroupName: nextHopGrpName,
 		SrcIntfName:      srcIP,
@@ -489,7 +488,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 				}
 			}
 			if !tc.expectLoss {
-				configureRouteLeaking(t, dut, true)
+				configureRouteLeaking(t, dut, batch, true)
 				if tc.gueEnabled {
 					cfg := &cfgplugins.StaticRouteCfg{
 						NetworkInstance: deviations.DefaultNetworkInstance(dut),
@@ -502,7 +501,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 					batch.Set(t, dut)
 				}
 			} else {
-				configureRouteLeaking(t, dut, false)
+				configureRouteLeaking(t, dut, batch, false)
 			}
 			var initialDropCount uint64
 			p1 := dut.Port(t, "port1")

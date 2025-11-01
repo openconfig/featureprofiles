@@ -174,7 +174,7 @@ type StaticNextHopGroupParams struct {
 
 // NexthopGroupUDPParams defines the parameters used to create or configure a Next Hop Group that performs UDP encapsulation for traffic forwarding.
 type NexthopGroupUDPParams struct {
-	TrafficType        string
+	IPFamily           string // IPFamily specifies the IP address family for encapsulation. For example, "V4Udp" for IPv4-over-UDP or "V6Udp" for IPv6-over-UDP.
 	NexthopGrpName     string
 	DstIp              []string
 	SrcIp              string
@@ -183,7 +183,6 @@ type NexthopGroupUDPParams struct {
 	TTL                uint8
 	DSCP               uint8
 	NetworkInstanceObj *oc.NetworkInstance
-	DeleteTtl          bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -241,13 +240,13 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 		var groupType string
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			switch params.TrafficType {
+			switch params.IPFamily {
 			case "V4Udp":
 				groupType = "ipv4-over-udp"
 			case "V6Udp":
 				groupType = "ipv6-over-udp"
 			default:
-				t.Fatalf("Unsupported traffic type %q", params.TrafficType)
+				t.Fatalf("Unsupported address family type %q", params.IPFamily)
 			}
 			if len(params.DstIp) > 0 {
 				var tunnelDst string
@@ -275,14 +274,6 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					nexthop-group %s type %s
 					tos %v
 					`, params.NexthopGrpName, groupType, params.DSCP)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-
-			if params.DeleteTtl {
-				cli = fmt.Sprintf(
-					`nexthop-group %s type %s
-					no ttl %v
-					`, params.NexthopGrpName, groupType, params.TTL)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 

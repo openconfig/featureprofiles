@@ -60,9 +60,9 @@ type OcPolicyForwardingParams struct {
 	IPType             string
 	Dynamic            bool
 	TunnelIP           string
-	InterfaceName      string
-	PolicyName         string
-	NetworkInstanceObj *oc.NetworkInstance
+	InterfaceName      string              // InterfaceName specifies the DUT interface where the policy will be applied.
+	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
+	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
 }
 
 type PolicyForwardingRule struct {
@@ -76,8 +76,9 @@ type PolicyForwardingRule struct {
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
 
+// GueEncapPolicyParams defines parameters required to configure a GUE (Generic UDP Encapsulation) policy-based forwarding rule on the DUT.
 type GueEncapPolicyParams struct {
-	TrafficType      string
+	IPFamily         string // IPFamily specifies the IP address family for encapsulation. For example, "V4Udp" for IPv4-over-UDP or "V6Udp" for IPv6-over-UDP.
 	PolicyName       string
 	NexthopGroupName string
 	SrcIntfName      string
@@ -998,13 +999,13 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 	if deviations.PolicyForwardingOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			switch params.TrafficType {
+			switch params.IPFamily {
 			case "V4Udp":
-				createPolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
+				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
 			case "V6Udp":
-				createPolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
+				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
 			default:
-				t.Logf("Unsupported traffic type %s", params.TrafficType)
+				t.Logf("Unsupported address family type %s", params.IPFamily)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
@@ -1025,12 +1026,17 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 				rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
 			}
 		}
-		rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
+		// Validate NexthopGroupName before applying it to the rule.
+		if params.NexthopGroupName != "" {
+			rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
+		} else {
+			t.Errorf("NexthopGroupName is required for OpenConfig policy-forwarding GUE encapsulation rules")
+		}
 	}
 }
 
-// createPolicyForwardingNexthopConfig configure nexthop policy forwarding through CLI.
-func createPolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
+// createPolicyForwardingNexthopCLIConfig configure nexthop policy forwarding through CLI.
+func createPolicyForwardingNexthopCLIConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
 	t.Helper()
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
 	if deviations.PolicyForwardingOCUnsupported(dut) {
@@ -1068,6 +1074,8 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
+		// params.NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF) where the policy-forwarding configuration will be applied.
+		// It provides access to the PolicyForwarding container for interface-level policy bindings.
 		policyForward := params.NetworkInstanceObj.GetOrCreatePolicyForwarding()
 		iface := policyForward.GetOrCreateInterface(params.InterfaceID)
 		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)

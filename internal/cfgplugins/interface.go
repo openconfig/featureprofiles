@@ -1047,8 +1047,8 @@ type URPFConfigParams struct {
 	IPv6Obj       *oc.Interface_Subinterface_Ipv6
 }
 
-// ConfigureUrpfonDutInt configures URPF on the interface.
-func ConfigureUrpfonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigParams) {
+// ConfigureURPFonDutInt configures URPF on the interface.
+func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigParams) {
 	t.Helper()
 	if deviations.URPFConfigOCUnsupported(dut) {
 		switch dut.Vendor() {

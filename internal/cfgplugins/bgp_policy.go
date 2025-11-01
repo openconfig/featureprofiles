@@ -106,7 +106,7 @@ match as-path %s
 }
 
 // NewInterInstancePolicy configures BGP route leaking between default and non-default VRFs. It automatically chooses between OC or CLI based on deviation.
-func NewInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, cfg InstanceRoutePolicy) {
+func NewInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg InstanceRoutePolicy) {
 	t.Helper()
 	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -132,12 +132,12 @@ func NewInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, cfg InstanceRo
 		iexp1 := ni1Pol.GetOrCreateImportExportPolicy()
 		iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString(cfg.ImportCommunity)})
 		iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString(cfg.ExportCommunity)})
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config(), ni1Pol)
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config(), ni1Pol)
 	}
 }
 
 // RemoveRouteLeakingFromCLI remove route leaking through CLI.
-func RemoveInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, cfg InstanceRoutePolicy) {
+func RemoveInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg InstanceRoutePolicy) {
 	t.Helper()
 	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
@@ -152,6 +152,6 @@ func RemoveInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, cfg Instanc
 			t.Logf("Unsupported vendor %s for native command support for deviation 'import-export config'", dut.Vendor())
 		}
 	} else {
-		gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config())
+		gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config())
 	}
 }
