@@ -175,33 +175,7 @@ deviations: {
     }
   }
 }
-deviations: {
-  name: "route_policy_under_afi_unsupported"
-  type: DEVIATION_TYPE_PATH
-  impacted_paths: {
-    ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/import-policy"
-    }
-    ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/apply-policy/config/export-policy"
-    }
-  }
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: ARISTA
-      software_version_regex: "*.*"
-    }
-    additional_paths: {
-      ocpaths: {
-        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy"
-      }
-      ocpaths: {
-        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy"
-      }
-    }
-  }
-}
+
 deviations: {
   name: "missing_isis_interface_afi_safi_enable"
   type: DEVIATION_TYPE_PATH
