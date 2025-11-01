@@ -1718,17 +1718,7 @@ func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
 }
 
-// AggregateBandwidthPolicyActionUnsupported returns true if device does not support aggregate bandwidth policy action.
-func AggregateBandwidthPolicyActionUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAggregateBandwidthPolicyActionUnsupported()
-}
-
-// AutoLinkBandwidthUnsupported returns true if device does not support auto link bandwidth.
-func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAutoLinkBandwidthUnsupported()
-}
-
-// AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
-func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
 }
