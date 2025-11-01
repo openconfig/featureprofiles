@@ -1732,3 +1732,8 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
 }
+
+// GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
+func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
