@@ -889,7 +889,7 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	}
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
-		if deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
