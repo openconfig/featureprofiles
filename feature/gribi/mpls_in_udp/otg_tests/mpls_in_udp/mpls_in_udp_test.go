@@ -249,10 +249,11 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, topo, "IPv6")
 
-	// this is needed for fiback to work
+	// Disable hardware nexthop proxying for Arista devices to ensure FIB-ACK works correctly.
+	// See: https://partnerissuetracker.corp.google.com/issues/422275961
 	if deviations.DisableHardwareNexthopProxy(dut) {
-		cliConfig := "ip hardware fib next-hop proxy disabled"
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
+		helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
 	}
 
 	// Configure gRIBI client
