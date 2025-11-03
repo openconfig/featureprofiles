@@ -78,10 +78,10 @@ type Attributes struct {
 	V4ISISRouteCount uint32
 	V6Route          func(vlan int) string
 	V6ISISRouteCount uint32
-	Ip4              func(vlan int) string
-	Ip6              func(vlan int) string
-	Gateway          func(vlan int) string
-	Gateway6         func(vlan int) string
+	Ip4              func(vlan uint8) (string, string)
+	Ip6              func(vlan uint8) (string, string)
+	Gateway          func(vlan uint8) (string, string)
+	Gateway6         func(vlan uint8) (string, string)
 	Ip4Loopback      func(vlan int) string
 	Ip6Loopback      func(vlan int) string
 	LagMAC           string
@@ -991,8 +991,16 @@ func (a *Attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	ApplyEthernetConfig(t, i, p, d)
 
 	if a.NumSubIntf == 1 {
+		ip4, eMsg := a.Ip4(1)
+		if eMsg != "" {
+			t.Fatalf("Error in fetching IPV4 address for port %s: %s", a.Name, eMsg)
+		}
+		ip6, eMsg := a.Ip6(1)
+		if eMsg != "" {
+			t.Fatalf("Error in fetching IPV6 address for port %s: %s", a.Name, eMsg)
+		}
 		if deviations.RequireRoutedSubinterface0(d) {
-			EnsureRoutedSubinterface0(i, d, a.Ip4(1), a.Ip6(1), a.IPv4Len, a.IPv6Len)
+			EnsureRoutedSubinterface0(i, d, ip4, ip6, a.IPv4Len, a.IPv6Len)
 		}
 	} else {
 		// Configure subinterfaces 1..n for multi-subinterface cases
@@ -1019,8 +1027,14 @@ func (a *Attributes) configureSubinterface(t *testing.T, s *oc.Interface_Subinte
 	vlanID := uint16(int(a.Index*10) + subIndex)
 	ConfigureVLAN(s, dut, vlanID)
 
-	ipv4Addr := a.Ip4(subIndex)
-	ipv6Addr := a.Ip6(subIndex)
+	ipv4Addr, eMsg := a.Ip4(uint8(subIndex))
+	if eMsg != "" {
+		t.Fatalf("Error in fetching IPV4 address for port %s: %s", a.Name, eMsg)
+	}
+	ipv6Addr, eMsg := a.Ip6(uint8(subIndex))
+	if eMsg != "" {
+		t.Fatalf("Error in fetching IPV6 address for port %s: %s", a.Name, eMsg)
+	}
 	ConfigureSubinterfaceIPs(s, dut, ipv4Addr, a.IPv4Len, ipv6Addr, a.IPv6Len)
 }
 

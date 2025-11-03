@@ -49,7 +49,7 @@ const (
 	plenIPv4        = uint8(30)
 	plenIPv6        = uint8(126)
 	v4VlanPlen      = uint8(24)
-	v6VlanPlen      = uint8(64)
+	v6VlanPlen      = uint8(112)
 	dutAS           = 64500
 	peervRR4GrpName = "BGP-RR-GROUP-V4"
 	peervRR6GrpName = "BGP-RR-GROUP-V6"
@@ -63,6 +63,18 @@ const (
 	peerv63GrpName  = "BGP-PEER-GROUP-V63-"
 	peerv44GrpName  = "BGP-PEER-GROUP-V44-"
 	peerv64GrpName  = "BGP-PEER-GROUP-V64-"
+	dutP2IPv4       = "102.1.1.1"
+	dutP2IPv6       = "1002::102:1:1:1"
+	dutP3IPv4       = "153.1.1.1"
+	dutP3IPv6       = "1003::153:1:1:1"
+	dutP4IPv4       = "200.1.1.1"
+	dutP4IPv6       = "1004::200:1:1:1"
+	ateP2IPv4       = "102.1.1.2"
+	ateP2IPv6       = "1002::102:1:1:2"
+	ateP3IPv4       = "153.1.1.2"
+	ateP3IPv6       = "1003::153:1:1:2"
+	ateP4IPv4       = "200.1.1.2"
+	ateP4IPv6       = "1004::200:1:1:254"
 	// ISIS related constants
 	isisInstance       = "DEFAULT"
 	dutAreaAddress     = "49.0001"
@@ -110,11 +122,11 @@ var (
 		},
 		numSubIntf: 1,
 		index:      0,
-		ip4: func(vlan int) string {
-			return "192.0.2.1"
+		ip4: func(vlan uint8) (string, string) {
+			return "192.0.2.1", ""
 		},
-		ip6: func(vlan int) string {
-			return "2001:db8::192:0:2:1"
+		ip6: func(vlan uint8) (string, string) {
+			return "2001:db8::192:0:2:1", ""
 		},
 		pg4:          peerv41GrpName,
 		pg6:          peerv61GrpName,
@@ -127,10 +139,10 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port2",
 			Desc:    "port2",
-			IPv4:    "50.1.1.1",
-			IPv4Len: plenIPv4,
-			IPv6:    "1000:1:11::50:1:1:1",
-			IPv6Len: plenIPv6,
+			IPv4:    "102.1.1.1",
+			IPv4Len: v4VlanPlen,
+			IPv6:    "1002::102:1:1:1",
+			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf:   10,
 		index:        1,
@@ -146,10 +158,10 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port3",
 			Desc:    "port3",
-			IPv4:    "50.2.1.1",
-			IPv4Len: plenIPv4,
-			IPv6:    "1000:2:21::50:2:1:1",
-			IPv6Len: plenIPv6,
+			IPv4:    "153.1.1.1",
+			IPv4Len: v4VlanPlen,
+			IPv6:    "1003::153:1:1:1",
+			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf:   10,
 		index:        2,
@@ -167,7 +179,7 @@ var (
 			Desc:    "port4",
 			IPv4:    "200.1.1.1",
 			IPv4Len: 30,
-			IPv6:    "1000:4:31::200:0:0:1",
+			IPv6:    "1004::200:1:1:1",
 			IPv6Len: 126,
 		},
 		numSubIntf:   7,
@@ -193,17 +205,17 @@ var (
 		},
 		numSubIntf: 1,
 		index:      0,
-		ip4: func(vlan int) string {
-			return "192.0.2.2"
+		ip4: func(vlan uint8) (string, string) {
+			return "192.0.2.2", ""
 		},
-		ip6: func(vlan int) string {
-			return "2001:db8::192:0:2:2"
+		ip6: func(vlan uint8) (string, string) {
+			return "2001:db8::192:0:2:2", ""
 		},
-		gateway: func(vlan int) string {
-			return "192.0.2.1"
+		gateway: func(vlan uint8) (string, string) {
+			return "192.0.2.1", ""
 		},
-		gateway6: func(vlan int) string {
-			return "2001:db8::192:0:2:1"
+		gateway6: func(vlan uint8) (string, string) {
+			return "2001:db8::192:0:2:1", ""
 		},
 		pg4:          peerv41GrpName,
 		pg6:          peerv61GrpName,
@@ -215,10 +227,10 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port2",
 			MAC:     "02:00:02:01:01:01",
-			IPv4:    "50.1.1.2",
-			IPv4Len: plenIPv4,
-			IPv6:    "1000:1:11::50:1:1:2",
-			IPv6Len: plenIPv6,
+			IPv4:    "102.1.1.2",
+			IPv4Len: v4VlanPlen,
+			IPv6:    "1002::102:1:1:2",
+			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf:   10,
 		index:        1,
@@ -236,10 +248,10 @@ var (
 		Attributes: &attrs.Attributes{
 			Name:    "port3",
 			MAC:     "02:00:03:01:01:01",
-			IPv4:    "50.2.1.2",
-			IPv4Len: plenIPv4,
-			IPv6:    "1000:2:21::50:2:1:2",
-			IPv6Len: plenIPv6,
+			IPv4:    "153.1.1.2",
+			IPv4Len: v4VlanPlen,
+			IPv6:    "1003::153:1:1:2",
+			IPv6Len: v6VlanPlen,
 		},
 		numSubIntf:   10,
 		index:        2,
@@ -259,7 +271,7 @@ var (
 			MAC:     "02:00:04:01:01:01",
 			IPv4:    "200.1.1.2",
 			IPv4Len: 30,
-			IPv6:    "1000:4:31::200:0:0:254",
+			IPv6:    "1004::200:1:1:254",
 			IPv6Len: 126,
 		},
 		ateISISSysID:     "64000000000",
@@ -352,10 +364,10 @@ type attributes struct {
 	v4ISISRouteCount uint32
 	v6Route          func(vlan int) string
 	v6ISISRouteCount uint32
-	ip4              func(vlan int) string
-	ip6              func(vlan int) string
-	gateway          func(vlan int) string
-	gateway6         func(vlan int) string
+	ip4              func(vlan uint8) (string, string)
+	ip6              func(vlan uint8) (string, string)
+	gateway          func(vlan uint8) (string, string)
+	gateway6         func(vlan uint8) (string, string)
 	ip4Loopback      func(vlan int) string
 	ip6Loopback      func(vlan int) string
 	lagMAC           string
@@ -388,93 +400,76 @@ type bgpNeighbor struct {
 	exportPolicy string
 }
 
-// dutPort2IPv4 returns ip addresses starting 50.1.%d.1 for every vlanID.
-func dutPort2IPv4(vlan int) string {
-	if int(vlan) <= 245 {
-		return fmt.Sprintf("50.1.%d.1", vlan)
-	}
-	if int(vlan) <= 490 {
-		return fmt.Sprintf("50.4.%d.1", intAbs(int(vlan)-244))
-	}
-	return fmt.Sprintf("50.6.%d.1", intAbs(int(vlan)-489))
+// dutPort2IPv4 returns ipv4 addresses for every vlanID.
+func dutPort2IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP2IPv4, int(vlan)*256)
+	return ip, err
 }
 
-// dutPort3IPv4 returns ip addresses starting 50.2.%d.1 for every vlanID.
-func dutPort3IPv4(vlan int) string {
-	if int(vlan) <= 235 {
-		return fmt.Sprintf("50.2.%d.1", vlan)
-	}
-	if int(vlan) <= 470 {
-		return fmt.Sprintf("50.5.%d.1", intAbs(int(vlan)-234))
-	}
-	return fmt.Sprintf("50.7.%d.1", intAbs(int(vlan)-469))
+// dutPort2IPv6 returns ip6 addresses for every vlanID.
+func dutPort2IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP2IPv6, int(vlan)*256*256)
+	return ip, err
 }
 
-// dutPort4IPv4 returns ip addresses starting 200.0.%d.1 for every vlanID.
-func dutPort4IPv4(vlan int) string {
-	return fmt.Sprintf("200.0.%d.1", vlan)
+// atePort2IPv4 returns ip4 addresses for every vlanID.
+func atePort2IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP2IPv4, int(vlan)*256)
+	return ip, err
 }
 
-// dutPort3IPv6 returns ip addresses starting 1000:%d::50.2.1.1 for every vlanID.
-func dutPort3IPv6(vlan int) string {
-	if int(vlan) <= 235 {
-		return fmt.Sprintf("1000:2:%d:0:50:2:1:1", vlan+20)
-	}
-	if int(vlan) <= 470 {
-		return fmt.Sprintf("1000:5:%d:0:50:2:1:1", intAbs(int(vlan)-234)+20)
-	}
-	return fmt.Sprintf("1000:7:%d:0:50:2:1:1", intAbs(int(vlan)-469)+20)
+// atePort2IPv6 returns ip6 addresses for every vlanID.
+func atePort2IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP2IPv6, int(vlan)*256*256)
+	return ip, err
 }
 
-// dutPort2IPv6 returns ip addresses starting 1000:1:%d:0:50:1:1:1 for every vlanID.
-func dutPort2IPv6(vlan int) string {
-	if int(vlan) <= 245 {
-		return fmt.Sprintf("1000:1:%d:0:50:1:1:1", vlan+10)
-	}
-	if int(vlan) <= 490 {
-		return fmt.Sprintf("1000:4:%d:0:50:1:1:1", intAbs(int(vlan)-244)+10)
-	}
-	return fmt.Sprintf("1000:6:%d:0:50:1:1:1", intAbs(int(vlan)-489)+10)
+// dutPort3IPv4 returns ipv4 addresses for every vlanID.
+func dutPort3IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP3IPv4, int(vlan)*256)
+	return ip, err
 }
 
-// dutPort4IPv6 returns ip addresses starting 1000:3:%d:0:200::1 for every vlanID.
-func dutPort4IPv6(vlan int) string {
-	return fmt.Sprintf("1000:3:%d:0:200::1", vlan+30)
+// dutPort3IPv6 returns ip6 addresses for every vlanID.
+func dutPort3IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP3IPv6, int(vlan)*256*256)
+	return ip, err
 }
 
-// atePort2IPv4 returns ip addresses starting 50.1.%d.2 for every vlanID.
-func atePort2IPv4(vlan int) string {
-	if int(vlan) <= 245 {
-		return fmt.Sprintf("50.1.%d.2", vlan)
-	}
-	if int(vlan) <= 490 {
-		return fmt.Sprintf("50.4.%d.2", intAbs(int(vlan)-244))
-	}
-	return fmt.Sprintf("50.6.%d.2", intAbs(int(vlan)-489))
+// atePort3IPv4 returns ip4 addresses for every vlanID.
+func atePort3IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP3IPv4, int(vlan)*256)
+	return ip, err
 }
 
-// intAbs returns the absolute value of an integer.
-func intAbs(n int) int {
-	if n < 0 {
-		return -n
-	}
-	return n
+// atePort3IPv6 returns ip6 addresses for every vlanID.
+func atePort3IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP3IPv6, int(vlan)*256*256)
+	return ip, err
 }
 
-// atePort3IPv4 returns ip addresses starting 50.2.%d.2 for every vlanID.
-func atePort3IPv4(vlan int) string {
-	if int(vlan) <= 235 {
-		return fmt.Sprintf("50.2.%d.2", vlan)
-	}
-	if int(vlan) <= 470 {
-		return fmt.Sprintf("50.5.%d.2", intAbs(int(vlan)-234))
-	}
-	return fmt.Sprintf("50.7.%d.2", intAbs(int(vlan)-469))
+// dutPort4IPv4 returns ipv4 addresses for every vlanID.
+func dutPort4IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4IPv4, int(vlan)*256)
+	return ip, err
 }
 
-// atePort4IPv4 returns ip addresses starting 200.0.%d.2 for every vlanID.
-func atePort4IPv4(vlan int) string {
-	return fmt.Sprintf("200.0.%d.2", vlan)
+// dutPort4IPv6 returns ip6 addresses for every vlanID.
+func dutPort4IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4IPv6, int(vlan)*256*256)
+	return ip, err
+}
+
+// atePort4IPv4 returns ip4 addresses for every vlanID.
+func atePort4IPv4(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4IPv4, int(vlan)*256)
+	return ip, err
+}
+
+// atePort4IPv6 returns ip6 addresses for every vlanID.
+func atePort4IPv6(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4IPv6, int(vlan)*256*256)
+	return ip, err
 }
 
 // atePort4v4Route returns ip addresses starting 60.%d.0.1 for every vlanID.
@@ -500,33 +495,6 @@ func dutPort4v4Loopback(vlan int) string {
 // dutPort4v6Loopback returns ip addresses starting 2001:db8::203:0:113:%d for every vlanID.
 func dutPort4v6Loopback(vlan int) string {
 	return fmt.Sprintf("2001:db8::203:0:113:%d", vlan)
-}
-
-// atePort3IPv6 returns ip addresses starting 1000:%d::50.2.1.2 for every vlanID.
-func atePort3IPv6(vlan int) string {
-	if int(vlan) <= 235 {
-		return fmt.Sprintf("1000:2:%d:0:50:2:1:2", vlan+20)
-	}
-	if int(vlan) <= 470 {
-		return fmt.Sprintf("1000:5:%d:0:50:2:1:2", intAbs(int(vlan)-234)+20)
-	}
-	return fmt.Sprintf("1000:7:%d:0:50:2:1:2", intAbs(int(vlan)-469)+20)
-}
-
-// atePort2IPv6 returns ip addresses starting 1000:1:%d:0:50:1:1:2 for every vlanID.
-func atePort2IPv6(vlan int) string {
-	if int(vlan) <= 245 {
-		return fmt.Sprintf("1000:1:%d:0:50:1:1:2", vlan+10)
-	}
-	if int(vlan) <= 490 {
-		return fmt.Sprintf("1000:4:%d:0:50:1:1:2", intAbs(int(vlan)-244)+10)
-	}
-	return fmt.Sprintf("1000:6:%d:0:50:1:1:2", intAbs(int(vlan)-489)+10)
-}
-
-// atePort4IPv6 returns ip addresses starting 1000:3:%d:0:200::2 for every vlanID.
-func atePort4IPv6(vlan int) string {
-	return fmt.Sprintf("1000:3:%d:0:200::2", vlan+30)
 }
 
 // atePort4v6Route returns ip addresses starting 2010:%d:db8:64:64::1 for every vlanID.
@@ -927,15 +895,31 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 				loopbackV4 = ""
 				loopbackV6 = ""
 			}
+			ip4, eMsg := atePort.ip4(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
+			}
+			ip6, eMsg := atePort.ip6(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
+			}
+			gw4, eMsg := atePort.gateway(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv4 gateway with error '%s'", eMsg)
+			}
+			gw6, eMsg := atePort.gateway6(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv6 gateway with error '%s'", eMsg)
+			}
 			intefaces = append(intefaces, &otgconfighelpers.InterfaceProperties{
 				Name:        fmt.Sprintf(`%sdst%d`, atePort.Name, i),
-				IPv4:        atePort.ip4(i),
-				IPv4Gateway: atePort.gateway(i),
+				IPv4:        ip4,
+				IPv4Gateway: gw4,
 				IPv4Len:     30,
 				Vlan:        vlan,
 				MAC:         mac,
-				IPv6:        atePort.ip6(i),
-				IPv6Gateway: atePort.gateway6(i),
+				IPv6:        ip6,
+				IPv6Gateway: gw6,
 				IPv6Len:     126,
 				LoopbackV4:  loopbackV4,
 				LoopbackV6:  loopbackV6,
@@ -992,10 +976,18 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 	dut2Data.isisData.NetworkInstanceName = defaultNetworkInstance
 
 	for i := 1; i <= int(dutPort4.numSubIntf); i++ {
+		ip4, eMsg := dutPort4.ip4(uint8(i))
+		if eMsg != "" {
+			t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
+		}
+		ip6, eMsg := dutPort4.ip6(uint8(i))
+		if eMsg != "" {
+			t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
+		}
 		dut2Data.lags[0].SubInterfaces = append(dut2Data.lags[0].SubInterfaces, &cfgplugins.DUTSubInterfaceData{
 			VlanID:        vlanID(i),
-			IPv4Address:   net.ParseIP(dutPort4IPv4(i)),
-			IPv6Address:   net.ParseIP(dutPort4IPv6(i)),
+			IPv4Address:   net.ParseIP(ip4),
+			IPv6Address:   net.ParseIP(ip6),
 			IPv4PrefixLen: 30,
 			IPv6PrefixLen: 126,
 		})
@@ -1112,7 +1104,7 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 
 	t.Log("Verifying BGP capabilities.")
 
-	nbrIP := []string{"192.0.2.2", "50.1.1.2", "50.1.2.2", "203.0.113.1", "2001:db8::192:0:2:2", "1000:1:11:0:50:1:1:2", "1000:1:12:0:50:1:1:2", "2001:db8::203:0:113:1"}
+	nbrIP := []string{"192.0.2.2", "102.1.2.2", "153.1.2.2", "203.0.113.1", "2001:db8::192:0:2:2", "1002::102:1:2:2", "1003::153:1:2:2", "2001:db8::203:0:113:1"}
 
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
@@ -1261,10 +1253,12 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 		nbrPeers = int(dutPort4.numSubIntf)
 	}
 	for i := 1; i <= nbrPeers; i++ {
+		ip4, _ := a.ip4(uint8(i))
+		ip6, _ := a.ip6(uint8(i))
 		if a.ip4 != nil && a.Name != "port4" {
 			bgpNbr := &bgpNeighbor{
 				as:           ateAS4Byte((i-1)/4+1) + uint32(a.index),
-				neighborip:   a.ip4(i),
+				neighborip:   ip4,
 				isV4:         true,
 				pg:           fmt.Sprintf("%s%d", a.pg4, (i-1)/4+1),
 				importPolicy: a.importPolicy,
@@ -1295,7 +1289,7 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 		if a.ip6 != nil && a.Name != "port4" {
 			bgpNbr := &bgpNeighbor{
 				as:           ateAS4Byte((i-1)/4+1) + uint32(a.index),
-				neighborip:   a.ip6(i),
+				neighborip:   ip6,
 				isV4:         false,
 				pg:           fmt.Sprintf("%s%d", a.pg6, (i-1)/4+1),
 				importPolicy: a.importPolicy,
@@ -1959,7 +1953,7 @@ func (a *attributes) configureATEBGP(t *testing.T, top gosnappi.Config) {
 
 		routerID := a.IPv4
 		if a.numSubIntf > 1 && a.ip4 != nil {
-			routerID = a.ip4(i)
+			routerID, _ = a.ip4(uint8(i))
 		}
 
 		var bgp4Peer gosnappi.BgpV4Peer
