@@ -34,6 +34,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -247,6 +248,12 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	t.Log("Waiting for IPv6 neighbor discovery...")
 	time.Sleep(30 * time.Second)
 	otgutils.WaitForARP(t, otg, topo, "IPv6")
+
+	// this is needed for fiback to work
+	if deviations.DisableHardwareNexthopProxy(dut) {
+		cliConfig := "ip hardware fib next-hop proxy disabled"
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	}
 
 	// Configure gRIBI client
 	c := gribi.Client{
