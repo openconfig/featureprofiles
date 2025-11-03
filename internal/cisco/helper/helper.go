@@ -8,8 +8,17 @@ var (
 	tgen          *tgenHelper
 	p4rt          *p4rtHelper
 	sflow         *sflowHelper
+	staticRoute   *staticRouteHelper
 	// rib     = &ribHelper{}
 )
+
+// StaticRouteHelper accessor for static route helper functions.
+func StaticRouteHelper() *staticRouteHelper {
+	if staticRoute == nil {
+		staticRoute = &staticRouteHelper{}
+	}
+	return staticRoute
+}
 
 // SFlowHelper accessor for sflow helper functions.
 func SflowHelper() *sflowHelper {

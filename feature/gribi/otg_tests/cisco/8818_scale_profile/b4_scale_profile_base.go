@@ -143,6 +143,8 @@ const (
 	fps                      = 10000    //100000
 	samplingRate             = 262144
 	sampleTolerance          = 0.8
+	nullRouteIPv4            = "192.192.192.192/32"
+	nullRouteIPv6            = "2001:db8::192:192:192:192/128"
 )
 
 var (
@@ -1994,6 +1996,7 @@ func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attr
 // configureLoopbackAndSFlow configures Loopback0 and sFlow on the DUT.
 // call it after configuring DUT interfaces, which populates aggID1.
 func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
+	s.StaticRouteHelper().AddStaticRoutesToNull(t, dut, strings.Split(nullRouteIPv4, "/")[0], strings.Split(nullRouteIPv6, "/")[0], vrfDefault)
 	config := NewDefaultSflowAttr(aggID1)
 
 	// Configure Loopback0 interface
@@ -2011,8 +2014,8 @@ func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
 	return &s.SFlowConfig{
 		SourceIPv4:          dutLoopback1.IPv4,
 		SourceIPv6:          dutLoopback1.IPv6,
-		CollectorIPv6:       otgSrc2.IPv6,
-		CollectorIPv4:       otgSrc2.IPv4,
+		CollectorIPv6:       strings.Split(nullRouteIPv6, "/")[0],
+		CollectorIPv4:       strings.Split(nullRouteIPv4, "/")[0],
 		IP:                  s.IPv6,
 		CollectorPort:       6343,
 		DSCP:                32,
