@@ -17,6 +17,7 @@ package dcgate_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -33,12 +34,14 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cisco/config"
+	s "github.com/openconfig/featureprofiles/internal/cisco/helper"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
@@ -64,7 +67,6 @@ const (
 	vrfEncap             = "ENCAP_TE_VRF"
 	ipv4PrefixLen        = 30
 	ipv6PrefixLen        = 126
-	trafficDuration      = 15 * time.Second
 	nhg10ID              = 10
 	nh201ID              = 201
 	nh202ID              = 202
@@ -137,6 +139,8 @@ const (
 	primaryNH2ID                     = uint64(3005)
 	lookupTestVRF                    = "lookup-test-vrf"
 	lookupTestIPv4                   = "192.168.100.0/24"
+	samplingRate                     = 262144
+	sampleTolerance                  = 0.8
 )
 
 const (
@@ -182,10 +186,26 @@ var (
 	}
 	// %loss tolerance for traffic received when there should be 100% loss
 	// make non-zero to allow for some packet gain
-	lossTolerance = float32(0.0)
+	lossTolerance      = float32(0.0)
+	sf_fps             = flag.Uint64("sf_fps", 100000, "frames per second for traffic while validating sFlow")
+	sf_trafficDuration = flag.Int("sf_traffic_duration", 10, "traffic duration in seconds while validating sFlow")
+	capture_sflow      = flag.Bool("capture_sflow", false, "set to true to enable sFlow capture")
+	frameSize          = flag.Int("frame_size", 512, "frame size in bytes, default 512")
+	fps                = flag.Uint64("fps", 100, "frames per second")
+	trafficDuration    = flag.Int("traffic_duration", 10, "traffic duration in seconds")
+	bundleMode         = flag.Bool("bundle_mode", false, "set to true to enable bundle mode")
 )
 
 var (
+	dutLoopback1 = attrs.Attributes{
+		Name:    "Loopback1",
+		Desc:    "dutLoopback1",
+		IPv4:    "203.0.113.255",
+		IPv4Len: 32,
+		IPv6:    "2001:db8::203:0:113:255",
+		IPv6Len: 128,
+	}
+
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		MAC:     "02:01:00:00:00:01",
@@ -271,52 +291,140 @@ var (
 		IPv6:    "2001:0db8::192:0:2:12",
 		IPv6Len: ipv6PrefixLen,
 	}
+	// keep following Attributes for future use
+	// dutPort6 = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.21",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:15",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+
+	// otgPort6 = attrs.Attributes{
+	// 	Name:    "otgPort6",
+	// 	MAC:     "02:00:06:01:01:01",
+	// 	IPv4:    "192.0.2.22",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:16",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+
+	// dutPort7 = attrs.Attributes{
+	// 	Desc:    "dutPort7",
+	// 	IPv4:    "192.0.2.25",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:19",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+
+	// otgPort7 = attrs.Attributes{
+	// 	Name:    "otgPort7",
+	// 	MAC:     "02:00:07:01:01:01",
+	// 	IPv4:    "192.0.2.26",
+	// 	IPv4Len: ipv4PrefixLen,
+	// 	IPv6:    "2001:0db8::192:0:2:1a",
+	// 	IPv6Len: ipv6PrefixLen,
+	// }
+
+	dutPort8 = attrs.Attributes{
+		Desc:    "dutPort8",
+		IPv4:    "192.0.2.29",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:1d",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	otgPort8 = attrs.Attributes{
+		Name:    "otgPort8",
+		MAC:     "02:00:08:01:01:01",
+		IPv4:    "192.0.2.30",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:1e",
+		IPv6Len: ipv6PrefixLen,
+	}
 
 	dutPort2DummyIP = attrs.Attributes{
 		Desc:    "dutPort2",
-		IPv4:    "192.0.2.21",
+		IPv4:    "192.0.2.33",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort2DummyIP = attrs.Attributes{
 		Desc:    "otgPort2",
-		IPv4:    "192.0.2.22",
+		IPv4:    "192.0.2.34",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort3DummyIP = attrs.Attributes{
 		Desc:    "dutPort3",
-		IPv4:    "192.0.2.25",
+		IPv4:    "192.0.2.37",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort3DummyIP = attrs.Attributes{
 		Desc:    "otgPort3",
-		IPv4:    "192.0.2.26",
+		IPv4:    "192.0.2.38",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort4DummyIP = attrs.Attributes{
 		Desc:    "dutPort4",
-		IPv4:    "192.0.2.29",
+		IPv4:    "192.0.2.41",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort4DummyIP = attrs.Attributes{
 		Desc:    "otgPort4",
-		IPv4:    "192.0.2.30",
+		IPv4:    "192.0.2.42",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	dutPort5DummyIP = attrs.Attributes{
 		Desc:    "dutPort5",
-		IPv4:    "192.0.2.33",
+		IPv4:    "192.0.2.45",
 		IPv4Len: ipv4PrefixLen,
 	}
 
 	otgPort5DummyIP = attrs.Attributes{
 		Desc:    "otgPort5",
-		IPv4:    "192.0.2.34",
+		IPv4:    "192.0.2.46",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	// keep the Attributes for future use
+	// dutPort6DummyIP = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.49",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+
+	// otgPort6DummyIP = attrs.Attributes{
+	// 	Desc:    "otgPort6",
+	// 	IPv4:    "192.0.2.50",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+
+	// dutPort7DummyIP = attrs.Attributes{
+	// 	Desc:    "dutPort6",
+	// 	IPv4:    "192.0.2.53",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+
+	// otgPort7DummyIP = attrs.Attributes{
+	// 	Desc:    "otgPort6",
+	// 	IPv4:    "192.0.2.54",
+	// 	IPv4Len: ipv4PrefixLen,
+	// }
+
+	dutPort8DummyIP = attrs.Attributes{
+		Desc:    "dutPort6",
+		IPv4:    "192.0.2.57",
+		IPv4Len: ipv4PrefixLen,
+	}
+
+	otgPort8DummyIP = attrs.Attributes{
+		Desc:    "otgPort6",
+		IPv4:    "192.0.2.58",
 		IPv4Len: ipv4PrefixLen,
 	}
 )
@@ -337,6 +445,7 @@ type packetAttr struct {
 	protocol int
 	ttl      uint32
 	inner    *packetAttr
+	sfAttr   *s.SflowAttr
 }
 
 type flowAttr struct {
@@ -350,6 +459,7 @@ type flowAttr struct {
 	innerTtl  uint32
 	innerDscp uint32
 	dscp      uint32
+	fps       uint64
 	topo      gosnappi.Config
 }
 
@@ -363,6 +473,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa6 = flowAttr{
 		src:      otgPort1.IPv6,
@@ -373,6 +484,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	faIPinIP = flowAttr{
 		src:      ipv4OuterSrcIpInIp,
@@ -384,6 +496,7 @@ var (
 		ttl:      ttl,
 		innerTtl: innerTtl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa4NoPrefix = flowAttr{
 		src:      otgPort1.IPv4,
@@ -394,6 +507,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	fa6NoPrefix = flowAttr{
 		src:      otgPort1.IPv6,
@@ -404,6 +518,7 @@ var (
 		dstPorts: otgDstPorts,
 		ttl:      ttl,
 		topo:     gosnappi.NewConfig(),
+		fps:      *fps,
 	}
 	faTransit = flowAttr{
 		src:       ipv4OuterSrc111,
@@ -416,18 +531,20 @@ var (
 		innerTtl:  innerTtl,
 		innerDscp: dscpEncapNoMatch, // at egress outer DSCP will be copied to inner DSCP
 		topo:      gosnappi.NewConfig(),
+		fps:       *fps,
 	}
 )
 
 // testArgs holds the objects needed by a test case.
 type testArgs struct {
-	dut           *ondatra.DUTDevice
-	ate           *ondatra.ATEDevice
-	topo          gosnappi.Config
-	client        *gribi.Client
-	pattr         *packetAttr
-	flows         []gosnappi.Flow
-	capture_ports []string
+	dut             *ondatra.DUTDevice
+	ate             *ondatra.ATEDevice
+	topo            gosnappi.Config
+	client          *gribi.Client
+	pattr           *packetAttr
+	flows           []gosnappi.Flow
+	capture_ports   []string
+	trafficDuration int
 }
 
 // getPbrRules returns pbrRule slice for cluster facing (clusterFacing = true) or wan facing
@@ -685,29 +802,80 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice, clusterFacing boo
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 }
 
+func generateBundleMemberInterfaceConfig(name, bundleID string) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(name)}
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	e := i.GetOrCreateEthernet()
+	e.AutoNegotiate = ygot.Bool(false)
+	e.AggregateId = ygot.String(bundleID)
+	return i
+}
+
+func configureBundleInterfaces(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, bundleID string, dutPort *attrs.Attributes) {
+	d := gnmi.OC()
+	t.Logf("Configuring interface %s as bundle member of %s", port.Name(), bundleID)
+
+	be := dutPort.NewOCInterface(bundleID, dut)
+	be.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	gnmi.Replace(t, dut, d.Interface(bundleID).Config(), be)
+
+	bm := generateBundleMemberInterfaceConfig(port.Name(), bundleID)
+	gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), bm)
+
+}
+
+// portConfig holds configuration for a single port
+type portConfig struct {
+	portName   string
+	bundleName string
+	dutAttr    *attrs.Attributes
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, clusterFacing bool) {
 	d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
 
-	// configure interfaces
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	// Define port configurations
+	portConfigs := []portConfig{
+		{"port1", "Bundle-Ether1", &dutPort1},
+		{"port2", "Bundle-Ether2", &dutPort2},
+		{"port3", "Bundle-Ether3", &dutPort3},
+		{"port4", "Bundle-Ether4", &dutPort4},
+		{"port5", "Bundle-Ether5", &dutPort5},
+		{"port8", "Bundle-Ether8", &dutPort8},
+	}
 
-	// configure base PBF policies and network-instances
+	// Configure interfaces
+	for _, cfg := range portConfigs {
+		port := dut.Port(t, cfg.portName)
+		if *bundleMode {
+			configureBundleInterfaces(t, dut, port, cfg.bundleName, cfg.dutAttr)
+		} else {
+			gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), cfg.dutAttr.NewOCInterface(port.Name(), dut))
+		}
+	}
+
+	// Configure base PBF policies and network-instances
 	configureBaseconfig(t, dut, clusterFacing)
 
-	// apply PBF to src interface.
-	applyForwardingPolicy(t, dut, p1.Name(), clusterFacing)
+	// Apply PBF to src interface
+	applyForwardingPolicy(t, dut, getPolicyInterface(t, dut, *bundleMode), clusterFacing)
+
+	// Configure static ARP if needed
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		staticARPWithSecondaryIP(t, dut)
+		staticARPWithSecondaryIP(t, dut, *bundleMode)
 	}
+
+	// Configure loopback and sFlow
+	configureLoopbackAndSFlow(t, dut)
+}
+
+func getPolicyInterface(t *testing.T, dut *ondatra.DUTDevice, useBundleMode bool) string {
+	p1 := dut.Port(t, "port1")
+	policyIntf := p1.Name()
+	if useBundleMode {
+		policyIntf = "Bundle-Ether1"
+	}
+	return policyIntf
 }
 
 // applyForwardingPolicy applies the forwarding policy on the interface.
@@ -732,18 +900,26 @@ func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort str
 
 func configureDUTforPopGate(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
 
-	// configure interfaces
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutPort3.NewOCInterface(p3.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
-	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+	// Define port configurations
+	portConfigs := []portConfig{
+		{"port1", "Bundle-Ether1", &dutPort1},
+		{"port2", "Bundle-Ether2", &dutPort2},
+		{"port3", "Bundle-Ether3", &dutPort3},
+		{"port4", "Bundle-Ether4", &dutPort4},
+		{"port5", "Bundle-Ether5", &dutPort5},
+		{"port8", "Bundle-Ether8", &dutPort8},
+	}
+
+	// Configure interfaces
+	for _, cfg := range portConfigs {
+		port := dut.Port(t, cfg.portName)
+		if *bundleMode {
+			configureBundleInterfaces(t, dut, port, cfg.bundleName, cfg.dutAttr)
+		} else {
+			gnmi.Replace(t, dut, d.Interface(port.Name()).Config(), cfg.dutAttr.NewOCInterface(port.Name(), dut))
+		}
+	}
 
 	// configure base PBF policies and network-instances
 	t.Log("Configure VRFs")
@@ -753,9 +929,9 @@ func configureDUTforPopGate(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 
 	// apply PBF to src interface.
-	applyForwardingPopGatePolicy(t, p1.Name())
+	applyForwardingPopGatePolicy(t, getPolicyInterface(t, dut, *bundleMode))
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
-		staticARPWithSecondaryIP(t, dut)
+		staticARPWithSecondaryIP(t, dut, *bundleMode)
 	}
 }
 
@@ -799,12 +975,14 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p3 := ate.Port(t, "port3")
 	p4 := ate.Port(t, "port4")
 	p5 := ate.Port(t, "port5")
+	p8 := ate.Port(t, "port8")
 
 	otgPort1.AddToOTG(topo, p1, &dutPort1)
 	otgPort2.AddToOTG(topo, p2, &dutPort2)
 	otgPort3.AddToOTG(topo, p3, &dutPort3)
 	otgPort4.AddToOTG(topo, p4, &dutPort4)
 	otgPort5.AddToOTG(topo, p5, &dutPort5)
+	otgPort8.AddToOTG(topo, p8, &dutPort8)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -845,7 +1023,8 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
-
+	flow.Size().SetFixed(uint32(*frameSize))
+	flow.Rate().SetPps(uint64(*fps))
 	flow.TxRx().Port().SetTxName(fa.srcPort).SetRxNames(fa.dstPorts)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(fa.srcMac)
@@ -911,7 +1090,13 @@ func sendTraffic(t *testing.T, args *testArgs, flows []gosnappi.Flow, capture bo
 	}
 	t.Log("Starting traffic")
 	otg.StartTraffic(t)
-	time.Sleep(trafficDuration)
+
+	if args.trafficDuration == 0 {
+		time.Sleep(time.Duration(*trafficDuration) * time.Second)
+	} else {
+		time.Sleep(time.Duration(args.trafficDuration) * time.Second)
+	}
+
 	otg.StopTraffic(t)
 	t.Log("Traffic stopped")
 }
@@ -992,17 +1177,16 @@ func validateTunnelEncapRatio(t *testing.T, tunCounter map[string][]int) {
 	}
 }
 
-// validatePacketCapture reads capture files and checks the encapped packet for desired protocol, dscp and ttl
 func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, pa *packetAttr) map[string][]int {
 	tunCounter := make(map[string][]int)
 	for _, otgPortName := range otgPortNames {
 		l := NewLogger(t)
-
 		bytes := args.ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(otgPortName))
-		f, err := os.CreateTemp("", ".pcap")
+		f, err := os.CreateTemp("", "fibchains.pcap")
 		if err != nil {
 			t.Fatalf("ERROR: Could not create temporary pcap file: %v\n", err)
 		}
+		t.Logf("Created pcap file %s", f.Name())
 		if _, err := f.Write(bytes); err != nil {
 			t.Fatalf("ERROR: Could not write bytes to pcap file: %v\n", err)
 		}
@@ -1013,116 +1197,131 @@ func validatePacketCapture(t *testing.T, args *testArgs, otgPortNames []string, 
 			t.Fatalf("ERROR: Could not open pcap file %s: %v\n", f.Name(), err)
 		}
 		defer handle.Close()
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		tunnel1Pkts := 0
-		tunnel2Pkts := 0
-		for packet := range packetSource.Packets() {
 
-			if ipV4Layer := packet.Layer(layers.LayerTypeIPv4); ipV4Layer != nil {
-				v4Packet, _ := ipV4Layer.(*layers.IPv4)
-				l.LogOncef("Outer IPv4 packet: %+v\n", v4Packet)
-				if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
-					l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-					break
-				} else {
-					l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
-				}
-				if got := int(v4Packet.TOS >> 2); got != pa.dscp {
-					l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
-				} else {
-					l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
-				}
-				if got := uint32(v4Packet.TTL); got != pa.ttl {
-					l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-				} else {
-					l.LogOncef("Outer TTL matched: %d", pa.ttl)
-				}
+		tunnel1Pkts, tunnel2Pkts := 0, 0
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		for packet := range packetSource.Packets() {
+			switch {
+			case packet.Layer(layers.LayerTypeSFlow) != nil:
+				// Validate sFlow packet and its fields similar to other validators
+				validateSflowSampleFields(l, packet, pa)
+				continue
+			case packet.Layer(layers.LayerTypeIPv4) != nil:
+				v4Packet, _ := packet.Layer(layers.LayerTypeIPv4).(*layers.IPv4)
+				validateIPv4Packet(l, v4Packet, pa)
 				if v4Packet.DstIP.String() == tunnelDstIP1 {
 					tunnel1Pkts++
 				}
 				if v4Packet.DstIP.String() == tunnelDstIP2 {
 					tunnel2Pkts++
 				}
-				// check for inner IPv4 packet
+				// Check for inner IPv4 or IPv6
 				if v4Packet.Protocol == layers.IPProtocolIPv4 && pa.inner != nil {
-					nextIPV4Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv4, gopacket.Default)
-					innerIPv4Layer := nextIPV4Layer.Layer(layers.LayerTypeIPv4)
-					if innerIPv4Layer != nil {
-						innerIPv4Packet, _ := innerIPv4Layer.(*layers.IPv4)
-						// Process the inner IPv4 packet as needed
-						l.LogOncef("Inner IPv4 packet: %+v\n", innerIPv4Packet)
-						if got := innerIPv4Packet.Protocol; got != layers.IPProtocol(pa.inner.protocol) {
-							l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-						} else {
-							l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
-						}
-						if got := int(innerIPv4Packet.TOS >> 2); got != pa.inner.dscp {
-							l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
-						} else {
-							l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
-						}
-						if got := uint32(innerIPv4Packet.TTL); got != pa.inner.ttl {
-							l.LogOnceErrorf("Inner Packer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-						} else {
-							l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
-						}
-					}
+					validateInnerIPv4Packet(l, v4Packet.Payload, pa.inner)
 				}
-				// Check if the next protocol is IPv6
 				if v4Packet.Protocol == layers.IPProtocolIPv6 && pa.inner != nil {
-					nextIPV6Layer := gopacket.NewPacket(v4Packet.Payload, layers.LayerTypeIPv6, gopacket.Default)
-					innerIPv6Layer := nextIPV6Layer.Layer(layers.LayerTypeIPv6)
-					if innerIPv6Layer != nil {
-						innerIPv6Packet, _ := innerIPv6Layer.(*layers.IPv6)
-						// Process the inner IPv6 packet as needed
-						l.LogOncef("Inner IPv6 packet: %+v\n", innerIPv6Packet)
-						if got := innerIPv6Packet.NextHeader; got != layers.IPProtocol(pa.inner.protocol) {
-							l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.inner.protocol)
-						} else {
-							l.LogOncef("Inner Packet protocol type matched: %d", pa.inner.protocol)
-						}
-						if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.inner.dscp {
-							l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.inner.dscp)
-						} else {
-							l.LogOncef("Inner Packet Dscp value matched: %d", pa.inner.dscp)
-						}
-						if got := uint32(innerIPv6Packet.HopLimit); got != pa.inner.ttl {
-							l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.inner.ttl)
-						} else {
-							l.LogOncef("Inner Packet TTL matched: %d", pa.inner.ttl)
-						}
-					}
+					validateInnerIPv6Packet(l, v4Packet.Payload, pa.inner)
 				}
-
-			} else if ipV6Layer := packet.Layer(layers.LayerTypeIPv6); ipV6Layer != nil {
-				v6Packet, _ := ipV6Layer.(*layers.IPv6)
-				// ignore ICMPv6 packets received for neighbor discovery
+			case packet.Layer(layers.LayerTypeIPv6) != nil:
+				v6Packet, _ := packet.Layer(layers.LayerTypeIPv6).(*layers.IPv6)
+				// Ignore ICMPv6 packets for neighbor discovery
 				if v6Packet.NextHeader == layers.IPProtocolICMPv6 {
 					t.Logf("Ignoring ICMPv6 packet received")
 					continue
 				}
-				l.LogOncef("Outer IPv6 packet: %+v\n", v6Packet)
-				if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
-					l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
-				} else {
-					l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
-				}
-				if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
-					l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
-				} else {
-					l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
-				}
-				if got := uint32(v6Packet.HopLimit); got != pa.ttl {
-					l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
-				} else {
-					l.LogOncef("Outer TTL matched: %d", pa.ttl)
-				}
+				validateIPv6Packet(l, v6Packet, pa)
+			default:
+				// Unhandled packet type
 			}
 		}
 		t.Logf("tunnel1, tunnel2 packet count on %s: %d , %d", otgPortName, tunnel1Pkts, tunnel2Pkts)
 		tunCounter[otgPortName] = []int{tunnel1Pkts, tunnel2Pkts}
 	}
 	return tunCounter
+}
+
+func validateIPv4Packet(l *Logger, v4Packet *layers.IPv4, pa *packetAttr) {
+	if got := v4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
+		l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+	} else {
+		l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+	}
+	if got := int(v4Packet.TOS >> 2); got != pa.dscp {
+		l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+	} else {
+		l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+	}
+	if got := uint32(v4Packet.TTL); got != pa.ttl {
+		l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+	} else {
+		l.LogOncef("Outer TTL matched: %d", pa.ttl)
+	}
+}
+
+func validateInnerIPv4Packet(l *Logger, payload []byte, pa *packetAttr) {
+	nextIPV4Layer := gopacket.NewPacket(payload, layers.LayerTypeIPv4, gopacket.Default)
+	innerIPv4Layer := nextIPV4Layer.Layer(layers.LayerTypeIPv4)
+	if innerIPv4Layer != nil {
+		innerIPv4Packet, _ := innerIPv4Layer.(*layers.IPv4)
+		l.LogOncef("Inner IPv4 packet: %+v\n", innerIPv4Packet)
+		if got := innerIPv4Packet.Protocol; got != layers.IPProtocol(pa.protocol) {
+			l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+		} else {
+			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
+		}
+		if got := int(innerIPv4Packet.TOS >> 2); got != pa.dscp {
+			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
+		} else {
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.dscp)
+		}
+		if got := uint32(innerIPv4Packet.TTL); got != pa.ttl {
+			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.ttl)
+		} else {
+			l.LogOncef("Inner Packet TTL matched: %d", pa.ttl)
+		}
+	}
+}
+
+func validateInnerIPv6Packet(l *Logger, payload []byte, pa *packetAttr) {
+	nextIPV6Layer := gopacket.NewPacket(payload, layers.LayerTypeIPv6, gopacket.Default)
+	innerIPv6Layer := nextIPV6Layer.Layer(layers.LayerTypeIPv6)
+	if innerIPv6Layer != nil {
+		innerIPv6Packet, _ := innerIPv6Layer.(*layers.IPv6)
+		l.LogOncef("Inner IPv6 packet: %+v\n", innerIPv6Packet)
+		if got := innerIPv6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
+			l.LogOnceErrorf("Inner Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+		} else {
+			l.LogOncef("Inner Packet protocol type matched: %d", pa.protocol)
+		}
+		if got := int(innerIPv6Packet.TrafficClass >> 2); got != pa.dscp {
+			l.LogOnceErrorf("Inner Packet Dscp value mismatch, got %d, want %d", got, pa.dscp)
+		} else {
+			l.LogOncef("Inner Packet Dscp value matched: %d", pa.dscp)
+		}
+		if got := uint32(innerIPv6Packet.HopLimit); got != pa.ttl {
+			l.LogOnceErrorf("Inner Packet TTL mismatch, got: %d, want: %d", got, pa.ttl)
+		} else {
+			l.LogOncef("Inner Packet TTL matched: %d", pa.ttl)
+		}
+	}
+}
+
+func validateIPv6Packet(l *Logger, v6Packet *layers.IPv6, pa *packetAttr) {
+	if got := v6Packet.NextHeader; got != layers.IPProtocol(pa.protocol) {
+		l.LogOnceErrorf("Outer Packet protocol type mismatch, got: %d, want %d", got, pa.protocol)
+	} else {
+		l.LogOncef("Outer Packet protocol type matched: %d", pa.protocol)
+	}
+	if got := int(v6Packet.TrafficClass >> 2); got != pa.dscp {
+		l.LogOnceErrorf("Outer Dscp value mismatch, got %d, want %d", got, pa.dscp)
+	} else {
+		l.LogOncef("Outer Dscp value matched: %d", pa.dscp)
+	}
+	if got := uint32(v6Packet.HopLimit); got != pa.ttl {
+		l.LogOnceErrorf("Outer TTL mismatch, got: %d, want: %d", got, pa.ttl)
+	} else {
+		l.LogOncef("Outer TTL matched: %d", pa.ttl)
+	}
 }
 
 // startCapture starts the capture on the otg ports
@@ -1166,7 +1365,8 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	}
 
 	// skip first entry that belongs to source port on ate
-	gotWeights, _ := normalize(inFramesAllPorts[1:])
+	// skip last entry which is used as sink port for sflow packet count
+	gotWeights, _ := normalize(inFramesAllPorts[1 : len(inFramesAllPorts)-1])
 
 	t.Log("got ratio:", gotWeights)
 	t.Log("want ratio:", wantWeights)
@@ -1196,45 +1396,72 @@ func validateTrafficDistribution(t *testing.T, ate *ondatra.ATEDevice, wantWeigh
 	//}
 }
 
-// configStaticArp configures static arp entries
-func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
-	i := &oc.Interface{Name: ygot.String(p)}
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	n4 := s4.GetOrCreateNeighbor(ipv4addr)
-	n4.LinkLayerAddress = ygot.String(macAddr)
-	return i
-}
-
 // staticARPWithSecondaryIP configures secondary IPs and static ARP.
-func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice) {
+func staticARPWithSecondaryIP(t *testing.T, dut *ondatra.DUTDevice, useBundleMode bool) {
 	t.Helper()
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	p5 := dut.Port(t, "port5")
-	// p6 := dut.Port(t, "port6")
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), assignIPAsSecondary(&dutPort2DummyIP, p2.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), assignIPAsSecondary(&dutPort3DummyIP, p3.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), assignIPAsSecondary(&dutPort4DummyIP, p4.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), assignIPAsSecondary(&dutPort5DummyIP, p5.Name(), dut))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), assignIPAsSecondary(&dutPort6DummyIP, p6.Name(), dut))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p2.Name()).Config(), configStaticArp(p2.Name(), otgPort2DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p3.Name()).Config(), configStaticArp(p3.Name(), otgPort3DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p4.Name()).Config(), configStaticArp(p4.Name(), otgPort4DummyIP.IPv4, magicMac))
-	gnmi.Update(t, dut, gnmi.OC().Interface(p5.Name()).Config(), configStaticArp(p5.Name(), otgPort5DummyIP.IPv4, magicMac))
-	// gnmi.Update(t, dut, gnmi.OC().Interface(p6.Name()).Config(), configStaticArp(p6.Name(), otgPort6DummyIP.IPv4, magicMac))
+
+	// Define port mappings for non-bundle and bundle configurations
+	type portConfig struct {
+		portName   string
+		bundleName string
+		dutAttr    *attrs.Attributes
+		otgAttr    *attrs.Attributes
+	}
+
+	configs := []portConfig{
+		{"port2", "Bundle-Ether2", &dutPort2DummyIP, &otgPort2DummyIP},
+		{"port3", "Bundle-Ether3", &dutPort3DummyIP, &otgPort3DummyIP},
+		{"port4", "Bundle-Ether4", &dutPort4DummyIP, &otgPort4DummyIP},
+		{"port5", "Bundle-Ether5", &dutPort5DummyIP, &otgPort5DummyIP},
+		{"port8", "Bundle-Ether8", &dutPort8DummyIP, &otgPort8DummyIP},
+	}
+
+	for _, cfg := range configs {
+		var interfaceName string
+		if useBundleMode {
+			interfaceName = cfg.bundleName
+		} else {
+			interfaceName = dut.Port(t, cfg.portName).Name()
+		}
+
+		// Configure secondary IP
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(),
+			assignIPAsSecondary(cfg.dutAttr, interfaceName, dut, useBundleMode))
+
+		// Configure static ARP
+		gnmi.Update(t, dut, gnmi.OC().Interface(interfaceName).Config(),
+			configStaticArp(interfaceName, cfg.otgAttr.IPv4, magicMac, useBundleMode))
+	}
 }
 
-// override ip address type as secondary
-func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice) *oc.Interface {
+// Helper function to update assignIPAsSecondary to handle bundle mode
+func assignIPAsSecondary(a *attrs.Attributes, port string, dut *ondatra.DUTDevice, useBundleMode bool) *oc.Interface {
 	intf := a.NewOCInterface(port, dut)
+	if useBundleMode {
+		intf.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
 	s := intf.GetOrCreateSubinterface(0)
 	s4 := s.GetOrCreateIpv4()
 	a4 := s4.GetOrCreateAddress(a.IPv4)
 	a4.Type = oc.IfIp_Ipv4AddressType_SECONDARY
 	return intf
+}
+
+// Helper function to update configStaticArp to handle bundle mode
+func configStaticArp(p string, ipv4addr string, macAddr string, useBundleMode bool) *oc.Interface {
+	i := &oc.Interface{Name: ygot.String(p)}
+	if useBundleMode {
+		i.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	} else {
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	}
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	n4 := s4.GetOrCreateNeighbor(ipv4addr)
+	n4.LinkLayerAddress = ygot.String(macAddr)
+	return i
 }
 
 func configureVIP1(t *testing.T, args *testArgs) {
@@ -1444,4 +1671,70 @@ func unshutPorts(t *testing.T, args *testArgs, ports []string) {
 		gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, port).Name()).Subinterface(0).Enabled().Config(), true)
 	}
 	time.Sleep(5 * time.Second)
+}
+
+// configureLoopback configures the Loopback0 interface with IPv4 and IPv6 addresses
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
+	root := &oc.Root{}
+
+	// Configure Loopback0 interface
+	lo := root.GetOrCreateInterface(loopback.Name)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo.Enabled = ygot.Bool(true)
+	sub := lo.GetOrCreateSubinterface(0)
+
+	// IPv4 configuration
+	v4 := sub.GetOrCreateIpv4()
+	a4 := v4.GetOrCreateAddress(loopback.IPv4)
+	a4.PrefixLength = ygot.Uint8(32)
+
+	// IPv6 configuration
+	v6 := sub.GetOrCreateIpv6()
+	a6 := v6.GetOrCreateAddress(loopback.IPv6)
+	a6.PrefixLength = ygot.Uint8(128)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback.Name).Config(), lo)
+}
+
+func GetBundleMemberIfIndexes(t *testing.T, dut *ondatra.DUTDevice, bundleNames []string) map[string][]uint32 {
+	var bundleMemberIfIndexes = make(map[string][]uint32)
+	// Initialize the map with bundle names and their member ifIndexes
+	for _, bundle := range bundleNames {
+		members := gnmi.Get(t, dut, gnmi.OC().Interface(bundle).Aggregation().Member().State())
+		if len(members) == 0 {
+			t.Fatalf("No member interfaces found for bundle %s", bundle)
+		}
+		for _, member := range members {
+			ifIndex := gnmi.Get(t, dut, gnmi.OC().Interface(member).Ifindex().State())
+			bundleMemberIfIndexes[bundle] = append(bundleMemberIfIndexes[bundle], ifIndex)
+		}
+	}
+	return bundleMemberIfIndexes
+}
+
+func getIfIndex(t *testing.T, cliClient binding.CLIClient, intfs []string) {
+	for _, intf := range intfs {
+		cmd := fmt.Sprintf("show snmp interface %s ifindex", intf)
+		output, err := cliClient.RunCommand(context.Background(), cmd)
+		if err != nil {
+			t.Errorf("Error running CLI command '%s': %v", cmd, err)
+			return
+		}
+
+		t.Logf("CLI output:\n%s", output.Output())
+	}
+}
+
+// Helper function to get current flow rate
+func getFlowsRate(flows []gosnappi.Flow) uint64 {
+	if len(flows) == 0 {
+		return *fps
+	}
+	return flows[0].Rate().Pps()
+}
+
+func SetFlowsRate(flows []gosnappi.Flow, pps uint64) {
+	for _, flow := range flows {
+		flow.Rate().SetPps(pps)
+	}
 }
