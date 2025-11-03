@@ -1996,7 +1996,7 @@ func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attr
 // configureLoopbackAndSFlow configures Loopback0 and sFlow on the DUT.
 // call it after configuring DUT interfaces, which populates aggID1.
 func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
-	s.StaticRouteHelper().AddStaticRoutesToNull(t, dut, strings.Split(nullRouteIPv4, "/")[0], strings.Split(nullRouteIPv6, "/")[0], vrfDefault)
+	s.StaticRouteHelper().AddStaticRoutesToNull(t, dut, nullRouteIPv4, nullRouteIPv6, vrfDefault)
 	config := NewDefaultSflowAttr(aggID1)
 
 	// Configure Loopback0 interface
