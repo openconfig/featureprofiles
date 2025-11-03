@@ -21,10 +21,9 @@ import (
 const (
 	samplingInterval    = 10 * time.Second
 	frequencyTolerance  = 1800
-	interfaceTimeout    = 3 * time.Minute // Increased from 90s for reliability
-	statisticalTimeout  = 2 * time.Minute // Timeout for statistical values to stabilize
+	interfaceTimeout    = 3 * time.Minute
+	telemetryWaitTime   = 45 * time.Second // Simple fixed wait for telemetry stabilization
 	maxTelemetryRetries = 3
-	statsTolerance      = 0.1
 )
 
 var (
@@ -111,8 +110,9 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
-					// CRITICAL FIX: Await statistical values to stabilize instead of sleep
-					awaitStatisticalStability(t, dut, oc1, oc2)
+					// CRITICAL FIX: Wait for telemetry to stabilize
+					t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
+					time.Sleep(telemetryWaitTime)
 
 					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 				})
@@ -190,8 +190,9 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
-				// CRITICAL FIX: Await statistical values to stabilize instead of sleep
-				awaitStatisticalStability(t, dut, oc1, oc2)
+				// CRITICAL FIX: Wait for telemetry to stabilize
+				t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
+				time.Sleep(telemetryWaitTime)
 
 				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, tc.frequency, top)
 			})
@@ -254,8 +255,9 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
-	// CRITICAL FIX: Await statistical values to stabilize instead of sleep
-	awaitStatisticalStability(t, dut, oc1, oc2)
+	// CRITICAL FIX: Wait for telemetry to stabilize
+	t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
+	time.Sleep(telemetryWaitTime)
 
 	t.Run("Telemetry before flap", func(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, targetPower)
@@ -267,7 +269,7 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_DOWN)
 
 	// Wait for telemetry to reflect down state
-	time.Sleep(30 * time.Second)
+	time.Sleep(telemetryWaitTime)
 
 	t.Run("Telemetry during interface disabled", func(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, -40)
@@ -293,84 +295,20 @@ func Test400ZRInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 	gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
-	// CRITICAL FIX: Await statistical values to stabilize instead of sleep
-	awaitStatisticalStability(t, dut, oc1, oc2)
+	// CRITICAL FIX: Wait for telemetry to stabilize after recovery
+	t.Logf("Waiting %v for statistical telemetry to stabilize...", telemetryWaitTime)
+	time.Sleep(telemetryWaitTime)
 
 	t.Run("Telemetry after flap", func(t *testing.T) {
 		validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, frequency, targetPower)
 	})
 }
 
-// awaitStatisticalStability waits for statistical telemetry values to stabilize
-// This is the key fix recommended by the reviewer - await on long-pole PMs instead of sleeping
-func awaitStatisticalStability(t *testing.T, dut *ondatra.DUTDevice, oc1, oc2 string) {
-	t.Helper()
-
-	// Await carrier frequency offset avg to be within reasonable range
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().CarrierFrequencyOffset().Avg().State(),
-		statisticalTimeout,
-		func(val *ygnmi.Value[float64]) bool {
-			avg, ok := val.Val()
-			if !ok {
-				return false
-			}
-			// Wait until avg is within reasonable range (not extreme values)
-			return math.Abs(avg) < 10000
-		}).Await(t)
-	if !ok {
-		t.Logf("Warning: OC1 carrier frequency offset avg did not stabilize within timeout")
-	}
-
-	_, ok = gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().CarrierFrequencyOffset().Avg().State(),
-		statisticalTimeout,
-		func(val *ygnmi.Value[float64]) bool {
-			avg, ok := val.Val()
-			if !ok {
-				return false
-			}
-			return math.Abs(avg) < 10000
-		}).Await(t)
-	if !ok {
-		t.Logf("Warning: OC2 carrier frequency offset avg did not stabilize within timeout")
-	}
-
-	// Await output power avg to be within reasonable range
-	_, ok = gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().OutputPower().Avg().State(),
-		statisticalTimeout,
-		func(val *ygnmi.Value[float64]) bool {
-			avg, ok := val.Val()
-			if !ok {
-				return false
-			}
-			// Wait until avg is within reasonable range
-			return math.Abs(avg) < 100
-		}).Await(t)
-	if !ok {
-		t.Logf("Warning: OC1 output power avg did not stabilize within timeout")
-	}
-
-	_, ok = gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().OutputPower().Avg().State(),
-		statisticalTimeout,
-		func(val *ygnmi.Value[float64]) bool {
-			avg, ok := val.Val()
-			if !ok {
-				return false
-			}
-			return math.Abs(avg) < 100
-		}).Await(t)
-	if !ok {
-		t.Logf("Warning: OC2 output power avg did not stabilize within timeout")
-	}
-
-	t.Logf("Statistical telemetry values stabilized")
-}
-
-// validateOpticsTelemetry - NO SAMPLE FLUSHING per reviewer feedback
 func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[*oc.Component_OpticalChannel], frequency uint64, outputPower float64) {
 	dut := ondatra.DUT(t, "dut")
 	var ocs []*oc.Component_OpticalChannel
 
-	// Retry telemetry collection but WITHOUT flushing samples
+	// Retry telemetry collection without sample flushing
 	for attempt := 1; attempt <= maxTelemetryRetries; attempt++ {
 		ocs = nil
 		allSuccess := true
@@ -426,7 +364,6 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			roundedMin := math.Round(min*10) / 10
 			roundedMax := math.Round(max*10) / 10
 
-			// Increased tolerance to 2.0 to handle non-atomic statistical updates
 			const nonAtomicTolerance = 2.0
 
 			if roundedMin > roundedInst+nonAtomicTolerance {
@@ -460,7 +397,6 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			roundedMin := math.Round(min*10) / 10
 			roundedMax := math.Round(max*10) / 10
 
-			// Increased tolerance to 2.0 to handle non-atomic statistical updates
 			const nonAtomicTolerance = 2.0
 
 			if roundedMin > roundedInst+nonAtomicTolerance {
