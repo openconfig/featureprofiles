@@ -48,7 +48,9 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		}
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
-	case ondatra.NOKIA:
+	case ondatra.NOKIA, ondatra.CISCO:
+		break
+	case ondatra.JUNIPER:
 		break
 	default:
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
