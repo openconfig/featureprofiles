@@ -70,7 +70,7 @@ replace: {
 " breakout 4x100\n"
 "!\n"
 "interface Loopback0\n"
-" ipv4 address 44.44.44.44 255.255.255.255\n"
+" ipv4 address 4.4.4.1 255.255.255.255\n"
 " ipv6 address 44::44/128\n"
 "!\n"
 "interface MgmtEth0/RP0/CPU0/0\n"
