@@ -1,6 +1,7 @@
 package dcgate_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
@@ -56,6 +57,8 @@ func TestFibChains(t *testing.T) {
 	}
 
 	dut := ondatra.DUT(t, "dut")
+	cliClient := dut.RawAPIs().CLI(t)
+
 	for _, tc := range test {
 
 		// Configure DUT based on chain type
@@ -71,9 +74,26 @@ func TestFibChains(t *testing.T) {
 		case "popgate_unoptimized":
 			configureDUTforPopGate(t, dut)
 		}
-		// Configure ATE
-		otg := ondatra.ATE(t, "ate")
-		topo := configureOTG(t, otg)
+
+		// Set sflow config details
+		dutPorts := dut.Ports()
+		intfs := []string{}
+		for i, port := range dutPorts {
+			intfs = append(intfs, port.Name())
+			intfs = append(intfs, fmt.Sprintf("Bundle-Ether%d", i+1))
+		}
+		getIfIndex(t, cliClient, intfs)
+
+		// Uncomment below code when sflow feature is available
+		// This code may be later moved to each major test base configuration
+		// Or just modify erd.SetNextHop(otgPort5.IPv4) as per the egress port used in the test.
+		// erd := sfAttr.AddSflowSample().AddExtendedRouterData()
+		// erd.SetNextHop(otgPort5.IPv4)
+		// erd.SetNextHopDestinationMask(0)
+		// erd.SetNextHopSourceMask(0)
+
+		sfAttr.InputInterface = getInterfaceIndexes(t, dut, "Bundle-Ether1", "port1", *bundleMode)
+		// sfAttr.OutputInterface will change per subtest based on the egress interface for the traffic.
 
 		// configure gRIBI client
 		c := gribi.Client{
@@ -88,10 +108,16 @@ func TestFibChains(t *testing.T) {
 
 		defer c.Close(t)
 		c.BecomeLeader(t)
+
+		// flush entries at the end of each test
 		defer c.FlushAll(t)
 
 		// Flush all existing AFT entries on the router
 		c.FlushAll(t)
+
+		// Configure ATE
+		otg := ondatra.ATE(t, "ate")
+		topo := configureOTG(t, otg)
 
 		tcArgs := &testArgs{
 			client: &c,
@@ -452,6 +478,7 @@ func testTransitDcgateOptimized(t *testing.T, args *testArgs) {
 		configDefaultRoute(t, args.dut, cidr(innerV4DstIP, 32), otgPort5.IPv4, cidr(InnerV6DstIP, 128), otgPort5.IPv6)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(innerV4DstIP, 32)).Config())
 		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(InnerV6DstIP, 128)).Config())
+
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
@@ -555,12 +582,16 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: ipipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 50} //transit traffic should decrement only outer ttl
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		// validate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
+
 		args.client.AddIPv4(t, cidr(tunnelDstIP1, 32), decapNHG(1), vrfDecap, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.DeleteIPv4(t, cidr(tunnelDstIP1, 32), vrfTransit, fluent.InstalledInFIB)
 	})
 	t.Run("match in decap goto encap", func(t *testing.T) {
-		t.Log("Add decap prefix back to decap vrf to decapsulate traffic and schedule to match in encap vrf")
-
+		t.Log("Add decap prefix back to decap vrf to decapsulate traffic and then schedule to match in encap vrf")
 		// verify traffic passes through primary NHG
 		faTransit.innerDscp = dscpEncapA1
 		faTransit.innerTtl = 50
@@ -571,10 +602,18 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
+		// validate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether3", "port3", *bundleMode)
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
+
+		args.capture_ports = []string{"port3"}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		// validate sflow capture
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("frr1 shutdown primary path goto repair path", func(t *testing.T) {
 		t.Log("Shutdown primary path for transit path tunnel and verify traffic goes via repair path tunnel")
@@ -587,10 +626,18 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		weights := []float64{0, 0, 1, 0}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
+		// validate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether4", "port4", *bundleMode)
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
+
+		args.capture_ports = []string{"port4"}
 		args.pattr = &packetAttr{dscp: 10, protocol: ipv6ipProtocol, ttl: 99}
 		args.pattr.inner = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv6in4", "ip6inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		// validate sflow capture
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("frr2 shutdown repair path goto default vrf", func(t *testing.T) {
 		t.Log("Shutdown transit and repair tunnel paths and verify traffic passes through default vrf")
@@ -601,10 +648,16 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		configDefaultRoute(t, args.dut, cidr(innerV4DstIP, 32), otgPort5.IPv4, cidr(InnerV6DstIP, 128), otgPort5.IPv6)
 		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(innerV4DstIP, 32)).Config())
 		defer gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(args.dut)).Static(cidr(InnerV6DstIP, 128)).Config())
+
 		args.capture_ports = []string{"port5"}
 		weights := []float64{0, 0, 0, 1}
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99}
+		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
+
+		// validate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
 	})
 	t.Run("match in decap nomatch in encap", func(t *testing.T) {
 		configDefaultRoute(t, args.dut, "0.0.0.0/0", otgPort5.IPv4, "0::/0", otgPort5.IPv6)
@@ -629,10 +682,18 @@ func testTransitDcgateUnoptimized(t *testing.T, args *testArgs) {
 		args.pattr = &packetAttr{dscp: 10, protocol: udpProtocol, ttl: 99} //original Outer ttl is 100, after decap decrement -1, and copy from outer to inner
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
+		// validate sflow capture
+		sfAttr.OutputInterface = getInterfaceIndexes(t, args.dut, "Bundle-Ether5", "port5", *bundleMode)
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
+
+		args.capture_ports = []string{"port5"}
 		args.flows = []gosnappi.Flow{faTransit.getFlow("ipv4in4", "ip4inipa1", dscpEncapA1)}
 		testTransitTrafficWithTtlDscp(t, args, weights, true)
 
-		t.Log("add back prefix to encap vrf")
+		// validate sflow capture
+		validateSflowCapture(t, args, []string{"port8"}, sfAttr)
+
+		t.Log("Add back prefix to encap vrf")
 		args.client.AddIPv4(t, cidr(innerV4DstIP, 32), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 		args.client.AddIPv6(t, cidr(InnerV6DstIP, 128), encapNHG(1), vrfEncapA, deviations.DefaultNetworkInstance(args.dut), fluent.InstalledInFIB)
 	})

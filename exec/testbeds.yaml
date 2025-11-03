@@ -198,6 +198,15 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
+    godhcpd:
+      url: http://ott-ucs1-b4:8001
+      mgmt_ip: 1:1:1:1::1/64
+      mgmt_gw: 1:1:1:1::4
+
+  8818-FOX2714PNYN_mtls:
+    <<: *8818-FOX2714PNYN_DEFAULTS
+    binding: topologies/cisco/hw/8818-FOX2714PNYN/binding_mtls
+    baseconf: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
@@ -279,10 +288,6 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
-    godhcpd:
-      url: http://ott-ucs1-b4:8001
-      mgmt_ip: 1:1:1:1::1/64
-      mgmt_gw: 1:1:1:1::4
 
   8818-DUT-PEER-MTLS-V6-OOB:
     hw:
@@ -642,6 +647,21 @@ testbeds:
       controller_port: 40065
       gnmi_port: 50065
       rest_port: 30065
+
+  P200-DEV-HW-2DUT:
+    hw:
+      - P200_DE_HW_TB
+    owner: arvbaska
+    testbed: topologies/cisco/hw/P200-HW-2DUT/testbed
+    binding: topologies/cisco/hw/P200-HW-2DUT/binding
+    baseconf:
+      dut: topologies/cisco/hw/P200-HW-2DUT/dut_conf.proto
+      dut2: topologies/cisco/hw/P200-HW-2DUT/dut2_conf.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40067
+      gnmi_port: 50067
+      rest_port: 30067 
 
   2DUT-TB4-GRIBI-SCALE:
     hw:

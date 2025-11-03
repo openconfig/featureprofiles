@@ -113,6 +113,7 @@ var (
 	pipedCmdList = []string{
 		"show version",
 		"show platform",
+		"show install active",
 		"show install fixes active",
 		"show running-config",
 		"show context location all",
