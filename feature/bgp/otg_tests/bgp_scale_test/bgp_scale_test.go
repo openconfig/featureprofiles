@@ -1875,7 +1875,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *dutData) {
 		b.Set(t, dut)
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			for i := uint32(1); i <= dutPort4.numSubIntf; i++ {
- 				fptest.AssignToNetworkInstance(t, dut, aggIDs[0], deviations.DefaultNetworkInstance(dut), uint32(dutPort4.index*10)+i)
+				fptest.AssignToNetworkInstance(t, dut, aggIDs[0], deviations.DefaultNetworkInstance(dut), uint32(dutPort4.index*10)+i)
 			}
 		}
 	}
