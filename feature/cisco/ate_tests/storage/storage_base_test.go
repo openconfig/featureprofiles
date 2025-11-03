@@ -3,6 +3,7 @@ package storage_test
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -143,16 +144,21 @@ func getLinecardComponents(t *testing.T, args *testArgs) []string {
 	t.Helper()
 	allComponents := gnmi.GetAll(t, args.dut, gnmi.OC().ComponentAny().State())
 	var nodeComponents []string
+
+	// Regex pattern to match exactly "X/Y/CPUZ" where Z is 0 or 1, with no additional text
+	cpuPattern := regexp.MustCompile(`^[^/]+/[^/]+/CPU[01]$`)
+
 	for _, component := range allComponents {
 		name := component.GetName()
 		// Filter for components with pattern "0/X/CPUY" (linecard and RP components)
-		if strings.Count(name, "/") == 2 &&
-			(strings.HasSuffix(name, "/CPU0") || strings.HasSuffix(name, "/CPU1")) &&
+		// Ensure the component name ends exactly with "/CPU0" or "/CPU1" (no additional text)
+		if cpuPattern.MatchString(name) &&
 			!strings.Contains(name, "-") &&
 			!strings.Contains(strings.ToUpper(name), "IOSXR-NODE") {
 
 			// Include linecard components (e.g., "0/0/CPU0" to "0/9/CPU0")
 			// AND RP components (e.g., "0/RP0/CPU0", "0/RP1/CPU0")
+			// Exclude components with additional text after CPU0/CPU1 (e.g., "0/0/CPU0-Optics Controller 0")
 			if strings.Contains(name, "/RP") ||
 				(!strings.Contains(name, "/RP") &&
 					(strings.Contains(name, "/0/") || strings.Contains(name, "/1/") ||
@@ -896,14 +902,6 @@ func generateBundleMemberInterfaceConfig(t *testing.T, name, bundleID string) *o
 	return i
 }
 
-// testStorageCounterSystemEvents executes all system event tests for a storage counter path
-func testStorageCounterSystemEvents(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
-	linecardsReload(t, args, ctx, pathSuffix)
-	rpfoReload(t, args, ctx, pathSuffix)
-	reloadRouter(t, args, ctx, pathSuffix)
-	processRestart(t, args, ctx, pathSuffix)
-}
-
 // linecardsReload performs linecard reload and validates storage counters afterward
 func linecardsReload(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
 	lcList := util.GetLCList(t, args.dut)
@@ -924,8 +922,14 @@ func reloadRouter(t *testing.T, args *testArgs, ctx context.Context, pathSuffix 
 }
 
 // processRestart restarts the emsd process and validates storage counters afterward
-func processRestart(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
+func processRestartemsd(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
 	util.ProcessRestart(t, args.dut, "emsd")
+	time.Sleep(120 * time.Second)
+	testStorageCounterSampleMode(t, args, pathSuffix)
+}
+
+func processRestartMediaSvr(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
+	util.ProcessRestart(t, args.dut, "media_server")
 	time.Sleep(120 * time.Second)
 	testStorageCounterSampleMode(t, args, pathSuffix)
 }
@@ -1742,8 +1746,11 @@ func testStorageSystemEventsComprehensive(t *testing.T, args *testArgs) {
 			reloadRouter(t, args, ctx, pathSuffix)
 		})
 
-		t.Run(fmt.Sprintf("process-restart-%s", pathSuffix), func(t *testing.T) {
-			processRestart(t, args, ctx, pathSuffix)
+		t.Run(fmt.Sprintf("emsd-process-restart-%s", pathSuffix), func(t *testing.T) {
+			processRestartemsd(t, args, ctx, pathSuffix)
+		})
+		t.Run(fmt.Sprintf("mediasvr-process-restart-%s", pathSuffix), func(t *testing.T) {
+			processRestartMediaSvr(t, args, ctx, pathSuffix)
 		})
 	}
 
