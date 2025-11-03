@@ -1464,7 +1464,7 @@ func configureDevices(t *testing.T, dut, peer *ondatra.DUTDevice, interfaceMode 
 		t.Log("Configure DUT-TGEN Bundle Interface")
 		aggID1, aggID2 = configureDUTInterfaces(t, dut)
 		t.Log("Configure DUT-PEER dynamic Bundle Interface")
-		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 1, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
+		bundleListAll := util.ConfigureBundleIntfDynamic(t, dut, peer, 4, dutPeerBundleIPv4Range, dutPeerBundleIPv6Range)
 		if len(bundleListAll) < 2 {
 			t.Fatalf("Expected at least 2 bundles (one for bgp/isis other for test), got %d", len(bundleList))
 		}

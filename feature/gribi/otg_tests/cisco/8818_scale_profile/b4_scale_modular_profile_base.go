@@ -1805,7 +1805,6 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	topo := configureOTG(t, otg, dut, peer)
 	t.Log("OTG CONFIG: ", topo)
 	tcArgs := initializeTestResources(t, dut, peer, otg, topo, client, ctx)
-
 	initTriggers(tcArgs)
 
 	t.Run("Verify default BGP traffic", func(t *testing.T) {
