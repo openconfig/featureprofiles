@@ -1732,3 +1732,8 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
 }
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
