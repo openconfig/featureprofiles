@@ -635,7 +635,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Rule Path With Wildcard Entry", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Define expected response
 			wantErr := "invalid policy: wildcard path names are not permitted"
@@ -965,7 +965,7 @@ func TestPathz_1(t *testing.T) {
 				Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 			}
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Define expected response
 			want := &pathzpb.ProbeResponse{
@@ -1148,7 +1148,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Between Definite keys over wildcards keys With Triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -1822,7 +1822,7 @@ func TestPathz_1(t *testing.T) {
 				Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 			}
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Define expected response
 			want := &pathzpb.ProbeResponse{
@@ -2006,7 +2006,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Group Over User - Invalid username in Group", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2303,7 +2303,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Group Over User - Deny/Permit", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2515,7 +2515,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Conflict Between Users", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2775,7 +2775,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2985,7 +2985,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3529,7 +3529,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Conflict Group Over User - Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3743,7 +3743,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3891,7 +3891,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Longest Prefix Match Among Users", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4046,7 +4046,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4200,7 +4200,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Longest Prefix Among Groups", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4394,7 +4394,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy with gNMI.SET Operation using XR Model", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4600,7 +4600,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test User Conflict Between Definite keys over Wildcards Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -5177,7 +5177,7 @@ func TestPathz_1(t *testing.T) {
 	})
 	t.Run("Test Corrupt Pathz Policy File Behaviour - Reload", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Start gRPC client
 			client := start(t)
@@ -5494,7 +5494,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Scale Pathz Policy Rules Request & gNMI SET Request with Emsd Restart", func(t *testing.T) {
 		// Pathz Rules Scale Test (5800 Pathz Rules) with gNMI SET Scale operations and eMSD Restart.
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -5706,7 +5706,7 @@ func TestPathz_2(t *testing.T) {
 
 	t.Run("Test Conflict Group Over User With Triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -6041,7 +6041,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Conflict Between Users with triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -6328,7 +6328,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy Conflict Among Groups", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -6637,7 +6637,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("Test Pathz Policy File System Behaviour - Process Restart Emsd", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Define probe request
 			probeReq := &pathzpb.ProbeRequest{
@@ -6979,7 +6979,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("Test Corrupt Pathz Policy File Behaviour - ProcessRestart/Reload", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Start gRPC client
 			client := start(t)
@@ -7591,7 +7591,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Scale Pathz Policy Rules Request & gNMI SET Request with Router Reload", func(t *testing.T) {
 		// Pathz Scale Test with Router Reload.
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -7820,7 +7820,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Authz Pathz Test with Router Reload", func(t *testing.T) {
 		// Authz Pathz Test with Router Reload.
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
@@ -8245,7 +8245,7 @@ func TestPathz_2(t *testing.T) {
 				Path:           &gpb.Path{Elem: []*gpb.PathElem{{Name: "system"}, {Name: "config"}, {Name: "hostname"}}},
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_SANDBOX,
 			}
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Define expected response
 			want := &pathzpb.ProbeResponse{
@@ -8696,7 +8696,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy Conflict B/W Group & User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -9437,7 +9437,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy with Invalid User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -9742,7 +9742,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy with Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -10023,7 +10023,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -10209,7 +10209,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Pathz Policy Longest Prefix", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -10471,7 +10471,7 @@ func TestPathz_2(t *testing.T) {
 	})
 	t.Run("RPSO: Test Corrupt Pathz Policy File", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			pathzRulesPath := "testdata/invalid_policy.txt"
 			copyPathzRules := "/mnt/rdsfs/ems/gnsi"
@@ -10773,7 +10773,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy File with 5800 Pathz Rules Request and gNMI Scale Operations", func(t *testing.T) {
 		// Test Pathz Policy File with 5800 Pathz Rules Request and gNMI Scale Operations
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -11027,7 +11027,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Authz Over Pathz", func(t *testing.T) {
 		// Authz Pathz Test with RP switchover.
 		for _, d := range parseBindingFile(t) {
-			createdtime := uint64(time.Now().UnixMicro())
+			createdtime := uint64(time.Now().Unix())
 
 			policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
