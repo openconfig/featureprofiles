@@ -683,6 +683,13 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	batch := &gnmi.SetBatch{}
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
+	// Permit-all helper policy (unchanged)
+	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
+	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	// Prefix-set: prefix-set-v6
 	psExportV6 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixEportSet)
 	psExportV6.SetMode(oc.PrefixSet_Mode_IPV6)
