@@ -425,9 +425,10 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
-// TODO: This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// TODO: Split out the watching logic into a blocking function.
+// This is somewhat bad practice. I was surprised that this function spawned a goroutine.
 // Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
-// on return.) Split out the watching logic into a blocking function.
+// on return.)
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
@@ -798,6 +799,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 
 // VerifyAtomicFlagHook returns a NotificationHook which verifies that the atomic flag is set to true.
 func VerifyAtomicFlagHook(t *testing.T) NotificationHook {
+	t.Helper()
 	return NotificationHook{
 		Description: "Atomic update hook",
 		NotificationFunc: func(c *aftCache, n *gnmipb.SubscribeResponse) error {
