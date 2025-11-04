@@ -905,6 +905,7 @@ tests:
     path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
     timeout: 1800
+    pr: 4639
     priority: 65
     owners:
       - harikri4
