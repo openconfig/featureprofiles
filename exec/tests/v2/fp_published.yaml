@@ -1525,7 +1525,8 @@ tests:
       - arvbaska
     mustpass: false
     timeout: 4200
-    pr: 3978
+    pr: 1777
+    internal: true
     groups: [newfnt]
   - name: gNMI-1.18 (gNMI subscribe with sample mode for backplane capacity counters)
     path: feature/platform/fabric/otg_tests/sampled_backplane_capacity_counters_test
@@ -2366,6 +2367,12 @@ tests:
     mustpass: false
     priority: 3
     groups: [newfnt]
+
+  - name: TRANSCEIVER-13_ZRP:
+    path: feature/platform/transceiver/tests/zrp_low_power_mode_test
+    timeout: 4200
+    args:
+      - '-operational_mode="6003"'
 
   - name: TRANSCEIVER-6 (400ZR Optics performance metrics (pm) streaming.)
     path: main/feature/platform/transceiver/zr_pm_test

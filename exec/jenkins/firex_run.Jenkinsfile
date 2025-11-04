@@ -21,7 +21,7 @@ def test_revision_params = ['Test branch', 'Test PR', 'Test commit hash']
 def test_override_params = ['Test repository', 'Test args'] + test_revision_params
 
 def forbidden_params_per_chain = [
-    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs', 'Include repo runner plugin'] + testsuite_filters_params + test_override_params,
+    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
     CulpritFinder: ['Image Path'],
     B4FeatureCoverageRunTests: [],
     RunTests: []
@@ -115,7 +115,6 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Other")
-        persistentBoolean(name: 'Include repo runner plugin', defaultValue: true, description: 'Includes the runner.py plugin in FP repo.')
         persistentBoolean(name: 'Cisco Insta Triage', defaultValue: true, description: 'Includes Cisco Insta Triage plugin webdt_cit.py,webdt_at.py')
         persistentBoolean(name: 'Must reserve all testbeds', defaultValue: false, description: 'By default, the pipeline will reserve those testbeds that are available and modify the run list accordingly. Set to true to wait for all testbeds to be available.')
         persistentBoolean(name: 'Decomission testbeds', defaultValue: false, description: 'Decomission testbeds after each test. This option makes sure the TB is "recycled" between each test. For sim runs, this ensures that a new sim is brought up for each test.')
@@ -382,13 +381,7 @@ pipeline {
                     steps {
                         script {
                             def firex_chain = params['FireX Chain']
-                            
-                            def firex_plugins = []
-                            if (params['Include repo runner plugin']) {
-                                firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/runner.py")
-                            } else {
-                                firex_plugins.add("b4_runner.py")
-                            }
+                            def firex_plugins = ["b4_runner.py"]
 
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
