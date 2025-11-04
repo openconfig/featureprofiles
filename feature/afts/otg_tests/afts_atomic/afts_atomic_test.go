@@ -137,24 +137,23 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	}
 
 	t.Log("Configure BGP")
-	d := &oc.Root{}
-	allNbrs := []*cfgplugins.BgpNeighbor{}
+	sb := &gnmi.SetBatch{}
 	for ix, ateAttr := range ateAttrs {
 		nbrs := []*cfgplugins.BgpNeighbor{
 			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
 			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
 		}
-		allNbrs = append(allNbrs, nbrs...)
-		routerID := dutP1.IPv4
-		if err := cfgplugins.CreateBGPNeighbors(t, d, routerID, v4PeerGrpNames[ix], v6PeerGrpNames[ix], nbrs, dut); err != nil {
+		nbrsConfig := cfgplugins.BGPNeighborsConfig{
+			RouterID:      dutP1.IPv4,
+			PeerGrpNameV4: v4PeerGrpNames[ix],
+			PeerGrpNameV6: v6PeerGrpNames[ix],
+			Nbrs:          nbrs,
+		}
+		if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, nbrsConfig); err != nil {
 			return err
 		}
 	}
-	niName := deviations.DefaultNetworkInstance(dut)
-	dutConfPath := gnmi.OC().NetworkInstance(niName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	protocol := d.GetNetworkInstance(niName).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Update(t, dut, dutConfPath.Config(), protocol)
-	cfgplugins.HandleMaxPrefixesDeviation(t, dut, allNbrs)
+	sb.Set(t, dut)
 
 	t.Log("Configure ISIS")
 	b := &gnmi.SetBatch{}
@@ -162,7 +161,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
 		ISISInterfaceNames:  []string{dutPort1, dutPort2},
-		NetworkInstanceName: niName,
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
 
 	root := cfgplugins.NewISIS(t, dut, isisData, b)
