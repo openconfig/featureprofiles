@@ -1713,6 +1713,26 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }
 
+// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
+}
+
+// AggregateBandwidthPolicyActionUnsupported returns true if device does not support aggregate bandwidth policy action.
+func AggregateBandwidthPolicyActionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateBandwidthPolicyActionUnsupported()
+}
+
+// AutoLinkBandwidthUnsupported returns true if device does not support auto link bandwidth.
+func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAutoLinkBandwidthUnsupported()
+}
+
+// AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
+func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
+}
+
 // P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()

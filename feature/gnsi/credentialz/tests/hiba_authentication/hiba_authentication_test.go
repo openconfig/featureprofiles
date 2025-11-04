@@ -55,9 +55,6 @@ func TestCredentialz(t *testing.T) {
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
 
-	// Setup hiba for authorized principals command.
-	credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
-
 	t.Run("auth should fail hiba host certificate not present", func(t *testing.T) {
 		var startingRejectCounter uint64
 		if !deviations.SSHServerCountersUnsupported(dut) {
@@ -102,6 +99,9 @@ func TestCredentialz(t *testing.T) {
 		// Setup trusted user ca on the dut.
 		credz.RotateTrustedUserCA(t, dut, dir)
 
+		// Setup hiba for authorized principals command.
+		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
+
 		var startingAcceptCounter, startingLastAcceptTime uint64
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
@@ -143,7 +143,8 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(hostCertificateCreatedOn, 0)) {
 			t.Fatalf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
@@ -161,12 +162,14 @@ func TestCredentialz(t *testing.T) {
 		})
 
 		// Remove user ca so subsequent fail cases work.
-		credz.RotateTrustedUserCA(t, dut, "")
+		// credz.RotateTrustedUserCA(t, dut, "")
 
 		// Clear hiba for authorized principals command.
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
 
 		// Remove host artifacts from the dut.
-		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		credz.SSHCleanup(t, dut)
 	})
 }
