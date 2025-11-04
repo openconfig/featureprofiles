@@ -165,16 +165,14 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configuring Static Route: PNH-IPv6 --> IPv4 GUE tunnel.
 	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          staticpnhIPv6,
-		NexthopGroup:    true,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nexthopGroupName),
-		},
-		T:           t,
-		TrafficType: oc.Aft_EncapsulationHeaderType_UDPV4,
-		PolicyName:  GuePolicyName,
-		Rule:        "rule1",
+		NetworkInstance:  deviations.DefaultNetworkInstance(dut),
+		Prefix:           staticpnhIPv6,
+		NexthopGroup:     true,
+		NexthopGroupName: nexthopGroupName,
+		T:                t,
+		TrafficType:      oc.Aft_EncapsulationHeaderType_UDPV4,
+		PolicyName:       GuePolicyName,
+		Rule:             "rule1",
 	}
 
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -183,16 +181,14 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	b.Set(t, dut)
 
 	sV4 = &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          staticpngv6IPv6,
-		NexthopGroup:    true,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nexthopGroupNameV6),
-		},
-		T:           t,
-		TrafficType: oc.Aft_EncapsulationHeaderType_UDPV6,
-		PolicyName:  GuePolicyName,
-		Rule:        "rule2",
+		NetworkInstance:  deviations.DefaultNetworkInstance(dut),
+		Prefix:           staticpngv6IPv6,
+		NexthopGroup:     true,
+		NexthopGroupName: nexthopGroupNameV6,
+		T:                t,
+		TrafficType:      oc.Aft_EncapsulationHeaderType_UDPV6,
+		PolicyName:       GuePolicyName,
+		Rule:             "rule2",
 	}
 
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {

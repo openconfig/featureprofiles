@@ -1776,6 +1776,6 @@ func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
 }
 
 // StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
-func StaticRouteToNextHopGroupOCNotSupported(dut *ondatra.DUTDevice) bool {
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
 }
