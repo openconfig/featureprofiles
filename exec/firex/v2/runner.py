@@ -62,8 +62,9 @@ whitelist_arguments([
     'test_branch',
     'test_revision',
     'test_pr',
+    'internal_test',
     'sim_use_mtls',
-    'sim_config_bootz',
+    'test_requires_bootz',
     'collect_dut_info',
     'cflow_over_ssh',
     'testbed_checks'
@@ -510,6 +511,121 @@ def _update_test_args_from_env(test_args, extra_env_vars={}):
         new_args.append(arg)
     return ' '.join(new_args)
 
+def _update_test_args_from_testbed(test_args, reserved_testbed):
+    if not test_args:
+        return test_args
+
+    pattern = re.compile(r"\{\{([^{}]+)\}\}")
+
+    def _parse_json_path(path):
+        path = path.strip()
+        if not path:
+            return []
+        if path.startswith('$'):
+            path = path[1:]
+            if path.startswith('.'):
+                path = path[1:]
+
+        tokens = []
+        i = 0
+        length = len(path)
+
+        while i < length:
+            ch = path[i]
+            if ch == '.':
+                i += 1
+                continue
+
+            if ch == '[':
+                i += 1
+                if i >= length:
+                    raise ValueError("Unterminated '[' in JSONPath")
+
+                if path[i] in ("'", '"'):
+                    quote = path[i]
+                    i += 1
+                    token_chars = []
+                    while i < length:
+                        current_char = path[i]
+                        if current_char == '\\' and i + 1 < length:
+                            token_chars.append(path[i + 1])
+                            i += 2
+                            continue
+                        if current_char == quote:
+                            break
+                        token_chars.append(current_char)
+                        i += 1
+                    else:
+                        raise ValueError("Unterminated quoted token in JSONPath")
+
+                    i += 1  # skip closing quote
+                    while i < length and path[i].isspace():
+                        i += 1
+                    if i >= length or path[i] != ']':
+                        raise ValueError("Missing closing ']' in JSONPath")
+                    tokens.append(''.join(token_chars))
+                    i += 1
+                else:
+                    start = i
+                    while i < length and path[i] != ']':
+                        i += 1
+                    if i >= length:
+                        raise ValueError("Missing closing ']' in JSONPath")
+                    token = path[start:i].strip()
+                    if not token:
+                        raise ValueError("Empty index token in JSONPath")
+                    if token.lstrip('-').isdigit():
+                        tokens.append(int(token))
+                    else:
+                        tokens.append(token)
+                    i += 1
+                continue
+
+            start = i
+            while i < length and path[i] not in '.[':
+                i += 1
+            token = path[start:i].strip()
+            if token:
+                tokens.append(token)
+
+        return tokens
+
+    def _resolve_token_path(data, tokens):
+        current = data
+        for token in tokens:
+            if isinstance(token, int):
+                if not isinstance(current, (list, tuple)):
+                    raise KeyError(f"Expected list for index access but found {type(current).__name__}")
+                try:
+                    current = current[token]
+                except IndexError as exc:
+                    raise KeyError(f"Index {token} out of range in JSONPath") from exc
+            else:
+                if not isinstance(current, dict):
+                    raise KeyError(f"Expected dict for key access but found {type(current).__name__}")
+                if token not in current:
+                    raise KeyError(f"Key '{token}' not found while resolving JSONPath")
+                current = current[token]
+        return current
+
+    def _resolve_placeholder(match):
+        json_path = match.group(1).strip()
+        try:
+            tokens = _parse_json_path(json_path)
+            if tokens and tokens[0] == 'TESTBED':
+                tokens = tokens[1:]
+            value = reserved_testbed if not tokens else _resolve_token_path(reserved_testbed, tokens)
+        except Exception as exc:
+            logger.warning(f"Failed to resolve placeholder '{{{{{json_path}}}}}' in test arguments: {exc}")
+            return ''
+
+        if isinstance(value, (dict, list)):
+            return json.dumps(value)
+        return '' if value is None else str(value)
+
+    return pattern.sub(_resolve_placeholder, test_args)
+
+
 def _check_json_output(cmd):
     return json.loads(check_output(cmd))
 
@@ -653,7 +769,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
                         force_install=False,
                         force_reboot=False,
                         sim_use_mtls=False,
-                        sim_config_bootz=False,
                         testbed_checks=False,
                         smus=None,
                         testbeds_exclude=[]):
@@ -719,9 +834,6 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
         if using_sim and sim_use_mtls:
             c |= GenerateCertificates.s()
             c |= SimEnableMTLS.s()
-
-        if sim_config_bootz:
-            c |= SimConfigBootz.s()
             
         # Determine if the test requires traffic generators
         is_otg = 'otg' in test_path or test_requires_otg
@@ -793,6 +905,7 @@ def b4_chain_provider(ws, testsuite_id,
                         test_timeout=0,
                         test_requires_tgen=False,
                         test_requires_otg=False,
+                        test_requires_bootz=False,
                         fp_pre_tests=[],
                         fp_post_tests=[],
                         internal_test=False,
@@ -861,6 +974,9 @@ def b4_chain_provider(ws, testsuite_id,
     if is_otg:
         reserved_testbed['binding_file'] = reserved_testbed['otg_binding_file']
 
+    # if test_requires_bootz:
+    #     chain |= ConfigDhcpForBootz.s()
+
     if is_tgen and not decommission_testbed_after_tests():
         chain |= ReleaseIxiaPorts.s()
         if is_otg:
@@ -884,6 +1000,9 @@ def b4_chain_provider(ws, testsuite_id,
     if is_otg:
         chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
         chain |= TeardownIxiaController.s()
+
+    # if test_requires_bootz:
+    #     chain |= ConfigDhcpForBootz.s(unconfig=True)
 
     if sanitizer:
         logger.info(f"Sanitizer is set to {sanitizer}. Collect show tech sanitizer from routers")
@@ -910,7 +1029,7 @@ def b4_chain_provider(ws, testsuite_id,
 def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_path, xunit_results_filepath,
         test_repo_dir, internal_fp_repo_dir, reserved_testbed,
         test_name, test_path, test_args=None, test_timeout=0, collect_debug_files=False, force_collect_debug_files=False,
-        collect_dut_info=True, override_test_args_from_env=False, test_debug=False, test_verbose=False,
+        collect_dut_info=True, override_test_args_from_env=False, update_test_args_from_testbed=False, test_debug=False, test_verbose=False,
         test_ignore_aborted=False, test_skip=False, test_fail_skipped=False, test_show_skipped=False,
         test_enable_grpc_logs=False, **kwargs):
     """
@@ -983,6 +1102,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
     go_args = ''
     test_args = test_args or ''
 
+    if update_test_args_from_testbed:
+        test_args = _update_test_args_from_testbed(test_args, reserved_testbed)
+
     # Optionally override test arguments with environment variables
     if override_test_args_from_env:
         extra_args_env_vars = {}
@@ -1045,9 +1167,8 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
                             ok_nonzero_returncodes=(1,),
                             extra_env_vars=test_env,
                             cwd=test_ws)
-    finally:
         stop_time = self.get_current_time()
-        
+    finally:
         # Move gRPC binary log file if it exists
         grpc_bin_log_file = os.path.join(test_ws, test_path, "grpc_binarylog.txt")
         if os.path.exists(grpc_bin_log_file):
@@ -1064,38 +1185,41 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
         if xml_root is None:
             if test_ignore_aborted or test_skip:
                 xml_root = _generate_dummy_suite(test_name, fail=test_skip and test_fail_skipped)
+            else:
+                xml_root = _generate_dummy_suite(test_name, abort=True)
+                test_did_pass = False
 
-        if xml_root:
-            suites = xml_root.findall("testsuite")
-            for suite in suites:
-                test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
+        suites = xml_root.findall("testsuite")
+        for suite in suites:
+            test_did_pass = test_did_pass and suite.attrib['failures'] == '0' and suite.attrib['errors'] == '0'
 
-            # Collect debug files if requested or if the test failed
-            collect_debug_files = collect_debug_files or force_collect_debug_files
-            core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
-            core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
-                ws=ws,
-                internal_fp_repo_dir=internal_fp_repo_dir,
-                reserved_testbed=reserved_testbed,
-                out_dir = os.path.join(test_log_directory_path, "debug_files"),
-                timestamp=start_timestamp,
-                core_check=True,
-                collect_tech=not core_check_only,
-                collect_snapshot=not core_check_only,
-                run_cmds=True,
-                split_files_per_dut=True
-            )).get('core_files', [])
+        # Collect debug files if requested or if the test failed
+        collect_debug_files = collect_debug_files or force_collect_debug_files
+        core_check_only = (test_did_pass and not force_collect_debug_files) or (not test_did_pass and not collect_debug_files)
+        core_files = self.enqueue_child_and_extract(CollectDebugFiles.s(
+            ws=ws,
+            internal_fp_repo_dir=internal_fp_repo_dir,
+            reserved_testbed=reserved_testbed,
+            out_dir = os.path.join(test_log_directory_path, "debug_files"),
+            timestamp=start_timestamp,
+            core_check=True,
+            collect_tech=not core_check_only,
+            collect_snapshot=not core_check_only,
+            run_cmds=True,
+            split_files_per_dut=True
+        )).get('core_files', [])
 
-            for suite in suites:
-                _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
-            _write_xml_tree(xml_root, xunit_results_filepath)
+        for suite in suites:
+            _add_extra_properties_to_xml(suite, test_name, reserved_testbed, core_files)
+        _write_xml_tree(xml_root, xunit_results_filepath)
 
-            if not test_show_skipped:
-                check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
+        logger.info(f"xunit_results_filepath {xunit_results_filepath}")
 
-            logger.info(f"xunit_results_filepath {xunit_results_filepath}")
-        else:
+        # Handle skipped tests and return results
+        if not Path(xunit_results_filepath).is_file():
             logger.warn('Test did not produce expected xunit result')
+        elif not test_show_skipped:
+            check_output(f"sed -i 's|skipped|disabled|g' {xunit_results_filepath}")
         return None, xunit_results_filepath, self.console_output_file, start_time, stop_time
 
 def _git_checkout_repo(repo, repo_branch=None, repo_rev=None, repo_pr=None):
@@ -1772,37 +1896,56 @@ def SimEnableMTLS(self, ws, internal_fp_repo_dir, reserved_testbed, certs_dir):
         check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
-# For Bootz on sim, dut mgmt interface is connected to bootz linux VM.
-# The dhcp server on the VM will point dut to bootz port on VM.
-# Add rinetd forwarding entry to forward incoming bootz connection on vm to the test host.
+# Add a dhcp entry pointing to test (this) host for bootz
 @app.task(bind=True)
-def SimConfigBootz(self, testbed_logs_dir):
-    vxr_ports_file = os.path.join(testbed_logs_dir, "bringup_success", "sim-ports.yaml")
-    with open(vxr_ports_file, "r") as fp:
-        try:
-            vxr_ports = yaml.safe_load(fp)
-        except yaml.YAMLError:
-            logger.warning("Failed to parse vxr ports file...")
-            return
-    
-    if not 'bootz' in vxr_ports:
-        logger.warning("No bootz device found in vxr ports file...Ignoring")
-        return
-    
-    if not 'xr_redir22' in vxr_ports['bootz']:
-        logger.warning("No xr_redir22 port found in vxr ports file...Ignoring")
-        return
+def ConfigDhcpForBootz(self, ws, internal_fp_repo_dir, reserved_testbed, test_log_directory_path, unconfig=False):
+    dhcp_host = ""
+    dhcp_api_port = 8001
+    dhcp_gw = ""
 
-    conn_args = {
-        'username': 'root',
-        'password': 'cisco123',
-        'port': vxr_ports['bootz']['xr_redir22']
-    }
+    if reserved_testbed.get('sim', False):
+        vxr_ports_file = os.path.join(test_log_directory_path, "testbed_logs", "bringup_success", "sim-ports.yaml")
+        with open(vxr_ports_file, "r") as fp:
+            try:
+                vxr_ports = yaml.safe_load(fp)
+            except yaml.YAMLError:
+                raise Exception("Failed to parse vxr ports file...")
+        
+        if not 'bootz' in vxr_ports:
+            raise Exception("No bootz device found in vxr ports file...Ignoring")
+        
+        if not 'xr_redir8001' in vxr_ports['bootz']:
+            raise Exception("No xr_redir8001 port found in vxr ports file...Ignoring")
 
-    hostname = socket.gethostname()
-    logger.print(f'Configuring bootz bridge to host {hostname}...')
-    cmd = f'/root/create_bootz_bridge.sh {hostname}'
-    remote_exec(cmd, vxr_ports['bootz']['HostAgent'], shell=True, **conn_args)
+        dhcp_host = vxr_ports['bootz']['HostAgent']
+        dhcp_api_port = vxr_ports['bootz']['xr_redir8001']
+        dhcp_gw = reserved_testbed['gateway']
+    else:
+        dhcp_conf = reserved_testbed.get('dhcp')
+        if not dhcp_conf:
+            raise Exception("No dhcp configuration found in reserved testbed...")
+        dhcp_host = dhcp_conf['host']
+        dhcp_api_port = dhcp_conf.get('api_port', dhcp_api_port)
+        dhcp_gw = dhcp_conf.get('gateway', dhcp_gw)
+
+    test_to_run = "TestAddDHCPEntry"
+    if unconfig: test_to_run = "TestDeleteDHCPEntry"
+
+    dhcp_conf_cmd = f'{GO_BIN} test -v ' \
+            f'./exec/utils/godhcpc ' \
+            f'-timeout 15m ' \
+            f'-args ' \
+            f'-push-config=false ' \
+            f'-collect_dut_info=false ' \
+            f'-test.run {test_to_run} ' \
+            f'-addr http://{dhcp_host}:{dhcp_api_port} ' \
+            f'-testbed {reserved_testbed["noate_testbed_file"]} ' \
+            f'-binding {reserved_testbed["noate_binding_file"]} ' \
+            f'-dhcp_gw {dhcp_gw}'
+
+    env = dict(os.environ)
+    env.update(_get_go_env(ws))
+    check_output(dhcp_conf_cmd, env=env, cwd=internal_fp_repo_dir)
 
 # noinspection PyPep8Naming
 @app.task(bind=True)

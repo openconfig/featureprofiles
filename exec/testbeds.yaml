@@ -10,6 +10,10 @@ testbeds:
       controller_port: 40055
       gnmi_port: 50055
       rest_port: 30055
+    godhcpd:
+      url: http://ott-ucs4-b4:8001
+      mgmt_ip: 10.85.84.231/24
+      mgmt_gw: 10.85.84.225
 
   8808_FOX2506P2QT_ZR_OPTICS:
     <<: *8808_FOX2506P2QT_DEFAULTS
@@ -64,6 +68,10 @@ testbeds:
       controller_port: 40058
       gnmi_port: 50058
       rest_port: 30058
+    godhcpd:
+      url: http://ott-ucs4-b4:8001
+      mgmt_ip: 5.78.24.106/16
+      mgmt_gw: 5.78.11.49
 
   8808-FOX2508P0JU_MGMT_GRPC:
     << : *8808_FOX2508P0JU_DEFAULTS
@@ -110,6 +118,10 @@ testbeds:
       controller_port: 40053
       gnmi_port: 50053
       rest_port: 30053
+    dhcp:
+      host: ott-ucs4-b4
+      api_port: 8001
+      gateway: 5.78.11.49
 
   8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
     hw: 8808_FOX2625PLW8
@@ -186,6 +198,15 @@ testbeds:
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
+    godhcpd:
+      url: http://ott-ucs1-b4:8001
+      mgmt_ip: 1:1:1:1::1/64
+      mgmt_gw: 1:1:1:1::4
+
+  8818-FOX2714PNYN_mtls:
+    <<: *8818-FOX2714PNYN_DEFAULTS
+    binding: topologies/cisco/hw/8818-FOX2714PNYN/binding_mtls
+    baseconf: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
@@ -193,7 +214,19 @@ testbeds:
     testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
     binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
     baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
-  
+    
+  P200_DE_HW_TB: 
+    hw: P200_DE_HW_TB
+    owner: arvbaska
+    testbed: topologies/cisco/hw/P200_DE_HW_TB/testbed
+    binding: topologies/cisco/hw/P200_DE_HW_TB/binding
+    baseconf: topologies/cisco/hw/P200_DE_HW_TB/baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40067
+      gnmi_port: 50067
+      rest_port: 30067    
+    
   2DUT-TB1:
     hw:
       - 8808-FOX2508P0JU
@@ -272,20 +305,20 @@ testbeds:
       rest_port: 38818
 
   # To enable later via another PR, created below binding and baseconfig files and unused now
-  # 8818-DUT-PEER-MTLS-V6-IB:
-  #   hw:
-  #     - 8818-FOX2714PNYN
-  #   owner: arvbaska
-  #   testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
-  #   binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_data_ipv6
-  #   baseconf:
-  #     dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls_data_v6.proto
-  #     peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
-  #   otg:
-  #     host: ott-ucs4-b4
-  #     controller_port: 48818
-  #     gnmi_port: 58818
-  #     rest_port: 38818
+  8818-DUT-PEER-MTLS-V6-IB:
+    hw:
+      - 8818-FOX2714PNYN
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
+    binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_data_ipv6
+    baseconf:
+      dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
+      peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 48818
+      gnmi_port: 58818
+      rest_port: 38818
 
   8202-DUT-PEER:
     hw:
@@ -573,8 +606,19 @@ testbeds:
       dut1V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/1v.conf
       dut2V: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/2v.conf 
       JupiterR: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_r.conf
-      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf                            
-      
+      JupiterE: topologies/cisco/pyvxr/DVT-SIM-TOPO/dvt_sim_conf/jupiter_e.conf
+  8808-P200-2DUT-ATE:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-ATE/DUT2_baseconfig.conf
+  8808-P200-2DUT-Scale:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/topo.yaml
+    baseconf:
+      dut1: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT1_baseconfig.conf
+      dut2: topologies/cisco/pyvxr/8808-P200-2DUT-Scale/DUT2_baseconfig.conf
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
@@ -603,6 +647,21 @@ testbeds:
       controller_port: 40065
       gnmi_port: 50065
       rest_port: 30065
+
+  P200-DEV-HW-2DUT:
+    hw:
+      - P200_DE_HW_TB
+    owner: arvbaska
+    testbed: topologies/cisco/hw/P200-HW-2DUT/testbed
+    binding: topologies/cisco/hw/P200-HW-2DUT/binding
+    baseconf:
+      dut: topologies/cisco/hw/P200-HW-2DUT/dut_conf.proto
+      dut2: topologies/cisco/hw/P200-HW-2DUT/dut2_conf.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40067
+      gnmi_port: 50067
+      rest_port: 30067 
 
   2DUT-TB4-GRIBI-SCALE:
     hw:

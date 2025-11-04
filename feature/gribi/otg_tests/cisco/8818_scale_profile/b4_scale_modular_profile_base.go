@@ -19,6 +19,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	log_collector "github.com/openconfig/featureprofiles/feature/cisco/performance"
 	hautils "github.com/openconfig/featureprofiles/internal/cisco/ha/utils"
+	h "github.com/openconfig/featureprofiles/internal/cisco/helper"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -49,6 +50,8 @@ const (
 	L2Weight             = 8
 	L3Weight             = 8
 	maxTunnelResources   = 12000
+	seedDeviceID         = 1
+	seedInterfaceID      = 1000
 )
 
 var (
@@ -1791,6 +1794,10 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 
 	t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer, "bundle")
+	// configure P4RT
+	h.P4rtHelper().ConfigureDeviceID(t, dut, seedDeviceID)
+	h.P4rtHelper().ConfigureInterfaceID(t, dut, seedInterfaceID)
+
 	t.Log("Configure TGEN OTG")
 	topo := configureOTG(t, otg, dut, peer)
 	t.Log("OTG CONFIG: ", topo)
@@ -1807,6 +1814,7 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	configStaticRoute(t, peer, "100.101.0.0/16", otgDst.IPv4, "", "", false)
 
 	gnmi.Replace(t, peer, gnmi.OC().System().MacAddress().RoutingMac().Config(), magicMac)
+
 	gArgs = tcArgs
 	bConfig.setConfigured(true)
 	return tcArgs

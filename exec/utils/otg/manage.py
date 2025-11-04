@@ -324,7 +324,7 @@ if shutil.which(GO_BIN) is None:
 testbed_id = args.testbed
 command = args.command
 
-if command == "start":
+if command in ["start", "restart"]:
     controller_ver = getattr(args, 'controller', '1.3.0-2')
     _check_otg_version("controller",controller_ver)
     layer23_ver = getattr(args, 'layer23', '1.3.0-4')

@@ -1,12 +1,12 @@
-name: PerNPHashRotate 
+name: Loadbalancing suite 
 owners: 
   - arvbaska
 testbeds:
-  - 8818-18LC
+  - DVT-SIM-TOPO
 tests:
-- name: PerNPHashRotate 
-  path: feature/cisco/forwarding/per_np_hash_rotate
-  timeout: 14000
+- name: Loadbalancing test with Hashing parameters
+  path: feature/cisco/forwarding/loadbalancing
+  timeout: 28000
   mustpass: true
   internal: true
   branch: master

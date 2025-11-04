@@ -12,6 +12,7 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
@@ -898,6 +899,74 @@ func ReloadLinecards(t *testing.T, lcList []string) {
 	t.Logf("It took %v minutes to reboot linecards.", time.Since(startTime).Minutes())
 }
 
+func ReloadLineCardsWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, rebootMethod spb.RebootMethod) error {
+	gnoiClient := dut.RawAPIs().GNOI(t)
+	lcs := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD)
+
+	wg := sync.WaitGroup{}
+
+	relaunched := make([]string, 0)
+
+	// Sends restart request to each line card
+	for _, lc := range lcs {
+		t.Logf("Restarting LC %v\n", lc)
+		if empty := gnmi.Get(t, dut, gnmi.OC().Component(lc).Empty().State()); empty {
+			t.Logf("Linecard Component %s is empty, skipping", lc)
+		}
+		if removable := gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()); !removable {
+			t.Logf("Linecard Component %s is non-removable, skipping", lc)
+		}
+		oper := gnmi.Get(t, dut, gnmi.OC().Component(lc).OperStatus().State())
+
+		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
+			t.Logf("Linecard Component %s is already INACTIVE, skipping", lc)
+		}
+
+		lineCardPath := components.GetSubcomponentPath(lc, false)
+
+		resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+			Method:  rebootMethod,
+			Delay:   0,
+			Message: "Reboot line card without delay",
+			Subcomponents: []*tpb.Path{
+				lineCardPath,
+			},
+			Force: true,
+		})
+		if err == nil {
+			wg.Add(1)
+			relaunched = append(relaunched, lc)
+		} else {
+			t.Fatalf("Reboot failed %v", err)
+		}
+		t.Logf("Reboot response: \n%v\n", resp)
+	}
+
+	// wait for all line cards to be back up in separate goroutines
+	for _, lc := range relaunched {
+		go func(lc string) {
+			defer wg.Done()
+			timeout := time.Minute * 30
+			t.Logf("Awaiting relaunch of linecard: %s", lc)
+			oper := gnmi.Await[oc.E_PlatformTypes_COMPONENT_OPER_STATUS](
+				t, dut,
+				gnmi.OC().Component(lc).OperStatus().State(),
+				timeout,
+				oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
+			)
+			if val, ok := oper.Val(); !ok {
+				t.Errorf("Reboot timed out, received status: %s", val)
+				// check status if failed
+			}
+		}(lc)
+	}
+
+	wg.Wait()
+	t.Log("All linecards successfully relaunched")
+
+	return nil
+}
+
 func ParallelReloadLineCards(t *testing.T, dut *ondatra.DUTDevice, wgg *sync.WaitGroup) error {
 
 	defer wgg.Done()
@@ -1205,6 +1274,49 @@ func ReloadRouter(t *testing.T, dut *ondatra.DUTDevice) error {
 			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
+	return nil
+}
+
+func ReloadRouterWithRebootMethod(t *testing.T, dut *ondatra.DUTDevice, rebootMethod spb.RebootMethod) error {
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	Resp, err := gnoiClient.System().Reboot(context.Background(), &spb.RebootRequest{
+		Method:  rebootMethod,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	})
+	if err != nil {
+		t.Fatalf("Reboot failed %v", err)
+	}
+	t.Logf("Reload Response %v ", Resp)
+
+	startReboot := time.Now()
+	const maxRebootTime = 30
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		// Router reload cannot use gnmi.Await since the connection will drop during the reload.
+		time.Sleep(10 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 	return nil
 }
@@ -2475,4 +2587,86 @@ func SortOndatraPortsByID(ports []*ondatra.Port) {
 		// Compare the numeric parts
 		return id1 < id2
 	})
+}
+
+// TODO - add unit test for this util and correct docstring
+// CompareRequiredFields compares the non-zero fields of two structs of same type recursively.
+func CompareStructRequiredFields(want, got interface{}) error {
+	vWant := reflect.ValueOf(want)
+	vGot := reflect.ValueOf(got)
+
+	// Dereference pointers
+	if vWant.Kind() == reflect.Pointer {
+		vWant = vWant.Elem()
+	}
+	if vGot.Kind() == reflect.Pointer {
+		vGot = vGot.Elem()
+	}
+
+	if vWant.Type() != vGot.Type() {
+		return fmt.Errorf("struct types do not match: %s vs %s", vWant.Type(), vGot.Type())
+	}
+
+	t := vWant.Type()
+
+	for i := 0; i < vWant.NumField(); i++ {
+		field := t.Field(i)
+		wantField := vWant.Field(i)
+		gotField := vGot.Field(i)
+
+		// Only check fields that are non-zero in 'want'
+		if wantField.IsZero() {
+			continue
+		}
+
+		// Handle slice comparison
+		switch wantField.Kind() {
+		case reflect.Slice:
+			if wantField.Len() > gotField.Len() {
+				return fmt.Errorf("field '%s' mismatch: want slice has more elements than got slice", field.Name)
+			}
+			for j := 0; j < wantField.Len(); j++ {
+				wantElem := wantField.Index(j)
+				gotElem := gotField.Index(j)
+				// Recursively compare elements in the slice
+				if err := CompareStructRequiredFields(wantElem.Interface(), gotElem.Interface()); err != nil {
+					return fmt.Errorf("field '%s' mismatch in slice element %d: %v", field.Name, j, err)
+				}
+			}
+		case reflect.Struct:
+			// Handle nested struct comparison
+			if err := CompareStructRequiredFields(wantField.Interface(), gotField.Interface()); err != nil {
+				return fmt.Errorf("field '%s' mismatch: %v", field.Name, err)
+			}
+		default:
+			// Compare primitive fields directly
+			if !reflect.DeepEqual(gotField.Interface(), wantField.Interface()) {
+				return fmt.Errorf(
+					"field '%s' mismatch:\n  want = %v\n  got  = %v",
+					field.Name, wantField.Interface(), gotField.Interface())
+			}
+		}
+	}
+	return nil
+}
+
+// Get the publicly visible local ip address
+func GetOutboundIP(t testing.TB) net.IP {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	return localAddr.IP
+}
+
+// FirstOrFatal returns the first element or fails the test if slice is empty.
+func FirstOrFatal[T any](t testing.TB, xs []T, errMsg string, args ...any) T {
+	t.Helper()
+	if len(xs) == 0 {
+		t.Fatalf(errMsg, args...)
+	}
+	return xs[0]
 }
