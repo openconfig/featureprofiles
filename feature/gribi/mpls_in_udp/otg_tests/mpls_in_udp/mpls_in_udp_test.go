@@ -252,8 +252,13 @@ func TestMPLSOUDPEncap(t *testing.T) {
 	// Disable hardware nexthop proxying for Arista devices to ensure FIB-ACK works correctly.
 	// See: https://partnerissuetracker.corp.google.com/issues/422275961
 	if deviations.DisableHardwareNexthopProxy(dut) {
-		const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
-		helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
+			helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
+		default:
+			t.Errorf("Deviation DisableHardwareNexthopProxy is not handled for the dut: %v", dut.Vendor())
+		}
 	}
 
 	// Configure gRIBI client
