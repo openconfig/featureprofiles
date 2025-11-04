@@ -163,9 +163,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		ISISInterfaceNames:  []string{dutPort1, dutPort2},
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
-
-	root := cfgplugins.NewISIS(t, dut, isisData, b)
-	cfgplugins.HandleSingleTopologyDeviation(t, dut, root)
+	cfgplugins.NewISIS(t, dut, isisData, b)
 	b.Set(t, dut)
 
 	return nil
