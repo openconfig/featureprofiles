@@ -425,6 +425,8 @@ func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 }
 
 func VerifyPolicyInfo(t *testing.T, dut *ondatra.DUTDevice, expectedTimestamp uint64, expectedVersion string, emptyPolicy bool) {
+	// Convert expectedTimestamp to nanoseconds
+	expectedTimestamp = expectedTimestamp * 1e9
 	// Retrieve timestamp from the device
 	timestamp := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").GnmiPathzPolicyCreatedOn().State())
 	t.Logf("Got the expected Policy timestamp: %v", timestamp)
