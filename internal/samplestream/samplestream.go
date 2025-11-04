@@ -61,13 +61,13 @@ func (s *SampleStream[T]) Next() *ygnmi.Value[T] {
 	return s.lastVal
 }
 
-// AwaitNext returns the next sample received within the sample interval and a boolean indicating
-// whether the predicate evaluated to true.
+// AwaitNext returns the next sample that satisfies the predicate within the timeout.
+// If no sample is received or does not satisfy the predicate within the timeout, false is returned.
 func (s *SampleStream[T]) AwaitNext(timeout time.Duration, pred func(*ygnmi.Value[T]) bool) (*ygnmi.Value[T], bool) {
 	ch := make(chan bool, 1)
 	lastVal := s.Next()
 	go func() {
-		for !pred(lastVal) {
+		for lastVal == nil || !pred(lastVal) {
 			lastVal = s.Next()
 		}
 		ch <- true
