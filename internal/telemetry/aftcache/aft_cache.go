@@ -513,17 +513,6 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	prefix := ss.sessionPrefix()
 	ss.Cache.logMetadata(t, ss.start, prefix)
 	t.Logf("%s After %v: Finished streaming.", prefix, time.Since(ss.start).Truncate(time.Millisecond))
-	// Enable this if you want to dump the notifications to a file.
-	/*
-		if len(ss.notifications) > 0 {
-			filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
-			if err != nil {
-				t.Errorf("%s error writing notifications: %v", prefix, err)
-			} else {
-				t.Logf("%s Wrote all received notifications to %s", prefix, filename)
-			}
-		}
-	*/
 	if len(ss.missingPrefixes) > 0 {
 		filename, err := writeMissingPrefixes(t, ss.missingPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
