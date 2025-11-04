@@ -826,7 +826,6 @@ tests:
     owners:
       - mbagherz
     mustpass: true
-    internal: true
     pr: 4550
     internal: false
   - name: gNOI-2.1 (Packet-based Link Qualification)
