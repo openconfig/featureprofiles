@@ -470,7 +470,7 @@ type AFTStreamSession struct {
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
-	return fmt.Sprintf("[%s-%d]", ss.Cache.target, ss.start.UnixNano())
+return fmt.Sprintf("[%s-%p]", ss.Cache.target, ss)
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
