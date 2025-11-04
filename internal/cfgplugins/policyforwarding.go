@@ -67,6 +67,7 @@ type OcPolicyForwardingParams struct {
 	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
 }
 
+// PolicyForwardingRule holds parameters for generating Policy Forwarding config for GRE.
 type PolicyForwardingRule struct {
 	Id                 uint32
 	Name               string
