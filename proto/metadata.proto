@@ -1076,6 +1076,7 @@ message Metadata {
 
 
     // https://partnerissuetracker.corp.google.com/issues/456362593
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
     // Devices that do not support oc path for static route to nexthop
     bool static_route_to_nhg_oc_unsupported = 346;
 
