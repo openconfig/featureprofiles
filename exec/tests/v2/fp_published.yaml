@@ -817,7 +817,8 @@ tests:
     owners:
       - kjahed
     mustpass: true
-    pr: 1476
+    pr: 4550
+    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.15 (Set Requests)
@@ -826,7 +827,8 @@ tests:
       - mbagherz
     mustpass: true
     internal: true
-    pr: 1476
+    pr: 4550
+    internal: false
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
