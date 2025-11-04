@@ -13,3 +13,11 @@ platform_exceptions: {
     explicit_interface_in_default_vrf: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    localhost_for_containerz: true
+  }  
+}
