@@ -105,6 +105,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	}
 
 	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(ISISData.NetworkInstanceName).Config(), rootPath.GetNetworkInstance(ISISData.NetworkInstanceName))
+	handleSingleTopologyDeviation(t, dut, b)
 	return rootPath
 }
 
@@ -167,9 +168,9 @@ func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cf
 	return protocol
 }
 
-// HandleSingleTopologyDeviation handles the single topology deviation for ISIS by
+// handleSingleTopologyDeviation handles the single topology deviation for ISIS by
 // setting the v6 multi-topology to have the same AFISAFI as v4.
-func HandleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
 	t.Helper()
 	if !deviations.ISISSingleTopologyRequired(dut) {
 		return
