@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/tools/inputcisco/testinput"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -19,20 +18,10 @@ const (
 	isisName       = "B4"
 )
 
-func configureBaseconfig(t *testing.T, inyaml testinput.TestInput,
-	dut *ondatra.DUTDevice) {
-	configIsis(t, dut, []string{"Bundle-Ether120", "Bundle-Ether121"})
-}
-
-// Configure network instance
-func configureNetworkInstance(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-}
-
-func configIsis(t *testing.T, dut *ondatra.DUTDevice, intfNames []string) {
+func configIsis(t *testing.T, dut *ondatra.DUTDevice) {
 	dev := &oc.Root{}
-	configureNetworkInstance(t)
+	intfNames := []string{"Bundle-Ether120", "Bundle-Ether121"}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	inst := dev.GetOrCreateNetworkInstance("DEFAULT")
 	prot := inst.GetOrCreateProtocol(policyTypeIsis, isisName)
 	isis := prot.GetOrCreateIsis()

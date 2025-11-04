@@ -21,7 +21,7 @@ func TestISISState(t *testing.T) {
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(10 * time.Second)
 
-	configureBaseconfig(t, inputObj, dut)
+	configIsis(t, dut)
 
 	inputObj.StartAteProtocols(ate)
 	time.Sleep(15 * time.Second)
