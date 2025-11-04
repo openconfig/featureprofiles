@@ -630,14 +630,14 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 
 	defer wg.Done()
 
-	var FourHundredGigELC0List []string
-	var FourHundredGigELC1List []string
-	var FourHundredGigELC2List []string
-	var FourHundredGigELC3List []string
-	var FourHundredGigELC4List []string
-	var FourHundredGigELC5List []string
-	var FourHundredGigELC6List []string
-	var FourHundredGigELC7List []string
+	var LC0List []string
+	var LC1List []string
+	var LC2List []string
+	var LC3List []string
+	var LC4List []string
+	var LC5List []string
+	var LC6List []string
+	var LC7List []string
 	// var HundredGigELC0List []string
 	// var HundredGigELC1List []string
 	// var HundredGigELC2List []string
@@ -663,22 +663,22 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 	Interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 
 	for _, intf := range Interfaces {
-		if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/0" {
-			FourHundredGigELC0List = append(FourHundredGigELC0List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/1" {
-			FourHundredGigELC1List = append(FourHundredGigELC1List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/2" {
-			FourHundredGigELC2List = append(FourHundredGigELC2List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/3" {
-			FourHundredGigELC3List = append(FourHundredGigELC3List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/4" {
-			FourHundredGigELC4List = append(FourHundredGigELC4List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/5" {
-			FourHundredGigELC5List = append(FourHundredGigELC5List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/6" {
-			FourHundredGigELC6List = append(FourHundredGigELC6List, intf.GetName())
-		} else if len(intf.GetName()) >= 18 && intf.GetName()[:18] == "FourHundredGigE0/7" {
-			FourHundredGigELC7List = append(FourHundredGigELC7List, intf.GetName())
+		if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/0" || intf.GetName()[:19] == "EightHundredGigE0/0") {
+			LC0List = append(LC0List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/1" || intf.GetName()[:19] == "EightHundredGigE0/1") {
+			LC1List = append(LC1List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/2" || intf.GetName()[:19] == "EightHundredGigE0/2") {
+			LC2List = append(LC2List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/3" || intf.GetName()[:19] == "EightHundredGigE0/3") {
+			LC3List = append(LC3List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/4" || intf.GetName()[:19] == "EightHundredGigE0/4") {
+			LC4List = append(LC4List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/5" || intf.GetName()[:19] == "EightHundredGigE0/5") {
+			LC5List = append(LC5List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/6" || intf.GetName()[:19] == "EightHundredGigE0/6") {
+			LC6List = append(LC6List, intf.GetName())
+		} else if len(intf.GetName()) >= 18 && (intf.GetName()[:18] == "FourHundredGigE0/7" || intf.GetName()[:19] == "EightHundredGigE0/7") {
+			LC7List = append(LC7List, intf.GetName())
 		} //else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/0" {
 		// 	HundredGigELC0List = append(HundredGigELC0List, intf.GetName())
 		// } else if len(intf.GetName()) >= 14 && intf.GetName()[:14] == "HundredGigE0/1" {
@@ -697,49 +697,49 @@ func configureScaleDUT(t *testing.T, dut *ondatra.DUTDevice, baseIPAddr []BaseIP
 		// 	HundredGigELC7List = append(HundredGigELC7List, intf.GetName())
 		// }
 	}
-	sort.SliceStable(FourHundredGigELC0List, func(i, j int) bool {
-		return len(FourHundredGigELC0List[i]) < len(FourHundredGigELC0List[j])
+	sort.SliceStable(LC0List, func(i, j int) bool {
+		return len(LC0List[i]) < len(LC0List[j])
 	})
-	sort.SliceStable(FourHundredGigELC1List, func(i, j int) bool {
-		return len(FourHundredGigELC1List[i]) < len(FourHundredGigELC1List[j])
+	sort.SliceStable(LC1List, func(i, j int) bool {
+		return len(LC1List[i]) < len(LC1List[j])
 	})
-	sort.SliceStable(FourHundredGigELC2List, func(i, j int) bool {
-		return len(FourHundredGigELC2List[i]) < len(FourHundredGigELC2List[j])
+	sort.SliceStable(LC2List, func(i, j int) bool {
+		return len(LC2List[i]) < len(LC2List[j])
 	})
-	sort.SliceStable(FourHundredGigELC3List, func(i, j int) bool {
-		return len(FourHundredGigELC3List[i]) < len(FourHundredGigELC3List[j])
+	sort.SliceStable(LC3List, func(i, j int) bool {
+		return len(LC3List[i]) < len(LC3List[j])
 	})
-	sort.SliceStable(FourHundredGigELC4List, func(i, j int) bool {
-		return len(FourHundredGigELC4List[i]) < len(FourHundredGigELC4List[j])
+	sort.SliceStable(LC4List, func(i, j int) bool {
+		return len(LC4List[i]) < len(LC4List[j])
 	})
-	sort.SliceStable(FourHundredGigELC5List, func(i, j int) bool {
-		return len(FourHundredGigELC5List[i]) < len(FourHundredGigELC5List[j])
+	sort.SliceStable(LC5List, func(i, j int) bool {
+		return len(LC5List[i]) < len(LC5List[j])
 	})
-	sort.SliceStable(FourHundredGigELC6List, func(i, j int) bool {
-		return len(FourHundredGigELC6List[i]) < len(FourHundredGigELC6List[j])
+	sort.SliceStable(LC6List, func(i, j int) bool {
+		return len(LC6List[i]) < len(LC6List[j])
 	})
-	sort.SliceStable(FourHundredGigELC7List, func(i, j int) bool {
-		return len(FourHundredGigELC7List[i]) < len(FourHundredGigELC7List[j])
+	sort.SliceStable(LC7List, func(i, j int) bool {
+		return len(LC7List[i]) < len(LC7List[j])
 	})
 
-	FourHundredGigEList := []InterfaceLCList{{FourHundredGigELC0List, FourHundredGigELC1List}, {FourHundredGigELC2List, FourHundredGigELC3List},
-		{FourHundredGigELC4List, FourHundredGigELC5List}, {FourHundredGigELC6List, FourHundredGigELC7List}}
+	LCList := []InterfaceLCList{{LC0List, LC1List}, {LC2List, LC3List},
+		{LC4List, LC5List}, {LC6List, LC7List}}
 	// HundredGigEList := []InterfaceLCList{{HundredGigELC0List, HundredGigELC1List}, {HundredGigELC2List, HundredGigELC3List},
 	// 	{HundredGigELC4List, HundredGigELC5List}, {HundredGigELC6List, HundredGigELC7List}}
 
 	if IPv4 {
 		for i := 0; i < MAX_LC_COUNT/2; i++ {
-			configInterfaceIPv4PhyScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
-			configInterfaceIPv4PhySubScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
-			configInterfaceIPv4BundleScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
-			configInterfaceIPv4BundleSubScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
+			configInterfaceIPv4PhyScale(t, LCList[i], baseIPAddr[i], dut)
+			configInterfaceIPv4PhySubScale(t, LCList[i], baseIPAddr[i], dut)
+			configInterfaceIPv4BundleScale(t, LCList[i], i, baseIPAddr[i], dut)
+			configInterfaceIPv4BundleSubScale(t, LCList[i], i, baseIPAddr[i], dut)
 		}
 	} else {
 		for i := 0; i < MAX_LC_COUNT/2; i++ {
-			configInterfaceIPv6PhyScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
-			configInterfaceIPv6PhySubScale(t, FourHundredGigEList[i], baseIPAddr[i], dut)
-			configInterfaceIPv6BundleScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
-			configInterfaceIPv6BundleSubScale(t, FourHundredGigEList[i], i, baseIPAddr[i], dut)
+			configInterfaceIPv6PhyScale(t, LCList[i], baseIPAddr[i], dut)
+			configInterfaceIPv6PhySubScale(t, LCList[i], baseIPAddr[i], dut)
+			configInterfaceIPv6BundleScale(t, LCList[i], i, baseIPAddr[i], dut)
+			configInterfaceIPv6BundleSubScale(t, LCList[i], i, baseIPAddr[i], dut)
 		}
 	}
 }
