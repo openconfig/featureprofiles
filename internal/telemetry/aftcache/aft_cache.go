@@ -425,9 +425,10 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
-// TODO: This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// TODO: Split out the watching logic into a blocking function.
+// This is somewhat bad practice. I was surprised that this function spawned a goroutine.
 // Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
-// on return.) Split out the watching logic into a blocking function.
+// on return.)
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
@@ -573,7 +574,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				t.Logf("Received stale notification with timestamp %v (time.Now() = %v)", resp.notification.GetUpdate().GetTimestamp(), time.Now())
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
@@ -798,6 +799,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 
 // VerifyAtomicFlagHook returns a NotificationHook which verifies that the atomic flag is set to true.
 func VerifyAtomicFlagHook(t *testing.T) NotificationHook {
+	t.Helper()
 	return NotificationHook{
 		Description: "Atomic update hook",
 		NotificationFunc: func(c *aftCache, n *gnmipb.SubscribeResponse) error {
