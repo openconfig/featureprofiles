@@ -45,6 +45,7 @@ const (
 	lossTolerance   = 1
 	mgmtVRF         = "mvrf1"
 	sampleTolerance = 0.8
+	ciscominSamplingRate = 262144
 )
 
 var (
@@ -335,7 +336,7 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 			if loss > lossTolerance {
 				t.Errorf("Loss percent for IPv4 Traffic: got: %f, want %f", loss, float64(lossTolerance))
 			}
-			processCapture(t, ate, config, ip, fc)
+			processCapture(t, dut, ate, config, ip, fc)
 		})
 	}
 }
@@ -354,7 +355,7 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 	ate.OTG().SetControlState(t, cs)
 }
 
-func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
+func processCapture(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
@@ -364,7 +365,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 		t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
 	}
 	pcapFile.Close()
-	validatePackets(t, pcapFile.Name(), ip, fc)
+	validatePackets(t, dut, pcapFile.Name(), ip, fc)
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -451,7 +452,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 	ate.OTG().StartProtocols(t)
 }
 
-func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
+func validatePackets(t *testing.T, dut *ondatra.DUTDevice, filename string, ip IPType, fc flowConfig) {
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
 		t.Fatal(err)
@@ -464,7 +465,13 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	packetCount := 0
 	sflowSamples := uint32(0)
-	expectedSampleCount := float64(fc.packetsToSend / fc.minSamplingRate)
+	var minSamplingRate uint32
+	if dut.Vendor() == ondatra.CISCO {
+		minSamplingRate = ciscominSamplingRate
+	} else {
+		minSamplingRate = fc.minSamplingRate
+	}
+	expectedSampleCount := float64(fc.packetsToSend / minSamplingRate)
 	minAllowedSamples := expectedSampleCount * sampleTolerance
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
