@@ -1017,6 +1017,11 @@ message Metadata {
     // bandwidth.
     bool advertised_cumulative_lbw_oc_unsupported = 344;
 
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 345;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

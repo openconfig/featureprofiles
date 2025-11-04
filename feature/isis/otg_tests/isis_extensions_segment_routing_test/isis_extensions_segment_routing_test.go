@@ -772,9 +772,11 @@ func VerifyISISSRSIDCounters(t *testing.T, dut *ondatra.DUTDevice, mplsLabel oc.
 		t.Errorf("Unable to find input matched packets related to MPLS label")
 	}
 
-	_, ok1 := gnmi.WatchAll(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounterAny().OutPkts().State(), timeout, isPresent).Await(t)
-	if !ok1 {
-		t.Errorf("Unable to find output matched packets related to MPLS label")
+	if !deviations.AggregateSIDCounterOutPktsUnsupported(dut) {
+		_, ok1 := gnmi.WatchAll(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounterAny().OutPkts().State(), timeout, isPresent).Await(t)
+		if !ok1 {
+			t.Errorf("Unable to find output matched packets related to MPLS label")
+		}
 	}
 
 	// MplsLabel:= mplsLabel oc.E_AggregateSidCounter_MplsLabel]
@@ -784,12 +786,18 @@ func VerifyISISSRSIDCounters(t *testing.T, dut *ondatra.DUTDevice, mplsLabel oc.
 	inpcktstats := gnmi.Get(t, dut, inpkts)
 	t.Log(inpcktstats)
 
-	OutPkts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounter(mplsLabel).OutPkts()
+	if inpcktstats == 0 {
+		t.Errorf("Unable to find input matched packets related to MPLS label")
+	}
 
-	outpcktstats := gnmi.Get(t, dut, OutPkts.State())
-	t.Log(outpcktstats)
+	if !deviations.AggregateSIDCounterOutPktsUnsupported(dut) {
+		OutPkts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounter(mplsLabel).OutPkts()
 
-	if inpcktstats == 0 || outpcktstats == 0 {
-		t.Errorf("Unable to find output matched packets related to MPLS label")
+		outpcktstats := gnmi.Get(t, dut, OutPkts.State())
+		t.Log(outpcktstats)
+
+		if outpcktstats == 0 {
+			t.Errorf("Unable to find input/output matched packets related to MPLS label")
+		}
 	}
 }
