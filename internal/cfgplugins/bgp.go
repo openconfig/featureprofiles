@@ -638,12 +638,12 @@ func DeviationAristaBGPNeighborMaxPrefixes(t *testing.T, dut *ondatra.DUTDevice,
 	}
 }
 
-// HandleMaxPrefixesDeviation updates neighbor max prefixes only if deviation BGPMissingOCMaxPrefixesConfiguration
+// handleMaxPrefixesDeviation updates neighbor max prefixes only if deviation BGPMissingOCMaxPrefixesConfiguration
 // is set.
-func HandleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BgpNeighbor) {
+func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BgpNeighbor) error {
 	t.Helper()
 	if !deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
-		return
+		return nil
 	}
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -651,8 +651,9 @@ func HandleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, neighbors 
 			DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.Neighborip, 0)
 		}
 	default:
-		t.Fatalf("Deviation not expected for vendor %v", dut.Vendor())
+		return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
 	}
+	return nil
 }
 
 // sameAS checks if all neighbors have the same local and peer AS.
@@ -670,7 +671,7 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 
 // handleMultipathDeviation implements the deviation logic whether multipath config
 // at the afisafi level is supported or not.
-func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.NetworkInstance_Protocol_Bgp, pgV4, pgV6 string) {
+func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.NetworkInstance_Protocol_Bgp, pgV4, pgV6 string) error {
 	t.Helper()
 
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
@@ -680,10 +681,10 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.Netw
 				SetEnabled(true)
 			bgp.GetOrCreatePeerGroup(pgV6).GetOrCreateUseMultiplePaths().
 				SetEnabled(true)
+			return nil
 		default:
-			t.Fatalf("Deviation not expected for vendor %v", dut.Vendor())
+			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
 		}
-		return
 	}
 
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).
@@ -700,18 +701,19 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, bgp *oc.Netw
 	bgp.GetOrCreatePeerGroup(pgV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
+	return nil
 }
 
 // CreateBGPNeighbors creates BGP neighbors for the given router ID, peer group names, and
 // neighbors. The global AS and router ID are set to the AS and router ID of the first neighbor,
 // assuming that all neighbors provided have the same local AS and the same peer AS.
-func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, peerGrpNameV6 string, nbrs []*BgpNeighbor, dut *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol, error) {
+func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, peerGrpNameV6 string, nbrs []*BgpNeighbor, dut *ondatra.DUTDevice) error {
 	if len(nbrs) == 0 {
 		t.Logf("No BGP neighbors found for router ID: %s, peer group name v4: %s, peer group name v6: %s", routerID, peerGrpNameV4, peerGrpNameV6)
-		return nil, nil
+		return nil
 	}
 	if !sameAS(nbrs) {
-		return nil, fmt.Errorf("BGP neighbors have different AS numbers: %v", nbrs)
+		return fmt.Errorf("BGP neighbors have different AS numbers: %v", nbrs)
 	}
 	peerAS := nbrs[0].PeerAS
 
@@ -745,7 +747,9 @@ func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, 
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	handleMultipathDeviation(t, dut, bgp, peerGrpNameV4, peerGrpNameV6)
+	if err := handleMultipathDeviation(t, dut, bgp, peerGrpNameV4, peerGrpNameV6); err != nil {
+		return err
+	}
 
 	for _, nbr := range nbrs {
 		neighbor := bgp.GetOrCreateNeighbor(nbr.Neighborip)
@@ -764,7 +768,7 @@ func CreateBGPNeighbors(t *testing.T, ocRoot *oc.Root, routerID, peerGrpNameV4, 
 				SetEnabled(true)
 		}
 	}
-	return protocol, nil
+	return handleMaxPrefixesDeviation(t, dut, nbrs)
 }
 
 // ConfigureBGPNeighbor configures a BGP neighbor.
