@@ -1021,8 +1021,8 @@ func getTestLogPath(t *testing.T, filename string) string {
 	return filepath.Join(t.TempDir(), filename)
 }
 
-func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool, target string, startTime time.Time) (string, error) {
-	path := getTestLogPath(t, fmt.Sprintf("%s_%d_%s", target, startTime.UnixNano(), missingPrefixesFile))
+func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool, target string, sessionID string) (string, error) {
+	path := getTestLogPath(t, fmt.Sprintf("%s_%s_%s", target, sessionID, missingPrefixesFile))
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
