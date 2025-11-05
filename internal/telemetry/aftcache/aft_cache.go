@@ -533,6 +533,14 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 			t.Logf("%s Wrote failing NH prefixes to %s", prefix, filename)
 		}
 	}
+	if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
+		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
+		if err != nil {
+			t.Errorf("%s error writing notifications: %v", prefix, err)
+		} else {
+			t.Logf("%s Wrote all received notifications to %s", prefix, filename)
+		}
+	}
 }
 
 // ListenUntil updates AFT with notifications from a gNMI client in streaming mode, and stops
@@ -547,6 +555,7 @@ func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeo
 func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
 	t.Helper()
 	ss.start = time.Now()
+	ss.notifications = nil   // Flush notifications from previous ListenUntil calls.
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
 	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
