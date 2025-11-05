@@ -777,7 +777,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			checkNHStart := time.Now()
 			nCorrect := 0
 			defer t.Logf("verified %d of %d prefixes in AssertNextHopCount.", nCorrect, len(wantPrefixes))
-			defer logDuration(checkNHStart, "Check Next Hops")
+			defer logDuration(checkNHStart, "Check Next Hops", prefix)
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				switch {
