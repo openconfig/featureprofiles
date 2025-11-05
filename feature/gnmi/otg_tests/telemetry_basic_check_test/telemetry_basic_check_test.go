@@ -48,11 +48,11 @@ const (
 )
 
 var (
-	vendorQueueNo = map[ondatra.Vendor]int{
-		ondatra.ARISTA:  16,
-		ondatra.CISCO:   6,
-		ondatra.JUNIPER: 8,
-		ondatra.NOKIA:   16,
+	vendorQueueNo = map[ondatra.Vendor][]int{
+		ondatra.ARISTA:  {16},
+		ondatra.CISCO:   {6},
+		ondatra.JUNIPER: {8},
+		ondatra.NOKIA:   {16, 8},
 	}
 )
 
@@ -357,9 +357,16 @@ func TestQoSCounters(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
+			gotQueueCount := len(tc.counters)
+			matchedQueueCount := false
+			for _, expectedQueueCount := range vendorQueueNo[dut.Vendor()] {
+				if gotQueueCount == expectedQueueCount {
+					matchedQueueCount = true
+				}
+			}
 
-			if len(tc.counters) != vendorQueueNo[dut.Vendor()] {
-				t.Errorf("Get QoS queue# for %q: got %d, want %d", dut.Vendor(), len(tc.counters), vendorQueueNo[dut.Vendor()])
+			if !matchedQueueCount {
+				t.Errorf("Get QoS queue# for %q: got %d, want %v", dut.Vendor(), len(tc.counters), vendorQueueNo[dut.Vendor()])
 			}
 			for i, counter := range tc.counters {
 				val, present := counter.Val()
