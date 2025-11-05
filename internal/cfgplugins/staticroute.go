@@ -33,7 +33,7 @@ type StaticRouteCfg struct {
 	Prefix          string
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 	IPType          string
-	NextHopAddr		string
+	NextHopAddr     string
 }
 
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
@@ -83,7 +83,7 @@ func StaticRouteNextNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, cfg *S
 			t.Logf("Unsupported vendor %s for native command support for deviation 'NextNetworkInstance config'", dut.Vendor())
 		}
 	} else {
-		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("default")
+		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("DEFAULT")
 		spNetInst.GetOrCreateNextHop("0").SetNextHop(oc.UnionString(cfg.Prefix))
 	}
 }
