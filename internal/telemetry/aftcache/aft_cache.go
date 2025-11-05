@@ -474,7 +474,7 @@ type AFTStreamSession struct {
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
-return fmt.Sprintf("[%s-%p]", ss.Cache.target, ss)
+return fmt.Sprintf("[%s-%d]", ss.Cache.target, ss.start.UnixNano())
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
@@ -1016,8 +1016,8 @@ func getTestLogPath(t *testing.T, filename string) string {
 	return filepath.Join(t.TempDir(), filename)
 }
 
-func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool, target string, sessionID string) (string, error) {
-	path := getTestLogPath(t, fmt.Sprintf("%s_%s_%s", target, sessionID, missingPrefixesFile))
+func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool, target string, startTime time.Time) (string, error) {
+	path := getTestLogPath(t, fmt.Sprintf("%s_%d_%s", target, startTime.UnixNano(), missingPrefixesFile))
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
