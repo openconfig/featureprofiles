@@ -78,18 +78,20 @@ var (
 
 	// Invalid source prefixes advertised from ATE Port 1 (but rejected by DUT policy)
 	ateAdvIPv4Prefix2 = "198.18.2.0"
-	ateAdvIPv6Prefix2 = "2001:db8:20::"
+	ateAdvIPv6Prefix2 = "3001:db8:10::"
 	prefix2Len        = 24
 	prefix2LenV6      = 64
 
 	// Destination prefixes advertised from ATE Port 2
 	ateAdvIPv4Prefix3 = "198.18.3.0"
-	ateAdvIPv6Prefix3 = "2001:db8:30::"
+	ateAdvIPv6Prefix3 = "4001:db8:10::"
 	prefix3Len        = 24
 	prefix3LenV6      = 64
 
-	dstAddr       = []string{GUEDstIPv4}
-	defaultNIName = strings.ToLower("DEFAULT")
+	dstAddr          = []string{GUEDstIPv4}
+	defaultNIName    = strings.ToLower("DEFAULT")
+	staticRoutePfxV4 = "/24"
+	staticRoutePfxV6 = "/64"
 )
 
 func TestMain(m *testing.M) {
@@ -126,16 +128,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	configureDUTPort(t, dut, intBatch, &dutPort1, p1, nonDefaultVRF)
 	intBatch.Set(t, dut)
 	return intBatch
-}
-
-// configureRouteLeaking configure/delete route leaking.
-func configureRouteLeaking(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, enable bool) {
-	t.Helper()
-	if enable {
-		cfgplugins.NewInterInstancePolicy(t, dut, batch, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF, ImportCommunity: importCommunity, ExportCommunity: exportCommunity})
-	} else {
-		cfgplugins.RemoveInterInstancePolicy(t, dut, batch, cfgplugins.InstanceRoutePolicy{NetworkInstanceName: nonDefaultVRF})
-	}
 }
 
 // configureDUTInterface configure interfaces on DUT with URPF config.
@@ -281,14 +273,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	validNetV6.SetNextHopIpv6Address(atePort1.IPv6)
 	validNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix1).SetPrefix(uint32(prefix1LenV6)).SetCount(routeCount)
 
-	// Invalid source prefixes
-	invalidNetV4 := bgp1Peer.V4Routes().Add().SetName("InvalidSrc_V4")
-	invalidNetV4.SetNextHopIpv4Address(atePort1.IPv4)
-	invalidNetV4.Addresses().Add().SetAddress(ateAdvIPv4Prefix2).SetPrefix(uint32(prefix2Len))
-	invalidNetV6 := bgp1PeerV6.V6Routes().Add().SetName("InvalidSrc_V6")
-	invalidNetV6.SetNextHopIpv6Address(atePort1.IPv6)
-	invalidNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix2).SetPrefix(uint32(prefix2LenV6))
-
 	// ATE Port 2 (iBGP)
 	bgp2 := dev2.Bgp().SetRouterId(atePort2.IPv4)
 	bgp2Peer := bgp2.Ipv4Interfaces().Add().SetIpv4Name(ip2V4.Name()).Peers().Add().SetName(fmt.Sprintf("%s.v4.IBGP.peer", dev2.Name()))
@@ -398,24 +382,36 @@ func TestURPFNonDefaultNI(t *testing.T) {
 		dstIP          string
 		flowName       string
 		verifyCounters bool
+		IPStr          string
+		staticRoutePfx string
+		pfxAddr        string
+		nextHopAddr    map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 	}{
 		{
-			desc:       "URPF-1.1.1: uRPF with valid IPv4 source",
-			gueEnabled: false,
-			expectLoss: false,
-			isV4:       true,
-			srcIP:      ateAdvIPv4Prefix1,
-			dstIP:      ateAdvIPv4Prefix3,
-			flowName:   "v4_valid_src",
+			desc:           "URPF-1.1.1: uRPF with valid IPv4 source",
+			gueEnabled:     false,
+			expectLoss:     false,
+			isV4:           true,
+			srcIP:          ateAdvIPv4Prefix1,
+			dstIP:          ateAdvIPv4Prefix3,
+			flowName:       "v4_valid_src",
+			IPStr:          "ip",
+			staticRoutePfx: staticRoutePfxV4,
+			pfxAddr:        atePort2.IPv4,
+			nextHopAddr:    map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"v4": oc.UnionString(atePort2.IPv4)},
 		},
 		{
-			desc:       "URPF-1.1.1: uRPF with valid IPv6 source",
-			gueEnabled: false,
-			expectLoss: false,
-			isV4:       false,
-			srcIP:      ateAdvIPv6Prefix1,
-			dstIP:      ateAdvIPv6Prefix3,
-			flowName:   "v6_valid_src",
+			desc:           "URPF-1.1.1: uRPF with valid IPv6 source",
+			gueEnabled:     false,
+			expectLoss:     false,
+			isV4:           false,
+			srcIP:          ateAdvIPv6Prefix1,
+			dstIP:          ateAdvIPv6Prefix3,
+			flowName:       "v6_valid_src",
+			IPStr:          "ipv6",
+			staticRoutePfx: staticRoutePfxV6,
+			pfxAddr:        atePort2.IPv6,
+			nextHopAddr:    map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"v6": oc.UnionString(atePort2.IPv6)},
 		},
 		{
 			desc:           "URPF-1.1.2: uRPF with invalid IPv4 source",
@@ -428,6 +424,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			verifyCounters: true,
 		},
 		{
+			// TODO: Test validation is currently failing and will be fixed once the defect (https://partnerissuetracker.corp.google.com/u/1/issues/457962035) is resolved.
 			desc:           "URPF-1.1.2: uRPF with invalid IPv6 source",
 			gueEnabled:     false,
 			expectLoss:     true,
@@ -436,6 +433,24 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			dstIP:          ateAdvIPv6Prefix3,
 			flowName:       "v6_invalid_src",
 			verifyCounters: true,
+		},
+		{
+			desc:       "URPF-1.1.3: uRPF with valid IPv4 source and GUE",
+			gueEnabled: true,
+			expectLoss: false,
+			isV4:       true,
+			srcIP:      ateAdvIPv4Prefix1,
+			dstIP:      ateAdvIPv4Prefix3,
+			flowName:   "v4_valid_src_gue",
+		},
+		{
+			desc:       "URPF-1.1.3: uRPF with valid IPv6 source and GUE",
+			gueEnabled: true,
+			expectLoss: false,
+			isV4:       false,
+			srcIP:      ateAdvIPv6Prefix1,
+			dstIP:      ateAdvIPv6Prefix3,
+			flowName:   "v6_valid_src_gue",
 		},
 		{
 			desc:           "URPF-1.1.4: uRPF with invalid IPv4 source and GUE",
@@ -448,6 +463,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			verifyCounters: true,
 		},
 		{
+			// TODO: Test validation is currently failing and will be fixed once the defect (https://partnerissuetracker.corp.google.com/u/1/issues/457962035) is resolved.
 			desc:           "URPF-1.1.4: uRPF with invalid IPv6 source and GUE",
 			gueEnabled:     true,
 			expectLoss:     true,
@@ -456,24 +472,6 @@ func TestURPFNonDefaultNI(t *testing.T) {
 			dstIP:          ateAdvIPv6Prefix3,
 			flowName:       "v6_invalid_src_gue",
 			verifyCounters: true,
-		},
-		{
-			desc:       "URPF-1.1.3: uRPF with valid IPv4 source and GUE",
-			gueEnabled: true,
-			expectLoss: false,
-			isV4:       true,
-			srcIP:      dutLoopback.IPv4,
-			dstIP:      atePort2.IPv4,
-			flowName:   "v4_valid_src_gue",
-		},
-		{
-			desc:       "URPF-1.1.3: uRPF with valid IPv6 source and GUE",
-			gueEnabled: true,
-			expectLoss: false,
-			isV4:       false,
-			srcIP:      dutLoopback.IPv6,
-			dstIP:      atePort2.IPv6,
-			flowName:   "v6_valid_src_gue",
 		},
 	}
 
@@ -488,20 +486,19 @@ func TestURPFNonDefaultNI(t *testing.T) {
 				}
 			}
 			if !tc.expectLoss {
-				configureRouteLeaking(t, dut, batch, true)
 				if tc.gueEnabled {
-					cfg := &cfgplugins.StaticRouteCfg{
+					cfgParams := &cfgplugins.StaticRouteCfg{
 						NetworkInstance: deviations.DefaultNetworkInstance(dut),
 						Prefix:          GUEDstIPv4 + "/32",
 						NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(atePort2.IPv4), "1": oc.UnionString(atePort2.IPv6)},
 					}
-					if _, err := cfgplugins.NewStaticRouteCfg(batch, cfg, dut); err != nil {
+					if _, err := cfgplugins.NewStaticRouteCfg(batch, cfgParams, dut); err != nil {
 						t.Fatalf("Failed to configure static route: %v", err)
 					}
 					batch.Set(t, dut)
+				} else {
+					cfgplugins.StaticRouteNextNetworkInstance(t, dut, &cfgplugins.StaticRouteCfg{IPType: tc.IPStr, NetworkInstance: nonDefaultVRF, Prefix: tc.pfxAddr, NextHopAddr: tc.dstIP + tc.staticRoutePfx})
 				}
-			} else {
-				configureRouteLeaking(t, dut, batch, false)
 			}
 			var initialDropCount uint64
 			p1 := dut.Port(t, "port1")

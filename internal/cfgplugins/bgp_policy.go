@@ -18,19 +18,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 )
-
-// InstanceRoutePolicy parameters need to configure BGP route leaking between default and non-default VRFs.
-type InstanceRoutePolicy struct {
-	NetworkInstanceName string
-	ImportCommunity     string
-	ExportCommunity     string
-}
 
 // DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
 // /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med.
@@ -103,55 +93,4 @@ route-map %s
 match as-path %s
 `, aclName, asPathRegex, aclName, routeMap, aclName)
 	helpers.GnmiCLIConfig(t, dut, config)
-}
-
-// NewInterInstancePolicy configures BGP route leaking between default and non-default VRFs. It automatically chooses between OC or CLI based on deviation.
-func NewInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg InstanceRoutePolicy) {
-	t.Helper()
-	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Configuring route leaking via CLI (deviation detected)")
-			cli := fmt.Sprintf(`route-map RM-ALL-ROUTES permit 10
-					router general
-						vrf %[1]s
-							leak routes source-vrf default subscribe-policy RM-ALL-ROUTES
-						vrf default
-							leak routes source-vrf %[1]s subscribe-policy RM-ALL-ROUTES
-					`, cfg.NetworkInstanceName)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			// Log a message if the vendor is not supported for this specific CLI deviation.
-			t.Logf("Unsupported vendor %s for native command support for deviation 'import-export config'", dut.Vendor())
-		}
-	} else {
-		t.Log("Configuring route leaking via OC")
-		root := &oc.Root{}
-		ni1 := root.GetOrCreateNetworkInstance(cfg.NetworkInstanceName)
-		ni1Pol := ni1.GetOrCreateInterInstancePolicies()
-		iexp1 := ni1Pol.GetOrCreateImportExportPolicy()
-		iexp1.SetImportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ImportRouteTarget_Union{oc.UnionString(cfg.ImportCommunity)})
-		iexp1.SetExportRouteTarget([]oc.NetworkInstance_InterInstancePolicies_ImportExportPolicy_ExportRouteTarget_Union{oc.UnionString(cfg.ExportCommunity)})
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config(), ni1Pol)
-	}
-}
-
-// RemoveRouteLeakingFromCLI remove route leaking through CLI.
-func RemoveInterInstancePolicy(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg InstanceRoutePolicy) {
-	t.Helper()
-	if deviations.NetworkInstanceImportExportPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			cli := `
-			no router general
-			no route-map RM-ALL-ROUTES
-			`
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			// Log a message if the vendor is not supported for this specific CLI deviation.
-			t.Logf("Unsupported vendor %s for native command support for deviation 'import-export config'", dut.Vendor())
-		}
-	} else {
-		gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(cfg.NetworkInstanceName).InterInstancePolicies().Config())
-	}
 }

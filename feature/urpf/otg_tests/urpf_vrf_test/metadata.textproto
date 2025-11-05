@@ -17,5 +17,6 @@ platform_exceptions:  {
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
     urpf_config_oc_unsupported: true
+    static_route_next_network_instance_oc_unsupported: true
   }
 }

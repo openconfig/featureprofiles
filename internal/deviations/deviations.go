@@ -1737,3 +1737,8 @@ func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
 }
+
+// StaticRouteNextNetworkInstanceOCUnsupported returns true for devices that don't support NextNetworkInstance of static route next hop.
+func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
+}
