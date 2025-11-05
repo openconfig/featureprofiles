@@ -813,20 +813,21 @@ tests:
       - agvarghe
     mustpass: true
   - name: gNMI-1.14 (Metadata consistency during large config push)
-    path: feature/system/gnmi/metadata/tests/large_set_consistency_test
+    path: feature/gnmi/metadata/tests/large_set_consistency_test
     owners:
       - kjahed
     mustpass: true
-    pr: 1476
+    pr: 4550
+    internal: false
     testbeds_exclude:
       - 8201-32FH_FLM254206E7
   - name: gNMI-1.15 (Set Requests)
-    path: feature/system/gnmi/set/tests/gnmi_set_test
+    path: feature/gnmi/tests/gnmi_set_test
     owners:
       - mbagherz
     mustpass: true
-    internal: true
-    pr: 1476
+    pr: 4550
+    internal: false
   - name: gNOI-2.1 (Packet-based Link Qualification)
     path: feature/gnoi/packet_link_qualification/tests/packet_link_qualification_test
     owners:
@@ -905,6 +906,7 @@ tests:
     path: feature/gnsi/acctz/tests/record_payload_truncation
     mustpass: false
     timeout: 1800
+    pr: 4639
     priority: 65
     owners:
       - harikri4
@@ -2368,7 +2370,7 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: TRANSCEIVER-13_ZRP:
+  - name: TRANSCEIVER-13_ZRP
     path: feature/platform/transceiver/tests/zrp_low_power_mode_test
     timeout: 4200
     args:
