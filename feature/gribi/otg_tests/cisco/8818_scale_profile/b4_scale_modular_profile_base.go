@@ -1794,6 +1794,9 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 
 	t.Log("Configure DUT & PEER devices")
 	configureDevices(t, dut, peer, "bundle")
+	configureLoopbackAndSFlow(t, dut)
+	h.EnableSFlowOnInterfaces(t, dut, pathInfo.PrimaryInterface)
+	h.EnableSFlowOnInterfaces(t, dut, pathInfo.BackupInterface)
 	// configure P4RT
 	h.P4rtHelper().ConfigureDeviceID(t, dut, seedDeviceID)
 	h.P4rtHelper().ConfigureInterfaceID(t, dut, seedInterfaceID)
