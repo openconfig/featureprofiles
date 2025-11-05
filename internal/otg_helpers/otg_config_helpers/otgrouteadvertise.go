@@ -1,4 +1,4 @@
-package cfgplugins
+package otgconfighelpers
 
 import (
 	"fmt"
@@ -34,12 +34,12 @@ const (
 	// ATE Suffixes
 	bgpV4Suffix = ".bgp4.peer"
 	bgpV6Suffix = ".bgp6.peer"
-	devSuffix = ".dev"
-	ethSuffix = ".eth"
-	intfSuffix = ".intf"
-	ipv4Suffix = ".ipv4"
-	ipv6Suffix = ".ipv6"
-	isisSuffix = ".isis"
+	devSuffix   = ".dev"
+	ethSuffix   = ".eth"
+	intfSuffix  = ".intf"
+	ipv4Suffix  = ".ipv4"
+	ipv6Suffix  = ".ipv6"
+	isisSuffix  = ".isis"
 )
 
 // AdvertisedRoutes represents the advertised routes configuration.
