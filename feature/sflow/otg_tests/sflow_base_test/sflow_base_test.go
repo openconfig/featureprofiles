@@ -467,7 +467,7 @@ func validatePackets(t *testing.T, dut *ondatra.DUTDevice, filename string, ip I
 	sflowSamples := uint32(0)
 	var minSamplingRate uint32
 	if dut.Vendor() == ondatra.CISCO {
-		minSamplingRate = ciscominSamplingRate
+minSamplingRate = ciscoMinSamplingRate
 	} else {
 		minSamplingRate = fc.minSamplingRate
 	}
