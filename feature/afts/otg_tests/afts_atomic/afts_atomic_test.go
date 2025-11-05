@@ -365,14 +365,14 @@ func TestAtomic(t *testing.T) {
 			}
 			tc.configureATE(t)
 
-			t.Log("Waiting for BGP neighbor to establish...")
-			if err := tc.waitForBGPSession(t); err != nil {
-				t.Fatalf("Unable to establish BGP session: %v", err)
-			}
-
 			t.Log("Waiting for ISIS adjacency to form...")
 			if err := tc.waitForISISAdjacency(t); err != nil {
 				t.Fatalf("Unable to establish ISIS adjacency: %v", err)
+			}
+
+			t.Log("Waiting for BGP neighbor to establish...")
+			if err := tc.waitForBGPSession(t); err != nil {
+				t.Fatalf("Unable to establish BGP session: %v", err)
 			}
 
 			t.Logf("Initial verification of %d bgp prefixes and %d isis prefixes", len(bgpPrefixes), len(isisPrefixes))
