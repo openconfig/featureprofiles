@@ -433,7 +433,7 @@ func testPrimaryPathUnviableWihoutBackupNHG(t *testing.T, args *testArgs) {
 	gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), false)
 	defer gnmi.Update(t, args.dut, gnmi.OC().Interface(args.dut.Port(t, "port3").Name()).Subinterface(0).Enabled().Config(), true)
 	weights = []float64{0, 0, 0, 1}
-	testTraffic(t, args, weights, false)
+	testTraffic(t, args, weights, true)
 }
 
 func TestTransitFrr(t *testing.T) {

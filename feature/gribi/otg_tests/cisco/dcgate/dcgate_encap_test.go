@@ -309,11 +309,11 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 
 	// For Basic Default Route Installation test, create direct route to port5
 	// This simplifies the configuration and avoids VRF lookup complexity
-	basicTestNH := uint64(5001)
-	c.AddNH(t, basicTestNH, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
-	basicTestNHG := uint64(5002)
-	c.AddNHG(t, basicTestNHG, map[uint64]uint64{basicTestNH: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	c.AddIPv4(t, "138.0.11.8/32", basicTestNHG, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	// basicTestNH := uint64(5001)
+	// c.AddNH(t, basicTestNH, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
+	// basicTestNHG := uint64(5002)
+	// c.AddNHG(t, basicTestNHG, map[uint64]uint64{basicTestNH: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	// c.AddIPv4(t, "138.0.11.8/32", basicTestNHG, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	lookupNHGID := uint64(501)
 	// Create DIRECT NH for primary path
