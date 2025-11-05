@@ -78,7 +78,7 @@ var (
 
 	// Invalid source prefixes advertised from ATE Port 1 (but rejected by DUT policy)
 	ateAdvIPv4Prefix2 = "198.18.2.0"
-	ateAdvIPv6Prefix2 = "3001:db8:10::"	
+	ateAdvIPv6Prefix2 = "3001:db8:10::"
 
 	// Destination prefixes advertised from ATE Port 2
 	ateAdvIPv4Prefix3 = "198.18.3.0"
