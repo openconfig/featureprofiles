@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -171,7 +172,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 
 func (tc *testCase) configureATE(t *testing.T) {
 	ate := tc.ate
-	cfgplugins.ConfigureATEWithISISAndBGPRoutes(t, &cfgplugins.ATEAdvertiseRoutes{
+	otgconfighelpers.ConfigureATEWithISISAndBGPRoutes(t, &otgconfighelpers.ATEAdvertiseRoutes{
 		ATE:      ate,
 		ATEAttrs: ateAttrs,
 		DUTAttrs: dutAttrs,
@@ -222,7 +223,7 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	dutPort2 := tc.dut.Port(t, port2Name).Name()
 
 	for i, dutPort := range []string{dutPort1, dutPort2} {
-		systemID := fmt.Sprintf("%s%d", cfgplugins.ISISATESystemIDPrefix, i+1)
+		systemID := fmt.Sprintf("%s%d", otgconfighelpers.ISISATESystemIDPrefix, i+1)
 		adjPath := isisPath.Interface(dutPort).Level(2).Adjacency(systemID)
 		if _, ok := gnmi.Watch(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
 			fptest.LogQuery(t, "ISIS reported state", adjPath.State(), gnmi.Get(t, tc.dut, adjPath.State()))
@@ -234,12 +235,12 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 
 func generateBGPPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	cidrV4 := cfgplugins.StartingBGPRouteIPv4 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV4)
-	for pfix := range netutil.GenCIDRs(t, cidrV4, int(cfgplugins.DefaultBGPRouteCount)) {
+	cidrV4 := otgconfighelpers.StartingBGPRouteIPv4 + "/" + fmt.Sprintf("%d", otgconfighelpers.V4PrefixLen)
+	for pfix := range netutil.GenCIDRs(t, cidrV4, int(otgconfighelpers.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	cidrV6 := cfgplugins.StartingBGPRouteIPv6 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV6)
-	for pfix6 := range netutil.GenCIDRs(t, cidrV6, int(cfgplugins.DefaultBGPRouteCount)) {
+	cidrV6 := otgconfighelpers.StartingBGPRouteIPv6 + "/" + fmt.Sprintf("%d", otgconfighelpers.V6PrefixLen)
+	for pfix6 := range netutil.GenCIDRs(t, cidrV6, int(otgconfighelpers.DefaultBGPRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes
@@ -247,12 +248,12 @@ func generateBGPPrefixes(t *testing.T) map[string]bool {
 
 func generateISISPrefixes(t *testing.T) map[string]bool {
 	wantPrefixes := make(map[string]bool)
-	v4Cidr := cfgplugins.StartingISISRouteV4 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV4)
-	for pfix := range netutil.GenCIDRs(t, v4Cidr, int(cfgplugins.DefaultISISRouteCount)) {
+	v4Cidr := otgconfighelpers.StartingISISRouteV4 + "/" + fmt.Sprintf("%d", otgconfighelpers.V4PrefixLen)
+	for pfix := range netutil.GenCIDRs(t, v4Cidr, int(otgconfighelpers.DefaultISISRouteCount)) {
 		wantPrefixes[pfix] = true
 	}
-	v6Cidr := cfgplugins.StartingISISRouteV6 + "/" + fmt.Sprintf("%d", cfgplugins.AdvertisePrefixLenV6)
-	for pfix6 := range netutil.GenCIDRs(t, v6Cidr, int(cfgplugins.DefaultISISRouteCount)) {
+	v6Cidr := otgconfighelpers.StartingISISRouteV6 + "/" + fmt.Sprintf("%d", otgconfighelpers.V6PrefixLen)
+	for pfix6 := range netutil.GenCIDRs(t, v6Cidr, int(otgconfighelpers.DefaultISISRouteCount)) {
 		wantPrefixes[pfix6] = true
 	}
 	return wantPrefixes

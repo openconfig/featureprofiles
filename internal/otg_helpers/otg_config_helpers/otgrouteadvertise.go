@@ -1,4 +1,4 @@
-package cfgplugins
+package otgconfighelpers
 
 import (
 	"fmt"
@@ -16,16 +16,30 @@ const (
 	ISISATESystemIDPrefix = "6400.0000.000" // Intentionally one character short to append port-id as suffix.
 	ISISArea              = "49"
 
-	StartingISISRouteV4   = "199.0.0.1"
-	StartingISISRouteV6   = "2001:db8::203:0:113:1"
+	StartingISISRouteV4 = "199.0.0.1"
+	StartingISISRouteV6 = "2001:db8::203:0:113:1"
+
 	DefaultISISRouteCount = 100
 
-	StartingBGPRouteIPv4 = "200.0.0.0"
-	StartingBGPRouteIPv6 = "3001:1::0"
+	StartingBGPRouteIPv4  = "200.0.0.0/32"
+	StartingBGPRouteIPv6  = "3001:1::0/128"
+	StartingISISRouteIPv4 = "199.0.0.1/32"
+	StartingISISRouteIPv6 = "2001:db8::203:0:113:1/128"
+
 	DefaultBGPRouteCount = 200
 
-	AdvertisePrefixLenV4 = 32
-	AdvertisePrefixLenV6 = 128
+	V4PrefixLen = 30
+	V6PrefixLen = 126
+
+	// ATE Suffixes
+	bgpV4Suffix = ".bgp4.peer"
+	bgpV6Suffix = ".bgp6.peer"
+	devSuffix   = ".dev"
+	ethSuffix   = ".eth"
+	intfSuffix  = ".intf"
+	ipv4Suffix  = ".ipv4"
+	ipv6Suffix  = ".ipv6"
+	isisSuffix  = ".isis"
 )
 
 // AdvertisedRoutes represents the advertised routes configuration.
@@ -43,12 +57,12 @@ type AdvertisedRoutes struct {
 // AdvertiseBGPRoutes configures BGP advertised routes on the dev over the ipv4 and ipv6 interfaces.
 func AdvertiseBGPRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosnappi.DeviceIpv6, v4Advertised, v6Advertised *AdvertisedRoutes) {
 	bgp := dev.Bgp().SetRouterId(ipv4.Address())
-	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + ".BGP4.peer")
+	bgp4Peer := bgp.Ipv4Interfaces().Add().SetIpv4Name(ipv4.Name()).Peers().Add().SetName(dev.Name() + bgpV4Suffix)
 	bgp4Peer.SetPeerAddress(ipv4.Gateway()).SetAsNumber(v4Advertised.ATEAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
+	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + bgpV6Suffix)
 	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(v6Advertised.ATEAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ".v4route")
+	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ipv4Suffix)
 	routes.SetNextHopIpv4Address(ipv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
@@ -57,7 +71,7 @@ func AdvertiseBGPRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosn
 		SetPrefix(v4Advertised.PrefixLength).
 		SetCount(v4Advertised.Count)
 
-	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
+	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ipv6Suffix)
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
@@ -69,12 +83,12 @@ func AdvertiseBGPRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosn
 
 // AdvertiseISISRoutes configures ISIS advertised routes on the dev over the ipv4 and ipv6 interfaces.
 func AdvertiseISISRoutes(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv4, ipv6 gosnappi.DeviceIpv6, v4Advertised, v6Advertised *AdvertisedRoutes) {
-	isis := dev.Isis().SetName(dev.Name() + ".isis")
-	v4Route := isis.V4Routes().Add().SetName(isis.Name() + ".rr")
+	isis := dev.Isis().SetName(dev.Name() + isisSuffix)
+	v4Route := isis.V4Routes().Add().SetName(isis.Name() + ipv4Suffix)
 	v4Route.Addresses().Add().SetAddress(v4Advertised.StartingAddress).
 		SetPrefix(v4Advertised.PrefixLength).
 		SetCount(v4Advertised.Count)
-	v6Route := isis.V6Routes().Add().SetName(isis.Name() + ".v6")
+	v6Route := isis.V6Routes().Add().SetName(isis.Name() + ipv6Suffix)
 	v6Route.Addresses().Add().SetAddress(v6Advertised.StartingAddress).
 		SetPrefix(v6Advertised.PrefixLength).
 		SetCount(v6Advertised.Count)
@@ -99,7 +113,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.ISISV4Routes == nil {
 		ar.ISISV4Routes = &AdvertisedRoutes{
 			StartingAddress: StartingISISRouteV4,
-			PrefixLength:    AdvertisePrefixLenV4,
+			PrefixLength:    V4PrefixLen,
 			Count:           DefaultISISRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -107,7 +121,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.ISISV6Routes == nil {
 		ar.ISISV6Routes = &AdvertisedRoutes{
 			StartingAddress: StartingISISRouteV6,
-			PrefixLength:    AdvertisePrefixLenV6,
+			PrefixLength:    V6PrefixLen,
 			Count:           DefaultISISRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -115,7 +129,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.BGPV4Routes == nil {
 		ar.BGPV4Routes = &AdvertisedRoutes{
 			StartingAddress: StartingBGPRouteIPv4,
-			PrefixLength:    AdvertisePrefixLenV4,
+			PrefixLength:    V4PrefixLen,
 			Count:           DefaultBGPRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -123,7 +137,7 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 	if ar.BGPV6Routes == nil {
 		ar.BGPV6Routes = &AdvertisedRoutes{
 			StartingAddress: StartingBGPRouteIPv6,
-			PrefixLength:    AdvertisePrefixLenV6,
+			PrefixLength:    V6PrefixLen,
 			Count:           DefaultBGPRouteCount,
 			ATEAS:           ATEAS,
 		}
@@ -146,31 +160,31 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 
 		atePort := ate.Port(t, ateAttr.Name)
 		port := config.Ports().Add().SetName(atePort.ID())
-		dev := config.Devices().Add().SetName(fmt.Sprintf("%s.dev", ateAttr.Name))
+		dev := config.Devices().Add().SetName(ateAttr.Name + devSuffix)
 
-		eth := dev.Ethernets().Add().SetName(dev.Name() + ".eth").
+		eth := dev.Ethernets().Add().SetName(dev.Name() + ethSuffix).
 			SetMac(ateAttr.MAC).
 			SetMtu(uint32(ateAttr.MTU))
 		eth.Connection().SetPortName(port.Name())
 
-		ipv4 := eth.Ipv4Addresses().Add().SetName(eth.Name() + ".IPv4").
+		ipv4 := eth.Ipv4Addresses().Add().SetName(eth.Name() + ipv4Suffix).
 			SetAddress(ateAttr.IPv4).
 			SetGateway(dutAttr.IPv4).
 			SetPrefix(uint32(ateAttr.IPv4Len))
 
-		ipv6 := eth.Ipv6Addresses().Add().SetName(eth.Name() + ".IPv6").
+		ipv6 := eth.Ipv6Addresses().Add().SetName(eth.Name() + ipv6Suffix).
 			SetAddress(ateAttr.IPv6).
 			SetGateway(dutAttr.IPv6).
 			SetPrefix(uint32(ateAttr.IPv6Len))
 
-		isis := dev.Isis().SetName(dev.Name() + ".isis").
+		isis := dev.Isis().SetName(dev.Name() + isisSuffix).
 			SetSystemId(fmt.Sprintf("%s%d", strings.ReplaceAll(ISISATESystemIDPrefix, ".", ""), i+1))
 		isis.Basic().
 			SetIpv4TeRouterId(ipv4.Address()).
 			SetHostname(fmt.Sprintf("ixia-c-port%d", i+1))
 		isis.Advanced().SetAreaAddresses([]string{ISISArea})
 		isis.Advanced().SetEnableHelloPadding(false)
-		isisInt := isis.Interfaces().Add().SetName(isis.Name() + ".intf").
+		isisInt := isis.Interfaces().Add().SetName(isis.Name() + intfSuffix).
 			SetEthName(eth.Name()).
 			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT).
 			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
