@@ -21,15 +21,13 @@ const (
 
 	DefaultISISRouteCount = 100
 
-	StartingBGPRouteIPv4  = "200.0.0.0/32"
-	StartingBGPRouteIPv6  = "3001:1::0/128"
-	StartingISISRouteIPv4 = "199.0.0.1/32"
-	StartingISISRouteIPv6 = "2001:db8::203:0:113:1/128"
+	StartingBGPRouteIPv4 = "200.0.0.0"
+	StartingBGPRouteIPv6 = "3001:1::0"
 
 	DefaultBGPRouteCount = 200
 
-	V4PrefixLen = 30
-	V6PrefixLen = 126
+	V4PrefixLen = 32
+	V6PrefixLen = 128
 
 	// ATE Suffixes
 	bgpV4Suffix = ".bgp4.peer"
