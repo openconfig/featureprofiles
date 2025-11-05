@@ -425,6 +425,10 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
+// TODO: Split out the watching logic into a blocking function.
+// This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
+// on return.)
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
@@ -571,6 +575,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
@@ -771,6 +776,8 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
+			defer t.Logf("verified %d of %d prefixes in AssertNextHopCount.", nCorrect, len(wantPrefixes))
+			defer logDuration(checkNHStart, "Check Next Hops")
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				switch {
@@ -780,17 +787,15 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
 				default:
 					if len(resolved) != wantNHCount {
-						return false, fmt.Errorf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						t.Logf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						return false, nil
 					}
 					nCorrect++
 				}
 			}
-			logDuration(checkNHStart, "Check Next Hops", prefix)
 			if nCorrect != nPrefixes {
-				t.Logf("%s AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", prefix, nCorrect, nPrefixes)
 				return false, nil
 			}
-			t.Logf("%s AssertNextHopCount: completed in %.2f sec", prefix, time.Since(start).Seconds())
 			return true, nil
 		},
 	}
@@ -798,6 +803,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 
 // VerifyAtomicFlagHook returns a NotificationHook which verifies that the atomic flag is set to true.
 func VerifyAtomicFlagHook(t *testing.T) NotificationHook {
+	t.Helper()
 	return NotificationHook{
 		Description: "Atomic update hook",
 		NotificationFunc: func(c *aftCache, n *gnmipb.SubscribeResponse) error {
