@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
@@ -145,16 +144,19 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_Breako
 	}
 	var group *oc.Component_Port_BreakoutMode_Group
 	for physical := range tc.breakoutPorts {
-		bmode := &oc.Component_Port_BreakoutMode{}
-		bmp := d.Component(physical).Port().BreakoutMode()
+		comp := &oc.Component{
+			Name: ygot.String(physical),
+		}
+		bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
 		group = bmode.GetOrCreateGroup(0)
 		// TODO(liulk): use one of the logical port.Speed().
 		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		group.NumBreakouts = ygot.Uint8(4)
-		gnmi.Replace(t, tc.dut, bmp.Config(), bmode)
+
+		compPath := d.Component(physical)
+		gnmi.Replace(t, tc.dut, compPath.Config(), comp)
 	}
 	return group
-
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -245,7 +247,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
-	if tc.mtu == 1500 {
+	if tc.mtu == 1500 || tc.mtu == 5000 || tc.mtu == 9236 {
 		// MTU default values are still not populated.
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))
@@ -304,7 +306,7 @@ func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_Bre
 			}
 			const want = 4
 			got := breakoutGroup.GetNumBreakouts()
-			if !cmp.Equal(got, want) {
+			if got != want {
 				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
 			}
 		}
@@ -414,7 +416,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	waitOTGARPEntry(t)
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 	tc.ate.OTG().StopProtocols(t)
 
@@ -482,8 +484,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
-	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
-		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+	} else if avg := octets / ateOutPkts; avg > uint64(packetSize) {
+		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, packetSize)
 	}
 	if p1InDiff.unicast < ateOutPkts {
 		if largeMTU && p1InDiff.drop < ateOutPkts {

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e0719b49-476a-4270-a1b8-1814d9f99eef"
+plan_id: "RT-8"
+description: "Singleton with breakouts"
+testbed: TESTBED_DUT_ATE_4LINKS

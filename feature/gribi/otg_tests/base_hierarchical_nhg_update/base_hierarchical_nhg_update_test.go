@@ -48,11 +48,11 @@ const (
 
 	// Destination ATE MAC address for port-2 and port-3.
 	pMAC = "00:1A:11:00:1A:BC"
-	// 12-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
-	pMACFilter      = "0xabc"
-	pMACFilterport2 = "0xab9"
-	pMACFilterport3 = "0xaba"
-	pMACFilterport4 = "0xabb"
+	// 8-bit filter for egress flow tracking. ABC in hex == 0xabc in hexadecimal.
+	pMACFilter      = "0xbc"
+	pMACFilterport2 = "0xb9"
+	pMACFilterport3 = "0xba"
+	pMACFilterport4 = "0xbb"
 
 	// port-2 nexthop ID.
 	p2NHID = 40
@@ -99,7 +99,7 @@ const (
 	port4mac        = "00:1A:11:00:1A:BB"
 	vip1            = "198.18.196.1"
 	outerSrcIP      = "203.0.113.0"
-	fps             = 1000000 // traffic frames per second
+	fps             = 100000 // traffic frames per second
 	innerSrcIP      = "198.51.100.61"
 	vrfPrefixcount  = 10000
 	ipv4Prefixcount = 700
@@ -280,16 +280,17 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-	if deviations.SkipPbfWithDecapEncapVrf(args.dut) {
-		t.Skip("Skipping test as pbf with decap encap vrf is not supported")
-	}
-	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
-
+	configureDUT(t, args.dut)
 	// Remove interface from VRF-1.
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 	p1 := args.dut.Port(t, "port1")
-	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
-
+	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(args.dut) {
+		fptest.AssignToNetworkInstance(t, args.dut, p1.Name(), deviations.DefaultNetworkInstance(args.dut), 0)
+	}
+	vrfpolicy.ConfigureVRFSelectionPolicy(t, args.dut, vrfpolicy.VRFPolicyW)
 	ctx = context.WithValue(ctx, transitKey{}, true)
 	testBaseHierarchialNHG(ctx, t, args)
 	// Delete Policy-forwarding PolicyW from the ingress interface
@@ -474,7 +475,8 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			strconv.Itoa(p2NHID): {
 				Index: ygot.String(strconv.Itoa(p2NHID)),
 				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p2.Name()),
+					Subinterface: ygot.Uint32(0),
+					Interface:    ygot.String(p2.Name()),
 				},
 			},
 		},
@@ -485,7 +487,8 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 			strconv.Itoa(p3NHID): {
 				Index: ygot.String(strconv.Itoa(p3NHID)),
 				InterfaceRef: &oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{
-					Interface: ygot.String(p3.Name()),
+					Subinterface: ygot.Uint32(0),
+					Interface:    ygot.String(p3.Name()),
 				},
 			},
 		},
@@ -535,7 +538,7 @@ func createFlow(_ *testing.T, name string, ateTop gosnappi.Config, drain, transi
 	flowipv4.Rate().SetPps(fps)
 	eth := flowipv4.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(40).SetLength(8)
 
 	return flowipv4
 }
@@ -557,7 +560,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 	var macFilter string
 
 	otg := ate.OTG()
-	config := otg.FetchConfig(t)
+	config := otg.GetConfig(t)
 
 	switch option {
 	case trafficOnPort2Port3NotOnPort4:
@@ -618,7 +621,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad, lb []
 		if got := ets[0].GetCounters().GetInPkts(); got != rxPkts {
 			t.Errorf("EgressTracking counter in-pkts got %d, want %d", got, rxPkts)
 		} else {
-			t.Logf("Received %d packets with %s as the last 12 bits in the dst MAC", got, macFilter)
+			t.Logf("Received %d packets with %s as the last 8 bits in the dst MAC", got, macFilter)
 		}
 
 	}
@@ -844,6 +847,8 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
 	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
+	t.Log("Unconfig interfaces after Drain test")
+	defer deleteDrainConfig(t, args.dut)
 
 }
 
@@ -863,6 +868,30 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Delete(t, dut, d.Interface(p2.Name()).Subinterface(0).Config())
 	gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
 	gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
+}
+
+// deleteDrainConfig unconfigs interfaces after drain test
+func deleteDrainConfig(t *testing.T, dut *ondatra.DUTDevice) {
+
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+
+	i2 := &oc.Interface{Name: ygot.String(btrunk2)}
+	i3 := &oc.Interface{Name: ygot.String(btrunk3)}
+	i4 := &oc.Interface{Name: ygot.String(btrunk4)}
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk2).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk3).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk4).Config())
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p4.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i2.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i3.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i4.Name).Config())
+
 }
 
 // configDUTDrain configures ports for drain test.

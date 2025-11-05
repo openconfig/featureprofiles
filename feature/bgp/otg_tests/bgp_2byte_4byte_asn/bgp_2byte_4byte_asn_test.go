@@ -78,11 +78,7 @@ func TestBgpSession(t *testing.T) {
 	}
 
 	t.Log("Configure Network Instance")
-	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
-
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	cases := []struct {
 		name    string
@@ -140,6 +136,9 @@ func TestBgpSession(t *testing.T) {
 			bgpClearConfig(t, dut)
 
 			t.Log("Configure BGP on DUT")
+			fptest.ConfigureDefaultNetworkInstance(t, dut)
+			dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+			statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 			gnmi.Replace(t, dut, dutConfPath.Config(), tc.dutConf)
 
 			fptest.LogQuery(t, "DUT BGP Config ", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
@@ -258,6 +257,7 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	global.As = ygot.Uint32(nbr.globalAS)
 	global.RouterId = ygot.String(dutSrc.IPv4)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerAs = ygot.Uint32(nbr.peerAS)

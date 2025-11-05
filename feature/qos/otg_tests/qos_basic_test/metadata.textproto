@@ -19,6 +19,7 @@ platform_exceptions: {
   }
   deviations: {
     ecn_profile_required_definition: true
+    no_zero_suppression: true
   }
 }
 platform_exceptions: {
@@ -27,7 +28,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     qos_octets: true
   }

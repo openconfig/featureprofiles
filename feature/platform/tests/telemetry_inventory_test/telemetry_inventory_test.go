@@ -860,6 +860,8 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 					t.Logf("Telemetry path /components/component/state/model-name is not supported due to deviation ModelNameUnsupported. Skipping model name validation.")
 				} else if card.GetModelName() != dut.Model() {
 					t.Errorf("Component %s ModelName: got %s, want %s (dut's hardware model)", cName, card.GetModelName(), dut.Model())
+				} else {
+					t.Logf("Component %s ModelName: %s", cName, card.GetModelName())
 				}
 			}
 
@@ -1055,7 +1057,7 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	t.Logf("Supervisors: %v", supervisors)
 
 	if len(fabrics) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().Config())
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(fabrics[0].GetName()).Fabric().PowerAdminState().State())
 		t.Logf("Component %s PowerAdminState: %v", fabrics[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
 			t.Errorf("Component %s PowerAdminState is unset", fabrics[0].GetName())
@@ -1063,7 +1065,7 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	}
 
 	if len(linecards) != 0 {
-		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().Config())
+		pas := gnmi.Get(t, dut, gnmi.OC().Component(linecards[0].GetName()).Linecard().PowerAdminState().State())
 		t.Logf("Component %s PowerAdminState: %v", linecards[0].GetName(), pas)
 		if pas == oc.Platform_ComponentPowerType_UNSET {
 			t.Errorf("Component %s PowerAdminState is unset", linecards[0].GetName())
@@ -1071,7 +1073,7 @@ func TestDefaultPowerAdminState(t *testing.T) {
 	}
 	if !deviations.SkipControllerCardPowerAdmin(dut) {
 		if len(supervisors) != 0 {
-			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().Config())
+			pas := gnmi.Get(t, dut, gnmi.OC().Component(supervisors[0].GetName()).ControllerCard().PowerAdminState().State())
 			t.Logf("Component %s PowerAdminState: %v", supervisors[0].GetName(), pas)
 			if pas == oc.Platform_ComponentPowerType_UNSET {
 				t.Errorf("Component %s PowerAdminState is unset", supervisors[0].GetName())

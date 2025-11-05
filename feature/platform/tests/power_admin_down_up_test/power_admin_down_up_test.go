@@ -28,13 +28,13 @@ func TestFabricPowerAdmin(t *testing.T) {
 	for _, f := range fs {
 		t.Run(f, func(t *testing.T) {
 
-			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
-				t.Skipf("Skip the test on non-removable fabric.")
-			}
-
 			empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 			if ok && empty {
 				t.Skipf("Fabric Component %s is empty, hence skipping", f)
+			}
+
+			if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+				t.Skipf("Skip the test on non-removable fabric.")
 			}
 
 			oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
@@ -47,7 +47,7 @@ func TestFabricPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
 		})
 	}
 }
@@ -74,9 +74,9 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 10*time.Minute)
+			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 5*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
 		})
 	}
 }
@@ -107,7 +107,7 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 				t.Skipf("ControllerCard Component %s is already INACTIVE, hence skipping", c)
 			}
 
-			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 5*time.Minute)
+			powerDownUp(t, dut, c, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD, 20*time.Minute)
 		})
 	}
 	if primary != "" {

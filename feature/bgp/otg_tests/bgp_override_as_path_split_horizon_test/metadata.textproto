@@ -19,19 +19,10 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_enabled: true
     default_network_instance: "default"
     bgp_set_med_requires_equal_ospf_set_metric: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    bgp_allowownas_diff_default_value: true
   }
 }
 tags: TAGS_AGGREGATION

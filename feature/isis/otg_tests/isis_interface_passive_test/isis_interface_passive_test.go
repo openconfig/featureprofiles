@@ -65,6 +65,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 
 	// Level configs.
 	level := isis.GetOrCreateLevel(2)
+	level.LevelNumber = ygot.Uint8(2)
 
 	// Authentication configs.
 	auth := level.GetOrCreateAuthentication()
@@ -95,6 +96,9 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 
 	// Interface level configs.
 	isisIntfLevel := intf.GetOrCreateLevel(2)
+	isisIntfLevel.LevelNumber = ygot.Uint8(2)
+	isisIntfLevel.SetEnabled(true)
+	isisIntfLevel.Enabled = ygot.Bool(true)
 	isisIntfLevel.GetOrCreateHelloAuthentication().Enabled = ygot.Bool(true)
 	isisIntfLevel.GetHelloAuthentication().AuthPassword = ygot.String(password)
 	isisIntfLevel.GetHelloAuthentication().AuthType = oc.KeychainTypes_AUTH_TYPE_SIMPLE_KEY
@@ -196,7 +200,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 				t.Errorf("FAIL- Expected area address not found, got %s, want %s", got, want)
 			}
 			// Checking dis system id.
-			if !deviations.MissingValueForDefaults(ts.DUT) {
+			if !deviations.MissingValueForDefaults(ts.DUT) && !deviations.IsisDisSysidUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
 					t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
 				}
@@ -278,7 +282,7 @@ func TestIsisInterfacePassive(t *testing.T) {
 				}
 			}
 			// Checking database_overloads counters.
-			if !deviations.MissingValueForDefaults(ts.DUT) {
+			if !deviations.MissingValueForDefaults(ts.DUT) && !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting non zero database_overloads, got %d, want %d", got, 0)
 				}

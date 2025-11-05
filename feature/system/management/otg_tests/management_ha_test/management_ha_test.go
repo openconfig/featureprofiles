@@ -183,9 +183,9 @@ func TestManagementHA1(t *testing.T) {
 	})
 
 	t.Run("traffic received by port1", func(t *testing.T) {
-		createFlowV6(t, bs)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
 		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		createFlowV6(t, bs)
 		time.Sleep(30 * time.Second)
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
@@ -342,9 +342,7 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 	}
 	prefixSet.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps")
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -401,9 +399,7 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 	prefixSet1.GetOrCreatePrefix(defaultRoute+"/0", "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
-		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps1")
 
 	pdef2 := rp.GetOrCreatePolicyDefinition("exportRoutePolicy")
@@ -419,9 +415,7 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 	prefixSet2.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps2")
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)

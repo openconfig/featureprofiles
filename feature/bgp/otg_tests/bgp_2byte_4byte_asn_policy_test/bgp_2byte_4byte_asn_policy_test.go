@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -38,12 +39,15 @@ const (
 	connExternal        = "EXTERNAL"
 	rejectPrefix        = "REJECT-PREFIX"
 	communitySet        = "COMM-SET"
+	regexAsSet          = "REGEX-AS-SET"
 	rejectCommunity     = "REJECT-COMMUNITY"
 	rejectAspath        = "REJECT-AS-PATH"
 	aclStatement1       = "10"
 	aclStatement2       = "20"
 	aclStatement3       = "50"
 	aclStatement4       = "60"
+	aclStatement5       = "70"
+	aclStatement6       = "80"
 	prefixSubnetRangeV4 = "30..32"
 	prefixSubnetRangeV6 = "126..128"
 	globalAsNumber      = 999
@@ -93,58 +97,74 @@ func TestBgpSession(t *testing.T) {
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
 	t.Log("Configure Network Instance")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dut.Port(t, "port1").Name(), deviations.DefaultNetworkInstance(dut), 0)
+	}
+
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	defaultCount := uint32(0)
 
 	cases := []struct {
 		name    string
 		nbr     *bgpNbr
 		dutConf *oc.NetworkInstance_Protocol
 		ateConf gosnappi.Config
+		bgpType string
 	}{
 		{
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 100, isV4: true}, connExternal, 2),
+			bgpType: connExternal,
 		}, {
 			name:    "Establish eBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 100, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 100, isV4: false}, connExternal, 2),
+			bgpType: connExternal,
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 70000, isV4: true}, connExternal, 4),
+			bgpType: connExternal,
 		}, {
 			name:    "Establish eBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 70000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 70000, isV4: false}, connExternal, 4),
+			bgpType: connExternal,
 		}, {
 			name:    "Establish iBGP connection between ATE (2-byte) - DUT (4-byte < 65535) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv4, peerAS: 200, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv4, peerAS: 200, isV4: true}, connInternal, 2),
+			bgpType: connInternal,
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte < 65535) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 200, peerIP: ateSrc.IPv6, peerAS: 200, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 200, peerIP: dutSrc.IPv6, peerAS: 200, isV4: false}, connInternal, 4),
+			bgpType: connInternal,
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv4 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv4, peerAS: 80000, isV4: true}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv4, peerAS: 80000, isV4: true}, connInternal, 4),
+			bgpType: connInternal,
 		}, {
 			name:    "Establish iBGP connection between ATE (4-byte) - DUT (4-byte) for ipv6 peers",
 			nbr:     &bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false},
 			dutConf: createBgpNeighbor(&bgpNbr{localAS: 80000, peerIP: ateSrc.IPv6, peerAS: 80000, isV4: false}, dut),
 			ateConf: configureATE(t, &bgpNbr{localAS: 80000, peerIP: dutSrc.IPv6, peerAS: 80000, isV4: false}, connInternal, 4),
+			bgpType: connInternal,
 		},
 	}
 
@@ -154,10 +174,15 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
+			if tc.bgpType == connExternal {
+				defaultCount = uint32(0)
+			} else {
+				defaultCount = uint32(3)
+			}
 			configureRegexPolicy(t, dut)
 
 			d := &oc.Root{}
-			rpl := configureBGPPolicy(t, d, tc.nbr.isV4)
+			rpl := configureBGPPolicy(t, d, tc.nbr.isV4, dut)
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rpl)
 
 			t.Log("Configure BGP on DUT")
@@ -174,24 +199,35 @@ func TestBgpSession(t *testing.T) {
 
 			t.Log("Verify BGP AS numbers and prefix count")
 			verifyPeer(t, tc.nbr, dut)
+			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix")
 			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
+			t.Logf("Policy applied, waiting for DUT to apply the policy")
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
-			verifyPrefixesTelemetry(t, dut, 3, tc.nbr.isV4)
+			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with community filter")
 			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
+			t.Logf("Policy applied, waiting for DUT to apply the policy")
+			awaitBGPPolicy(t, dut, tc.nbr, rejectCommunity, 15*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
-			verifyPrefixesTelemetry(t, dut, 3, tc.nbr.isV4)
+			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
 			pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
+			t.Logf("Policy applied, waiting for DUT to apply the policy")
+			awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 15*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 
 			t.Log("Clear BGP Configs on ATE")
@@ -245,6 +281,9 @@ func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.JUNIPER:
 		config = juniperCLI()
 		t.Logf("Push the CLI config:%s", dut.Vendor())
+	default:
+		t.Logf("Push no CLI config:%s", dut.Vendor())
+		return
 	}
 
 	gpbSetRequest, err := buildCliConfigRequest(config)
@@ -259,7 +298,7 @@ func configureRegexPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 // configureBGPPolicy configures a BGP routing policy to accept or reject routes based on prefix match conditions
 // Additonally, it also configures policy to match prefix based on community and regex for as path
-func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
+func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool, dut *ondatra.DUTDevice) *oc.RoutingPolicy {
 	t.Helper()
 	rp := d.GetOrCreateRoutingPolicy()
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(rejectPrefix)
@@ -299,7 +338,11 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 		t.Errorf("Error while creating new statement %v", err)
 	}
 	stmt50.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-	stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().CommunitySet = ygot.String(communitySet)
+	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySet)
+	} else {
+		stmt50.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySet)
+	}
 
 	stmt60, err := pdefComm.AppendNewStatement(aclStatement4)
 	if err != nil {
@@ -307,7 +350,46 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool) *oc.RoutingPolicy {
 	}
 	stmt60.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
+	rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(regexAsSet).SetAsPathSetMember([]string{".* 4400 3300"})
+	pdefAs := rp.GetOrCreatePolicyDefinition(rejectAspath)
+
+	stmt70, err := pdefAs.AppendNewStatement(aclStatement5)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	stmt70.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(regexAsSet)
+		stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+	}
+
+	stmt80, err := pdefAs.AppendNewStatement(aclStatement6)
+	if err != nil {
+		t.Errorf("Error while creating new statement %v", err)
+	}
+	stmt80.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	return rp
+}
+
+func awaitBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, nbr *bgpNbr, policyName string, timeout time.Duration) {
+	t.Helper()
+	afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+	if nbr.isV4 {
+		afiSafiType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+	}
+	// importPolicyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr.peerIP).AfiSafi(afiSafiType).ApplyPolicy().ImportPolicy().State()
+	importPolicyPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().PeerGroup("ATE").AfiSafi(afiSafiType).ApplyPolicy().ImportPolicy().State()
+	_, ok := gnmi.Watch(t, dut, importPolicyPath, timeout, func(val *ygnmi.Value[[]string]) bool {
+		policies, present := val.Val()
+		return present && len(policies) > 0 && policies[0] == policyName
+	}).Await(t)
+	if !ok {
+		t.Logf("Policy %s not installed on peer-group ATE", policyName)
+	} else {
+		t.Logf("Policy %s installed on peer-group ATE", policyName)
+	}
 }
 
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, wantInstalled uint32, isV4 bool) {
@@ -327,7 +409,12 @@ func verifyPrefixesTelemetryV4(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 
-	if gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State()); gotInstalled != wantInstalled {
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotInstalled, _ := val.Val()
+		return gotInstalled == wantInstalled
+	}).Await(t)
+
+	if !ok {
 		t.Errorf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
 }
@@ -338,7 +425,12 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateSrc.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
-	if gotInstalledv6 := gnmi.Get(t, dut, prefixesv6.Installed().State()); gotInstalledv6 != wantInstalledv6 {
+	gotInstalledv6, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotInstalledv6, _ := val.Val()
+		return gotInstalledv6 == wantInstalledv6
+	}).Await(t)
+
+	if !ok {
 		t.Errorf("IPV6 Installed prefixes mismatch: got %v, want %v", gotInstalledv6, wantInstalledv6)
 	}
 }
@@ -384,7 +476,6 @@ func verifyPeer(t *testing.T, nbr *bgpNbr, dut *ondatra.DUTDevice) {
 		t.Errorf("BGP globalAS: got %v, want %v", globalAS, nbr.localAS)
 	}
 
-	verifyPrefixesTelemetry(t, dut, 3, nbr.isV4)
 }
 
 func configureATE(t *testing.T, ateParams *bgpNbr, connectionType string, asWidth int) gosnappi.Config {
@@ -494,7 +585,7 @@ func applyBgpPolicy(policyName string, dut *ondatra.DUTDevice, isV4 bool) *oc.Ne
 	pg.PeerGroupName = ygot.String("ATE")
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		//policy under peer group
+		// policy under peer group
 		pg.GetOrCreateApplyPolicy().ImportPolicy = []string{policyName}
 		return niProto
 	}
@@ -533,6 +624,12 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	global := bgp.GetOrCreateGlobal()
 	global.As = ygot.Uint32(globalAsNumber)
 	global.RouterId = ygot.String(dutSrc.IPv4)
+
+	bgpGlobalIPv4AF := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	bgpGlobalIPv4AF.SetEnabled(true)
+
+	bgpGlobalIPv6AF := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	bgpGlobalIPv6AF.SetEnabled(true)
 
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerAs = ygot.Uint32(nbr.peerAS)

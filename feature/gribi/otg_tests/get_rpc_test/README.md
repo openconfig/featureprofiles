@@ -48,18 +48,14 @@ Validate gRIBI Get RPC.
 [fib_status]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L485
 [rib_status]: https://github.com/openconfig/gribi/blob/08d53dffce45e942c6e7f07521c58b557984e4b7/v1/proto/service/gribi.proto#L483
 
-## Config Parameter coverage
+## OpenConfig Path and RPC Coverage
 
-No additional configuration parameters.
-
-## Telemetry Parameter coverage
-
-No additional telemetry parameters.
-
-## Protocol/RPC Parameter coverage
-
-*   gRIBI
-    *   Get
+```yaml
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Set:
+```
 
 ## Minimum DUT platform requirement
 

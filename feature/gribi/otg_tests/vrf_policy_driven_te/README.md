@@ -37,6 +37,11 @@ DUT port-8 <------> port-8 ATE
 * magic_mac = 02:00:00:00:00:01`
 ```
 
+## Canonical OC
+```json
+{}
+```   
+
 vrf_selection_policy_c
 ```
 network-instances {
@@ -579,24 +584,28 @@ The DUT should be reset to the baseline after each of the following tests.
     ```
     * inner_src: `ipv4_inner_src`
     * inner_dst: `ipv4_inner_encap_match`
+    * inner_ecn: `ecnCapable1`
     * dscp: `dscp_encap_no_match`
     * outter_src: `ipv4_outter_src_111`
     * outter_dst: `ipv4_outter_decap_match`
+    * outter_ecn: `ecnCongestionExperienced`
     * dscp: `dscp_encap_no_match`
     * proto: `4`
 
     * inner_src: `ipv6_inner_src`
     * inner_dst: `ipv6_inner_encap_match`
+    * inner_ecn: `ecnCapable1`
     * dscp: `dscp_encap_no_match`
     * outter_src: `ipv4_outter_src_111`
     * outter_dst: `ipv4_outter_decap_match`
+    * outter_ecn: `ecnCongestionExperienced`
     * dscp: `dscp_encap_no_match`
     * proto: `41`
     ```
 
 4.  Verify that the packets have their outer v4 header stripped and are forwarded out of DUT port-8 per the BGP-ISIS routes in the DEFAULT VRF.
 
-5.  Verify that the TTL value is copied from the outer header to the inner header.
+5.  Verify that the TTL value is copied from the outer header to the inner header. Also ECN should be copied from outer to inner header. IF outer or inner packet is marked as ECN 11 (congestionexperienced), which means packet is congestion experienced, in such cases we need to copy ECN 11 to outer/inner HDR in order communicate about congestion in the network.
 
 6.  Change the subnet mask from /24 and repeat the test for the masks  /32, /22, and /28 and verify again that the packets are decapped and forwarded correctly.
 

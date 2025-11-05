@@ -51,12 +51,11 @@ package rundata
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/ondatra/binding"

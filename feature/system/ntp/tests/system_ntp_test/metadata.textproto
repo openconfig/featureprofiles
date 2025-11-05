@@ -13,3 +13,11 @@ platform_exceptions: {
     ntp_non_default_vrf_unsupported: true
   }
 }
+platform_exceptions: {
+ platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ntp_source_address_unsupported: true
+  }
+}

@@ -356,7 +356,7 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 				pfRProtoIP.DscpSet = pfRule.ipv4.dscpSet
 			}
 			if pfRule.ipv4.protocol != 0 {
-				pfRProtoIP.Protocol = oc.UnionUint8(pfRule.ipv4.protocol)
+				pfRProtoIP.Protocol = pfRule.ipv4.protocol
 			}
 			if pfRule.ipv4.sourceAddr != "" {
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
@@ -395,6 +395,6 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		interfaceID = ingressPort + ".0"
 	}
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	gnmi.Delete(t, dut, pfpath.Config())
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	gnmi.Delete(t, dut, pfPath.Config())
 }
