@@ -73,6 +73,14 @@ type PolicyForwardingRule struct {
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
 }
 
+type NonMatchRoutingParams struct {
+	RoutePolicyName string
+	PolicyStatement string
+	PrefixSetName   string
+	MaskLenExact    string
+	NonAdvertisedIP string
+}
+
 var (
 
 	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
@@ -973,4 +981,45 @@ func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
 		return i + seqIDBase
 	}
 	return i
+}
+
+// NonMatchingPrefixRoutePolicy configures a routing policy on the DUT that matches a specified prefix set but is intended for testing non-advertised (non-matching) prefixes. It creates or updates a policy definition with the given statement and actions to ACCEPT_ROUTE.
+func NonMatchingPrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg NonMatchRoutingParams) {
+	root := &oc.Root{}
+	rp := root.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(cfg.RoutePolicyName)
+	stmt, err := pdef.AppendNewStatement(cfg.PolicyStatement)
+	if err != nil {
+		t.Fatalf("AppendNewStatement(%s) failed: %v", cfg.PolicyStatement, err)
+	}
+	stmt.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	if !deviations.SkipIsisSetLevel(dut) {
+		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetLevel(2)
+	}
+	if !deviations.SkipIsisSetMetricStyleType(dut) {
+		stmt.GetOrCreateActions().GetOrCreateIsisActions().SetSetMetricStyleType(oc.IsisPolicy_MetricStyle_WIDE_METRIC)
+	}
+
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetName)
+	if !deviations.SkipPrefixSetMode(dut) {
+		prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
+	}
+	prefixSet.GetOrCreatePrefix(cfg.NonAdvertisedIP, cfg.MaskLenExact)
+
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(cfg.PrefixSetName)
+	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
+// ConfigureRoutePolicyAllow creates or updates a routing policy on the DUT with the given name and result type.
+func ConfigureRoutePolicyAllow(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 }
