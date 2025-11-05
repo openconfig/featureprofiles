@@ -818,6 +818,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
+		queue.SetQueueManagementProfile("queueManagementProfile")
 		queue.SetName(tc.queueName)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
