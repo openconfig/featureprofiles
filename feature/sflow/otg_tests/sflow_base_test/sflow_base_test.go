@@ -45,7 +45,7 @@ const (
 	lossTolerance   = 1
 	mgmtVRF         = "mvrf1"
 	sampleTolerance = 0.8
-	ciscominSamplingRate = 262144
+ciscoMinSamplingRate = 262144
 )
 
 var (
