@@ -76,9 +76,13 @@ func TestCopyingDebugFiles(t *testing.T) {
 	if pID == 0 {
 		t.Fatalf("process %v not found on device", processName[dut.Vendor()])
 	}
+	procName := processName[dut.Vendor()]
+	if procName == "rpd" {
+		procName = "re0:routing"
+	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
-		Name:    processName[dut.Vendor()],
+		Name:    procName,
 		Pid:     uint32(pID),
 		Restart: true,
 	}
