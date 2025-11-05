@@ -178,8 +178,8 @@ func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		root := &oc.Root{}
-		protocol := root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut))
+		protocol := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut))
 		v6MultiTopology := protocol.GetOrCreateIsis().GetOrCreateGlobal().
 			GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).
 			GetOrCreateMultiTopology()
