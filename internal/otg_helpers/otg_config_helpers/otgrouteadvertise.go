@@ -195,21 +195,7 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 
 		// Advertise ISIS routes only from first port to produce a single next-hop
 		if i == 0 {
-			if ateRoutes.ISISV4Routes.Count == 0 {
-				ateRoutes.ISISV4Routes.Count = DefaultISISRouteCount
-			}
-			if ateRoutes.ISISV6Routes.Count == 0 {
-				ateRoutes.ISISV6Routes.Count = DefaultISISRouteCount
-			}
 			AdvertiseISISRoutes(dev, ipv4, ipv6, ateRoutes.ISISV4Routes, ateRoutes.ISISV6Routes)
-		}
-
-		// Advertise BGP routes
-		if ateRoutes.BGPV4Routes.Count == 0 {
-			ateRoutes.BGPV4Routes.Count = DefaultBGPRouteCount
-		}
-		if ateRoutes.BGPV6Routes.Count == 0 {
-			ateRoutes.BGPV6Routes.Count = DefaultBGPRouteCount
 		}
 		AdvertiseBGPRoutes(dev, ipv4, ipv6, ateRoutes.BGPV4Routes, ateRoutes.BGPV6Routes)
 	}
