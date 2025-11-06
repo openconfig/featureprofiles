@@ -155,10 +155,6 @@ func createFlow(flowName string, flowSize uint32, ipv6 string) gosnappi.Flow {
 
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttrs *attrs.Attributes) {
 	intf := portAttrs.NewOCInterface(port.Name(), dut)
-	intf.Type = ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		intf.Enabled = ygot.Bool(true)
-	}
 	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, port)
