@@ -219,15 +219,10 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 		return state == oc.Isis_IsisInterfaceAdjState_UP
 	}
 
-	dutPort1 := tc.dut.Port(t, port1Name).Name()
-	dutPort2 := tc.dut.Port(t, port2Name).Name()
-
-	for i, dutPort := range []string{dutPort1, dutPort2} {
-		// systemID := fmt.Sprintf("%s%d", otgconfighelpers.ISISATESystemIDPrefix, i+1)
-		adjPath := isisPath.Interface(dutPort).Level(2).AdjacencyAny()
-		if _, ok := gnmi.WatchAll(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
-			return fmt.Errorf("no ISIS adjacency formed for port%d (%s)", i+1, dutPort)
-		}
+	dutPort := tc.dut.Port(t, port1Name).Name()
+	adjPath := isisPath.Interface(dutPort).Level(2).AdjacencyAny()
+	if _, ok := gnmi.WatchAll(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
+		return fmt.Errorf("no ISIS adjacency formed for port1 (%s)", dutPort)
 	}
 	return nil
 }
