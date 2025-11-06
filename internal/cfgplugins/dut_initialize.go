@@ -33,6 +33,7 @@ const (
 	FeaturePolicyForwarding
 	FeatureQOSCounters
 	FeatureEnableAFTSummaries
+	FeatureACL
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -392,6 +393,77 @@ hardware tcam
          route-summary
    agent OpenConfig terminate
    `
+
+	aristaTcamACL = `
+   hardware tcam
+   profile test_profile
+      feature acl port ip
+         sequence 45
+         key size limit 160
+         key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control ttl
+         action count drop mirror
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+      !
+      feature acl port ipv6
+         sequence 25
+         key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-ops-3b l4-src-port src-ipv6-high src-ipv6-low tcp-control
+         action count drop mirror
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet ipv6 forwarding routed multicast
+      !
+      feature acl port ipv6 egress
+         sequence 105
+         key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
+         action count drop mirror
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+      !
+      feature acl port mac
+         sequence 55
+         key size limit 160
+         key field dst-mac ether-type src-mac
+         action count drop mirror
+         packet ipv4 forwarding bridged
+         packet ipv4 forwarding routed
+         packet ipv4 forwarding routed multicast
+         packet ipv6 forwarding bridged
+         packet ipv6 forwarding routed
+         packet ipv6 forwarding routed decap
+         packet ipv6 forwarding routed multicast
+         packet ipv6 ipv6 forwarding routed decap
+         packet non-ip forwarding bridged
+      !
+      feature traffic-policy port ipv4
+         sequence 45
+         key size limit 160
+         key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
+         action count drop redirect set-dscp set-tc
+         packet ipv4 forwarding routed
+      !
+      feature traffic-policy port ipv4 egress
+         key size limit 160
+         key field dscp dst-ip-label ip-frag ip-protocol l4-dst-port-label l4-src-port-label src-ip-label
+         action count drop
+         packet ipv4 forwarding routed
+      !
+      feature traffic-policy port ipv6
+         sequence 25
+         key size limit 160
+         key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
+         action count drop redirect set-dscp set-tc
+         packet ipv6 forwarding routed
+      !
+      feature traffic-policy port ipv6 egress
+         key size limit 160
+         key field dscp dst-ipv6-label ipv6-next-header l4-dst-port-label l4-src-port-label src-ipv6-label
+         action count drop
+         packet ipv6 forwarding routed
+      !
+   system profile test_profile
+   `
 )
 
 var (
@@ -401,6 +473,7 @@ var (
 		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
 		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
 		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
+		FeatureACL:                  aristaTcamACL,
 	}
 )
 

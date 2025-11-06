@@ -16,6 +16,7 @@ package acllargescale_test
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"testing"
@@ -38,7 +39,6 @@ const (
 	trafficFrameSize = 512
 	trafficPps       = 100
 	noOfPackets      = 5000
-	sleepTime        = time.Duration(trafficFrameSize / trafficPps)
 
 	// BGP AS
 	atePort1AS = 65002
@@ -50,7 +50,6 @@ const (
 	// BGP Peers
 	peerGrpNamev4           = "BGP-PEER-GROUP-V4"
 	peerGrpNamev6           = "BGP-PEER-GROUP-V6"
-	rplName                 = "ALLOW"
 	peerCountMultiplePrefix = 25000
 	pfxvLen22               = peerCountMultiplePrefix * 5 / 100
 	pfxvLen24               = peerCountMultiplePrefix * 35 / 100
@@ -433,7 +432,7 @@ func configHighScaleACL(t *testing.T, dut *ondatra.DUTDevice, name string, start
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			for i := startCount; i <= lastCount; i++ {
-				cliConfig += fmt.Sprintf("%d permit %s %s any\n", i, ipType, srcAddr)
+				cliConfig += fmt.Sprintf("%d permit %s %s any\n", i, ipType, fmt.Sprintf(srcAddr, rand.Intn(256)))
 			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
@@ -730,7 +729,7 @@ func createFlow(flowName string, srcPort []string, dstPort []string, srcAddress 
 	return flow
 }
 
-func withdrawBGPRoutes(t *testing.T, conf gosnappi.Config, routeNames []string) {
+func withdrawBGPRoutes(t *testing.T, routeNames []string) {
 
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
@@ -871,14 +870,20 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		action     string
 		log        bool
 	}{
-		{aclNameHighScale, 1, 100, fmt.Sprintf("%s/%d", prefixV4Address1, prefix1), "ACCEPT", false},
-		{aclNameHighScale, 126, 150, fmt.Sprintf("%s/%d", prefixV4Address2, prefix2), "ACCEPT", true},
-		{aclNameHighScale, 151, 175, fmt.Sprintf("%s/%d", prefixV4Address3, prefix3), "ACCEPT", false},
-		{aclNameHighScale, 176, 200, fmt.Sprintf("%s/%d", prefixV4Address4, prefix4), "ACCEPT", false},
+		{aclNameHighScale, 1, 100, "100.1.%d.0/22", "ACCEPT", false},
+		{aclNameHighScale, 126, 150, "50.1.%d.0/24", "ACCEPT", true},
+		{aclNameHighScale, 151, 175, "200.1.%d.0/30", "ACCEPT", false},
+		{aclNameHighScale, 176, 200, "210.1.%d.0/32", "ACCEPT", false},
 	}
 	for _, acl := range highScaleACL {
 		configHighScaleACL(t, dut, acl.name, acl.startCount, acl.lastCount, acl.srcIp, acl.action, acl.log, aclTypeIPv4)
 	}
+
+	cliConfig := fmt.Sprintf(`
+					ip access-list %s
+					%d permit ip any any
+					`, aclNameHighScale, 201)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 	// Apply ACL_IPV4_Match_length_22_tcp_range on DUT-port1 Ingress
 	configACLInterface(t, dut, "port1", aclNameIPv4Len22, true, true)
@@ -1012,7 +1017,7 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-		withdrawBGPRoutes(t, config, flows.withdrawBGPRoutes)
+		withdrawBGPRoutes(t, flows.withdrawBGPRoutes)
 
 		otgConfig.StartTraffic(t)
 		time.Sleep(time.Second * 60)
@@ -1071,14 +1076,19 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		action     string
 		log        bool
 	}{
-		{"ACL_IPV6_Match_high_scale_statements", 1, 125, fmt.Sprintf("%s/%d", prefixV6Address1, prefixV6_1), "ACCEPT", false},
-		{"ACL_IPV6_Match_high_scale_statements", 126, 150, fmt.Sprintf("%s/%d", prefixV6Address2, prefixV6_2), "ACCEPT", true},
-		{"ACL_IPV6_Match_high_scale_statements", 151, 175, fmt.Sprintf("%s/%d", prefixV6Address3, prefixV6_3), "ACCEPT", false},
-		{"ACL_IPV6_Match_high_scale_statements", 176, 200, fmt.Sprintf("%s/%d", prefixV6Address4, prefixV6_4), "ACCEPT", false},
+		{"ACL_IPV6_Match_high_scale_statements", 1, 125, "1000:1:%x::/48", "ACCEPT", false},
+		{"ACL_IPV6_Match_high_scale_statements", 126, 150, "5000:1:%x::/96", "ACCEPT", true},
+		{"ACL_IPV6_Match_high_scale_statements", 151, 175, "1500:1:%x::/126", "ACCEPT", false},
+		{"ACL_IPV6_Match_high_scale_statements", 176, 200, "2000:1:%x::/128", "ACCEPT", false},
 	}
 	for _, acl := range highScaleACL {
 		configHighScaleACL(t, dut, acl.name, acl.startCount, acl.lastCount, acl.srcIp, acl.action, acl.log, aclTypeIPv6)
 	}
+	cliConfig := fmt.Sprintf(`
+					ipv6 access-list %s
+					%d permit ipv6 any any
+					`, "ACL_IPV6_Match_high_scale_statements", 201)
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 	// Apply ACL_IPV4_Match_length_22_tcp_range on DUT-port1 Ingress
 	configACLInterface(t, dut, "port1", "ACL_IPV6_Match_length_48_tcp_range", true, false)
@@ -1211,7 +1221,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-		withdrawBGPRoutes(t, config, flows.withdrawBGPRoutes)
+		withdrawBGPRoutes(t, flows.withdrawBGPRoutes)
 
 		otgConfig.StartTraffic(t)
 		time.Sleep(time.Second * 60)
