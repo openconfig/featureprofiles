@@ -1,8 +1,8 @@
-# IPSEC-1.2 IPSec Packet-Order with MACSec over aggregated links.
+# IPSEC-1.3 IPSec Packet-Order with MACSec over aggregated links.
 
 ## Summary
 
-This test verifies the IPSec tunneling scale between a pair of devices. A pair of DUTs establish an IPsec tunnel. Traffic on ingress to the DUT is then encrypted and forwarded over the tunnel to the egress DUT, which then decrypts the packets and forwards to the final destination.
+This test verifies proper IPSec packet out-of-order processing. A pair of DUTs establish an IPsec tunnel. Traffic on ingress to the DUT is then encrypted and forwarded over the tunnel to the egress DUT, with the packets arriving out-of-order, which then decrypts the packets and forwards to the final destination.
 
 ## Testbed Type
 

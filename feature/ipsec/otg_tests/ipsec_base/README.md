@@ -8,7 +8,7 @@ This test verifies the IPSec tunneling between a pair of devices. A pair of DUTs
 
 The ate-dut testbed configuration would be used, as described below.
 
-*  [`featureprofiles/topologies/atedut4dutate.testbed `](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut4dutate.testbed)
+*  [`featureprofiles/topologies/atedut4dutate.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut4dutate.testbed)
 
 TODO: when OTG API supports IPSec, refactor the topology to be: `atedut8` where the ATE serves as the endpoints of the ipsec tunnel
 
@@ -31,7 +31,7 @@ All physical interfaces are expected to be the same physical speed unless specif
 * DUT \<\> DUT will contain the IPsec tunnel
 * ATE Port1 \<\> DUT1 Port5 are configured with MACsec; ATE Port2 \<\> DUT2 Port 5 do not have MACsec.
 * DUT1 and DUT2 are the endpoints of the IPSec tunnel;
-* Traffic on the DUT-DUT links is encrypted using native-ipsec tunnel-mode). There are no additional GUE / MPLSoGUE/ MPLSoGRE / GRE / MPLS encapsulation layers in/above/below the ipsec traffic. 
+* Traffic on the DUT-DUT links is encrypted using native-ipsec tunnel-mode. There are no additional GUE / MPLSoGUE/ MPLSoGRE / GRE / MPLS encapsulation layers in/above/below the ipsec traffic. 
 
 ATE generated traffic flow definition:
 * IPv4 and IPv6 addressing with 200 flows each.
@@ -48,7 +48,7 @@ For the DUT \<\> ATE configuration (on both sides), see the gre\_ipv4\_encap set
     1.  The macsec MTU may be adjusted as necessary to account for any macsec overhead not included in the MTU value
 5.  Interfaces
     1.  1 link, as port-channel with 1 member
-    1.  IPv4 and IPv6 address on the subnet
+    2.  IPv4 and IPv6 address on the subnet
 
 For the DUT interface configuration:
 
@@ -203,7 +203,7 @@ Verify:
 
 ### IPSEC-1.1.9: Verify IPSec shared-key key rotation
 
-Use the standard ATE - DUT - DUT - ATE topology with 2 DUTs have an ipsec tunnel established between them over IPv4
+Use the standard ATE - DUT - DUT - ATE topology with 2 DUTs that have an ipsec tunnel established between them
 
 * Generate bidirectional traffic as highlighted in the test environment.
     * IPSEC traffic with IPV4 Payloads from ATE ports 1,2
@@ -251,7 +251,7 @@ Verify:
 
 ### IPSEC-1.1.12: Verify QoS: Control Plane survives with Dataplane Congestion
 
-1.  Using the setup described in [feature/qos/otg\_tests/egress\_strict\_prioirty\_scheduler\_test](https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_strict_priority_scheduler_test/README.md)
+1.  Using the setup described in [feature/qos/otg\_tests/egress\_strict\_priority\_scheduler\_test](https://github.com/openconfig/featureprofiles/blob/main/feature/qos/otg_tests/egress_strict_priority_scheduler_test/README.md)
 2.  Classify/schedule traffic on the DUT \<\> DUT connection as:
     1.  IPSec dataplane (tunneled) traffic as AF3
     2.  IPSec control plane (IKE) as AF4
@@ -281,7 +281,7 @@ Verify:
 
   * *MTU-RANGE:* Use 64, 128, 256, 512, 1024, 1500, 4500, and MAX MTU bytes frame size.
 
-## Canonical OpenConfig for MACsec configuration
+## Canonical OC for MACsec configuration
  
 ```json
 {
@@ -364,7 +364,7 @@ Verify:
                 "key": [
                     {
                         "config": {
-                            "secret-key": "sercret password/CAK",
+                            "secret-key": "secret password/CAK",
                             "key-id": "key-id/CKN",
                             "crypto-algorithm": "AES_256_CMAC",
                             "send-lifetime": {
@@ -396,7 +396,34 @@ TODO
 
 Monitoring for these tunnels must be available via OC and/or standard native YANG modeling.
 
-List of paths TODO
+```yaml
+
+/security/ipsec/profiles/profile/config/mode:
+/security/ipsec/profiles/profile/config/ike-policy:
+/security/ipsec/profiles/profile/config/security-association:
+/security/ipsec/profiles/profile/config/connection-type:
+/security/ipsec/profiles/profile/config/shared-key:
+/security/ipsec/profiles/profile/dpd:
+/security/ipsec/profiles/profile/dpd/config/enabled:
+/security/ipsec/profiles/profile/dpd/config/keepalive:
+/security/ipsec/profiles/profile/dpd/config/hold-time:
+/security/ipsec/profiles/profile/dpd/config/action:
+
+/security/ike/policies/policy/config/ike-lifetime:
+/security/ike/policies/policy/config/integrity:
+/security/ike/policies/policy/config/dh-group:
+/security/ike/policies/policy/config/encryption:
+/security/ike/policies/policy/config/version:
+
+/interfaces/interface/tunnel/config/mode:
+/interfaces/interface/tunnel/config/ipsec-profile:
+
+/security/ike/security-associations/security-association/config/sa-lifetime:
+/security/ike/security-associations/security-association/config/esp-encryption:
+/security/ike/security-associations/security-association/config/esp-integrity:
+/security/ike/security-associations/security-association/config/pfs-dh-group:
+
+ ```
 
 ## Required DUT platform
 

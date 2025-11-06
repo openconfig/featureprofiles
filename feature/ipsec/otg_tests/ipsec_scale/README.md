@@ -32,7 +32,7 @@ Verify:
 * All traffic received from ATE (other than any local traffic) gets forwarded as ipsec
 * No packet loss
 * Traffic equally load balanced across DUT \<\> DUT ports.
-* Traffic equally load balanced across the tunnels \[new\]
+* Traffic equally load balanced across the tunnels
 
 ### IPSEC-1.2.2: Verify IPv6 Connectivity over a Max \# of Tunnels for Single Attachment
 
