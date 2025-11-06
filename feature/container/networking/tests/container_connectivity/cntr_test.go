@@ -28,6 +28,7 @@ import (
 
 	"github.com/kr/pretty"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -164,6 +165,12 @@ func TestDialLocal(t *testing.T) {
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
 
+	var dialAddr string
+	dialAddr = "localhost"
+	if deviations.LocalhostForContainerz(dut) {
+		dialAddr = "[fd01::1]"
+	}
+
 	tests := []struct {
 		desc     string
 		inMsg    *cpb.DialRequest
@@ -172,7 +179,7 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr:     "localhost:9339",
+			Addr:     dialAddr + ":9339",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -183,7 +190,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
-			Addr:     "localhost:9340",
+			Addr:     dialAddr + ":9340",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
@@ -194,7 +201,7 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial something not listening",
 		inMsg: &cpb.DialRequest{
-			Addr:     "localhost:4242",
+			Addr:     dialAddr + ":4242",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
