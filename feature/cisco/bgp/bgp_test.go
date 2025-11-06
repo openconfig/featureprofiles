@@ -12,12 +12,38 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// TestBGPState validates BGP operational state via gNMI telemetry.
+//
+// This test configures BGP on the DUT using YAML-driven configuration (testdata/bgp.yaml)
+// and validates all BGP telemetry paths including:
+//   - Global BGP state (AS, Router-ID, graceful restart)
+//   - Neighbor state (description, enabled, peer/local AS, addresses)
+//   - Transport state (local/remote addresses and ports, MTU discovery, passive mode)
+//   - Session state (established, transitions, timers)
+//   - AFI/SAFI state (enabled, active, graceful restart, prefix counters)
+//   - Messages state (sent/received notifications and updates)
+//   - Queue state (input/output queue depths)
+//
+// Configuration Approach:
+//
+//	The test uses inputObj.ConfigBGP(dut) which reads from testdata/bgp.yaml and
+//	translates it through the proto → OpenConfig → gNMI pipeline defined in
+//	tools/inputcisco/feature/bgp.go
+//
+// Test Flow:
+//  1. Load YAML configuration into proto structs
+//  2. Configure DUT interfaces
+//  3. Apply BGP configuration via gNMI (inputObj.ConfigBGP)
+//  4. Configure BGP network statements to advertise routes
+//  5. Start ATE BGP sessions
+//  6. Validate telemetry paths against expected values from YAML
 func TestBGPState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 	ate := ondatra.ATE(t, ate1)
@@ -30,6 +56,34 @@ func TestBGPState(t *testing.T) {
 	util.GNMIWithText(context.Background(), t, dut, configToChange)
 	inputObj.ConfigInterfaces(dut)
 	time.Sleep(30 * time.Second)
+
+	// Configure Routing Policies BEFORE BGP (required for eBGP on Cisco XR)
+	t.Log("Configuring routing policies")
+	inputObj.ConfigRPL(dut)
+	defer func() {
+		t.Log("Cleaning up routing policy configuration")
+		inputObj.UnConfigRPL(dut)
+	}()
+	time.Sleep(10 * time.Second)
+
+	// Configure BGP on DUT (must happen BEFORE network statements)
+	// Note: ConfigBGP() applies the main BGP configuration (AS, neighbors, policies) via gNMI
+	t.Log("Configuring BGP on DUT")
+	inputObj.ConfigBGP(dut)
+	defer func() {
+		t.Log("Cleaning up BGP configuration")
+		inputObj.UnConfigBGP(dut)
+	}()
+	time.Sleep(30 * time.Second)
+
+	// Configure BGP network statements (must happen AFTER ConfigBGP)
+	// These CLI commands add "network X.X.X.X/X" statements to advertise connected routes
+	// Note: Routes advertised are connected subnets (100.120.1.0/24 and 100.121.1.0/24)
+	t.Log("Configuring BGP network statements for route advertisement")
+	inputObj.ConfigBGPNetworks(dut)
+	time.Sleep(10 * time.Second)
+
+	// Start ATE protocols (BGP neighbor)
 	inputObj.StartAteProtocols(ate)
 	time.Sleep(30 * time.Second)
 	for _, bgp := range inputObj.Device(dut).Features().Bgp {
@@ -146,7 +200,6 @@ func TestBGPState(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Transport().PassiveMode()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
-				gnmi.Get(t, dut, state.State())
 				if val == true {
 					t.Errorf("BGP Neighbor passive-mode: got %v, want %v", val, false)
 				}
@@ -157,7 +210,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Advertised()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val != true {
 						t.Errorf("BGP Neighbor Afisafi graceful-restart Advertised: got %v, want %v", val, true)
 					}
@@ -166,7 +218,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).GracefulRestart().Received()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val != true {
 						t.Errorf("BGP Neighbor Afisafi graceful-restart Recieved: got %v, want %v", val, true)
 					}
@@ -175,7 +226,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Active()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val != true {
 						t.Errorf("BGP Neighbor Afisafi Active: got %v, want %v", val, true)
 					}
@@ -184,7 +234,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Enabled()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val != true {
 						t.Errorf("BGP Neighbor Afisafi Enabled: got %v, want %v", val, true)
 					}
@@ -193,7 +242,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).AfiSafiName()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val != afitype {
 						t.Errorf("BGP Neighbor Afisafi Enabled: got %s, want %s", val, afitype)
 					}
@@ -204,7 +252,6 @@ func TestBGPState(t *testing.T) {
 						state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().WarningThresholdPct()
 						defer observer.RecordYgot(t, "SUBSCRIBE", state)
 						val := gnmi.Get(t, dut, state.State())
-						gnmi.Get(t, dut, state.State())
 						if val == 0 {
 							t.Errorf("BGP Neighbor Afisafi IPV4 unicast PrefixLimit WarningThresholdPct: got %d, want !=%d", val, 0)
 						}
@@ -213,7 +260,6 @@ func TestBGPState(t *testing.T) {
 						state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Ipv4Unicast().PrefixLimit().MaxPrefixes()
 						defer observer.RecordYgot(t, "SUBSCRIBE", state)
 						val := gnmi.Get(t, dut, state.State())
-						gnmi.Get(t, dut, state.State())
 						if val == 0 {
 							t.Errorf("BGP Neighbor Afisafi IPV4 unicast PrefixLimit MAxPrefixes: got %d, want !=%d", val, 0)
 						}
@@ -223,7 +269,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Installed()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val == 0 || val > 0 {
 						t.Logf("Got correct BGP Neighbor Afisafi  Prefixes installed value")
 					} else {
@@ -234,7 +279,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().ReceivedPrePolicy()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val == 0 || val > 0 {
 						t.Logf("Got correct BGP Neighbor Afisafi  Prefixes ReceivedPrePolicy value")
 					} else {
@@ -245,7 +289,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Received()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val == 0 || val > 0 {
 						t.Logf("Got correct BGP Neighbor Afisafi  Prefixes Received value")
 					} else {
@@ -256,7 +299,6 @@ func TestBGPState(t *testing.T) {
 					state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).AfiSafi(afitype).Prefixes().Sent()
 					defer observer.RecordYgot(t, "SUBSCRIBE", state)
 					val := gnmi.Get(t, dut, state.State())
-					gnmi.Get(t, dut, state.State())
 					if val == 0 || val > 0 {
 						t.Logf("Got correct BGP Neighbor Afisafi  Prefixes sent value")
 					} else {
@@ -269,7 +311,6 @@ func TestBGPState(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().NOTIFICATION()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
-				gnmi.Get(t, dut, state.State())
 				if val != 0 {
 					t.Errorf("BGP Neighbor messages recieved Notification: got %d, want  %d", val, 0)
 				}
@@ -278,7 +319,6 @@ func TestBGPState(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Received().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
-				gnmi.Get(t, dut, state.State())
 				if val == 0 || val > 0 {
 					t.Logf("Got correct Neighbor messages recieved Update value")
 				} else {
@@ -289,7 +329,6 @@ func TestBGPState(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().NOTIFICATION()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
-				gnmi.Get(t, dut, state.State())
 				if val != 0 {
 					t.Errorf("BGP Neighbor messages sent Notification: got %d, want  %d", val, 0)
 				}
@@ -297,18 +336,40 @@ func TestBGPState(t *testing.T) {
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/messages/sent/state/update", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Messages().Sent().UPDATE()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
+
+				// Wait for BGP route advertisement convergence
+				// BGP needs time to: process network statements, validate against RIB, advertise to peers
+				// Polling avoids race conditions from checking UPDATE counter before routes are advertised
+				gnmi.Watch(t, dut, state.State(), 60*time.Second, func(val *ygnmi.Value[uint64]) bool {
+					updateCount, present := val.Val()
+					if present && updateCount > 0 {
+						t.Logf("BGP route advertisement converged: UPDATE messages = %d", updateCount)
+						return true
+					}
+					return false
+				}).Await(t)
+
+				// Validate final value meets expectations
 				val := gnmi.Get(t, dut, state.State())
-				gnmi.Get(t, dut, state.State())
 				if val == 0 {
-					t.Errorf("BGP Neighbor messages sent Update: got %d, want  %d", val, 0)
+					t.Errorf("BGP Neighbor messages sent Update: got %d, want > 0 (routes should be advertised)", val)
+				} else {
+					t.Logf("BGP Neighbor messages sent Update: %d (bidirectional route exchange validated)", val)
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/state/negotiaited-hold-time", func(t *testing.T) {
 				state := gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgp.Vrf).Bgp().Neighbor(neighbor.Address).Timers().NegotiatedHoldTime()
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
-				if val == 0 {
-					t.Errorf("BGP Neighbor Timers NegotiatedHoldTime: got %d, want  %d", val, 0)
+				// NegotiatedHoldTime can be 0 (no keepalive timer, per RFC 4271) or >=3 (typical)
+				// Both are valid BGP configurations
+				switch {
+				case val == 0:
+					t.Logf("BGP NegotiatedHoldTime: 0 — periodic KEEPALIVEs are disabled (RFC 4271).")
+				case val >= 3:
+					t.Logf("BGP NegotiatedHoldTime: %d s — periodic KEEPALIVEs expected (~%ds typical).", val, val/3)
+				default: // 1 or 2
+					t.Errorf("BGP NegotiatedHoldTime: %d s — invalid per RFC 4271; session should not negotiate <3 except 0.", val)
 				}
 			})
 			t.Run("Subscribe//network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/queues/state/input", func(t *testing.T) {
@@ -332,7 +393,7 @@ func TestBGPState(t *testing.T) {
 				defer observer.RecordYgot(t, "SUBSCRIBE", state)
 				val := gnmi.Get(t, dut, state.State())
 				if val != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
-					t.Errorf("BGP Neighbor Queues Output: got %v, want  %v", val, oc.Bgp_Neighbor_SessionState_ACTIVE)
+					t.Errorf("BGP Neighbor SessionState: got %v, want %v", val, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 				}
 			})
 		}
