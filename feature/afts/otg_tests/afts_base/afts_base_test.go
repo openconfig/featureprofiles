@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -556,15 +557,16 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 	wg.Wait()
 
 	// Get the AFT from the cache.
-	aft1, err := aftSession1.Cache.ToAFT(t, tc.dut)
+	aft1, err := aftSession1.ToAFT(t, tc.dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
 	}
-	aft2, err := aftSession2.Cache.ToAFT(t, tc.dut)
+	aft2, err := aftSession2.ToAFT(t, tc.dut)
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
-	if diff := cmp.Diff(aft1, aft2); diff != "" {
+	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
+	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
 		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
 	}
 	return aft1, nil
