@@ -1208,12 +1208,15 @@ type Metadata_Deviations struct {
 	// Devices that do not support oc path for advertised cumulative link
 	// bandwidth.
 	AdvertisedCumulativeLbwOcUnsupported bool `protobuf:"varint,344,opt,name=advertised_cumulative_lbw_oc_unsupported,json=advertisedCumulativeLbwOcUnsupported,proto3" json:"advertised_cumulative_lbw_oc_unsupported,omitempty"`
+	// disable hardware nexthop proxying
+	// Arista : https://partnerissuetracker.corp.google.com/issues/422275961
+	DisableHardwareNexthopProxy bool `protobuf:"varint,345,opt,name=disable_hardware_nexthop_proxy,json=disableHardwareNexthopProxy,proto3" json:"disable_hardware_nexthop_proxy,omitempty"`
 	// Devices does not support uRPF configuration.
 	// Arista https://partnerissuetracker.corp.google.com/issues/444942109
-	UrpfConfigOcUnsupported bool `protobuf:"varint,345,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
+	UrpfConfigOcUnsupported bool `protobuf:"varint,346,opt,name=urpf_config_oc_unsupported,json=urpfConfigOcUnsupported,proto3" json:"urpf_config_oc_unsupported,omitempty"`
 	// Devices does not support NextNetworkInstance configuration.
 	// Arista https://partnerissuetracker.corp.google.com/issues/457884385
-	StaticRouteNextNetworkInstanceOcUnsupported bool `protobuf:"varint,346,opt,name=static_route_next_network_instance_oc_unsupported,json=staticRouteNextNetworkInstanceOcUnsupported,proto3" json:"static_route_next_network_instance_oc_unsupported,omitempty"`
+	StaticRouteNextNetworkInstanceOcUnsupported bool `protobuf:"varint,347,opt,name=static_route_next_network_instance_oc_unsupported,json=staticRouteNextNetworkInstanceOcUnsupported,proto3" json:"static_route_next_network_instance_oc_unsupported,omitempty"`
 	unknownFields                               protoimpl.UnknownFields
 	sizeCache                                   protoimpl.SizeCache
 }
@@ -3425,6 +3428,13 @@ func (x *Metadata_Deviations) GetAdvertisedCumulativeLbwOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetDisableHardwareNexthopProxy() bool {
+	if x != nil {
+		return x.DisableHardwareNexthopProxy
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetUrpfConfigOcUnsupported() bool {
 	if x != nil {
 		return x.UrpfConfigOcUnsupported
@@ -3495,7 +3505,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\u05fe\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x9d\xbf\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3507,7 +3517,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe0\xb4\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xa6\xb5\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3823,9 +3833,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\x18localhost_for_containerz\x18\xd5\x02 \x01(\bR\x16localhostForContainerz\x12a\n" +
 	"-aggregate_bandwidth_policy_action_unsupported\x18\xd6\x02 \x01(\bR)aggregateBandwidthPolicyActionUnsupported\x12F\n" +
 	"\x1fauto_link_bandwidth_unsupported\x18\xd7\x02 \x01(\bR\x1cautoLinkBandwidthUnsupported\x12W\n" +
-	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12<\n" +
-	"\x1aurpf_config_oc_unsupported\x18\xd9\x02 \x01(\bR\x17urpfConfigOcUnsupported\x12g\n" +
-	"1static_route_next_network_instance_oc_unsupported\x18\xda\x02 \x01(\bR+staticRouteNextNetworkInstanceOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"(advertised_cumulative_lbw_oc_unsupported\x18\xd8\x02 \x01(\bR$advertisedCumulativeLbwOcUnsupported\x12D\n" +
+	"\x1edisable_hardware_nexthop_proxy\x18\xd9\x02 \x01(\bR\x1bdisableHardwareNexthopProxy\x12<\n" +
+	"\x1aurpf_config_oc_unsupported\x18\xda\x02 \x01(\bR\x17urpfConfigOcUnsupported\x12g\n" +
+	"1static_route_next_network_instance_oc_unsupported\x18\xdb\x02 \x01(\bR+staticRouteNextNetworkInstanceOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

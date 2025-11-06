@@ -1733,6 +1733,11 @@ func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
 }
 
+// DisableHardwareNexthopProxy returns true if the device requires disabling hardware nexthop proxying
+func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
+}
+
 // URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
 func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
