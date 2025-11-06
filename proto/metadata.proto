@@ -44,6 +44,7 @@ message Metadata {
     TESTBED_DUT_ATE_5LINKS = 12;
     TESTBED_DUT_800ZR = 13;
     TESTBED_DUT_800ZR_PLUS = 14;
+    TESTBED_DUT_2LINKS = 15;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -404,10 +405,7 @@ message Metadata {
     bool skip_isis_set_level = 144;
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
-    bool skip_isis_set_metric_style_type = 145;
-    // Skip setting match-prefix-set match-set-options while configuring
-    // routing-policy statement condition
-    bool skip_set_rp_match_set_options = 146;
+    bool skip_isis_set_metric_style_type = 145;    
     // Skip setting disable-metric-propagation while configuring
     // table-connection
     bool skip_setting_disable_metric_propagation = 147;
@@ -846,10 +844,6 @@ message Metadata {
     // Skip setting send-community-type in bgp peer-group config
     bool skip_bgp_peer_group_send_community_type = 299;
     
-    // Devices that does have different AS path prepend order.
-    // juniper : b/425632068
-    bool bgp_as_path_prepend_order_mismtach = 300;
-
     // Devices that need explicit swap_src_dst_mac set with loopback_mode
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
@@ -889,6 +883,7 @@ message Metadata {
 
     // Devices that do not support policy forwarding on next-hop
     bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+
     // Cisco: b/402672689
     // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
     // this deviation to set specific value of N. Returns N=1,000,000 by default.
@@ -919,10 +914,115 @@ message Metadata {
 
     // Devices that support pre-defined max ecmp paths
     // Juniper b/422688435
-     bool predefined_max_ecmp_paths = 320;
+    bool predefined_max_ecmp_paths = 320;
+
+    // b/425503156
+    // Device does not support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 321;
+
+    // Device does not support line-port configuration on optical channel
+    // components for Nokia and Arista.
+    bool line_port_unsupported = 322;
+
+    // routing-policy bgp community needs to use REPLACE option
+    // Arista b/443044881
+    bool use_bgp_set_community_option_type_replace = 323;
+
+    // Devices that do not support global max ecmp paths
+    // Arista b/445097297
+    bool global_max_ecmp_paths_unsupported = 324;
+
+    // Devices that do not support configuring a two rate three color policer through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+    bool qos_two_rate_three_color_policer_oc_unsupported = 325;
+
+    // Devices that do not support load balance policies 
+    // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
+    bool load_balance_policy_oc_unsupported = 326;
+
+    // Devices that do not support gribi records
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
+    bool gribi_records_unsupported = 327;
+  
+    // Devices without breakout mode support for full rate.
+    // Nokia: b/435502032
+    bool breakout_mode_unsupported_for_eight_hundred_gb = 328;
+
+    // Devices without port speed and duplex mode support for interface config.
+    // Nokia: b/435502032
+    bool port_speed_duplex_mode_unsupported_for_interface_config = 329;
+
+    // Devices that need explicit breakout interface config.
+    // Nokia: b/435502032
+    bool explicit_breakout_interface_config = 330;
+ 
+    // Devices do not support threshold container under
+    // /components/component/transceiver. Translate from native ST with the
+    // specified functional translator. See ciscoxr-laser-ft.
+    // Cisco: b/429233045
+    string ciscoxr_laser_ft = 331;
+
+    // OC state path for the lower priority next hop not supported.
+    // Arista: b/447502389
+    bool telemetry_not_supported_for_low_priority_nh = 332;
+
+    // Devices that do not support match-as-path-set
+    // Arista b/434583178
+    bool match_as_path_set_unsupported = 333;
+
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+    
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 335;
+
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
+    
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
+    bool aft_summary_oc_unsupported = 337;
+
+    // Devices that do not support isis lsp tlvs
+    // Arista: https://issuetracker.google.com/450898200
+    bool isis_lsp_tlvs_oc_unsupported = 338;
+
+    // Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: https://issuetracker.google.com/452295044
+    bool isis_adjacency_stream_unsupported = 339;
+
+    // Device does not support sid_per_interface_counter_unsupported
+    // Cisco b/447350490
+    bool sid_per_interface_counter_unsupported = 340;
+
+    //  Juniper does not support localhost yet
+    //  b/448173472
+    bool localhost_for_containerz = 341;
+    
+    // Juniper: b/434633267
+    // Devices that do not support oc path for aggregate bandwidth policy
+    // action.
+    bool aggregate_bandwidth_policy_action_unsupported = 342;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for auto link bandwidth.
+    bool auto_link_bandwidth_unsupported = 343;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for advertised cumulative link
+    // bandwidth.
+    bool advertised_cumulative_lbw_oc_unsupported = 344;
+
+    // disable hardware nexthop proxying
+    // Arista : https://partnerissuetracker.corp.google.com/issues/422275961
+    bool disable_hardware_nexthop_proxy = 345;
 
     // Reserved field numbers and identifiers.
-    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231;
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
 
   message PlatformExceptions {
