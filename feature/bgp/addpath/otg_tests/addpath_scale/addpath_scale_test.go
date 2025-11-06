@@ -60,6 +60,7 @@ var (
 	dutPort1 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port1",
+			Desc:    "port1",
 			IPv4:    "192.0.2.1",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:1",
@@ -70,6 +71,7 @@ var (
 	dutPort2 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port2",
+			Desc:    "port2",
 			IPv4:    "192.0.2.5",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:5",
@@ -81,6 +83,7 @@ var (
 	dutPort3 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port3",
+			Desc:    "port3",
 			IPv4:    "192.0.2.9",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:9",
@@ -92,6 +95,7 @@ var (
 	dutPort4 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port4",
+			Desc:    "port4",
 			IPv4:    "200.0.0.1", // 192.0.2.13
 			IPv4Len: 24,
 			IPv6:    "1000::200:0:0:1", // 2001:0db8::192:0:2:d
@@ -224,7 +228,8 @@ func TestAddPathScale(t *testing.T) {
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
@@ -235,39 +240,48 @@ func TestAddPathScale(t *testing.T) {
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
-		atePort2.configureBGPOnATE(t, top, 1, ateAS2)
-		atePort3.configureBGPOnATE(t, top, 2, ateAS3)
-		atePort4.configureBGPOnATE(t, top, 3, ateAS4)
+		atePort2.configureBGPOnATE(t, top, 1, ateAS2, false)
+		atePort3.configureBGPOnATE(t, top, 2, ateAS3, false)
+		atePort4.configureBGPOnATE(t, top, 3, ateAS4, false)
 		advertiseRoutesWithEBGP(t, top)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6") // check ipv6 show commands
 	})
 
 	testCases := []struct {
-		name        string
-		applyConfig func(t *testing.T, dut *ondatra.DUTDevice)
-		validate    func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config)
+		name           string
+		applyDUTConfig func(t *testing.T, dut *ondatra.DUTDevice)
+		applyATEConfig func(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice)
+		validate       func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config)
 	}{
 		{
-			name:        "RT-1.15.1 - AddPath Disabled",
-			applyConfig: nil,
-			validate:    validateAddPathDisabled,
+			name:           "RT-1.15.1 - AddPath Disabled",
+			applyDUTConfig: nil,
+			applyATEConfig: nil,
+			validate:       validateAddPathDisabled,
 		},
 		{
-			name:        "RT-1.15.2 - AddPath Receive Enabled",
-			applyConfig: configAddPathReceive,
-			validate:    validateAddPathReceive,
+			name:           "RT-1.15.2 - AddPath Receive Enabled",
+			applyDUTConfig: configAddPathReceive,
+			applyATEConfig: enableAddPathOnATE,
+			validate:       validateAddPathReceive,
 		},
 		{
-			name:        "RT-1.15.3 - AddPath Receive and Send Enabled",
-			applyConfig: configAddPathReceiveSend,
-			validate:    validateAddPathReceiveSend,
+			name:           "RT-1.15.3 - AddPath Receive and Send Enabled",
+			applyDUTConfig: configAddPathReceiveSend,
+			applyATEConfig: enableAddPathOnATE,
+			validate:       validateAddPathReceiveSend,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.applyConfig != nil {
-				tc.applyConfig(t, dut)
+			if tc.applyDUTConfig != nil {
+				tc.applyDUTConfig(t, dut)
+			}
+			if tc.applyATEConfig != nil {
+				tc.applyATEConfig(t, top, ate)
 			}
 			time.Sleep(30 * time.Second)
 			tc.validate(t, dut, ate, top)
@@ -297,9 +311,9 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
-		atePort2.configureBGPOnATE(t, top, 1, ateAS2)
-		atePort3.configureBGPOnATE(t, top, 2, ateAS3)
-		atePort4.configureBGPOnATE(t, top, 3, ateAS4)
+		atePort2.configureBGPOnATE(t, top, 1, ateAS2, false)
+		atePort3.configureBGPOnATE(t, top, 2, ateAS3, false)
+		atePort4.configureBGPOnATE(t, top, 3, ateAS4, false)
 		advertiseRoutesWithEBGPWithCommunities(t, top)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
@@ -498,7 +512,7 @@ func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice) {
 
 func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIPv4, neighborIPv6 string) {
 	t.Helper()
-
+	// time.Sleep(1 * time.Minute)  // TODO: enable if needed
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	ipv4Pfx := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Prefixes](t, dut, bgpPath.Neighbor(neighborIPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
 	if ipv4Prefixes != ipv4Pfx.GetReceived() {
@@ -683,7 +697,7 @@ func (a *attributes) buildIPv4NbrList(asn uint32, v4pg, v6pg string) []*bgpNeigh
 	return nbrList
 }
 
-func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int, asn uint32) {
+func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int, asn uint32, enableAddPath bool) {
 	t.Helper()
 
 	devices := top.Devices().Items()
@@ -707,7 +721,9 @@ func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int
 			bgp4Peer.SetPeerAddress(ipv4.Gateway())
 			bgp4Peer.SetAsNumber(asn)
 			bgp4Peer.SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-			bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+			if enableAddPath {
+				bgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+			}
 			bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 		}
 		if a.ip6 != nil {
@@ -717,7 +733,9 @@ func (a *attributes) configureBGPOnATE(t *testing.T, top gosnappi.Config, pi int
 			bgp6Peer.SetPeerAddress(ipv6.Gateway())
 			bgp6Peer.SetAsNumber(asn)
 			bgp6Peer.SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-			bgp6Peer.Capability().SetIpv6UnicastAddPath(true)
+			if enableAddPath {
+				bgp6Peer.Capability().SetIpv6UnicastAddPath(true)
+			}
 			bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 		}
 	}
@@ -1015,4 +1033,14 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+}
+
+func enableAddPathOnATE(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
+	atePort2.configureBGPOnATE(t, top, 1, ateAS2, true)
+	atePort3.configureBGPOnATE(t, top, 2, ateAS3, true)
+	atePort4.configureBGPOnATE(t, top, 3, ateAS4, true)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 }
