@@ -4,4 +4,22 @@
 uuid: "16e91827-1d4f-4836-8438-d17b387a5ea8"
 plan_id: "RT-3.52"
 description: "Multidimensional test for Static GUE Encap/Decap based on BGP path selection and selective DSCP marking"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    static_protocol_name: "STATIC"
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    missing_value_for_defaults: true
+    isis_interface_afi_unsupported: true
+    isis_lsp_metadata_leafs_unsupported: true
+    next_hop_group_config_unsupported: true
+    policy_forwarding_unsupported: true
+    interface_policy_forwarding_unsupported: true
+    qos_classification_unsupported: true
+  }
+}
