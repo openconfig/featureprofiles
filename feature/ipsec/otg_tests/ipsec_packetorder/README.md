@@ -1,4 +1,4 @@
-# IPSEC-1.3 IPSec Packet-Order with MACSec over aggregated links.
+# IPSEC-1.3: IPSec Packet-Order with MACSec over aggregated links.
 
 ## Summary
 
