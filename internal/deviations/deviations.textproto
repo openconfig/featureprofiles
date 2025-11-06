@@ -506,6 +506,13 @@ deviations: {
       software_version_regex: "*.*"
     }
   }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
 }
 deviations: {
   name: "auto_negotiate_unsupported"
