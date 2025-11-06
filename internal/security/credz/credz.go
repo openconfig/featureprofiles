@@ -16,6 +16,7 @@
 package credz
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,21 +27,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	cpb "github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	// "golang.org/x/crypto/ssh"
 )
 
 const (
-	lowercase         = "abcdefghijklmnopqrstuvwxyz"
-	uppercase         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits            = "0123456789"
-	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
-	space             = " "
+	lowercase = "abcdefghijklmnopqrstuvwxyz"
+	uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits    = "0123456789"
+	symbols   = "!@#$%^&*(){}[]\\:;\"'"
+	// space             = " "
 	dutKey            = "dut"
 	userKey           = "testuser"
 	caKey             = "ca"
@@ -50,7 +51,7 @@ const (
 )
 
 var (
-	charClasses = []string{lowercase, uppercase, digits, symbols, space}
+	charClasses = []string{lowercase, uppercase, digits, symbols}
 )
 
 // PrettyPrint prints rpc requests/responses in a pretty format.
@@ -211,8 +212,10 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 		if err != nil {
 			t.Fatalf("Failed reading private key contents, error: %s", err)
 		}
+		dataTypes := bytes.Fields(data)
 		keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
-			AuthorizedKey: data,
+			// AuthorizedKey: data,
+			AuthorizedKey: dataTypes[1],
 			KeyType:       cpb.KeyType_KEY_TYPE_ED25519,
 		})
 	}
@@ -243,8 +246,9 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		if err != nil {
 			t.Fatalf("Failed reading ca public key contents, error: %s", err)
 		}
+		dataTypes := bytes.Fields(data)
 		keyContents = append(keyContents, &cpb.PublicKey{
-			PublicKey: data,
+			PublicKey: dataTypes[1],
 			KeyType:   cpb.KeyType_KEY_TYPE_ED25519,
 		})
 	}
@@ -278,25 +282,35 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
+	var keyData []byte
+	var certData []byte
+	var err error
 	if keyDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
+		keyData, err = os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
-		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-			PrivateKey: data,
-		})
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	PrivateKey: data,
+		// })
 	}
 
 	if certDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
+		certData, err = os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
-		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-			Certificate: data,
-		})
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	Certificate: data,
+		// })
 	}
+
+	artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		PrivateKey:  keyData,
+		Certificate: certData,
+	})
 
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
@@ -307,7 +321,6 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 			},
 		},
 	}
-
 	sendHostParametersRequest(t, dut, request)
 }
 
@@ -364,7 +377,24 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 	if len(response.PublicKeys) < 1 {
 		return nil
 	}
-	return response.PublicKeys[0].PublicKey
+
+	// Form the key bytes from the proto message
+	var algo string
+	key := response.PublicKeys[0]
+	switch key.KeyType {
+	case cpb.KeyType_KEY_TYPE_RSA_2048, cpb.KeyType_KEY_TYPE_RSA_4096:
+		algo = "ssh-rsa"
+	case cpb.KeyType_KEY_TYPE_ECDSA_P_256:
+		algo = "ecdsa-sha2-nistp256"
+	case cpb.KeyType_KEY_TYPE_ECDSA_P_521:
+		algo = "ecdsa-sha2-nistp521"
+	case cpb.KeyType_KEY_TYPE_ED25519:
+		algo = "ssh-ed25519"
+	default:
+		t.Logf("unsupported key type: %v", key.KeyType)
+	}
+	return []byte(algo + " " + string(key.PublicKey) + " " + key.Description)
+
 }
 
 // CreateSSHKeyPair creates ssh keypair with a filename of keyName in the specified directory.
@@ -391,7 +421,7 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 		"-s", caKey,
 		"-I", userKey,
 		"-n", userPrincipal,
-		"-V", "+52w",
+		"-V", "-1d:+52w",
 		fmt.Sprintf("%s.pub", userKey),
 	)
 	userCertCmd.Dir = dir
@@ -413,7 +443,7 @@ func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dut
 		"-I", dut.ID(), // key identity
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
-		"-V", "+52w", // validity
+		"-V", "-1d:+52w", // validity
 		fmt.Sprintf("%s.pub", dut.ID()),
 	)
 	cmd.Dir = dir
@@ -602,7 +632,7 @@ func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevic
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, target, username, dir string) (binding.SSHClient, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
@@ -610,12 +640,38 @@ func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, targe
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-// func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
-//	return &ssh.ClientConfig{
-//		User: username,
-//		Auth: []ssh.AuthMethod{
-//			ssh.PublicKeys(signer),
-//		},
-//		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-//	}
-// }
+// SSHCleanup performs required cleanup on DUT
+func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Arista vendor, performing SSH cleanup")
+		cliConfig := `no management ssh`
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	default:
+		t.Logf("Need cleanup support from Vendor %s", dut.Vendor())
+	}
+}
+
+// GetConfiguredHostKey returns the configured host key on the DUT for the given algorithm.
+// This is used to verify if the host key is correctly configured on the DUT before rotating the
+// keys.
+func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqdn string) string {
+	dutTarget := fmt.Sprintf("%s.%s", dut.Name(), fqdn)
+	cmd := exec.Command(
+		"ssh-keyscan",
+		"-t",
+		algo,
+		dutTarget)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to run ssh-keyscan cmd:%v error:%v out:%s", cmd, err, string(out))
+	}
+	// Output is of the form
+	//
+	// # cmp304:22 SSH-2.0-OpenSSH_9.9
+	// cmp304 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIbEBIIJSciG9AsmSTCGEIZEnO8IRrmTvhIMmaxAwZge
+	//
+	// Ignore the first line and the first word of the second line
+	keyLine := strings.Trim(strings.Split(string(out), "\n")[1], "\n")
+	return strings.Join(strings.Split(keyLine, " ")[1:], " ")
+}
