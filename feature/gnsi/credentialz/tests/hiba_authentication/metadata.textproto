@@ -13,3 +13,13 @@ platform_exceptions: {
     ssh_server_counters_unsupported: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    ssh_server_counters_unsupported: true
+  }
+}
+

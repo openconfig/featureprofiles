@@ -15,8 +15,8 @@
 package hibaauthentication_test
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -46,30 +46,14 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
-
-	// Create temporary directory for storing ssh keys/certificates.
-	dir, err := os.MkdirTemp("", "")
-	if err != nil {
-		t.Fatalf("creating temp dir, err: %s", err)
-	}
-	defer func(dir string) {
-		err = os.RemoveAll(dir)
-		if err != nil {
-			t.Logf("error removing temp directory, error: %s", err)
-		}
-	}(dir)
-
-	credz.CreateHibaKeys(t, dir)
+	dir := t.TempDir()
+	credz.CreateHibaKeys(t, dut, dir)
 	credz.SetupUser(t, dut, username)
 
 	// Set only public key authentication for our test.
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
 		cpb.AuthenticationType_AUTHENTICATION_TYPE_PUBKEY,
 	})
-
-	// Setup hiba for authorized principals command.
-	credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
 
 	t.Run("auth should fail hiba host certificate not present", func(t *testing.T) {
 		var startingRejectCounter uint64
@@ -78,9 +62,11 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with hiba fails as expected.
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err != nil {
 				t.Logf("Dialing ssh failed as expected.")
 				break
@@ -113,14 +99,18 @@ func TestCredentialz(t *testing.T) {
 		// Setup trusted user ca on the dut.
 		credz.RotateTrustedUserCA(t, dut, dir)
 
+		// Setup hiba for authorized principals command.
+		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_HIBA_DEFAULT)
+
 		var startingAcceptCounter, startingLastAcceptTime uint64
 		if !deviations.SSHServerCountersUnsupported(dut) {
 			startingAcceptCounter, startingLastAcceptTime = credz.GetAcceptTelemetry(t, dut)
 		}
-
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
 		startTime := time.Now()
 		for {
-			_, err := credz.SSHWithCertificate(t, target, username, fmt.Sprintf("%s/users", dir))
+			_, err := credz.SSHWithCertificate(ctx, t, dut, username, fmt.Sprintf("%s/users", dir))
 			if err == nil {
 				t.Logf("Dialing ssh succeeded as expected.")
 				break
@@ -153,7 +143,8 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+		if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(hostCertificateCreatedOn, 0)) {
 			t.Fatalf(
 				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
 				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
@@ -171,12 +162,14 @@ func TestCredentialz(t *testing.T) {
 		})
 
 		// Remove user ca so subsequent fail cases work.
-		credz.RotateTrustedUserCA(t, dut, "")
+		// credz.RotateTrustedUserCA(t, dut, "")
 
 		// Clear hiba for authorized principals command.
 		credz.RotateAuthorizedPrincipalCheck(t, dut, cpb.AuthorizedPrincipalCheckRequest_TOOL_UNSPECIFIED)
 
 		// Remove host artifacts from the dut.
-		credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// credz.RotateAuthenticationArtifacts(t, dut, "", "", "", 0)
+		// SSH configuration cleanup on DUT
+		credz.SSHCleanup(t, dut)
 	})
 }

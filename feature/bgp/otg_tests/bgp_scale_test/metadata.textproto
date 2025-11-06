@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "c4998950-3e64-4aa9-bff8-7df0392787a1"
+plan_id:  "RT-1.65"
+description:  "BGP scale test"
+testbed:  TESTBED_DUT_ATE_4LINKS

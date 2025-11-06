@@ -5,3 +5,16 @@ uuid:  "cf3f42af-1463-4a3b-b691-bf06edc3db14"
 plan_id:  "DP-1.19"
 description:  "Egress traffic DSCP rewrite"
 testbed:  TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    qos_remark_oc_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+    gue_gre_decap_unsupported: true
+  }
+}

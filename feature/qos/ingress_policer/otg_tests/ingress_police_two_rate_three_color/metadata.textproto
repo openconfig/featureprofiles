@@ -1,0 +1,19 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "c372d67b-67a7-4ce4-8c13-4930735a470a"
+plan_id:  "DP-2.5"
+description:  "Police traffic on input matching all packets using 2 rate, 3 color marker"
+testbed:  TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    qos_two_rate_three_color_policer_oc_unsupported: true
+    qos_scheduler_ingress_policer_unsupported: true
+  }
+}

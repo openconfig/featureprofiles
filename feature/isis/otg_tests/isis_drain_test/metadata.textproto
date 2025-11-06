@@ -38,6 +38,7 @@ platform_exceptions: {
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
     isis_mpls_unsupported: true
+    global_max_ecmp_paths_unsupported: true
   }
 }
 platform_exceptions: {
