@@ -44,7 +44,7 @@ Verify:
 
 * Same validation steps as the IPv4-Max-Attachment-Tunnel.
 
-### IPSEC-1.2.3: Verify (ipsec-tunneled) IPv4 Connectivity over a Max \# of Tunnels for Device (IPv4-Max-Device-Tunnel)
+### IPSEC-1.2.3: Verify IPv4 Connectivity over Device with Max # of Tunnels
 
 Change in setup:
 
@@ -60,20 +60,25 @@ Verify:
 * All traffic received from ATE (other than any local traffic) gets forwarded as ipsec
 * No packet loss
 * Traffic equally load balanced across DUT \<\> DUT ports.
-* Traffic equally load balanced across the tunnels \[new\]
+* Traffic equally load balanced across the tunnels
 
-### IPSEC-1.2.4: Verify IPv6 Connectivity over a Max \# of Tunnels for Single Attachment
+### IPSEC-1.2.4: Verify IPv6 Connectivity over Device with Max # of Tunnels
 
 * Set up a maximum number of parallel tunnels for a single attachment (as described above).
 * If device can support additional tunnels - Set up additional attachments (vlans) on the DUT-ATE interfaces, each with a different VLAN & VRF, with the ipsec setup.
     * For each additional attachment, set up the maximum number of parallel tunnels for a single attachment, up to limit of max tunnels for device
     * Repeat until max tunnels for device are configured
 
-Generate traffic on ATE-\>DUT1 Ports **for every attachment**, having a random combination of 1000 source addresses to ATE-2 destination address(es) at line rate IPv4 traffic. Use MTU-RANGE bytes frame size.
+Generate traffic on ATE-\>DUT1 Ports **for every attachment**, having a random combination of 1000 source addresses to ATE-2 destination address(es) at line rate IPv6 traffic. Use MTU-RANGE bytes frame size.
 
 Verify:
 
 * Same validation steps as the IPv4-Max-Device-Tunnel.
+
+### Canonical OC  
+```json
+TODO
+```
 
 ## Required DUT platform
 

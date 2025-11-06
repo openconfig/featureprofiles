@@ -40,6 +40,12 @@ Verify:
 * Verify SA key (encryption key) renegotiates
 * Verify no traffic loss during the SA key renegotiation
 
+### Canonical OC
+
+```json
+TODO
+```
+
 ## Required DUT platform
 
 FFF
