@@ -161,7 +161,7 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	isisData := &cfgplugins.ISISGlobalParams{
 		DUTArea:             isisDUTArea,
 		DUTSysID:            isisDUTSystemID,
-		ISISInterfaceNames:  []string{dutPort1, dutPort2},
+		ISISInterfaceNames:  []string{dutPort1}, // Only configure ISIS on one port.
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
 	}
 	cfgplugins.NewISIS(t, dut, isisData, b)
