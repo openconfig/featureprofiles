@@ -193,10 +193,7 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 			SetAutoAdjustArea(true).
 			SetAutoAdjustSupportedProtocols(true)
 
-		// Advertise ISIS routes only from first port to produce a single next-hop
-		if i == 0 {
-			AdvertiseISISRoutes(dev, ipv4, ipv6, ateRoutes.ISISV4Routes, ateRoutes.ISISV6Routes)
-		}
+		AdvertiseISISRoutes(dev, ipv4, ipv6, ateRoutes.ISISV4Routes, ateRoutes.ISISV6Routes)
 		AdvertiseBGPRoutes(dev, ipv4, ipv6, ateRoutes.BGPV4Routes, ateRoutes.BGPV6Routes)
 	}
 
