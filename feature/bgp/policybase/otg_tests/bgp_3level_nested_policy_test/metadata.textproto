@@ -5,3 +5,14 @@ uuid:  "cf8a0f24-e373-4b55-af99-70371c958dc7"
 plan_id:  "RT-1.31"
 description:  "BGP 3 levels of nested import/export policy with match-set-options"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+ deviations: {
+  interface_enabled: true
+  default_network_instance: "default"  
+  routing_policy_chaining_unsupported: true  
+  bgp_rib_oc_path_unsupported: true
+  }
+}

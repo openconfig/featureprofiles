@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "387c1f76-7811-4a04-99e3-f690fba1e98e"
-plan_id: "TRANSCEIVER-10 (400ZR_PLUS)"
+plan_id: "TRANSCEIVER-10.2"
 description: "Telemetry: 400ZR_PLUS Optics FEC(Forward Error Correction) Uncorrectable Frames Streaming."
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
@@ -24,5 +24,15 @@ platform_exceptions: {
     otn_channel_trib_unsupported: true
     eth_channel_ingress_parameters_unsupported: true
     eth_channel_assignment_cisco_numbering: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    eth_channel_ingress_parameters_unsupported: true
   }
 }
