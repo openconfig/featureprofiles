@@ -48,7 +48,6 @@ const (
 	subInterfaceIndex         = 0
 	ppsRate                   = 100000
 	packetsToSend             = 16000000
-	ethernetCsmacd            = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 )
 
 var (
