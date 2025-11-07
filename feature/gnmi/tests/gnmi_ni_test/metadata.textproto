@@ -19,7 +19,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    interface_enabled: true
+    skip_grpc_validation_in_default_vrf: true
   }
 }
 platform_exceptions: {

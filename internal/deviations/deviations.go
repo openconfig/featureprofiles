@@ -1747,3 +1747,8 @@ func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
 }
+
+// SkipGrpcValidationInDefaultVrf returns true if devices requires to skip gRPC in the default VRF validation.
+func SkipGrpcValidationInDefaultVrf(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGrpcValidationInDefaultVrf()
+}
