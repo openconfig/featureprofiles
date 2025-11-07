@@ -532,7 +532,7 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 		t.Errorf("SFlow packet %d: Egress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.egressIntf, egressIntf)
 	}
 
-	t.Logf("SFlow Packet %d: Sequence Number %d, Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, sFlowPkt.sequenceNum, flowConfig.frameSize, samplingRate, ingressIntf, egressIntf)
+	t.Logf("SFlow Packet %d: Sequence Number %d, Size %d, Sampling rate %d, Ingress interface %d, Egress interface %d", pktIndex, sFlowPkt.sequenceNum, flowConfig.frameSize, sFlowPkt.samplingRate, sFlowPkt.ingressIntf, sFlowPkt.egressIntf)
 }
 
 func verifyIpv4SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
