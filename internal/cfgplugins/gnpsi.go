@@ -37,7 +37,7 @@ func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
 }
 
 func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice) {
-	// TODO : Implement GNPSI OC configuration when supported in OC
+	// TODO : Implement GNPSI OC configuration when supported in OC (ref: https://github.com/openconfig/public/pull/1385)
 	t.Fatalf("gNPSI OC configuration is not supported: %s - %s", dut.Version(), dut.Model())
 }
 

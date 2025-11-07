@@ -1219,6 +1219,8 @@ type Metadata_Deviations struct {
 	// Arista https://partnerissuetracker.corp.google.com/issues/457884385
 	StaticRouteNextNetworkInstanceOcUnsupported bool `protobuf:"varint,347,opt,name=static_route_next_network_instance_oc_unsupported,json=staticRouteNextNetworkInstanceOcUnsupported,proto3" json:"static_route_next_network_instance_oc_unsupported,omitempty"`
 	// Devices that do not support configuring gnpsi through OpenConfig
+	// Arista: https://partnerissuetracker.corp.google.com/issues/433989578
+	// GNPSI support PR: https://github.com/openconfig/public/pull/1385
 	GnpsiOcUnsupported bool `protobuf:"varint,348,opt,name=gnpsi_oc_unsupported,json=gnpsiOcUnsupported,proto3" json:"gnpsi_oc_unsupported,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
