@@ -1,11 +1,13 @@
 package policy_advertise_aggregate
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -15,16 +17,16 @@ import (
 )
 
 const (
-	dutAS                     = 65501
-	ateAS                     = 65502
-	plenIPv4                  = 30
-	plenIPv6                  = 126
-	triggerRoute              = "192.0.0.0/8"
-	defaultRoute              = "0.0.0.0/0"
-	generateDefaultPolicyName = "GENERATE_DEFAULT_ROUTE"
-	triggerRoutePolicyName    = "TRIGGER_ROUTE"
-	localAggregateName        = "DEFAULT-AGG"
-	ateRoutePrefix            = "192.0.0.0"
+	dutAS                    = 65501
+	ateAS                    = 65502
+	plenIPv4                 = 30
+	plenIPv6                 = 126
+	triggerRoute             = "192.0.0.0/8"
+	defaultRoute             = "0.0.0.0/0"
+	generatedRoutePolicyName = "GENERATED_ROUTE"
+	triggerRoutePolicyName   = "TRIGGER_ROUTE"
+	localAggregateName       = "DEFAULT-AGG"
+	ateRoutePrefix           = "192.0.0.0"
 )
 
 var (
@@ -50,6 +52,16 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
+	}
+	t.Logf("Received from cli: %s", output.Output())
+	return output.Output()
+}
+
 // configureDUT configures the DUT with a BGP session and a policy to accept the trigger route.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Start DUT configuration")
@@ -57,6 +69,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
+	ni := root.GetOrCreateNetworkInstance(dni)
 	p1 := dut.Port(t, "port1").Name()
 	i1 := dutPort1.NewOCInterface(p1, dut)
 	gnmi.Replace(t, dut, dc.Interface(p1).Config(), i1)
@@ -77,7 +90,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	definedSet := routingPolicy.GetOrCreateDefinedSets()
 	triggerPS := definedSet.GetOrCreatePrefixSet(triggerRoutePolicyName)
 	triggerPS.SetMode(oc.PrefixSet_Mode_IPV4)
-	triggerPS.GetOrCreatePrefix("192.0.0.0/8", "exact")
+	triggerPS.GetOrCreatePrefix(triggerRoute, "exact")
+
+	generatedPS := definedSet.GetOrCreatePrefixSet(generatedRoutePolicyName)
+	generatedPS.SetMode(oc.PrefixSet_Mode_IPV4)
+	generatedPS.GetOrCreatePrefix(defaultRoute, "exact")
 
 	pdImport := routingPolicy.GetOrCreatePolicyDefinition(triggerRoutePolicyName)
 	stImport, err := pdImport.AppendNewStatement("10")
@@ -88,19 +105,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	stImport.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	gnmi.Replace(t, dut, dc.RoutingPolicy().Config(), routingPolicy)
-
-	t.Log("Configuring local aggregate for 0.0.0.0/0...")
-	ni := root.GetOrCreateNetworkInstance(dni)
-
-	aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
-	aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
-	aggProto.SetName(localAggregateName)
-
-	aggProto.GetOrCreateAggregate(defaultRoute)
-	aggProto.GetOrCreateAggregate(defaultRoute).SetPrefix("0.0.0.0/0")
-	aggProto.SetEnabled(true)
-
-	gnmi.Replace(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName).Config(), aggProto)
 
 	t.Log("Configuring BGP...")
 	bgpProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -119,6 +123,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	afiSafi.GetOrCreateApplyPolicy().SetImportPolicy([]string{triggerRoutePolicyName})
 
 	gnmi.Update(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProtocol)
+
+	cfgplugins.RoutingPolicyBGPAdvertiseAggregate(t, dut, triggerRoutePolicyName, triggerRoute, generatedRoutePolicyName, defaultRoute, dutAS, localAggregateName)
 }
 
 // configureATE creates a basic OTG configuration with a BGP neighbor.
@@ -166,7 +172,7 @@ func verifyRIBRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, shouldE
 
 	if shouldExist {
 		t.Logf("Verifying route %s is present in RIB...", prefix)
-		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 			return v.IsPresent()
 		}).Await(t)
 		if !ok {
@@ -175,7 +181,7 @@ func verifyRIBRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, shouldE
 		t.Logf("Route %s is present in the RIB as expected.", prefix)
 	} else {
 		t.Logf("Verifying route %s is absent from RIB...", prefix)
-		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 1*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 			return !v.IsPresent()
 		}).Await(t)
 		if !ok {

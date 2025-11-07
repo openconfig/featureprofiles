@@ -18,8 +18,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 // DeviationCiscoRoutingPolicyBGPActionSetMed is used as an alternative to
@@ -93,4 +96,84 @@ route-map %s
 match as-path %s
 `, aclName, asPathRegex, aclName, routeMap, aclName)
 	helpers.GnmiCLIConfig(t, dut, config)
+}
+
+func RoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, triggerPfx string, genPfxName string, genPfx string, bgpAS uint, localAggregateName string) {
+	if deviations.BgpLocalAggregateUnsupported(dut) {
+		DeviationAristaRoutingPolicyBGPAdvertiseAggregate(t, dut, triggerPfxName, triggerPfx, genPfxName, genPfx, bgpAS)
+	} else {
+		dc := gnmi.OC()
+		root := &oc.Root{}
+		dni := deviations.DefaultNetworkInstance(dut)
+		// t.Log("Configuring local aggregate for 0.0.0.0/0...")
+		ni := root.GetOrCreateNetworkInstance(dni)
+
+		aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
+		aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
+		aggProto.SetName(localAggregateName)
+
+		aggProto.GetOrCreateAggregate(genPfx)
+		aggProto.GetOrCreateAggregate(genPfx).SetPrefix(genPfx)
+		aggProto.SetEnabled(true)
+
+		gnmi.Replace(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName).Config(), aggProto)
+	}
+}
+
+// DeviationAristaRoutingPolicyBGPAdvertiseAggregateDefaultRoute is used for DUTs that don't support OC local aggregates
+func DeviationAristaRoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, triggerPfx string, genPfxName string, genPfx string, bgpAS uint) {
+	t.Log("Executing CLI commands for local aggregate deviation")
+	t.Log("Control functions code unit")
+	bgpLocalAggConfigControlFunctions := fmt.Sprintf(`
+configure terminal
+!
+router general
+control-functions
+code unit ipv4_generate_default_conditionally
+function ipv4_generate_default_conditionally() {
+if source_protocol is BGP and prefix match prefix_list_v4 %s {
+return true;
+}
+}
+EOF
+!
+compile
+commit
+`, triggerPfxName)
+
+	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigControlFunctions)
+	runCliCommand(t, dut, bgpLocalAggConfigControlFunctions)
+
+	t.Log("Dynamic prefix list rcf match")
+
+	bgpLocalAggConfigDynamicPfxRcf := fmt.Sprintf(`
+configure terminal
+!
+dynamic prefix-list ipv4_generate_default
+match rcf ipv4_generate_default_conditionally()
+prefix-list ipv4 %s
+`, genPfxName)
+
+	runCliCommand(t, dut, bgpLocalAggConfigDynamicPfxRcf)
+	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigDynamicPfxRcf)
+
+	t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
+	bgpLocalAggConfigPfxInstallDropNH := `
+configure terminal
+!
+router general
+vrf default
+routes dynamic prefix-list ipv4_generate_default install drop
+`
+	runCliCommand(t, dut, bgpLocalAggConfigPfxInstallDropNH)
+	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxInstallDropNH)
+	t.Log("Redistribute advertised prefix into BGP")
+	bgpLocalAggConfigPfxRedistribute := fmt.Sprintf(`
+configure terminal
+!
+router bgp %d
+redistribute dynamic
+`, bgpAS)
+	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxRedistribute)
+	runCliCommand(t, dut, bgpLocalAggConfigPfxRedistribute)
 }
