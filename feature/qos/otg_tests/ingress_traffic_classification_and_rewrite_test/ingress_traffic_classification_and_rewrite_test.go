@@ -617,6 +617,7 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	queues := netutil.CommonTrafficQueues(t, dut)
+
 	IngressIPv4TrafficFlows := map[string]*trafficData{
 		"intf1-nc1-ipv4": {
 			frameSize: frameSize,
