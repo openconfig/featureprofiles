@@ -73,9 +73,7 @@ var (
 	// ErrNotExist is an error returned when expected AFT elements are not found and so AFT is inconsistent.
 	ErrNotExist = errors.New("does not exist")
 	// ErrUnsupported is an error returned when AFT elements are not supported.
-	ErrUnsupported    = errors.New("unsupported")
-	missingPrefixes   = make(map[string]bool)
-	failingNHPrefixes = make(map[string]bool)
+	ErrUnsupported = errors.New("unsupported")
 )
 
 var unusedPaths = []string{
@@ -208,10 +206,12 @@ func generateCacheTraversalPaths(subscriptionPaths map[string][]string) (map[str
 }
 
 // ToAFT Creates AFT maps with cache information.
-func (c *aftCache) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error) {
+func (ss *AFTStreamSession) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error) {
+	sessionPrefix := ss.sessionPrefix()
+	c := ss.Cache
 	a := newAFT()
 	prefixFunc := func(n *gnmipb.Notification) error {
-		p, nhg, err := parsePrefix(t, n)
+		p, nhg, err := parsePrefix(t, n, sessionPrefix)
 		if err != nil {
 			return err
 		}
@@ -222,7 +222,7 @@ func (c *aftCache) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error)
 		nhg, data, err := parseNHG(t, n)
 		switch {
 		case errors.Is(err, ErrNotExist) || errors.Is(err, ErrUnsupported):
-			t.Logf("error parsing NHG: %v", err)
+			t.Logf("%s error parsing NHG: %v", sessionPrefix, err)
 		case err != nil:
 			return err
 		default:
@@ -234,7 +234,7 @@ func (c *aftCache) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error)
 		nh, data, err := parseNH(n)
 		switch {
 		case errors.Is(err, ErrNotExist):
-			t.Logf("error parsing NH: %v", err)
+			t.Logf("%s error parsing NH: %v", sessionPrefix, err)
 		case err != nil:
 			return err
 		default:
@@ -274,9 +274,9 @@ func (c *aftCache) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTData, error)
 }
 
 // logMetadata sends cache metadata to testing log.
-func (c *aftCache) logMetadata(t *testing.T, start time.Time) error {
+func (c *aftCache) logMetadata(t *testing.T, start time.Time, prefix string) error {
 	m := c.cache.Metadata()[c.target]
-	msg := fmt.Sprintf("After %v: ", time.Since(start).Truncate(time.Millisecond))
+	msg := fmt.Sprintf("%s After %v: ", prefix, time.Since(start).Truncate(time.Millisecond))
 	fields := []string{metadata.LeafCount, metadata.AddCount, metadata.UpdateCount, metadata.DelCount}
 	for _, f := range fields {
 		v, err := m.GetInt(f)
@@ -425,6 +425,10 @@ type aftSubscriptionResponse struct {
 
 // aftSubscribe subscribes to a gNMI client and creates a channel to read from the subscription
 // stream asynchronously.
+// TODO: Split out the watching logic into a blocking function.
+// This is somewhat bad practice. I was surprised that this function spawned a goroutine.
+// Functions should not return if they spawn goroutines. (Assume the caller will cancel the context
+// on return.)
 func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) <-chan *aftSubscriptionResponse {
 	sub, err := c.Subscribe(ctx)
 	if err != nil {
@@ -461,18 +465,26 @@ func aftSubscribe(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *o
 // AFTStreamSession represents a single gNMI AFT streaming session and cached AFT state. It contains
 // a subscription that can be used across multiple calls to ListenUntil().
 type AFTStreamSession struct {
-	buffer        <-chan *aftSubscriptionResponse
-	Cache         *aftCache
-	start         time.Time
-	notifications []*gnmipb.SubscribeResponse
+	buffer            <-chan *aftSubscriptionResponse
+	Cache             *aftCache
+	start             time.Time
+	notifications     []*gnmipb.SubscribeResponse
+	missingPrefixes   map[string]bool
+	failingNHPrefixes map[string]bool
+}
+
+func (ss *AFTStreamSession) sessionPrefix() string {
+	return fmt.Sprintf("[%s-%d]", ss.Cache.target, ss.start.UnixNano())
 }
 
 // NewAFTStreamSession constructs an AFTStreamSession. It subscribes to a given gNMI client.
 func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient, dut *ondatra.DUTDevice) *AFTStreamSession {
 	return &AFTStreamSession{
-		buffer:        aftSubscribe(ctx, t, c, dut),
-		Cache:         newAFTCache(dut.Name()),
-		notifications: []*gnmipb.SubscribeResponse{},
+		buffer:            aftSubscribe(ctx, t, c, dut),
+		Cache:             newAFTCache(dut.Name()),
+		notifications:     []*gnmipb.SubscribeResponse{},
+		missingPrefixes:   make(map[string]bool),
+		failingNHPrefixes: make(map[string]bool),
 	}
 }
 
@@ -487,45 +499,46 @@ type NotificationHook struct {
 // PeriodicHook is a function that will be called on a regular interval with the current AFT cache.
 type PeriodicHook struct {
 	Description  string
-	PeriodicFunc func(c *aftCache) (bool, error)
+	PeriodicFunc func(ss *AFTStreamSession) (bool, error)
 }
 
 // loggingPeriodicHook prints AFT stats to the log on a regular interval during an AFT stream.
 func loggingPeriodicHook(t *testing.T, start time.Time) PeriodicHook {
 	return PeriodicHook{
 		Description: "Log stream stats",
-		PeriodicFunc: func(c *aftCache) (bool, error) {
-			c.logMetadata(t, start)
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			ss.Cache.logMetadata(t, start, ss.sessionPrefix())
 			return false, nil
 		},
 	}
 }
 
 func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
-	ss.Cache.logMetadata(t, ss.start)
-	t.Logf("After %v: Finished streaming.", time.Since(ss.start).Truncate(time.Millisecond))
-	if len(ss.notifications) > 0 {
-		filename, err := writeNotifications(t, ss.notifications)
+	prefix := ss.sessionPrefix()
+	ss.Cache.logMetadata(t, ss.start, prefix)
+	t.Logf("%s After %v: Finished streaming.", prefix, time.Since(ss.start).Truncate(time.Millisecond))
+	if len(ss.missingPrefixes) > 0 {
+		filename, err := writeMissingPrefixes(t, ss.missingPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
-			t.Errorf("error writing notifications: %v", err)
+			t.Errorf("%s error writing missing prefixes: %v", prefix, err)
 		} else {
-			t.Logf("Wrote all received notifications to %s", filename)
+			t.Logf("%s Wrote missing prefixes to %s", prefix, filename)
 		}
 	}
-	if len(missingPrefixes) > 0 {
-		filename, err := writeMissingPrefixes(t, missingPrefixes)
+	if len(ss.failingNHPrefixes) > 0 {
+		filename, err := writeFailingNHPrefixes(t, ss.failingNHPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
-			t.Errorf("error writing missing prefixes: %v", err)
+			t.Errorf("%s error writing failing NH prefixes: %v", prefix, err)
 		} else {
-			t.Logf("Wrote missing prefixes to %s", filename)
+			t.Logf("%s Wrote failing NH prefixes to %s", prefix, filename)
 		}
 	}
-	if len(failingNHPrefixes) > 0 {
-		filename, err := writeFailingNHPrefixes(t, failingNHPrefixes)
+	if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
+		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
 		if err != nil {
-			t.Errorf("error writing failing NH prefixes: %v", err)
+			t.Errorf("%s error writing notifications: %v", prefix, err)
 		} else {
-			t.Logf("Wrote failing NH prefixes to %s", filename)
+			t.Logf("%s Wrote all received notifications to %s", prefix, filename)
 		}
 	}
 }
@@ -542,6 +555,7 @@ func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeo
 func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
 	t.Helper()
 	ss.start = time.Now()
+	ss.notifications = nil   // Flush notifications from previous ListenUntil calls.
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
 	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
@@ -570,13 +584,14 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
 		case <-periodicTicker.C:
 			s := time.Now()
 			for _, hook := range periodicHooks {
-				done, err := hook.PeriodicFunc(ss.Cache)
+				done, err := hook.PeriodicFunc(ss)
 				if err != nil {
 					t.Fatalf("error in PeriodicHook %q: %v", hook.Description, err)
 				}
@@ -602,8 +617,9 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeletePrefixes map[string]bool) PeriodicHook {
 	return PeriodicHook{
 		Description: "Route delete stopping condition",
-		PeriodicFunc: func(c *aftCache) (bool, error) {
-			a, err := c.ToAFT(t, dut)
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			prefix := ss.sessionPrefix()
+			a, err := ss.ToAFT(t, dut)
 			if err != nil {
 				return false, err
 			}
@@ -614,11 +630,11 @@ func DeletionStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantDeleteP
 					nRem++
 				}
 			}
-			t.Logf("Got %d deleted prefixes out of %d wanted prefixes to delete so far.", len(wantDeletePrefixes)-nRem, len(wantDeletePrefixes))
+			t.Logf("%s Got %d deleted prefixes out of %d wanted prefixes to delete so far.", prefix, len(wantDeletePrefixes)-nRem, len(wantDeletePrefixes))
 			if nRem > 0 {
 				return false, nil
 			}
-			t.Logf("Finished checking for deleted routes: %s", time.Now().String())
+			t.Logf("%s Finished checking for deleted routes: %s", prefix, time.Now().String())
 			return true, nil
 		},
 	}
@@ -629,15 +645,16 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 	nhFailCount := 0
 	const nhFailLimit = 20
 	const maxSamplePrefixes = 10
-	logDuration := func(start time.Time, stage string) {
-		t.Logf("InitialSyncStoppingCondition: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
+	logDuration := func(start time.Time, stage, prefix string) {
+		t.Logf("%s InitialSyncStoppingCondition: Stage: %s took %.2f seconds", prefix, stage, time.Since(start).Seconds())
 	}
 	return PeriodicHook{
 		Description: "Initial sync stopping condition",
-		PeriodicFunc: func(c *aftCache) (bool, error) {
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			prefix := ss.sessionPrefix()
 			start := time.Now()
-			a, err := c.ToAFT(t, dut)
-			logDuration(start, "Convert cache to AFT")
+			a, err := ss.ToAFT(t, dut)
+			logDuration(start, "Convert cache to AFT", prefix)
 			if err != nil {
 				return false, err
 			}
@@ -647,36 +664,36 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 			gotPrefixes := a.Prefixes
 			nPrefixes := len(wantPrefixes)
 			nGot := 0
-			missingPrefixes = make(map[string]bool)
+			ss.missingPrefixes = make(map[string]bool)
 			for p := range wantPrefixes {
 				if _, ok := gotPrefixes[p]; ok {
 					nGot++
 				} else {
-					missingPrefixes[p] = true
+					ss.missingPrefixes[p] = true
 				}
 			}
-			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
-			logDuration(checkPrefixStart, "Check Prefixes")
+			t.Logf("%s Got %d out of %d wanted prefixes so far.", prefix, nGot, nPrefixes)
+			logDuration(checkPrefixStart, "Check Prefixes", prefix)
 			if nGot < nPrefixes {
-				t.Logf("%d missing prefixes", len(missingPrefixes))
+				t.Logf("%s %d missing prefixes", prefix, len(ss.missingPrefixes))
 				// Log a sample of missing prefixes for easier debugging.
 				i := 0
-				for p := range missingPrefixes {
+				for p := range ss.missingPrefixes {
 					if i >= maxSamplePrefixes {
 						break
 					}
-					t.Logf("Example missing prefix: %s", p)
+					t.Logf("%s Example missing prefix: %s", prefix, p)
 					i++
 				}
 				return false, nil
 			}
-			missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
+			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
 
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
 			diffs := map[string]int{}
-			failingNHPrefixes = make(map[string]bool)
+			ss.failingNHPrefixes = make(map[string]bool)
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				got := map[string]bool{}
@@ -699,35 +716,35 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 					nCorrect++
 					continue
 				}
-				failingNHPrefixes[p] = true
+				ss.failingNHPrefixes[p] = true
 				if _, ok := diffs[diff]; !ok {
 					diffs[diff] = 0
 				}
 				diffs[diff]++
 			}
 			for k, v := range diffs {
-				t.Logf("%d mismatches of (-want +got):\n%s", v, k)
+				t.Logf("%s %d mismatches of (-want +got):\n%s", prefix, v, k)
 			}
-			t.Logf("Got %d of %d correct NH so far.", nCorrect, nPrefixes)
-			logDuration(checkNHStart, "Check Next Hops")
+			t.Logf("%s Got %d of %d correct NH so far.", prefix, nCorrect, nPrefixes)
+			logDuration(checkNHStart, "Check Next Hops", prefix)
 			if nCorrect != nPrefixes {
 				nhFailCount++
 				if nhFailCount == nhFailLimit {
 					return false, fmt.Errorf("after %d tries, next hop validation still fails", nhFailLimit)
 				}
-				t.Logf("%d prefixes with failing next hop validation", len(failingNHPrefixes))
+				t.Logf("%s %d prefixes with failing next hop validation", prefix, len(ss.failingNHPrefixes))
 				i := 0
-				for p := range failingNHPrefixes {
+				for p := range ss.failingNHPrefixes {
 					if i >= 10 {
 						break
 					}
-					t.Logf("Example prefix with failing next hop validation: %s", p)
+					t.Logf("%s Example prefix with failing next hop validation: %s", prefix, p)
 					i++
 				}
 				return false, nil
 			}
-			failingNHPrefixes = make(map[string]bool) // All NHs are correct, so clear the list.
-			t.Logf("Initial sync stopping condition took %.2f sec", time.Since(start).Seconds())
+			ss.failingNHPrefixes = make(map[string]bool) // All NHs are correct, so clear the list.
+			t.Logf("%s Initial sync stopping condition took %.2f sec", prefix, time.Since(start).Seconds())
 			return true, nil
 		},
 	}
@@ -736,15 +753,16 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 // AssertNextHopCount returns a PeriodicHook which can be used to check if all the given prefixes
 // resolve to the expected number of next hops.
 func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[string]bool, wantNHCount int) PeriodicHook {
-	logDuration := func(start time.Time, stage string) {
-		t.Logf("AssertNextHopCount: Stage: %s took %.2f seconds", stage, time.Since(start).Seconds())
+	logDuration := func(start time.Time, stage, prefix string) {
+		t.Logf("%s AssertNextHopCount: Stage: %s took %.2f seconds", prefix, stage, time.Since(start).Seconds())
 	}
 	return PeriodicHook{
 		Description: "Assert next hop count",
-		PeriodicFunc: func(c *aftCache) (bool, error) {
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			prefix := ss.sessionPrefix()
 			start := time.Now()
-			a, err := c.ToAFT(t, dut)
-			logDuration(start, "Convert cache to AFT")
+			a, err := ss.ToAFT(t, dut)
+			logDuration(start, "Convert cache to AFT", prefix)
 			if err != nil {
 				return false, err
 			}
@@ -758,8 +776,8 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 					nGot++
 				}
 			}
-			t.Logf("Got %d out of %d wanted prefixes so far.", nGot, nPrefixes)
-			logDuration(checkPrefixStart, "Check Prefixes")
+			t.Logf("%s Got %d out of %d wanted prefixes so far.", prefix, nGot, nPrefixes)
+			logDuration(checkPrefixStart, "Check Prefixes", prefix)
 			if nGot < nPrefixes {
 				return false, nil
 			}
@@ -767,6 +785,8 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
+			defer t.Logf("verified %d of %d prefixes in AssertNextHopCount.", nCorrect, len(wantPrefixes))
+			defer logDuration(checkNHStart, "Check Next Hops", prefix)
 			for p := range wantPrefixes {
 				resolved, err := a.resolveRoute(p)
 				switch {
@@ -776,17 +796,15 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 					return false, fmt.Errorf("error resolving next hops for prefix %v: %w", p, err)
 				default:
 					if len(resolved) != wantNHCount {
-						return false, fmt.Errorf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						t.Logf("prefix %s has %d next hops, want %d", p, len(resolved), wantNHCount)
+						return false, nil
 					}
 					nCorrect++
 				}
 			}
-			logDuration(checkNHStart, "Check Next Hops")
 			if nCorrect != nPrefixes {
-				t.Logf("AssertNextHopCount: Unexpected next hop count. Got %d of %d correct NH so far.", nCorrect, nPrefixes)
 				return false, nil
 			}
-			t.Logf("AssertNextHopCount: completed in %.2f sec", time.Since(start).Seconds())
 			return true, nil
 		},
 	}
@@ -794,6 +812,7 @@ func AssertNextHopCount(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[s
 
 // VerifyAtomicFlagHook returns a NotificationHook which verifies that the atomic flag is set to true.
 func VerifyAtomicFlagHook(t *testing.T) NotificationHook {
+	t.Helper()
 	return NotificationHook{
 		Description: "Atomic update hook",
 		NotificationFunc: func(c *aftCache, n *gnmipb.SubscribeResponse) error {
@@ -934,7 +953,7 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 }
 
 // parsePrefix extracts the IP prefix and next-hop-group ID from an AFT prefix GNMI notification.
-func parsePrefix(t *testing.T, n *gnmipb.Notification) (string, uint64, error) {
+func parsePrefix(t *testing.T, n *gnmipb.Notification, sessionPrefix string) (string, uint64, error) {
 	// Normalizes paths for the "updates" in the gNMI notification.
 	updates := schema.NotificationToPoints(n)
 	if len(updates) == 0 {
@@ -967,7 +986,7 @@ func parsePrefix(t *testing.T, n *gnmipb.Notification) (string, uint64, error) {
 		// known unused paths
 		case slices.Contains(unusedPaths, path):
 		default:
-			t.Logf("unexpected path %q in prefix notification %v", path, n)
+			t.Logf("%s unexpected path %q in prefix notification %v", sessionPrefix, path, n)
 		}
 	}
 	if len(wantFields) < 2 {
@@ -1006,8 +1025,8 @@ func getTestLogPath(t *testing.T, filename string) string {
 	return filepath.Join(t.TempDir(), filename)
 }
 
-func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) (string, error) {
-	path := getTestLogPath(t, missingPrefixesFile)
+func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool, target string, startTime time.Time) (string, error) {
+	path := getTestLogPath(t, fmt.Sprintf("%s_%d_%s", target, startTime.UnixNano(), missingPrefixesFile))
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
@@ -1021,8 +1040,8 @@ func writeMissingPrefixes(t *testing.T, missingPrefixes map[string]bool) (string
 	return path, nil
 }
 
-func writeFailingNHPrefixes(t *testing.T, failingNHPrefixes map[string]bool) (string, error) {
-	path := getTestLogPath(t, failingNHPrefixesFile)
+func writeFailingNHPrefixes(t *testing.T, failingNHPrefixes map[string]bool, target string, startTime time.Time) (string, error) {
+	path := getTestLogPath(t, fmt.Sprintf("%s_%d_%s", target, startTime.UnixNano(), failingNHPrefixesFile))
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
@@ -1036,8 +1055,8 @@ func writeFailingNHPrefixes(t *testing.T, failingNHPrefixes map[string]bool) (st
 	return path, nil
 }
 
-func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse) (string, error) {
-	path := getTestLogPath(t, notificationsFile)
+func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse, target string, startTime time.Time) (string, error) {
+	path := getTestLogPath(t, fmt.Sprintf("%s_%d_%s", target, startTime.UnixNano(), notificationsFile))
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return "", err
