@@ -16,6 +16,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    skip_grpc_validation_in_default_vrf: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {

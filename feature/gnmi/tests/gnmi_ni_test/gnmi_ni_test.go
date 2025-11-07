@@ -66,7 +66,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort1NetworkInstanceIParams)
 
 	// Configure gNMI server on default network instance.
-	if dut.Vendor() != ondatra.CISCO {
+	if !deviations.SkipGrpcValidationInDefaultVrf(dut) {
 		cfgplugins.CreateGNMIServer(batch, t, dut, &dutPort1NetworkInstanceIParams)
 	}
 
