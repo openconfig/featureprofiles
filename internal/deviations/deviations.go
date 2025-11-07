@@ -1747,3 +1747,8 @@ func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
 }
+
+// BgpLocalAggregateUnsupported returns true for devices that don't support OC configuration of BGP local aggregates
+func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
+}
