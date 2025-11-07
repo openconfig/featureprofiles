@@ -137,7 +137,6 @@ Traffic:
 Verification:
 -  Traffic is forwarded to ATE Port 2 unchanged.
 
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
