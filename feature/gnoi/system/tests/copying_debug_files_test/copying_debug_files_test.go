@@ -78,7 +78,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 	}
 	procName := processName[dut.Vendor()]
 	if procName == "rpd" {
-		procName = "re0:routing"
+		procName = "RE0:ROUTING"
 	}
 	killProcessRequest := &spb.KillProcessRequest{
 		Signal:  spb.KillProcessRequest_SIGNAL_KILL,
