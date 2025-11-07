@@ -1,4 +1,4 @@
-package policy_advertisea_ggregate
+package policy_advertise_aggregate
 
 import (
 	"testing"
@@ -12,7 +12,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -82,6 +81,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	st.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	st.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	st.GetOrCreateActions().GetOrCreateBgpActions().SetSetNextHop(oc.UnionString("0.0.0.0"))
 	gnmi.Replace(t, dut, dc.RoutingPolicy().Config(), rp)
 
 	t.Log("Configuring BGP...")
@@ -91,15 +91,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	bgp := bgpProtocol.GetOrCreateBgp()
 
 	global := bgp.GetOrCreateGlobal()
-	global.As = ygot.Uint32(dutAS)
-	global.RouterId = ygot.String(dutPort1.IPv4)
+	global.SetAs(dutAS)
+	global.SetRouterId(dutPort1.IPv4)
 
 	neighbor := bgp.GetOrCreateNeighbor(atePort1.IPv4)
-	neighbor.PeerAs = ygot.Uint32(ateAS)
-	neighbor.Enabled = ygot.Bool(true)
+	neighbor.SetPeerAs(ateAS)
+	neighbor.SetEnabled(true)
 
 	afiSafi := neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afiSafi.Enabled = ygot.Bool(true)
+	afiSafi.SetEnabled(true)
 	afiSafi.GetOrCreateApplyPolicy().SetImportPolicy([]string{policyName})
 
 	gnmi.Update(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProtocol)
@@ -182,13 +182,13 @@ func TestDefaultRouteGeneration(t *testing.T) {
 	verifyBGPTelemetry(t, dut)
 
 	// Subtest: Pre-check to ensure routes are not present initially.
-	t.Run("Pre-check", func(t *testing.T) {
+	t.Run("precheck", func(t *testing.T) {
 		verifyRIBRoute(t, dut, triggerRoute, false)
 		verifyRIBRoute(t, dut, defaultRoute, false)
 	})
 
 	// Subtest: Advertise the trigger route and verify default route generation.
-	t.Run("Advertise Trigger Route and Verify Generation", func(t *testing.T) {
+	t.Run("advertise_trigger_route_check_generation", func(t *testing.T) {
 		t.Logf("Advertising route %s from ATE", triggerRoute)
 		bgpPeer := ateConf.Devices().Items()[0].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 		route := bgpPeer.V4Routes().Add().SetName("triggerRoute")
@@ -202,8 +202,8 @@ func TestDefaultRouteGeneration(t *testing.T) {
 		verifyRIBRoute(t, dut, defaultRoute, true)
 	})
 
-	// Subtest: Withdraw the trigger route and verify default route is removed.
-	t.Run("Withdraw Trigger Route and Verify Deletion", func(t *testing.T) {
+	// Subtest: Withdraw the trigger route and verify default route deletion.
+	t.Run("withdraw_trigger_route_check_deletion", func(t *testing.T) {
 		t.Logf("Withdrawing route %s from ATE", triggerRoute)
 		// Re-configure ATE without the route to trigger a withdrawal.
 		ateConfWithdraw := configureATE(t, ate)
