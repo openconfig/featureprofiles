@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"strconv"
 	"strings"
@@ -31,22 +32,20 @@ import (
 )
 
 const (
-	sampleSize             = 256
-	trafficTime            = 40 * time.Second
-	retryConnectionWait    = 10 * time.Second
-	retryLimit             = 6
-	connectOnce            = 1
-	ipv4                   = "IPv4"
-	ipv6                   = "IPv6"
-	port1                  = "port1"
-	port2                  = "port2"
-	samplingRate           = 1000000
-	packetsToSend          = 10000000
-	packetRate             = 500000
-	flowCountTolerancePct  = 0.8
-	subscriptionTolerance  = 2
-	gnpsiClientsInParallel = 2
-	profileName            = "gnpsiProf"
+	connectionAttempts        = 2
+	connectionRetryInterval   = 10 * time.Second
+	connectionTimeout         = 2 * time.Minute
+	trafficTime               = 40 * time.Second
+	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
+	flowCountTolerancePct     = 0.2
+	gnpsiClientsInParallel    = 2
+	packetRate                = 500000
+	packetsToSend             = 10000000
+	samplingRate              = 1000000
+	subscriptionTolerance     = 2
+	port1                     = "port1"
+	port2                     = "port2"
+	profileName               = "gnpsiProf"
 )
 
 var (
@@ -102,10 +101,39 @@ var (
 	// This size depends on the ip type of the packet
 	// If a value is not contained in the map it is expected that the SFlow packet reported size is equal to the sent frame size
 	adjustedFrameSizeMap = map[uint32]map[string]uint32{
-		64: {ipv4: 66, ipv6: 86},
+		64: {cfgplugins.IPv4: 66, cfgplugins.IPv6: 86},
 	}
 
-	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
+	flow64IPv4 = flowConfig{
+		name:      "FlowIPv4_64",
+		ipType:    cfgplugins.IPv4,
+		frameSize: 64,
+	}
+	flow64IPv6 = flowConfig{
+		name:      "FlowIPv6_64",
+		ipType:    cfgplugins.IPv6,
+		frameSize: 64,
+	}
+	flow512IPv4 = flowConfig{
+		name:      "FlowIPv4_512",
+		ipType:    cfgplugins.IPv4,
+		frameSize: 512,
+	}
+	flow512IPv6 = flowConfig{
+		name:      "FlowIPv6_512",
+		ipType:    cfgplugins.IPv6,
+		frameSize: 512,
+	}
+	flow1500IPv4 = flowConfig{
+		name:      "FlowIPv4_1500",
+		ipType:    cfgplugins.IPv4,
+		frameSize: 1500,
+	}
+	flow1500IPv6 = flowConfig{
+		name:      "FlowIPv6_1500",
+		ipType:    cfgplugins.IPv6,
+		frameSize: 1500,
+	}
 )
 
 type sFlowPacket struct {
@@ -123,8 +151,9 @@ type flowConfig struct {
 }
 
 type testCase struct {
-	name string
-	run  func(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config)
+	name        string
+	flowConfigs []flowConfig
+	run         func(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, fc flowConfig)
 }
 
 func TestMain(m *testing.M) {
@@ -138,188 +167,138 @@ func TestSamplingAndSubscription(t *testing.T) {
 
 	configureDUT(t, dut)
 
-	ap1 := ate.Port(t, "port1")
-	ap2 := ate.Port(t, "port2")
+	ap1 := ate.Port(t, port1)
+	ap2 := ate.Port(t, port2)
 
 	otgPort1.AddToOTG(top, ap1, &dutPort1)
 	otgPort2.AddToOTG(top, ap2, &dutPort2)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, ipv4)
-	otgutils.WaitForARP(t, ate.OTG(), top, ipv6)
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv4)
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv6)
 
 	testCases := []testCase{
 		{
 			name: "gNPSI 1.1: Validate DUT configuration of gNPSI server, connect OTG client and verify samples",
-			run:  runTC1,
+			flowConfigs: []flowConfig{
+				flow64IPv4,
+				flow64IPv6,
+				flow512IPv4,
+				flow512IPv6,
+				flow1500IPv4,
+				flow1500IPv6,
+			},
+			run: verifySingleSFlowClient,
 		},
 		{
 			name: "gNPSI-1.2: Verify multiple clients can connect to the gNPSI Service and receive samples",
-			run:  runTC2,
+			flowConfigs: []flowConfig{
+				flow512IPv4,
+			},
+			run: verifyMultipleSFlowClients,
 		},
 		{
 			name: "gNPSI-1.3: Verify client reconnection to the gNPSI service",
-			run:  runTC3,
+			flowConfigs: []flowConfig{
+				flow512IPv4,
+			},
+			run: verifySFlowReconnect,
 		},
 		{
 			name: "gNPSI-1.4: Verify client connection after gNPSI service restart",
-			run:  runTC4,
+			flowConfigs: []flowConfig{
+				flow512IPv4,
+			},
+			run: verifySFlowServiceRestart,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			if tc.run != nil {
-				tc.run(t, ate, dut, top)
+			if tc.run == nil {
+				t.Fatalf("Test case %q has nothing to run", tc.name)
+			}
+			for _, fc := range tc.flowConfigs {
+				configureFlow(t, top, fc)
+				tc.run(t, ate, dut, top, fc)
 			}
 		})
 	}
 }
 
-func runTC1(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config) {
-	flowConfigs := []flowConfig{
-		{
-			name:      "FlowIPv4_64",
-			ipType:    ipv4,
-			frameSize: 64,
-		},
-		{
-			name:      "FlowIPv6_64",
-			ipType:    ipv6,
-			frameSize: 64,
-		},
-		{
-			name:      "FlowIPv4_512",
-			ipType:    ipv4,
-			frameSize: 512,
-		},
-		{
-			name:      "FlowIPv6_512",
-			ipType:    ipv6,
-			frameSize: 512,
-		},
-		{
-			name:      "FlowIPv4_1500",
-			ipType:    ipv4,
-			frameSize: 1500,
-		},
-		{
-			name:      "FlowIPv6_1500",
-			ipType:    ipv6,
-			frameSize: 1500,
-		},
-	}
+func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.GNPSIClient) (gnpsi.GNPSI_SubscribeClient, error) {
+	ticker := time.NewTicker(connectionRetryInterval)
+	defer ticker.Stop()
+	timeout := time.After(connectionTimeout)
 
-	for _, fc := range flowConfigs {
-		configureFlow(t, &top, &fc)
-		verifySingleSFlowClient(t, ate, dut, top, fc)
-	}
-}
-
-func runTC2(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config) {
-	flow := flowConfig{
-		name:      "Flow_TC2_IPv4_256",
-		ipType:    ipv4,
-		frameSize: 256,
-	}
-
-	configureFlow(t, &top, &flow)
-	verifyMultipleSFlowClients(t, ate, dut, top, flow)
-}
-
-func runTC3(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config) {
-	flow := flowConfig{
-		name:      "Flow_TC3_IPv4_256",
-		ipType:    ipv4,
-		frameSize: 256,
-	}
-
-	configureFlow(t, &top, &flow)
-	verifySFlowReconnect(t, ate, dut, top, flow)
-}
-
-func runTC4(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config) {
-	flow := flowConfig{
-		name:      "Flow_TC4_IPv4_256",
-		ipType:    ipv4,
-		frameSize: 256,
-	}
-
-	configureFlow(t, &top, &flow)
-	verifySFlowServiceRestart(t, ate, dut, top, flow)
-}
-
-func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiclient gnpsi.GNPSIClient, connectionRetries uint8) (gnpsi.GNPSI_SubscribeClient, error) {
-	var err error
-	var stream gnpsi.GNPSI_SubscribeClient
-	for connectionRetries > 0 {
-		stream, err = gnpsiclient.Subscribe(ctx, &gnpsi.Request{})
-		if err != nil {
-			t.Logf("Error connecting to gNPSI server: %v, retries left %d", err, connectionRetries)
-			connectionRetries--
-			time.Sleep(retryConnectionWait)
-			continue
+	for {
+		select {
+		case <-timeout:
+			return nil, fmt.Errorf("failed to connect to gNPSI server within %v seconds", connectionTimeout)
+		case <-ticker.C:
+			stream, err := gnpsiClient.Subscribe(ctx, &gnpsi.Request{})
+			if err != nil {
+				t.Logf("Unable to connect to gNPSI server: %v, retrying", err)
+				continue
+			}
+			return stream, nil
 		}
-		return stream, nil
 	}
-	return nil, fmt.Errorf("failed to connect to gNPSI server: %v", err)
 }
 
 func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
+	sampleCount := 0
 	t.Log("Waiting for gNPSI samples")
-	resp, err := stream.Recv()
-	for err == nil {
+	for {
+		resp, err := stream.Recv()
+		if err != nil {
+			switch {
+			case errors.Is(err, context.Canceled) || strings.Contains(err.Error(), context.Canceled.Error()):
+				t.Log("GNPSI client disconnected")
+			case errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.EOF.Error()):
+				t.Log("GNPSI connection closed by server")
+			default:
+				t.Errorf("error receiving gNPSI sample: %v", err)
+			}
+			return
+		}
+
 		if resp == nil {
 			t.Logf("Received empty response from gNPSI stream")
 			return
 		}
 
-		if len(resp.Packet) > 0 {
-			sflow := new(layers.SFlowDatagram)
-			err := sflow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback)
-			if err != nil {
-				t.Errorf("Failed to decode SFlow packet: %v", err)
-				continue
-			}
-			if len(sflow.FlowSamples) > 0 {
-				for _, flow := range sflow.FlowSamples {
-					for _, record := range flow.Records {
-						switch r := record.(type) {
-						case layers.SFlowRawPacketFlowRecord:
-							sflowPacketsToValidateChannel <- wrapSFlowPacket(r, flow)
-							t.Logf("Received gNPSI flow sample no %d:", len(sflowPacketsToValidateChannel))
-						case layers.SFlowExtendedSwitchFlowRecord:
-							continue
-						case layers.SFlowExtendedRouterFlowRecord:
-							continue
-						default:
-							t.Logf("Unknown record type: %T, value: %+v", r, r)
-						}
-					}
+		if len(resp.Packet) == 0 {
+			continue
+		}
+		sflow := new(layers.SFlowDatagram)
+		if decodeErr := sflow.DecodeFromBytes(resp.Packet, gopacket.NilDecodeFeedback); decodeErr != nil {
+			t.Errorf("failed to decode SFlow packet: %v", decodeErr)
+			continue
+		}
+
+		for _, flow := range sflow.FlowSamples {
+			for _, record := range flow.Records {
+				switch r := record.(type) {
+				case layers.SFlowRawPacketFlowRecord:
+					sampleCount++
+					sflowPacketsToValidateChannel <- wrapSFlowPacket(r, flow)
+					t.Logf("Received gNPSI flow sample no %d:", sampleCount)
+				default:
+					continue
 				}
 			}
 		}
-		resp, err = stream.Recv()
 	}
-
-	if errors.Is(err, context.Canceled) || strings.Contains(err.Error(), context.Canceled.Error()) {
-		t.Log("GNPSI client disconnected")
-		return
-	}
-	if errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.EOF.Error()) {
-		t.Log("GNPSI connection closed by server")
-		return
-	}
-	t.Errorf("Error receiving gNPSI sample: %v", err)
 }
 
 func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, fc flowConfig) {
 	ctx, closeContext := context.WithCancel(t.Context())
 	defer closeContext()
-	gnpsiclient := dut.RawAPIs().GNPSI(t)
-	stream, err := subscribeGNPSIClient(t, ctx, gnpsiclient, connectOnce)
+	gnpsiClient := dut.RawAPIs().GNPSI(t)
+	stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 	if err != nil {
 		t.Fatalf("Failed to connect to gNPSI server: %v", err)
 	}
@@ -338,13 +317,10 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 
 	sampleCount := len(sflowPacketsToValidateChannel)
 	if sampleCount == 0 {
-		t.Errorf("No samples received from gNPSI")
+		t.Errorf("no samples received from gNPSI")
 		return
 	}
-	if len(sflowPacketsToValidateChannel) == 0 {
-		t.Errorf("No SFlow packets with flow samples received from gNPSI")
-		return
-	}
+
 	t.Logf("Total SFlow packets: %d", len(sflowPacketsToValidateChannel))
 	checkSFlowPackets(t, dut, sflowPacketsToValidateChannel, fc)
 }
@@ -352,7 +328,7 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, flow flowConfig) {
 	ctx, closeContext := context.WithCancel(t.Context())
 	defer closeContext()
-	gnpsiclient := dut.RawAPIs().GNPSI(t)
+	gnpsiClient := dut.RawAPIs().GNPSI(t)
 	otg := ate.OTG()
 
 	ate.OTG().PushConfig(t, top)
@@ -361,14 +337,14 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	gnpsiClients := []gnpsi.GNPSI_SubscribeClient{}
 
 	for range gnpsiClientsInParallel {
-		stream, err := subscribeGNPSIClient(t, ctx, gnpsiclient, connectOnce)
+		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
 			t.Fatalf("Failed to connect to gNPSI server: %v", err)
 		}
 		gnpsiClients = append(gnpsiClients, stream)
 	}
 
-	getMaxDifference := func(values []int) int {
+	maxDifference := func(values []int) int {
 		if len(values) == 0 {
 			return 0
 		}
@@ -396,22 +372,22 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 
 	for _, client := range gnpsiClients {
 		client.CloseSend()
-		closeContext()
 	}
-	otgutils.LogFlowMetrics(t, otg, top)
+	closeContext()
 
+	otgutils.LogFlowMetrics(t, otg, top)
 	sampleCountPerClient := make([]int, gnpsiClientsInParallel)
 	for index, sflowPacketsChannel := range sflowPacketsToValidatePerClient {
 		sampleCountPerClient[index] = len(sflowPacketsChannel)
 	}
-	sampleDiff := getMaxDifference(sampleCountPerClient)
+	sampleDiff := maxDifference(sampleCountPerClient)
 	if sampleDiff > subscriptionTolerance {
-		t.Errorf("Flow sample count difference between clients is too high: %d, max tolerance %d", sampleDiff, subscriptionTolerance)
+		t.Errorf("flow sample count difference between clients is too high: %d, max tolerance %d", sampleDiff, subscriptionTolerance)
 	}
 }
 
 func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, flow flowConfig) {
-	gnpsiclient := dut.RawAPIs().GNPSI(t)
+	gnpsiClient := dut.RawAPIs().GNPSI(t)
 	var ctx context.Context
 	var closeContext context.CancelFunc
 	otg := ate.OTG()
@@ -421,12 +397,12 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 	sampleCount := 0
 	sampleCountAtDisconnect := 0
 
-	for range 2 {
+	for range connectionAttempts {
 		t.Log("Connecting GNPSI client")
 		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
 		ctx, closeContext = context.WithCancel(t.Context())
 		defer closeContext()
-		stream, err := subscribeGNPSIClient(t, ctx, gnpsiclient, connectOnce)
+		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
 			t.Fatalf("Failed to connect to gNPSI server: %v", err)
 		}
@@ -436,7 +412,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		waitForTraffic(t, otg, flow.name, trafficTime)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
-			t.Errorf("No samples received from gNPSI")
+			t.Errorf("no samples received from gNPSI")
 			return
 		}
 		if sampleCountAtDisconnect == 0 {
@@ -449,7 +425,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 	}
 
 	if sampleCountAtDisconnect == sampleCount {
-		t.Errorf("No SFlow packets received after GNPSI client reconnect")
+		t.Errorf("no SFlow packets received after GNPSI client reconnect")
 		return
 	}
 	t.Logf("Received %d samples after GNPSI client reconnect", sampleCount-sampleCountAtDisconnect)
@@ -461,7 +437,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	defer closeContext()
 	var stream gnpsi.GNPSI_SubscribeClient
 	var err error
-	gnpsiclient := dut.RawAPIs().GNPSI(t)
+	gnpsiClient := dut.RawAPIs().GNPSI(t)
 
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
@@ -469,9 +445,9 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	sampleCount := 0
 	sampleCountAtRestart := 0
 
-	for range 2 {
+	for range connectionAttempts {
 		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
-		stream, err = subscribeGNPSIClient(t, ctx, gnpsiclient, retryLimit)
+		stream, err = subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
 			t.Fatalf("Failed to connect to gNPSI server: %v", err)
 		}
@@ -481,7 +457,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		waitForTraffic(t, otg, flow.name, trafficTime)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
-			t.Errorf("No samples received from gNPSI")
+			t.Errorf("no samples received from gNPSI")
 			return
 		}
 		if sampleCountAtRestart == 0 {
@@ -496,7 +472,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	}
 
 	if sampleCountAtRestart == sampleCount {
-		t.Errorf("No SFlow packets received after GNPSI service restart")
+		t.Errorf("no SFlow packets received after GNPSI service restart")
 		return
 	}
 	t.Logf("Received %d samples after GNPSI service restart", sampleCount-sampleCountAtRestart)
@@ -509,25 +485,24 @@ func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan sFlowPacket, flowConfig flowConfig) {
-	flowCountTolerance := int(float32(expectedSFlowSamplesCount)*flowCountTolerancePct) + 1
-	if len(sFlowPackets) < expectedSFlowSamplesCount-flowCountTolerance || len(sFlowPackets) > expectedSFlowSamplesCount+flowCountTolerance {
-		t.Errorf("Unexpected number of sFlow packets: got %d, want %d ± %d",
-			len(sFlowPackets), expectedSFlowSamplesCount, flowCountTolerance)
-	} else {
-		t.Logf("Received sFlow packets: %d, within expected range %d ± %d ", len(sFlowPackets), expectedSFlowSamplesCount, flowCountTolerance)
-	}
-
-	index := 0
+	receivedSamples := 0
 	for sFlowPkt := range sFlowPackets {
-		index++
-		verifySFlowPacket(t, dut, sFlowPkt, flowConfig, index)
+		receivedSamples++
+		verifySFlowPacket(t, dut, sFlowPkt, flowConfig, receivedSamples)
 		switch flowConfig.ipType {
-		case ipv4:
+		case cfgplugins.IPv4:
 			verifyIpv4SFlowSample(t, sFlowPkt)
-		case ipv6:
+		case cfgplugins.IPv6:
 			verifyIpv6SFlowSample(t, sFlowPkt)
 		}
 	}
+
+	flowCountTolerance := int(math.Round(float64(expectedSFlowSamplesCount) * flowCountTolerancePct))
+	if receivedSamples < expectedSFlowSamplesCount-flowCountTolerance || receivedSamples > expectedSFlowSamplesCount+flowCountTolerance {
+		t.Errorf("unexpected number of sFlow packets: got %d, want %d ± %d", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+		return
+	}
+	t.Logf("Received sFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
 }
 
 func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
@@ -560,40 +535,38 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 func verifyIpv4SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
 	ipLayer := sFlowPkt.packet.Layer(layers.LayerTypeIPv4)
 	if ipLayer == nil {
-		t.Errorf("No IPv4 layer found in packet")
+		t.Errorf("no IPv4 layer found in packet")
 		return
 	}
 	ipv4, ok := ipLayer.(*layers.IPv4)
 	if !ok {
-		t.Errorf("Failed to extract IPv4 layer")
+		t.Errorf("failed to extract IPv4 layer")
 		return
 	}
 	initialSrc := net.ParseIP(otgPort1.IPv4)
 	initialDst := net.ParseIP(otgPort2.IPv4)
 	t.Logf("Source IP: %s, Destination IP: %s", ipv4.SrcIP, ipv4.DstIP)
 	if !ipv4.SrcIP.Equal(initialSrc) || !ipv4.DstIP.Equal(initialDst) {
-		t.Errorf("IPv4 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
-			ipv4.SrcIP, ipv4.DstIP, otgPort1.IPv4, otgPort2.IPv4)
+		t.Errorf("IPv4 source or destination IP does not match expected values: got %s -> %s, want %s -> %s", ipv4.SrcIP, ipv4.DstIP, otgPort1.IPv4, otgPort2.IPv4)
 	}
 }
 
 func verifyIpv6SFlowSample(t *testing.T, sFlowPkt sFlowPacket) {
 	ipLayer := sFlowPkt.packet.Layer(layers.LayerTypeIPv6)
 	if ipLayer == nil {
-		t.Errorf("No IPv6 layer found in packet")
+		t.Errorf("no IPv6 layer found in packet")
 		return
 	}
 	ipv6, ok := ipLayer.(*layers.IPv6)
 	if !ok {
-		t.Errorf("Failed to extract IPv6 layer")
+		t.Errorf("failed to extract IPv6 layer")
 		return
 	}
 	initialSrc := net.ParseIP(otgPort1.IPv6)
 	initialDst := net.ParseIP(otgPort2.IPv6)
 	t.Logf("Source IP: %s, Destination IP: %s", ipv6.SrcIP, ipv6.DstIP)
 	if !ipv6.SrcIP.Equal(initialSrc) || !ipv6.DstIP.Equal(initialDst) {
-		t.Errorf("IPv6 source or destination IP does not match expected values: got %s -> %s, want %s -> %s",
-			ipv6.SrcIP.String(), ipv6.DstIP.String(), otgPort1.IPv6, otgPort2.IPv6)
+		t.Errorf("IPv6 source or destination IP does not match expected values: got %s -> %s, want %s -> %s", ipv6.SrcIP.String(), ipv6.DstIP.String(), otgPort1.IPv6, otgPort2.IPv6)
 	}
 }
 
@@ -622,8 +595,8 @@ func processInterfaceNumber(dut *ondatra.DUTDevice, intfName string) uint32 {
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
+	dp1 := dut.Port(t, port1)
+	dp2 := dut.Port(t, port2)
 
 	t.Logf("Configuring Loopback Interface")
 	configureLoopbackInterface(t, dut)
@@ -652,18 +625,15 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 		transmitState, present := val.Val()
 		return present && !transmitState
 	}
-	_, ok := gnmi.Watch(t, otg, transmitPath, timeout, checkState).Await(t)
-
-	if !ok {
-		t.Errorf("Traffic for flow %s did not stop within the timeout of %d", flowName, timeout)
-	} else {
-		t.Logf("Traffic for flow %s has stopped", flowName)
+	if _, ok := gnmi.Watch(t, otg, transmitPath, timeout, checkState).Await(t); !ok {
+		t.Errorf("traffic for flow %s did not stop within the timeout of %v", flowName, timeout)
+		return
 	}
+	t.Logf("Traffic for flow %s has stopped", flowName)
 }
 
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	dc := gnmi.OC()
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, 0)
 	dutLoopbackAttrs.Name = loopbackIntfName
 	loopbackIntf := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
@@ -671,7 +641,7 @@ func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
 	if len(ipv4Addrs) == 0 {
 		loopIntf := defaultLoopbackAttrs.NewOCInterface(loopbackIntfName, dut)
 		loopIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loopIntf)
+		gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), loopIntf)
 		dutLoopbackAttrs.IPv4 = defaultLoopbackAttrs.IPv4
 		return
 	}
@@ -691,7 +661,7 @@ func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 		Ni:              deviations.DefaultNetworkInstance(dut),
 		IntfName:        dutLoopbackAttrs.Name,
 		SrcAddrV4:       dutLoopbackAttrs.IPv4,
-		IP:              ipv4,
+		IP:              cfgplugins.IPv4,
 		MinSamplingRate: samplingRate,
 	}
 	cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowParams)
@@ -709,15 +679,13 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 	}
 }
 
-func configureFlow(t *testing.T, config *gosnappi.Config, fc *flowConfig) {
-	(*config).Flows().Clear()
-	flow := (*config).Flows().Add().SetName(fc.name)
+func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) {
+	config.Flows().Clear()
+	flow := config.Flows().Add().SetName(fc.name)
 	flow.Metrics().SetEnable(true)
 	txName := fmt.Sprintf("%s.%s", port1, fc.ipType)
 	rxName := fmt.Sprintf("%s.%s", port2, fc.ipType)
-	flow.TxRx().Device().
-		SetTxNames([]string{txName}).
-		SetRxNames([]string{rxName})
+	flow.TxRx().Device().SetTxNames([]string{txName}).SetRxNames([]string{rxName})
 	flow.Size().SetFixed(fc.frameSize)
 	flow.Rate().SetPps(packetRate)
 	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(packetsToSend))
@@ -726,16 +694,16 @@ func configureFlow(t *testing.T, config *gosnappi.Config, fc *flowConfig) {
 	eth.Src().SetValue(otgPort1.MAC)
 
 	switch fc.ipType {
-	case ipv4:
+	case cfgplugins.IPv4:
 		ipv4 := flow.Packet().Add().Ipv4()
 		ipv4.Src().SetValue(otgPort1.IPv4)
 		ipv4.Dst().SetValue(otgPort2.IPv4)
-	case ipv6:
+	case cfgplugins.IPv6:
 		ipv6 := flow.Packet().Add().Ipv6()
 		ipv6.Src().SetValue(otgPort1.IPv6)
 		ipv6.Dst().SetValue(otgPort2.IPv6)
 	default:
-		t.Errorf("Invalid traffic type %s", fc.ipType)
+		t.Errorf("invalid traffic type %s", fc.ipType)
 	}
 }
 
