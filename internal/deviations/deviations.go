@@ -1747,3 +1747,8 @@ func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
 }
+
+// DefaultPolicyRequiresBgpMatch returns true device needs defined set to limit exporting direct routes into BGP.
+func DefaultPolicyRequiresBgpMatch(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPolicyRequiresBgpMatch()
+}

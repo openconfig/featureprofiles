@@ -50,18 +50,21 @@ func TestMain(m *testing.M) {
 // consistent with IPv4.
 
 const (
-	advertisedRoutesv4Net    = "203.0.113.1"
-	advertisedRoutesv4Prefix = 32
-	peerGrpName1             = "BGP-PEER-GROUP1"
-	peerGrpName2             = "BGP-PEER-GROUP2"
-	routeCount               = 254
-	dutAS                    = 500
-	ateAS1                   = 100
-	ateAS2                   = 200
-	plenIPv4                 = 30
-	plenIPv6                 = 126
-	removeASPath             = true
-	policyName               = "ALLOW"
+	advertisedRoutesv4Net       = "203.0.113.1"
+	advertisedRoutesv4Prefix    = 32
+	peerGrpName1                = "BGP-PEER-GROUP1"
+	peerGrpName2                = "BGP-PEER-GROUP2"
+	routeCount                  = 254
+	dutAS                       = 500
+	ateAS1                      = 100
+	ateAS2                      = 200
+	plenIPv4                    = 30
+	plenIPv6                    = 126
+	removeASPath                = true
+	policyName                  = "ALLOW"
+	prefixSetName               = "prefSet"
+	advertisedRoutesv4PrefixLen = "24..32"
+	advertisedRoutesv4CIDR      = "203.0.113.1/24"
 )
 
 var (
@@ -102,10 +105,13 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(name)
+	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
+	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	stmt, err := pdef.AppendNewStatement(name)
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(prefixSetName)
 	stmt.GetOrCreateActions().PolicyResult = pr
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -160,24 +166,32 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg1.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
+		rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		rp2 := pg2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 	} else {
+
 		pgaf := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf.Enabled = ygot.Bool(true)
 		rpl := pgaf.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
 
 		pgaf2 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf2.Enabled = ygot.Bool(true)
 		rp2 := pgaf2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		if deviations.DefaultPolicyRequiresBgpMatch(dut) {
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+			rp2.ImportPolicy = []string{policyName}
+			rp2.ExportPolicy = []string{policyName}
+		} else {
+			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		}
 	}
 
 	for _, nbr := range nbrs {

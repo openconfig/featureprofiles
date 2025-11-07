@@ -1027,6 +1027,10 @@ message Metadata {
     // Devices does not support NextNetworkInstance configuration.
     // Arista https://partnerissuetracker.corp.google.com/issues/457884385
     bool static_route_next_network_instance_oc_unsupported = 347;
+    
+    // Juniper: b/405071175
+    // Devices which needs defined set to avoid exporting direct routes with default accept all.
+    bool default_policy_requires_bgp_match = 348;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
