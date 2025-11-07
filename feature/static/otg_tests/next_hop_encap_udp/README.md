@@ -145,7 +145,7 @@ Verify:
 
 *   Repeat same verifications in `RT-3.53.1` but with the following differences
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **19**.
+        *   GUE header TTL is **20**.
 
 ### RT-3.53.6: IPv6 traffic GUE encapsulation with explicit TTL configuration on tunnel
 
@@ -166,7 +166,7 @@ Verify:
     *   ToS for all GUE encapsulated packets:
         *   GUE header ToS is **0x60**.
     *   TTL for all GUE encapsulated packets:
-        *   GUE header TTL is **19**.
+        *   GUE header TTL is **20**.
 
 ### RT-3.53.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel
 
@@ -211,84 +211,95 @@ Verify:
 *   Modify the flows in `RT-3.53.11` to use IPv6 destination IPv6-DST-NET 
     and repeat the traffic generation and validation.
 
-- Canonical OpenConfig
-
+### Canonical OC
 ```json
 {
   "network-instances": {
     "network-instance": [
       {
-        "name": "default",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "protocols": {
+          "protocol": [
+            {
+              "config": {
+                "identifier": "STATIC",
+                "name": "STATIC"
+              },
+              "identifier": "STATIC",
+              "name": "STATIC",
+              "static-routes": {
+                "static": [
+                  {
+                    "config": {
+                      "prefix": "fc00:10::1/128"
+                    },
+                    "next-hop-group": {
+                      "config": {
+                        "name": "ENCAP-NHG-1"
+                      }
+                    },
+                    "prefix": "fc00:10::1/128"
+                  }
+                ]
+              }
+            }
+          ]
+        },
         "static": {
           "next-hop-groups": {
             "next-hop-group": [
               {
                 "config": {
                   "name": "ENCAP-NHG-1"
-                }
+                },
+                "name": "ENCAP-NHG-1",
                 "next-hops": {
                   "next-hop": [
                     {
                       "config": {
-                        "index": 0
-                      }
+                        "index": "0"
+                      },
+                      "index": "0"
                     }
                   ]
                 }
               }
             ]
-          }
+          },
           "next-hops": {
             "next-hop": [
               {
                 "config": {
-                  "index": 0
-                }
+                  "index": "0"
+                },
                 "encap-headers": {
                   "encap-header": [
                     {
                       "config": {
-                        "index": 0
+                        "index": 0,
                         "type": "UDPV4"
-                      }
+                      },
+                      "index": 0,
                       "udp-v4": {
                         "config": {
-                          "dscp": 32
-                          "dst-ip": "10.50.50.1"
-                          "dst-udp-port": "6080"
-                          "ip-ttl": 64
-                          "src-ip": "10.5.5.5"
-                          "src-udp-port": "49152"
+                          "dscp": 32,
+                          "dst-ip": "10.50.50.1",
+                          "dst-udp-port": 6080,
+                          "ip-ttl": 20,
+                          "src-ip": "10.5.5.5",
+                          "src-udp-port": 49152
                         }
                       }
                     }
                   ]
-                }
+                },
+                "index": "0"
               }
             ]
           }
-        }
-        "protocols": {
-          "protocol": [
-            {
-              "identifier": "STATIC",
-              "name": "STATIC",
-              "static-routes": {
-                "static": [
-                  {
-                    "prefix": "fc00:10::1/128",
-                    "next-hop-group": [
-                      {
-                        "config": {
-                          "name": "ENCAP-NHG-1"
-                        }
-                      }
-                    ]
-                  }
-                ]
-              }
-            }
-          ]
         }
       }
     ]

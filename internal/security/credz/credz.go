@@ -16,6 +16,7 @@
 package credz
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -26,23 +27,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	cpb "github.com/openconfig/gnsi/credentialz"
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"golang.org/x/crypto/ssh"
 )
 
 const (
-	lowercase         = "abcdefghijklmnopqrstuvwxyz"
-	uppercase         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits            = "0123456789"
-	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
-	space             = " "
-	userKey           = "testuser"
+	lowercase = "abcdefghijklmnopqrstuvwxyz"
+	uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits    = "0123456789"
+	symbols   = "!@#$%^&*(){}[]\\:;\"'"
+	// space             = " "
 	dutKey            = "dut"
+	userKey           = "testuser"
 	caKey             = "ca"
 	minPasswordLength = 24
 	maxPasswordLength = 32
@@ -50,7 +51,7 @@ const (
 )
 
 var (
-	charClasses = []string{lowercase, uppercase, digits, symbols, space}
+	charClasses = []string{lowercase, uppercase, digits, symbols}
 )
 
 // PrettyPrint prints rpc requests/responses in a pretty format.
@@ -211,8 +212,10 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 		if err != nil {
 			t.Fatalf("Failed reading private key contents, error: %s", err)
 		}
+		dataTypes := bytes.Fields(data)
 		keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
-			AuthorizedKey: data,
+			// AuthorizedKey: data,
+			AuthorizedKey: dataTypes[1],
 			KeyType:       cpb.KeyType_KEY_TYPE_ED25519,
 		})
 	}
@@ -243,8 +246,9 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		if err != nil {
 			t.Fatalf("Failed reading ca public key contents, error: %s", err)
 		}
+		dataTypes := bytes.Fields(data)
 		keyContents = append(keyContents, &cpb.PublicKey{
-			PublicKey: data,
+			PublicKey: dataTypes[1],
 			KeyType:   cpb.KeyType_KEY_TYPE_ED25519,
 		})
 	}
@@ -278,25 +282,35 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
+	var keyData []byte
+	var certData []byte
+	var err error
 	if keyDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dutKey))
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
+		keyData, err = os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
-		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-			PrivateKey: data,
-		})
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	PrivateKey: data,
+		// })
 	}
 
 	if certDir != "" {
-		data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dutKey))
+		// data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
+		certData, err = os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
-		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-			Certificate: data,
-		})
+		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		// 	Certificate: data,
+		// })
 	}
+
+	artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+		PrivateKey:  keyData,
+		Certificate: certData,
+	})
 
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
@@ -307,7 +321,6 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 			},
 		},
 	}
-
 	sendHostParametersRequest(t, dut, request)
 }
 
@@ -364,7 +377,24 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 	if len(response.PublicKeys) < 1 {
 		return nil
 	}
-	return response.PublicKeys[0].PublicKey
+
+	// Form the key bytes from the proto message
+	var algo string
+	key := response.PublicKeys[0]
+	switch key.KeyType {
+	case cpb.KeyType_KEY_TYPE_RSA_2048, cpb.KeyType_KEY_TYPE_RSA_4096:
+		algo = "ssh-rsa"
+	case cpb.KeyType_KEY_TYPE_ECDSA_P_256:
+		algo = "ecdsa-sha2-nistp256"
+	case cpb.KeyType_KEY_TYPE_ECDSA_P_521:
+		algo = "ecdsa-sha2-nistp521"
+	case cpb.KeyType_KEY_TYPE_ED25519:
+		algo = "ssh-ed25519"
+	default:
+		t.Logf("unsupported key type: %v", key.KeyType)
+	}
+	return []byte(algo + " " + string(key.PublicKey) + " " + key.Description)
+
 }
 
 // CreateSSHKeyPair creates ssh keypair with a filename of keyName in the specified directory.
@@ -391,7 +421,7 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 		"-s", caKey,
 		"-I", userKey,
 		"-n", userPrincipal,
-		"-V", "+52w",
+		"-V", "-1d:+52w",
 		fmt.Sprintf("%s.pub", userKey),
 	)
 	userCertCmd.Dir = dir
@@ -402,19 +432,19 @@ func CreateUserCertificate(t *testing.T, dir, userPrincipal string) {
 }
 
 // CreateHostCertificate takes in dut key contents & creates ssh host certificate in the specified directory.
-func CreateHostCertificate(t *testing.T, dir string, dutKeyContents []byte) {
-	err := os.WriteFile(fmt.Sprintf("%s/%s.pub", dir, dutKey), dutKeyContents, 0o777)
+func CreateHostCertificate(t *testing.T, dut *ondatra.DUTDevice, dir string, dutKeyContents []byte) {
+	err := os.WriteFile(fmt.Sprintf("%s/%s.pub", dir, dut.ID()), dutKeyContents, 0o777)
 	if err != nil {
 		t.Fatalf("Failed writing dut public key to temp dir, error: %s", err)
 	}
 	cmd := exec.Command(
 		"ssh-keygen",
 		"-s", caKey, // sign using this ca key
-		"-I", dutKey, // key identity
+		"-I", dut.ID(), // key identity
 		"-h",                 // create host (not user) certificate
 		"-n", "dut.test.com", // principal(s)
-		"-V", "+52w", // validity
-		fmt.Sprintf("%s.pub", dutKey),
+		"-V", "-1d:+52w", // validity
+		fmt.Sprintf("%s.pub", dut.ID()),
 	)
 	cmd.Dir = dir
 	err = cmd.Run()
@@ -423,7 +453,7 @@ func CreateHostCertificate(t *testing.T, dir string, dutKeyContents []byte) {
 	}
 }
 
-func createHibaKeysCopy(t *testing.T, dir string) {
+func createHibaKeysCopy(t *testing.T, keysDir string) {
 	keyFiles := []string{
 		"ca",
 		"ca.pub",
@@ -434,11 +464,11 @@ func createHibaKeysCopy(t *testing.T, dir string) {
 		"users/testuser.pub",
 		"users/testuser-cert.pub",
 	}
-	err := os.Mkdir(fmt.Sprintf("%s/hosts", dir), 0o700)
+	err := os.Mkdir(fmt.Sprintf("%s/hosts", keysDir), 0o700)
 	if err != nil {
 		t.Fatalf("Failed ensuring hosts dir in temp dir, error: %s", err)
 	}
-	err = os.Mkdir(fmt.Sprintf("%s/users", dir), 0o700)
+	err = os.Mkdir(fmt.Sprintf("%s/users", keysDir), 0o700)
 	if err != nil {
 		t.Fatalf("Failed ensuring users dir in temp dir, error: %s", err)
 	}
@@ -450,116 +480,108 @@ func createHibaKeysCopy(t *testing.T, dir string) {
 			t.Errorf("Error reading file %v, error: %s", keyFile, err)
 			return
 		}
-		err = os.WriteFile(fmt.Sprintf("%s/%s", dir, keyFile), input, 0o600)
+		err = os.WriteFile(fmt.Sprintf("%s/%s", keysDir, keyFile), input, 0o600)
 		if err != nil {
 			t.Fatalf("Failed copying key file %s to temp test dir, error: %s", keyFile, err)
 		}
 	}
 }
 
-func createHibaKeysGen(t *testing.T, dir string) {
+func createHibaKeysGen(t *testing.T, hibaCa, hibaGen, keysDir string) {
 	caCmd := exec.Command(
-		"hiba-ca.sh",
+		hibaCa,
 		"-c",
-		"-d", dir, // output to the temp dir
+		"-d", keysDir, // output to the temp dir
 		"--",           // pass the rest to ssh-keygen
 		"-q", "-N", "", // quiet, empty passphrase
 
 	)
-	caCmd.Dir = dir
 	err := caCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed generating ca key pair, error: %s", err)
 	}
 
 	userKeyCmd := exec.Command(
-		"hiba-ca.sh",
+		hibaCa,
 		"-c",
-		"-d", dir,
+		"-d", keysDir,
 		"-u", "-I", userKey,
 		"--",
 		"-q", "-N", "",
 	)
-	userKeyCmd.Dir = dir
 	err = userKeyCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed generating user key pair, error: %s", err)
 	}
 
 	dutKeyCmd := exec.Command(
-		"hiba-ca.sh",
+		hibaCa,
 		"-c",
-		"-d", dir,
+		"-d", keysDir,
 		"-h", "-I", dutKey,
 		"--",
 		"-q", "-N", "",
 	)
-	dutKeyCmd.Dir = dir
 	err = dutKeyCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed generating dut key pair, error: %s", err)
 	}
 
 	prodIdentityCmd := exec.Command(
-		"hiba-gen",
+		hibaGen,
 		"-i",
-		"-f", fmt.Sprintf("%s/policy/identities/prod", dir),
-		"domain", "example.com",
+		"-f", fmt.Sprintf("%s/policy/identities/prod", keysDir),
+		"domain", "google.com",
 	)
-	prodIdentityCmd.Dir = dir
 	err = prodIdentityCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed creating prod identity, error: %s", err)
 	}
 
 	shellGrantCmd := exec.Command(
-		"hiba-gen",
-		"-f", fmt.Sprintf("%s/policy/grants/shell", dir),
-		"domain", "example.com",
+		hibaGen,
+		"-f", fmt.Sprintf("%s/policy/grants/shell", keysDir),
+		"domain", "google.com",
 	)
-	shellGrantCmd.Dir = dir
 	err = shellGrantCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed creating shell grant, error: %s", err)
 	}
 
 	grantShellToUserCmd := exec.Command(
-		"hiba-ca.sh",
-		"-d", dir,
+		hibaCa,
+		"-d", keysDir,
 		"-p",
 		"-I", userKey,
 		"-H", "shell",
 	)
-	grantShellToUserCmd.Dir = dir
 	err = grantShellToUserCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed granting shell grant to testuser, error: %s", err)
 	}
 
 	createHostCertCmd := exec.Command(
-		"hiba-ca.sh",
-		"-d", dir,
+		hibaCa,
+		"-d", keysDir,
 		"-s",
 		"-h",
 		"-I", dutKey,
 		"-H", "prod",
 		"-V", "+52w",
 	)
-	createHostCertCmd.Dir = dir
 	err = createHostCertCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed creating host certificate, error: %s", err)
 	}
 
 	createUserCertCmd := exec.Command(
-		"hiba-ca.sh",
-		"-d", dir,
+		hibaCa,
+		"-d", keysDir,
 		"-s",
 		"-u",
 		"-I", userKey,
 		"-H", "shell",
 	)
-	createUserCertCmd.Dir = dir
 	err = createUserCertCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed creating user certificate, error: %s", err)
@@ -577,86 +599,79 @@ func createHibaKeysGen(t *testing.T, dir string) {
 // feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser,
 // feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser.pub,
 // feature/security/gnsi/credentialz/tests/hiba_authentication/users/testuser-cert.pub,
-func CreateHibaKeys(t *testing.T, dir string) {
+func CreateHibaKeys(t *testing.T, dut *ondatra.DUTDevice, keysDir string) {
 	hibaCa, _ := exec.LookPath("hiba-ca.sh")
 	hibaGen, _ := exec.LookPath("hiba-gen")
 	if hibaCa == "" || hibaGen == "" {
 		t.Log("hiba-ca and/or hiba-gen not found on path, will try to use certs in local test dir if present.")
-		createHibaKeysCopy(t, dir)
+		createHibaKeysCopy(t, keysDir)
 	} else {
-		createHibaKeysGen(t, dir)
+		createHibaKeysGen(t, hibaCa, hibaGen, keysDir)
 	}
 }
 
 // SSHWithPassword dials ssh with password based authentication to be used in credentialz tests.
-func SSHWithPassword(target, username, password string) (*ssh.Client, error) {
-	return ssh.Dial(
-		"tcp",
-		target,
-		&ssh.ClientConfig{
-			User: username,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-		},
-	)
+func SSHWithPassword(ctx context.Context, dut *ondatra.DUTDevice, username, password string) (binding.SSHClient, error) {
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.PasswordAuth{User: username, Password: password})
 }
 
 // SSHWithCertificate dials ssh with user certificate to be used in credentialz tests.
-func SSHWithCertificate(t *testing.T, target, username, dir string) (*ssh.Client, error) {
+func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
+
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
 	}
-	signer, err := ssh.ParsePrivateKey(privateKeyContents)
-	if err != nil {
-		t.Fatalf("Failed parsing private key, error: %s", err)
-	}
+
 	certificateContents, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading certificate contents, error: %s", err)
 	}
-	certificate, _, _, _, err := ssh.ParseAuthorizedKey(certificateContents)
-	if err != nil {
-		t.Fatalf("Failed parsing certificate contents, error: %s", err)
-	}
-	certificateSigner, err := ssh.NewCertSigner(certificate.(*ssh.Certificate), signer)
-	if err != nil {
-		t.Fatalf("Failed creating certificate signer, error: %s", err)
-	}
 
-	return ssh.Dial(
-		"tcp",
-		target,
-		sshClientConfigWithPublicKeys(username, certificateSigner),
-	)
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.CertificateAuth{User: username, PrivateKey: privateKeyContents, Certificate: certificateContents})
 }
 
 // SSHWithKey dials ssh with key based authentication to be used in credentialz tests.
-func SSHWithKey(t *testing.T, target, username, dir string) (*ssh.Client, error) {
+func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
 	}
-	signer, err := ssh.ParsePrivateKey(privateKeyContents)
-	if err != nil {
-		t.Fatalf("Failed parsing private key, error: %s", err)
-	}
-
-	return ssh.Dial(
-		"tcp",
-		target,
-		sshClientConfigWithPublicKeys(username, signer),
-	)
+	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-func sshClientConfigWithPublicKeys(username string, signer ssh.Signer) *ssh.ClientConfig {
-	return &ssh.ClientConfig{
-		User: username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
+// SSHCleanup performs required cleanup on DUT
+func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Arista vendor, performing SSH cleanup")
+		cliConfig := `no management ssh`
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	default:
+		t.Logf("Need cleanup support from Vendor %s", dut.Vendor())
 	}
+}
+
+// GetConfiguredHostKey returns the configured host key on the DUT for the given algorithm.
+// This is used to verify if the host key is correctly configured on the DUT before rotating the
+// keys.
+func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqdn string) string {
+	dutTarget := fmt.Sprintf("%s.%s", dut.Name(), fqdn)
+	cmd := exec.Command(
+		"ssh-keyscan",
+		"-t",
+		algo,
+		dutTarget)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("Failed to run ssh-keyscan cmd:%v error:%v out:%s", cmd, err, string(out))
+	}
+	// Output is of the form
+	//
+	// # cmp304:22 SSH-2.0-OpenSSH_9.9
+	// cmp304 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIbEBIIJSciG9AsmSTCGEIZEnO8IRrmTvhIMmaxAwZge
+	//
+	// Ignore the first line and the first word of the second line
+	keyLine := strings.Trim(strings.Split(string(out), "\n")[1], "\n")
+	return strings.Join(strings.Split(keyLine, " ")[1:], " ")
 }
