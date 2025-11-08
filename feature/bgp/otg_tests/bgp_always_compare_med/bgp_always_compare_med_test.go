@@ -139,13 +139,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyPortsUp asserts that each port on the device is operating.
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
-	dutPorts := map[string]*ondatra.Port{
-		"port1": dev.Port(t, "port1"),
-		"port2": dev.Port(t, "port2"),
-		"port3": dev.Port(t, "port3"),
-	}
-
-	for _, p := range dutPorts {
+	for _, p := range dev.Ports() {
 		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if want := oc.Interface_OperStatus_UP; status != want {
 			t.Errorf("%s Status: got %v, want %v", p, status, want)
@@ -446,7 +440,6 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 		t.Fatal(err)
 	}
 	actions1 := st.GetOrCreateActions()
-	actions1.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
 	if !deviations.BGPSetMedActionUnsupported(dut) {
 		actions1.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
@@ -462,7 +455,6 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 		t.Fatal(err)
 	}
 	actions2 := st.GetOrCreateActions()
-	actions2.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
 	if !deviations.BGPSetMedActionUnsupported(dut) {
 		actions2.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
@@ -492,6 +484,7 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 		t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	} else {
 		t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
+		// compare Med val with expected for each of the recieved routes.
 		for _, prefix := range bgpPrefixes {
 			_, ok := gnmi.Watch(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4Prefix(prefix.GetAddress(), prefix.GetPrefixLength(), prefix.GetOrigin(), prefix.GetPathId()).MultiExitDiscriminator().State(),
 				time.Minute, func(v *ygnmi.Value[uint32]) bool {
