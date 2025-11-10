@@ -118,9 +118,9 @@ var _ introspect.Introspector = (*staticATE)(nil)
 const resvID = "STATIC"
 
 // Reserve creates a reservation and does conservative validation:
-// - For each DUT/ATE, only validate SSH/gRPC targets when the corresponding
-//   bindpb.Options are present (non-nil). This avoids failing tests that don't
-//   populate options, while still failing fast for misconfigured bindings.
+//   - For each DUT/ATE, only validate SSH/gRPC targets when the corresponding
+//     bindpb.Options are present (non-nil). This avoids failing tests that don't
+//     populate options, while still failing fast for misconfigured bindings.
 func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
 	_ = runTime
 	_ = waitTime
