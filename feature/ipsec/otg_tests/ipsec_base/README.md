@@ -1,4 +1,4 @@
-# IPSEC-1.1 IPSec with MACSec over aggregated links.
+# IPSEC-1.1: IPSec with MACSec over aggregated links.
 
 ## Summary
 

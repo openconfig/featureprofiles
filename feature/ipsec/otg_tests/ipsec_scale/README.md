@@ -1,4 +1,4 @@
-# IPSEC-1.2 IPSec Scaling with MACSec over aggregated links.
+# IPSEC-1.2: IPSec Scaling with MACSec over aggregated links.
 
 ## Summary
 
