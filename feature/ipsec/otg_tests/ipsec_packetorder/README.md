@@ -43,7 +43,8 @@ Verify:
 ### Canonical OC
 
 ```json
-TODO
+{
+}
 ```
 
 ## Required DUT platform

@@ -76,8 +76,10 @@ Verify:
 * Same validation steps as the IPv4-Max-Device-Tunnel.
 
 ### Canonical OC  
+
 ```json
-TODO
+{
+}
 ```
 
 ## Required DUT platform
