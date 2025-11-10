@@ -400,31 +400,28 @@ Verify:
 Monitoring for these tunnels must be available via OC and/or standard native YANG modeling.
 
 ```yaml
-
-/security/ipsec/profiles/profile/config/mode:
-/security/ipsec/profiles/profile/config/ike-policy:
-/security/ipsec/profiles/profile/config/security-association:
-/security/ipsec/profiles/profile/config/connection-type:
-/security/ipsec/profiles/profile/config/shared-key:
-/security/ipsec/profiles/profile/dpd:
-/security/ipsec/profiles/profile/dpd/config/enabled:
-/security/ipsec/profiles/profile/dpd/config/keepalive:
-/security/ipsec/profiles/profile/dpd/config/hold-time:
-/security/ipsec/profiles/profile/dpd/config/action:
-
-/security/ike/policies/policy/config/ike-lifetime:
-/security/ike/policies/policy/config/integrity:
-/security/ike/policies/policy/config/dh-group:
-/security/ike/policies/policy/config/encryption:
-/security/ike/policies/policy/config/version:
-
-/interfaces/interface/tunnel/config/mode:
-/interfaces/interface/tunnel/config/ipsec-profile:
-
-/security/ike/security-associations/security-association/config/sa-lifetime:
-/security/ike/security-associations/security-association/config/esp-encryption:
-/security/ike/security-associations/security-association/config/esp-integrity:
-/security/ike/security-associations/security-association/config/pfs-dh-group:
+paths:
+  /security/ipsec/profiles/profile/config/mode:
+  /security/ipsec/profiles/profile/config/ike-policy:
+  /security/ipsec/profiles/profile/config/security-association:
+  /security/ipsec/profiles/profile/config/connection-type:
+  /security/ipsec/profiles/profile/config/shared-key:
+  /security/ipsec/profiles/profile/dpd:
+  /security/ipsec/profiles/profile/dpd/config/enabled:
+  /security/ipsec/profiles/profile/dpd/config/keepalive:
+  /security/ipsec/profiles/profile/dpd/config/hold-time:
+  /security/ipsec/profiles/profile/dpd/config/action:
+  /security/ike/policies/policy/config/ike-lifetime:
+  /security/ike/policies/policy/config/integrity:
+  /security/ike/policies/policy/config/dh-group:
+  /security/ike/policies/policy/config/encryption:
+  /security/ike/policies/policy/config/version:
+  /interfaces/interface/tunnel/config/mode:
+  /interfaces/interface/tunnel/config/ipsec-profile:
+  /security/ike/security-associations/security-association/config/sa-lifetime:
+  /security/ike/security-associations/security-association/config/esp-encryption:
+  /security/ike/security-associations/security-association/config/esp-integrity:
+  /security/ike/security-associations/security-association/config/pfs-dh-group:
 
  ```
 
