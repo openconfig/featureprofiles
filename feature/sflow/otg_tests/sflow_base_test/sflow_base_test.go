@@ -325,7 +325,7 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 		t.Run(flowName, func(t *testing.T) {
 			createFlow(t, ate, config, fc, ip)
 			cs := startCapture(t, ate, config)
-			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 5
+			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 10
 			ate.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			ate.OTG().StopTraffic(t)
