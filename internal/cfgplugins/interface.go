@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -884,7 +885,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
@@ -1037,4 +1038,36 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
 	n4.LinkLayerAddress = ygot.String(macAddr)
 	return i
+}
+
+// URPFConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface. It includes the interface name and its IPv4/IPv6 subinterface objects.
+type URPFConfigParams struct {
+	InterfaceName string
+	IPv4Obj       *oc.Interface_Subinterface_Ipv4
+	IPv6Obj       *oc.Interface_Subinterface_Ipv6
+}
+
+// ConfigureURPFonDutInt configures URPF on the interface.
+func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigParams) {
+	t.Helper()
+	if deviations.URPFConfigOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			urpfCliConfig := fmt.Sprintf(`
+			interface %s
+			ip verify unicast source reachable-via any
+			ipv6 verify unicast source reachable-via any
+			`, cfg.InterfaceName)
+			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+		}
+	} else {
+		cfg.IPv4Obj.GetOrCreateUrpf()
+		cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		cfg.IPv6Obj.GetOrCreateUrpf()
+		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+	}
 }
