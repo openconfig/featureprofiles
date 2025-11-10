@@ -47,16 +47,14 @@ Verify:
 }
 ```
 
-## Openconfig Path and RPC Coverage
+## OpenConfig Path and RPC Coverage
 
 ```yaml
 paths:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
     gNMI.Subscribe:
-      on_change: true
   ```
 
 ## Required DUT platform

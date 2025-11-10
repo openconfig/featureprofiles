@@ -395,7 +395,7 @@ Verify:
 }
   ```
 
-## Openconfig Path and RPC Coverage
+## OpenConfig Path and RPC Coverage
 
 Monitoring for these tunnels must be available via OC and/or standard native YANG modeling.
 
@@ -426,9 +426,7 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
     gNMI.Subscribe:
-      on_change: true
   ```
 
 ## Required DUT platform
