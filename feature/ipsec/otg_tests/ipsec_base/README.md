@@ -423,6 +423,7 @@ paths:
   /security/ike/security-associations/security-association/config/esp-integrity:
   /security/ike/security-associations/security-association/config/pfs-dh-group:
 
+rpcs:
  ```
 
 ## Required DUT platform
