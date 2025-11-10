@@ -1731,3 +1731,18 @@ func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
 }
+
+// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
+func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
+}
+
+// StaticRouteNextNetworkInstanceOCUnsupported returns true for devices that don't support NextNetworkInstance of static route next hop.
+func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
+}
+
+// GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
+func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
