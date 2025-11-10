@@ -424,6 +424,11 @@ paths:
   /security/ike/security-associations/security-association/config/pfs-dh-group:
 
 rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: true
+    gNMI.Subscribe:
+      on_change: true
  ```
 
 ## Required DUT platform
