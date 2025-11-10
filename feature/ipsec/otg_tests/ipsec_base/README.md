@@ -388,9 +388,12 @@ Verify:
 }
   ```
 
-## Canonical OpenConfig for IPSec configuration
+## Canonical OC
 
-TODO
+```json
+{
+}
+  ```
 
 ## Openconfig Path and RPC Coverage
 
