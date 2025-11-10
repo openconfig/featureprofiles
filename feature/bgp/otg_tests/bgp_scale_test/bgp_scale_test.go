@@ -75,6 +75,11 @@ const (
 	ateP3IPv6       = "1003::153:1:1:2"
 	ateP4IPv4       = "200.1.1.2"
 	ateP4IPv6       = "1004::200:1:1:254"
+	ateP4LoopbackV4 = "203.0.113.0"
+	ateP4LoopbackV6 = "2001:db8::203:0:113:0"
+	dutP4LoopbackV4 = "203.0.113.200"
+	dutP4LoopbackV6 = "2001:db8::203:0:113:200"
+	ateP4V4Route    = "60.0.0.1"
 	// ISIS related constants
 	isisInstance       = "DEFAULT"
 	dutAreaAddress     = "49.0001"
@@ -368,8 +373,8 @@ type attributes struct {
 	ip6              func(vlan uint8) (string, string)
 	gateway          func(vlan uint8) (string, string)
 	gateway6         func(vlan uint8) (string, string)
-	ip4Loopback      func(vlan int) string
-	ip6Loopback      func(vlan int) string
+	ip4Loopback      func(vlan uint8) (string, string)
+	ip6Loopback      func(vlan uint8) (string, string)
 	lagMAC           string
 	ethMAC           string
 	port1MAC         string
@@ -474,27 +479,32 @@ func atePort4IPv6(vlan uint8) (string, string) {
 
 // atePort4v4Route returns ip addresses starting 60.%d.0.1 for every vlanID.
 func atePort4v4Route(vlan int) string {
-	return fmt.Sprintf("60.%d.0.1", vlan)
+	ip, _ := cfgplugins.IncrementIP(ateP4V4Route, int(vlan)*256*256)
+	return ip
 }
 
 // atePort4v4Loopback returns ip addresses starting 203.0.113.%d for every vlanID.
-func atePort4v4Loopback(vlan int) string {
-	return fmt.Sprintf("203.0.113.%d", vlan)
+func atePort4v4Loopback(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV4, int(vlan))
+	return ip, err
 }
 
 // atePort4v6Loopback returns ip addresses starting 2001:db8::203:0:113:%d for every vlanID.
-func atePort4v6Loopback(vlan int) string {
-	return fmt.Sprintf("2001:db8::203:0:113:%d", vlan)
+func atePort4v6Loopback(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV6, int(vlan))
+	return ip, err
 }
 
 // dutPort4v4Loopback returns ip addresses starting 203.0.113.%d for every vlanID.
-func dutPort4v4Loopback(vlan int) string {
-	return fmt.Sprintf("203.0.113.%d", vlan)
+func dutPort4v4Loopback(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV4, int(vlan))
+	return ip, err
 }
 
 // dutPort4v6Loopback returns ip addresses starting 2001:db8::203:0:113:%d for every vlanID.
-func dutPort4v6Loopback(vlan int) string {
-	return fmt.Sprintf("2001:db8::203:0:113:%d", vlan)
+func dutPort4v6Loopback(vlan uint8) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV6, int(vlan))
+	return ip, err
 }
 
 // atePort4v6Route returns ip addresses starting 2010:%d:db8:64:64::1 for every vlanID.
@@ -707,8 +717,16 @@ func TestBGPScale(t *testing.T) {
 				for _, v := range tc.testCleanup {
 					var nbrPeers []string
 					for i := 1; i <= int(dutPort4.numSubIntf); i++ {
-						nbrPeers = append(nbrPeers, "203.0.113."+strconv.Itoa(i))
-						nbrPeers = append(nbrPeers, "2001:db8::203:0:113:"+strconv.Itoa(i))
+						ip4, eMsg := atePort4v4Loopback(uint8(i))
+						if eMsg != "" {
+							t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
+						}
+						nbrPeers = append(nbrPeers, ip4)
+						ip6, eMsg := atePort4v6Loopback(uint8(i))
+						if eMsg != "" {
+							t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
+						}
+						nbrPeers = append(nbrPeers, ip6)
 					}
 					v(t, dut, dut.Port(t, dutPort1.Name).Name(), 9210, []string{"192.0.2.2", "2001:db8::192:0:2:2"}, 4096)
 					v(t, dut, aggIDs[0], 9210, nbrPeers, 4096)
@@ -847,15 +865,23 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 		t.Logf("Configuring DUT for MSS test")
 		var nbrPeers []string
 		for i := 1; i <= int(dutPort4.numSubIntf); i++ {
-			nbrPeers = append(nbrPeers, "203.0.113."+strconv.Itoa(i))
-			nbrPeers = append(nbrPeers, "2001:db8::203:0:113:"+strconv.Itoa(i))
+			ip4, eMsg := atePort4v4Loopback(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
+			}
+			nbrPeers = append(nbrPeers, ip4)
+			ip6, eMsg := atePort4v6Loopback(uint8(i))
+			if eMsg != "" {
+				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
+			}
+			nbrPeers = append(nbrPeers, ip6)
 		}
 		cfgplugins.ConfigureDUTBGPMaxSegmentSize(t, dut, dut.Port(t, dutPort1.Name).Name(), 9210, []string{"192.0.2.2", "2001:db8::192:0:2:2"}, 4096)
 		cfgplugins.ConfigureDUTBGPMaxSegmentSize(t, dut, aggIDs[0], 9210, nbrPeers, 4096)
 	}
 	var vlan, mtu uint32
 	var isLoopback, isLag, isMTU bool
-	var loopbackV4, loopbackV6 string
+	var loopbackV4, loopbackV6, eMsg string
 	for _, atePort := range []attributes{atePort1, atePort2, atePort3, atePort4} {
 		if dut.Vendor() == ondatra.CISCO {
 			mtu = 9214
@@ -889,8 +915,14 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 				vlan = uint32(int(atePort.index*10) + i)
 			}
 			if isLoopback {
-				loopbackV4 = atePort.ip4Loopback(i)
-				loopbackV6 = atePort.ip6Loopback(i)
+				loopbackV4, eMsg = atePort.ip4Loopback(uint8(i))
+				if eMsg != "" {
+					t.Fatalf("Failed to generate IPv4 loopback address with error '%s'", eMsg)
+				}
+				loopbackV6, eMsg = atePort.ip6Loopback(uint8(i))
+				if eMsg != "" {
+					t.Fatalf("Failed to generate IPv6 loopback address with error '%s'", eMsg)
+				}
 			} else {
 				loopbackV4 = ""
 				loopbackV6 = ""
@@ -1266,9 +1298,13 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip4Loopback != nil && i <= (1+nbrPeers/4)*2 {
+			loopbackV4, eMsg := a.ip4Loopback(uint8(i))
+			if eMsg != "" {
+				fmt.Printf("Error in fetching IPV4 loopback address for port %s: %s", a.Name, eMsg)
+			}
 			bgpNbr := &bgpNeighbor{
 				as:           64500,
-				neighborip:   a.ip4Loopback(i),
+				neighborip:   loopbackV4,
 				isV4:         true,
 				pg:           peervRR4GrpName,
 				importPolicy: a.importPolicy,
@@ -1276,9 +1312,13 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip4Loopback != nil && i > (1+nbrPeers/4)*2 {
+			loopbackV4, eMsg := a.ip4Loopback(uint8(i))
+			if eMsg != "" {
+				fmt.Printf("Error in fetching IPV4 loopback address for port %s: %s", a.Name, eMsg)
+			}
 			bgpNbr := &bgpNeighbor{
 				as:           64500,
-				neighborip:   a.ip4Loopback(i),
+				neighborip:   loopbackV4,
 				isV4:         true,
 				pg:           peervVF4GrpName,
 				importPolicy: a.importPolicy,
@@ -1297,9 +1337,13 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip6Loopback != nil && i <= (1+nbrPeers/4)*2 {
+			loopbackV6, eMsg := a.ip6Loopback(uint8(i))
+			if eMsg != "" {
+				fmt.Printf("Error in fetching IPV6 loopback address for port %s: %s", a.Name, eMsg)
+			}
 			bgpNbr := &bgpNeighbor{
 				as:           64500,
-				neighborip:   a.ip6Loopback(i),
+				neighborip:   loopbackV6,
 				isV4:         false,
 				pg:           peervRR6GrpName,
 				importPolicy: a.importPolicy,
@@ -1307,9 +1351,13 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip6Loopback != nil && i > (1+nbrPeers/4)*2 {
+			loopbackV6, eMsg := a.ip6Loopback(uint8(i))
+			if eMsg != "" {
+				fmt.Printf("Error in fetching IPV6 loopback address for port %s: %s", a.Name, eMsg)
+			}
 			bgpNbr := &bgpNeighbor{
 				as:           64500,
-				neighborip:   a.ip6Loopback(i),
+				neighborip:   loopbackV6,
 				isV4:         false,
 				pg:           peervVF6GrpName,
 				importPolicy: a.importPolicy,
@@ -2078,7 +2126,7 @@ func (a *attributes) configureATEIBGP(t *testing.T, top gosnappi.Config, ate *on
 		configureOTGISIS(t, "lag1.Dev", dev, atePort4, ate, i)
 
 		// IBGP Configuration
-		routerID := a.ip4Loopback(i)
+		routerID, _ := a.ip4Loopback(uint8(i))
 		// IPv4 IBGP Peer
 		bgp4Peer := otgconfighelpers.AddBGPV4Peer(dev, intfName+".Loopback.IPv4",
 			otgconfighelpers.WithBGPName(dev.Name()+".IBGP.BGP4.peer"+strconv.Itoa(int(i))),
@@ -2195,11 +2243,19 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 		},
 	}
 	isis := otgconfighelpers.ConfigureISIS(t, dev, isisAttrs)
+	loopbackV4, eMsg := atePort.ip4Loopback(uint8(i))
+	if eMsg != "" {
+		t.Logf("Error configuring loopbackV4: %v", eMsg)
+	}
+	loopbackV6, eMsg := atePort.ip6Loopback(uint8(i))
+	if eMsg != "" {
+		t.Logf("Error configuring loopbackV6: %v", eMsg)
+	}
 
 	otgconfighelpers.AddISISRoutesV4(isis, name+strconv.Itoa(int(i))+".ISISV4", 10, atePort.v4Route(i), 30, atePort.v4ISISRouteCount)
 	otgconfighelpers.AddISISRoutesV6(isis, name+strconv.Itoa(int(i))+".ISISV6", 10, atePort.v6Route(i), 64, atePort.v6ISISRouteCount)
 	otgconfighelpers.AddISISRoutesV4(isis, name+"PNH"+strconv.Itoa(int(i))+".ISISV4", 10, "60.0.0.0", 8, 1)
 	otgconfighelpers.AddISISRoutesV6(isis, name+"PNH"+strconv.Itoa(int(i))+".ISISV6", 10, "2010::", 16, 1)
-	otgconfighelpers.AddISISRoutesV4(isis, "ISISPort4V4"+strconv.Itoa(int(i)), 10, atePort.ip4Loopback(i), 32, 1)
-	otgconfighelpers.AddISISRoutesV6(isis, "ISISPort4V6"+strconv.Itoa(int(i)), 10, atePort.ip6Loopback(i), 128, 1)
+	otgconfighelpers.AddISISRoutesV4(isis, "ISISPort4V4"+strconv.Itoa(int(i)), 10, loopbackV4, 32, 1)
+	otgconfighelpers.AddISISRoutesV6(isis, "ISISPort4V6"+strconv.Itoa(int(i)), 10, loopbackV6, 128, 1)
 }

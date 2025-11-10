@@ -82,8 +82,8 @@ type Attributes struct {
 	Ip6              func(vlan uint8) (string, string)
 	Gateway          func(vlan uint8) (string, string)
 	Gateway6         func(vlan uint8) (string, string)
-	Ip4Loopback      func(vlan int) string
-	Ip6Loopback      func(vlan int) string
+	Ip4Loopback      func(vlan uint8) (string, string)
+	Ip6Loopback      func(vlan uint8) (string, string)
 	LagMAC           string
 	EthMAC           string
 	Port1MAC         string
