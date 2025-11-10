@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "df395a7c-8b43-4b4b-aac8-14dff3097774"
+plan_id:  "**RT-7.51"
+description:  "BGP Auto-Generated Link-Bandwidth Community**"
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -87,11 +88,6 @@ var (
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
 	}
 )
-
-// Temporary code for assigning opmode 1 maintained until opmode is Initialized in all .go file
-func init() {
-	opmode = 1
-}
 
 // OperationalModeList is a type for a list of operational modes in uint16 format.
 type OperationalModeList []uint16
@@ -320,6 +316,7 @@ type ConfigParameters struct {
 	Allocation          float64
 	HWPortNames         map[string]string
 	TransceiverNames    map[string]string
+	TempSensorNames     map[string]string
 	OpticalChannelNames map[string]string
 	OTNIndexes          map[string]uint32
 	ETHIndexes          map[string]uint32
@@ -330,6 +327,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	t.Helper()
 	params.HWPortNames = make(map[string]string)
 	params.TransceiverNames = make(map[string]string)
+	params.TempSensorNames = make(map[string]string)
 	params.OpticalChannelNames = make(map[string]string)
 	for _, p := range dut.Ports() {
 		if hwPortName, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(p.Name()).HardwarePort().State()).Val(); !ok {
@@ -342,6 +340,7 @@ func NewInterfaceConfigAll(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 		} else {
 			params.TransceiverNames[p.Name()] = transceiverName
 		}
+		params.TempSensorNames[p.Name()] = "TempSensor-" + params.TransceiverNames[p.Name()]
 		params.OpticalChannelNames[p.Name()] = components.OpticalChannelComponentFromPort(t, dut, p)
 		params.OTNIndexes = AssignOTNIndexes(t, dut)
 		params.ETHIndexes = AssignETHIndexes(t, dut)
@@ -886,7 +885,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) {
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
@@ -1039,4 +1038,36 @@ func configStaticArp(p string, ipv4addr string, macAddr string) *oc.Interface {
 	n4 := s4.GetOrCreateNeighbor(ipv4addr)
 	n4.LinkLayerAddress = ygot.String(macAddr)
 	return i
+}
+
+// URPFConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface. It includes the interface name and its IPv4/IPv6 subinterface objects.
+type URPFConfigParams struct {
+	InterfaceName string
+	IPv4Obj       *oc.Interface_Subinterface_Ipv4
+	IPv6Obj       *oc.Interface_Subinterface_Ipv6
+}
+
+// ConfigureURPFonDutInt configures URPF on the interface.
+func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigParams) {
+	t.Helper()
+	if deviations.URPFConfigOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			urpfCliConfig := fmt.Sprintf(`
+			interface %s
+			ip verify unicast source reachable-via any
+			ipv6 verify unicast source reachable-via any
+			`, cfg.InterfaceName)
+			helpers.GnmiCLIConfig(t, dut, urpfCliConfig)
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+		}
+	} else {
+		cfg.IPv4Obj.GetOrCreateUrpf()
+		cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+		cfg.IPv6Obj.GetOrCreateUrpf()
+		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
+		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+	}
 }

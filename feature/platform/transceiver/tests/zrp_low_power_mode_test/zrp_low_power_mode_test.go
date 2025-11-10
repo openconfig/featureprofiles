@@ -33,7 +33,6 @@ import (
 
 const (
 	intUpdateTime                 = 5 * time.Minute
-	samplingInterval              = 10 * time.Second
 	targetOutputPowerdBm          = -3
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
@@ -41,6 +40,7 @@ const (
 )
 
 var (
+	samplingInterval    = 10 * time.Second
 	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -90,20 +90,11 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 }
 
 func TestLowPowerMode(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	t.Logf("dut1: %v", dut)
-	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)

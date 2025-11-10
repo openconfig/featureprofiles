@@ -23,3 +23,14 @@ platform_exceptions: {
     transceiver_mfg_date_unsupported: true
   }
 }
+platform_exceptions: {
+  platform_exceptions: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    skip_optical_channel_output_power_interval: true
+  }
+}
+
