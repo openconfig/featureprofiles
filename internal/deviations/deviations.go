@@ -1747,3 +1747,8 @@ func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
 }
+
+// GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
+func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
