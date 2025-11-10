@@ -24,6 +24,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -185,6 +186,17 @@ func TestAuthentication(t *testing.T) {
 	// Deliberately try to reach gnmi via the DUT (SSH) IP.
 	gnmiAddr := fmt.Sprintf("%s:%d", sshService.GetOutsideIp(), gnmiService.GetOutside())
 
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Arista vendor, performing SSH cleanup")
+		cliConfig := `
+				management ssh
+					authentication protocol password
+				`
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	default:
+		t.Logf("No CLI config required for vendor %s", dut.Vendor())
+	}
 	if deviations.SetNativeUser(dut) {
 		createNativeUser(t, dut, "alice", "password", "admin")
 	} else {
