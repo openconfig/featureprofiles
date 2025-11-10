@@ -113,7 +113,6 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 	ate.OTG().PushConfig(t, top)
 
 	var tolerance float32 = 3.0
-
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	// Validate that flow experiences 0 packet loss at 0.7Gbps.
@@ -121,7 +120,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 		"intf1-be0": {
 			gbpsRate:              1,
 			expectedThroughputPct: 100.0,
-			queue:                 queues.BE1,
+			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
 	}
@@ -130,7 +129,7 @@ func TestInterfaceIngressPolicer(t *testing.T) {
 	oversubscribedTrafficFlows11 := map[string]*trafficData{
 		"intf1-be0": {
 			gbpsRate:              2,
-			expectedThroughputPct: 100.0,
+			expectedThroughputPct: 50.0,
 			queue:                 queues.BE0,
 			inputIntf:             intf1,
 		},
