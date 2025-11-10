@@ -1687,6 +1687,11 @@ func SyslogOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogOcUnsupported()
 }
 
+<<<<<<< HEAD
+// GetTransceiverMfgDateUnsupported returns true if transceiver mfg-date leaf is unsupported
+func GetTransceiverMfgDateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverMfgDateUnsupported()
+=======
 // SIDPerInterfaceCounterUnsupported return true if device does not supprt mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/
 func SIDPerInterfaceCounterUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSidPerInterfaceCounterUnsupported()
@@ -1751,4 +1756,5 @@ func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 // GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
 func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+>>>>>>> main
 }

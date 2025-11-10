@@ -109,27 +109,35 @@ func TestLowPowerMode(t *testing.T) {
 			defer streamPartNo.Close()
 			streamType := samplestream.New(t, dut, gnmi.OC().Component(tr).Type().State(), samplingInterval)
 			defer streamType.Close()
-			// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
-			// streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
-			// defer streamDescription.Close()
 			streamMfgName := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgName().State(), samplingInterval)
 			defer streamMfgName.Close()
-			streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
-			defer streamMfgDate.Close()
 			streamHwVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).HardwareVersion().State(), samplingInterval)
 			defer streamHwVersion.Close()
 			streamFirmwareVersion := samplestream.New(t, dut, gnmi.OC().Component(tr).FirmwareVersion().State(), samplingInterval)
 			defer streamFirmwareVersion.Close()
 
 			allStream := map[string]*samplestream.SampleStream[string]{
-				"serialNo": streamSerialNo,
-				"partNo":   streamPartNo,
-				// "description":     streamDescription,
+				"serialNo":        streamSerialNo,
+				"partNo":          streamPartNo,
 				"mfgName":         streamMfgName,
-				"mfgDate":         streamMfgDate,
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+
+			// Conditionally add mfgDate stream based on device support
+			if !deviations.GetTransceiverMfgDateUnsupported(dut) {
+				streamMfgDate := samplestream.New(t, dut, gnmi.OC().Component(tr).MfgDate().State(), samplingInterval)
+				defer streamMfgDate.Close()
+				allStream["mfgDate"] = streamMfgDate
+			}
+
+			// Conditionally add description stream based on device support
+			if !deviations.SkipTransceiverDescription(dut) {
+				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+				defer streamDescription.Close()
+				allStream["description"] = streamDescription
+			}
+
 			validateStreamOutput(t, allStream)
 
 			// Disable interface
@@ -138,11 +146,16 @@ func TestLowPowerMode(t *testing.T) {
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateStreamOutput(t, allStream)
+
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
+
+			// FIXED: Use deviation check to avoid blocking on unsupported devices
+			currentSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
-			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
+
+			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), currentSamplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {
 				if val, ok := opInstN.Val(); ok && val != -40 {
@@ -151,7 +164,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), samplingInterval)
+			opAvg := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Avg().State(), currentSamplingInterval)
 			defer opAvg.Close()
 			if opAvgN := opAvg.Next(); opAvgN != nil {
 				if val, ok := opAvgN.Val(); ok && val != -40 {
@@ -160,7 +173,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), samplingInterval)
+			opMin := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Min().State(), currentSamplingInterval)
 			defer opMin.Close()
 			if opMinN := opMin.Next(); opMinN != nil {
 				if val, ok := opMinN.Val(); ok && val != -40 {
@@ -169,7 +182,7 @@ func TestLowPowerMode(t *testing.T) {
 				}
 			}
 
-			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), samplingInterval)
+			opMax := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Max().State(), currentSamplingInterval)
 			defer opMax.Close()
 			if opMaxN := opMax.Next(); opMaxN != nil {
 				if val, ok := opMaxN.Val(); ok && val != -40 {

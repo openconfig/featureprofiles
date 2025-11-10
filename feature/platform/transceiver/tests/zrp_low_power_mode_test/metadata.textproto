@@ -17,6 +17,14 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    transceiver_mfg_date_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
@@ -25,3 +33,4 @@ platform_exceptions: {
     skip_optical_channel_output_power_interval: true
   }
 }
+

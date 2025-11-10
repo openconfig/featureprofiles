@@ -26,3 +26,11 @@ platform_exceptions: {
     skip_transceiver_description: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    transceiver_mfg_date_unsupported: true
+  }
+}
