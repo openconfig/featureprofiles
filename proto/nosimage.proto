@@ -19,8 +19,10 @@ syntax = "proto3";
 
 package openconfig.profiles.nosimage;
 
+import "github.com/openconfig/featureprofiles/proto/metadata.proto";
 import "github.com/openconfig/featureprofiles/proto/ocpaths.proto";
 import "github.com/openconfig/featureprofiles/proto/ocrpcs.proto";
+
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -54,4 +56,17 @@ message NOSImageProfile {
 
   // OpenConfig RPCs supported by the network operating system.
   openconfig.ocrpcs.OCRPCs ocrpcs = 6;
+
+  // supported_tests is a list of featureprofiles metadata.plan_ids which the
+  // NOS software supports (verified as passing)
+  repeated FeatureProfilesTests supported_tests = 8;
+
+}
+
+message FeatureProfilesTests {
+  // The unique identifier for a featureprofiles test plan
+  openconfig.testing.plan_id plan_id = 1;
+  
+  // The git commit hash for the featureprofiles repository containing the referenced test
+  string commit = 2;
 }
