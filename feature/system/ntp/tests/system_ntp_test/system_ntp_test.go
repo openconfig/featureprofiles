@@ -35,9 +35,9 @@ func TestMain(m *testing.M) {
 
 var (
 	dutlo0Attrs = attrs.Attributes{
-		Desc:    "Loopback ip",
-		IPv4:    "203.0.113.1",
-		IPv4Len: 32,
+		Desc: "Loopback ip",
+		IPv4: "203.0.113.1",
+		IPv6: "2001:db8::203:0:113:1",
 	}
 	loopbackIntf = map[ondatra.Vendor]int{
 		ondatra.JUNIPER: 0,
