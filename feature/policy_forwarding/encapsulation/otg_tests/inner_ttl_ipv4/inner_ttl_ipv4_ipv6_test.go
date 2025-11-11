@@ -169,7 +169,7 @@ func TestIngressInnerPktTTL(t *testing.T) {
 
 			// --- Matched case ---
 			ocPFParams.TTL = tc.matchTTL
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
 
 			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL))
@@ -177,7 +177,7 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, rewrittenIPTTL)
 
 			// --- Unmatched case ---
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyForwardName: policyForwardingName, RemovePolicy: true})
+			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
 			configureVRFStaticRoute(t, dut, batch, vrfName, tc.vrfIPPrefix, nexthopGroupName, tc.protoStr)
 			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL))
 			configPush(t, otg, otgConfig)
@@ -233,7 +233,7 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 		InterfaceName:       aggID1 + ".10",
 		TTL:                 matchTTL,
 		RwTTL:               rewrittenIPTTL,
-		PolicyForwardName:   policyForwardingName,
+		PolicyName:          policyForwardingName,
 		NHGName:             nexthopGroupName,
 	}
 }
