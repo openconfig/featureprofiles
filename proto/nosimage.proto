@@ -64,7 +64,8 @@ message NOSImageProfile {
 }
 
 message FeatureProfileTest {
-  // The unique identifier for a featureprofiles test plan
+  // The unique identifier for a featureprofiles test plan.  This string must match
+  // the Metadata plain_id defined for the referenced test.
   string plan_id = 1;
   
   // The git commit hash for the featureprofiles repository containing the referenced test
