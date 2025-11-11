@@ -794,6 +794,399 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	return bgp
 }
 
+// BgpISISRedistribution configures the BGP to ISIS redistribution for a given AFI/SAFI.
+func BgpISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, afisafi string, b *gnmi.SetBatch, importPolicy string) *oc.Root {
+
+	t.Helper()
+	d := &oc.Root{}
+	dni := deviations.DefaultNetworkInstance(dut)
+
+	if deviations.EnableTableConnections(dut) {
+		fptest.ConfigEnableTbNative(t, dut)
+	}
+	var tableConn *oc.NetworkInstance_TableConnection
+	if afisafi == "ipv4" {
+		tableConn = d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4)
+	} else if afisafi == "ipv6" {
+		tableConn = d.GetOrCreateNetworkInstance(dni).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6)
+	}
+
+	if !deviations.SkipSettingDisableMetricPropagation(dut) {
+		tableConn.SetDisableMetricPropagation(false)
+	}
+	if !deviations.DefaultRoutePolicyUnsupported(dut) {
+		tableConn.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+	}
+
+	if importPolicy != "" {
+		tableConn.SetImportPolicy([]string{importPolicy})
+	}
+
+	if afisafi == "ipv4" {
+		gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn)
+	} else if afisafi == "ipv6" {
+		gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(dni).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tableConn)
+	}
+	return d
+}
+
+// GlobalOption is a function that sets options for BGP Global configuration.
+type GlobalOption func(*oc.NetworkInstance_Protocol_Bgp_Global, *ondatra.DUTDevice)
+
+// WithAS sets the global Autonomous System number.
+func WithAS(as uint32) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, _ *ondatra.DUTDevice) {
+		g.As = ygot.Uint32(as)
+	}
+}
+
+// WithRouterID sets the BGP Router ID.
+func WithRouterID(id string) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, _ *ondatra.DUTDevice) {
+		if id != "" {
+			g.RouterId = ygot.String(id)
+		}
+	}
+}
+
+// WithGlobalGracefulRestart configures global BGP Graceful Restart settings.
+func WithGlobalGracefulRestart(enabled bool, restartTime, staleTime uint16) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, _ *ondatra.DUTDevice) {
+		bgpGR := g.GetOrCreateGracefulRestart()
+		bgpGR.Enabled = ygot.Bool(enabled)
+		if enabled {
+			if restartTime > 0 {
+				bgpGR.SetRestartTime(restartTime)
+			}
+			if staleTime > 0 {
+				bgpGR.SetStaleRoutesTime(staleTime)
+			}
+		}
+	}
+}
+
+// WithGlobalAfiSafiEnabled enables or disables a global AFI/SAFI.
+func WithGlobalAfiSafiEnabled(afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, enabled bool) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, _ *ondatra.DUTDevice) {
+		g.GetOrCreateAfiSafi(afiSafi).Enabled = ygot.Bool(enabled)
+	}
+}
+
+// WithExternalRouteDistance sets the default external route distance.
+func WithExternalRouteDistance(distance uint8) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, dut *ondatra.DUTDevice) {
+		if !deviations.BgpDistanceOcPathUnsupported(dut) {
+			g.GetOrCreateDefaultRouteDistance().ExternalRouteDistance = ygot.Uint8(distance)
+		}
+	}
+}
+
+// WithGlobalEBGPMultipath configures global EBGP multipath settings.
+func WithGlobalEBGPMultipath(maxPaths uint32) GlobalOption {
+	return func(g *oc.NetworkInstance_Protocol_Bgp_Global, dut *ondatra.DUTDevice) {
+		// Global AllowMultipleAs based on deviation
+		if deviations.SkipSettingAllowMultipleAS(dut) {
+			g.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetAllowMultipleAs(true)
+		}
+
+		// Configure MaximumPaths
+		if deviations.EnableMultipathUnderAfiSafi(dut) {
+			g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+			g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+		} else {
+			g.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(maxPaths)
+		}
+
+		// Additional Global AFI/SAFI EBGP multipath settings for IPv4/v6
+		if !deviations.SkipAfiSafiPathForBgpMultipleAs(dut) {
+			gEBGPAfiV4 := g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+			gEBGPAfiV6 := g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
+
+			if deviations.SkipSettingAllowMultipleAS(dut) {
+				gEBGPAfiV4.AllowMultipleAs = ygot.Bool(true)
+				gEBGPAfiV6.AllowMultipleAs = ygot.Bool(true)
+			}
+			// This ensures MaximumPaths is set on the AFI/SAFI level
+			gEBGPAfiV4.MaximumPaths = ygot.Uint32(maxPaths)
+			gEBGPAfiV6.MaximumPaths = ygot.Uint32(maxPaths)
+		} else {
+			fmt.Printf("SkipAfiSafiPathForBgpMultipleAs is true, skipping additional Global AFI/SAFI path config for IPv4.")
+		}
+	}
+}
+
+// ConfigureGlobal applies a series of GlobalOptions to the BGP global configuration.
+func ConfigureGlobal(bgp *oc.NetworkInstance_Protocol_Bgp, dut *ondatra.DUTDevice, opts ...GlobalOption) {
+	if bgp == nil {
+		return
+	}
+	g := bgp.GetOrCreateGlobal()
+	for _, opt := range opts {
+		opt(g, dut)
+	}
+}
+
+// PeerOption is a function that sets options for BGP Peer configuration.
+type PeerOption func(*oc.NetworkInstance_Protocol_Bgp_Neighbor, *ondatra.DUTDevice)
+
+// WithPeerGroup sets the Peer Group for the neighbor.
+func WithPeerGroup(pgName string, as uint32, importPolicy, exportPolicy string, addDeleteLinkBW bool) PeerOption {
+	return func(n *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) {
+		n.PeerGroup = ygot.String(pgName)
+		n.PeerAs = ygot.Uint32(as)
+		n.Enabled = ygot.Bool(true)
+	}
+}
+
+// WithPeerAfiSafiEnabled enables or disables an AFI/SAFI for the peer group.
+func WithPeerAfiSafiEnabled(isV4 bool, importPolicy, exportPolicy string, addDeleteLinkBW bool) PeerOption {
+	return func(n *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) {
+		var af *oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi
+		if isV4 {
+			af = n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af.Enabled = ygot.Bool(true)
+			n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(false)
+		} else {
+			af = n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af.Enabled = ygot.Bool(true)
+			n.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(false)
+		}
+		if !deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			rpl := af.GetOrCreateApplyPolicy()
+			if importPolicy != "" {
+				rpl.SetImportPolicy([]string{importPolicy})
+			}
+			if exportPolicy != "" {
+				exportPolicies := []string{exportPolicy}
+				if addDeleteLinkBW {
+					exportPolicies = append([]string{"delete_linkbw"}, exportPolicies...)
+				}
+				rpl.SetExportPolicy(exportPolicies)
+			}
+		}
+	}
+}
+
+// ApplyPeerPerAfiSafiRoutingPolicy applies routing policies to the peer per AFI/SAFI.
+func ApplyPeerPerAfiSafiRoutingPolicy(isV4 bool, importPolicy, exportPolicy string, addDeleteLinkBW bool) PeerOption {
+	return func(peer *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice) {
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			rpl := peer.GetOrCreateApplyPolicy()
+			if importPolicy != "" {
+				rpl.SetImportPolicy([]string{importPolicy})
+			}
+			if exportPolicy != "" {
+				exportPolicies := []string{exportPolicy}
+				if addDeleteLinkBW {
+					exportPolicies = append([]string{"delete_linkbw"}, exportPolicies...)
+				}
+				rpl.SetExportPolicy(exportPolicies)
+			}
+		}
+	}
+}
+
+// ConfigurePeer applies a series of PeerOptions to a BGP Peer.
+func ConfigurePeer(peer *oc.NetworkInstance_Protocol_Bgp_Neighbor, dut *ondatra.DUTDevice, opts ...PeerOption) {
+	if peer == nil {
+		return
+	}
+	for _, opt := range opts {
+		opt(peer, dut)
+	}
+}
+
+// PeerGroupOption is a function that sets options for BGP Peer Group configuration.
+type PeerGroupOption func(*oc.NetworkInstance_Protocol_Bgp_PeerGroup, *ondatra.DUTDevice)
+
+// WithPeerAS sets the Peer Autonomous System number for the group.
+func WithPeerAS(as uint32) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, _ *ondatra.DUTDevice) {
+		pg.PeerAs = ygot.Uint32(as)
+	}
+}
+
+// WithPGTimers configures BGP timers for the peer group.
+func WithPGTimers(holdTime, keepalive, minAdvInterval uint16) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, _ *ondatra.DUTDevice) {
+		timers := pg.GetOrCreateTimers()
+		if holdTime > 0 {
+			timers.HoldTime = ygot.Uint16(holdTime)
+		}
+		if keepalive > 0 {
+			timers.KeepaliveInterval = ygot.Uint16(keepalive)
+		}
+		if minAdvInterval > 0 {
+			timers.SetMinimumAdvertisementInterval(minAdvInterval)
+		}
+	}
+}
+
+// WithPGDescription sets the description for the peer group.
+func WithPGDescription(desc string) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, _ *ondatra.DUTDevice) {
+		pg.SetDescription(desc)
+	}
+}
+
+// WithPGGracefulRestart configures Graceful Restart for the peer group.
+func WithPGGracefulRestart(enabled bool) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		pgGR := pg.GetOrCreateGracefulRestart()
+		pgGR.Enabled = ygot.Bool(enabled)
+		if enabled && !deviations.BgpGrHelperDisableUnsupported(dut) {
+			pgGR.HelperOnly = ygot.Bool(false)
+		}
+	}
+}
+
+// WithPGSendCommunity sets the community types to send.
+func WithPGSendCommunity(communities []oc.E_Bgp_CommunityType) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		if !deviations.SkipBgpSendCommunityType(dut) {
+			pg.SetSendCommunityType(communities)
+		}
+	}
+}
+
+// WithPGAfiSafiEnabled enables or disables an AFI/SAFI for the peer group.
+func WithPGAfiSafiEnabled(afiSafi oc.E_BgpTypes_AFI_SAFI_TYPE, enabled bool, configureGR bool) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		pgaf := pg.GetOrCreateAfiSafi(afiSafi)
+		pgaf.Enabled = ygot.Bool(enabled)
+		if enabled && configureGR && !deviations.BgpGracefulRestartUnderAfiSafiUnsupported(dut) {
+			pgaf.GetOrCreateGracefulRestart().Enabled = ygot.Bool(true)
+		}
+	}
+}
+
+// WithPGTransport sets the transport address for the peer group.
+func WithPGTransport(transportAddress string) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		if transportAddress == "" {
+			// Do not apply the setting if the address is empty.
+			// Only for IBGP peers
+			return
+		}
+		pg.GetOrCreateTransport().LocalAddress = ygot.String(transportAddress)
+	}
+}
+
+// WithPGMultipath configures multipath settings for the peer group.
+func WithPGMultipath(pgName string, enableMultipath bool) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		// skip multipath for IBGP peers
+		if !enableMultipath {
+			return
+		}
+		var pgaf *oc.NetworkInstance_Protocol_Bgp_PeerGroup_AfiSafi
+		if !deviations.SkipBgpSendCommunityType(dut) {
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
+		}
+
+		// Peer Group Multipath vendor specifics
+		if strings.Contains(pgName, "V4") {
+			pgaf = pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+		} else {
+			pgaf = pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+		}
+
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			// BGP multipath enable/disable at the peer-group level not required b/376799583
+			fmt.Printf("PeerGroup %s: BGP Multipath enable/disable not required under Peer-group by %s hence skipping", pgName, dut.Vendor())
+		case ondatra.JUNIPER:
+			pgaf.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+			pg.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+			pg.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetAllowMultipleAs(true)
+		default:
+			pgaf.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
+		}
+	}
+}
+
+// ApplyPGRoutingPolicy applies routing policies to the peer group.
+func ApplyPGRoutingPolicy(importPolicy, exportPolicy string, addDeleteLinkBW bool) PeerGroupOption {
+	return func(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice) {
+		if deviations.RoutePolicyUnderAFIUnsupported(dut) {
+			rpl := pg.GetOrCreateApplyPolicy()
+			if importPolicy != "" {
+				rpl.SetImportPolicy([]string{importPolicy})
+			}
+			if exportPolicy != "" {
+				exportPolicies := []string{exportPolicy}
+				if addDeleteLinkBW {
+					exportPolicies = append([]string{"delete_linkbw"}, exportPolicies...)
+				}
+				rpl.SetExportPolicy(exportPolicies)
+			}
+		}
+	}
+}
+
+// ConfigurePeerGroup applies a series of PeerGroupOptions to a BGP Peer Group.
+func ConfigurePeerGroup(pg *oc.NetworkInstance_Protocol_Bgp_PeerGroup, dut *ondatra.DUTDevice, opts ...PeerGroupOption) {
+	if pg == nil {
+		return
+	}
+	for _, opt := range opts {
+		opt(pg, dut)
+	}
+}
+
+// addBGPNeighborTCPMSSOps adds gNMI operations for BGP neighbor TCP MSS to the batch.
+func addBGPNeighborTCPMSSOps(t *testing.T, b *gnmi.SetBatch, dut *ondatra.DUTDevice, nbrList []string, isDelete bool, mss uint16) {
+	// TODO: will investigate if we need to add a deviation for Arista.
+	if dut.Vendor() == ondatra.ARISTA {
+		t.Logf("TCP MSS: dut.Vendor() == ondatra.ARISTA, PMTU discovery is enabled by default, skipping explicit TCP MSS operations.")
+		return // No explicit TCP MSS operations for Arista.
+	}
+
+	ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	bgpPath := ni.Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
+	for _, nbr := range nbrList {
+		tcpMssPath := bgpPath.Neighbor(nbr).Transport().TcpMss().Config()
+		if isDelete {
+			gnmi.BatchDelete(b, tcpMssPath)
+		} else {
+			gnmi.BatchReplace(b, tcpMssPath, mss)
+		}
+	}
+}
+
+// ConfigureDUTBGPMaxSegmentSize configures the DUT interface MTU and BGP neighbor TCP MSS.
+// intfName is the name of the interface to configure MTU on.
+func ConfigureDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	isDelete := false
+
+	t.Logf("Configuring MTU %d on interface: %s", mtu, intfName)
+	AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete)
+
+	t.Logf("Configuring DUT BGP TCP-MSS for relevant neighbors")
+	addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
+
+	b.Set(t, dut)
+}
+
+// DeleteDUTBGPMaxSegmentSize removes the DUT interface MTU and BGP neighbor TCP MSS configurations.
+// intfName is the name of the interface to remove MTU config from.
+func DeleteDUTBGPMaxSegmentSize(t *testing.T, dut *ondatra.DUTDevice, intfName string, mtu uint16, nbrList []string, mss uint16) {
+	t.Helper()
+	b := &gnmi.SetBatch{}
+	isDelete := true
+
+	t.Logf("Deleting MTU config on interface: %s", intfName)
+	AddInterfaceMTUOps(b, dut, intfName, mtu, isDelete) // MTU value not used for delete
+
+	t.Logf("Deleting DUT BGP TCP-MSS config for relevant neighbors")
+	addBGPNeighborTCPMSSOps(t, b, dut, nbrList, isDelete, mss)
+
+	b.Set(t, dut)
+}
+
 // BuildIPv4v6NbrScale generates a list of BgpNeighborScale configurations for IPv4 and IPv6 peers.
 func BuildIPv4v6NbrScale(t *testing.T, cfg *EBgpConfigScale) []*BgpNeighborScale {
 	var nbrList []*BgpNeighborScale
