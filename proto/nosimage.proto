@@ -59,13 +59,13 @@ message NOSImageProfile {
 
   // supported_tests is a list of featureprofiles metadata.plan_ids which the
   // NOS software supports (verified as passing)
-  repeated FeatureProfilesTests supported_tests = 8;
+  repeated FeatureProfileTest supported_tests = 8;
 
 }
 
-message FeatureProfilesTests {
+message FeatureProfileTest {
   // The unique identifier for a featureprofiles test plan
-  openconfig.testing.plan_id plan_id = 1;
+  string plan_id = 1;
   
   // The git commit hash for the featureprofiles repository containing the referenced test
   string commit = 2;
