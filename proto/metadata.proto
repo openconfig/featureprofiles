@@ -1033,9 +1033,17 @@ message Metadata {
     // GNPSI support PR: https://github.com/openconfig/public/pull/1385
     bool gnpsi_oc_unsupported = 348;
 
+    // Device does not support to disable bgp GR-HELPER.
+    // Nokia: b/455781430
+    bool bgp_gr_helper_disable_unsupported = 349;
+
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    // Cisco: b/455784294
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 350;
+
     // Device does not support adding remote-syslog config under non-default VRF
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
-    bool syslog_non_default_vrf_unsupported = 349;
+    bool syslog_non_default_vrf_unsupported = 351;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
