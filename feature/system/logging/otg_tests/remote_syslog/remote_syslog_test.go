@@ -134,7 +134,7 @@ func TestRemoteSyslog(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.vrf != deviations.DefaultNetworkInstance(dut) {
-				if deviations.GetSyslogNonDefaultVrfUnsupported(dut) {
+				if deviations.SyslogNonDefaultVrfUnsupported(dut) {
 					t.Skipf("skipping the unsupported non-default VRF testcase")
 				}
 				createAndAddInterfacesToVRF(t, dut, tc.vrf, []string{p1.Name(), p2.Name(), lb}, []uint32{0, 0, 0})

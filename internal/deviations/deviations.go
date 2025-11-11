@@ -1753,8 +1753,8 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
 }
 
-// GetSyslogNonDefaultVrfUnsupported returns true if device does not support adding remote-syslog config under
+// SyslogNonDefaultVrfUnsupported returns true if device does not support adding remote-syslog config under
 // non-default VRF
-func GetSyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
