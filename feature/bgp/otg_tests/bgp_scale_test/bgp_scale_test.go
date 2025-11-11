@@ -127,10 +127,10 @@ var (
 		},
 		numSubIntf: 1,
 		index:      0,
-		ip4: func(vlan uint8) (string, string) {
+		ip4: func(vlan int) (string, string) {
 			return "192.0.2.1", ""
 		},
-		ip6: func(vlan uint8) (string, string) {
+		ip6: func(vlan int) (string, string) {
 			return "2001:db8::192:0:2:1", ""
 		},
 		pg4:          peerv41GrpName,
@@ -210,16 +210,16 @@ var (
 		},
 		numSubIntf: 1,
 		index:      0,
-		ip4: func(vlan uint8) (string, string) {
+		ip4: func(vlan int) (string, string) {
 			return "192.0.2.2", ""
 		},
-		ip6: func(vlan uint8) (string, string) {
+		ip6: func(vlan int) (string, string) {
 			return "2001:db8::192:0:2:2", ""
 		},
-		gateway: func(vlan uint8) (string, string) {
+		gateway: func(vlan int) (string, string) {
 			return "192.0.2.1", ""
 		},
-		gateway6: func(vlan uint8) (string, string) {
+		gateway6: func(vlan int) (string, string) {
 			return "2001:db8::192:0:2:1", ""
 		},
 		pg4:          peerv41GrpName,
@@ -369,12 +369,12 @@ type attributes struct {
 	v4ISISRouteCount uint32
 	v6Route          func(vlan int) string
 	v6ISISRouteCount uint32
-	ip4              func(vlan uint8) (string, string)
-	ip6              func(vlan uint8) (string, string)
-	gateway          func(vlan uint8) (string, string)
-	gateway6         func(vlan uint8) (string, string)
-	ip4Loopback      func(vlan uint8) (string, string)
-	ip6Loopback      func(vlan uint8) (string, string)
+	ip4              func(vlan int) (string, string)
+	ip6              func(vlan int) (string, string)
+	gateway          func(vlan int) (string, string)
+	gateway6         func(vlan int) (string, string)
+	ip4Loopback      func(vlan int) (string, string)
+	ip6Loopback      func(vlan int) (string, string)
 	lagMAC           string
 	ethMAC           string
 	port1MAC         string
@@ -406,104 +406,104 @@ type bgpNeighbor struct {
 }
 
 // dutPort2IPv4 returns ipv4 addresses for every vlanID.
-func dutPort2IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP2IPv4, int(vlan)*256)
+func dutPort2IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP2IPv4, vlan*256)
 	return ip, err
 }
 
 // dutPort2IPv6 returns ip6 addresses for every vlanID.
-func dutPort2IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP2IPv6, int(vlan)*256*256)
+func dutPort2IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP2IPv6, vlan*256*256)
 	return ip, err
 }
 
 // atePort2IPv4 returns ip4 addresses for every vlanID.
-func atePort2IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP2IPv4, int(vlan)*256)
+func atePort2IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP2IPv4, vlan*256)
 	return ip, err
 }
 
 // atePort2IPv6 returns ip6 addresses for every vlanID.
-func atePort2IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP2IPv6, int(vlan)*256*256)
+func atePort2IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP2IPv6, vlan*256*256)
 	return ip, err
 }
 
 // dutPort3IPv4 returns ipv4 addresses for every vlanID.
-func dutPort3IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP3IPv4, int(vlan)*256)
+func dutPort3IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP3IPv4, vlan*256)
 	return ip, err
 }
 
 // dutPort3IPv6 returns ip6 addresses for every vlanID.
-func dutPort3IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP3IPv6, int(vlan)*256*256)
+func dutPort3IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP3IPv6, vlan*256*256)
 	return ip, err
 }
 
 // atePort3IPv4 returns ip4 addresses for every vlanID.
-func atePort3IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP3IPv4, int(vlan)*256)
+func atePort3IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP3IPv4, vlan*256)
 	return ip, err
 }
 
 // atePort3IPv6 returns ip6 addresses for every vlanID.
-func atePort3IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP3IPv6, int(vlan)*256*256)
+func atePort3IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP3IPv6, vlan*256*256)
 	return ip, err
 }
 
 // dutPort4IPv4 returns ipv4 addresses for every vlanID.
-func dutPort4IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP4IPv4, int(vlan)*256)
+func dutPort4IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4IPv4, vlan*256)
 	return ip, err
 }
 
 // dutPort4IPv6 returns ip6 addresses for every vlanID.
-func dutPort4IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP4IPv6, int(vlan)*256*256)
+func dutPort4IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4IPv6, vlan*256*256)
 	return ip, err
 }
 
 // atePort4IPv4 returns ip4 addresses for every vlanID.
-func atePort4IPv4(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP4IPv4, int(vlan)*256)
+func atePort4IPv4(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4IPv4, vlan*256)
 	return ip, err
 }
 
 // atePort4IPv6 returns ip6 addresses for every vlanID.
-func atePort4IPv6(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP4IPv6, int(vlan)*256*256)
+func atePort4IPv6(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4IPv6, vlan*256*256)
 	return ip, err
 }
 
 // atePort4v4Route returns ip addresses starting 60.%d.0.1 for every vlanID.
 func atePort4v4Route(vlan int) string {
-	ip, _ := cfgplugins.IncrementIP(ateP4V4Route, int(vlan)*256*256)
+	ip, _ := cfgplugins.IncrementIP(ateP4V4Route, vlan*256*256)
 	return ip
 }
 
 // atePort4v4Loopback returns ip addresses starting 203.0.113.%d for every vlanID.
-func atePort4v4Loopback(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV4, int(vlan))
+func atePort4v4Loopback(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV4, vlan)
 	return ip, err
 }
 
 // atePort4v6Loopback returns ip addresses starting 2001:db8::203:0:113:%d for every vlanID.
-func atePort4v6Loopback(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV6, int(vlan))
+func atePort4v6Loopback(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(ateP4LoopbackV6, vlan)
 	return ip, err
 }
 
 // dutPort4v4Loopback returns ip addresses starting 203.0.113.%d for every vlanID.
-func dutPort4v4Loopback(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV4, int(vlan))
+func dutPort4v4Loopback(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV4, vlan)
 	return ip, err
 }
 
 // dutPort4v6Loopback returns ip addresses starting 2001:db8::203:0:113:%d for every vlanID.
-func dutPort4v6Loopback(vlan uint8) (string, string) {
-	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV6, int(vlan))
+func dutPort4v6Loopback(vlan int) (string, string) {
+	ip, err := cfgplugins.IncrementIP(dutP4LoopbackV6, vlan)
 	return ip, err
 }
 
@@ -713,12 +713,12 @@ func TestBGPScale(t *testing.T) {
 				for _, v := range tc.testCleanup {
 					var nbrPeers []string
 					for i := 1; i <= int(dutPort4.numSubIntf); i++ {
-						ip4, eMsg := atePort4v4Loopback(uint8(i))
+						ip4, eMsg := atePort4v4Loopback(i)
 						if eMsg != "" {
 							t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
 						}
 						nbrPeers = append(nbrPeers, ip4)
-						ip6, eMsg := atePort4v6Loopback(uint8(i))
+						ip6, eMsg := atePort4v6Loopback(i)
 						if eMsg != "" {
 							t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
 						}
@@ -861,12 +861,12 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 		t.Logf("Configuring DUT for MSS test")
 		var nbrPeers []string
 		for i := 1; i <= int(dutPort4.numSubIntf); i++ {
-			ip4, eMsg := atePort4v4Loopback(uint8(i))
+			ip4, eMsg := atePort4v4Loopback(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
 			}
 			nbrPeers = append(nbrPeers, ip4)
-			ip6, eMsg := atePort4v6Loopback(uint8(i))
+			ip6, eMsg := atePort4v6Loopback(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
 			}
@@ -911,11 +911,11 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 				vlan = uint32(int(atePort.index*10) + i)
 			}
 			if isLoopback {
-				loopbackV4, eMsg = atePort.ip4Loopback(uint8(i))
+				loopbackV4, eMsg = atePort.ip4Loopback(i)
 				if eMsg != "" {
 					t.Fatalf("Failed to generate IPv4 loopback address with error '%s'", eMsg)
 				}
-				loopbackV6, eMsg = atePort.ip6Loopback(uint8(i))
+				loopbackV6, eMsg = atePort.ip6Loopback(i)
 				if eMsg != "" {
 					t.Fatalf("Failed to generate IPv6 loopback address with error '%s'", eMsg)
 				}
@@ -923,19 +923,19 @@ func ateSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 				loopbackV4 = ""
 				loopbackV6 = ""
 			}
-			ip4, eMsg := atePort.ip4(uint8(i))
+			ip4, eMsg := atePort.ip4(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
 			}
-			ip6, eMsg := atePort.ip6(uint8(i))
+			ip6, eMsg := atePort.ip6(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
 			}
-			gw4, eMsg := atePort.gateway(uint8(i))
+			gw4, eMsg := atePort.gateway(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv4 gateway with error '%s'", eMsg)
 			}
-			gw6, eMsg := atePort.gateway6(uint8(i))
+			gw6, eMsg := atePort.gateway6(i)
 			if eMsg != "" {
 				t.Fatalf("Failed to generate IPv6 gateway with error '%s'", eMsg)
 			}
@@ -1004,11 +1004,11 @@ func dutSetup(t *testing.T, dut *ondatra.DUTDevice, top gosnappi.Config, ate *on
 	dut2Data.isisData.NetworkInstanceName = defaultNetworkInstance
 
 	for i := 1; i <= int(dutPort4.numSubIntf); i++ {
-		ip4, eMsg := dutPort4.ip4(uint8(i))
+		ip4, eMsg := dutPort4.ip4(i)
 		if eMsg != "" {
 			t.Fatalf("Failed to generate IPv4 address with error '%s'", eMsg)
 		}
-		ip6, eMsg := dutPort4.ip6(uint8(i))
+		ip6, eMsg := dutPort4.ip6(i)
 		if eMsg != "" {
 			t.Fatalf("Failed to generate IPv6 address with error '%s'", eMsg)
 		}
@@ -1281,8 +1281,8 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 		nbrPeers = int(dutPort4.numSubIntf)
 	}
 	for i := 1; i <= nbrPeers; i++ {
-		ip4, _ := a.ip4(uint8(i))
-		ip6, _ := a.ip6(uint8(i))
+		ip4, _ := a.ip4(i)
+		ip6, _ := a.ip6(i)
 		if a.ip4 != nil && a.Name != "port4" {
 			bgpNbr := &bgpNeighbor{
 				as:           ateAS4Byte((i-1)/4+1) + uint32(a.index),
@@ -1294,7 +1294,7 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip4Loopback != nil && i <= (1+nbrPeers/4)*2 {
-			loopbackV4, eMsg := a.ip4Loopback(uint8(i))
+			loopbackV4, eMsg := a.ip4Loopback(i)
 			if eMsg != "" {
 				fmt.Printf("Error in fetching IPV4 loopback address for port %s: %s", a.Name, eMsg)
 			}
@@ -1308,7 +1308,7 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip4Loopback != nil && i > (1+nbrPeers/4)*2 {
-			loopbackV4, eMsg := a.ip4Loopback(uint8(i))
+			loopbackV4, eMsg := a.ip4Loopback(i)
 			if eMsg != "" {
 				fmt.Printf("Error in fetching IPV4 loopback address for port %s: %s", a.Name, eMsg)
 			}
@@ -1333,7 +1333,7 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip6Loopback != nil && i <= (1+nbrPeers/4)*2 {
-			loopbackV6, eMsg := a.ip6Loopback(uint8(i))
+			loopbackV6, eMsg := a.ip6Loopback(i)
 			if eMsg != "" {
 				fmt.Printf("Error in fetching IPV6 loopback address for port %s: %s", a.Name, eMsg)
 			}
@@ -1347,7 +1347,7 @@ func (a *attributes) setupNbrList() []*bgpNeighbor {
 			}
 			nbrList = append(nbrList, bgpNbr)
 		} else if a.ip6Loopback != nil && i > (1+nbrPeers/4)*2 {
-			loopbackV6, eMsg := a.ip6Loopback(uint8(i))
+			loopbackV6, eMsg := a.ip6Loopback(i)
 			if eMsg != "" {
 				fmt.Printf("Error in fetching IPV6 loopback address for port %s: %s", a.Name, eMsg)
 			}
@@ -1997,7 +1997,7 @@ func (a *attributes) configureATEBGP(t *testing.T, top gosnappi.Config) {
 
 		routerID := a.IPv4
 		if a.numSubIntf > 1 && a.ip4 != nil {
-			routerID, _ = a.ip4(uint8(i))
+			routerID, _ = a.ip4(i)
 		}
 
 		var bgp4Peer gosnappi.BgpV4Peer
@@ -2122,7 +2122,7 @@ func (a *attributes) configureATEIBGP(t *testing.T, top gosnappi.Config, ate *on
 		configureOTGISIS(t, "lag1.Dev", dev, atePort4, ate, i)
 
 		// IBGP Configuration
-		routerID, _ := a.ip4Loopback(uint8(i))
+		routerID, _ := a.ip4Loopback(i)
 		// IPv4 IBGP Peer
 		bgp4Peer := otgconfighelpers.AddBGPV4Peer(dev, intfName+".Loopback.IPv4",
 			otgconfighelpers.WithBGPName(dev.Name()+".IBGP.BGP4.peer"+strconv.Itoa(int(i))),
@@ -2239,11 +2239,11 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 		},
 	}
 	isis := otgconfighelpers.ConfigureISIS(t, dev, isisAttrs)
-	loopbackV4, eMsg := atePort.ip4Loopback(uint8(i))
+	loopbackV4, eMsg := atePort.ip4Loopback(i)
 	if eMsg != "" {
 		t.Logf("Error configuring loopbackV4: %v", eMsg)
 	}
-	loopbackV6, eMsg := atePort.ip6Loopback(uint8(i))
+	loopbackV6, eMsg := atePort.ip6Loopback(i)
 	if eMsg != "" {
 		t.Logf("Error configuring loopbackV6: %v", eMsg)
 	}

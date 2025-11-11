@@ -78,12 +78,12 @@ type Attributes struct {
 	V4ISISRouteCount uint32
 	V6Route          func(vlan int) string
 	V6ISISRouteCount uint32
-	Ip4              func(vlan uint8) (string, string)
-	Ip6              func(vlan uint8) (string, string)
-	Gateway          func(vlan uint8) (string, string)
-	Gateway6         func(vlan uint8) (string, string)
-	Ip4Loopback      func(vlan uint8) (string, string)
-	Ip6Loopback      func(vlan uint8) (string, string)
+	Ip4              func(vlan int) (string, string)
+	Ip6              func(vlan int) (string, string)
+	Gateway          func(vlan int) (string, string)
+	Gateway6         func(vlan int) (string, string)
+	Ip4Loopback      func(vlan int) (string, string)
+	Ip6Loopback      func(vlan int) (string, string)
 	LagMAC           string
 	EthMAC           string
 	Port1MAC         string
@@ -1027,11 +1027,11 @@ func (a *Attributes) configureSubinterface(t *testing.T, s *oc.Interface_Subinte
 	vlanID := uint16(int(a.Index*10) + subIndex)
 	ConfigureVLAN(s, dut, vlanID)
 
-	ipv4Addr, eMsg := a.Ip4(uint8(subIndex))
+	ipv4Addr, eMsg := a.Ip4(subIndex)
 	if eMsg != "" {
 		t.Fatalf("Error in fetching IPV4 address for port %s: %s", a.Name, eMsg)
 	}
-	ipv6Addr, eMsg := a.Ip6(uint8(subIndex))
+	ipv6Addr, eMsg := a.Ip6(subIndex)
 	if eMsg != "" {
 		t.Fatalf("Error in fetching IPV6 address for port %s: %s", a.Name, eMsg)
 	}
@@ -1109,13 +1109,10 @@ func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondat
 	assignFunc := fptest.AssignToNetworkInstance
 
 	if a.NumSubIntf == 1 {
-		t.Logf("Assigning interface %s to network instance %s", portName, instanceName)
-
 		assignFunc(t, d, portName, instanceName, 0)
 	} else {
 		for i := uint32(1); i <= a.NumSubIntf; i++ {
 			subIntfIndex := uint32(a.Index*10) + i
-			t.Logf("Assigning interface %s subinterface %d to network instance %s", portName, subIntfIndex, instanceName)
 			assignFunc(t, d, portName, instanceName, subIntfIndex)
 		}
 	}
