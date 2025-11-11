@@ -4,7 +4,7 @@
 uuid:  "171f2571-d775-4f9b-b9bf-3584e52f78a6"
 plan_id:  "PF-1.11"
 description:  "Rewrite the ingress innner packet TTL"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA

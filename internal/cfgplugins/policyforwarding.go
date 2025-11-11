@@ -386,14 +386,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 								actions
 									count
 									redirect next-hop group %[3]s ttl %[4]d
-							!
-							match ipv4-all-default ipv4
-								actions
-									count
-									redirect next-hop group %[3]s ttl %[4]d
-							!
-							match ipv6-all-default ipv6
-						!
+							!							
 							interface %[5]s
 							traffic-policy input %[1]s
 						!
@@ -411,13 +404,6 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 									count
 									redirect next-hop group %[3]s ttl %[4]d
 							!
-							match ipv6-all-default ipv6
-								actions
-									count
-									redirect next-hop group %[3]s ttl %[4]d
-							!
-							match ipv4-all-default ipv4
-						!
 							interface %[5]s
 							traffic-policy input %[1]s
 						!

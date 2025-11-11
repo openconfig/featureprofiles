@@ -181,7 +181,7 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			configureVRFStaticRoute(t, dut, batch, vrfName, tc.vrfIPPrefix, nexthopGroupName, tc.protoStr)
 			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL))
 			configPush(t, otg, otgConfig)
-			otgOperation(t, dut, ate, otg, otgConfig, unMatchFlow, tc.family, tc.unMatchTTL)
+			otgOperation(t, dut, ate, otg, otgConfig, unMatchFlow, tc.family, tc.unMatchTTL-1)
 		})
 	}
 }
