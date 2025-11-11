@@ -231,7 +231,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
-	configureHardwareInit(t, dut)
+	// configureHardwareInit(t, dut)
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
