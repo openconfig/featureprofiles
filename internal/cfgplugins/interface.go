@@ -113,8 +113,9 @@ func (om *OperationalModeList) Set(value string) error {
 	for _, s := range strings.Split(value, ",") {
 		if v, err := strconv.ParseUint(s, 10, 16); err != nil {
 			return err
+		} else {
+			*om = append(*om, uint16(v))
 		}
-		*om = append(*om, uint16(v))
 	}
 	return nil
 }
