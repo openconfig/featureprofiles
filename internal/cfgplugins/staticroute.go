@@ -32,6 +32,8 @@ type StaticRouteCfg struct {
 	NetworkInstance string
 	Prefix          string
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType          string
+	NextHopAddr     string
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -67,6 +69,31 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
+}
+
+// StaticRouteNextNetworkInstance configures a static route with a next network instance (cross-VRF routing).
+func StaticRouteNextNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, cfg *StaticRouteCfg) {
+	t.Helper()
+	c := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+	}
+	spNetInst := c.GetOrCreateStatic(cfg.Prefix)
+	if deviations.StaticRouteNextNetworkInstanceOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Logf("Configuring route with NextNetworkInstance")
+			cli := fmt.Sprintf(`%s route vrf %s %s egress-vrf default %s
+			`, cfg.IPType, cfg.NetworkInstance, cfg.NextHopAddr, cfg.Prefix)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'NextNetworkInstance config'", dut.Vendor())
+		}
+	} else {
+		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("DEFAULT")
+		spNetInst.GetOrCreateNextHop("0").SetNextHop(oc.UnionString(cfg.Prefix))
+	}
 }
 
 // NewStaticVRFRoute configures a static route inside a given VRF on the DUT.
