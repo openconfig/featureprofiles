@@ -815,8 +815,6 @@ func TestBGPPolicy(t *testing.T) {
 }
 
 // expectedMED returns the MED that should be verified considering device deviations.
-// requestedValue is the value from the test case (e.g. 100 or 150).
-// baseValue is the originally advertised MED before policy (here 50).
 func expectedMED(t *testing.T,dut *ondatra.DUTDevice, requestedValue, deviatedValue uint32) uint32 {
 	t.Helper()
 	// If device cannot perform set-med or med-add actions, return base MED value.
