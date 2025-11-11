@@ -85,21 +85,22 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 			nhg.SetName(cfg.NexthopGroupName)
 		}
 	}
-	for k, v := range cfg.NextHops {
-		nh := s.GetOrCreateNextHop(k)
-		nh.SetIndex(k)
-		nh.NextHop = v
-		if cfg.Metric != 0 {
-			nh.SetMetric(cfg.Metric)
+	if cfg.NextHops != nil {
+		for k, v := range cfg.NextHops {
+			nh := s.GetOrCreateNextHop(k)
+			nh.SetIndex(k)
+			nh.NextHop = v
+			if cfg.Metric != 0 {
+				nh.SetMetric(cfg.Metric)
+			}
+			if cfg.Recurse {
+				nh.SetRecurse(cfg.Recurse)
+			}
 		}
-		if cfg.Recurse {
-			nh.SetRecurse(cfg.Recurse)
-		}
+		sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+		gnmi.BatchUpdate(batch, sp.Config(), c)
+		gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	}
-	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
-	gnmi.BatchUpdate(batch, sp.Config(), c)
-	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
-
 	return s, nil
 }
 

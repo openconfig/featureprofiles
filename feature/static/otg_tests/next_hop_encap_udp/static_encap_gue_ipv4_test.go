@@ -239,7 +239,7 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 			InterfaceID:       dut.Port(t, "port1").Name(),
 			AppliedPolicyName: GuePolicyName,
 		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), GuePolicyName, ni, interfacePolicyParams)
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 	}
 }
 
@@ -256,13 +256,25 @@ type tunnelCfg struct {
 
 func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg *tunnelCfg) {
 	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
 	if cfg.tos != 0 || cfg.deleteTos {
-		cfgplugins.ConfigureTOSGUE(t, dut, cfg.policyName, uint32(cfg.tos>>5), dut.Port(t, "port1").Name(), cfg.deleteTos)
+		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
+			TrafficType:     cfg.protocolType,
+			NexthopGrpName:  cfg.nexthopGroupName,
+			DstUdpPort:      gueProtocolPort,
+			Index:           cfg.index,
+			NetworkInstance: ni,
+			DSCP:            cfg.tos >> 5,
+			DeleteDSCP:      cfg.deleteTos,
+			SrcIp:           dut.Port(t, "port1").Name(),
+		}
+		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, nexthopUDPParams)
 	}
 
 	if cfg.ttl != 0 || cfg.deleteTtl {
-		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
 			TrafficType:     cfg.protocolType,
@@ -751,10 +763,12 @@ func TestGUEEncap(t *testing.T) {
 			t,
 			bs.DUT,
 			&tunnelCfg{policyName: "policy1",
-				tos:       0x60,
-				ttl:       0,
-				deleteTos: false,
-				deleteTtl: false,
+				tos:              0x60,
+				ttl:              0,
+				deleteTos:        false,
+				deleteTtl:        false,
+				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				nexthopGroupName: nexthopGroupName,
 			})
 
 		createFlow(bs.ATETop, "IPv4-GUE-Traffic", "ipv4", trafficDstNetIPv4, 0x80, 10, false, gueProtocolPort, gueSrcProtocolPort, false)

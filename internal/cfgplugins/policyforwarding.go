@@ -644,7 +644,7 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	t.Helper()
 
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
@@ -652,46 +652,15 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interf
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", params.InterfaceID, params.AppliedPolicyName))
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}
 	} else {
+		_, ni, _ := SetupPolicyForwardingInfraOC(params.NetworkInstanceName)
 		policyForward := ni.GetOrCreatePolicyForwarding()
 		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
 	}
-}
-
-// QosClassificationConfig configures the interface qos classification.
-func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
-	if deviations.QosClassificationOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if deleteTOS {
-				cli := fmt.Sprintf(`
-				policy-map type quality-of-service %s
-   					class class-default
-      				no set dscp %d`, policyName, dscpValue)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			} else {
-				cli := fmt.Sprintf(`
-				policy-map type quality-of-service %s
-   					class class-default
-      				set dscp cs%d
-				
-				qos rewrite dscp
-
-				interface %s
-					service-policy type qos input %s
-					`, policyName, dscpValue, port, policyName)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
-		}
-	}
-
 }
 
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC

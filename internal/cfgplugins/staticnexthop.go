@@ -197,6 +197,7 @@ type NexthopGroupUDPParams struct {
 	DSCP            uint8
 	NetworkInstance *oc.NetworkInstance
 	DeleteTtl       bool
+	DeleteDSCP      bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
