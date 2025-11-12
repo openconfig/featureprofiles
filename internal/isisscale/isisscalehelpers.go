@@ -18,10 +18,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
 
@@ -165,7 +165,7 @@ func findISISInterfaces(t *testing.T, dut *ondatra.DUTDevice) []string {
 		if !ok {
 			t.Fatalf("could not get isis interface on dut: %v", dut.Name())
 		}
-if strings.HasPrefix(strings.ToLower(isisIntf.GetInterfaceId()), "lo") {
+		if strings.HasPrefix(strings.ToLower(isisIntf.GetInterfaceId()), "lo") {
 			continue
 		}
 		isisInterfaces = append(isisInterfaces, isisIntf.GetInterfaceId())

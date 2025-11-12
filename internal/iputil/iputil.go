@@ -195,7 +195,6 @@ func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
 	return out
 }
 
-
 // NextIPMultiSteps returns the next IPv4 or IPv6 address after incrementing the last octet by count times.
 func NextIPMultiSteps(ip net.IP, count int) net.IP {
 	nextIPAddress := ip
