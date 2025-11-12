@@ -391,7 +391,7 @@ func verifyPrefixesTelemetryV4(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateAttrs.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	got, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	_, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotVal, present := val.Val()
 		if !present {
 			return false
@@ -399,8 +399,8 @@ func verifyPrefixesTelemetryV4(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 		return gotVal == wantInstalled
 	}).Await(t)
 	if !ok {
-		val, _ := got.Val()
-		t.Fatalf("Installed prefixes mismatch: got %v, want %v", val, wantInstalled)
+		gotInstalled := gnmi.Get(t, dut, prefixesv4.Installed().State())
+		t.Fatalf("Installed prefixes mismatch: got %v, want %v", gotInstalled, wantInstalled)
 	}
 }
 
@@ -560,6 +560,7 @@ func TestBgpImportExportPolicy(t *testing.T) {
 			ate.OTG().PushConfig(t, tc.ateConf)
 			ate.OTG().StartProtocols(t)
 			otgutils.WaitForARP(t, ate.OTG(), tc.ateConf, "IPv4")
+			otgutils.WaitForARP(t, ate.OTG(), tc.ateConf, "IPv6")
 
 			t.Logf("Verify BGP telemetry")
 			verifyBgpTelemetry(t, dut, tc.wantBGPState, tc.dutTransportMode, tc.otgTransportMode)
