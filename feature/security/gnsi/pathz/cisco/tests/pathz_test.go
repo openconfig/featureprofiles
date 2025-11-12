@@ -966,6 +966,7 @@ func TestPathz_1(t *testing.T) {
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 			}
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Define expected response
 			want := &pathzpb.ProbeResponse{
@@ -1068,7 +1069,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 4, 0)
@@ -1123,7 +1124,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -1149,6 +1150,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Between Definite keys over wildcards keys With Triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -1723,7 +1725,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -1805,7 +1807,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
@@ -1823,6 +1825,7 @@ func TestPathz_1(t *testing.T) {
 				PolicyInstance: pathzpb.PolicyInstance_POLICY_INSTANCE_ACTIVE,
 			}
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Define expected response
 			want := &pathzpb.ProbeResponse{
@@ -1925,7 +1928,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -1981,7 +1984,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -2007,6 +2010,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Group Over User - Invalid username in Group", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2154,7 +2158,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Perform Rotate request
 			rc, err = client.Rotate(context.Background())
@@ -2290,7 +2294,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "2", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "2", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -2304,6 +2308,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Group Over User - Deny/Permit", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2502,7 +2507,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -2516,6 +2521,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Pathz Policy Conflict Between Users", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2764,7 +2770,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -2776,6 +2782,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Group Over User - Definite Keys Over Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -2974,7 +2981,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -2986,6 +2993,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Between Definite keys over Wildcards Keys - JSON", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3520,7 +3528,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), true)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 3)
@@ -3530,6 +3538,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Conflict Group Over User - Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3728,7 +3737,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -3744,6 +3753,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -3830,7 +3840,7 @@ func TestPathz_1(t *testing.T) {
 			gnmiwithcli(t, dut, deletePath, "no hostname")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 4, 0)
@@ -3880,7 +3890,7 @@ func TestPathz_1(t *testing.T) {
 			gnmiwithcli(t, dut, deletePath, "no hostname")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -3892,6 +3902,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Pathz Policy Longest Prefix Match Among Users", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4036,7 +4047,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), true)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 
@@ -4047,6 +4058,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Pathz Policy Longest Prefix Match B/W Group & User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4191,7 +4203,7 @@ func TestPathz_1(t *testing.T) {
 			gnmi.Replace(t, dut, config.Config(), true)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 6)
@@ -4201,6 +4213,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Pathz Policy Longest Prefix Among Groups", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4385,7 +4398,7 @@ func TestPathz_1(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, true, 3, 6)
@@ -4395,6 +4408,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy with gNMI.SET Operation using XR Model", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -4488,7 +4502,7 @@ func TestPathz_1(t *testing.T) {
 			configwithoutprefix(t, dut, deletePath, hostname)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -4539,7 +4553,7 @@ func TestPathz_1(t *testing.T) {
 			configwithoutprefix(t, dut, deletePath, hostname)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -4589,7 +4603,7 @@ func TestPathz_1(t *testing.T) {
 			configwithoutprefix(t, dut, deletePath, hostname)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -4601,6 +4615,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test User Conflict Between Definite keys over Wildcards Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -5158,7 +5173,7 @@ func TestPathz_1(t *testing.T) {
 			configISIS(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", false, true, 0, 1)
@@ -5178,6 +5193,7 @@ func TestPathz_1(t *testing.T) {
 	t.Run("Test Corrupt Pathz Policy File Behaviour - Reload", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Start gRPC client
 			client := start(t)
@@ -5241,7 +5257,7 @@ func TestPathz_1(t *testing.T) {
 			isPermissionDeniedError(t, dut, "Deny_Rule")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -5298,7 +5314,7 @@ func TestPathz_1(t *testing.T) {
 			isPermissionDeniedError(t, dut, "Expecting_deny")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -5353,7 +5369,7 @@ func TestPathz_1(t *testing.T) {
 			performOperations(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
@@ -5495,6 +5511,7 @@ func TestPathz_1(t *testing.T) {
 		// Pathz Rules Scale Test (5800 Pathz Rules) with gNMI SET Scale operations and eMSD Restart.
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -5567,7 +5584,7 @@ func TestPathz_1(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -5612,7 +5629,7 @@ func TestPathz_1(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -5707,6 +5724,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Test Conflict Group Over User With Triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -5961,7 +5979,7 @@ func TestPathz_2(t *testing.T) {
 			configISIS(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
@@ -5995,7 +6013,7 @@ func TestPathz_2(t *testing.T) {
 			configISIS(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
@@ -6028,7 +6046,7 @@ func TestPathz_2(t *testing.T) {
 			configISIS(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
@@ -6042,6 +6060,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Test Pathz Policy Conflict Between Users with triggers", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -6200,7 +6219,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 2)
@@ -6263,7 +6282,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
@@ -6319,7 +6338,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
@@ -6329,6 +6348,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Test Pathz Policy Conflict Among Groups", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -6515,7 +6535,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
@@ -6572,7 +6592,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
@@ -6628,7 +6648,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]", true, false, 3, 0)
@@ -6638,6 +6658,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Test Pathz Policy File System Behaviour - Process Restart Emsd", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Define probe request
 			probeReq := &pathzpb.ProbeRequest{
@@ -6785,7 +6806,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -6834,7 +6855,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting bakup policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -6886,7 +6907,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -6934,7 +6955,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting pathz policy.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -6980,6 +7001,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("Test Corrupt Pathz Policy File Behaviour - ProcessRestart/Reload", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Start gRPC client
 			client := start(t)
@@ -7043,7 +7065,7 @@ func TestPathz_2(t *testing.T) {
 			isPermissionDeniedError(t, dut, "Deny_Rule")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
@@ -7086,7 +7108,7 @@ func TestPathz_2(t *testing.T) {
 			isPermissionDeniedError(t, dut, "Expecting_deny")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 6, 0)
@@ -7127,7 +7149,7 @@ func TestPathz_2(t *testing.T) {
 			performOperations(t, dut)
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after corrupting policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
@@ -7338,7 +7360,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, 1714456775238852, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, 1714456775000000000, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -7504,7 +7526,7 @@ func TestPathz_2(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, 1714456775238852, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, 1714456775000000000, "5800-Rules", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -7592,6 +7614,7 @@ func TestPathz_2(t *testing.T) {
 		// Pathz Scale Test with Router Reload.
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -7671,7 +7694,7 @@ func TestPathz_2(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -7730,7 +7753,7 @@ func TestPathz_2(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -7821,6 +7844,7 @@ func TestPathz_2(t *testing.T) {
 		// Authz Pathz Test with Router Reload.
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
@@ -7953,7 +7977,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Delete Authz policy file and verify the behaviour
 			pathz.DeletePolicyData(t, dut, "authz_policy.txt")
@@ -7994,7 +8018,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Perform eMSD process restart after deleting Authz Backup file.
 			t.Logf("Restarting emsd at %s", time.Now())
@@ -8038,7 +8062,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -8086,7 +8110,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting backup pathz policy.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -8135,7 +8159,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -8183,7 +8207,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting backup pathz policy.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -8697,6 +8721,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy Conflict B/W Group & User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -9271,7 +9296,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -9350,7 +9375,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
@@ -9428,7 +9453,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
@@ -9438,6 +9463,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy with Invalid User", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -9585,7 +9611,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -9731,7 +9757,7 @@ func TestPathz_2(t *testing.T) {
 			gnmi.Update(t, dut, gnmi.OC().NetworkInstance(*ciscoFlags.DefaultNetworkInstance).Config(), &oc.NetworkInstance{Name: ygot.String("DEFAULT")})
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/config/name", false, true, 0, 1)
@@ -9743,6 +9769,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy with Wildcard Keys", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -9901,7 +9928,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
@@ -9957,7 +9984,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
@@ -10014,7 +10041,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=*]/isis", true, false, 3, 0)
@@ -10024,6 +10051,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy with gNMI operation origin as Cli", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -10110,7 +10138,7 @@ func TestPathz_2(t *testing.T) {
 			gnmiwithcli(t, dut, deletePath, "no hostname")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -10155,7 +10183,7 @@ func TestPathz_2(t *testing.T) {
 			gnmiwithcli(t, dut, deletePath, "no hostname")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -10198,7 +10226,7 @@ func TestPathz_2(t *testing.T) {
 			gnmiwithcli(t, dut, deletePath, "no hostname")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -10210,6 +10238,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Pathz Policy Longest Prefix", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			// Declare probeBeforeFinalize
 			probeBeforeFinalize := false
@@ -10394,7 +10423,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -10462,7 +10491,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/network-instances/network-instance[name=DEFAULT]/protocols/protocol[identifier=ISIS][name=B4]/isis", true, false, 3, 0)
@@ -10472,6 +10501,7 @@ func TestPathz_2(t *testing.T) {
 	t.Run("RPSO: Test Corrupt Pathz Policy File", func(t *testing.T) {
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			pathzRulesPath := "testdata/invalid_policy.txt"
 			copyPathzRules := "/mnt/rdsfs/ems/gnsi"
@@ -10538,7 +10568,7 @@ func TestPathz_2(t *testing.T) {
 			isPermissionDeniedError(t, dut, "Deny_Rule")
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
@@ -10594,7 +10624,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", true, false, 3, 0)
@@ -10649,7 +10679,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/system/config/hostname", false, true, 0, 3)
@@ -10774,6 +10804,7 @@ func TestPathz_2(t *testing.T) {
 		// Test Pathz Policy File with 5800 Pathz Rules Request and gNMI Scale Operations
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			fileName := "testdata/pathz_path.txt"
 
@@ -10854,7 +10885,7 @@ func TestPathz_2(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -10920,7 +10951,7 @@ func TestPathz_2(t *testing.T) {
 			t.Logf("After process restart:Finished batch programming of %d leaves at %s", leavesCnt, time.Now())
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "5800-Rules", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "5800-Rules", false)
 
 			// Verify the policy counters after process restart.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 3, 0)
@@ -11028,6 +11059,7 @@ func TestPathz_2(t *testing.T) {
 		// Authz Pathz Test with RP switchover.
 		for _, d := range parseBindingFile(t) {
 			createdtime := uint64(time.Now().Unix())
+			createTimeNano := createdtime * 1e9
 
 			policyMap := authz.LoadPolicyFromJSONFile(t, "testdata/policy.json")
 
@@ -11160,7 +11192,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -11225,7 +11257,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Perform RP Switchover
 			utils.Dorpfo(context.Background(), t, true)
@@ -11267,7 +11299,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting Authz policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -11378,7 +11410,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting backup pathz policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -11429,7 +11461,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after router reload.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
@@ -11477,7 +11509,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after deleting pathz policy file.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 2, 0)
@@ -11527,7 +11559,7 @@ func TestPathz_2(t *testing.T) {
 			}
 
 			// Verify the policy info
-			pathz.VerifyPolicyInfo(t, dut, createdtime, "1", false)
+			pathz.VerifyPolicyInfo(t, dut, createTimeNano, "1", false)
 
 			// Verify the policy counters after RP Switchover.
 			pathz.VerifyWritePolicyCounters(t, dut, "/", true, false, 1, 0)
