@@ -165,7 +165,7 @@ func findISISInterfaces(t *testing.T, dut *ondatra.DUTDevice) []string {
 		if !ok {
 			t.Fatalf("could not get isis interface on dut: %v", dut.Name())
 		}
-		if strings.ToLower(isisIntf.GetInterfaceId()[0:2]) == "lo" {
+if strings.HasPrefix(strings.ToLower(isisIntf.GetInterfaceId()), "lo") {
 			continue
 		}
 		isisInterfaces = append(isisInterfaces, isisIntf.GetInterfaceId())
