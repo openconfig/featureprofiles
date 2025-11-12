@@ -594,8 +594,6 @@ func OCVerification(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string, c
 	afterConnRej, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().ConnectionRejects().State()).Val()
 
 	endTime := time.Now().Unix()
-	// XR Bug fix CSCwr63471 - oc: certz: Change time unit for last-connection-accept/last-connection-reject from secs to nanosec to align with OC model
-	elapsedTime := (uint64(endTime-startTime) + 2) * uint64(1_000_000_000)
 
 	afterConnAcceptOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionAccept().State()).Val()
 	afterConnRejOn, _ := gnmi.Lookup(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").Counters().LastConnectionReject().State()).Val()
@@ -649,17 +647,30 @@ func OCVerification(t *testing.T, dut *ondatra.DUTDevice, sslProfileID string, c
 		errorCount = errorCount + 1
 	}
 
-	if beforeConnAcceptOn+elapsedTime > afterConnAcceptOn && beforeConnAcceptOn < afterConnAcceptOn {
-		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verified successfully", beforeConnAcceptOn, afterConnAcceptOn, elapsedTime)
+	// Calculate elapsed time in nanoseconds for timestamp comparison with LastConnectionAccept
+	// and LastConnectionReject counters. These counters are Unix timestamps in nanoseconds (uint64)
+	// as per the OpenConfig model alignment (XR Bug fix CSCwr63471).
+	//
+	// We add 2 seconds buffer to account for timing variations during test execution, then convert
+	// to nanoseconds. Without proper unit conversion, we would be adding seconds to nanoseconds,
+	// causing incorrect validation failures.
+	//
+	// Example calculation for 12 second elapsed time:
+	//   Wrong: 1762763425116432157 + 12 = 1762763425116432169 (only +12)
+	//   Correct: 1762763425116432157 + 12000000000 = 1762763437116432157 (+12 seconds in ns)
+	elapsedTimeNanos := (uint64(endTime-startTime) + 2) * uint64(1_000_000_000)
+
+	if beforeConnAcceptOn+elapsedTimeNanos > afterConnAcceptOn && beforeConnAcceptOn < afterConnAcceptOn {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verified successfully", beforeConnAcceptOn, afterConnAcceptOn, elapsedTimeNanos)
 	} else {
-		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verification failed", beforeConnAcceptOn, afterConnAcceptOn, elapsedTime)
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection AcceptedOn counter verification failed", beforeConnAcceptOn, afterConnAcceptOn, elapsedTimeNanos)
 		errorCount = errorCount + 1
 	}
 
-	if beforeConnRejOn+elapsedTime > afterConnRejOn && beforeConnRejOn < afterConnRejOn {
-		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection RejectedOn counter verified successfully", beforeConnRejOn, afterConnRejOn, elapsedTime)
+	if beforeConnRejOn+elapsedTimeNanos > afterConnRejOn && beforeConnRejOn < afterConnRejOn {
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection RejectedOn counter verified successfully", beforeConnRejOn, afterConnRejOn, elapsedTimeNanos)
 	} else {
-		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection Reject counter verification failed", beforeConnRejOn, afterConnRejOn, elapsedTime)
+		t.Logf("Before: %d, After: %d, Elapsed Time: %d :Last Connection Reject counter verification failed", beforeConnRejOn, afterConnRejOn, elapsedTimeNanos)
 		errorCount = errorCount + 1
 	}
 
@@ -707,7 +718,11 @@ func TestRotateReqWithFinalizeTestRsa(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTemp.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -933,7 +948,11 @@ func TestRotateReqWithFinalizeTestEcdsa(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTemp.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1153,7 +1172,11 @@ func TestRotateReqWithFinalizeNegative(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTemp.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1372,7 +1395,11 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from RSA CA
 	certTemprsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTemprsa.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTemprsa.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1422,7 +1449,11 @@ func TestRotateReqWithFinalizeValidate(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTempecdsa, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTempecdsa.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTempecdsa.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
@@ -1767,7 +1798,11 @@ func TestHARedundancySwithOver(t *testing.T) {
 	}
 	//Generating Server Cert & Signed from CA
 	certTemp, err := cert.PopulateCertTemplate("server", []string{"Server.cisco.com"}, []net.IP{net.ParseIP(serverIP)}, "test", 100)
-	certTemp.NotBefore = time.Now().Add(-60 * time.Second)
+	// Set NotBefore to 5 minutes in the past to account for clock skew between
+	// the test machine(ADS) and DUT. This follows the industry standard (Kerberos RFC 4120)
+	// for handling time differences between systems and prevents "certificate not yet
+	// valid" errors when clocks are not perfectly synchronized.
+	certTemp.NotBefore = time.Now().Add(-5 * time.Minute)
 	if err != nil {
 		t.Fatalf("Could not generate the cert template: %v", err)
 	}
