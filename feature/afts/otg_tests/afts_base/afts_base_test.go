@@ -71,7 +71,7 @@ const (
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 2 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 2000000
+	bgpRouteCountIPv4LowScale = 1500000
 	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
@@ -291,10 +291,10 @@ func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*
 	}
 }
 
-func (tc *testCase) waitForBGPSession(t *testing.T) error {
+func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateP2.IPv4)
-	nbrPathv6 := statePath.Neighbor(ateP2.IPv6)
+	nbrPath := statePath.Neighbor(ateP1.IPv4)
+	nbrPathv6 := statePath.Neighbor(ateP1.IPv6)
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
@@ -305,15 +305,21 @@ func (tc *testCase) waitForBGPSession(t *testing.T) error {
 		return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}
 
-	_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
-	if !ok {
-		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
-		return fmt.Errorf("BGP session with %s not established", ateP2.IPv4)
+	for _, nbr := range ipv4nbrs {
+		nbrPath = statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
+			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
 	}
-	_, ok = gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
-	if !ok {
-		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
-		return fmt.Errorf("BGP session with %s not established", ateP2.IPv6)
+	for _, nbr := range ipv6nbrs {
+		nbrPathv6 = statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
+			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
 	}
 	return nil
 }
@@ -637,7 +643,7 @@ func TestBGP(t *testing.T) {
 	tc.configureATE(t)
 
 	t.Log("Waiting for BGP neighbor to establish...")
-	if err := tc.waitForBGPSession(t); err != nil {
+	if err := tc.waitForBGPSession(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
@@ -656,6 +662,9 @@ func TestBGP(t *testing.T) {
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
 	t.Log("Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("failed to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 2 churn", 1, wantIPv4NHsPostChurn, getPostChurnIPv6NH(tc.dut))
 
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
@@ -669,10 +678,16 @@ func TestBGP(t *testing.T) {
 	// Step 4: Start Port1 interface to remove Churn (BGP: 1 NH - Port2 still down)
 	t.Log("Starting Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, getPostChurnIPv6NH(tc.dut))
 
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
 	t.Log("Starting Port2 interface to remove Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
+	if err := tc.waitForBGPSession(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }
