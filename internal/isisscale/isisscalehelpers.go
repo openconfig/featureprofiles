@@ -22,7 +22,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
