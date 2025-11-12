@@ -643,7 +643,7 @@ func TestBGP(t *testing.T) {
 	tc.configureATE(t)
 
 	t.Log("Waiting for BGP neighbor to establish...")
-	if err := tc.waitForBGPSession(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
@@ -686,7 +686,7 @@ func TestBGP(t *testing.T) {
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
 	t.Log("Starting Port2 interface to remove Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
-	if err := tc.waitForBGPSession(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
