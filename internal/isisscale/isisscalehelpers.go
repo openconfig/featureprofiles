@@ -572,4 +572,3 @@ func CreateATEEmulatedRouterData(t *testing.T, dutAggregateInterfacesData []*cfg
 	}
 	return emulatedRouters
 }
-
