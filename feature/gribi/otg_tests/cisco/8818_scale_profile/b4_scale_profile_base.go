@@ -2084,26 +2084,27 @@ func programP4rtClientsAndEntries(t *testing.T, dut *ondatra.DUTDevice) map[stri
 	return managers
 }
 
-func deleteP4rtEntries(t *testing.T, managers map[string]*s.P4RTClientManager) {
-	t.Log("Delete P4RT entries from all devices")
+// uncomment when deleteP4rtEntries is needed
+// func deleteP4rtEntries(t *testing.T, managers map[string]*s.P4RTClientManager) {
+// 	t.Log("Delete P4RT entries from all devices")
 
-	for stream, manager := range managers {
-		t.Logf("%s: Deleting entries for stream %s", manager.DUT.ID(), stream)
-		leader := manager.GetLeader()
+// 	for stream, manager := range managers {
+// 		t.Logf("%s: Deleting entries for stream %s", manager.DUT.ID(), stream)
+// 		leader := manager.GetLeader()
 
-		// Create test entries to delete
-		entries := s.CreateDefaultACLEntries()
+// 		// Create test entries to delete
+// 		entries := s.CreateDefaultACLEntries()
 
-		// Delete entries
-		err := leader.DeleteTableEntries(t, entries)
-		if err != nil {
-			t.Errorf("%s: DeleteTableEntries returned error for stream %s: %v", manager.DUT.ID(), stream, err)
-		} else {
-			t.Logf("%s: Successfully deleted ACL table entries for stream %s", manager.DUT.ID(), stream)
-		}
-		// Cleanup clients
-		manager.Cleanup(t)
-	}
+// 		// Delete entries
+// 		err := leader.DeleteTableEntries(t, entries)
+// 		if err != nil {
+// 			t.Errorf("%s: DeleteTableEntries returned error for stream %s: %v", manager.DUT.ID(), stream, err)
+// 		} else {
+// 			t.Logf("%s: Successfully deleted ACL table entries for stream %s", manager.DUT.ID(), stream)
+// 		}
+// 		// Cleanup clients
+// 		manager.Cleanup(t)
+// 	}
 
-	t.Log("Successfully deleted P4RT entries from all devices")
-}
+// 	t.Log("Successfully deleted P4RT entries from all devices")
+// }
