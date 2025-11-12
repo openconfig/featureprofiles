@@ -226,7 +226,19 @@ testbeds:
       controller_port: 40067
       gnmi_port: 50067
       rest_port: 30067    
-    
+  
+  8808-FOX2926PHNF-P200: 
+    hw: 8808-FOX2926PHNF-P200
+    owner: arvbaska
+    testbed: topologies/cisco/hw/8808-FOX2926PHNF-P200/testbed
+    binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding
+    baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40068
+      gnmi_port: 50068
+      rest_port: 30068       
+      
   2DUT-TB1:
     hw:
       - 8808-FOX2508P0JU

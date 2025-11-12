@@ -239,6 +239,19 @@ func (in *testInput) ConfigBGP(dev *ondatra.DUTDevice) {
 	}
 }
 
+// ConfigBGPNetworks configures BGP network statements for route advertisement
+func (in *testInput) ConfigBGPNetworks(dev *ondatra.DUTDevice) {
+	dvc := getFeatureConfig(in.data, dev.ID())
+	bgps := dvc.Bgp
+	for _, bgp := range bgps {
+		err := feature.ConfigBGPNetworks(dev, in.t, bgp)
+		if err != nil {
+			in.t.Logf("error in Configuring BGP Networks")
+			in.t.Error(err)
+		}
+	}
+}
+
 // ConfigJSON sends a Raw JSON config
 func (in *testInput) ConfigJSON(dev *ondatra.DUTDevice) {
 	dvc := getFeatureConfig(in.data, dev.ID())

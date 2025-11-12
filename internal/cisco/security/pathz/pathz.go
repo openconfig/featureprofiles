@@ -424,9 +424,23 @@ func DeletePolicyData(t *testing.T, dut *ondatra.DUTDevice, file string) {
 	t.Logf("delete authz/pathz policy file  %v, %s", resp, file)
 }
 
+// VerifyPolicyInfo validates the gNMI pathz policy information on the device under test.
+// It checks the policy creation timestamp, version, and policy counters based on the provided parameters.
+//
+// Parameters:
+//   - t: testing context for logging and error reporting
+//   - dut: the device under test
+//   - expectedTimestamp: the expected policy creation timestamp value in nanoseconds
+//   - expectedVersion: the expected policy version string; if empty, verifies that version query fails
+//   - emptyPolicy: if true, verifies that policy counters query fails (indicating no policy is configured)
+//
+// The function performs the following validations:
+//   - Retrieves and verifies the policy timestamp matches expectedTimestamp
+//   - If expectedVersion is non-empty, verifies the policy version matches; otherwise ensures version query fails
+//   - If emptyPolicy is true, ensures policy counters query fails; otherwise skips this check
+//
+// The function will fail the test (t.Fatalf) if any verification does not match expectations.
 func VerifyPolicyInfo(t *testing.T, dut *ondatra.DUTDevice, expectedTimestamp uint64, expectedVersion string, emptyPolicy bool) {
-	// Convert expectedTimestamp to nanoseconds
-	expectedTimestamp = expectedTimestamp * 1e9
 	// Retrieve timestamp from the device
 	timestamp := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").GnmiPathzPolicyCreatedOn().State())
 	t.Logf("Got the expected Policy timestamp: %v", timestamp)
