@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -26,7 +25,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -77,12 +76,6 @@ func TestInventoryInterfaceFlap(t *testing.T) {
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
-
 	// Uncomment once the Ondatra OC release version is fixed.
 	// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
 	// 	t.Fatalf("Transceivers types (%v, %v): (%v, %v) are not 400ZR_PLUS, expected %v", tr1, tr2, dp1.PMD(), dp2.PMD(), ondatra.PMD400GBASEZRP)
@@ -148,10 +141,6 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		cfgplugins.InterfaceConfig(t, dut, dp2)
 		tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 		//tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-		och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-		och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-		cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-		cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
 
 		// Uncomment once the Ondatra OC release version is fixed.
 		// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
