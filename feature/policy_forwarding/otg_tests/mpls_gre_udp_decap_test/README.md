@@ -77,7 +77,7 @@ outer_ip-ttl =        "64"
                 {
                   "config": {
                     "interface-id": "Aggregate2",
-                    "mpls-enabled": true
+                    "mpls-enabled": false
                   },
                   "interface-id": "Aggregate2"
                 }
