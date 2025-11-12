@@ -1,7 +1,10 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -46,6 +49,7 @@ type OcPolicyForwardingParams struct {
 	NetworkInstanceName string
 	InterfaceID         string
 	AppliedPolicyName   string
+	RemovePolicyName    bool
 
 	// Policy Rule specific params
 	InnerDstIPv6 string
@@ -59,6 +63,7 @@ type OcPolicyForwardingParams struct {
 	TunnelIP     string
 }
 
+// PolicyForwardingRule holds parameters for generating Policy Forwarding config for GRE.
 type PolicyForwardingRule struct {
 	Id                 uint32
 	Name               string
@@ -527,7 +532,6 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if ocPFParams.Dynamic {
-				t.Logf("Going into decap")
 				aristaGueDecapCLIConfig(t, dut, ocPFParams)
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
@@ -542,15 +546,25 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
+	ipType := ""
+	switch params.IPType {
+	case "ipv4":
+		ipType = "ipv4-over-udp"
+	case "ipv6":
+		ipType = "ipv6-over-udp"
+	case "ip":
+		ipType = "ip"
+	}
+	// tunnel type %s-over-udp udp destination port %v
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, ipType, params.AppliedPolicyName, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
@@ -564,6 +578,60 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 			 tunnel decap-ip %s
 			`, params.AppliedPolicyName, params.TunnelIP)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+}
+
+func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if params.RemovePolicyName {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no traffic-policy input %s \n", interfaceName, policyName))
+			} else {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		policyForward := ni.GetOrCreatePolicyForwarding()
+		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
+	}
+}
+
+// QosClassificationConfig configures the interface qos classification.
+func ConfigureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if deleteTOS {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				no set dscp %d`, policyName, dscpValue)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			} else {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				set dscp cs%d
+				
+				qos rewrite dscp
+
+				interface %s
+					service-policy type qos input %s
+					`, policyName, dscpValue, port, policyName)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+	}
 
 }
 
@@ -639,169 +707,300 @@ func ApplyVrfSelectionPolicyToInterfaceOC(t *testing.T, pf *oc.NetworkInstance_P
 	iface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 }
 
-// NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
-func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, intfName string, nhAddress []string, nexthopGroupName string, ttl uint8, deleteTtl bool) {
-	if deviations.NextHopGroupOCUnsupported(dut) {
-		cli := ""
-		groupType := ""
-
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if traffictype == "V4Udp" {
-				groupType = "ipv4-over-udp"
-			} else if traffictype == "V6Udp" {
-				groupType = "ipv6-over-udp"
-			}
-
-			if len(nhAddress) > 0 {
-				tunnelDst := ""
-				for i, addr := range nhAddress {
-					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
-				}
-				cli = fmt.Sprintf(`
-					nexthop-group %s type %s
-					tunnel-source intf %s
-					fec hierarchical
-   					%s
-					`, nexthopGroupName, groupType, intfName, tunnelDst)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-			if ttl != 0 {
-				cli = fmt.Sprintf(`
-					nexthop-group %s type %s
-					ttl %v
-					`, nexthopGroupName, groupType, ttl)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-
-			if deleteTtl {
-				cli = fmt.Sprintf(
-					`nexthop-group %s type %s
-					no ttl %v
-					`, nexthopGroupName, groupType, ttl)
-				helpers.GnmiCLIConfig(t, dut, cli)
-			}
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
-		}
+func NewPolicyForwardingEncapGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) {
+	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) || deviations.PolicyForwardingToNextHopOcUnsupported(dut) {
+		t.Logf("Configuring pf through CLI")
+		newPolicyForwardingEncapGreFromCli(t, dut, policyName, interfaceName, targetName, rules)
 	} else {
-		t.Helper()
-		nhg := ni.GetOrCreateStatic().GetOrCreateNextHopGroup(nexthopGroupName)
-		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
-
-		// Set the encap header for each next-hop
-		ueh1 := ni.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
-		for _, addr := range nhAddress {
-			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
-		}
-		if ttl != 0 {
-			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(ttl)
-		}
+		t.Logf("Configuring pf through OC")
+		newPolicyForwardingEncapGreFromOC(t, pf, policyName, interfaceName, rules)
 	}
-
 }
 
-func CreatePolicyForwardingNexthopConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
+func newPolicyForwardingEncapGreFromCli(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) {
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	tpConfig := getTrafficPolicyCliConfig(t, dut, policyName, interfaceName, targetName, rules)
+	t.Logf("Push the CLI Policy config:%s", dut.Vendor())
+	gpbSetRequest := buildCliSetRequest(tpConfig)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Errorf("Failed to set policy forwarding from cli: %v", err)
+	}
+}
+
+func newPolicyForwardingEncapGreFromOC(t *testing.T, pf *oc.NetworkInstance_PolicyForwarding, policyName string, interfaceName string, rules []PolicyForwardingRule) {
 	t.Helper()
-
-	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			cli = fmt.Sprintf(`
-				traffic-policies
-				traffic-policy %s
-      			match %s %s
-         		actions
-            	redirect next-hop group %s`, policyName, ruleName, traffictype, nhGrpName)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			// Log a message if the vendor is not supported for this specific CLI deviation.
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-		}
-	}
-}
-
-func ConfigurePolicyForwardingNextHopFromOC(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, policyName string, rule uint32, dstAddr []string, srcAddr []string, nexthopGroupName string) {
 	policy := pf.GetOrCreatePolicy(policyName)
 	policy.Type = oc.Policy_Type_PBR_POLICY
-
-	rule1 := policy.GetOrCreateRule(rule)
-	rule1.GetOrCreateTransport()
-	if len(dstAddr) != 0 {
-		for _, addr := range dstAddr {
-			rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
-		}
-	}
-	if len(srcAddr) != 0 {
-		for _, addr := range srcAddr {
-			rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
-		}
-	}
-	rule1.GetOrCreateAction().SetNextHop(nexthopGroupName)
-}
-
-func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-
-	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
-	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-		}
-	} else {
-		policyForward := ni.GetOrCreatePolicyForwarding()
-		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
-	}
-}
-
-func ConfigureUdpEncapHeader(t *testing.T, dut *ondatra.DUTDevice, tunnelType string, dstPort string) {
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		cli := ""
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			cli = fmt.Sprintf(`tunnel type %s udp destination port %s`, tunnelType, dstPort)
-			helpers.GnmiCLIConfig(t, dut, cli)
-		default:
-			t.Logf("Unsupported vendor %s for native command support", dut.Vendor())
-		}
-	} else {
-		// TODO: OC support of gue encapsulation is not present
-	}
-}
-
-func ConfigureGueTunnel(t *testing.T, dut *ondatra.DUTDevice, trafficType string, policyName string, nexthopGroupName string, srcIntfName string, dstAddr []string, srcAddr []string, ttl uint8) {
-	t.Helper()
-
-	_, ni, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-	// Create nexthop group for v4
-	NextHopGroupConfigForIpOverUdp(t, dut, trafficType, ni, srcIntfName, dstAddr, nexthopGroupName, ttl, false)
-
-	// Configure traffic policy
-	if deviations.PolicyForwardingOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			switch trafficType {
-			case "V4Udp":
-				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule1", "ipv4", nexthopGroupName)
-			case "V6Udp":
-				CreatePolicyForwardingNexthopConfig(t, dut, policyName, "rule2", "ipv6", nexthopGroupName)
-			default:
-				t.Logf("Unsupported traffic type %s", trafficType)
+	for _, ruleConfig := range rules {
+		t.Logf("Processing rule %s", ruleConfig.Name)
+		rule := policy.GetOrCreateRule(ruleConfig.Id)
+		switch ruleConfig.IpType {
+		case IPv4:
+			ruleIpv4 := rule.GetOrCreateIpv4()
+			if ruleConfig.SourceAddress != "" {
+				ruleIpv4.SourceAddress = ygot.String(ruleConfig.SourceAddress)
+			}
+			if ruleConfig.DestinationAddress != "" {
+				ruleIpv4.DestinationAddress = ygot.String(ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.Dscp != 0 {
+				ruleIpv4.Dscp = ygot.Uint8(ruleConfig.Dscp)
+			}
+		case IPv6:
+			ruleIpv6 := rule.GetOrCreateIpv6()
+			if ruleConfig.SourceAddress != "" {
+				ruleIpv6.SourceAddress = ygot.String(ruleConfig.SourceAddress)
+			}
+			if ruleConfig.DestinationAddress != "" {
+				ruleIpv6.DestinationAddress = ygot.String(ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.Dscp != 0 {
+				ruleIpv6.Dscp = ygot.Uint8(ruleConfig.Dscp)
 			}
 		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+			t.Errorf("Unknown IP type %s in PolicyForwardingRule", ruleConfig.IpType)
+			return
+		}
+		if ruleConfig.Action != nil {
+			rule.Action = ruleConfig.Action
+		}
+	}
+}
+
+func getTrafficPolicyCliConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, interfaceName string, targetName string, rules []PolicyForwardingRule) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var matchRules string
+		var nhGroupTargets = make(map[string][]string)
+		var nhGroupsBySource = make(map[string]string)
+		var nhTTlBySource = make(map[string]uint8)
+		for _, ruleConfig := range rules {
+			var matchTarget string
+			t.Logf("Processing rule %s", ruleConfig.Name)
+			if ruleConfig.Action == nil ||
+				ruleConfig.Name == "" {
+				t.Errorf("Invalid rule configuration: %v", ruleConfig)
+				return ""
+			}
+			if ruleConfig.DestinationAddress != "" {
+				matchTarget += fmt.Sprintf("destination prefix %s\n", ruleConfig.DestinationAddress)
+			}
+			if ruleConfig.SourceAddress != "" {
+				matchTarget += fmt.Sprintf("source prefix %s\n", ruleConfig.SourceAddress)
+			}
+			if len(ruleConfig.TTL) > 0 {
+				ttlStrs := make([]string, len(ruleConfig.TTL))
+				for i, v := range ruleConfig.TTL {
+					ttlStrs[i] = fmt.Sprintf("%d", v)
+				}
+				ttlValues := strings.Join(ttlStrs, ", ")
+				matchTarget += fmt.Sprintf("ttl %s\n", ttlValues)
+			}
+			if matchTarget == "" {
+				t.Errorf("Rule %s must have either SourceAddress, DestinationAddress or TTL defined", ruleConfig.Name)
+				return ""
+			}
+			switch ruleConfig.IpType {
+			case IPv4, IPv6:
+				matchRules += fmt.Sprintf(`
+                match %s %s
+                %s
+                actions
+                count`, ruleConfig.Name, strings.ToLower(ruleConfig.IpType), matchTarget)
+				if (*ruleConfig.Action).NextHop != nil {
+					matchRules += fmt.Sprintf(`
+                redirect next-hop %s
+                !`, *(*ruleConfig.Action).NextHop)
+				} else if (*ruleConfig.Action).EncapsulateGre != nil {
+					for _, targetKey := range slices.Sorted(maps.Keys((*ruleConfig.Action).EncapsulateGre.Target)) {
+						target := (*ruleConfig.Action).EncapsulateGre.Target[targetKey]
+						if target != nil {
+							if target.Source == nil || target.Destination == nil {
+								t.Errorf("Target in EncapsulateGre action must have Source and Destination defined")
+								return ""
+							}
+							if !slices.Contains(nhGroupTargets[*(target.Source)], *target.Destination) {
+								nhGroupTargets[*(target.Source)] = append(nhGroupTargets[*(target.Source)], *target.Destination)
+							}
+							if target.IpTtl != nil {
+								nhTTlBySource[*(target.Source)] = *target.IpTtl
+							}
+						}
+					}
+					index := 1
+					nhGroups := ""
+					for source := range nhGroupTargets {
+						nhGroupName := fmt.Sprintf("%s_%d", targetName, index)
+						nhGroupsBySource[source] = nhGroupName
+						nhGroups += fmt.Sprintf("%s ", nhGroupName)
+					}
+					matchRules += fmt.Sprintf(`
+                    redirect next-hop group %s
+                    !`, nhGroups)
+				}
+			default:
+				t.Errorf("Unknown IP type %s in PolicyForwardingRule %s", ruleConfig.IpType, ruleConfig.Name)
+				return ""
+			}
+		}
+
+		var ipv4GreNHs string
+		for src, destinations := range nhGroupTargets {
+			ipv4GreNHs += fmt.Sprintf(`
+            nexthop-group %s type gre`, nhGroupsBySource[src])
+			if len(nhTTlBySource) > 0 && nhTTlBySource[src] > 0 {
+				ipv4GreNHs += fmt.Sprintf(`
+                ttl %d`, nhTTlBySource[src])
+			}
+			ipv4GreNHs += fmt.Sprintf(`
+            tunnel-source %s`, src)
+			for index, dest := range destinations {
+				ipv4GreNHs += fmt.Sprintf(`
+                entry %d tunnel-destination %s`, index, dest)
+			}
+		}
+
+		// Apply Policy on the interface
+		trafficPolicyConfig := fmt.Sprintf(`
+            traffic-policies
+            traffic-policy %s
+            %s
+            %s
+            !
+            interface %s
+            traffic-policy input %s
+            `, policyName, matchRules, ipv4GreNHs, interfaceName, policyName)
+		return trafficPolicyConfig
+	default:
+		return ""
+	}
+}
+
+// Configure GRE decapsulated. Adding deviation when device doesn't support OC
+func NewConfigureGRETunnel(t *testing.T, dut *ondatra.DUTDevice, decapIp string, decapGrpName string) {
+	if deviations.GreDecapsulationOCUnsupported(dut) {
+		var decapIPAddr string
+		if strings.Contains(decapIp, "/") {
+			decapIPAddr = strings.Split(decapIp, "/")[0]
+		} else {
+			decapIPAddr = decapIp
+		}
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+			ip decap-group %s
+			 tunnel type gre
+			 tunnel decap-ip %s
+			`, decapGrpName, decapIPAddr)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+		default:
+			t.Errorf("Deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
 	} else {
-		ConfigurePolicyForwardingNextHopFromOC(t, dut, pf, policyName, 1, dstAddr, srcAddr, nexthopGroupName)
+		d := &oc.Root{}
+		ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		npf := ni1.GetOrCreatePolicyForwarding()
+		np := npf.GetOrCreatePolicy("PBR-MAP")
+		np.PolicyId = ygot.String("PBR-MAP")
+		np.Type = oc.Policy_Type_PBR_POLICY
+
+		npRule := np.GetOrCreateRule(10)
+		ip := npRule.GetOrCreateIpv4()
+		ip.DestinationAddressPrefixSet = ygot.String(decapIp)
+		npAction := npRule.GetOrCreateAction()
+		npAction.DecapsulateGre = ygot.Bool(true)
+
+		port := dut.Port(t, "port1")
+		ingressPort := port.Name()
+		t.Logf("Applying forwarding policy on interface %v ... ", ingressPort)
+
+		intf := npf.GetOrCreateInterface(ingressPort)
+		intf.ApplyForwardingPolicy = ygot.String("PBR-MAP")
+		intf.GetOrCreateInterfaceRef().Interface = ygot.String(ingressPort)
+
+		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni1)
 	}
+}
+
+// PbrRule defines a policy-based routing rule configuration
+type PbrRule struct {
+	Sequence  uint32
+	EtherType oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
+	EncapVrf  string
+}
+
+// PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
+type PolicyForwardingConfigName struct {
+	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
+}
+
+// NewPolicyForwardingVRFSelection configures Policy-Based Routing for VRF selection.
+func NewPolicyForwardingVRFSelection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg PolicyForwardingConfigName) *gnmi.SetBatch {
+	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	p := pf.GetOrCreatePolicy(cfg.Name)
+	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	for _, pRule := range getPbrRules(dut) {
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
+
+		// Optional default rule match requirement.
+		if deviations.PfRequireMatchDefaultRule(dut) && pRule.EtherType != nil {
+			r.GetOrCreateL2().Ethertype = pRule.EtherType
+		}
+
+		// Set forwarding action (encap VRF)
+		if pRule.EncapVrf != "" {
+			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
+		}
+	}
+
+	// Push policy forwarding configuration via GNMI batch.
+	gnmi.BatchUpdate(sb,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(),
+		pf,
+	)
+
+	t.Logf("Configured policy forwarding VRF selection: policy=%s", cfg.Name)
+
+	return sb
+}
+
+// getPbrRules returns policy-based routing rules for VRF selection
+func getPbrRules(dut *ondatra.DUTDevice) []PbrRule {
+	vrfDefault := deviations.DefaultNetworkInstance(dut)
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		return []PbrRule{
+			{
+				Sequence:  17,
+				EtherType: ethertypeIPv4,
+				EncapVrf:  vrfDefault,
+			},
+			{
+				Sequence:  18,
+				EtherType: ethertypeIPv6,
+				EncapVrf:  vrfDefault,
+			},
+		}
+	}
+	return []PbrRule{
+		{
+			Sequence: 17,
+			EncapVrf: vrfDefault,
+		},
+	}
+}
+
+// seqIDOffset returns sequence ID with base offset to ensure proper ordering
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
 }

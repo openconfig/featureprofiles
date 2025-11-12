@@ -1,21 +1,21 @@
-package staticgueencap_and_bgp_path_selection_test
+package staticgueencapbgppathselection_test
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"testing"
 	"time"
 
-	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/iputil"
+	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
+	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
+	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -23,6 +23,7 @@ import (
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -35,8 +36,6 @@ const (
 	plenIPv6p2p   = 127
 	plenIPv4lo    = 32
 	plenIPv6lo    = 128
-	plenUserV4    = 24
-	plenUserV6    = 64
 	dutAS         = 65501
 	ateIBGPAS     = 65501 // For iBGP with DUT
 	ateEBGPAS     = 65502 // For eBGP with DUT
@@ -45,72 +44,154 @@ const (
 	isisSysID2    = "640000000002"
 	isisAreaAddr  = "49.0001"
 	dutSysID      = "1920.0000.2001"
-	isisMetric    = 10
 	ibgpPeerGroup = "IBGP-PEERS"
 	ebgpPeerGroup = "EBGP-PEERS"
 	udpEncapPort  = 6080
-	nhgTTL        = 64
 
 	// Static and GUE address
-	nexthopGroupName   = "GUE-NHG"
-	nexthopGroupNameV6 = "GUE-NHGv6"
-	guePolicyName      = "GUE-Policy"
+	nexthopGroupName1 = "GUE_TE10"
+	nexthopGroupName2 = "GUE_TE11"
+	guePolicyName     = "GUE-Policy"
+	decapPolicy1      = "DECAP_TE10"
+	decapPolicy2      = "DECAP_TE11"
 
 	totalPackets = 50000
 	trafficPps   = 1000
-	sleepTime    = time.Duration(totalPackets/trafficPps) * time.Second
 )
 
+type otgBGPConfigData struct {
+	port        string
+	otgPortData []*attrs.Attributes
+	dutPortData []*attrs.Attributes
+	otgDevice   []gosnappi.Device
+	bgpCfg      []*bgpNbr
+}
+
+type trafficFlow struct {
+	flows       otgconfighelpers.Flow
+	innerParams otgconfighelpers.Flow
+}
+
 var (
-	// DUT Port 1 <-> ATE Port 1 connection
-	dutPort1 = &attrs.Attributes{
-		Desc:    "DUT to ATE Port 1",
-		IPv4:    "192.0.2.3",
-		IPv6:    "2001:db8:1::3",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
-	}
-	atePort1 = &attrs.Attributes{
-		Name:    "port1",
-		IPv4:    "192.0.2.2",
-		IPv6:    "2001:db8:1::2",
-		MAC:     "02:01:01:01:01:01",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
-	}
-
-	// DUT Port 2 <-> ATE Port 2 connection
-	dutPort2 = &attrs.Attributes{
-		Desc:    "DUT to ATE Port 2",
-		IPv4:    "192.0.2.7",
-		IPv6:    "2001:db8:1::7",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
-	}
-	atePort2 = &attrs.Attributes{
-		Name:    "port2",
-		IPv4:    "192.0.2.6",
-		IPv6:    "2001:db8:1::6",
-		MAC:     "02:02:02:02:02:02",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
-	}
-
-	// DUT Port 3 <-> ATE Port 3 connection
-	dutPort3 = &attrs.Attributes{
-		Desc:    "DUT to ATE Port 3",
-		IPv4:    "192.0.2.9",
-		IPv6:    "2001:db8:1::9",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
-	}
-	atePort3 = &attrs.Attributes{
-		Name:    "port3",
-		IPv4:    "192.0.2.8",
-		IPv6:    "2001:db8:1::8",
-		MAC:     "02:03:03:03:03:03",
-		IPv4Len: plenIPv4p2p,
-		IPv6Len: plenIPv6p2p,
+	otgBGPConfig = []*otgBGPConfigData{
+		{
+			port: "port1",
+			otgPortData: []*attrs.Attributes{
+				{
+					Name:    "port1",
+					IPv4:    "192.0.2.2",
+					IPv6:    "2001:db8:1::2",
+					MAC:     "02:01:01:01:01:01",
+					IPv4Len: plenIPv4p2p,
+					IPv6Len: plenIPv6p2p,
+				},
+			},
+			dutPortData: []*attrs.Attributes{
+				{
+					Desc:    "DUT to ATE Port 1",
+					IPv4:    "192.0.2.3",
+					IPv6:    "2001:db8:1::3",
+					IPv4Len: plenIPv4p2p,
+					IPv6Len: plenIPv6p2p,
+				},
+			},
+			bgpCfg: []*bgpNbr{
+				{peerAs: ateIBGPAS, nbrIp: "192.0.2.2", isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate1", srcIp: dutloopback0.IPv4, routeReflector: true},
+				{peerAs: ateIBGPAS, nbrIp: "2001:db8:1::2", isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate1", srcIp: dutloopback0.IPv6, routeReflector: true},
+			},
+		},
+		{
+			port: "port2",
+			otgPortData: []*attrs.Attributes{
+				{
+					Name:         "R100",
+					IPv4:         "192.0.2.4",
+					IPv6:         "2001:db8:1::4",
+					MAC:          "02:02:02:02:02:01",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 100,
+				},
+				{
+					Name:         "R200",
+					IPv4:         "192.0.2.6",
+					IPv6:         "2001:db8:1::6",
+					MAC:          "02:02:02:02:02:02",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 200,
+				},
+				{
+					Name:         "R300",
+					IPv4:         "192.0.2.8",
+					IPv6:         "2001:db8:1::8",
+					MAC:          "02:02:02:02:02:03",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 300,
+				},
+			},
+			dutPortData: []*attrs.Attributes{
+				{
+					Desc:         "DUT Port 2 Vlan 100",
+					IPv4:         "192.0.2.5",
+					IPv6:         "2001:db8:1::5",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 100,
+				},
+				{
+					Desc:         "DUT Port 2 Vlan 200",
+					IPv4:         "192.0.2.7",
+					IPv6:         "2001:db8:1::7",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 200,
+				},
+				{
+					Desc:         "DUT Port 2 Vlan 300",
+					IPv4:         "192.0.2.9",
+					IPv6:         "2001:db8:1::9",
+					IPv4Len:      plenIPv4p2p,
+					IPv6Len:      plenIPv6p2p,
+					Subinterface: 300,
+				},
+			},
+			bgpCfg: []*bgpNbr{
+				{peerAs: ateIBGPAS, nbrIp: "192.0.2.4", isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate_IBGP", srcIp: dutloopback0.IPv4},
+				{peerAs: ateIBGPAS, nbrIp: "2001:db8:1::4", isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate_IBGP", srcIp: dutloopback0.IPv6},
+				{peerAs: ateIBGPAS, nbrIp: "192.0.2.6", isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate2-200", srcIp: dutloopback0.IPv4},
+				{peerAs: ateIBGPAS, nbrIp: "2001:db8:1::6", isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate_C_IBGP", srcIp: dutloopback0.IPv6},
+				{peerAs: ateIBGPAS, nbrIp: "192.0.2.8", isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate_M_IBGP", srcIp: dutloopback0.IPv4},
+				{peerAs: ateIBGPAS, nbrIp: "2001:db8:1::8", isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate_M_IBGP", srcIp: dutloopback0.IPv6},
+			},
+		},
+		{
+			port: "port3",
+			otgPortData: []*attrs.Attributes{
+				{
+					Name:    "port3",
+					IPv4:    "192.0.2.10",
+					IPv6:    "2001:db8:1::10",
+					MAC:     "02:03:03:03:03:03",
+					IPv4Len: plenIPv4p2p,
+					IPv6Len: plenIPv6p2p,
+				},
+			},
+			dutPortData: []*attrs.Attributes{
+				{
+					Desc:    "DUT to ATE Port 3",
+					IPv4:    "192.0.2.11",
+					IPv6:    "2001:db8:1::11",
+					IPv4Len: plenIPv4p2p,
+					IPv6Len: plenIPv6p2p,
+				},
+			},
+			bgpCfg: []*bgpNbr{
+				{peerAs: ateEBGPAS, nbrIp: "192.0.2.10", isV4: true, peerGrpName: ebgpPeerGroup, srcIp: dutloopback0.IPv4},
+				{peerAs: ateEBGPAS, nbrIp: "2001:db8:1::10", isV4: false, peerGrpName: ebgpPeerGroup, srcIp: dutloopback0.IPv6},
+			},
+		},
 	}
 
 	// DUT loopback 0 ($DUT_lo0)
@@ -148,37 +229,12 @@ var (
 		IPv4Len: 32,
 	}
 
-	// DUT Tunnel Configurations EP 10, 11
-	dutTE11 = &attrs.Attributes{
-		Desc:    "DUT Tunnel Endpoint 11",
-		IPv4:    "198.51.100.10",
-		IPv4Len: 32,
-	}
-
-	dutTE10 = &attrs.Attributes{
-		Desc:    "DUT Tunnel Endpoint 10",
-		IPv4:    "198.51.100.13",
-		IPv4Len: 32,
-	}
-
 	// ATE Port2 C.IBGP ---> DUT connected via Pseudo Protocol Next-Hops
-	ate2ppnh1 = &attrs.Attributes{Name: "ate2ppnh1", IPv6: "2001:db8:2::1", IPv6Len: plenIPv6lo}
-	ate2ppnh2 = &attrs.Attributes{Name: "ate2ppnh2", IPv6: "2001:db8:3::1", IPv6Len: plenIPv6lo}
+	ate2ppnh1 = &attrs.Attributes{Name: "ate2ppnh1", IPv6: "2001:db8:2::0", IPv6Len: plenIPv6lo}
+	ate2ppnh2 = &attrs.Attributes{Name: "ate2ppnh2", IPv6: "2001:db8:3::0", IPv6Len: plenIPv6lo}
 
 	ate2ppnh1Prefix = "2001:db8:2::0/128"
 	ate2ppnh2Prefix = "2001:db8:3::0/128"
-
-	atePorts = map[string]*attrs.Attributes{
-		"port1": atePort1,
-		"port2": atePort2,
-		"port3": atePort3,
-	}
-
-	dutPorts = map[string]*attrs.Attributes{
-		"port1": dutPort1,
-		"port2": dutPort2,
-		"port3": dutPort3,
-	}
 
 	loopbackIntfName string
 
@@ -190,6 +246,14 @@ var (
 		"AF4": 34,
 	}
 
+	expectedDscpValue = map[string]uint32{
+		"BE1": 0,
+		"AF1": 40,
+		"AF2": 72,
+		"AF3": 104,
+		"AF4": 136,
+	}
+
 	atePort1RouteV4 = "v4-user-routes"
 	atePort1RouteV6 = "v6-user-routes"
 
@@ -198,383 +262,71 @@ var (
 	atePort2RoutesTE10 = "v4-TE10-routes"
 	atePort2RoutesTE11 = "v4-TE11-routes"
 
-	ateCPort2Routes1V6 = "v6-internal-routes-1"
-	ateCPort2Routes2V6 = "v6-internal-routes-2"
-	ateCPort2Routes1V4 = "v4-internal-routes-1"
-	ateCPort2Routes2V4 = "v4-internal-routes-2"
+	trafficFlowData []trafficFlow
 
-	ateCPort3RoutesV6 = "internal-routesV6-1-port3"
+	port1DstMac string
+	port2DstMac string
 
-	trafficFlowData = []*trafficFlow{
-		{
-			name:           "flowSet1-v4-1",
-			srcDevice:      []string{atePort1RouteV4},
-			dstDevice:      []string{atePort2RoutesV4},
-			srcAddr:        []string{ate1UserPrefixesV4List[0]},
-			dstAddr:        []string{ate2InternalPrefixesV4List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet1-v6-1",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{atePort2RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[0]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet1-v4-2",
-			srcDevice:      []string{atePort1RouteV4},
-			dstDevice:      []string{atePort2RoutesV4},
-			srcAddr:        []string{ate1UserPrefixesV4List[1]},
-			dstAddr:        []string{ate2InternalPrefixesV4List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet1-v6-2",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{atePort2RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[1]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet1-v4-3",
-			srcDevice:      []string{atePort1RouteV4},
-			dstDevice:      []string{atePort2RoutesV4},
-			srcAddr:        []string{ate1UserPrefixesV4List[2]},
-			dstAddr:        []string{ate2InternalPrefixesV4List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      true,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet1-v6-3",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{atePort2RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[2]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet2-v4-1",
-			srcDevice:      []string{atePort1RouteV4},
-			dstDevice:      []string{atePort2RoutesV4},
-			srcAddr:        []string{ate1UserPrefixesV4List[3]},
-			dstAddr:        []string{ate2InternalPrefixesV4List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      true,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-		{
-			name:           "flowSet2-v6-1",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{atePort2RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[3]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-		{
-			name:           "flowSet2-v4-2",
-			srcDevice:      []string{atePort1RouteV4},
-			dstDevice:      []string{atePort2RoutesV4},
-			srcAddr:        []string{ate1UserPrefixesV4List[4]},
-			dstAddr:        []string{ate2InternalPrefixesV4List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      true,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-		{
-			name:           "flowSet2-v6-2",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{atePort2RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[4]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-		{
-			name:           "flowSet3-v4-1",
-			srcDevice:      []string{atePort3.Name + ".IPv4"},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[0]},
-			dstAddr:        []string{ate1UserPrefixesV4List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet3-v6-1",
-			srcDevice:      []string{atePort3.Name + ".IPv6"},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[0]},
-			dstAddr:        []string{ate1UserPrefixesV6List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet3-v4-2",
-			srcDevice:      []string{atePort3.Name + ".IPv4"},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[1]},
-			dstAddr:        []string{ate1UserPrefixesV4List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet3-v6-2",
-			srcDevice:      []string{atePort3.Name + ".IPv6"},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[1]},
-			dstAddr:        []string{ate1UserPrefixesV6List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet3-v4-3",
-			srcDevice:      []string{atePort3.Name + ".IPv4"},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[2]},
-			dstAddr:        []string{ate1UserPrefixesV4List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      true,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet3-v6-3",
-			srcDevice:      []string{atePort3.Name + ".IPv6"},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[2]},
-			dstAddr:        []string{ate1UserPrefixesV6List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      false,
-			tunnelEndpoint: dutTE11.IPv4,
-		},
-		{
-			name:           "flowSet4-v4-4",
-			srcDevice:      []string{atePort3.Name + ".IPv4"},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[3]},
-			dstAddr:        []string{ate1UserPrefixesV4List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      true,
-			tunnelEndpoint: dutTE10.IPv4,
-		},
-		{
-			name:           "flowSet4-v6-4",
-			srcDevice:      []string{atePort3.Name + ".IPv6"},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[3]},
-			dstAddr:        []string{ate1UserPrefixesV6List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      false,
-			tunnelEndpoint: dutTE10.IPv4,
-		},
-		{
-			name:           "flowSet4-v4-5",
-			srcDevice:      []string{atePort3.Name + ".IPv4"},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[4]},
-			dstAddr:        []string{ate1UserPrefixesV4List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      true,
-			tunnelEndpoint: dutTE10.IPv4,
-		},
-		{
-			name:           "flowSet4-v6-5",
-			srcDevice:      []string{atePort3.Name + ".IPv6"},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[4]},
-			dstAddr:        []string{ate1UserPrefixesV6List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      false,
-			tunnelEndpoint: dutTE10.IPv4,
-		},
-		{
-			name:           "flowSet5-v4-1",
-			srcDevice:      []string{atePort2RoutesV4},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[0]},
-			dstAddr:        []string{ate1UserPrefixesV4List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v6-1",
-			srcDevice:      []string{atePort2RoutesV6},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[0]},
-			dstAddr:        []string{ate1UserPrefixesV6List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v4-2",
-			srcDevice:      []string{atePort2RoutesV4},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[1]},
-			dstAddr:        []string{ate1UserPrefixesV4List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      true,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v6-2",
-			srcDevice:      []string{atePort2RoutesV6},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[1]},
-			dstAddr:        []string{ate1UserPrefixesV6List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v4-3",
-			srcDevice:      []string{atePort2RoutesV4},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[2]},
-			dstAddr:        []string{ate1UserPrefixesV4List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      true,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v6-3",
-			srcDevice:      []string{atePort2RoutesV6},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[2]},
-			dstAddr:        []string{ate1UserPrefixesV6List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      false,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v4-4",
-			srcDevice:      []string{atePort2RoutesV4},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[3]},
-			dstAddr:        []string{ate1UserPrefixesV4List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      true,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v6-4",
-			srcDevice:      []string{atePort2RoutesV6},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[3]},
-			dstAddr:        []string{ate1UserPrefixesV6List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      false,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v4-5",
-			srcDevice:      []string{atePort2RoutesV4},
-			dstDevice:      []string{atePort1RouteV4},
-			srcAddr:        []string{ate2InternalPrefixesV4List[4]},
-			dstAddr:        []string{ate1UserPrefixesV4List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      true,
-			tunnelEndpoint: "",
-		},
-		{
-			name:           "flowSet5-v6-5",
-			srcDevice:      []string{atePort2RoutesV6},
-			dstDevice:      []string{atePort1RouteV6},
-			srcAddr:        []string{ate2InternalPrefixesV6List[4]},
-			dstAddr:        []string{ate1UserPrefixesV6List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      false,
-			tunnelEndpoint: "",
-		},
+	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
+		Flow: &otgvalidationhelpers.FlowParams{TolerancePct: 0.5},
+	}
+
+	outerGUEIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		SkipProtocolCheck: true,
+		TTL:               64,
+		DstIP:             bgpInternalTE11.IPv4,
+	}
+
+	outerGUEv6Encap = &packetvalidationhelpers.IPv4Layer{
+		SkipProtocolCheck: true,
+		TTL:               64,
+		DstIP:             bgpInternalTE10.IPv4,
+	}
+
+	innerGUEIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+		TTL:      63,
+		Protocol: udpEncapPort,
+	}
+
+	udpLayer = &packetvalidationhelpers.UDPLayer{
+		DstPort: udpEncapPort,
+	}
+
+	validations = []packetvalidationhelpers.ValidationType{
+		packetvalidationhelpers.ValidateIPv4Header,
+		packetvalidationhelpers.ValidateUDPHeader,
+		packetvalidationhelpers.ValidateInnerIPv4Header,
+	}
+
+	encapValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:         "port2",
+		Validations:      validations,
+		IPv4Layer:        outerGUEIPLayerIPv4,
+		UDPLayer:         udpLayer,
+		InnerIPLayerIPv4: innerGUEIPLayerIPv4,
+	}
+
+	validationsV6 = []packetvalidationhelpers.ValidationType{
+		packetvalidationhelpers.ValidateIPv4Header,
+		packetvalidationhelpers.ValidateUDPHeader,
+		// packetvalidationhelpers.ValidateIPv6Header,
+	}
+
+	encapValidationv6 = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port2",
+		Validations: validationsV6,
+		IPv4Layer:   outerGUEv6Encap,
+		UDPLayer:    udpLayer,
+		// IPv6Layer:   innerGUEIPLayerIPv6,
+	}
+
+	decapValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "decapCapture",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
+		IPv4Layer:   innerGUEIPLayerIPv4,
 	}
 )
-
-type BGPRib struct {
-	prefix    string
-	origin    string
-	pathId    int
-	isPresent bool
-}
 
 type isisConfig struct {
 	port  string
@@ -582,112 +334,115 @@ type isisConfig struct {
 }
 
 type bgpNbr struct {
-	peerGrpName string
-	nbrIp       string
-	srcIp       string
-	peerAs      uint32
-	isV4        bool
-}
-
-type trafficFlow struct {
-	name           string
-	srcDevice      []string
-	dstDevice      []string
-	srcAddr        []string
-	dstAddr        []string
-	trafficPps     uint64
-	packetSize     uint32
-	dscp           uint8
-	v4Traffic      bool
-	tunnelEndpoint string
+	peerGrpName    string
+	nbrIp          string
+	srcIp          string
+	peerAs         uint32
+	isV4           bool
+	routeReflector bool
 }
 
 type flowGroupData struct {
-	Flows    []gosnappi.Flow
-	Endpoint string
+	Flows []gosnappi.Flow
 }
 
 var flowGroups = make(map[string]flowGroupData)
 
 // configureDUT configures interfaces, BGP, IS-IS, and static tunnel routes on the DUT.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttr *attrs.Attributes) {
 	d := gnmi.OC()
-	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
-	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(p2, dutPort2, dut))
-	p3 := dut.Port(t, "port3")
-	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), configInterfaceDUT(p3, dutPort3, dut))
+	gnmi.Update(t, dut, d.Interface(port.Name()).Config(), configInterfaceDUT(t, port, new(oc.Root), portAttr, dut))
 
 	// Configure Network instance type on DUT
 	t.Log("Configure/update Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, port.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
 	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
+		fptest.SetPortSpeed(t, port)
 	}
+}
 
-	configureLoopback(t, dut)
-
-	isisConf := []*isisConfig{
-		{port: p1.Name(), level: oc.Isis_LevelType_LEVEL_2},
-		{port: p2.Name(), level: oc.Isis_LevelType_LEVEL_2},
-	}
-
-	configureISIS(t, dut, isisConf)
-
-	nbrs := []*bgpNbr{
-		{peerAs: ateIBGPAS, nbrIp: atePort1.IPv4, isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate1", srcIp: dutloopback0.IPv4},
-		{peerAs: ateIBGPAS, nbrIp: atePort1.IPv6, isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate1", srcIp: dutloopback0.IPv6},
-		{peerAs: ateIBGPAS, nbrIp: atePort2.IPv4, isV4: true, peerGrpName: ibgpPeerGroup + "-v4ate2", srcIp: dutloopback0.IPv4},
-		{peerAs: ateIBGPAS, nbrIp: atePort2.IPv6, isV4: false, peerGrpName: ibgpPeerGroup + "-v6ate2", srcIp: dutloopback0.IPv6},
-		{peerAs: ateEBGPAS, nbrIp: atePort3.IPv4, isV4: true, peerGrpName: ebgpPeerGroup, srcIp: dutPort3.IPv4},
-		{peerAs: ateEBGPAS, nbrIp: atePort3.IPv6, isV4: false, peerGrpName: ebgpPeerGroup, srcIp: dutPort3.IPv6},
-	}
-
-	bgpCreateNbr(t, dutAS, dut, nbrs)
-
-	// Configure static routes from PNH to nexthopgroup
+func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
+
+	// Configuring Static Route: PNH-IPv6 --> IPv4 GUE tunnel.
 	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          ate2ppnh1Prefix,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nexthopGroupName),
-		},
+		NetworkInstance:  deviations.DefaultNetworkInstance(dut),
+		Prefix:           ate2ppnh1Prefix,
+		NexthopGroup:     true,
+		NexthopGroupName: nexthopGroupName2,
+		T:                t,
+		TrafficType:      oc.Aft_EncapsulationHeaderType_UDPV4,
+		PolicyName:       guePolicyName,
+		Rule:             "rule1",
 	}
 
-	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV4, dut, nexthopGroupName)
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
 
-	// Configure static routes from PNH to nexthopgroup
-	sV6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          ate2ppnh2Prefix,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(nexthopGroupNameV6),
-		},
+	sV4 = &cfgplugins.StaticRouteCfg{
+		NetworkInstance:  deviations.DefaultNetworkInstance(dut),
+		Prefix:           ate2ppnh2Prefix,
+		NexthopGroup:     true,
+		NexthopGroupName: nexthopGroupName1,
+		T:                t,
+		TrafficType:      oc.Aft_EncapsulationHeaderType_UDPV6,
+		PolicyName:       guePolicyName,
+		Rule:             "rule2",
 	}
 
-	cfgplugins.NewStaticRouteNextHopGroupCfg(t, b, sV6, dut, nexthopGroupNameV6)
-
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
 }
 
 // Configures the given DUT interface.
-func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-	i := a.NewOCInterface(p.Name(), dut)
-	s4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.SetEnabled(true)
+func configInterfaceDUT(t *testing.T, p *ondatra.Port, d *oc.Root, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	t.Helper()
+
+	i := d.GetOrCreateInterface(p.Name())
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
 	}
-	i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+
+	// Always create subif 0
+	subif := i.GetOrCreateSubinterface(0)
+	subif.Index = ygot.Uint32(0)
+	iv4 := subif.GetOrCreateIpv4()
+	iv6 := subif.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		iv4.Enabled = ygot.Bool(true)
+		iv6.Enabled = ygot.Bool(true)
+	}
+
+	s := i.GetOrCreateSubinterface(a.Subinterface)
+
+	if a.Subinterface != 0 {
+		if deviations.DeprecatedVlanID(dut) {
+			s.GetOrCreateVlan().VlanId = oc.UnionUint16(a.Subinterface)
+		} else {
+			s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(uint16(a.Subinterface))
+		}
+	}
+	s4 := s.GetOrCreateIpv4()
+	a4 := s4.GetOrCreateAddress(a.IPv4)
+	a4.PrefixLength = ygot.Uint8(uint8(a.IPv4Len))
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s6 := s.GetOrCreateIpv6()
+	a6 := s6.GetOrCreateAddress(a.IPv6)
+	a6.PrefixLength = ygot.Uint8(uint8(a.IPv6Len))
+	if deviations.InterfaceEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
 
 	return i
 }
@@ -716,7 +471,12 @@ func configureLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, isisIntf []*isisConfig) {
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice) {
+	isisConf := []*isisConfig{
+		{port: dut.Port(t, otgBGPConfig[0].port).Name(), level: oc.Isis_LevelType_LEVEL_2},
+		{port: dut.Port(t, otgBGPConfig[1].port).Name(), level: oc.Isis_LevelType_LEVEL_2},
+	}
+
 	// Configure IS-IS protocol on port1 and port2
 	root := &oc.Root{}
 	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -742,7 +502,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, isisIntf []*isisConfig)
 		level.SetEnabled(true)
 	}
 
-	for _, isisPort := range isisIntf {
+	for _, isisPort := range isisConf {
 		intf := isis.GetOrCreateInterface(isisPort.port)
 		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 		intf.SetEnabled(true)
@@ -764,7 +524,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, isisIntf []*isisConfig)
 
 }
 
-func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, bgpNbr []*bgpNbr) {
+func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, nbrs []*bgpNbr) {
 	localAddressLeaf := ""
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	dutOcRoot := &oc.Root{}
@@ -778,7 +538,7 @@ func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, bgpNbr [
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 
-	for _, nbr := range bgpNbr {
+	for _, nbr := range nbrs {
 		pg1 := bgp.GetOrCreatePeerGroup(nbr.peerGrpName)
 		pg1.SetPeerAs(nbr.peerAs)
 
@@ -794,59 +554,68 @@ func bgpCreateNbr(t *testing.T, localAs uint32, dut *ondatra.DUTDevice, bgpNbr [
 			localAddressLeaf = dutloopback0.Name
 		}
 		bgpNbrT.SetLocalAddress(localAddressLeaf)
+		if nbr.routeReflector {
+			routeReflector := bgpNbr.GetOrCreateRouteReflector()
+			routeReflector.SetRouteReflectorClient(true)
+		}
 		af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		af4.SetEnabled(true)
 		af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.SetEnabled(true)
+
 	}
 
-	gnmi.Replace(t, dut, dutConfPath.Config(), niProto)
+	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
 }
 
-func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
-	otgConfig := gosnappi.NewConfig()
-
-	// Configure OTG Port1
-	iDutDev := configureInterfaces(otgConfig, "port1")
-
+func configureOTG() {
 	// Enable ISIS and BGP Protocols on port 1.
-	isisDut := iDutDev.Isis().SetName("ISIS1").SetSystemId(isisSysID1)
-	isisDut.Basic().SetIpv4TeRouterId(atePort1.IPv4).SetHostname(isisDut.Name()).SetLearnedLspFilter(true)
-	isisDut.Interfaces().Add().SetEthName(iDutDev.Ethernets().Items()[0].Name()).
+	port1Data := otgBGPConfig[0]
+	iDut1Dev := port1Data.otgDevice[0]
+
+	isisDut := iDut1Dev.Isis().SetName("ISIS1").SetSystemId(isisSysID1)
+	isisDut.Basic().SetIpv4TeRouterId(port1Data.otgPortData[0].IPv4).SetHostname(isisDut.Name()).SetLearnedLspFilter(true)
+	isisDut.Interfaces().Add().SetEthName(iDut1Dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt1").
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-	iDutBgp := iDutDev.Bgp().SetRouterId(atePort1.IPv4)
-	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDutDev.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).Peers().Add().SetName(atePort1.Name + ".BGP4.peer")
+	iDutBgp := iDut1Dev.Bgp().SetRouterId(port1Data.otgPortData[0].IPv4)
+	iDutBgp4Peer := iDutBgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Dev.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).
+		Peers().Add().SetName(port1Data.otgPortData[0].Name + ".BGP4.peer")
 	iDutBgp4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDutBgp4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 	iDutBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
 	// Advertise user prefixes on port 1
 	v4routes := iDutBgp4Peer.V4Routes().Add().SetName(atePort1RouteV4)
 	v4routes.Addresses().Add().SetAddress(ate1UserPrefixesV4).SetStep(1).SetPrefix(24).SetCount(ate1UserPrefixesCount)
 
+	iDutBgp6Peer := iDutBgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Dev.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()).
+		Peers().Add().SetName(port1Data.otgPortData[0].Name + ".BGP6.peer")
+	iDutBgp6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	iDutBgp6Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
+	iDutBgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 	// Advertise user prefixes v6 on port 1
-	v6routes := iDutBgp4Peer.V6Routes().Add().SetName(atePort1RouteV6)
+	v6routes := iDutBgp6Peer.V6Routes().Add().SetName(atePort1RouteV6)
 	v6routes.Addresses().Add().SetAddress(ate1UserPrefixesV6).SetStep(1).SetPrefix(64).SetCount(ate1UserPrefixesCount)
-	v6routes.SetNextHopIpv6Address(atePort1.IPv6).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 
 	// Configure OTG Port2
-	iDut2Dev := configureInterfaces(otgConfig, "port2")
+	port2Data := otgBGPConfig[1]
 
-	// Enable ISIS and BGP Protocols on port 2
+	// Enable ISIS and BGP Protocols on port 2 VLAN 100
+	iDut2Dev := port2Data.otgDevice[0]
+
 	isis2Dut := iDut2Dev.Isis().SetName("ISIS2").SetSystemId(isisSysID2)
-	isis2Dut.Basic().SetIpv4TeRouterId(atePort2.IPv4).SetHostname(isis2Dut.Name()).SetLearnedLspFilter(true)
+	isis2Dut.Basic().SetIpv4TeRouterId(port2Data.otgPortData[0].IPv4).SetHostname(isis2Dut.Name()).SetLearnedLspFilter(true)
 	isis2Dut.Interfaces().Add().SetEthName(iDut2Dev.Ethernets().Items()[0].Name()).
 		SetName("devIsisInt2").
 		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
 		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-	// Configure IBGP Peer on port2
-	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(atePort2.IPv4)
-	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Dev.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
+	// Configure IBGP Peer on port2 VLAN100
+	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(port2Data.otgPortData[0].IPv4)
+	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Dev.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[0].Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	iDut2Bgp4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
@@ -855,80 +624,100 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice) gosnappi.Config {
 	iDut2Bgpv4routes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2RoutesV4)
 	iDut2Bgpv4routes.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetStep(1).SetPrefix(24).SetCount(ate2InternalPrefixCount)
 
-	iDut2Bgpv6routes := iDut2Bgp4Peer.V6Routes().Add().SetName(atePort2RoutesV6)
-	iDut2Bgpv6routes.SetNextHopIpv6Address(atePort2.IPv6).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	iDut2Bgpv6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetStep(1).SetPrefix(64).SetCount(ate1UserPrefixesCount)
-
 	iDut2BgpTe10Routes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2RoutesTE10)
 	iDut2BgpTe10Routes.Addresses().Add().SetAddress(bgpInternalTE10.IPv4).SetPrefix(uint32(bgpInternalTE10.IPv4Len)).SetCount(1)
 
 	iDut2BgpTe11Routes := iDut2Bgp4Peer.V4Routes().Add().SetName(atePort2RoutesTE11)
 	iDut2BgpTe11Routes.Addresses().Add().SetAddress(bgpInternalTE11.IPv4).SetPrefix(uint32(bgpInternalTE11.IPv4Len)).SetCount(1)
 
-	// Configure IBGP_C on port 2
-	ate2CBgpv6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Dev.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()).Peers().Add().SetName(atePort2.Name + ".CBGP6.peer")
+	// iDut2Bgpv6 := iDut2Dev.Bgp().SetRouterId(port2Data.otgPortData[0].IPv6)
+	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2Dev.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[0].Name + ".BGP6.peer")
+	iDut2Bgp6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	iDut2Bgp6Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
+	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	iDut2Bgpv6routes := iDut2Bgp6Peer.V6Routes().Add().SetName(atePort2RoutesV6)
+	iDut2Bgpv6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetStep(1).SetPrefix(64).SetCount(ate1UserPrefixesCount)
+
+	// Configure IBGP_C on port 2 VLAN 200
+	iDut2Dev200 := port2Data.otgDevice[1]
+	iDut2Bgp200 := iDut2Dev200.Bgp().SetRouterId(port2Data.otgPortData[1].IPv4)
+
+	ate2CBgpv4Peer := iDut2Bgp200.Ipv4Interfaces().Add().SetIpv4Name(iDut2Dev200.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[1].Name + ".CBGP4.peer")
+	ate2CBgpv4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	ate2CBgpv4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
+	ate2CBgpv4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+
+	ate2CBgpv6Peer := iDut2Bgp200.Ipv6Interfaces().Add().SetIpv6Name(iDut2Dev200.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[1].Name + ".CBGP6.peer")
 	ate2CBgpv6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
 	ate2CBgpv6Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 	ate2CBgpv6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	// routes adevertised from C-BGPv6
-	v6routes2a := ate2CBgpv6Peer.V6Routes().Add().SetName(ateCPort2Routes1V6)
-	v6routes2a.SetNextHopIpv6Address(ate2ppnh1.IPv6).AddPath().SetPathId(1)
-	v6routes2a.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
-	v6routes2a.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(3)
+	// Configure IBGP_M on port 2 VLAN 300
+	iDut2Dev300 := port2Data.otgDevice[2]
+	iDut2Bgp300 := iDut2Dev300.Bgp().SetRouterId(port2Data.otgPortData[2].IPv4)
 
-	v6routes2b := ate2CBgpv6Peer.V6Routes().Add().SetName(ateCPort2Routes2V6)
-	v6routes2b.SetNextHopIpv6Address(ate2ppnh2.IPv6)
-	v6routes2b.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
-	v6routes2b.Addresses().Add().SetAddress(ate2InternalPrefixesV6List[3]).SetPrefix(64).SetCount(2)
+	ate2MBgpv4Peer := iDut2Bgp300.Ipv4Interfaces().Add().SetIpv4Name(iDut2Dev300.Ethernets().Items()[0].Ipv4Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[2].Name + ".MBGP4.peer")
+	ate2MBgpv4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	ate2MBgpv4Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
+	ate2MBgpv4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	v4routes2a := ate2CBgpv6Peer.V4Routes().Add().SetName(ateCPort2Routes1V4)
-	v4routes2a.SetNextHopIpv6Address(ate2ppnh1.IPv6).AddPath().SetPathId(1)
-	v4routes2a.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
-	v4routes2a.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetPrefix(24).SetCount(3)
-
-	v4routes2b := ate2CBgpv6Peer.V4Routes().Add().SetName(ateCPort2Routes2V4)
-	v4routes2b.SetNextHopIpv6Address(ate2ppnh2.IPv6)
-	v4routes2b.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
-	v4routes2b.Addresses().Add().SetAddress(ate2InternalPrefixesV4List[3]).SetPrefix(24).SetCount(2)
+	ate2MBgpv6Peer := iDut2Bgp300.Ipv6Interfaces().Add().SetIpv6Name(iDut2Dev300.Ethernets().Items()[0].Ipv6Addresses().Items()[0].Name()).Peers().Add().SetName(port2Data.otgPortData[2].Name + ".MBGP6.peer")
+	ate2MBgpv6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateIBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+	ate2MBgpv6Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
+	ate2MBgpv6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	// Configure OTG Port3
-	iDut3Dev := configureInterfaces(otgConfig, "port3")
+	port3Data := otgBGPConfig[2]
+	iDut3Dev := port3Data.otgDevice[0]
 
-	ate3Bgp := iDut3Dev.Bgp().SetRouterId(atePort3.IPv4)
+	ate3Bgp := iDut3Dev.Bgp().SetRouterId(port3Data.otgPortData[0].IPv4)
 
-	ate3Bgpv4Peer := ate3Bgp.Ipv4Interfaces().Add().SetIpv4Name(atePort3.Name + ".IPv4").Peers().Add().SetName("ate3.bgp4.peer")
-	ate3Bgpv4Peer.SetPeerAddress(dutPort3.IPv4).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+	ate3Bgpv4Peer := ate3Bgp.Ipv4Interfaces().Add().SetIpv4Name(port3Data.otgPortData[0].Name + ".IPv4").Peers().Add().SetName("ate3.bgp4.peer")
+	ate3Bgpv4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
-	ate3Bgpv6Peer := ate3Bgp.Ipv6Interfaces().Add().SetIpv6Name(atePort3.Name + ".IPv6").Peers().Add().SetName("ate3.bgp6.peer")
-	ate3Bgpv6Peer.SetPeerAddress(dutPort3.IPv6).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
+	ate3Bgpv6Peer := ate3Bgp.Ipv6Interfaces().Add().SetIpv6Name(port3Data.otgPortData[0].Name + ".IPv6").Peers().Add().SetName("ate3.bgp6.peer")
+	ate3Bgpv6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	ebgpRoutes := ate3Bgpv4Peer.V4Routes().Add().SetName("ebgp4-te10-routes")
 	ebgpRoutes.Addresses().Add().SetAddress(bgpInternalTE10.IPv4).SetPrefix(uint32(30))
 
 	ebgpRoutes11 := ate3Bgpv4Peer.V4Routes().Add().SetName("ebgp4-te11-routes")
 	ebgpRoutes11.Addresses().Add().SetAddress(bgpInternalTE11.IPv4).SetPrefix(uint32(30))
-
-	// routes adevertised from C-BGPv6
-	v6routes3a := ate3Bgpv6Peer.V6Routes().Add().SetName(ateCPort3RoutesV6)
-	v6routes3a.SetNextHopIpv6Address(ate2ppnh1.IPv6).AddPath().SetPathId(1)
-	v6routes3a.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
-	v6routes3a.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(5)
-
-	return otgConfig
-
 }
 
-func configureInterfaces(otgConfig gosnappi.Config, port string) gosnappi.Device {
-	portAttr := atePorts[port]
-	dutAttr := dutPorts[port]
+func advertiseRoutesWithiBGP(prefixes []string, nexthopIp string, ipv4 bool, peerName string) {
+	port2Data := otgBGPConfig[1]
+	iDut2Dev := port2Data.otgDevice[1]
 
-	portObj := otgConfig.Ports().Add().SetName(port)
+	if ipv4 {
+		for _, addr := range prefixes {
+			bgpPeer := iDut2Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+			v4routes2a := bgpPeer.V4Routes().Add().SetName(peerName)
+			v4routes2a.Addresses().Add().SetAddress(addr).SetPrefix(24).SetCount(1)
+			v4routes2a.SetNextHopIpv6Address(nexthopIp).SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL).AddPath().SetPathId(1)
+			v4routes2a.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
+		}
+	} else {
+		bgpPeer := iDut2Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+		for _, addr := range prefixes {
+			v6routes2a := bgpPeer.V6Routes().Add().SetName(peerName)
+			v6routes2a.SetNextHopIpv6Address(nexthopIp).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL).AddPath().SetPathId(1)
+			v6routes2a.Advanced().SetIncludeLocalPreference(true).SetLocalPreference(200)
+			v6routes2a.Addresses().Add().SetAddress(addr).SetPrefix(64).SetCount(1)
+		}
+	}
+}
+
+func configureInterfaces(otgConfig gosnappi.Config, portObj gosnappi.Port, portAttr *attrs.Attributes, dutAttr *attrs.Attributes) gosnappi.Device {
 	iDutDev := otgConfig.Devices().Add().SetName(portAttr.Name)
 	iDutEth := iDutDev.Ethernets().Add().SetName(portAttr.Name + ".Eth").SetMac(portAttr.MAC)
 	iDutEth.Connection().SetPortName(portObj.Name())
+
+	if portAttr.Subinterface != 0 {
+		iDutEth.Vlans().Add().SetName(portAttr.Name + ".Eth" + ".VLAN").SetId(portAttr.Subinterface)
+	}
+
 	iDutIpv4 := iDutEth.Ipv4Addresses().Add().SetName(portAttr.Name + ".IPv4")
 	iDutIpv4.SetAddress(portAttr.IPv4).SetGateway(dutAttr.IPv4).SetPrefix(uint32(portAttr.IPv4Len))
 	iDutIpv6 := iDutEth.Ipv6Addresses().Add().SetName(portAttr.Name + ".IPv6")
@@ -937,46 +726,57 @@ func configureInterfaces(otgConfig gosnappi.Config, port string) gosnappi.Device
 	return iDutDev
 }
 
-func configureTrafficFlows(trafficFlowData []*trafficFlow) {
+func configureTrafficFlows(otgConfig gosnappi.Config, trafficFlowData []trafficFlow) {
 	flowSetNum := regexp.MustCompile(`^flowSet(\d+)`)
 
 	for _, trafficFlow := range trafficFlowData {
-		flow := createFlow(trafficFlow)
-		flowSet := flowSetNum.FindStringSubmatch(trafficFlow.name)[0]
+		flow := createflow(otgConfig, &trafficFlow.flows, false, &trafficFlow.innerParams)
+		flowSet := flowSetNum.FindStringSubmatch(trafficFlow.flows.FlowName)[0]
+		fg := flowGroups[flowSet]
 
-		fg, exists := flowGroups[flowSet]
-		if !exists {
-			fg = flowGroupData{
-				Endpoint: trafficFlow.tunnelEndpoint,
-			}
-		}
 		fg.Flows = append(fg.Flows, flow)
 		flowGroups[flowSet] = fg
 	}
 }
 
-func createFlow(trafficFlow *trafficFlow) gosnappi.Flow {
-	flow := gosnappi.NewFlow().SetName(trafficFlow.name)
-	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames(trafficFlow.srcDevice).SetRxNames(trafficFlow.dstDevice)
-	flow.Rate().SetPps(trafficFlow.trafficPps)
-	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(trafficFlow.packetSize))
-
-	flow.Packet().Add().Ethernet()
-
-	if trafficFlow.v4Traffic {
-		v4 := flow.Packet().Add().Ipv4()
-		v4.Src().SetValues(trafficFlow.srcAddr)
-		v4.Dst().SetValues(trafficFlow.dstAddr)
-		v4.Priority().Dscp().Phb().SetValue(uint32(trafficFlow.dscp))
-	} else {
-		v6 := flow.Packet().Add().Ipv6()
-		v6.Src().SetValues(trafficFlow.srcAddr)
-		v6.Dst().SetValues(trafficFlow.dstAddr)
-		v6.TrafficClass().SetValue(uint32(trafficFlow.dscp))
+func createflow(top gosnappi.Config, params *otgconfighelpers.Flow, clearFlows bool, paramsInner *otgconfighelpers.Flow) gosnappi.Flow {
+	if clearFlows {
+		top.Flows().Clear()
 	}
 
-	return flow
+	params.CreateFlow(top)
+
+	params.AddEthHeader()
+
+	if params.VLANFlow != nil {
+		params.AddVLANHeader()
+	}
+
+	if params.IPv4Flow != nil {
+		params.AddIPv4Header()
+	}
+
+	if params.IPv6Flow != nil {
+		params.AddIPv6Header()
+	}
+
+	if params.UDPFlow != nil {
+		params.AddUDPHeader()
+	}
+
+	if paramsInner != nil {
+		if paramsInner.IPv4Flow != nil {
+			params.IPv4Flow = paramsInner.IPv4Flow
+			params.AddIPv4Header()
+		}
+
+		if paramsInner.IPv6Flow != nil {
+			params.IPv6Flow = paramsInner.IPv6Flow
+			params.AddIPv6Header()
+		}
+	}
+
+	return params.GetFlow()
 }
 
 func withdrawBGPRoutes(t *testing.T, routeNames []string) {
@@ -988,26 +788,10 @@ func withdrawBGPRoutes(t *testing.T, routeNames []string) {
 
 }
 
-func advertiseBGPRoutes(t *testing.T, routeNames []string) {
-	ate := ondatra.ATE(t, "ate")
-	otg := ate.OTG()
-	cs := gosnappi.NewControlState()
-	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
-	otg.SetControlState(t, cs)
-
-}
-
-func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, flowName []string) {
-	for _, flow := range flowName {
-		outPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow).Counters().OutPkts().State()))
-		inPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flow).Counters().InPkts().State()))
-		t.Logf("Flow %s: outPkts: %v, inPkts: %v", flow, outPkts, inPkts)
-		if outPkts == 0 {
-			t.Fatalf("OutPkts for flow %s is 0, want > 0", flow)
-		}
-		if got := ((outPkts - inPkts) * 100) / outPkts; got > 0 {
-			t.Fatalf("LossPct for flow %s: got %v, want 0", flow, got)
-		}
+func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
+	FlowIPv4Validation.Flow.Name = flowName
+	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
+		t.Errorf("validation on flows failed (): %q", err)
 	}
 }
 
@@ -1017,127 +801,23 @@ func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, i
 	t.Logf("Validate prefixes for %s. Expecting prefix received %v", neighborIP, PfxRcd)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	if isV4 {
-		ipv4Pfx := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Prefixes](t, dut, bgpPath.Neighbor(neighborIP).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
+		time.Sleep(10 * time.Second)
+		ipv4Pfx := gnmi.Get(t, dut, bgpPath.Neighbor(neighborIP).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
 		if PfxRcd != ipv4Pfx.GetReceived() {
-			t.Errorf("Received Prefixes - got: %v, want: %v", ipv4Pfx.GetReceived(), PfxRcd)
+			t.Errorf("received Prefixes - got: %v, want: %v", ipv4Pfx.GetReceived(), PfxRcd)
 		}
 		if PfxSent != ipv4Pfx.GetSent() {
-			t.Errorf("Sent Prefixes - got: %v, want: %v", ipv4Pfx.GetSent(), PfxSent)
+			t.Errorf("sent Prefixes - got: %v, want: %v", ipv4Pfx.GetSent(), PfxSent)
 		}
 	} else {
-		ipv6Pfx := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Prefixes](t, dut, bgpPath.Neighbor(neighborIP).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().State())
+		ipv6Pfx := gnmi.Get(t, dut, bgpPath.Neighbor(neighborIP).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().State())
 		if PfxRcd != ipv6Pfx.GetReceived() {
-			t.Errorf("Received Prefixes - got: %v, want: %v", ipv6Pfx.GetReceived(), PfxRcd)
+			t.Errorf("received Prefixes - got: %v, want: %v", ipv6Pfx.GetReceived(), PfxRcd)
 		}
 		if PfxSent != ipv6Pfx.GetSent() {
-			t.Errorf("Sent Prefixes - got: %v, want: %v", ipv6Pfx.GetSent(), PfxSent)
+			t.Errorf("sent Prefixes - got: %v, want: %v", ipv6Pfx.GetSent(), PfxSent)
 		}
 	}
-}
-
-func enableCapture(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config, portName string) {
-	otgConfig.Captures().Add().SetName(portName).SetPortNames([]string{portName}).SetFormat(gosnappi.CaptureFormat.PCAP)
-}
-
-func startCapture(t *testing.T, otg *otg.OTG) gosnappi.ControlState {
-	t.Helper()
-	cs := gosnappi.NewControlState()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
-	otg.SetControlState(t, cs)
-
-	return cs
-}
-
-func stopCapture(t *testing.T, otg *otg.OTG, cs gosnappi.ControlState) {
-	t.Helper()
-	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
-	otg.SetControlState(t, cs)
-}
-
-func processCapture(t *testing.T, otg *otg.OTG, port string) string {
-	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(30 * time.Second)
-	capture, err := os.CreateTemp("", "pcap")
-	if err != nil {
-		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
-	}
-	if _, err := capture.Write(bytes); err != nil {
-		t.Errorf("ERROR: Could not write bytes to pcap file: %v\n", err)
-	}
-	defer capture.Close()
-
-	return capture.Name()
-}
-
-func validatePackets(t *testing.T, filename string, protocolType string, outertos, innertos, outerttl uint8, outerDstIP string, outerPacket bool) {
-	var packetCount uint32 = 0
-
-	handle, err := pcap.OpenOffline(filename)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer handle.Close()
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-
-	for packet := range packetSource.Packets() {
-		ipLayer := packet.Layer(layers.LayerTypeIPv4)
-		if ipLayer == nil {
-			continue
-		}
-		packetCount += 1
-		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
-		if !ok || ipOuterLayer == nil {
-			t.Errorf("Outer IP layer not found %d", ipLayer)
-			return
-		}
-
-		udpLayer := packet.Layer(layers.LayerTypeUDP)
-		udp, ok := udpLayer.(*layers.UDP)
-		if !ok || udp == nil {
-			t.Error("GUE layer not found")
-			return
-		} else {
-			if udp.DstPort == udpEncapPort {
-				t.Log("Got the encapsulated GUE layer")
-			}
-
-			if outerPacket {
-				validateOuterPacket(t, ipOuterLayer, outertos, outerttl, outerDstIP)
-			}
-
-			var gotInnerPacketTOS uint8
-
-			switch protocolType {
-			case "ipv4":
-				innerPacket := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default)
-				ipLayer := innerPacket.Layer(layers.LayerTypeIPv4)
-				if ipLayer == nil {
-					t.Errorf("Inner layer of type %s not found", protocolType)
-					return
-				}
-				ip, _ := ipLayer.(*layers.IPv4)
-				gotInnerPacketTOS = ip.TOS >> 2
-
-				if gotInnerPacketTOS == innertos {
-					t.Logf("TOS matched: expected TOS %v, got TOS %v", innertos, gotInnerPacketTOS)
-				} else {
-					t.Errorf("TOS mismatch: expected TOS %v, got TOS %v", innertos, gotInnerPacketTOS)
-				}
-			case "ipv6":
-				innerPacket := gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv6, gopacket.Default)
-				ipLayer := innerPacket.Layer(layers.LayerTypeIPv6)
-				if ipLayer == nil {
-					t.Errorf("Inner layer of type %s not found", protocolType)
-					return
-				}
-				// ip, _ := ipLayer.(*layers.IPv6)
-				// TODO:
-				// gotInnerPacketTOS = ip.TrafficClass
-			}
-		}
-		break
-	}
-
 }
 
 func validateOuterPacket(t *testing.T, outerPacket *layers.IPv4, tos, ttl uint8, dstIp string) {
@@ -1150,7 +830,7 @@ func validateOuterPacket(t *testing.T, outerPacket *layers.IPv4, tos, ttl uint8,
 		if outerDstIp == dstIp {
 			t.Logf("Encapsulted with tunnel destination: expected dstIP %s, got %s", dstIp, outerDstIp)
 		} else {
-			t.Errorf("Not receievd encapsulted with tunnel destination: expected dstIP %s, got %s", dstIp, outerDstIp)
+			t.Errorf("not receievd encapsulted with tunnel destination: expected dstIP %s, got %s", dstIp, outerDstIp)
 		}
 	}
 
@@ -1158,13 +838,13 @@ func validateOuterPacket(t *testing.T, outerPacket *layers.IPv4, tos, ttl uint8,
 		if outerttl == ttl {
 			t.Logf("Outer TTL matched: expected ttl %d, got ttl %d", ttl, outerttl)
 		} else {
-			t.Errorf("Outer TTL mismatch: expected ttl %d, got ttl %d", ttl, outerttl)
+			t.Errorf("outer TTL mismatch: expected ttl %d, got ttl %d", ttl, outerttl)
 		}
 	}
 	if outerDSCP == tos {
 		t.Logf("Outer TOS matched: expected TOS %v, got TOS %v", tos, outerDSCP)
 	} else {
-		t.Errorf("Outer TOS mismatch: expected TOS %v, got TOS %v", tos, outerDSCP)
+		t.Errorf("outer TOS mismatch: expected TOS %v, got TOS %v", tos, outerDSCP)
 	}
 
 }
@@ -1184,27 +864,619 @@ func validateOutCounters(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG) {
 	expectedTotalTraffic := uint64(totalPackets * len(flows))
 	if totalTxFromATE > 0 {
 		if float64(dutOutCounters) < float64(totalTxFromATE)*0.98 {
-			t.Errorf("DUT Counters is significantly less than ATE Tx (%d). Recieved: %d, Expected approx %d.", totalTxFromATE, dutOutCounters, expectedTotalTraffic)
+			t.Errorf("dut counters is significantly less than ATE Tx (%d). Recieved: %d, Expected approx %d", totalTxFromATE, dutOutCounters, expectedTotalTraffic)
 		}
 	} else if expectedTotalTraffic > 0 {
-		t.Errorf("No traffic was reported as transmitted by ATE flows, but %d total packets were expected.", expectedTotalTraffic)
+		t.Errorf("no traffic was reported as transmitted by ATE flows, but %d total packets were expected", expectedTotalTraffic)
+	}
+}
+
+// configureGueTunnel configures a GUE tunnel with optional ToS and TTL.
+func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice) {
+
+	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+
+	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
+		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+		NexthopGrpName:  nexthopGroupName1,
+		Index:           "0",
+		SrcIp:           loopbackIntfName,
+		DstIp:           []string{bgpInternalTE10.IPv4},
+		TTL:             64,
+		DstUdpPort:      udpEncapPort,
+		NetworkInstance: ni,
+		DeleteTtl:       false,
+	}
+	// Create nexthop group for v4
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
+
+	v4NexthopUDPParams2 := cfgplugins.NexthopGroupUDPParams{
+		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+		NexthopGrpName:  nexthopGroupName2,
+		Index:           "1",
+		SrcIp:           loopbackIntfName,
+		DstIp:           []string{bgpInternalTE11.IPv4},
+		TTL:             64,
+		DstUdpPort:      udpEncapPort,
+		NetworkInstance: ni,
+		DeleteTtl:       false,
+	}
+	// Create nexthop group for v4
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams2)
+
+	v6NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
+		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+		DstUdpPort:      udpEncapPort,
+		NetworkInstance: ni,
+	}
+	// Create nexthop group for v4
+	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v6NexthopUDPParams)
+
+	// Apply traffic policy on interface
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceID:       dut.Port(t, "port1").Name(),
+			AppliedPolicyName: guePolicyName,
+		}
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
+	}
+}
+
+func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, flowNames []string) {
+	cs := gosnappi.NewControlState()
+	if flowNames[0] == "all" {
+		ate.OTG().StartTraffic(t)
+	} else {
+		cs.Traffic().FlowTransmit().
+			SetState(gosnappi.StateTrafficFlowTransmitState.START).
+			SetFlowNames(flowNames)
+		ate.OTG().SetControlState(t, cs)
+	}
+	cs = packetvalidationhelpers.StartCapture(t, ate)
+	time.Sleep(60 * time.Second)
+	ate.OTG().StopTraffic(t)
+	time.Sleep(60 * time.Second)
+	packetvalidationhelpers.StopCapture(t, ate, cs)
+}
+
+func validatePacket(t *testing.T, ate *ondatra.ATEDevice, validationPacket *packetvalidationhelpers.PacketValidation) error {
+	err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, validationPacket)
+	return err
+}
+
+func validateAFTCounters(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, routeIp string) {
+	t.Logf("Validate AFT parameters for %s", routeIp)
+	if isV4 {
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(routeIp)
+		if _, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			ipv4Entry, present := val.Val()
+			return present && ipv4Entry.GetPrefix() == routeIp
+		}).Await(t); ok {
+			t.Error("ipv4-entry/state/prefix got but should not be present")
+		}
+	} else {
+		ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(routeIp)
+		if _, ok := gnmi.Watch(t, dut, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			ipv6Entry, present := val.Val()
+			return present && ipv6Entry.GetPrefix() == routeIp
+		}).Await(t); ok {
+			t.Error("ipv6-entry/state/prefix got but should not be present")
+		}
 	}
 }
 
 func TestStaticGue(t *testing.T) {
+	var deviceObj gosnappi.Device
+
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	otgConfig := gosnappi.NewConfig()
 
-	// configure interfaces on DUT
-	configureDUT(t, dut)
-	otgConfig := configureOTG(t, ate)
-	enableCapture(t, ate.OTG(), otgConfig, "port2")
-	enableCapture(t, ate.OTG(), otgConfig, "port1")
-	enableCapture(t, ate.OTG(), otgConfig, "port3")
-	ate.OTG().PushConfig(t, otgConfig)
+	for _, cfg := range otgBGPConfig {
+		dutPort := dut.Port(t, cfg.port)
+		portObj := otgConfig.Ports().Add().SetName(cfg.port)
 
-	time.Sleep(10 * time.Second)
-	configureTrafficFlows(trafficFlowData)
+		// Configure ATE & DUT interfaces
+		for index, ap := range cfg.otgPortData {
+			configureDUT(t, dut, dutPort, cfg.dutPortData[index])
+			deviceObj = configureInterfaces(otgConfig, portObj, ap, cfg.dutPortData[index])
+			cfg.otgDevice = append(cfg.otgDevice, deviceObj)
+		}
+
+		// Configure BGP Peers on DUT
+		bgpCreateNbr(t, dutAS, dut, cfg.bgpCfg)
+	}
+
+	configureLoopback(t, dut)
+	configureStaticRoute(t, dut)
+	configureISIS(t, dut)
+	configureGueEncap(t, dut)
+
+	// Configure gue decap config
+	ocPFParams := cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: "DEFAULT",
+		AppliedPolicyName:   decapPolicy1,
+		TunnelIP:            bgpInternalTE10.IPv4,
+		GUEPort:             udpEncapPort,
+		IPType:              "ip",
+		Dynamic:             true,
+	}
+	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+
+	ocPFParams = cfgplugins.OcPolicyForwardingParams{
+		NetworkInstanceName: "DEFAULT",
+		AppliedPolicyName:   decapPolicy2,
+		TunnelIP:            bgpInternalTE11.IPv4,
+		GUEPort:             udpEncapPort,
+		IPType:              "ip",
+		Dynamic:             true,
+	}
+	cfgplugins.DecapGroupConfigGue(t, dut, pf, ocPFParams)
+
+	port1DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
+	port2DstMac = gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Ethernet().MacAddress().State())
+
+	// configure interfaces on OTG
+	configureOTG()
+
+	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapValidation)
+	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, decapValidation)
+
+	trafficFlowData = []trafficFlow{
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v4-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: ate1UserPrefixesV4List[0], IPv4Dst: ate2InternalPrefixesV4List[0], DSCP: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v6-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv6Flow:      &otgconfighelpers.IPv6FlowParams{IPv6Src: ate1UserPrefixesV6List[0], IPv6Dst: ate2InternalPrefixesV6List[0], TrafficClass: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v4-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: ate1UserPrefixesV4List[1], IPv4Dst: ate2InternalPrefixesV4List[1], DSCP: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v6-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv6Flow:      &otgconfighelpers.IPv6FlowParams{IPv6Src: ate1UserPrefixesV6List[1], IPv6Dst: ate2InternalPrefixesV6List[1], TrafficClass: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v4-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: ate1UserPrefixesV4List[2], IPv4Dst: ate2InternalPrefixesV4List[2], DSCP: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet1-v6-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv6Flow:      &otgconfighelpers.IPv6FlowParams{IPv6Src: ate1UserPrefixesV6List[2], IPv6Dst: ate2InternalPrefixesV6List[2], TrafficClass: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet2-v4-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: ate1UserPrefixesV4List[3], IPv4Dst: ate2InternalPrefixesV4List[3], DSCP: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet2-v6-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv6Flow:      &otgconfighelpers.IPv6FlowParams{IPv6Src: ate1UserPrefixesV6List[3], IPv6Dst: ate2InternalPrefixesV6List[3], TrafficClass: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet2-v4-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: ate1UserPrefixesV4List[4], IPv4Dst: ate2InternalPrefixesV4List[4], DSCP: dscpValue["AF4"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[0].port,
+				RxPorts:       []string{otgBGPConfig[1].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet2-v6-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[0].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv6Flow:      &otgconfighelpers.IPv6FlowParams{IPv6Src: ate1UserPrefixesV6List[4], IPv6Dst: ate2InternalPrefixesV6List[4], TrafficClass: dscpValue["AF4"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v4-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[0], IPv4Dst: ate1UserPrefixesV4List[0], DSCP: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v6-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[0], IPv6Dst: ate1UserPrefixesV6List[0], TrafficClass: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v4-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[1], IPv4Dst: ate1UserPrefixesV4List[1], DSCP: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v6-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[1], IPv6Dst: ate1UserPrefixesV6List[1], TrafficClass: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v4-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[2], IPv4Dst: ate1UserPrefixesV4List[2], DSCP: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet3-v6-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[2], IPv6Dst: ate1UserPrefixesV6List[2], TrafficClass: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet4-v4-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[3], IPv4Dst: ate1UserPrefixesV4List[3], DSCP: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet4-v6-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[3], IPv6Dst: ate1UserPrefixesV6List[3], TrafficClass: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet4-v4-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[4], IPv4Dst: ate1UserPrefixesV4List[4], DSCP: dscpValue["AF4"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[2].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet4-v6-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[4], IPv6Dst: ate1UserPrefixesV6List[4], TrafficClass: dscpValue["AF4"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v4-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[0], IPv4Dst: ate1UserPrefixesV4List[0], DSCP: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v6-1",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[0], IPv6Dst: ate1UserPrefixesV6List[0], TrafficClass: dscpValue["BE1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v4-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[1], IPv4Dst: ate1UserPrefixesV4List[1], DSCP: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v6-2",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[1], IPv6Dst: ate1UserPrefixesV6List[1], TrafficClass: dscpValue["AF1"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v4-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[2], IPv4Dst: ate1UserPrefixesV4List[2], DSCP: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v6-3",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[2], IPv6Dst: ate1UserPrefixesV6List[2], TrafficClass: dscpValue["AF2"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v4-4",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[3], IPv4Dst: ate1UserPrefixesV4List[3], DSCP: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v6-4",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[3], IPv6Dst: ate1UserPrefixesV6List[3], TrafficClass: dscpValue["AF3"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v4-5",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv4Flow: &otgconfighelpers.IPv4FlowParams{IPv4Src: ate2InternalPrefixesV4List[4], IPv4Dst: ate1UserPrefixesV4List[4], DSCP: dscpValue["AF4"]},
+			},
+		},
+		{
+			flows: otgconfighelpers.Flow{
+				TxPort:        otgBGPConfig[1].port,
+				RxPorts:       []string{otgBGPConfig[0].port},
+				IsTxRxPort:    true,
+				PacketsToSend: totalPackets,
+				PpsRate:       trafficPps,
+				FlowName:      "flowSet5-v6-5",
+				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
+				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
+			},
+			innerParams: otgconfighelpers.Flow{
+				IPv6Flow: &otgconfighelpers.IPv6FlowParams{IPv6Src: ate2InternalPrefixesV6List[4], IPv6Dst: ate1UserPrefixesV6List[4], TrafficClass: dscpValue["AF4"]},
+			},
+		},
+	}
+
+	configureTrafficFlows(otgConfig, trafficFlowData)
 
 	type testCase struct {
 		Name        string
@@ -1243,21 +1515,21 @@ func TestStaticGue(t *testing.T) {
 			Description: "Verify AF4 Traffic Migrated from being routed over the DUT_Port2",
 			testFunc:    testAF4TrafficMigration,
 		},
-		// {
-		// 	Name:        "Testcase: DUT as a GUE Decap Node",
-		// 	Description: "Verify DUT as a GUE Decap Node",
-		// 	testFunc:    testDUTDecapNode,
-		// },
+		{
+			Name:        "Testcase: DUT as a GUE Decap Node",
+			Description: "Verify DUT as a GUE Decap Node",
+			testFunc:    testDUTDecapNode,
+		},
 		{
 			Name:        "Testcase: Negative Scenario - EBGP Route for remote tunnel endpoints Removed",
 			Description: "Verify EBGP Route for remote tunnel endpoints Removed",
 			testFunc:    testTunnelEndpointRemoved,
 		},
-		// {
-		// 	Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
-		// 	testFunc:    testIbgpTunnelEndpointRemoved,
-		// },
+		{
+			Name:        "Testcase: Negative Scenario - IBGP Route for Remote Tunnel Endpoints Removed",
+			Description: "Verify IBGP Route for Remote Tunnel Endpoints Removed",
+			testFunc:    testIbgpTunnelEndpointRemoved,
+		},
 		{
 			Name:        "Testcase: Establish IBGP Peering over EBGP",
 			Description: "Verify Establish IBGP Peering over EBGP",
@@ -1276,39 +1548,16 @@ func TestStaticGue(t *testing.T) {
 }
 
 func testBaselineTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	// Getting tunnel endpoint for flowset1, 2 and 5
 	flowsets := []string{"flowSet1", "flowSet2", "flowSet5"}
-	dstEndpoint := []string{}
+
+	otgConfig.Flows().Clear()
 
 	for _, flowset := range flowsets {
-		ep := flowGroups[flowset].Endpoint
-		if ep != "" {
-			dstEndpoint = append(dstEndpoint, ep)
-		}
 		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
 	}
 
-	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-
-	// Configure GUE Encap
-	cfgplugins.ConfigureGueTunnel(t, dut, "V4Udp", guePolicyName, nexthopGroupName, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-	cfgplugins.ConfigureGueTunnel(t, dut, "V6Udp", guePolicyName, nexthopGroupNameV6, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-
-	// Apply traffic policy on interface
-	interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-		InterfaceID:       dut.Port(t, "port1").Name(),
-		AppliedPolicyName: guePolicyName,
-	}
-	cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
-
-	cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv4-over-udp", fmt.Sprintf("%d", udpEncapPort))
-	cfgplugins.ConfigureUdpEncapHeader(t, dut, "ipv6-over-udp", fmt.Sprintf("%d", udpEncapPort))
-
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
-
-	withdrawBGPRoutes(t, []string{ateCPort3RoutesV6})
-	time.Sleep(10 * time.Second)
 
 	t.Logf("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, ate)
@@ -1316,34 +1565,39 @@ func testBaselineTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	withdrawBGPRoutes(t, []string{ateCPort2Routes1V4, ateCPort2Routes2V4, ateCPort2Routes1V6, ateCPort2Routes2V6})
-	time.Sleep(15 * time.Second)
-
 	// Validating no prefixes are exchanged over the IBGP peering between $ATE2_C.IBGP.v6 and $DUT_lo0.v6
-	validatePrefixes(t, dut, atePort2.IPv6, false, 0, 0)
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[2].IPv6, false, 0, 0)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
+	sendTrafficCapture(t, ate, otgConfig, []string{"all"})
 
-	// Verify Traffic
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	var flowNames []string
-	for _, f := range otgConfig.Flows().Items() {
-		flowNames = append(flowNames, f.Name())
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
 	}
-	validateTrafficLoss(t, ate.OTG(), flowNames)
 }
 
 func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[0]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[0]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-1", atePort2RoutesV6))
+
 	flowsets := []string{"flowSet1", "flowSet5"}
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
 
 	otgConfig.Flows().Clear()
 
 	for _, flow := range flowsets {
 		otgConfig.Flows().Append(flowGroups[flow].Flows[0:2]...)
+
+		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[0].Name())
+		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[1].Name())
 	}
 
 	ate.OTG().PushConfig(t, otgConfig)
@@ -1355,45 +1609,63 @@ func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	advertiseBGPRoutes(t, []string{ateCPort2Routes1V4, ateCPort2Routes1V6, ateCPort2Routes2V4, ateCPort2Routes2V6})
-	time.Sleep(15 * time.Second)
-
+	time.Sleep(10 * time.Second)
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
-	validatePrefixes(t, dut, atePort2.IPv6, false, 5, 0)
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 1, 5)
 
-	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
-
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
-
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
-
-	// Verify Traffic
+	t.Log("Validate IPv4 GUE encapsulation and decapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v4"])
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-	validateTrafficLoss(t, ate.OTG(), []string{"flowSet1-v4-1", "flowSet1-v6-1", "flowSet5-v4-1", "flowSet5-v6-1"})
+	for _, flow := range flowNames["v4"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
 
-	// Above flows should be GUE encapsulated
-	capture := processCapture(t, ate.OTG(), "port2")
-	validatePackets(t, capture, "ipv4", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
+	outerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	innerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate GUE Decapsulation")
+	innerGUEIPLayerIPv4.SkipProtocolCheck = true
+	innerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate IPv6 GUE encapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v6"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flow := range flowNames["v6"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+
+	if err := validatePacket(t, ate, encapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
 
 	// Validate the counters received on ATE and DUT are same
 	validateOutCounters(t, dut, ate.OTG())
 }
 
 func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[1]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[1]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-2", atePort2RoutesV6))
 	flowsets := []string{"flowSet1", "flowSet5"}
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
 
 	otgConfig.Flows().Clear()
 
 	for _, flow := range flowsets {
 		otgConfig.Flows().Append(flowGroups[flow].Flows[2:4]...)
+
+		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[2].Name())
+		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[3].Name())
 	}
 
 	ate.OTG().PushConfig(t, otgConfig)
@@ -1405,34 +1677,67 @@ func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 2, 5)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
-
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
-
-	// Verify Traffic
+	t.Log("Validate IPv4 GUE encapsulation and decapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v4"])
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-	validateTrafficLoss(t, ate.OTG(), []string{"flowSet1-v4-2", "flowSet1-v6-2", "flowSet5-v4-2", "flowSet5-v6-2"})
+	for _, flow := range flowNames["v4"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
 
-	// Above flows should be GUE encapsulated
-	capture := processCapture(t, ate.OTG(), "port2")
-	validatePackets(t, capture, "ipv4", uint8(dscpValue["AF1"]), uint8(dscpValue["AF1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["AF1"]), uint8(dscpValue["AF1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
+	outerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF1"])
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF1"])
+	innerGUEIPLayerIPv4.Protocol = udpEncapPort
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate GUE Decapsulation")
+	innerGUEIPLayerIPv4.SkipProtocolCheck = true
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF1"])
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate IPv6 GUE encapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v6"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flow := range flowNames["v6"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+
+	outerGUEv6Encap.Tos = uint8(dscpValue["AF1"])
+	if err := validatePacket(t, ate, encapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validate the counters received on ATE and DUT are same
+	validateOutCounters(t, dut, ate.OTG())
 }
 
 func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[2]}, ate2ppnh1.IPv6, true, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[2]}, ate2ppnh1.IPv6, false, fmt.Sprintf("%s-CBGP-3", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
+
 	otgConfig.Flows().Clear()
 
 	otgConfig.Flows().Append(flowGroups["flowSet1"].Flows[4:]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet1"].Flows[4].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet1"].Flows[5].Name())
+
 	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[4:6]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[4].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[5].Name())
 
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1442,36 +1747,67 @@ func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 3, 5)
 
-	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
-
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
-
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
-
-	// Verify Traffic
+	t.Log("Validate IPv4 GUE encapsulation and decapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v4"])
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-	validateTrafficLoss(t, ate.OTG(), []string{"flowSet1-v4-3", "flowSet1-v6-3", "flowSet5-v4-3", "flowSet5-v6-3"})
+	for _, flow := range flowNames["v4"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
 
-	// Above flows should be GUE encapsulated
-	capture := processCapture(t, ate.OTG(), "port2")
-	validatePackets(t, capture, "ipv4", uint8(dscpValue["AF2"]), uint8(dscpValue["AF2"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["AF2"]), uint8(dscpValue["AF2"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
+	outerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF2"])
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF2"])
+	innerGUEIPLayerIPv4.Protocol = udpEncapPort
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate GUE Decapsulation")
+	innerGUEIPLayerIPv4.SkipProtocolCheck = true
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF2"])
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate IPv6 GUE encapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v6"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flow := range flowNames["v6"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+
+	outerGUEv6Encap.Tos = uint8(dscpValue["AF2"])
+	if err := validatePacket(t, ate, encapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validate the counters received on ATE and DUT are same
+	validateOutCounters(t, dut, ate.OTG())
 }
 
 func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[3]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[3]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-4", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
 
 	otgConfig.Flows().Clear()
 
 	otgConfig.Flows().Append(flowGroups["flowSet2"].Flows[0:2]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[0].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[1].Name())
+
 	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[6:8]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[6].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[7].Name())
 
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1482,35 +1818,67 @@ func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 4, 5)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
-
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
-
-	// Verify Traffic
+	t.Log("Validate IPv4 GUE encapsulation and decapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v4"])
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-	validateTrafficLoss(t, ate.OTG(), []string{"flowSet2-v4-1", "flowSet2-v6-1", "flowSet5-v4-4", "flowSet5-v6-4"})
+	for _, flow := range flowNames["v4"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
 
-	// Above flows should be GUE encapsulated
-	capture := processCapture(t, ate.OTG(), "port2")
-	validatePackets(t, capture, "ipv4", uint8(dscpValue["AF3"]), uint8(dscpValue["AF3"]), nhgTTL, flowGroups["flowSet2"].Endpoint, true)
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["AF3"]), uint8(dscpValue["AF3"]), nhgTTL, flowGroups["flowSet2"].Endpoint, true)
+	outerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF3"])
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF3"])
+	innerGUEIPLayerIPv4.Protocol = udpEncapPort
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate GUE Decapsulation")
+	innerGUEIPLayerIPv4.SkipProtocolCheck = true
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF3"])
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate IPv6 GUE encapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v6"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flow := range flowNames["v6"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+
+	outerGUEv6Encap.Tos = uint8(dscpValue["AF3"])
+	if err := validatePacket(t, ate, encapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validate the counters received on ATE and DUT are same
+	validateOutCounters(t, dut, ate.OTG())
 }
 
 func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV4List[4]}, ate2ppnh2.IPv6, true, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV4))
+	advertiseRoutesWithiBGP([]string{ate2InternalPrefixesV6List[4]}, ate2ppnh2.IPv6, false, fmt.Sprintf("%s-CBGP-5", atePort2RoutesV6))
+
+	flowNames := map[string][]string{
+		"v4": {},
+		"v6": {},
+	}
 
 	otgConfig.Flows().Clear()
 
 	otgConfig.Flows().Append(flowGroups["flowSet2"].Flows[2:]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[2].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[3].Name())
+
 	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[8:10]...)
+	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[8].Name())
+	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[9].Name())
 
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1521,103 +1889,88 @@ func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	t.Logf("Starting capture")
-	cs := startCapture(t, ate.OTG())
+	time.Sleep(10 * time.Second)
+	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 5, 5)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
+	t.Log("Validate IPv4 GUE encapsulation and decapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v4"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 
-	t.Logf("Stop Capture")
-	stopCapture(t, ate.OTG(), cs)
+	for _, flow := range flowNames["v4"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+	outerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF4"])
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF4"])
+	innerGUEIPLayerIPv4.Protocol = udpEncapPort
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate GUE Decapsulation")
+	innerGUEIPLayerIPv4.SkipProtocolCheck = true
+	innerGUEIPLayerIPv4.Tos = uint8(expectedDscpValue["AF4"])
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	t.Log("Validate IPv6 GUE encapsulation")
+	sendTrafficCapture(t, ate, otgConfig, flowNames["v6"])
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flow := range flowNames["v6"] {
+		verifyTrafficFlow(t, ate, flow)
+	}
+
+	outerGUEv6Encap.Tos = uint8(dscpValue["AF4"])
+	if err := validatePacket(t, ate, encapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validate the counters received on ATE and DUT are same
+	validateOutCounters(t, dut, ate.OTG())
+}
+
+func testDUTDecapNode(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	// Active flows for Flow-Set #1 through Flow-Set #4.
+	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
+
+	otgConfig.Flows().Clear()
+
+	for _, flowset := range flowsets {
+		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+	}
+
+	ate.OTG().PushConfig(t, otgConfig)
+	ate.OTG().StartProtocols(t)
+
+	t.Logf("Verify OTG BGP sessions up")
+	cfgplugins.VerifyOTGBGPEstablished(t, ate)
+
+	t.Logf("Verify DUT BGP sessions up")
+	cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
+	sendTrafficCapture(t, ate, otgConfig, []string{"all"})
 
 	// Verify Traffic
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-	validateTrafficLoss(t, ate.OTG(), []string{"flowSet2-v4-2", "flowSet2-v6-2", "flowSet5-v4-5", "flowSet5-v6-5"})
-
-	// Above flows should be GUE encapsulated
-	capture := processCapture(t, ate.OTG(), "port2")
-	validatePackets(t, capture, "ipv4", uint8(dscpValue["AF4"]), uint8(dscpValue["AF4"]), nhgTTL, flowGroups["flowSet2"].Endpoint, true)
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["AF4"]), uint8(dscpValue["AF4"]), nhgTTL, flowGroups["flowSet2"].Endpoint, true)
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
 }
 
-// TODO:
-// func testDUTDecapNode(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-// 	// Active flows for Flow-Set #1 through Flow-Set #4.
-// 	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
-// 	dstEndpoint := []string{}
-
-// 	otgConfig.Flows().Clear()
-
-// 	for _, flowset := range flowsets {
-// 		ep := flowGroups[flowset].Endpoint
-// 		if ep != "" {
-// 			dstEndpoint = append(dstEndpoint, ep)
-// 		}
-// 		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
-// 	}
-
-// 	// Configure GUE Encap
-// 	cfgplugins.ConfigureGueTunnel(t, dut, "V4Udp", guePolicyName, nexthopGroupName, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-// 	cfgplugins.ConfigureGueTunnel(t, dut, "V6Udp", guePolicyName, nexthopGroupNameV6, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-
-// 	ate.OTG().PushConfig(t, otgConfig)
-// 	ate.OTG().StartProtocols(t)
-
-// 	t.Logf("Verify OTG BGP sessions up")
-// 	cfgplugins.VerifyOTGBGPEstablished(t, ate)
-
-// 	t.Logf("Verify DUT BGP sessions up")
-// 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
-
-// 	t.Logf("Starting capture")
-// 	cs := startCapture(t, ate.OTG())
-
-// 	ate.OTG().StartTraffic(t)
-// 	time.Sleep(sleepTime)
-// 	ate.OTG().StopTraffic(t)
-
-// 	t.Logf("Stop Capture")
-// 	stopCapture(t, ate.OTG(), cs)
-
-// 	// Verify Traffic
-// 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-// 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-// 	// Flows: flowSet1-v4-1 , flowSet1-v6-1 must be 100% successful
-// 	validateTrafficLoss(t, ate.OTG(), []string{"flowSet1-v4-1", "flowSet1-v6-1"})
-
-// 	// Above flows should be GUE encapsulated
-// 	capture := processCapture(t, ate.OTG(), "port2")
-// 	validatePackets(t, capture, "ipv4", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
-// 	validatePackets(t, capture, "ipv6", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet1"].Endpoint, true)
-
-// 	capturePort1 := processCapture(t, ate.OTG(), "port1")
-// 	validatePackets(t, capturePort1, "ipv4", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet3"].Endpoint, true)
-// 	validatePackets(t, capturePort1, "ipv4", uint8(dscpValue["AF3"]), uint8(dscpValue["AF3"]), nhgTTL, flowGroups["flowSet4"].Endpoint, true)
-// }
-
 func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	// Active flows for Flow-Set #1 through Flow-Set #4.
 	flowsets := []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"}
-	dstEndpoint := []string{}
 
 	otgConfig.Flows().Clear()
 
 	for _, flowset := range flowsets {
-		ep := flowGroups[flowset].Endpoint
-		if ep != "" {
-			dstEndpoint = append(dstEndpoint, ep)
-		}
 		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
 	}
-
-	// Configure GUE Encap
-	cfgplugins.ConfigureGueTunnel(t, dut, "V4Udp", guePolicyName, nexthopGroupName, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-	cfgplugins.ConfigureGueTunnel(t, dut, "V6Udp", guePolicyName, nexthopGroupNameV6, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
 
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
@@ -1631,242 +1984,161 @@ func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	t.Logf("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
-	validatePrefixes(t, dut, atePort2.IPv6, true, 5, 0)
+	time.Sleep(10 * time.Second)
+	validatePrefixes(t, dut, otgBGPConfig[2].otgPortData[0].IPv4, true, 0, 12)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
+	sendTrafficCapture(t, ate, otgConfig, []string{"all"})
 
 	// Verify Traffic
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	var flowNames []string
-	for _, f := range otgConfig.Flows().Items() {
-		flowNames = append(flowNames, f.Name())
+	for _, flows := range flowsets {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
 	}
-	validateTrafficLoss(t, ate.OTG(), flowNames)
 }
 
-// func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-// 	// Active flows for Flow-Set #1 through Flow-Set #4.
-// 	flowsets := []string{"flowSet1", "flowSet2"}
-// 	dstEndpoint := []string{}
+func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
 
-// 	otgConfig.Flows().Clear()
-
-// 	for _, flowset := range flowsets {
-// 		ep := flowGroups[flowset].Endpoint
-// 		if ep != "" {
-// 			dstEndpoint = append(dstEndpoint, ep)
-// 		}
-// 		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
-// 	}
-
-// 	ate.OTG().PushConfig(t, otgConfig)
-// 	ate.OTG().StartProtocols(t)
-
-// 	t.Log("Stop advertising tunnel endpoints on ATE Port2")
-// 	withdrawBGPRoutes(t, []string{atePort2RoutesTE10, atePort2RoutesTE11})
-// 	time.Sleep(10 * time.Second)
-
-// 	expectedRib := []BGPRib{
-// 		{prefix: bgpInternalTE10.IPv4 + "/32", origin: atePort2.IPv4, pathId: 0, isPresent: false},
-// 		{prefix: bgpInternalTE11.IPv4 + "/32", origin: atePort2.IPv4, pathId: 0, isPresent: false},
-// 		{prefix: bgpInternalTE10.IPv4 + "/30", origin: atePort3.IPv4, pathId: 0, isPresent: false},
-// 		{prefix: bgpInternalTE11.IPv4 + "/30", origin: atePort3.IPv4, pathId: 0, isPresent: false},
-// 	}
-
-// 	// validateBGPRib(t, dut, true, expectedRib)
-
-// 	// TODO:
-// 	// validateAFTCounters(t, dut, false, ate2ppnh1Prefix)
-// 	// validateAFTCounters(t, dut, false, ate2ppnh2Prefix)
-// 	// validateAFTCounters(t, dut, false, ate2InternalPrefixesV6+"/64")
-
-// 	var flowNames []string
-// 	for _, f := range otgConfig.Flows().Items() {
-// 		flowNames = append(flowNames, f.Name())
-// 	}
-// 	validateTrafficLoss(t, ate.OTG(), flowNames)
-
-// }
-
-func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-	// Active flows for Flow-Set #1 through Flow-Set #4.
-
-	newTrafficData := []*trafficFlow{
-		{
-			name:           "flowSet6-v6-1",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{ateCPort3RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[0]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[0]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["BE1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet6-v6-2",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{ateCPort3RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[1]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[1]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF1"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet6-v6-3",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{ateCPort3RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[2]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[2]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF2"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE11.IPv4,
-		},
-		{
-			name:           "flowSet7-v6-1",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{ateCPort3RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[3]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[3]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF3"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-		{
-			name:           "flowSet7-v6-2",
-			srcDevice:      []string{atePort1RouteV6},
-			dstDevice:      []string{ateCPort3RoutesV6},
-			srcAddr:        []string{ate1UserPrefixesV6List[4]},
-			dstAddr:        []string{ate2InternalPrefixesV6List[4]},
-			trafficPps:     trafficPps,
-			packetSize:     totalPackets,
-			dscp:           uint8(dscpValue["AF4"]),
-			v4Traffic:      false,
-			tunnelEndpoint: bgpInternalTE10.IPv4,
-		},
-	}
-
-	otgConfig.Flows().Clear()
-	configureTrafficFlows(newTrafficData)
-
-	flowsets := []string{"flowSet6", "flowSet7", "flowSet3", "flowSet4"}
-	dstEndpoint := []string{}
-
-	for _, flowset := range flowsets {
-		ep := flowGroups[flowset].Endpoint
-		if ep != "" {
-			dstEndpoint = append(dstEndpoint, ep)
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceID:       dut.Port(t, "port1").Name(),
+			AppliedPolicyName: guePolicyName,
+			RemovePolicyName:  true,
 		}
-		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
 	}
 
-	// Configure GUE Encap
-	cfgplugins.ConfigureGueTunnel(t, dut, "V4Udp", guePolicyName, nexthopGroupName, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-	cfgplugins.ConfigureGueTunnel(t, dut, "V6Udp", guePolicyName, nexthopGroupNameV6, loopbackIntfName, dstEndpoint, []string{}, nhgTTL)
-
-	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
 
 	t.Log("Stop advertising tunnel endpoints on ATE Port2")
-	withdrawBGPRoutes(t, []string{ateCPort2Routes1V6, ateCPort2Routes2V6})
-	advertiseBGPRoutes(t, []string{ateCPort3RoutesV6})
+	withdrawBGPRoutes(t, []string{atePort2RoutesTE10, atePort2RoutesTE11})
+	time.Sleep(10 * time.Second)
+
+	b := &gnmi.SetBatch{}
+
+	// Configuring Static Route: PNH-IPv6 --> IPv4 GUE tunnel.
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
+		Prefix:            ate2ppnh1Prefix,
+		NexthopGroup:      true,
+		NexthopGroupName:  nexthopGroupName2,
+		T:                 t,
+		RemoveStaticRoute: true,
+	}
+
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+
+	sV4 = &cfgplugins.StaticRouteCfg{
+		NetworkInstance:   deviations.DefaultNetworkInstance(dut),
+		Prefix:            ate2ppnh2Prefix,
+		NexthopGroup:      true,
+		NexthopGroupName:  nexthopGroupName1,
+		T:                 t,
+		RemoveStaticRoute: true,
+	}
+
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route: %v", err)
+	}
+	b.Set(t, dut)
+
+	validateAFTCounters(t, dut, false, ate2ppnh1Prefix)
+	validateAFTCounters(t, dut, false, ate2ppnh2Prefix)
+
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[0].IPv6, false, 5, 5)
+
+	sendTrafficCapture(t, ate, otgConfig, []string{"all"})
+
+	// Verify Traffic
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
+	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
+		}
+	}
+
+}
+
+func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
+			InterfaceID:       dut.Port(t, "port1").Name(),
+			AppliedPolicyName: guePolicyName,
+		}
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
+	}
+
+	configureStaticRoute(t, dut)
+
+	// Active flows for Flow-Set #1 through Flow-Set #4.
+	port3Data := otgBGPConfig[2]
+	iDut3Dev := port3Data.otgDevice[0]
+
+	bgpPeer := iDut3Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	v4routes := bgpPeer.V4Routes().Add().SetName("ATE2_C_IBGP_via_EBGP")
+	v4routes.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetPrefix(24).SetCount(5)
+
+	bgpPeerv6 := iDut3Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+	v6routes := bgpPeerv6.V6Routes().Add().SetName("ATE2_C_IBGP_via_EBGPv6")
+	v6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(5)
+
+	newTrafficData := []trafficFlow{}
+	delete(flowGroups, "flowSet1")
+	delete(flowGroups, "flowSet2")
+
+	for i := 0; i < 10; i++ {
+		trafficFlowData[i].flows.RxPorts = []string{otgBGPConfig[2].port}
+		newTrafficData = append(newTrafficData, trafficFlowData[i])
+	}
+
+	configureTrafficFlows(otgConfig, newTrafficData)
+
+	otgConfig.Flows().Clear()
+	for _, flowset := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
+		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
+	}
+
+	t.Log(otgConfig)
+	encapValidation.PortName = "port3"
+	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapValidation)
+	ate.OTG().PushConfig(t, otgConfig)
 
 	time.Sleep(20 * time.Second)
-
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dut.Port(t, "port2").Name())
 	i.SetEnabled(false)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Config(), i)
 
-	ate.OTG().StartTraffic(t)
-	time.Sleep(sleepTime)
-	ate.OTG().StopTraffic(t)
+	ate.OTG().StartProtocols(t)
 
-	// Verify Traffic
+	// Validating one flow to be encapsulated when sent from Port1 -> Port3
+	sendTrafficCapture(t, ate, otgConfig, []string{flowGroups["flowSet1"].Flows[0].Name()})
+	outerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	innerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	if err := validatePacket(t, ate, encapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	}
+
+	// Validting no traffic loss for other flows
+	sendTrafficCapture(t, ate, otgConfig, []string{"all"})
+
 	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
 	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
-	var flowNames []string
-	for _, f := range otgConfig.Flows().Items() {
-		flowNames = append(flowNames, f.Name())
-	}
-	validateTrafficLoss(t, ate.OTG(), flowNames)
-	capture := processCapture(t, ate.OTG(), "port3")
-	validatePackets(t, capture, "ipv6", uint8(dscpValue["BE1"]), uint8(dscpValue["BE1"]), nhgTTL, flowGroups["flowSet6"].Endpoint, true)
-
-}
-
-func validateBGPRib(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, expectedPfx []BGPRib) {
-	found := 0
-
-	bgpRIBPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
-	if isV4 {
-		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.
-			AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
-		for route, prefix := range locRib.Route {
-			for _, expectedRoute := range expectedPfx {
-				if prefix.GetPrefix() == expectedRoute.prefix {
-					if !expectedRoute.isPresent {
-						t.Errorf("Not expected: Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
-						break
-					}
-					found++
-				}
-			}
-		}
-		if found != len(expectedPfx) {
-			t.Fatalf("Not all V4 routes found. expected:%d got:%d", len(expectedPfx), found)
-		}
-
-	} else {
-		locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPath.
-			AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
-		for route, prefix := range locRib.Route {
-			for _, expectedRoute := range expectedPfx {
-				if prefix.GetPrefix() == expectedRoute.prefix {
-					if !expectedRoute.isPresent {
-						t.Errorf("Not expected: Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
-						break
-					}
-					found++
-				}
-			}
-		}
-		if found != len(expectedPfx) {
-			t.Fatalf("Not all V6 routes found. expected:%d got:%d", len(expectedPfx), found)
-		}
-	}
-}
-
-func validateAFTCounters(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, routeIp string) {
-	t.Logf("Validate AFT parameters for %s", routeIp)
-	if isV4 {
-		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(routeIp)
-		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			ipv4Entry, present := val.Val()
-			return present && ipv4Entry.GetPrefix() == routeIp
-		}).Await(t); !ok {
-			t.Errorf("ipv4-entry/state/prefix got %v, want %s", got, routeIp)
-		}
-	} else {
-		ipv6Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(routeIp)
-		if got, ok := gnmi.Watch(t, dut, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			ipv6Entry, present := val.Val()
-			return present && ipv6Entry.GetPrefix() == routeIp
-		}).Await(t); !ok {
-			t.Errorf("ipv6-entry/state/prefix got %v, want %s", got, routeIp)
+	for _, flows := range []string{"flowSet1", "flowSet2", "flowSet3", "flowSet4"} {
+		for _, flow := range flowGroups[flows].Flows {
+			verifyTrafficFlow(t, ate, flow.Name())
 		}
 	}
 }

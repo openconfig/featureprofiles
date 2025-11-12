@@ -1017,6 +1017,10 @@ message Metadata {
     // bandwidth.
     bool advertised_cumulative_lbw_oc_unsupported = 344;
 
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+    // Devices that do not support oc path for static route to nexthop
+    bool static_route_to_nhg_oc_unsupported = 345;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

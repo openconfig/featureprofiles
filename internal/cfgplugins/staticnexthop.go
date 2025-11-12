@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -171,6 +172,20 @@ type StaticNextHopGroupParams struct {
 
 }
 
+type NexthopGroupUDPParams struct {
+	TrafficType     oc.E_Aft_EncapsulationHeaderType
+	NexthopGrpName  string
+	Index           string
+	DstIp           []string
+	SrcIp           string
+	DstUdpPort      uint16
+	SrcUdpPort      uint16
+	TTL             uint8
+	DSCP            uint8
+	NetworkInstance *oc.NetworkInstance
+	DeleteTtl       bool
+}
+
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
 func configureNextHopGroups(t *testing.T, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
 	t.Helper()
@@ -216,4 +231,85 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
+}
+
+// NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+	t.Helper()
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		cli := ""
+		groupType := ""
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			switch params.TrafficType {
+			case oc.Aft_EncapsulationHeaderType_UDPV4:
+				groupType = "ipv4-over-udp"
+			case oc.Aft_EncapsulationHeaderType_UDPV6:
+				groupType = "ipv6-over-udp"
+			}
+
+			if len(params.DstIp) > 0 {
+				tunnelDst := ""
+				for i, addr := range params.DstIp {
+					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
+				}
+				cli = fmt.Sprintf(`
+					qos rewrite ipv4-over-udp inner dscp disabled
+					qos rewrite ipv6-over-udp inner dscp disabled
+					nexthop-group %s type %s
+					tunnel-source intf %s
+					fec hierarchical
+   					%s
+					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+			if params.TTL != 0 {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if params.DSCP != 0 {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					tos %v
+					`, params.NexthopGrpName, groupType, params.DSCP)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if params.DeleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if params.DstUdpPort != 0 {
+				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		nhg := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
+		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
+
+		ueh1 := params.NetworkInstance.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
+		for _, addr := range params.DstIp {
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
+		}
+		if params.TTL != 0 {
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
+		}
+		ueh1.GetOrCreateUdpV4().SetSrcIp(params.SrcIp)
+		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
+		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
+		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
+	}
+
 }

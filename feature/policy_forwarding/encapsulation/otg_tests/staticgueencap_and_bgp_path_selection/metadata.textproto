@@ -17,9 +17,10 @@ platform_exceptions: {
     missing_value_for_defaults: true
     isis_interface_afi_unsupported: true
     isis_lsp_metadata_leafs_unsupported: true
-    next_hop_group_config_unsupported: true
-    policy_forwarding_unsupported: true
+    next_hop_group_config_unsupported:  true
     interface_policy_forwarding_unsupported: true
     qos_classification_unsupported: true
+    static_route_to_nhg_oc_unsupported: true
+    gue_gre_decap_unsupported: true
   }
 }

@@ -53,6 +53,8 @@ Validations = []packetvalidationhelpers.ValidationType{
 2. Validate the IPV6 header (ValidateIPv6Header).
 */
 
+var packetSourceObj *gopacket.PacketSource
+
 // IPv4 and IPv6 are the IP protocol types.
 const (
 	IPv4 = "IPv4"
@@ -167,7 +169,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	defer os.Remove(f.Name()) // Clean up the temporary file
+	// defer os.Remove(f.Name()) // Clean up the temporary file
 	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
@@ -177,37 +179,37 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	}
 	defer handle.Close()
 
-	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	packetSourceObj := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	// Iterate over the validations specified in packetVal.Validations.
 	for _, validation := range packetVal.Validations {
 		switch validation {
 		case ValidateIPv4Header:
-			if err := validateIPv4Header(t, packetSource, packetVal); err != nil {
+			if err := validateIPv4Header(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateInnerIPv4Header:
-			if err := validateInnerIPv4Header(t, packetSource, packetVal); err != nil {
+			if err := validateInnerIPv4Header(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateIPv6Header:
-			if err := validateIPv6Header(t, packetSource, packetVal); err != nil {
+			if err := validateIPv6Header(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateInnerIPv6Header:
-			if err := validateInnerIPv6Header(t, packetSource, packetVal); err != nil {
+			if err := validateInnerIPv6Header(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateMPLSLayer:
-			if err := validateMPLSLayer(t, packetSource, packetVal); err != nil {
+			if err := validateMPLSLayer(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateTCPHeader:
-			if err := validateTCPHeader(t, packetSource, packetVal); err != nil {
+			if err := validateTCPHeader(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		case ValidateUDPHeader:
-			if err := validateUDPHeader(t, packetSource, packetVal); err != nil {
+			if err := validateUDPHeader(t, packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		default:
@@ -230,7 +232,6 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Log("Validating IPv4 header")
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
@@ -238,8 +239,10 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
 				}
 			}
-			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
-				return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
+			if packetVal.IPv4Layer.DstIP != "" {
+				if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+					return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)
+				}
 			}
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
@@ -260,13 +263,15 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	t.Log("Validating IPv6 header")
 
 	for packet := range packetSource.Packets() {
-		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
 
-			if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
-				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+			if packetVal.IPv6Layer.DstIP != "" {
+				if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
+					return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)
+				}
 			}
+
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
@@ -290,31 +295,40 @@ func validateInnerIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, 
 	t.Helper()
 	t.Log("Validating inner IPv4 header")
 
+	var encapPacket gopacket.Packet
+
 	for packet := range packetSource.Packets() {
-		if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
-			gre := greLayer.(*layers.GRE)
-			encapPacket := gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
-
-			if ipLayer := encapPacket.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-				ip, _ := ipLayer.(*layers.IPv4)
-
+		if packetVal.InnerIPLayerIPv4.Protocol == packetVal.UDPLayer.DstPort {
+			udpLayer := packet.Layer(layers.LayerTypeUDP)
+			udp, _ := udpLayer.(*layers.UDP)
+			encapPacket = gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default)
+			packetVal.InnerIPLayerIPv4.Protocol = 0
+		} else {
+			if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
+				gre := greLayer.(*layers.GRE)
+				encapPacket = gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
+			}
+		}
+		if ipLayer := encapPacket.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+			ip, _ := ipLayer.(*layers.IPv4)
+			if packetVal.InnerIPLayerIPv4.DstIP != "" {
 				if ip.DstIP.String() != packetVal.InnerIPLayerIPv4.DstIP {
 					return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv4.DstIP, ip.DstIP)
 				}
-				if ip.TTL != packetVal.InnerIPLayerIPv4.TTL {
-					return fmt.Errorf("IP TTL value is altered to: %d. Expected: %d", ip.TTL, packetVal.InnerIPLayerIPv4.TTL)
-				}
-				if ip.TOS != packetVal.InnerIPLayerIPv4.Tos {
-					return fmt.Errorf("DSCP(TOS) value is altered to: %d .Expected: %d", ip.TOS, packetVal.InnerIPLayerIPv4.Tos)
-				}
-				if packetVal.InnerIPLayerIPv4.Protocol != 0 {
-					if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
-						return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
-					}
-				}
-				// If validation is successful for one packet, we can return.
-				return nil
 			}
+			if ip.TTL != packetVal.InnerIPLayerIPv4.TTL {
+				return fmt.Errorf("IP TTL value is altered to: %d. Expected: %d", ip.TTL, packetVal.InnerIPLayerIPv4.TTL)
+			}
+			if ip.TOS != packetVal.InnerIPLayerIPv4.Tos {
+				return fmt.Errorf("DSCP(TOS) value is altered to: %d .Expected: %d", ip.TOS, packetVal.InnerIPLayerIPv4.Tos)
+			}
+			if packetVal.InnerIPLayerIPv4.Protocol != 0 {
+				if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
+					return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
+				}
+			}
+			// If validation is successful for one packet, we can return.
+			return nil
 		}
 	}
 	return fmt.Errorf("no inner IPv4 packets found")
@@ -410,8 +424,10 @@ func validateUDPHeader(t *testing.T, packetSource *gopacket.PacketSource, packet
 			if uint32(udp.DstPort) != packetVal.UDPLayer.DstPort {
 				return fmt.Errorf("UDP Dst Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.DstPort, udp.DstPort)
 			}
-			if uint32(udp.SrcPort) != packetVal.UDPLayer.SrcPort {
-				return fmt.Errorf("UDP Src Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.SrcPort, udp.SrcPort)
+			if packetVal.UDPLayer.SrcPort != 0 {
+				if uint32(udp.SrcPort) != packetVal.UDPLayer.SrcPort {
+					return fmt.Errorf("UDP Src Port is not set properly. Expected: %d, Actual: %d", packetVal.UDPLayer.SrcPort, udp.SrcPort)
+				}
 			}
 			// If validation is successful for one packet, we can return.
 			return nil
@@ -428,4 +444,9 @@ func ConfigurePacketCapture(t *testing.T, top gosnappi.Config, packetVal *Packet
 	top.Captures().Add().SetName(packetVal.CaptureName).
 		SetPortNames(ports).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
+}
+
+// SourceObj to get the packet object captured on the port
+func SourceObj() *gopacket.PacketSource {
+	return packetSourceObj
 }
