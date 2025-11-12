@@ -463,7 +463,6 @@ func ClearTestingConfig(t *testing.T, dut *ondatra.DUTDevice, defaultNetworkInst
 			gnmi.BatchDelete(b, gnmi.OC().NetworkInstance(defaultNetworkInstance).Interface(in).Config())
 		}
 	}
-	// Remove all interfaces from default network instance.
 	for _, in := range aggNames {
 		gnmi.BatchDelete(b, gnmi.OC().Interface(in).Config())
 	}
