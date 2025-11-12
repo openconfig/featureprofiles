@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -23,7 +25,38 @@ import (
 
 type p4rtHelper struct{}
 
-const P4infoFile = "../../../feature/p4rt/data/wbb.p4info.pb.txt"
+// P4Helper provides helper functions for P4RT operations
+var P4Helper = &p4rtHelper{}
+
+// GetP4InfoPath returns the absolute path to the P4Info file from the repository root.
+// This function attempts to find the featureprofiles repository root and constructs
+// the path to the P4Info file. If the repository root cannot be determined,
+// it returns an empty string and users must provide their own path.
+func GetP4InfoPath() string {
+	// Try to find the repository root by looking for go.mod
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	// Walk up the directory tree to find the repository root
+	dir := currentDir
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			// Found the repository root
+			return filepath.Join(dir, "feature", "p4rt", "data", "wbb.p4info.pb.txt")
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root without finding go.mod
+			break
+		}
+		dir = parent
+	}
+
+	return ""
+}
 
 // P4RTNodesByPortForAllPorts returns a map of <portID>:<P4RTNodeName> for all the
 // ports on the router.
