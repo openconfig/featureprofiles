@@ -815,7 +815,7 @@ func TestBGPPolicy(t *testing.T) {
 }
 
 // expectedMED returns the MED that should be verified considering device deviations.
-func expectedMED(t *testing.T,dut *ondatra.DUTDevice, requestedValue, deviatedValue uint32) uint32 {
+func expectedMED(t *testing.T, dut *ondatra.DUTDevice, requestedValue, deviatedValue uint32) uint32 {
 	t.Helper()
 	// If device cannot perform set-med or med-add actions, return base MED value.
 	if deviations.BGPSetMedActionUnsupported(dut) {
