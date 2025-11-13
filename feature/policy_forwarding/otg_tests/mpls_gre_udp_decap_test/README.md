@@ -39,7 +39,7 @@ outer_ip-ttl =        "64"
   "network-instances": {
     "network-instance": [
       {
-        "name": "default",
+        "name": "DEFAULT",
         "policy-forwarding": {
           "policies": {
             "policy": [
