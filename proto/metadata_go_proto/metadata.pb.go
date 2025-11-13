@@ -1220,8 +1220,17 @@ type Metadata_Deviations struct {
 	// Arista: https://partnerissuetracker.corp.google.com/issues/433989578
 	// GNPSI support PR: https://github.com/openconfig/public/pull/1385
 	GnpsiOcUnsupported bool `protobuf:"varint,348,opt,name=gnpsi_oc_unsupported,json=gnpsiOcUnsupported,proto3" json:"gnpsi_oc_unsupported,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Device does not support to disable bgp GR-HELPER.
+	// Nokia: b/455781430
+	BgpGrHelperDisableUnsupported bool `protobuf:"varint,349,opt,name=bgp_gr_helper_disable_unsupported,json=bgpGrHelperDisableUnsupported,proto3" json:"bgp_gr_helper_disable_unsupported,omitempty"`
+	// Device does not support bgp GR-RESTART under AFI/SAFI.
+	// Cisco: b/455784294
+	BgpGracefulRestartUnderAfiSafiUnsupported bool `protobuf:"varint,350,opt,name=bgp_graceful_restart_under_afi_safi_unsupported,json=bgpGracefulRestartUnderAfiSafiUnsupported,proto3" json:"bgp_graceful_restart_under_afi_safi_unsupported,omitempty"`
+	// Device does not support adding remote-syslog config under non-default VRF
+	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
+	SyslogNonDefaultVrfUnsupported bool `protobuf:"varint,351,opt,name=syslog_non_default_vrf_unsupported,json=syslogNonDefaultVrfUnsupported,proto3" json:"syslog_non_default_vrf_unsupported,omitempty"`
+	unknownFields                  protoimpl.UnknownFields
+	sizeCache                      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3452,6 +3461,27 @@ func (x *Metadata_Deviations) GetGnpsiOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetBgpGrHelperDisableUnsupported() bool {
+	if x != nil {
+		return x.BgpGrHelperDisableUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpGracefulRestartUnderAfiSafiUnsupported() bool {
+	if x != nil {
+		return x.BgpGracefulRestartUnderAfiSafiUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSyslogNonDefaultVrfUnsupported() bool {
+	if x != nil {
+		return x.SyslogNonDefaultVrfUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3508,7 +3538,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x90\xbf\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x8d\xc1\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3520,7 +3550,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x99\xb5\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x96\xb7\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3839,7 +3869,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1edisable_hardware_nexthop_proxy\x18\xd9\x02 \x01(\bR\x1bdisableHardwareNexthopProxy\x12<\n" +
 	"\x1aurpf_config_oc_unsupported\x18\xda\x02 \x01(\bR\x17urpfConfigOcUnsupported\x12g\n" +
 	"1static_route_next_network_instance_oc_unsupported\x18\xdb\x02 \x01(\bR+staticRouteNextNetworkInstanceOcUnsupported\x121\n" +
-	"\x14gnpsi_oc_unsupported\x18\xdc\x02 \x01(\bR\x12gnpsiOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x14gnpsi_oc_unsupported\x18\xdc\x02 \x01(\bR\x12gnpsiOcUnsupported\x12I\n" +
+	"!bgp_gr_helper_disable_unsupported\x18\xdd\x02 \x01(\bR\x1dbgpGrHelperDisableUnsupported\x12c\n" +
+	"/bgp_graceful_restart_under_afi_safi_unsupported\x18\xde\x02 \x01(\bR)bgpGracefulRestartUnderAfiSafiUnsupported\x12K\n" +
+	"\"syslog_non_default_vrf_unsupported\x18\xdf\x02 \x01(\bR\x1esyslogNonDefaultVrfUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
