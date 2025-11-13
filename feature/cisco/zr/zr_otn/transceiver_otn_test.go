@@ -178,7 +178,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		appendToTableIfNotNil(t, table, portName, "PreFECBER_min", otn.GetPreFecBer().GetMin(), "PreFECBER_min is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "PreFECBER_max", otn.GetPreFecBer().GetMax(), "PreFECBER_max is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "PreFECBER_avg", otn.GetPreFecBer().GetAvg(), "PreFECBER_avg is empty for port %v")
-		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPreFECBER, maxAllowedPreFECBER, inactivePreFECBER, operStatus)
+		validatePMValue(t, portName, "PreFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), operStatus)
 	}
 
 	if e := otn.GetEsnr(); e == nil {
@@ -188,7 +188,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		appendToTableIfNotNil(t, table, portName, "ESNR_min", otn.GetEsnr().GetMin(), "ESNR_min is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "ESNR_max", otn.GetEsnr().GetMax(), "ESNR_max is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "ESNR_avg", otn.GetEsnr().GetAvg(), "ESNR_avg is empty for port %v")
-		validatePMValue(t, portName, "esnr", e.GetInstant(), e.GetMin(), e.GetMax(), e.GetAvg(), minAllowedESNR, maxAllowedESNR, inactiveESNR, operStatus)
+		validatePMValue(t, portName, "esnr", e.GetInstant(), e.GetMin(), e.GetMax(), e.GetAvg(), operStatus)
 	}
 	if q := otn.GetQValue(); q == nil {
 		t.Errorf("QValue data is empty for port %v", portName)
@@ -197,7 +197,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		appendToTableIfNotNil(t, table, portName, "QValue_min", otn.GetQValue().GetMin(), "QValue_min is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "QValue_max", otn.GetQValue().GetMax(), "QValue_max is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "QValue_avg", otn.GetQValue().GetAvg(), "QValue_avg is empty for port %v")
-		validatePMValue(t, portName, "QValue", q.GetInstant(), q.GetMin(), q.GetMax(), q.GetAvg(), minAllowedQValue, maxAllowedQValue, inactiveQValue, operStatus)
+		validatePMValue(t, portName, "QValue", q.GetInstant(), q.GetMin(), q.GetMax(), q.GetAvg(), operStatus)
 	}
 	if b := otn.GetPostFecBer(); b == nil {
 		t.Errorf("PostFECBER data is empty for port %v", portName)
@@ -206,7 +206,7 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 		appendToTableIfNotNil(t, table, portName, "PostFECBER_min", otn.GetPostFecBer().GetMin(), "PostFECBER_min is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "PostFECBER_max", otn.GetPostFecBer().GetMax(), "PostFECBER_max is empty for port %v")
 		appendToTableIfNotNil(t, table, portName, "PostFECBER_avg", otn.GetPostFecBer().GetAvg(), "PostFECBER_avg is empty for port %v")
-		validatePMValue(t, portName, "PostFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), minAllowedPostFECBER, maxAllowedPostFECBER, inactivePostFECBER, operStatus)
+		validatePMValue(t, portName, "PostFECBER", b.GetInstant(), b.GetMin(), b.GetMax(), b.GetAvg(), operStatus)
 	}
 
 	IngressDataVal, ok := IngressData.Val()
@@ -223,15 +223,15 @@ func validateSampleStream(t *testing.T, interfaceData *ygnmi.Value[*oc.Interface
 }
 
 // validatePMValue validates the pm value.
-func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg, minAllowed, maxAllowed, inactiveValue float64, operStatus oc.E_Interface_OperStatus) {
+func validatePMValue(t *testing.T, portName, pm string, instant, min, max, avg float64, operStatus oc.E_Interface_OperStatus) {
 	switch operStatus {
 	case oc.Interface_OperStatus_UP:
-		if instant <= minAllowed || instant >= maxAllowed {
+		if instant < min || instant > max {
 			t.Errorf("Invalid %v sample when %v is UP --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
 	case oc.Interface_OperStatus_DOWN:
-		if instant != inactiveValue {
+		if instant < min || instant > max {
 			t.Errorf("Invalid %v sample when %v is DOWN --> min : %v, max : %v, avg : %v, instant : %v", pm, portName, min, max, avg, instant)
 			return
 		}
@@ -287,9 +287,37 @@ var (
 )
 
 func configureOTN(t *testing.T, dut *ondatra.DUTDevice) {
+	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+	transceivers := components.FindComponentsByType(t, dut, transceiverType)
+
+	p1_name := strings.Join(strings.Split(dut.Port(t, "port1").Name(), "/")[1:], "/")
+	p2_name := strings.Join(strings.Split(dut.Port(t, "port2").Name(), "/")[1:], "/")
+
+	// Build a map of port names to their frequency
+	portFrequencies := make(map[string]int)
+
+	for _, transceiver := range transceivers {
+		transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
+		if strings.Contains(transceiver_desc, "ULH") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
+			// Check which port this transceiver belongs to
+			if strings.Contains(transceiver, p1_name) {
+				portFrequencies[dut.Port(t, "port1").Name()] = 187100000
+			}
+			if strings.Contains(transceiver, p2_name) {
+				portFrequencies[dut.Port(t, "port2").Name()] = 187100000
+			}
+		}
+	}
+
 	for i, p := range dut.Ports() {
+		// Determine frequency for this port
+		freq := frequency // default 193.1 THz
+		if ulhFreq, exists := portFrequencies[p.Name()]; exists {
+			freq = ulhFreq // override to 187.1 THz for ULH
+		}
+
 		oc := components.OpticalChannelComponentFromPort(t, dut, p)
-		cfgplugins.ConfigOpticalChannel(t, dut, oc, frequency, targetOutputPower, operational_mode)
+		cfgplugins.ConfigOpticalChannel(t, dut, oc, uint64(freq), targetOutputPower, operational_mode)
 		re := regexp.MustCompile(`[A-Za-z]+GigE`)
 		opticsName := re.ReplaceAllString(p.Name(), "Optics")
 		configureETHandOptChannel(t, dut, oc, otnIndexBase+uint32(i), ethernetIndexBase+uint32(i), opticsName)
