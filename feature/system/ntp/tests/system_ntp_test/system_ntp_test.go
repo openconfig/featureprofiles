@@ -58,11 +58,13 @@ func TestNtpServerConfigurability(t *testing.T) {
 		{
 			description: "4x IPv4 NTP in default VRF",
 			addresses:   []string{"192.0.2.1", "192.0.2.2", "192.0.2.3", "192.0.2.4"},
+			vrf:         "DEFAULT",
 			ipv4:        true,
 		},
 		{
 			description: "4x IPv6 NTP (RFC5952) in default VRF",
 			addresses:   []string{"2001:db8::1", "2001:db8::2", "2001:db8::3", "2001:db8::4"},
+			vrf:         "DEFAULT",
 			ipv4:        false,
 		},
 		{
@@ -82,7 +84,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 	for _, testCase := range testCases {
-		if testCase.vrf != "" && !deviations.NtpNonDefaultVrfUnsupported(dut) {
+		if testCase.vrf != "" {
 			createVRF(t, dut, testCase.vrf)
 			addLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
@@ -92,9 +94,6 @@ func TestNtpServerConfigurability(t *testing.T) {
 		// NTP source address is not supported, CLI is used to configure NTP source interface.
 		if deviations.NtpSourceAddressUnsupported(dut) {
 			t.Run(testCase.description, func(t *testing.T) {
-				if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
-					t.Skip("NTP non default vrf unsupported")
-				}
 				for _, address := range testCase.addresses {
 					if testCase.vrf != "" {
 						ntpServer := fmt.Sprintf("ntp server vrf %s %s version 4 source %s ", testCase.vrf, address, loopbackIntfName)
@@ -118,9 +117,6 @@ func TestNtpServerConfigurability(t *testing.T) {
 			})
 		} else {
 			t.Run(testCase.description, func(t *testing.T) {
-				if testCase.vrf != "" && deviations.NtpNonDefaultVrfUnsupported(dut) {
-					t.Skip("NTP non default vrf unsupported")
-				}
 				ntpPath := gnmi.OC().System().Ntp()
 
 				d := &oc.Root{}
