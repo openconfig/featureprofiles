@@ -1,7 +1,7 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
 uuid: "f43d95b6-438c-4128-801e-043e426b55cd"
-plan_id: "FNT-Carrier-Transitions"
-description: "Validates that the carrier-transitions counter increments correctly when the interface link state changes."
-testbed: DUT_ATE_2LINKS
+plan_id: "FNT"
+description: "Carrier Transitions Test"
+testbed: TESTBED_DUT_ATE_2LINKS
