@@ -213,6 +213,8 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
   #TODO: Add OC for next-network-instance
+  # set the network-instance to be used for the egress LSP next-hop
+  # TODO: /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/nh-network-instance
 
 rpcs:
   gnmi:
