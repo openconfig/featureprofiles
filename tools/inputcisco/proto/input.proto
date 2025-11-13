@@ -12,8 +12,8 @@ message Input {
     }
     message vrf {
         string name = 1;
-        string rd =3; 
-        string type = 2; 
+        string rd =3;
+        string type = 2;
         bool disabled= 4;
         string description = 5;
 
@@ -104,7 +104,7 @@ message Input {
         string name =2;
     }
     message BGP {
-       
+
         enum AdditionalPaths{
             send=0;
             recieve=1;
@@ -128,7 +128,7 @@ message Input {
             SRTE_POLICY_IPV4 =15;
             SRTE_POLICY_IPV6 =16;
             VPNV4_FLOWSPEC =17;
-            
+
         }
         message Neighbor {
             string address =1;
@@ -157,6 +157,9 @@ message Input {
         message GracefullRestart{
             bool enabled = 1;
         }
+        message Network {
+            string prefix = 1;  // CIDR format (e.g., "100.120.1.0/24")
+        }
         int32 as =1;
         GracefullRestart gracefull_restart =2;
         repeated AfiSafi afisafi=4;
@@ -164,7 +167,8 @@ message Input {
         string vrf = 7;
         string router_id = 8;
         string description = 9;
-        
+        repeated Network networks = 13;  // BGP network statements for route advertisement
+
         string networkname =11;
         bool useloopback =12;
         int32 scale =10;
@@ -184,7 +188,7 @@ message Input {
         int32 scale = 12;
         string group = 13;
 
-        
+
     }
 
     message Interface {
@@ -228,7 +232,7 @@ message Input {
         int32 scale =4;
     }
     message Feature {
-       
+
         repeated Interface interface = 2;
         repeated vrf vrf = 3;
         repeated V4Network  ipv4network = 11;

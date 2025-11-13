@@ -19,6 +19,7 @@ type TestInput interface {
 	ReplaceRPL(dev *ondatra.DUTDevice)
 	UnConfigRPL(dev *ondatra.DUTDevice)
 	ConfigBGP(dev *ondatra.DUTDevice)
+	ConfigBGPNetworks(dev *ondatra.DUTDevice)
 	ConfigISIS(dev *ondatra.DUTDevice)
 	ConfigJSON(dev *ondatra.DUTDevice)
 	UnConfig(dev *ondatra.DUTDevice)

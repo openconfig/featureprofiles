@@ -107,6 +107,7 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 		return nil, err
 	}
 	// following https://github.com/spiffe/spiffe/blob/main/standards/X509-SVID.md#appendix-a-x509-field-reference
+	// Set NotBefore to 5 minutes in the past to handle clock skew between systems
 	certSpec := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
@@ -117,7 +118,7 @@ func PopulateCertTemplate(cname string, domainNames []string, ips []net.IP, spif
 		IPAddresses: ips,
 		URIs:        []*url.URL{uri},
 		DNSNames:    domainNames,
-		NotBefore:   time.Now(),
+		NotBefore:   time.Now().Add(-5 * time.Minute),
 		NotAfter:    time.Now().AddDate(0, 0, expireInDays),
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:    x509.KeyUsageDigitalSignature,
@@ -172,6 +173,7 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 	if err != nil {
 		return nil, nil, err
 	}
+	// Set NotBefore to 5 minutes in the past to handle clock skew between systems
 	ca := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
@@ -179,7 +181,7 @@ func GenRootCA(cn string, keyAlgo x509.PublicKeyAlgorithm, expireInDays int, dir
 			Organization: []string{"OpenConfig"},
 			Country:      []string{"US"},
 		},
-		NotBefore:             time.Now(),
+		NotBefore:             time.Now().Add(-5 * time.Minute),
 		NotAfter:              time.Now().AddDate(expireInDays, 0, 0),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},

@@ -1,0 +1,12 @@
+name: gnoi_containerz
+owners: 
+  - arvbaska
+testbeds:
+  - 8202-FLM275101MJ
+tests:
+- name: containerz
+  path: feature/cisco/gnoi/containerz
+  timeout: 36000
+  mustpass: true
+  internal: true
+  branch: master

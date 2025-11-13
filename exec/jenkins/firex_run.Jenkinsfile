@@ -381,9 +381,8 @@ pipeline {
                     steps {
                         script {
                             def firex_chain = params['FireX Chain']
-                            def firex_plugins = [
-                                "${env.WORKSPACE}/exec/firex/v2/runner.py"
-                            ]
+                            def firex_plugins = ["b4_runner.py"]
+
                             if(firex_chain == 'B4FeatureCoverageRunTests') {
                                 firex_plugins.add("${env.WORKSPACE}/exec/firex/v2/feature_coverage.py")
                             } else if(firex_chain != 'CulpritFinder') {

@@ -19,11 +19,13 @@ import (
 	"context"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
@@ -31,18 +33,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	oc "github.com/openconfig/ondatra/gnmi/oc"
-)
-
-var (
-	fixedComponents = []string{
-		"0/RP0/CPU0-NPU0",
-	}
-
-	distributedComponents = []string{
-		"0/0/CPU0-NPU0",
-		"0/0/CPU0-NPU1",
-		"0/0/CPU0-NPU2",
-	}
 )
 
 func TestMain(m *testing.M) {
@@ -65,11 +55,34 @@ func isDistributed(t *testing.T, dut *ondatra.DUTDevice) bool {
 
 func getTestComponentNames(t *testing.T, dut *ondatra.DUTDevice) []string {
 	t.Helper()
-	if isDistributed(t, dut) {
-		return distributedComponents
-	} else {
-		return fixedComponents
+	// Always look for INTEGRATED_CIRCUIT components first
+	npus := []string{}
+	components := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
+
+	for _, component := range components {
+		// Match patterns for both distributed (0/0/CPU0-NPU0) and fixed (0/RP0/CPU0-NPU0) form factors
+		patterns := []string{
+			"\\d\\/\\d\\/CPU0-NPU\\d+",   // Distributed: 0/0/CPU0-NPU0, 0/1/CPU0-NPU0, etc.
+			"\\d\\/RP\\d\\/CPU0-NPU\\d+", // Fixed: 0/RP0/CPU0-NPU0
+		}
+
+		for _, pattern := range patterns {
+			match, err := regexp.MatchString(pattern, component)
+			if err != nil {
+				t.Fatalf("error in regex match: %v", err)
+			}
+			if match {
+				npus = append(npus, component)
+				break // Found match, move to next component
+			}
+		}
 	}
+
+	if len(npus) == 0 {
+		t.Skip("No INTEGRATED_CIRCUIT NPU components found - test not applicable to this device")
+	}
+
+	return npus
 }
 
 func getSubscriptionSlice(t *testing.T, componentName string) []*gnmipb.Subscription {
@@ -154,29 +167,37 @@ func TestCoppCounterPaths(t *testing.T) {
 					} else if err != nil {
 						t.Fatalf("error while reading response: %v", err)
 					} else {
+						// Build the complete path string before logging
 						origin := resp.GetUpdate().GetPrefix().GetOrigin()
 						prefixElems := resp.GetUpdate().GetPrefix().GetElem()
-						t.Logf("%s:", origin)
-						for i, elem := range prefixElems {
-							if i > 0 {
-								t.Log("/")
-							}
-							t.Logf("%s", elem.GetName())
+
+						// Build prefix path
+						prefixPath := origin + ":"
+						for _, elem := range prefixElems {
+							prefixPath += "/" + elem.GetName()
 						}
+
+						// Process each counter update
 						for i, upd := range resp.GetUpdate().GetUpdate() {
-							if i == 0 {
-								pathElems := upd.GetPath().GetElem()
-								for i, elem := range pathElems {
-									if i == len(pathElems)-1 {
-										break
-									}
-									if i > 0 {
-										t.Log("/")
-									}
-									t.Logf("%s", elem.GetName())
-								}
+							pathElems := upd.GetPath().GetElem()
+
+							// Build remaining path (without last element which is the leaf name)
+							remainingPath := ""
+							for j := 0; j < len(pathElems)-1; j++ {
+								remainingPath += "/" + pathElems[j].GetName()
 							}
-							t.Logf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
+
+							// Get leaf name and value
+							leafName := pathElems[len(pathElems)-1].GetName()
+							value := upd.GetVal().GetUintVal()
+
+							// Log complete path with value on one line
+							if i == 0 {
+								t.Logf("%s%s/%s: %d", prefixPath, remainingPath, leafName, value)
+							} else {
+								// For subsequent values, just log the leaf and value (path is same)
+								t.Logf("  %s: %d", leafName, value)
+							}
 						}
 					}
 
@@ -303,29 +324,37 @@ func TestCoppCounterPathsOTG(t *testing.T) {
 			} else if err != nil {
 				t.Fatalf("error while reading response: %v", err)
 			} else {
+				// Build the complete path string before logging
 				origin := resp.GetUpdate().GetPrefix().GetOrigin()
 				prefixElems := resp.GetUpdate().GetPrefix().GetElem()
-				t.Logf("%s:", origin)
-				for i, elem := range prefixElems {
-					if i > 0 {
-						t.Log("/")
-					}
-					t.Logf("%s", elem.GetName())
+
+				// Build prefix path
+				prefixPath := origin + ":"
+				for _, elem := range prefixElems {
+					prefixPath += "/" + elem.GetName()
 				}
+
+				// Process each counter update
 				for i, upd := range resp.GetUpdate().GetUpdate() {
-					if i == 0 {
-						pathElems := upd.GetPath().GetElem()
-						for i, elem := range pathElems {
-							if i == len(pathElems)-1 {
-								break
-							}
-							if i > 0 {
-								t.Log("/")
-							}
-							t.Logf("%s", elem.GetName())
-						}
+					pathElems := upd.GetPath().GetElem()
+
+					// Build remaining path (without last element which is the leaf name)
+					remainingPath := ""
+					for j := 0; j < len(pathElems)-1; j++ {
+						remainingPath += "/" + pathElems[j].GetName()
 					}
-					t.Logf("/%s: %d\n", upd.GetPath().GetElem()[len(upd.GetPath().GetElem())-1].GetName(), upd.GetVal().GetUintVal())
+
+					// Get leaf name and value
+					leafName := pathElems[len(pathElems)-1].GetName()
+					value := upd.GetVal().GetUintVal()
+
+					// Log complete path with value on one line
+					if i == 0 {
+						t.Logf("%s%s/%s: %d", prefixPath, remainingPath, leafName, value)
+					} else {
+						// For subsequent values, just log the leaf and value (path is same)
+						t.Logf("  %s: %d", leafName, value)
+					}
 				}
 			}
 
@@ -367,13 +396,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				"dropped-bytes": 0,
 			}
 
-			t.Logf("%s\n%s\t\t%s\t\t%s\t%s\t\t\t\n",
-				"leaf-name",
-				"queued",
-				"queued-bytes",
-				"dropped",
-				"dropped-bytes",
-			)
+			t.Logf("%-30s %15s %15s %15s %15s", "leaf-name", "queued", "queued-bytes", "dropped", "dropped-bytes")
 
 			for _, subEntry := range subList {
 				subClient, err := gnmiClient.Subscribe(context.Background())
@@ -414,7 +437,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 						}
 					}
 				}
-				t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+				t.Logf("%-30s %15d %15d %15d %15d",
 					pathname,
 					tempmap["queued"],
 					tempmap["queued-bytes"],
@@ -429,7 +452,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 
 			realLeafAfter := gnmi.Get(t, dut, gnmi.OC().Component(component).IntegratedCircuit().PipelineCounters().ControlPlaneTraffic().State())
 
-			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%-30s %15d %15d %15d %15d",
 				"TOTAL",
 				manualAggregation["queued"],
 				manualAggregation["queued-bytes"],
@@ -437,7 +460,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				manualAggregation["dropped-bytes"],
 			)
 
-			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%-30s %15d %15d %15d %15d",
 				"LOWER BOUND",
 				realLeafBeforeMap["queued"],
 				realLeafBeforeMap["queued-bytes"],
@@ -452,7 +475,7 @@ func TestAggregateCounterPaths(t *testing.T) {
 				"dropped-bytes": realLeafAfter.GetDroppedBytesAggregate(),
 			}
 
-			t.Logf("%s\n%d\t\t%dB\t\t%d\t\t%dB\t\t\n",
+			t.Logf("%-30s %15d %15d %15d %15d",
 				"UPPER BOUND",
 				realLeafAfterMap["queued"],
 				realLeafAfterMap["queued-bytes"],
