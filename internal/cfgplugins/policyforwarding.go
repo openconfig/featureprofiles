@@ -20,6 +20,10 @@ import (
 const (
 	ethernetCsmacd = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 	ieee8023adLag  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	ethertypeIPv4 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4
+	ethertypeIPv6 = oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6
+	seqIDBase     = uint32(10)
 )
 
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
@@ -47,15 +51,18 @@ type OcPolicyForwardingParams struct {
 	AppliedPolicyName   string
 
 	// Policy Rule specific params
-	InnerDstIPv6 string
-	InnerDstIPv4 string
-	CloudV4NHG   string
-	CloudV6NHG   string
-	DecapPolicy  DecapPolicyParams
-	GUEPort      uint32
-	IPType       string
-	Dynamic      bool
-	TunnelIP     string
+	InnerDstIPv6       string
+	InnerDstIPv4       string
+	CloudV4NHG         string
+	CloudV6NHG         string
+	DecapPolicy        DecapPolicyParams
+	GUEPort            uint32
+	IPType             string
+	Dynamic            bool
+	TunnelIP           string
+	InterfaceName      string              // InterfaceName specifies the DUT interface where the policy will be applied.
+	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
+	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
 }
 
 type PolicyForwardingRule struct {
@@ -67,6 +74,18 @@ type PolicyForwardingRule struct {
 	TTL                []uint8
 	Dscp               uint8
 	Action             *oc.NetworkInstance_PolicyForwarding_Policy_Rule_Action
+}
+
+// GueEncapPolicyParams defines parameters required to configure a GUE (Generic UDP Encapsulation) policy-based forwarding rule on the DUT.
+type GueEncapPolicyParams struct {
+	IPFamily         string // IPFamily specifies the IP address family for encapsulation. For example, "V4Udp" for IPv4-over-UDP or "V6Udp" for IPv6-over-UDP.
+	PolicyName       string
+	NexthopGroupName string
+	SrcIntfName      string
+	DstAddr          []string
+	SrcAddr          []string
+	Ttl              uint8
+	Rule             uint8
 }
 
 var (
@@ -887,5 +906,178 @@ func ConfigureDutWithGueDecap(t *testing.T, dut *ondatra.DUTDevice, guePort int,
 		ip.Protocol = oc.PacketMatchTypes_IP_PROTOCOL_IP_UDP
 		// transport := npRule.GetOrCreateTransport()
 		// transport.SetDestinationPort()
+	}
+}
+
+// PbrRule defines a policy-based routing rule configuration
+type PbrRule struct {
+	Sequence  uint32
+	EtherType oc.NetworkInstance_PolicyForwarding_Policy_Rule_L2_Ethertype_Union
+	EncapVrf  string
+}
+
+// PolicyForwardingConfigName defines the configuration parameters for PBR VRF selection.
+type PolicyForwardingConfigName struct {
+	Name string // Policy name (e.g., "VRF-SELECT-POLICY")
+}
+
+// NewPolicyForwardingVRFSelection configures Policy-Based Routing for VRF selection.
+func NewPolicyForwardingVRFSelection(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg PolicyForwardingConfigName) *gnmi.SetBatch {
+	t.Helper()
+
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	pf := ni.GetOrCreatePolicyForwarding()
+	p := pf.GetOrCreatePolicy(cfg.Name)
+	p.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+
+	for _, pRule := range getPbrRules(dut) {
+		r := p.GetOrCreateRule(seqIDOffset(dut, pRule.Sequence))
+
+		// Optional default rule match requirement.
+		if deviations.PfRequireMatchDefaultRule(dut) && pRule.EtherType != nil {
+			r.GetOrCreateL2().Ethertype = pRule.EtherType
+		}
+
+		// Set forwarding action (encap VRF)
+		if pRule.EncapVrf != "" {
+			r.GetOrCreateAction().SetNetworkInstance(pRule.EncapVrf)
+		}
+	}
+
+	// Push policy forwarding configuration via GNMI batch.
+	gnmi.BatchUpdate(sb,
+		gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(),
+		pf,
+	)
+
+	t.Logf("Configured policy forwarding VRF selection: policy=%s", cfg.Name)
+
+	return sb
+}
+
+// getPbrRules returns policy-based routing rules for VRF selection
+func getPbrRules(dut *ondatra.DUTDevice) []PbrRule {
+	vrfDefault := deviations.DefaultNetworkInstance(dut)
+
+	if deviations.PfRequireMatchDefaultRule(dut) {
+		return []PbrRule{
+			{
+				Sequence:  17,
+				EtherType: ethertypeIPv4,
+				EncapVrf:  vrfDefault,
+			},
+			{
+				Sequence:  18,
+				EtherType: ethertypeIPv6,
+				EncapVrf:  vrfDefault,
+			},
+		}
+	}
+	return []PbrRule{
+		{
+			Sequence: 17,
+			EncapVrf: vrfDefault,
+		},
+	}
+}
+
+// seqIDOffset returns sequence ID with base offset to ensure proper ordering
+func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
+	if deviations.PfRequireSequentialOrderPbrRules(dut) {
+		return i + seqIDBase
+	}
+	return i
+}
+
+// NewPolicyForwardingGueEncap configure policy forwarding for GUE encapsulation.
+func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
+	t.Helper()
+	_, _, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
+
+	// Configure traffic policy
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			switch params.IPFamily {
+			case "V4Udp":
+				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
+			case "V6Udp":
+				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
+			default:
+				t.Logf("Unsupported address family type %s", params.IPFamily)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		policy := pf.GetOrCreatePolicy(params.PolicyName)
+		policy.Type = oc.Policy_Type_PBR_POLICY
+
+		rule1 := policy.GetOrCreateRule(1)
+		rule1.GetOrCreateTransport()
+		if len(params.DstAddr) != 0 {
+			for _, addr := range params.DstAddr {
+				rule1.GetOrCreateIpv4().DestinationAddress = ygot.String(addr)
+			}
+		}
+		if len(params.SrcAddr) != 0 {
+			for _, addr := range params.SrcAddr {
+				rule1.GetOrCreateIpv4().SourceAddress = ygot.String(addr)
+			}
+		}
+		// Validate NexthopGroupName before applying it to the rule.
+		if params.NexthopGroupName != "" {
+			rule1.GetOrCreateAction().SetNextHop(params.NexthopGroupName)
+		} else {
+			t.Errorf("NexthopGroupName is required for OpenConfig policy-forwarding GUE encapsulation rules")
+		}
+	}
+}
+
+// createPolicyForwardingNexthopCLIConfig configure nexthop policy forwarding through CLI.
+func createPolicyForwardingNexthopCLIConfig(t *testing.T, dut *ondatra.DUTDevice, policyName string, ruleName string, traffictype string, nhGrpName string) {
+	t.Helper()
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			// Select and apply the appropriate CLI snippet based on 'traffictype'.
+			cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, policyName, ruleName, traffictype, nhGrpName)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	}
+}
+
+// InterfacePolicyForwardingApply configure to apply policy forwarding.
+func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+	t.Helper()
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			pfa := fmt.Sprintf(`interface %s
+				traffic-policy input %s`, params.InterfaceName, params.PolicyName)
+			helpers.GnmiCLIConfig(t, dut, pfa)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+	} else {
+		// params.NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF) where the policy-forwarding configuration will be applied.
+		// It provides access to the PolicyForwarding container for interface-level policy bindings.
+		policyForward := params.NetworkInstanceObj.GetOrCreatePolicyForwarding()
+		iface := policyForward.GetOrCreateInterface(params.InterfaceID)
+		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
 	}
 }
