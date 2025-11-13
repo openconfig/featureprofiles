@@ -1,0 +1,13 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+}
