@@ -38,6 +38,24 @@ ATE port-1 <------> port-1 DUT
         `/interfaces/interface/state/counters/carrier-transitions`.
     *   Verify that the new value is greater than the initial value.
 
+#### Canonical OC
+
+```json
+{
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "config": {
+          "enabled": true,
+          "name": "Ethernet1"
+        },
+        "name": "Ethernet1"
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
