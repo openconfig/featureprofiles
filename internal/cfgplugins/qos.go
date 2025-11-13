@@ -152,6 +152,8 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 				condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
 			case oc.Qos_Classifier_Type_IPV6:
 				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
+			default:
+				t.Fatal("DSCP classification is supported only for IPv4/IPv6 classifier types")
 			}
 		}
 
