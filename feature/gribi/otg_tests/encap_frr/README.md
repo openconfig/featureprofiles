@@ -483,6 +483,10 @@ be routed to the DEFAULT VRF for further lookup.
 2.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-8.
 
+#### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
