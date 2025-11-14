@@ -77,7 +77,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 
 	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
-	}, grpc.MaxCallRecvMsgSize(11000000))
+	}, grpc.MaxCallRecvMsgSize(30000000))
 	if err != nil {
 		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
