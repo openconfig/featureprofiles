@@ -36,12 +36,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/testing/protocmp"
-
-	"github.com/openconfig/featureprofiles/internal/components"
-
-	spb "github.com/openconfig/gnoi/system"
-	tpb "github.com/openconfig/gnoi/types"
 )
 
 type testArgs struct {
