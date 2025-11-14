@@ -65,7 +65,7 @@ type C struct {
 
 // Ping implements the Ping RPC. It responds with a PingResponse corresponding to the timeFn timestamp.
 func (c *C) Ping(_ context.Context, _ *cpb.PingRequest) (*cpb.PingResponse, error) {
-	klog.Infof("Ping request recieved!")
+	klog.Infof("Ping request received!")
 	return &cpb.PingResponse{
 		Timestamp: timeFn(),
 	}, nil
@@ -90,7 +90,7 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 
 // Dial connects to the remote gRPC CNTR server hosted at the address in the request proto.
 func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, error) {
-	klog.Infof("Dial request recieved!")
+	klog.Infof("Dial request received!")
 	conn, err := grpc.NewClient(req.GetAddr(),
 		grpc.WithPerRPCCredentials(&rpcCredentials{Username: req.GetUsername(), Password: req.GetPassword()}),
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{

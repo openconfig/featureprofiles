@@ -100,7 +100,7 @@ func TestDial(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	lctx := metadata.AppendToOutgoingContext(context.Background(), "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
+	lctx := metadata.AppendToOutgoingContext(ctx, "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
 	conn := dialContainer(t, lctx, dut, cntrPort)
 	defer conn.Close()
 
@@ -145,7 +145,7 @@ func TestDialLocal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	lctx := metadata.AppendToOutgoingContext(context.Background(), "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
+	lctx := metadata.AppendToOutgoingContext(ctx, "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
 	conn := dialContainer(t, lctx, dut, cntrPort)
 	defer conn.Close()
 	client := cpb.NewCntrClient(conn)
