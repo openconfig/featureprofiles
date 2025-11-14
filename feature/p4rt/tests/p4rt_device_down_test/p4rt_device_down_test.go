@@ -217,42 +217,36 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, port1Name, port2Name str
 // toggleLinecardPower enables and disables the linecard when set to true and false respectively
 func toggleLinecardPower(t *testing.T, dut *ondatra.DUTDevice, lineCardName string, powerUp bool) {
 	t.Helper()
-
-	var powerMethod spb.RebootMethod
+	var config ygnmi.ConfigQuery[oc.E_Platform_ComponentPowerType]
 	var expectedStatus oc.E_PlatformTypes_COMPONENT_OPER_STATUS
 	var logAction string
-
+	c := gnmi.OC().Component(lineCardName)
+	config = c.Linecard().PowerAdminState().Config()
+	if deviations.PowerDisableEnableLeafRefValidation(dut) {
+		gnmi.Update(t, dut, c.Config(), &oc.Component{
+			Name: ygot.String(lineCardName),
+		})
+	}
 	if powerUp {
-		powerMethod = spb.RebootMethod_POWERUP
 		expectedStatus = oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE
 		logAction = "enable"
 	} else {
-		powerMethod = spb.RebootMethod_POWERDOWN
 		expectedStatus = oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
 		logAction = "disable"
 	}
-
-	t.Logf("Attempting to %s Linecard component %s (presumed device_id %d)", logAction, lineCardName, deviceID2)
-
-	gnoiClient := dut.RawAPIs().GNOI(t)
-	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	subCompPath := components.GetSubcomponentPath(lineCardName, useNameOnly)
-	subCompPath.Origin = ""
-
-	powerRequest := &spb.RebootRequest{
-		Method: powerMethod,
-		Subcomponents: []*tpb.Path{
-			subCompPath,
-		},
+	start := time.Now()
+	t.Logf("Starting %s %s", lineCardName, logAction)
+	if logAction == "disable" {
+		gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	} else {
+		gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_ENABLED)
 	}
-	response, err := gnoiClient.System().Reboot(context.Background(), powerRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform line card power %s with unexpected err: %v", logAction, err)
+
+	oper, ok := gnmi.Await(t, dut, c.OperStatus().State(), 10*time.Minute, expectedStatus).Val()
+	if !ok {
+		t.Errorf("Component %s oper-status, got: %v, want: %v", lineCardName, oper, expectedStatus)
 	}
-	t.Logf("gnoiClient power %s response: %v, err: %v", logAction, response, err)
-	gnmi.Await(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State(), 10*time.Minute, expectedStatus)
-	finalState := gnmi.Get(t, dut, gnmi.OC().Component(lineCardName).OperStatus().State())
-	t.Logf("Component '%s' state AFTER power %s command: %v", lineCardName, logAction, finalState)
+	t.Logf("Component %s, oper-status after %f minutes: %v", lineCardName, time.Since(start).Minutes(), oper)
 }
 
 // setupP4RTClient sends client arbitration message for both clients.
