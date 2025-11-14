@@ -370,22 +370,22 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
                           match ipv4-all-default ipv4  
                               actions  
                                   count  
-                                  redirect next-hop group %s  
+                                  redirect next-hop group %[1]s  
                                   set traffic class 3  
                           !  
                           match ipv6-all-default ipv6  
                               actions  
                                   count  
-                                  redirect next-hop group %s  
+                                  redirect next-hop group %[1]s  
                                   set traffic class 3  
                           !  
                       !  
                     !  
-                    interface %s  
+                    interface %[2]s  
                       traffic-policy input tp_gre_encap  
                     !  
 `
-					policyForwardingGREConfig := fmt.Sprintf(policyForwardingGREConfigTemplate, params.AppliedPolicyName, params.AppliedPolicyName, params.InterfaceID)
+					policyForwardingGREConfig := fmt.Sprintf(policyForwardingGREConfigTemplate, params.AppliedPolicyName, params.InterfaceID)
 					helpers.GnmiCLIConfig(t, dut, policyForwardingGREConfig)
 				}
 			} else {

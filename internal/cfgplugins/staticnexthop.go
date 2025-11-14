@@ -145,7 +145,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 					fmt.Fprint(nextHopGreConfig, "   fec hierarchical\n")
 
 					for i, nexthop := range params.NHIPAddrs {
-						fmt.Fprintf(nextHopGreConfig, "   entry  %d tunnel-destination %s tunnel-source 10.235.143.%d\n", i, nexthop, i)
+						fmt.Fprintf(nextHopGreConfig, "   entry  %[1]d tunnel-destination %[2]s tunnel-source 10.235.143.%[1]d\n", i, nexthop)
 					}
 					fmt.Fprint(nextHopGreConfig, "!\n")
 					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig.String())

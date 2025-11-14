@@ -212,7 +212,8 @@ func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) 
 
 		if float64(actualPkts) < lowerBound || float64(actualPkts) > upperBound {
 			validationErrors = append(validationErrors,
-				fmt.Errorf("port %s: actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, lowerBound, upperBound))
+				fmt.Errorf("port %s: actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, lowerBound, upperBound),
+			)
 		}
 	}
 
