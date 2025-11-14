@@ -143,9 +143,9 @@ func (ar *ATEAdvertiseRoutes) missingRoutesDefault() {
 }
 
 // ConfigureATEWithISISAndBGPRoutes builds an OTG config with Ethernet, IPv4/IPv6,
-// ISIS, and advertised BGP routes for the provided ports and pushes/starts it.
+// ISIS, and advertised BGP routes for the provided ports and returns it.
 // - ISIS routes are advertised only from the first port in ports slice to produce a single next-hop.
-func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoutes) {
+func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoutes) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 
@@ -214,7 +214,5 @@ func ConfigureATEWithISISAndBGPRoutes(t *testing.T, ateRoutes *ATEAdvertiseRoute
 		AdvertiseBGPRoutes(dev, ipv4, ipv6, ateRoutes.BGPV4Routes, ateRoutes.BGPV6Routes)
 	}
 
-	otg := ate.OTG()
-	otg.PushConfig(t, config)
-	otg.StartProtocols(t)
+	return config
 }
