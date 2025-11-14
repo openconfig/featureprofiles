@@ -209,15 +209,14 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, config gosnappi.Config, tc te
 
 func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, tc testCase, flowConfig flowConfig) error {
 	otg := ate.OTG()
-	var captureState gosnappi.ControlState
 	flowName := fmt.Sprintf("flow-%s-%s-%s", flowConfig.outerIPType, tc.encapType, flowConfig.innerIPType)
-	configureFlow(t, &config, tc, flowConfig, flowName)
+	configureFlow(t, config, tc, flowConfig, flowName)
 	enableCapture(t, ate, config, []string{capturePort})
 	defer clearCapture(t, ate, config)
 
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
-	captureState = startCapture(t, ate)
+	captureState := startCapture(t, ate)
 	otg.StartTraffic(t)
 	err := waitForTraffic(t, otg, flowName, trafficTimeout)
 	stopCapture(t, ate, captureState)
@@ -238,7 +237,7 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 		return fmt.Errorf("unexpected number of packets received: got %d, want %d", *flowMetrics.Counters.InPkts, noOfPackets)
 	}
 
-	processCapture(t, ate, capturePort, flowName)
+	mustProcessCapture(t, ate, capturePort, flowName)
 	if err := verifyReceivedInnerPacket(t, captureFilePath, tc, flowConfig); err != nil {
 		return fmt.Errorf("packet validation failed: %w", err)
 	}
@@ -268,7 +267,7 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
 	return cs
 }
 
-func processCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, flowName string) {
+func mustProcessCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, flowName string) {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
 	if len(bytes) == 0 {
@@ -403,9 +402,9 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 	}
 }
 
-func configureFlow(t *testing.T, config *gosnappi.Config, tc testCase, fc flowConfig, flowName string) {
-	(*config).Flows().Clear()
-	flow := (*config).Flows().Add().SetName(flowName)
+func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowConfig, flowName string) {
+	config.Flows().Clear()
+	flow := config.Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.%s", otgPort1.Name, fc.outerIPType)}).SetRxNames([]string{fmt.Sprintf("%s.%s", otgPort2.Name, fc.outerIPType)})
 	flow.Size().SetFixed(trafficFrameSize)
@@ -481,7 +480,7 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 	srcIPAddr := net.ParseIP(fc.innerIPSrc)
 	destIPAddr := net.ParseIP(fc.innerIPDest)
 
-	packetCount := 0
+	var packetCount int
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	var validationErrs []error
