@@ -63,6 +63,7 @@ type OcPolicyForwardingParams struct {
 	InterfaceName      string              // InterfaceName specifies the DUT interface where the policy will be applied.
 	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
 	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
+	HasMPLS            bool
 }
 
 type PolicyForwardingRule struct {
@@ -258,6 +259,23 @@ mpls static top-label 99992 2600:2d00:0:1:8000:10:0:ca32 pop payload-type ipv6 a
 mpls static top-label 99993 169.254.0.26 pop payload-type ipv4 access-list bypass
 mpls static top-label 99994 2600:2d00:0:1:7000:10:0:ca32 pop payload-type ipv6 access-list bypass
 `
+
+	decapGroupGreAristaMplsTemplate = `
+ip decap-group %s
+  tunnel type gre
+  tunnel decap-ip %s
+  tunnel decap-interface %s
+  tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+!`
+
+	decapGroupGueAristaMplsTemplate = `
+ip decap-group type udp destination port %v payload ip
+ip decap-group %s
+tunnel type udp
+tunnel decap-ip %s
+tunnel decap-interface %s
+tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+!`
 )
 
 // InterfacelocalProxyConfig configures the interface local-proxy-arp.
@@ -297,7 +315,13 @@ func InterfacePolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, a *at
 		switch dut.Vendor() {
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Format and apply the CLI command for traffic policy input.
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s.%d \n traffic-policy input tp_cloud_id_3_%d \n", aggID, a.Subinterface, a.Subinterface))
+			cliConfig := ""
+			if params.Dynamic && a == nil && aggID == "" && params.AppliedPolicyName != "" && params.InterfaceID != "" {
+				cliConfig = fmt.Sprintf("interface %s \n traffic-policy input %s \n", params.InterfaceID, params.AppliedPolicyName)
+			} else {
+				cliConfig = fmt.Sprintf("interface %s.%d \n traffic-policy input tp_cloud_id_3_%d \n", aggID, a.Subinterface, a.Subinterface)
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
@@ -560,8 +584,11 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
-	cliConfig := fmt.Sprintf(`
+	var cliConfig string
+	if params.HasMPLS {
+		cliConfig = fmt.Sprintf(decapGroupGueAristaMplsTemplate, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	} else {
+		cliConfig = fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
 							tunnel type %s-over-udp udp destination port %v
 							ip decap-group %s
@@ -569,18 +596,22 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel decap-ip %s
 							tunnel decap-interface %s
 							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
-
 }
 
 // aristaGreDecapCLIConfig configures GREDEcapConfig for Arista
 func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-
-	cliConfig := fmt.Sprintf(`
+	var cliConfig string
+	if params.HasMPLS {
+		cliConfig = fmt.Sprintf(decapGroupGreAristaMplsTemplate, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	} else {
+		cliConfig = fmt.Sprintf(`
 			ip decap-group %s
 			 tunnel type gre
 			 tunnel decap-ip %s
 			`, params.AppliedPolicyName, params.TunnelIP)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 }
