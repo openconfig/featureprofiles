@@ -50,6 +50,8 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		time.Sleep(time.Minute)
 	case ondatra.NOKIA, ondatra.CISCO:
 		break
+	case ondatra.JUNIPER:
+		break
 	default:
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
 	}
