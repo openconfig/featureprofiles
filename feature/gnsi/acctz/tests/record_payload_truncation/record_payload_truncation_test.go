@@ -50,7 +50,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// giant set of network instances + static routes which should hopefully work for everyone.
 	ocRoot := &oc.Root{}
 
-	for i := 0; i < 50; i++ {
+	for i := 0; i < 100; i++ {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
@@ -69,12 +69,10 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	startTime := time.Now()
 	t.Logf("Vendor: %s", dut.Vendor())
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
-		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	for i := 0; i < 4; i++ {
+		sendOversizedPayload(t, dut)
+		t.Logf("Sent oversized payload to DUT iteration# %d", i)
 	}
-	sendOversizedPayload(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 
 	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
