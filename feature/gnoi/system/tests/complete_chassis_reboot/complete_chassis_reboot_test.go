@@ -189,7 +189,7 @@ func TestChassisReboot(t *testing.T) {
 						var currentTime string
 						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-						});
+						})
 						if errMsg != nil {
 							if !deviceWentDown {
 								t.Logf("Device is now unreachable. Waiting for it to come back up.")
