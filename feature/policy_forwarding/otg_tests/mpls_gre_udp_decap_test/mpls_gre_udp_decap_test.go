@@ -36,20 +36,20 @@ const (
 	port2             = "port2"
 	mplsLabel         = 100
 	trafficFrameSize  = 256
-	trafficRatePps    = 500
-	noOfPackets       = 1000
+	trafficRatePPS    = 500
+	packetCount       = 1000
 	captureFilePath   = "/tmp/capture.pcap"
 	capturePort       = port2
 	trafficPolicyName = "decap-policy"
 
-	innerIpv6DstA   = "2001:aa:bb::1"
-	innerIpv6DstB   = "2001:aa:bb::2"
-	ipv4InnerDstA   = "10.5.1.1"
-	ipv4InnerDstB   = "10.5.1.2"
-	outerIpv4Src    = "20.4.1.1"
-	outerIpv6Src    = "2001:f:a:1::0"
-	outerIpv4DstA   = "20.5.1.1"
-	outerIpv6DstB   = "2001:f:c:e::2"
+	innerIPv4DstA   = "10.5.1.1"
+	innerIPv4DstB   = "10.5.1.2"
+	innerIPv6DstA   = "2001:aa:bb::1"
+	innerIPv6DstB   = "2001:aa:bb::2"
+	outerIPv4Src    = "20.4.1.1"
+	outerIPv6Src    = "2001:f:a:1::0"
+	outerIPv4DstA   = "20.5.1.1"
+	outerIPv6DstB   = "2001:f:c:e::2"
 	outerDstUDPPort = 6635
 	outerDSCP       = 26
 	outerIPTTL      = 64
@@ -145,17 +145,17 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 					innerIPType: ipv4,
 					outerIPType: ipv4,
 					innerIPSrc:  otgPort1.IPv4,
-					innerIPDest: ipv4InnerDstA,
-					outerIPSrc:  outerIpv4Src,
-					outerIPDest: outerIpv4DstA,
+					innerIPDest: innerIPv4DstA,
+					outerIPSrc:  outerIPv4Src,
+					outerIPDest: outerIPv4DstA,
 				},
 				{
 					innerIPType: ipv6,
 					outerIPType: ipv4,
 					innerIPSrc:  otgPort1.IPv6,
-					innerIPDest: innerIpv6DstA,
-					outerIPSrc:  outerIpv4Src,
-					outerIPDest: outerIpv4DstA,
+					innerIPDest: innerIPv6DstA,
+					outerIPSrc:  outerIPv4Src,
+					outerIPDest: outerIPv4DstA,
 				},
 			},
 		},
@@ -167,17 +167,17 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 					innerIPType: ipv4,
 					outerIPType: ipv6,
 					innerIPSrc:  otgPort1.IPv4,
-					innerIPDest: ipv4InnerDstB,
-					outerIPSrc:  outerIpv6Src,
-					outerIPDest: outerIpv6DstB,
+					innerIPDest: innerIPv4DstB,
+					outerIPSrc:  outerIPv6Src,
+					outerIPDest: outerIPv6DstB,
 				},
 				{
 					innerIPType: ipv6,
 					outerIPType: ipv6,
 					innerIPSrc:  otgPort1.IPv6,
-					innerIPDest: innerIpv6DstB,
-					outerIPSrc:  outerIpv6Src,
-					outerIPDest: outerIpv6DstB,
+					innerIPDest: innerIPv6DstB,
+					outerIPSrc:  outerIPv6Src,
+					outerIPDest: outerIPv6DstB,
 				},
 			},
 		},
@@ -186,7 +186,7 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if err := runTest(t, dut, top, tc, ate); err != nil {
-				t.Errorf("Test %s failed: %v", tc.name, err)
+				t.Errorf("test %s failed: %v", tc.name, err)
 			}
 		})
 	}
@@ -233,8 +233,8 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 
 	}
 
-	if *flowMetrics.Counters.InPkts != noOfPackets {
-		return fmt.Errorf("unexpected number of packets received: got %d, want %d", *flowMetrics.Counters.InPkts, noOfPackets)
+	if *flowMetrics.Counters.InPkts != packetCount {
+		return fmt.Errorf("unexpected number of packets received: got %d, want %d", *flowMetrics.Counters.InPkts, packetCount)
 	}
 
 	mustProcessCapture(t, ate, capturePort, flowName)
@@ -247,7 +247,7 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 func enableCapture(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Config, otgPortNames []string) {
 	t.Helper()
 	for _, port := range otgPortNames {
-		t.Log("Enabling capture on ", port)
+		t.Logf("Enabling capture on %s", port)
 		topo.Captures().Add().SetName(port).SetPortNames([]string{port}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	}
 	ate.OTG().PushConfig(t, topo)
@@ -323,7 +323,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	interfaceName := dut.Port(t, port1).Name()
-	policyName := ""
+	var policyName string
 	switch tc.encapType {
 	case gre:
 		policyName = grePolicyName
@@ -347,7 +347,7 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 		NetworkInstanceName: defaultNIName,
 		InterfaceID:         interfaceName,
 		AppliedPolicyName:   grePolicyName,
-		TunnelIP:            outerIpv4DstA,
+		TunnelIP:            outerIPv4DstA,
 		Dynamic:             true,
 		HasMPLS:             true,
 	}
@@ -359,7 +359,7 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 		AppliedPolicyName:   guePolicyName,
 		GUEPort:             outerDstUDPPort,
 		IPType:              ipv6,
-		TunnelIP:            outerIpv6DstB,
+		TunnelIP:            outerIPv6DstB,
 		Dynamic:             true,
 		HasMPLS:             true,
 	}
@@ -408,8 +408,8 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().SetTxNames([]string{fmt.Sprintf("%s.%s", otgPort1.Name, fc.outerIPType)}).SetRxNames([]string{fmt.Sprintf("%s.%s", otgPort2.Name, fc.outerIPType)})
 	flow.Size().SetFixed(trafficFrameSize)
-	flow.Rate().SetPps(trafficRatePps)
-	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(noOfPackets))
+	flow.Rate().SetPps(trafficRatePPS)
+	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(packetCount))
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(otgPort1.MAC)
@@ -435,7 +435,7 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 		udp := flow.Packet().Add().Udp()
 		udp.DstPort().SetValue(outerDstUDPPort)
 	default:
-		t.Errorf("Invalid encap type %s", tc.encapType)
+		t.Errorf("invalid encap type %s", tc.encapType)
 	}
 
 	switch fc.outerIPType {
@@ -480,13 +480,13 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 	srcIPAddr := net.ParseIP(fc.innerIPSrc)
 	destIPAddr := net.ParseIP(fc.innerIPDest)
 
-	var packetCount int
+	var capturePacketCount int
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	var validationErrs []error
 	for packet := range packetSource.Packets() {
 		if packet.Layer(icmpLayer) != nil {
-			t.Logf("Skipping ICMP packet")
+			t.Log("Skipping ICMP packet")
 			continue
 		}
 
@@ -495,69 +495,69 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 			continue
 		}
 
-		packetCount++
+		capturePacketCount++
 
 		mplsInnerLayer := packet.Layer(layers.LayerTypeMPLS)
 		mplsPacket, ok := mplsInnerLayer.(*layers.MPLS)
 		if !ok || mplsPacket == nil {
-			validationErrs = append(validationErrs, fmt.Errorf("MPLS layer not found for packet %d", packetCount))
+			validationErrs = append(validationErrs, fmt.Errorf("MPLS layer not found for packet %d", capturePacketCount))
 			continue
 		}
 		if mplsPacket.Label != mplsLabel {
-			validationErrs = append(validationErrs, fmt.Errorf("MPLS inner packet %d: got label %d, want %d", packetCount, mplsPacket.Label, mplsLabel))
+			validationErrs = append(validationErrs, fmt.Errorf("MPLS inner packet %d: got label %d, want %d", capturePacketCount, mplsPacket.Label, mplsLabel))
 		}
 
 		switch fc.innerIPType {
 		case ipv4:
 			ipInnerLayer := packet.Layer(layers.LayerTypeIPv4)
 			if ipInnerLayer == nil {
-				validationErrs = append(validationErrs, fmt.Errorf("inner IPv4 layer not found for packet %d", packetCount))
+				validationErrs = append(validationErrs, fmt.Errorf("inner IPv4 layer not found for packet %d", capturePacketCount))
 				continue
 			}
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv4)
 			if !ok || ipInnerPacket == nil {
-				validationErrs = append(validationErrs, fmt.Errorf("unable to extract inner IPv4 layer for packet %d", packetCount))
+				validationErrs = append(validationErrs, fmt.Errorf("unable to extract inner IPv4 layer for packet %d", capturePacketCount))
 				continue
 			}
 
 			if !ipInnerPacket.SrcIP.Equal(srcIPAddr) {
-				validationErrs = append(validationErrs, fmt.Errorf("IPv4 inner packet %d: got SrcIP %s, want %s", packetCount, ipInnerPacket.SrcIP.String(), srcIPAddr.String()))
+				validationErrs = append(validationErrs, fmt.Errorf("IPv4 inner packet %d: got SrcIP %s, want %s", capturePacketCount, ipInnerPacket.SrcIP.String(), srcIPAddr.String()))
 			}
 			if !ipInnerPacket.DstIP.Equal(destIPAddr) {
-				validationErrs = append(validationErrs, fmt.Errorf("IPv4 inner packet %d: got DstIP %s, want %s", packetCount, ipInnerPacket.DstIP.String(), destIPAddr.String()))
+				validationErrs = append(validationErrs, fmt.Errorf("IPv4 inner packet %d: got DstIP %s, want %s", capturePacketCount, ipInnerPacket.DstIP.String(), destIPAddr.String()))
 			}
 		case ipv6:
 			ipInnerLayer := packet.Layer(layers.LayerTypeIPv6)
 			if ipInnerLayer == nil {
-				validationErrs = append(validationErrs, fmt.Errorf("inner IPv6 layer not found for packet %d", packetCount))
+				validationErrs = append(validationErrs, fmt.Errorf("inner IPv6 layer not found for packet %d", capturePacketCount))
 				continue
 			}
 			ipInnerPacket, ok := ipInnerLayer.(*layers.IPv6)
 			if !ok || ipInnerPacket == nil {
-				validationErrs = append(validationErrs, fmt.Errorf("unable to extract inner IPv6 layer for packet %d", packetCount))
+				validationErrs = append(validationErrs, fmt.Errorf("unable to extract inner IPv6 layer for packet %d", capturePacketCount))
 				continue
 			}
 			if !ipInnerPacket.SrcIP.Equal(srcIPAddr) {
-				validationErrs = append(validationErrs, fmt.Errorf("IPv6 inner packet %d: got SrcIP %s, want %s", packetCount, ipInnerPacket.SrcIP.String(), srcIPAddr.String()))
+				validationErrs = append(validationErrs, fmt.Errorf("IPv6 inner packet %d: got SrcIP %s, want %s", capturePacketCount, ipInnerPacket.SrcIP.String(), srcIPAddr.String()))
 			}
 			if !ipInnerPacket.DstIP.Equal(destIPAddr) {
-				validationErrs = append(validationErrs, fmt.Errorf("IPv6 inner packet %d: got DstIP %s, want %s", packetCount, ipInnerPacket.DstIP.String(), destIPAddr.String()))
+				validationErrs = append(validationErrs, fmt.Errorf("IPv6 inner packet %d: got DstIP %s, want %s", capturePacketCount, ipInnerPacket.DstIP.String(), destIPAddr.String()))
 			}
 		}
 	}
-	if packetCount != noOfPackets {
-		validationErrs = append(validationErrs, fmt.Errorf("expected %d %s decapsulated packets with inner %s packet, got %d", noOfPackets, tc.encapType, fc.innerIPType, packetCount))
+	if capturePacketCount != packetCount {
+		validationErrs = append(validationErrs, fmt.Errorf("expected %d %s decapsulated packets with inner %s packet, got %d", packetCount, tc.encapType, fc.innerIPType, capturePacketCount))
 	} else {
-		t.Logf("Found %d %s decapsulated packets with inner %s packet", packetCount, tc.encapType, fc.innerIPType)
+		t.Logf("Found %d %s decapsulated packets with inner %s packet", capturePacketCount, tc.encapType, fc.innerIPType)
 	}
 	return errors.Join(validationErrs...)
 }
 
 func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
-	for index, destination := range []string{ipv4InnerDstA, ipv4InnerDstB} {
+	for index, destination := range []string{innerIPv4DstA, innerIPv4DstB} {
 		mustConfigStaticRoute(t, dut, destination+"/32", otgPort2.IPv4, strconv.Itoa(index))
 	}
-	for index, destination := range []string{innerIpv6DstA, innerIpv6DstB} {
+	for index, destination := range []string{innerIPv6DstA, innerIPv6DstB} {
 		mustConfigStaticRoute(t, dut, destination+"/128", otgPort2.IPv6, strconv.Itoa(index))
 	}
 }
