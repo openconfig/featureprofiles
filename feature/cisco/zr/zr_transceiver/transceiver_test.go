@@ -561,7 +561,7 @@ func TestZRProcessRestart(t *testing.T) {
 	//Initial snapshot of leaves
 	for _, transceiver := range transceivers {
 		transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-		if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
+		if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
 			component := gnmi.OC().Component(transceiver)
 			before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 			beforeStateMap[transceiver] = before_state
@@ -582,7 +582,7 @@ func TestZRProcessRestart(t *testing.T) {
 	//Final snapshot of leaves
 	for _, transceiver := range transceivers {
 		transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-		if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
+		if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
 			component := gnmi.OC().Component(transceiver)
 			after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 			afterStateMap[transceiver] = after_state
@@ -626,7 +626,7 @@ func TestZRLCReload(t *testing.T) {
 		//Initial snapshot of leaves
 		for _, transceiver := range transceivers {
 			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				beforeStateMap[transceiver] = before_state
@@ -676,7 +676,7 @@ func TestZRLCReload(t *testing.T) {
 		for _, transceiver := range transceivers {
 
 			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				afterStateMap[transceiver] = after_state
@@ -718,7 +718,7 @@ func TestZRShutPort(t *testing.T) {
 		//Initial snapshot of leaves
 		for _, transceiver := range transceivers {
 			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				beforeStateMap[transceiver] = before_state
@@ -745,7 +745,7 @@ func TestZRShutPort(t *testing.T) {
 		for _, transceiver := range transceivers {
 
 			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				afterStateMap[transceiver] = after_state
@@ -772,7 +772,7 @@ func TestZRShutPort(t *testing.T) {
 		for _, transceiver := range transceivers {
 
 			transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				afterStateMap[transceiver] = after_state
@@ -815,7 +815,7 @@ func TestGNOIreboot(t *testing.T) {
 		//Initial snapshot of leaves
 		for _, transceiver := range transceivers {
 			transceiverDesc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiverDesc, "ZR") && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiverDesc, "ZR") || strings.Contains(transceiverDesc, "ULH")) && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				beforeState := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				beforeStateMap[transceiver] = beforeState
@@ -880,7 +880,7 @@ func TestGNOIreboot(t *testing.T) {
 		for _, transceiver := range transceivers {
 
 			transceiverDesc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-			if strings.Contains(transceiverDesc, "ZR") && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
+			if (strings.Contains(transceiverDesc, "ZR") || strings.Contains(transceiverDesc, "ULH")) && !strings.Contains(transceiverDesc, "ZRP") && strings.HasSuffix(transceiver, extractedKey) {
 				component := gnmi.OC().Component(transceiver)
 				afterState := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 				afterStateMap[transceiver] = afterState
@@ -910,7 +910,7 @@ func TestZRRPFO(t *testing.T) {
 	//Initial snapshot of leaves
 	for _, transceiver := range transceivers {
 		transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-		if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
+		if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
 			// t.Logf("Transceiver %s has ZR optics", transceiver)
 			component := gnmi.OC().Component(transceiver)
 			before_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
@@ -930,7 +930,7 @@ func TestZRRPFO(t *testing.T) {
 	//Final snapshot of leaves
 	for _, transceiver := range transceivers {
 		transceiver_desc := gnmi.Lookup(t, dut, gnmi.OC().Component(transceiver).Description().State()).String()
-		if strings.Contains(transceiver_desc, "ZR") && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
+		if (strings.Contains(transceiver_desc, "ZR") || strings.Contains(transceiver_desc, "ULH")) && !strings.Contains(transceiver_desc, "ZRP") && (strings.Contains(transceiver, p1_name) || strings.Contains(transceiver, p2_name)) {
 			component := gnmi.OC().Component(transceiver)
 			after_state := gnmi.GetAll(t, dut, component.Transceiver().ChannelAny().State())
 			afterStateMap[transceiver] = after_state
