@@ -34,8 +34,8 @@ const (
 var (
 	top             = gosnappi.NewConfig()
 	aggID           string
-	egressLag1Ports = []string{"port2", "port3"}
-	egressLag2Ports = []string{"port4", "port5"}
+	egressLAG1Ports= []string{"port2", "port3"}
+	egressLAG2Ports = []string{"port4", "port5"}
 	staticRoute     = "10.99.20.0"
 
 	ingressIntf = attrs.Attributes{
@@ -217,9 +217,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	gnmi.Replace(t, dut, gnmi.OC().Interface(egressp.GetName()).Config(), egressp)
 
 	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, egressLag1Ports, []*attrs.Attributes{&egressLAG1Intf}, aggID)
+	configureInterfaces(t, dut, egressLAG1Ports, []*attrs.Attributes{&egressLAG1Intf}, aggID)
 	aggID = netutil.NextAggregateInterface(t, dut)
-	configureInterfaces(t, dut, egressLag2Ports, []*attrs.Attributes{&egressLAG2Intf}, aggID)
+	configureInterfaces(t, dut, egressLAG2Ports, []*attrs.Attributes{&egressLAG2Intf}, aggID)
 	mustConfigureStaticRoutes(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	encapInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
