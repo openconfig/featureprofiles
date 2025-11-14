@@ -1768,3 +1768,8 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
+}
