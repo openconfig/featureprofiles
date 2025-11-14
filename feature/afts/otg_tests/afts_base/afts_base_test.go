@@ -493,22 +493,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	return wantPrefixes
 }
 
-func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int) error {
-	nhgID := uint64(0)
-	ok, isAddrIPv6 := false, false
+func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int, cacheNHGID bool) error {
 	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
-		nhgID, ok = aft.Prefixes[pfix]
-
+		nhgID, ok := aft.Prefixes[pfix]
 		if !ok {
 			return fmt.Errorf("prefix %s not found in AFT", pfix)
-		}
-		isAddrIPv6 = strings.Contains(pfix, ":")
-		prevNHGID := prevNHGIDIPv4
-		if isAddrIPv6 {
-			prevNHGID = prevNHGIDIPv6
-		}
-		if nhgID == prevNHGID {
-			return fmt.Errorf("nhgID %v for prefix %s is old nhgID", prevNHGID, pfix)
 		}
 		nhg, ok := aft.NextHopGroups[nhgID]
 		if !ok {
@@ -528,7 +517,16 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			}
 			// TODO: - Add check for exact interface name
 			// TODO: - Remove deviation and add recursive check for interface
-			if !deviations.SkipInterfaceNameCheck(tc.dut) {
+			if deviations.SkipInterfaceNameCheck(tc.dut) {
+				isAddrIPv6 := strings.Contains(pfix, ":")
+				// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
+				if cacheNHGID {
+					prevNHGIDIPv4 = nhgID
+					if isAddrIPv6 {
+						prevNHGIDIPv6 = nhgID
+					}
+				}
+			} else {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 				}
@@ -550,12 +548,6 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 				return fmt.Errorf("next hop group %d has unequal weights. Expected %d, got %d for next-hop %d for prefix %s", nhgID, firstWeight, weight, nhID, pfix)
 			}
 		}
-	}
-	t.Logf("Prefixes and NHs are verified. Updating prevNHGID: %v", nhgID)
-	if isAddrIPv6 {
-		prevNHGIDIPv6 = nhgID
-	} else {
-		prevNHGIDIPv4 = nhgID
 	}
 	return nil
 }
@@ -645,10 +637,10 @@ func TestBGP(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
@@ -669,10 +661,10 @@ func TestBGP(t *testing.T) {
 	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
 	// Verify ISIS prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
 		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
 	}
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
 	t.Log("ISIS verification completed")
