@@ -425,7 +425,6 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 
 func verify_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice) uint64 {
 	matchpackets := uint64(0)
-	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 	if deviations.PolicyRuleCountersOCUnsupported(dut) {
 		t.Logf("Returning Matched Packet as Zero value due to Bug 425628787")
@@ -521,9 +520,10 @@ func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
 		TunnelIP:            tunIp,
-		GUEPort:             uint32(guePort),
-		IPType:              ipType,
+		GuePort:             uint32(guePort),
+		IpType:              ipType,
 		Dynamic:             true,
+		DecapProtocol:       ipType,
 	}
 }
 

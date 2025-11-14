@@ -5,3 +5,15 @@ uuid: "e0814277-013d-4d59-b6a0-231949992edc"
 plan_id: "PF-2.3"
 description: "Multiple VRFs and GUE DECAP in Default VRF"
 testbed: TESTBED_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    gue_gre_decap_unsupported: true
+    network_instance_import_export_policy_oc_unsuppored: true
+  }
+}
