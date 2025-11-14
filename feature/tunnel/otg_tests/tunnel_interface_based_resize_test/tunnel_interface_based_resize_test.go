@@ -34,7 +34,7 @@ const (
 var (
 	top             = gosnappi.NewConfig()
 	aggID           string
-	egressLAG1Ports= []string{"port2", "port3"}
+	egressLAG1Ports = []string{"port2", "port3"}
 	egressLAG2Ports = []string{"port4", "port5"}
 	staticRoute     = "10.99.20.0"
 
