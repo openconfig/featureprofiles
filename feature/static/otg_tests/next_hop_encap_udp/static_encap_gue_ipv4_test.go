@@ -206,29 +206,29 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV4,
-		NexthopGrpName:  nexthopGroupName,
-		Index:           "0",
-		SrcIp:           dut.Port(t, "port1").Name(),
-		DstIp:           dstAddr,
-		TTL:             ttl,
-		DstUdpPort:      gueProtocolPort,
-		NetworkInstance: ni,
-		DeleteTtl:       false,
+		IPFamily:           "V4Udp",
+		NexthopGrpName:     nexthopGroupName,
+		Index:              "0",
+		SrcIp:              dut.Port(t, "port1").Name(),
+		DstIp:              dstAddr,
+		TTL:                ttl,
+		DstUdpPort:         gueProtocolPort,
+		NetworkInstanceObj: ni,
+		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
 
 	v6NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV6,
-		NexthopGrpName:  nexthopGroupNameV6,
-		Index:           "1",
-		SrcIp:           dut.Port(t, "port1").Name(),
-		DstIp:           dstAddr,
-		TTL:             ttl,
-		DstUdpPort:      gueProtocolPort,
-		NetworkInstance: ni,
-		DeleteTtl:       false,
+		IPFamily:           "V6Udp",
+		NexthopGrpName:     nexthopGroupNameV6,
+		Index:              "1",
+		SrcIp:              dut.Port(t, "port1").Name(),
+		DstIp:              dstAddr,
+		TTL:                ttl,
+		DstUdpPort:         gueProtocolPort,
+		NetworkInstanceObj: ni,
+		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v6NexthopUDPParams)
@@ -236,8 +236,8 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 	// Apply traffic policy on interface
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceID:       dut.Port(t, "port1").Name(),
-			AppliedPolicyName: GuePolicyName,
+			InterfaceName: dut.Port(t, "port1").Name(),
+			PolicyName:    GuePolicyName,
 		}
 		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 	}
@@ -245,7 +245,7 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice, dstAddr []string, t
 
 type tunnelCfg struct {
 	policyName       string
-	protocolType     oc.E_Aft_EncapsulationHeaderType
+	protocolType     string
 	nexthopGroupName string
 	index            string
 	tos              uint8
@@ -262,14 +262,14 @@ func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg *tunnelCf
 
 	if cfg.tos != 0 || cfg.deleteTos {
 		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-			TrafficType:     cfg.protocolType,
-			NexthopGrpName:  cfg.nexthopGroupName,
-			DstUdpPort:      gueProtocolPort,
-			Index:           cfg.index,
-			NetworkInstance: ni,
-			DSCP:            cfg.tos >> 5,
-			DeleteDSCP:      cfg.deleteTos,
-			SrcIp:           dut.Port(t, "port1").Name(),
+			IPFamily:           cfg.protocolType,
+			NexthopGrpName:     cfg.nexthopGroupName,
+			DstUdpPort:         gueProtocolPort,
+			Index:              cfg.index,
+			NetworkInstanceObj: ni,
+			DSCP:               cfg.tos,
+			DeleteDSCP:         cfg.deleteTos,
+			SrcIp:              dut.Port(t, "port1").Name(),
 		}
 		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, nexthopUDPParams)
 	}
@@ -277,13 +277,13 @@ func configureTosTtlOnTunnel(t *testing.T, dut *ondatra.DUTDevice, cfg *tunnelCf
 	if cfg.ttl != 0 || cfg.deleteTtl {
 
 		nexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-			TrafficType:     cfg.protocolType,
-			NexthopGrpName:  cfg.nexthopGroupName,
-			DstUdpPort:      gueProtocolPort,
-			TTL:             cfg.ttl,
-			Index:           cfg.index,
-			NetworkInstance: ni,
-			DeleteTtl:       cfg.deleteTtl,
+			IPFamily:           cfg.protocolType,
+			NexthopGrpName:     cfg.nexthopGroupName,
+			DstUdpPort:         gueProtocolPort,
+			TTL:                cfg.ttl,
+			Index:              cfg.index,
+			NetworkInstanceObj: ni,
+			DeleteTtl:          cfg.deleteTtl,
 		}
 
 		cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, nexthopUDPParams)
@@ -767,7 +767,7 @@ func TestGUEEncap(t *testing.T) {
 				ttl:              0,
 				deleteTos:        false,
 				deleteTtl:        false,
-				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				protocolType:     "V4Udp",
 				nexthopGroupName: nexthopGroupName,
 			})
 
@@ -839,7 +839,7 @@ func TestGUEEncap(t *testing.T) {
 		configureTosTtlOnTunnel(t,
 			bs.DUT,
 			&tunnelCfg{policyName: "policy1",
-				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				protocolType:     "V4Udp",
 				nexthopGroupName: nexthopGroupName,
 				tos:              0,
 				ttl:              20,
@@ -885,7 +885,7 @@ func TestGUEEncap(t *testing.T) {
 	t.Run("RT-3.53.6: IPv6 GUE Encap with explicit TTL", func(t *testing.T) {
 		configureTosTtlOnTunnel(t, bs.DUT,
 			&tunnelCfg{policyName: "policy1",
-				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+				protocolType:     "V6Udp",
 				nexthopGroupName: nexthopGroupNameV6,
 				tos:              0,
 				ttl:              20,
@@ -928,7 +928,7 @@ func TestGUEEncap(t *testing.T) {
 	t.Run("RT-3.53.7: IPv4 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel", func(t *testing.T) {
 		configureTosTtlOnTunnel(t, bs.DUT,
 			&tunnelCfg{policyName: "policy1",
-				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV4,
+				protocolType:     "V4Udp",
 				nexthopGroupName: nexthopGroupName,
 				tos:              0x60,
 				ttl:              20,
@@ -972,7 +972,7 @@ func TestGUEEncap(t *testing.T) {
 	t.Run("RT-3.53.8: IPv6 traffic GUE encapsulation with explicit ToS and TTL configuration on tunnel", func(t *testing.T) {
 		configureTosTtlOnTunnel(t, bs.DUT,
 			&tunnelCfg{policyName: "policy1",
-				protocolType:     oc.Aft_EncapsulationHeaderType_UDPV6,
+				protocolType:     "V6Udp",
 				nexthopGroupName: nexthopGroupNameV6,
 				tos:              0x60,
 				ttl:              20,
