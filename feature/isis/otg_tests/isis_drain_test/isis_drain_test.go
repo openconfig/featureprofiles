@@ -270,14 +270,22 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfs {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			isisIntf := isis.GetOrCreateInterface(intfName + ".0")
+			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+			intfName += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		if !deviations.IsisMplsUnsupported(dut) {
 			// Explicit Disable the default igp-ldp-sync enabled interface level leaf
 			isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
 			isisintfmplsldpsync.Enabled = ygot.Bool(false)
 		}
-		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if !deviations.InterfaceRefInterfaceIDFormat(dut) {
+			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
 		if deviations.InterfaceRefConfigUnsupported(dut) {
 			isisIntf.InterfaceRef = nil
 		}
@@ -387,6 +395,9 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intf += ".0"
+	}
 	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
@@ -482,6 +493,9 @@ func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, go
 
 func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
+	}
 	intf := isisPath.Interface(intfName)
 
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
