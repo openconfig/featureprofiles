@@ -29,21 +29,11 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance string
-	Prefix          string
-	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	IPType          string
-	NextHopAddr     string
-	NexthopGroup    bool
-	Metric          uint32
-	Recurse         bool
-	T               *testing.T
-	TrafficType     oc.E_Aft_EncapsulationHeaderType
-	PolicyName      string
-	Rule            string
 	NetworkInstance  string
 	Prefix           string
 	NextHops         map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType           string
+	NextHopAddr      string
 	NexthopGroup     bool
 	NexthopGroupName string
 	Metric           uint32
@@ -126,6 +116,12 @@ func StaticRouteNextNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, cfg *S
 	} else {
 		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("DEFAULT")
 		spNetInst.GetOrCreateNextHop("0").SetNextHop(oc.UnionString(cfg.Prefix))
+	}
+}
+
+// staticRouteToNextHopGroupCLI configures routes to a next-hop-group for gue encapsulation
+func staticRouteToNextHopGroupCLI(t *testing.T, dut *ondatra.DUTDevice, params StaticRouteCfg) {
+	t.Helper()
 	groupType := ""
 
 	switch params.TrafficType {

@@ -67,7 +67,6 @@ type OcPolicyForwardingParams struct {
 	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
 }
 
-// PolicyForwardingRule holds parameters for generating Policy Forwarding config for GRE.
 type PolicyForwardingRule struct {
 	Id                 uint32
 	Name               string
@@ -102,17 +101,6 @@ type ACLTrafficPolicyParams struct {
 	IntfName     string
 	Direction    string
 	Action       string
-}
-
-type GueEncapPolicyParams struct {
-	TrafficType      string
-	PolicyName       string
-	NexthopGroupName string
-	SrcIntfName      string
-	DstAddr          []string
-	SrcAddr          []string
-	Ttl              uint8
-	Rule             uint8
 }
 
 var (
@@ -644,25 +632,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 }
 
-func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-	t.Helper()
-
-	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
-	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", params.InterfaceID, params.AppliedPolicyName))
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-		}
-	} else {
-		_, ni, _ := SetupPolicyForwardingInfraOC(params.NetworkInstanceName)
-		policyForward := ni.GetOrCreatePolicyForwarding()
-		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
-	}
-}
-
 // Configure GRE decapsulated. Adding deviation when device doesn't support OC
 func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, decapIP string, policyName string, portName string, decapGrpName string) {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
@@ -1069,11 +1038,7 @@ func seqIDOffset(dut *ondatra.DUTDevice, i uint32) uint32 {
 
 // NewPolicyForwardingGueEncap configure policy forwarding for GUE encapsulation.
 func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
-// NewPolicyForwardingGueEncap configures policy forwading for gue encapsulation
-func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params GueEncapPolicyParams) {
 	t.Helper()
-	_, _, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
-
 	_, _, pf := SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
 
 	// Configure traffic policy
@@ -1081,20 +1046,12 @@ func NewPolicyForwardingGueEncap(t *testing.T, dut *ondatra.DUTDevice, params Gu
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			switch params.IPFamily {
-			switch params.TrafficType {
 			case "V4Udp":
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
-				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule1", "ipv4", params.NexthopGroupName)
-				createPolicyForwardingNexthopConfig(t, dut, params)
-				createPolicyForwardingNexthopCli(t, dut, params)
 			case "V6Udp":
 				createPolicyForwardingNexthopCLIConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
-				CreatePolicyForwardingNexthopConfig(t, dut, params.PolicyName, "rule2", "ipv6", params.NexthopGroupName)
-				createPolicyForwardingNexthopConfig(t, dut, params)
-				createPolicyForwardingNexthopCli(t, dut, params)
 			default:
 				t.Logf("Unsupported address family type %s", params.IPFamily)
-				t.Logf("Unsupported traffic type %s", params.TrafficType)
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
