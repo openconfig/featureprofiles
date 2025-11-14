@@ -163,7 +163,7 @@ ates {
   }
   ports {
     id: "port2"
-    name: 1/62"  # Change this to the actual port name.
+    name: "1/62"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
