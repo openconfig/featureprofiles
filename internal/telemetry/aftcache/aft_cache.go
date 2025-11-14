@@ -558,7 +558,6 @@ func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeo
 func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
 	t.Helper()
 	ss.start = time.Now()
-	runtime.GC()
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
 	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
