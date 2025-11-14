@@ -1768,3 +1768,8 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// noECMPwithEncapDecapNhMix returns true if mixed encap and decap next hops are not supported.
+func NoEcmpWithEncapDecapNhMix(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoEcmpWithEncapDecapNhMix()
+}
