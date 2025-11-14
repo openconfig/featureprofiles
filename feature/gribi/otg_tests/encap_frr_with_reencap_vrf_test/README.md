@@ -584,6 +584,10 @@ NH#102 -> {
 1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
+#### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
