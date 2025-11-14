@@ -172,11 +172,14 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 
 func (tc *testCase) configureATE(t *testing.T) {
 	ate := tc.ate
-	otgconfighelpers.ConfigureATEWithISISAndBGPRoutes(t, &otgconfighelpers.ATEAdvertiseRoutes{
+	config := otgconfighelpers.ConfigureATEWithISISAndBGPRoutes(t, &otgconfighelpers.ATEAdvertiseRoutes{
 		ATE:      ate,
 		ATEAttrs: ateAttrs,
 		DUTAttrs: dutAttrs,
 	})
+	otg := ate.OTG()
+	otg.PushConfig(t, config)
+	otg.StartProtocols(t)
 }
 
 func (tc *testCase) waitForBGPSession(t *testing.T) error {
