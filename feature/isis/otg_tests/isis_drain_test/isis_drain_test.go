@@ -270,7 +270,11 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfs {
-		isisIntf := isis.GetOrCreateInterface(intfName)
+		intf := intfName
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf = intfName + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intf)
 		if !deviations.IsisMplsUnsupported(dut) {
 			// Explicit Disable the default igp-ldp-sync enabled interface level leaf
 			isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
@@ -387,6 +391,9 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intf += ".0"
+	}
 	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
@@ -482,6 +489,9 @@ func validateTrafficFlows(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, go
 
 func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string) {
 	isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
+	}
 	intf := isisPath.Interface(intfName)
 
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
