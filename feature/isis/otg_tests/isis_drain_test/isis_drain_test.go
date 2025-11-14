@@ -270,22 +270,18 @@ func configureISISDUT(t *testing.T, dut *ondatra.DUTDevice, intfs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, intfName := range intfs {
+		intf := intfName
 		if deviations.InterfaceRefInterfaceIDFormat(dut) {
-			isisIntf := isis.GetOrCreateInterface(intfName + ".0")
-			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-			intfName += ".0"
+			intf = intfName + ".0"
 		}
-		isisIntf := isis.GetOrCreateInterface(intfName)
+		isisIntf := isis.GetOrCreateInterface(intf)
 		if !deviations.IsisMplsUnsupported(dut) {
 			// Explicit Disable the default igp-ldp-sync enabled interface level leaf
 			isisintfmplsldpsync := isisIntf.GetOrCreateMpls().GetOrCreateIgpLdpSync()
 			isisintfmplsldpsync.Enabled = ygot.Bool(false)
 		}
-		if !deviations.InterfaceRefInterfaceIDFormat(dut) {
-			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		}
+		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(dut) {
 			isisIntf.InterfaceRef = nil
 		}
