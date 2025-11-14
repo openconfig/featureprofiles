@@ -201,10 +201,7 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, config gosnappi.Config, tc te
 			flowErrors = append(flowErrors, err)
 		}
 	}
-	if len(flowErrors) > 0 {
-		return errors.Join(flowErrors...)
-	}
-	return nil
+	return errors.Join(flowErrors...)
 }
 
 func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, tc testCase, flowConfig flowConfig) error {
@@ -230,7 +227,6 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	if *flowMetrics.Counters.OutPkts == 0 {
 		return errors.New("no packets transmitted")
-
 	}
 
 	if *flowMetrics.Counters.InPkts != packetCount {

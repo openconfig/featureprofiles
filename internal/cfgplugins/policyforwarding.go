@@ -276,6 +276,16 @@ tunnel decap-ip %s
 tunnel decap-interface %s
 tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
+
+	interfaceTrafficPolicyAristaTemplate = `
+interface %s
+traffic-policy input %s
+!`
+
+	interfaceTrafficPolicyAristaCloud = `
+interface %s.%d
+traffic-policy input tp_cloud_id_3_%d
+!`
 )
 
 // InterfacelocalProxyConfig configures the interface local-proxy-arp.
@@ -317,9 +327,9 @@ func InterfacePolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, a *at
 			// Format and apply the CLI command for traffic policy input.
 			var cliConfig string
 			if params.Dynamic && a == nil && aggID == "" && params.AppliedPolicyName != "" && params.InterfaceID != "" {
-				cliConfig = fmt.Sprintf("interface %s \n traffic-policy input %s \n", params.InterfaceID, params.AppliedPolicyName)
+				cliConfig = fmt.Sprintf(interfaceTrafficPolicyAristaTemplate, params.InterfaceID, params.AppliedPolicyName)
 			} else {
-				cliConfig = fmt.Sprintf("interface %s.%d \n traffic-policy input tp_cloud_id_3_%d \n", aggID, a.Subinterface, a.Subinterface)
+				cliConfig = fmt.Sprintf(interfaceTrafficPolicyAristaCloud, aggID, a.Subinterface, a.Subinterface)
 			}
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
