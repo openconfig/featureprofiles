@@ -1819,7 +1819,7 @@ tests:
     groups: [newfnt]
 
   - name: MGT-1 (Management HA test)
-    path: blob/main/feature/system/management
+    path: feature/system/management/otg_tests/management_ha_test
     owners:
       - mananpat
     mustpass: false
