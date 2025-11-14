@@ -158,77 +158,77 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "4/1"  # Change this to the actual port name.
+    name: "1/61"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port2"
-    name: "4/2"  # Change this to the actual port name.
+    name: 1/62"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port3"
-    name: "4/2"  # Change this to the actual port name.
+    name: "1/63"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port4"
-    name: "4/4"  # Change this to the actual port name.
+    name: "1/64"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port5"
-    name: "2/1" # Change this to the actual port name.
+    name: "1/53" # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port6"
-    name: "2/2"  # Change this to the actual port name.
+    name: "1/54"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port7"
-    name: "2/3"  # Change this to the actual port name.
+    name: "1/55"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
    id: "port8"
-   name: "2/4"  # Change this to the actual port name.
+   name: "1/56"  # Change this to the actual port name.
     speed: S_100GB  
   }
     ports {
     id: "port9"
-    name: "16/1"  # Change this to the actual port name.
+    name: "1/109"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port10"
-    name: "16/2"  # Change this to the actual port name.
+    name: "1/110"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port11"
-    name: "16/3"  # Change this to the actual port name.
+    name: "1/111"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port12"
-    name: "3/1"  # Change this to the actual port name.
+    name: "1/57"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port13"
-    name: "3/2" # Change this to the actual port name.
+    name: "1/58" # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port14"
-    name: "3/3" # Change this to the actual port name.
+    name: "1/59" # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port15"
-    name: "3/4" # Change this to the actual port name.
+    name: "1/60" # Change this to the actual port name.
     speed: S_100GB  
   }
 }
