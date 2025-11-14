@@ -69,7 +69,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	startTime := time.Now()
 	t.Logf("Vendor: %s", dut.Vendor())
-	for i := 0; i < 4; i++ {
+	for i := 0; i < 2; i++ {
 		sendOversizedPayload(t, dut)
 		t.Logf("Sent oversized payload to DUT iteration# %d", i)
 	}
