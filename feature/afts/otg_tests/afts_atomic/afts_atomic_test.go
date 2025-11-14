@@ -40,7 +40,6 @@ func TestMain(m *testing.M) {
 const (
 	aftConvergenceTime = 30 * time.Minute
 	applyPolicyType    = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	ateAS              = 200
 	gnmiTimeout        = 2 * time.Minute
 	isisDUTArea        = "49.0001"
 	isisDUTSystemID    = "1920.0000.2001"
@@ -129,6 +128,16 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	dutIntf2 := dutP2.NewOCInterface(dutPort2, dut)
 	gnmi.Update(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
 
+	// TODO: Move deviations into cfgplugins.
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
+		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
+	}
+
 	// Configure default network instance.
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -141,8 +150,8 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	sb := &gnmi.SetBatch{}
 	for ix, ateAttr := range ateAttrs {
 		nbrs := []*cfgplugins.BgpNeighbor{
-			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv4, IsV4: true},
-			{LocalAS: cfgplugins.DutAS, PeerAS: ateAS, Neighborip: ateAttr.IPv6, IsV4: false},
+			{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateAttr.IPv4, IsV4: true},
+			{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateAttr.IPv6, IsV4: false},
 		}
 		nbrsConfig := cfgplugins.BGPNeighborsConfig{
 			RouterID:      dutP1.IPv4,
@@ -176,6 +185,18 @@ func (tc *testCase) configureATE(t *testing.T) {
 		ATE:      ate,
 		ATEAttrs: ateAttrs,
 		DUTAttrs: dutAttrs,
+		BGPV4Routes: &otgconfighelpers.AdvertisedRoutes{
+			StartingAddress: otgconfighelpers.StartingBGPRouteIPv4,
+			PrefixLength:    otgconfighelpers.V4PrefixLen,
+			Count:           otgconfighelpers.DefaultBGPRouteCount,
+			ATEAS:           cfgplugins.AteAS1,
+		},
+		BGPV6Routes: &otgconfighelpers.AdvertisedRoutes{
+			StartingAddress: otgconfighelpers.StartingBGPRouteIPv6,
+			PrefixLength:    otgconfighelpers.V6PrefixLen,
+			Count:           otgconfighelpers.DefaultBGPRouteCount,
+			ATEAS:           cfgplugins.AteAS1,
+		},
 	})
 	otg := ate.OTG()
 	otg.PushConfig(t, config)
