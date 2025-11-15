@@ -185,6 +185,7 @@ func verifyPortStats(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	}
 }
 
+// verifyDUTPortCounters validate the DUT ports counters.
 func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
 	t.Helper()
 	if len(dutPortList)%2 != 0 {
