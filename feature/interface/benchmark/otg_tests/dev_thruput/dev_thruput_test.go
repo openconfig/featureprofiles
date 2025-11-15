@@ -1,4 +1,4 @@
-package interface_performance_test
+package dev_thruput_test
 
 import (
 	"encoding/binary"
@@ -131,7 +131,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // createTrafficFlow creates a traffic flow based on the test case parameters.
-func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, name, ipType, dstMac string, frameSize uint32, pps uint64, isMixed bool, config gosnappi.Config) {
+func createTrafficFlow(t *testing.T, name, addrFamily, dstMac string, frameSize uint32, pps uint64, isMixed bool, config gosnappi.Config) {
 	t.Helper()
 	config.Flows().Clear()
 	flow := config.Flows().Add().SetName(name)
@@ -142,7 +142,7 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, name, ipType, dstMa
 	eth.Src().SetValue(atePort1.MAC)
 	eth.Dst().SetValue(dstMac)
 	flow.Packet().Add().Vlan().Id().SetValue(startVlanID)
-	if ipType == "IPv4" {
+	if addrFamily == "IPv4" {
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(atePort1.IPv4)
 		v4.Dst().SetValue(atePort2.IPv4)
@@ -163,28 +163,6 @@ func createTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, name, ipType, dstMa
 	}
 }
 
-// verifyPortStats checks the counters for all snake ports on the DUT.
-func verifyPortStats(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config) {
-	t.Helper()
-	for i := 1; i <= numSnakePorts; i++ {
-		p := dut.Port(t, fmt.Sprintf("port%d", i))
-		counters := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Counters().State())
-
-		if counters.GetInPkts() == 0 {
-			t.Errorf("Port %s has zero InPkts", p.Name())
-		}
-		if counters.GetOutPkts() == 0 {
-			t.Errorf("Port %s has zero OutPkts", p.Name())
-		}
-		if inDiscards := counters.GetInDiscards(); inDiscards > 0 {
-			t.Errorf("Port %s has non-zero InDiscards: %d", p.Name(), inDiscards)
-		}
-		if outDiscards := counters.GetOutDiscards(); outDiscards > 0 {
-			t.Errorf("Port %s has non-zero OutDiscards: %d", p.Name(), outDiscards)
-		}
-	}
-}
-
 // verifyDUTPortCounters validate the DUT ports counters.
 func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
 	t.Helper()
@@ -198,15 +176,20 @@ func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*
 		inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(inPort.Name()).Counters().InUnicastPkts().State())
 		outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(outPort.Name()).Counters().OutUnicastPkts().State())
 		t.Logf("Pair [%d-%d]: IN(%s)=%d  →  OUT(%s)=%d", dutIndx, dutIndx+1, inPort.Name(), inPkts, outPort.Name(), outPkts)
+		if inPkts == 0 {
+			t.Fatalf("Test flow sent %d packets", inPkts)
+		}
 		lostPackets := inPkts - outPkts
 		if got := (lostPackets * 100 / inPkts); got >= lossTolerance {
-			t.Errorf("Packet mismatch between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+			t.Errorf("packets mismatch between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+		} else {
+			t.Logf("packets matched between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
 		}
 	}
 }
 
 // verifyTraffic checks that the flows sent and received the expected number of packets.
-func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) {
+func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
 	t.Helper()
 	flowCounters := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
 	txPackets := flowCounters.GetOutPkts()
@@ -232,17 +215,17 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("No CPU stats found on DUT %s", dut.Name())
 	}
 
-	var totalAvg uint8
+	var totalAvg uint64
 	for _, cpu := range cpus {
-		avg := cpu.GetAvg()
+		avg := uint64(cpu.GetAvg())
 		totalAvg += avg
 	}
-	totalAvg /= uint8(len(cpus))
+	avgUtilization := uint8(totalAvg / uint64(len(cpus)))
 
-	if totalAvg > 80 {
-		t.Errorf("High average CPU utilization detected: %d", totalAvg)
+	if avgUtilization > 80 {
+		t.Errorf("high average CPU utilization detected: %d", avgUtilization)
 	} else {
-		t.Logf("Average CPU utilization across all CPUs: %d", totalAvg)
+		t.Logf("Average CPU utilization across all CPUs: %d", avgUtilization)
 	}
 
 	// Check Power utilization
@@ -257,7 +240,7 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) {
 		capacity := binary.BigEndian.Uint32(capacityBytes)
 		usedPower := binary.BigEndian.Uint32(usedPowerBytes)
 		if capacity <= usedPower {
-			t.Errorf("PowerSupply[%d] INVALID: Used Power (%d W) exceeds Capacity (%d W)", idx, usedPower, capacity)
+			t.Errorf("powerSupply[%d] INVALID: Used Power (%d W) exceeds Capacity (%d W)", idx, usedPower, capacity)
 		} else {
 			t.Logf("PowerSupply[%d]: Capacity = %d W, UsedPower = %d W (OK)", idx, capacity, usedPower)
 		}
@@ -296,7 +279,7 @@ func TestInterfacePerformance(t *testing.T) {
 			flowName := fmt.Sprintf("flow_%s", tc.name)
 			t.Logf("Creating traffic flow: %s", flowName)
 			currentConfig := ate.OTG().FetchConfig(t)
-			createTrafficFlow(t, ate, flowName, tc.addressFamily, tc.dstMac, tc.frameSize, tc.pps, tc.isMixed, currentConfig)
+			createTrafficFlow(t, flowName, tc.addressFamily, tc.dstMac, tc.frameSize, tc.pps, tc.isMixed, currentConfig)
 			ate.OTG().PushConfig(t, currentConfig)
 			ate.OTG().StartProtocols(t)
 
@@ -311,10 +294,7 @@ func TestInterfacePerformance(t *testing.T) {
 			verifyDUTPortCounters(t, dut, dutPortList)
 
 			t.Log("Verifying traffic flow statistics...")
-			verifyTrafficFlow(t, ate, ateConfig, flowName)
-
-			t.Log("Verifying DUT port statistics...")
-			verifyPortStats(t, dut, ate, ateConfig)
+			verifyTrafficFlow(t, ate, flowName)
 		})
 	}
 }

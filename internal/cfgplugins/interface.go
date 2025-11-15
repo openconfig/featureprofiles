@@ -1287,8 +1287,7 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			cliConfig := fmt.Sprintf(`vlan %[1]d
-			no spanning-tree vlan-id %[1]d
-			`, cfg.VlanID)
+			no spanning-tree vlan-id %[1]d`, cfg.VlanID)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
