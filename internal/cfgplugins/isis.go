@@ -105,6 +105,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	}
 
 	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(ISISData.NetworkInstanceName).Config(), rootPath.GetNetworkInstance(ISISData.NetworkInstanceName))
+	handleSingleTopologyDeviation(t, dut, b)
 	return rootPath
 }
 
@@ -165,4 +166,27 @@ func NewISISBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cf
 	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, cfg.InstanceName).Config(), protocol)
 
 	return protocol
+}
+
+// handleSingleTopologyDeviation handles the single topology deviation for ISIS by
+// setting the v6 multi-topology to have the same AFISAFI as v4.
+func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+	t.Helper()
+	if !deviations.ISISSingleTopologyRequired(dut) {
+		return
+	}
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		root := &oc.Root{}
+		protocol := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut))
+		v6MultiTopology := protocol.GetOrCreateIsis().GetOrCreateGlobal().
+			GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).
+			GetOrCreateMultiTopology()
+		v6MultiTopology.SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		v6MultiTopology.SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut)).Config(), protocol)
+	default:
+		t.Fatalf("Single ISIS topology deviation not supported for vendor: %s", dut.Vendor())
+	}
 }
