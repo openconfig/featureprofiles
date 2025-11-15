@@ -16,9 +16,9 @@ package afts_base_test
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
-	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -295,8 +295,6 @@ func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*
 }
 func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateP1.IPv4)
-	nbrPathv6 := statePath.Neighbor(ateP1.IPv6)
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
@@ -308,7 +306,7 @@ func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs
 	}
 
 	for _, nbr := range ipv4nbrs {
-		nbrPath = statePath.Neighbor(nbr)
+		nbrPath := statePath.Neighbor(nbr)
 		_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
@@ -316,7 +314,7 @@ func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs
 		}
 	}
 	for _, nbr := range ipv6nbrs {
-		nbrPathv6 = statePath.Neighbor(nbr)
+		nbrPathv6 := statePath.Neighbor(nbr)
 		_, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
 		if !ok {
 			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
