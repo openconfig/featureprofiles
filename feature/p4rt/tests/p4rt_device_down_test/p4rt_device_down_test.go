@@ -34,9 +34,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
