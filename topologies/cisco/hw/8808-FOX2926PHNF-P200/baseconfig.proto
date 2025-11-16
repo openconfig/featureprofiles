@@ -565,11 +565,6 @@ replace: {
 " description not connected interface\n"
 " shutdown\n"
 "!\n"
-"interface Null0\n"
-" description not connected interface\n"
-" shutdown\n"
-"!\n"
 "end\n"
-"\n"
 }
 }
