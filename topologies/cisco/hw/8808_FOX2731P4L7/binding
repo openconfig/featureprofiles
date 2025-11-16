@@ -8,14 +8,15 @@
 # no shut
 #!
 
-#telnet: RP0 - telnet 10.85.72.22 2001
-#telnet: RP1 - telnet 10.85.72.22 2002
+# updated after lab movement
+#telnet: RP0 - telnet 10.85.83.145 2003
+#telnet: RP1 - telnet 10.85.83.145 2003
 
 # Username: cafyauto
 # Password: cisco123
 
 ## Management Virtual IP:
-# ipv4 address 10.85.72.43
+# ipv4 address 10.85.104.107
 
 options {
   username: "cafyauto"
@@ -45,23 +46,23 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gnmi {
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gribi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   ssh{
-    target: "10.85.72.43:22"
+    target: "10.85.104.107:22"
     skip_verify: true
   }
   p4rt{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gnsi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
 
 # Before this binding can be used with a topology, add ports mapping
