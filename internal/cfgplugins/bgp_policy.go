@@ -100,7 +100,7 @@ match as-path %s
 
 func RoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, triggerPfx string, genPfxName string, genPfx string, bgpAS uint, localAggregateName string) {
 	if deviations.BgpLocalAggregateUnsupported(dut) {
-		DeviationAristaRoutingPolicyBGPAdvertiseAggregate(t, dut, triggerPfxName, triggerPfx, genPfxName, genPfx, bgpAS)
+		routingPolicyBGPAdvertiseAggregate(t, dut, triggerPfxName, genPfxName, bgpAS)
 	} else {
 		dc := gnmi.OC()
 		root := &oc.Root{}
@@ -120,11 +120,13 @@ func RoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 	}
 }
 
-// DeviationAristaRoutingPolicyBGPAdvertiseAggregateDefaultRoute is used for DUTs that don't support OC local aggregates
-func DeviationAristaRoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, triggerPfx string, genPfxName string, genPfx string, bgpAS uint) {
-	t.Log("Executing CLI commands for local aggregate deviation")
-	t.Log("Control functions code unit")
-	bgpLocalAggConfigControlFunctions := fmt.Sprintf(`
+// routingPolicyBGPAdvertiseAggregate is used for DUTs that don't support OC local aggregates
+func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, genPfxName string, bgpAS uint) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Log("Executing CLI commands for local aggregate deviation")
+		t.Log("Control functions code unit")
+		bgpLocalAggConfigControlFunctions := fmt.Sprintf(`
 configure terminal
 !
 router general
@@ -141,12 +143,11 @@ compile
 commit
 `, triggerPfxName)
 
-	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigControlFunctions)
-	runCliCommand(t, dut, bgpLocalAggConfigControlFunctions)
+		runCliCommand(t, dut, bgpLocalAggConfigControlFunctions)
 
-	t.Log("Dynamic prefix list rcf match")
+		t.Log("Dynamic prefix list rcf match")
 
-	bgpLocalAggConfigDynamicPfxRcf := fmt.Sprintf(`
+		bgpLocalAggConfigDynamicPfxRcf := fmt.Sprintf(`
 configure terminal
 !
 dynamic prefix-list ipv4_generate_default
@@ -154,26 +155,26 @@ match rcf ipv4_generate_default_conditionally()
 prefix-list ipv4 %s
 `, genPfxName)
 
-	runCliCommand(t, dut, bgpLocalAggConfigDynamicPfxRcf)
-	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigDynamicPfxRcf)
+		runCliCommand(t, dut, bgpLocalAggConfigDynamicPfxRcf)
 
-	t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
-	bgpLocalAggConfigPfxInstallDropNH := `
+		t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
+		bgpLocalAggConfigPfxInstallDropNH := `
 configure terminal
 !
 router general
 vrf default
 routes dynamic prefix-list ipv4_generate_default install drop
 `
-	runCliCommand(t, dut, bgpLocalAggConfigPfxInstallDropNH)
-	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxInstallDropNH)
-	t.Log("Redistribute advertised prefix into BGP")
-	bgpLocalAggConfigPfxRedistribute := fmt.Sprintf(`
+		runCliCommand(t, dut, bgpLocalAggConfigPfxInstallDropNH)
+
+		t.Log("Redistribute advertised prefix into BGP")
+		bgpLocalAggConfigPfxRedistribute := fmt.Sprintf(`
 configure terminal
 !
 router bgp %d
 redistribute dynamic
 `, bgpAS)
-	//helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxRedistribute)
-	runCliCommand(t, dut, bgpLocalAggConfigPfxRedistribute)
+
+		runCliCommand(t, dut, bgpLocalAggConfigPfxRedistribute)
+	}
 }

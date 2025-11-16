@@ -1029,6 +1029,7 @@ message Metadata {
     bool static_route_next_network_instance_oc_unsupported = 347;
 
     // Devices that do not support BGP local aggregate configuration from OC
+    // https://partnerissuetracker.corp.google.com/issues/458604959
     bool bgp_local_aggregate_unsupported = 348;
 
     // Reserved field numbers and identifiers.
