@@ -357,7 +357,7 @@ func configureInterfacePropertiesScale(t *testing.T, dut *ondatra.DUTDevice, agg
 	t.Helper()
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 
-	ocPFParams.Interfaces = interfaces
+	ocPFParams.Attributes = interfaces
 	ocPFParams.AggID = aggID
 	b := new(gnmi.SetBatch)
 	cfgplugins.InterfaceLocalProxyConfigScale(t, dut, b, ocPFParams)

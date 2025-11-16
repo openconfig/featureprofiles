@@ -185,11 +185,13 @@ func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetB
 nexthop-group %s%d type mpls-over-gre
  tos 96
  ttl 64
- fec hierarchical`, prefix, i)
+ fec hierarchical
+`,
+						prefix, i,
+					)
 					for entry, src := range encapparams.GRETunnelSources {
-						fmt.Fprintf(b, `
- entry  %d push label-stack %d tunnel-destination %s tunnel-source %s`,
-							entry, labels[i-1], greTunnelDestinations[i-1], src)
+						fmt.Fprintf(b, `  
+ entry %d push label-stack %d tunnel-destination %s tunnel-source %s`, entry, labels[i-1], greTunnelDestinations[i-1], src)
 					}
 					b.WriteString("\n!")
 				}

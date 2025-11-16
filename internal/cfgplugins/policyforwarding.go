@@ -63,7 +63,7 @@ type OcPolicyForwardingParams struct {
 
 	// policy applied on Interfaces
 	AggID      string
-	Interfaces []*attrs.Attributes
+	Attributes []*attrs.Attributes
 }
 
 type PolicyForwardingRule struct {
@@ -272,7 +272,7 @@ func InterfaceLocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gn
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			interfacelocalproxy := new(strings.Builder)
-			for _, a := range params.Interfaces {
+			for _, a := range params.Attributes {
 				if a.IPv4 != "" {
 					fmt.Fprintf(interfacelocalproxy, `
 					interface %s.%d
@@ -287,7 +287,7 @@ func InterfaceLocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gn
 		return nil
 	} else {
 		ocInterface := &oc.Interface{}
-		for i, a := range params.Interfaces {
+		for i, a := range params.Attributes {
 			s := ocInterface.GetOrCreateSubinterface(a.Subinterface)
 			b4 := s.GetOrCreateIpv4()
 			parp := b4.GetOrCreateProxyArp()
@@ -306,7 +306,7 @@ func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice,
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			interfaceqosconfig := new(strings.Builder)
-			for _, a := range params.Interfaces {
+			for _, a := range params.Attributes {
 				fmt.Fprintf(interfaceqosconfig, `
 				interface %s.%d
 				 service-policy type qos input af3 
@@ -340,11 +340,11 @@ func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, 
 		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
 			// Format and apply the CLI command for traffic policy input.
 			trafficpolicyconfig := new(strings.Builder)
-			for _, a := range params.Interfaces {
+			for _, a := range params.Attributes {
 				fmt.Fprintf(trafficpolicyconfig, `
-				interface %s.%d  
-				 traffic-policy input tp_cloud_id_3_%d
-				!`, params.AggID, a.Subinterface, a.Subinterface)
+				interface %[1]s.%[2]d  
+				 traffic-policy input tp_cloud_id_3_%[2]d
+				!`, params.AggID, a.Subinterface)
 			}
 			helpers.GnmiCLIConfig(t, dut, trafficpolicyconfig.String())
 		default:
