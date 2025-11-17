@@ -52,6 +52,7 @@ def B4FeatureCoverageRunTests(self, uid, feature_id, platforms=["8000"], testsui
             # collection has no devices, since this guarantees
             # no coverage.
             require_converted_tb_devices=True,
+            jam_opt="CFLOW_VERSION=2"
         )
     )
     coverage_xml_file = run_tests_results['coverage_xml_file']
