@@ -1,7 +1,7 @@
 # AFT-1.3: AFTs collector Flap
 
 ## Summary
-Reset one of GNMI collector, which are collecting thebIPv4/IPv6 unicast routes next hop group and next hop.
+Reset one of the gNMI collectors, which are collecting the IPv4/IPv6 unicast routes' next-hop groups and next hops.
 
 ## Testbed
 * atedut_2.testbed
