@@ -307,14 +307,6 @@ func programEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, tcArg
 	// Add default route in vrfEncapA that looks up in default VRF for forwarding
 	c.AddIPv4(t, "0.0.0.0/0", defaultVrfNHGID, vrfEncapA, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
-	// For Basic Default Route Installation test, create direct route to port5
-	// This simplifies the configuration and avoids VRF lookup complexity
-	// basicTestNH := uint64(5001)
-	// c.AddNH(t, basicTestNH, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port5").Name(), Mac: magicMac})
-	// basicTestNHG := uint64(5002)
-	// c.AddNHG(t, basicTestNHG, map[uint64]uint64{basicTestNH: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	// c.AddIPv4(t, "138.0.11.8/32", basicTestNHG, deviations.DefaultNetworkInstance(dut), deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-
 	lookupNHGID := uint64(501)
 	// Create DIRECT NH for primary path
 	c.AddNH(t, primaryLookupNHID, "MACwithInterface", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB, &gribi.NHOptions{Interface: dut.Port(t, "port2").Name(), Mac: magicMac})
