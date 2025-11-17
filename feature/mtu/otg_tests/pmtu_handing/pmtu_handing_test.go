@@ -49,7 +49,7 @@ const (
 	ipv6PrefixLen           = 126
 	mtuSrc                  = 9216
 	mtuDst                  = 1514
-	trafficRunDuration      = 30 * time.Second
+	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
 	tgWaitDuration          = 30 * time.Second
 	acceptableLossPercent   = 100.0
