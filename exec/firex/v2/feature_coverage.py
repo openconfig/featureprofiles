@@ -36,7 +36,7 @@ def B4FeatureCoverageRunTests(self, uid, feature_id, platforms=["8000"], testsui
         | RunTests.s(
             testsuites=testsuites,
             files=cerebro_feature_files,
-            cflow=True,
+            cflow=false,
             # CflowList requires comps, ignores files otherwise :/
             comps=sorted({map_file_to_pims_comp(f) for f in cerebro_feature_files}),
             # CflowList has a weird contract where it requires comps
