@@ -669,13 +669,13 @@ func DeviationBgpRibStreamingConfigRequired(t *testing.T, dut *ondatra.DUTDevice
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Log("Executing CLI commands for BGP RIB streaming config")
-		bgpRibStreamingConfig := fmt.Sprintf(`
+		bgpRibStreamingConfig :=
 		management api models
 		provider bgp
 		bgp-rib
 		ipv4-unicast
 		ipv6-unicast
-		`)
+		`
 		helpers.GnmiCLIConfig(t, dut, bgpRibStreamingConfig)
 	default:
 		return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())

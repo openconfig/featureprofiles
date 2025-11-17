@@ -902,7 +902,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	if deviations.BgpRibStreamingConfigRequired(dut) {
-		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+		if err := cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut); err != nil {
+			t.Fatalf("DeviationBgpRibStreamingConfigRequired failed: %v", err)
+		}
 	}
 }
 
