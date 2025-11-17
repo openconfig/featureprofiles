@@ -9,7 +9,6 @@ simulation:
   slurm_flags:
     hours: 72
     pending_timeout: 30
-  sim_rel: /auto/vxr/vxr2-private/vxr2_06935_pvt_ssetools
 devices:
   ate:
     data_ports:
