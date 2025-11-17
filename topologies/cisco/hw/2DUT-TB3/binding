@@ -22,22 +22,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gnmi {
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gribi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   p4rt{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   gnsi{
-    target: "10.85.72.43:57400"
+    target: "10.85.104.107:57400"
   }
   ssh{
-    target: "10.85.72.43:22"
+    target: "10.85.104.107:22"
     skip_verify: true
   }
   ports {
