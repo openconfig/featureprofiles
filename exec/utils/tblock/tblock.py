@@ -28,7 +28,7 @@ def _get_reason(filename):
 
 def _lockfile(filename, user, reason=""):
     try:
-        fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
         os.write(fp, str.encode(f"{user},{reason}"))
         os.close(fp)
     except OSError as e:
