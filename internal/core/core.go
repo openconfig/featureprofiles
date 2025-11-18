@@ -45,7 +45,7 @@ var (
 	}
 	vendorCoreFileNamePattern = map[opb.Device_Vendor]*regexp.Regexp{
 		opb.Device_JUNIPER: regexp.MustCompile(".*.tar.gz"),
-		opb.Device_CISCO:   regexp.MustCompile("/misc/disk1/.*core.*"),
+		opb.Device_CISCO:   regexp.MustCompile(`/misc/disk1(/coredumps)?/.*core.*\.(?:gz|lz4)$`),
 		opb.Device_NOKIA:   regexp.MustCompile("/var/core/coredump-.*"),
 		opb.Device_ARISTA:  regexp.MustCompile("/var/core/core.*"),
 	}
