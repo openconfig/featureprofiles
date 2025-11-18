@@ -53,7 +53,7 @@ duts {
     skip_verify: false
     mutual_tls: true
     username: "cisco"
-    password: "cisco123"
+    password: "cisco"
     trust_bundle_file: "$TRUST_BUNDLE_FILE"
     cert_file: "$CERT_FILE"
     key_file:  "$KEY_FILE"

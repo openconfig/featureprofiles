@@ -38,7 +38,7 @@
 # Pass2: lab
 
 # Username: cisco
-# Password: cisco123
+# Password: cisco
 
 ## Management Virtual IP:
 # ipv4 virtual vrf mgmtVrf address 10.85.104.109/24
@@ -52,7 +52,7 @@ duts {
     insecure: false 
     skip_verify: true
     username: "cisco"
-    password: "cisco123"
+    password: "cisco"
   }
 
   # Options specific to gNMI.  Remove if not needed.
