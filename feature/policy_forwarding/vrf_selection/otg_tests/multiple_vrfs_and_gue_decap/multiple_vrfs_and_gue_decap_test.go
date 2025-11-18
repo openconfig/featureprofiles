@@ -233,22 +233,42 @@ func configureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
-// configureBgp configure dut with BGP configuration
 func configureBgp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
+	// Define neighbors for peer-group 1
 	nbr1v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv4, IsV4: true, PeerGrp: peerv4Grp1Name}
 	nbr1v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate1Asn, Neighborip: atePort1.IPv6, IsV4: false, PeerGrp: peerv6Grp1Name}
+
+	// Define neighbors for peer-group 2
 	nbr2v4 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv4, IsV4: true, PeerGrp: peerv4Grp2Name}
 	nbr2v6 := &cfgplugins.BgpNeighbor{LocalAS: dutAsn, PeerAS: ate2Asn, Neighborip: atePort2.IPv6, IsV4: false, PeerGrp: peerv6Grp2Name}
 
-	nbrList := []*cfgplugins.BgpNeighbor{nbr1v4, nbr2v4, nbr1v6, nbr2v6}
-
-	// Create a batch and build config
+	// Prepare GNMI batch
 	sb := &gnmi.SetBatch{}
-	sb = cfgplugins.ConfigureSimpleBgpNeighbour(t, dut, sb, dutPort2.IPv4, nbrList)
 
-	// Apply the batch
+	pg1Cfg := cfgplugins.BGPNeighborsConfig{
+		RouterID:      dutPort2.IPv4,
+		PeerGrpNameV4: peerv4Grp1Name,
+		PeerGrpNameV6: peerv6Grp1Name,
+		Nbrs:          []*cfgplugins.BgpNeighbor{nbr1v4, nbr1v6},
+	}
+
+	if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, pg1Cfg); err != nil {
+		t.Fatalf("Failed to configure peer-group 1 neighbors: %v", err)
+	}
+
+	pg2Cfg := cfgplugins.BGPNeighborsConfig{
+		RouterID:      dutPort2.IPv4,
+		PeerGrpNameV4: peerv4Grp2Name,
+		PeerGrpNameV6: peerv6Grp2Name,
+		Nbrs:          []*cfgplugins.BgpNeighbor{nbr2v4, nbr2v6},
+	}
+
+	if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, pg2Cfg); err != nil {
+		t.Fatalf("Failed to configure peer-group 2 neighbors: %v", err)
+	}
+
 	sb.Set(t, dut)
 }
 
