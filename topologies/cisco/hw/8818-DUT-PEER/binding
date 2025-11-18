@@ -51,8 +51,8 @@ duts {
   options {
     insecure: false 
     skip_verify: true
-    username: "cisco"
-    password: "cisco"
+    username: "cafyauto"
+    password: "cisco123"
   }
 
   # Options specific to gNMI.  Remove if not needed.
