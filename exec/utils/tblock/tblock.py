@@ -28,9 +28,10 @@ def _get_reason(filename):
 
 def _lockfile(filename, user, reason=""):
     try:
-        fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
+        fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.write(fp, str.encode(f"{user},{reason}"))
         os.close(fp)
+        os.chmod(filename, 0o666)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False
