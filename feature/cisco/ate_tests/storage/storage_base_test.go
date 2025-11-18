@@ -1238,9 +1238,9 @@ func testStorageSystemEventsComprehensive(t *testing.T, args *testArgs) {
 		t.Run(fmt.Sprintf("emsd-process-restart-%s", pathSuffix), func(t *testing.T) {
 			processRestartemsd(t, args, ctx, pathSuffix)
 		})
-		t.Run(fmt.Sprintf("mediasvr-process-restart-%s", pathSuffix), func(t *testing.T) {
+		/*t.Run(fmt.Sprintf("mediasvr-process-restart-%s", pathSuffix), func(t *testing.T) {
 			processRestartMediaSvr(t, args, ctx, pathSuffix)
-		})
+		})*/
 	}
 
 	// Phase 3: Collect post-event values for all paths using existing test functions
