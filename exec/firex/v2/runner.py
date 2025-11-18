@@ -1507,9 +1507,9 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
 
         hw_testbed_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['testbed'])
         hw_binding_file_path = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed['binding'])
-        tb_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
-        key_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
-        cert_file = _resolve_path_if_needed(internal_fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+        tb_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed.get('tls_ca', MTLS_DEFAULT_TRUST_BUNDLE_FILE))
+        key_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed.get('tls_key', MTLS_DEFAULT_KEY_FILE))
+        cert_file = _resolve_path_if_needed(internal_fp_repo_dir, reserved_testbed.get('tls_cert', MTLS_DEFAULT_CERT_FILE))
 
         shutil.copyfile(hw_testbed_file_path, ondatra_testbed_path)
         shutil.copyfile(hw_binding_file_path, ondatra_binding_path)
