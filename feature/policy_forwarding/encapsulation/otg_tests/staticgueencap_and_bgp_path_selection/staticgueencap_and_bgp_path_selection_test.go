@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/gopacket/layers"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -47,6 +46,7 @@ const (
 	ibgpPeerGroup = "IBGP-PEERS"
 	ebgpPeerGroup = "EBGP-PEERS"
 	udpEncapPort  = 6080
+	ttl           = 64
 
 	// Static and GUE address
 	nexthopGroupName1 = "GUE_TE10"
@@ -273,18 +273,18 @@ var (
 
 	outerGUEIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
 		SkipProtocolCheck: true,
-		TTL:               64,
+		TTL:               ttl,
 		DstIP:             bgpInternalTE11.IPv4,
 	}
 
 	outerGUEv6Encap = &packetvalidationhelpers.IPv4Layer{
 		SkipProtocolCheck: true,
-		TTL:               64,
+		TTL:               ttl,
 		DstIP:             bgpInternalTE10.IPv4,
 	}
 
 	innerGUEIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
-		TTL:      63,
+		TTL:      ttl - 1,
 		Protocol: udpEncapPort,
 	}
 
@@ -820,35 +820,6 @@ func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIP string, i
 	}
 }
 
-func validateOuterPacket(t *testing.T, outerPacket *layers.IPv4, tos, ttl uint8, dstIp string) {
-
-	outerttl := outerPacket.TTL
-	outerDSCP := outerPacket.TOS >> 2
-	outerDstIp := outerPacket.DstIP.String()
-
-	if dstIp != "" {
-		if outerDstIp == dstIp {
-			t.Logf("Encapsulted with tunnel destination: expected dstIP %s, got %s", dstIp, outerDstIp)
-		} else {
-			t.Errorf("not receievd encapsulted with tunnel destination: expected dstIP %s, got %s", dstIp, outerDstIp)
-		}
-	}
-
-	if ttl != 0 {
-		if outerttl == ttl {
-			t.Logf("Outer TTL matched: expected ttl %d, got ttl %d", ttl, outerttl)
-		} else {
-			t.Errorf("outer TTL mismatch: expected ttl %d, got ttl %d", ttl, outerttl)
-		}
-	}
-	if outerDSCP == tos {
-		t.Logf("Outer TOS matched: expected TOS %v, got TOS %v", tos, outerDSCP)
-	} else {
-		t.Errorf("outer TOS mismatch: expected TOS %v, got TOS %v", tos, outerDSCP)
-	}
-
-}
-
 func validateOutCounters(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG) {
 	var totalTxFromATE uint64
 
@@ -1153,7 +1124,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v4-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1169,7 +1140,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v6-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1185,7 +1156,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v4-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1201,7 +1172,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v6-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1217,7 +1188,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v4-3",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1233,7 +1204,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet3-v6-3",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1249,7 +1220,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet4-v4-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1265,7 +1236,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet4-v6-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1281,7 +1252,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet4-v4-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1297,7 +1268,7 @@ func TestStaticGue(t *testing.T) {
 				PpsRate:       trafficPps,
 				FlowName:      "flowSet4-v6-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[2].otgPortData[0].MAC, DstMAC: port1DstMac},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE10.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1314,7 +1285,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v4-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1331,7 +1302,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v6-1",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1348,7 +1319,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v4-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1365,7 +1336,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v6-2",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1382,7 +1353,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v4-3",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1399,7 +1370,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v6-3",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1416,7 +1387,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v4-4",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1433,7 +1404,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v6-4",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1450,7 +1421,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v4-5",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -1467,7 +1438,7 @@ func TestStaticGue(t *testing.T) {
 				FlowName:      "flowSet5-v6-5",
 				EthFlow:       &otgconfighelpers.EthFlowParams{SrcMAC: otgBGPConfig[1].otgPortData[1].MAC, DstMAC: port2DstMac},
 				VLANFlow:      &otgconfighelpers.VLANFlowParams{VLANId: otgBGPConfig[1].otgPortData[0].Subinterface},
-				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4},
+				IPv4Flow:      &otgconfighelpers.IPv4FlowParams{IPv4Src: dutloopback0.IPv4, IPv4Dst: bgpInternalTE11.IPv4, TTL: ttl},
 				UDPFlow:       &otgconfighelpers.UDPFlowParams{UDPDstPort: udpEncapPort},
 			},
 			innerParams: otgconfighelpers.Flow{
@@ -2109,7 +2080,6 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 		otgConfig.Flows().Append(flowGroups[flowset].Flows...)
 	}
 
-	t.Log(otgConfig)
 	encapValidation.PortName = "port3"
 	packetvalidationhelpers.ConfigurePacketCapture(t, otgConfig, encapValidation)
 	ate.OTG().PushConfig(t, otgConfig)
@@ -2126,6 +2096,7 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	sendTrafficCapture(t, ate, otgConfig, []string{flowGroups["flowSet1"].Flows[0].Name()})
 	outerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
 	innerGUEIPLayerIPv4.Tos = uint8(dscpValue["BE1"])
+	innerGUEIPLayerIPv4.Protocol = udpEncapPort
 	if err := validatePacket(t, ate, encapValidation); err != nil {
 		t.Errorf("capture and validatePackets failed (): %q", err)
 	}
