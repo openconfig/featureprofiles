@@ -24,7 +24,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
     explicit_port_speed: true
     ipv4_missing_enabled: true
     isis_single_topology_required: true
