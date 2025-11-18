@@ -247,7 +247,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 		})
 
 	}
-	if len(controllerCards) > 0 {
+	if len(controllerCards) <= 0 {
 		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", controllerCards)
 	}
 }
@@ -306,7 +306,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		})
 	}
 
-	if len(lineCards) > 0 {
+	if len(lineCards) <= 0 {
 		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", lineCards)
 	}
 }
