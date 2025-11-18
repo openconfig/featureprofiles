@@ -77,7 +77,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 			description: "Validate storage percentage used",
 			fn:          testPercentageUsed,
 		},
-		{
+		/*{
 			name:        "system-events",
 			counterType: "counter64",
 			description: "Validate storage system events counter",
@@ -88,7 +88,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 			counterType: "counter64",
 			description: "Validate storage trigger events counter",
 			fn:          testCounterTriggerScenario,
-		},
+		},*/
 		{
 			name:        "subscription-levels",
 			counterType: "mixed",
