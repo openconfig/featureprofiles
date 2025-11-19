@@ -36,7 +36,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
@@ -100,8 +99,7 @@ func TestDial(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	lctx := metadata.AppendToOutgoingContext(ctx, "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
-	conn := dialContainer(t, lctx, dut, cntrPort)
+	conn := dialContainer(t, ctx, dut, cntrPort)
 	defer conn.Close()
 
 	client := cpb.NewCntrClient(conn)
@@ -117,7 +115,7 @@ func TestDial(t *testing.T) {
 		default:
 		}
 
-		_, err := client.Ping(lctx, &cpb.PingRequest{})
+		_, err := client.Ping(ctx, &cpb.PingRequest{})
 		if err == nil {
 			t.Log("Successfully pinged cntrsrv.")
 			return // Success
@@ -145,8 +143,7 @@ func TestDialLocal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	lctx := metadata.AppendToOutgoingContext(ctx, "deviceFqdn", fmt.Sprintf("[%s.net.google.com]:%d", dut.Name(), cntrPort))
-	conn := dialContainer(t, lctx, dut, cntrPort)
+	conn := dialContainer(t, ctx, dut, cntrPort)
 	defer conn.Close()
 	client := cpb.NewCntrClient(conn)
 
@@ -155,7 +152,7 @@ func TestDialLocal(t *testing.T) {
 		if ctx.Err() != nil {
 			t.Fatalf("Timed out waiting for container gRPC server to be ready, last error: %v", lastErr)
 		}
-		_, lastErr = client.Ping(lctx, &cpb.PingRequest{})
+		_, lastErr = client.Ping(ctx, &cpb.PingRequest{})
 		if lastErr == nil {
 			t.Log("Successfully pinged cntrsrv.")
 			break // Success
@@ -219,7 +216,7 @@ func TestDialLocal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			tctx, cancel := context.WithTimeout(lctx, 30*time.Second)
+			tctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 			defer cancel()
 			// Use the client established before the sub-tests.
 			got, err := client.Dial(tctx, tt.inMsg)

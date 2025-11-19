@@ -49,7 +49,7 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		dut.Config().New().WithAristaText(`
 			ipv6 access-list restrict-access-ipv6
 			  ! open port for cntrsrv from PROD
-			  permit tcp 2002:a00::/24 any eq 60061
+			  permit tcp any any eq 60061
 		`).Append(t)
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
