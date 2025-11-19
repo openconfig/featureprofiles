@@ -1768,3 +1768,8 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// ContainerZPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerZPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}

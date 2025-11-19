@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -717,6 +718,10 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if deviations.ContainerZPluginRPCUnsupported(dut) {
+		t.Skip("Skipping TestPlugins since ContainerZ Plugin RPC is unsupported on this DUT.")
+	}
+
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (
