@@ -45,7 +45,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
 ### Procedure
 
-Stop collector and restart
+* Stop and restart one of the gNMI collectors.
 
 
 ### Verifications
