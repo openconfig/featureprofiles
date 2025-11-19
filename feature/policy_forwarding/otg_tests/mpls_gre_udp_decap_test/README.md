@@ -3,6 +3,12 @@
 Create a policy-forwarding configuration using gNMI to decapsulate MPLS
 in GRE and UDP packets which are sent to a IP from a decap pool or loopback address and apply to
 the DUT.
+Create a policy-forwarding configuration using gNMI to decapsulate MPLS
+in GRE and UDP packets which are sent to an IP from a decap pool or 
+loopback address and apply to the DUT.  Configure a static MPLS LSP
+which maps the decapsulated MPLS packets to an egress LSP (causing
+the label to be popped) and forwards the packets to a next-hop in a
+non-default network-instance.
 
 ## Topology
 
@@ -212,7 +218,7 @@ paths:
   # Paths added for PF-1.7.2 - MPLS in UDP decapsulation set by gNMI
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
-  #TODO: Add OC for next-network-instance
+  #TODO: Add OC for next-network-instance see https://github.com/openconfig/public/pull/1395
   # set the network-instance to be used for the egress LSP next-hop
   # TODO: /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/nh-network-instance
 
