@@ -20,7 +20,7 @@
 # !
 # vrf mgmtVrf
 #  address-family ipv4 unicast
-#   0.0.0.0/0 10.85.72.1
+#   0.0.0.0/0 10.85.104.1
 #  !
 #  address-family ipv6 unicast
 #   ::/0 2001:420:2841:3000::b001
@@ -31,25 +31,25 @@
 #interface MgmtEth0/RP0/CPU0/0
 # description ott_ucs1_b4_ens4f0
 # vrf mgmtVrf
-# ipv4 address 10.85.72.50/24
+# ipv4 address 10.85.104.109 255.255.255.0
 # ipv6 address 1:1:1:1::1/64
 # ipv6 address 2001:420:2841:3000::b006/116
 #!
 #interface MgmtEth0/RP1/CPU0/0
 # description ott_ucs1_b4_ens4f1
 # vrf mgmtVrf
-# ipv4 address 10.85.72.51/24
+# ipv4 address 10.85.104.109 255.255.255.0
 # ipv6 address 1:1:1:1::2/64
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2003
-#telnet: RP1 -  telnet 10.85.72.15 2004
+#telnet: RP0 -  telnet 10.85.83.147 2001
+#telnet: RP1 -  telnet 10.85.83.147 2002
 
 ##Exec server:
 #ssh ott1lab-as2
 
 ## Consoe server:
-# telnet 10.85.72.15
+# telnet 10.85.83.147
 # Pass1: lab
 # Pass2: lab
 
@@ -57,7 +57,7 @@
 # Password: cisco
 
 ## Management Virtual IP:
-# ipv4 virtual vrf mgmtVrf address 10.85.72.52/24
+# ipv4 virtual vrf mgmtVrf address 10.85.104.109/24
 # ipv6 virtual address vrf mgmtVrf 1:1:1:1::3/64
 duts {
   id: "dut"
@@ -255,14 +255,14 @@ duts {
 
 ates {
   id: "ate"
-  name: "10.85.72.53"  # Change this to the Ixia chassis name.
+  name: "10.85.104.104"  # Change this to the Ixia chassis name.
 
   # Options specific to the IxNetwork API.  Remove if not needed.
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-   target: "10.85.72.53"
+   target: "10.85.104.104"
    skip_verify: true
    username: "admin"
    password: "Admin!@#123123"

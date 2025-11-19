@@ -199,7 +199,7 @@ testbeds:
       gnmi_port: 58818
       rest_port: 38818
     godhcpd:
-      url: http://ott-ucs1-b4:8001
+      url: http://ott-ucs4-b4:8001
       mgmt_ip: 1:1:1:1::1/64
       mgmt_gw: 1:1:1:1::4
 
