@@ -74,7 +74,7 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
   /network-instances/network-instance/afts/next-hops/next-hop/state/index:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
-  
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
 rpcs:
   gnmi:
     gNMI.Subscribe:
