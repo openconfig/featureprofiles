@@ -133,14 +133,14 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
 		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
 	}
+	// Configure default network instance.
+	t.Log("Configure Default Network Instance")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
 	}
-
-	// Configure default network instance.
-	t.Log("Configure Default Network Instance")
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if err := configureAllowPolicy(t, dut); err != nil {
 		return err
