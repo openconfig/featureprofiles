@@ -20,24 +20,24 @@ Start by entering in that directory and running the following commands:
 $ cd internal/cntrsrv
 $ go mod vendor
 $ CGO_ENABLED=0 go build .
-$ docker build -f build/Dockerfile.local -t cntrsrv:latest .
+$ docker build -f build/Dockerfile.local -t cntrsrv_image:latest .
 ```
 
 At this point you will have a container image build for the test container.
 
 ```shell
 $ docker images
-REPOSITORY  TAG            IMAGE ID       CREATED         SIZE
-cntrsrv     latest         8d786a6eebc8   3 minutes ago   21.4MB
+REPOSITORY        TAG            IMAGE ID       CREATED         SIZE
+cntrsrv_image     latest         8d786a6eebc8   3 minutes ago   21.4MB
 ```
 
 Now export the container to a tarball.
 
 ```shell
-$ docker save -o /tmp/cntrsrv.tar cntrsrv:latest
-$ docker tag cntrsrv:latest cntrsrv:upgrade
-$ docker save -o /tmp/cntrsrv-upgrade.tar cntrsrv:upgrade
-$ docker rmi cntrsrv:latest
+$ docker save -o /tmp/cntrsrv.tar cntrsrv_image:latest
+$ docker tag cntrsrv_image:latest cntrsrv_image:upgrade
+$ docker save -o /tmp/cntrsrv-upgrade.tar cntrsrv_image:upgrade
+$ docker rmi cntrsrv_image:latest
 ```
 
 This is the tarball that will be used during tests.

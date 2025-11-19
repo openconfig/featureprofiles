@@ -27,11 +27,16 @@ var (
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
 	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
+	// getContainerTarPath returns the path to the container tarball.
+	// This can be overridden for internal testing behavior.
+	getContainerTarPath = func(t *testing.T) string {
+		return *containerTar
+	}
 )
 
 const (
 	instanceName = "test-instance"
-	imageName    = "cntrsrv"
+	imageName    = "cntrsrv_image"
 )
 
 func TestMain(m *testing.M) {
@@ -44,7 +49,7 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	opts := containerztest.StartContainerOptions{
-		TarPath:             *containerTar,
+		TarPath:             getContainerTarPath(t),
 		RemoveExistingImage: false,
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
