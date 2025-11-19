@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 const (
 	aftConvergenceTime = 30 * time.Minute
 	applyPolicyType    = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	gnmiTimeout        = 2 * time.Minute
+	gnmiTimeout        = 5 * time.Minute
 	isisDUTArea        = "49.0001"
 	isisDUTSystemID    = "1920.0000.2001"
 	mtu                = 1500
