@@ -1,4 +1,4 @@
-package policy_advertise_aggregate
+package policy_advertise_aggregate_test
 
 import (
 	"testing"
