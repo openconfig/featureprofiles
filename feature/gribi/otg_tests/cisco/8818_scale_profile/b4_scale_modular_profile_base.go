@@ -52,6 +52,7 @@ const (
 	maxTunnelResources   = 12000
 	seedDeviceID         = 1
 	seedInterfaceID      = 1000
+	seedLowElectionID    = 1000
 )
 
 var (
@@ -1798,8 +1799,9 @@ func configureBaseInfra(t *testing.T, bc *baseConfig) *testArgs {
 	h.EnableSFlowOnInterfaces(t, dut, pathInfo.PrimaryInterface)
 	h.EnableSFlowOnInterfaces(t, dut, pathInfo.BackupInterface)
 	// configure P4RT
-	h.P4rtHelper().ConfigureDeviceID(t, dut, seedDeviceID)
 	h.P4rtHelper().ConfigureInterfaceID(t, dut, seedInterfaceID)
+	// configure device ids, create P4RT clients and add ACL entries
+	programP4rtClientsAndEntries(t, dut)
 
 	t.Log("Configure TGEN OTG")
 	topo := configureOTG(t, otg, dut, peer)
