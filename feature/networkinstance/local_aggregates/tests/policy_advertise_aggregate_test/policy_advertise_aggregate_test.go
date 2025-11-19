@@ -1,7 +1,6 @@
 package policy_advertise_aggregate
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -50,16 +49,6 @@ var (
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
 }
 
 // configureDUT configures the DUT with a BGP session and a policy to accept the trigger route.
