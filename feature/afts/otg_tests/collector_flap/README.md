@@ -37,7 +37,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Verify AFTs prefixes advertised by eBGP and IS-IS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hops is 2 for eBGP advertised prefixes.
-* Verify the number of next hop is 1 for ISIS advertised prefixes.
+* Verify the number of next hops is 1 for IS-IS advertised prefixes.
 * Verify the prefixes are pointing to the correct egress interface(s).
 * Verify all other leaves mentioned in the path section have the data populated correctly.
 
