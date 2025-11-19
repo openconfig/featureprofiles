@@ -144,6 +144,8 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	t.Log(dp1, dp2)
 
 	// Configure DUT interfaces.
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
 	createVRF(t, dut)
 	configureDUTIntf(t, dut)
 	configureBgp(t, dut)
@@ -214,8 +216,8 @@ func getDefaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, gu
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
 		TunnelIP:            dutlo0Attrs.IPv4,
-		GuePort:             uint32(guePort),
-		IpType:              ipType,
+		GUEPort:             uint32(guePort),
+		IPType:              ipType,
 		Dynamic:             true,
 		DecapProtocol:       "ip",
 	}
@@ -745,4 +747,12 @@ func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Logf("Route %s was successfully leaked into %s as expected", advroute, nonDefaultVrfName)
 		}
 	}
+}
+
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 }
