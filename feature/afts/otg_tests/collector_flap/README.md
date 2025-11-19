@@ -32,7 +32,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
 ### Verifications
 
-* eBGP routes advertised from ATE:port1,port2 must have 2 nexthops.
+* eBGP routes advertised from ATE:port1,port2 must have 2 next hops.
 * Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
