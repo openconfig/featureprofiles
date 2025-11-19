@@ -24,7 +24,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
 * Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
 * Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
-* Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
+* Each prefix advertised by IS-IS must have one next hop pointing to ATE port1.
 
 ### Procedure
 * Use gNMI.UPDATE option to push the Test Setup configuration to the DUT.
