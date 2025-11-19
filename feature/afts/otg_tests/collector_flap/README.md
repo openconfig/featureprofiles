@@ -50,7 +50,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 
 ### Verifications
 
-* Verify AFTs prefixes advertised by eBGP and ISIS on both the collectors.
+* Verify AFTs prefixes advertised by eBGP and IS-IS on both the collectors.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Stop the second collector and take a system memory usage in the DUT.
 * Recreate a gnmi session for the second collector and verify the convergence time for the second collector.
