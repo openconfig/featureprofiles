@@ -147,15 +147,18 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 		}
 		if len(class.DscpSet) > 0 {
 			condition := term.GetOrCreateConditions()
-			if class.Name == "dscp_based_classifier_ipv4" {
+			switch class.ClassType {
+			case oc.Qos_Classifier_Type_IPV4:
 				condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
-			} else {
+			case oc.Qos_Classifier_Type_IPV6:
 				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
+			default:
+				t.Fatal("DSCP classification is supported only for IPv4/IPv6 classifier types")
 			}
 		}
 
 		// DSCP remark configuration is not supported. Adding external static configuration after QoS OC configuration
-		if !deviations.QosRemarkOCUnsupported(dut) {
+		if class.RemarkDscp != 0 && !deviations.QosRemarkOCUnsupported(dut) {
 			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
 		}
 	}
