@@ -120,6 +120,7 @@ func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 
 // configureDUT configures all the interfaces, BGP, and ISIS on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
+	t.Helper()
 	dut := tc.dut
 	dutPort1 := dut.Port(t, port1Name).Name()
 	dutIntf1 := dutP1.NewOCInterface(dutPort1, dut)
