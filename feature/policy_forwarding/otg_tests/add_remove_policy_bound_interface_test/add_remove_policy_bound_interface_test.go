@@ -15,7 +15,7 @@
 package add_remove_policy_bound_interface_test
 
 import (
-	"fmt"
+	"strconv"
 	"testing"
 	"time"
 
@@ -25,9 +25,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -135,7 +135,7 @@ func assignToNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, intfName, niN
 	ni := &oc.NetworkInstance{Name: ygot.String(niName)}
 	id := intfName
 	if subIntf != 0 {
-		id = fmt.Sprintf("%s.%d", intfName, subIntf)
+		id = intfName + "." + strconv.FormatUint(uint64(subIntf), 10)
 	}
 	i := ni.GetOrCreateInterface(id)
 	i.Interface = ygot.String(intfName)
