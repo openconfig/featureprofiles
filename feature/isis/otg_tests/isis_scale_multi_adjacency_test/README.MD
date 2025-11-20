@@ -94,7 +94,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
             *   Set ISIS area ID
             *   Disable "Hello Padding"
             *   Enable wide metrics
-            *   Enable ISIS on the ethernet interface with Level 2 only and circuite type of point to point
+            *   Enable ISIS on the ethernet interface with Level 2 only and circuit type of point to point
             *   Enable ISIS 3 way handshaking
     6. Repeat steps 1 to 5 for Agg2 to Agg8 the emulated routers connected to them.
     7. Create IP Flows from Agg1 to the below ranges
