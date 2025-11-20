@@ -751,8 +751,14 @@ func verifyLeakedRoutes(t *testing.T, dut *ondatra.DUTDevice) {
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
-	if hardwareInitCfg == "" {
+	hardwareInitCfg1 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	hardwareInitCfg2 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	hardwareInitCfg3 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureMplsTracking)
+	if hardwareInitCfg == "" || hardwareInitCfg1 == "" || hardwareInitCfg2 == "" || hardwareInitCfg3 == "" {
 		return
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg1)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg2)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg3)
 }
