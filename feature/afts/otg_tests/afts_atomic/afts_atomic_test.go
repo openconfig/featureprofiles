@@ -122,11 +122,11 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	dut := tc.dut
 	dutPort1 := dut.Port(t, port1Name).Name()
 	dutIntf1 := dutP1.NewOCInterface(dutPort1, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(dutPort1).Config(), dutIntf1)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort1).Config(), dutIntf1)
 
 	dutPort2 := dut.Port(t, port2Name).Name()
 	dutIntf2 := dutP2.NewOCInterface(dutPort2, dut)
-	gnmi.Update(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
 
 	// TODO: Move deviations into cfgplugins.
 	if deviations.ExplicitPortSpeed(dut) {
