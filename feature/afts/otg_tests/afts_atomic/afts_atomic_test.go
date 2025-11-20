@@ -287,10 +287,8 @@ type testCase struct {
 
 	// churn downs one or more ports to create churn.
 	churn func()
-	// stoppingCondition provides the expected prefixes after the churn.
-	stoppingCondition aftcache.PeriodicHook
-	// additionalVerification provides additional verification after churn, if any.
-	additionalVerification func(*aftcache.AFTStreamSession)
+	// stoppingConditions provides the expected prefixes after the churn.
+	stoppingConditions []aftcache.PeriodicHook
 	// revert restores the port(s) to the original state.
 	revert func()
 }
@@ -347,22 +345,18 @@ func TestAtomic(t *testing.T) {
 			dut:  dut,
 			ate:  ate,
 
-			churn:             setOneLinkDown,
-			stoppingCondition: oneLinkDownBGP,
-			additionalVerification: func(aftSession *aftcache.AFTStreamSession) {
-				t.Helper()
-				aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
-			},
-			revert: setOneLinkUp,
+			churn:              setOneLinkDown,
+			stoppingConditions: []aftcache.PeriodicHook{oneLinkDownBGP, verifyISISPrefixes},
+			revert:             setOneLinkUp,
 		},
 		{
 			name: "AFT-3.1.2: AFT Atomic Flag Check Link Down and Up scenario 2",
 			dut:  dut,
 			ate:  ate,
 
-			churn:             setTwoLinksDown,
-			stoppingCondition: twoLinksDown,
-			revert:            setTwoLinksUp,
+			churn:              setTwoLinksDown,
+			stoppingConditions: []aftcache.PeriodicHook{twoLinksDown},
+			revert:             setTwoLinksUp,
 		},
 	}
 
@@ -401,10 +395,8 @@ func TestAtomic(t *testing.T) {
 
 			t.Log("Modifying port state to create churn.")
 			tc.churn()
-			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, tc.stoppingCondition)
-			if tc.additionalVerification != nil {
-				t.Log("Running additional verification.")
-				tc.additionalVerification(aftSession)
+			for _, stoppingCondition := range tc.stoppingConditions {
+				aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, stoppingCondition)
 			}
 			t.Log("Done listening for churn.")
 
