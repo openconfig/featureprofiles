@@ -150,6 +150,13 @@ This test validates the complete lifecycle of the `vieux/docker-volume-sshfs` pl
 Using the tarball from 'Build docker volume sshfs plugin tarball', the test installs and activates the plugin via `gnoi.Containerz.StartPlugin`, then verifies its presence and state using `gnoi.Containerz.ListPlugins`.
 Subsequently, the plugin is stopped using `gnoi.Containerz.StopPlugin` and removed with `gnoi.Containerz.RemovePlugin`.
 
+## Canonical OC
+
+<!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the RPCs intended to be covered by this test.
