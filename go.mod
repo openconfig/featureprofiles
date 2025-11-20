@@ -22,6 +22,7 @@ require (
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
+	github.com/openconfig/gnpsi v0.3.2
 	github.com/openconfig/gnsi v1.9.0
 	github.com/openconfig/gocloser v0.0.0-20250211195114-79e08bd41eef
 	github.com/openconfig/goyang v1.6.3
@@ -42,9 +43,9 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
-	golang.org/x/crypto v0.42.0
+	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621
-	golang.org/x/text v0.29.0
+	golang.org/x/text v0.31.0
 	google.golang.org/api v0.215.0
 	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.9
@@ -129,7 +130,6 @@ require (
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
 	github.com/openconfig/attestz v0.5.0 // indirect
 	github.com/openconfig/bootz v0.6.0 // indirect
-	github.com/openconfig/gnpsi v0.3.2 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
@@ -168,10 +168,10 @@ require (
 	go.opentelemetry.io/proto/otlp v1.8.0 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.44.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
-	golang.org/x/term v0.35.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
+	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
 	google.golang.org/genproto v0.0.0-20241118233622-e639e219e697 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
