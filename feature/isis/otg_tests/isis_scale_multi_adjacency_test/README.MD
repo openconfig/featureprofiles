@@ -313,7 +313,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
                       },
                       "timers": {
                         "config": {
-                          "lsp-pacing-interval": "50"
+                          "lsp-pacing-interval": 50
                         }
                       }
                     },
