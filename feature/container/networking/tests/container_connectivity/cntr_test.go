@@ -47,10 +47,15 @@ func TestMain(m *testing.M) {
 
 var (
 	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	// containerTarPath returns the path to the container tarball.
+	// This can be overridden for internal testing behavior using init().
+	containerTarPath = func(t *testing.T) string {
+		return *containerTar
+	}
 )
 
 const (
-	imageName    = "cntrsrv"
+	imageName    = "cntrsrv_image"
 	instanceName = "cntr-test-conn"
 	cntrPort     = 60061
 )
@@ -64,7 +69,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 		ImageName:           imageName,
 		InstanceName:        instanceName,
 		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
-		TarPath:             *containerTar,
+		TarPath:             containerTarPath(t),
 		Network:             "host",
 		PollForRunningState: true,
 	}
