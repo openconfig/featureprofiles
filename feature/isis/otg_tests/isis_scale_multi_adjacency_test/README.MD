@@ -222,8 +222,8 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
                     },
                     "spf": {
                       "config": {
-                        "spf-first-interval": "200",
-                        "spf-hold-interval": "2000"
+                        "spf-first-interval": 200,
+                        "spf-hold-interval": 2000
                       }
                     }
                   }
