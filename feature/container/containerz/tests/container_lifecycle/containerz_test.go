@@ -27,10 +27,18 @@ var (
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
 	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
-	// getContainerTarPath returns the path to the container tarball.
-	// This can be overridden for internal testing behavior.
+	// These can be overridden for internal testing behavior using init().
 	getContainerTarPath = func(t *testing.T) string {
 		return *containerTar
+	}
+	getContainerUpgradeTarPath = func(t *testing.T) string {
+		return *containerUpgradeTar
+	}
+	getPluginTarPath = func(t *testing.T) string {
+		return *pluginTar
+	}
+	getPluginConfigPath = func(t *testing.T) string {
+		return *pluginConfig
 	}
 )
 
@@ -69,7 +77,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 			InstanceName:        instanceName,
 			ImageName:           imageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             getContainerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60061:60061"},
 			RemoveExistingImage: true,
@@ -230,7 +238,7 @@ func TestRetrieveLogs(t *testing.T) {
 			InstanceName:        stoppedInstanceName,
 			ImageName:           localImageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             getContainerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60062:60062"},
 			RemoveExistingImage: false,
@@ -582,7 +590,7 @@ func TestUpgrade(t *testing.T) {
 		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
-		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
+		progCh, err := cli.PushImage(ctx, imageName, "upgrade", getContainerUpgradeTarPath(t), false)
 		if err != nil {
 			t.Fatalf("unable to push image %s:upgrade: %v", imageName, err)
 		}
@@ -732,8 +740,8 @@ func TestPlugins(t *testing.T) {
 	)
 
 	// Check if the plugin tarball exists (as it's needed for config extraction).
-	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
-		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	if _, err := os.Stat(getPluginTarPath(t)); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", getPluginTarPath(t))
 	}
 
 	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
@@ -756,13 +764,13 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, getPluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
-		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, *pluginConfig)
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
-			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, *pluginConfig, err)
+		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, getPluginConfigPath(t))
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err != nil {
+			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, getPluginConfigPath(t), err)
 		}
 		t.Logf("StartPlugin call succeeded for instance %q", pluginInstance)
 
@@ -854,12 +862,12 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, getPluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s for StartAlreadyStartedInstance: %v", pluginName, pluginImageTag, err)
 		}
 
 		// First start (should succeed).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err != nil {
 			t.Fatalf("Initial StartPlugin for %s, instance %s failed: %v", pluginName, pluginInstance, err)
 		}
 		t.Logf("Successfully started plugin %s instance %s for the first time.", pluginName, pluginInstance)
@@ -867,7 +875,7 @@ func TestPlugins(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		// Second start (should fail).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err == nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err == nil {
 			t.Errorf("Second StartPlugin for already started instance %s succeeded, expected error", pluginInstance)
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
