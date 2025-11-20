@@ -80,8 +80,14 @@
     2.  Generate Go code using `make proto/metadata_go_proto/metadata.pb.go`.
     3.  Add an accessor function in `internal/deviations/deviations.go`. This
         must accept `*ondatra.DUTDevice`.
-    4.  Enable the deviation in the test's `metadata.textproto` file.
+    5.  Add a comment to the accessor function containing a URL link to an
+        issue tracker which tracks removal of the deviation.  The format should
+        be `https://issuetracker.google.com/issues/xxxxx`.  If the issue is not
+        tracked at Google, another URL could be used.
+    7.  Enable the deviation in the test's `metadata.textproto` file.
+
 *   **Usage in Tests:** Access deviations via `deviations.DeviationName(dut)`.
+
 
 ### **3. Configuration Plugins (`cfgplugins`) Guidelines**
 
