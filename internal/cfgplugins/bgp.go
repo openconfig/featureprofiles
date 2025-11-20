@@ -774,7 +774,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, root, cfg); err != nil {
+	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
 		return err
 	}
 
