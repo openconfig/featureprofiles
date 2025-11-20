@@ -37,9 +37,6 @@ var (
 	getPluginTarPath = func(t *testing.T) string {
 		return *pluginTar
 	}
-	getPluginConfigPath = func(t *testing.T) string {
-		return *pluginConfig
-	}
 )
 
 const (
@@ -768,9 +765,9 @@ func TestPlugins(t *testing.T) {
 			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
-		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, getPluginConfigPath(t))
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err != nil {
-			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, getPluginConfigPath(t), err)
+		t.Logf("Attempting to start plugin %q instance %q with config %q", pluginName, pluginInstance, *pluginConfig)
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
+			t.Fatalf("StartPlugin(%q, %q, %q) failed: %v", pluginName, pluginInstance, *pluginConfig, err)
 		}
 		t.Logf("StartPlugin call succeeded for instance %q", pluginInstance)
 
@@ -867,7 +864,7 @@ func TestPlugins(t *testing.T) {
 		}
 
 		// First start (should succeed).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err != nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err != nil {
 			t.Fatalf("Initial StartPlugin for %s, instance %s failed: %v", pluginName, pluginInstance, err)
 		}
 		t.Logf("Successfully started plugin %s instance %s for the first time.", pluginName, pluginInstance)
@@ -875,7 +872,7 @@ func TestPlugins(t *testing.T) {
 		time.Sleep(2 * time.Second)
 
 		// Second start (should fail).
-		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, getPluginConfigPath(t)); err == nil {
+		if err := cli.StartPlugin(ctx, pluginName, pluginInstance, *pluginConfig); err == nil {
 			t.Errorf("Second StartPlugin for already started instance %s succeeded, expected error", pluginInstance)
 		} else {
 			t.Logf("Got expected error when starting already started instance %s: %v", pluginInstance, err)
