@@ -2345,7 +2345,8 @@ tests:
     path: feature/gribi/otg_tests/mpls_compliance
     owners:
       - mananpat
-    mustpass: false
+    mustpass: true
+    internal: false
     priority: 3
     groups: [newfnt]
 
@@ -2809,11 +2810,11 @@ tests:
     mustpass: false
     priority: 3
 
-  - name: TE-18.3
-    path: feature/gribi/otg_tests/mpls_in_udp_scale
-    groups: [new_run]
-    mustpass: false
-    priority: 3
+  # - name: TE-18.3
+  #  path: feature/gribi/otg_tests/mpls_in_udp_scale
+  #  groups: [new_run]
+  #  mustpass: false
+  #  priority: 3
 
   - name: TE-9.3 (FIB FAILURE DUE TO HARDWARE RESOURCE EXHAUST)
     path: feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test
