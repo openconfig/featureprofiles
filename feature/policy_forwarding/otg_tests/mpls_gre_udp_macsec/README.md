@@ -22,26 +22,25 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate).
 * Send bidirectional traffic:
   * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
 
-  * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].  
+  * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].
 
 Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md) and [decapsulation PF-1.12](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md) READMEs for additional information on the test traffic environment setup.
 
 ## PF-1.17.1: Generate DUT Configuration
 ### MACsec
 * Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT:
-    * Define first Policy(1) to cover must-secure scenario  
-    * Define second Policy(2) to cover should-secure scenario
+    * Define first Policy(1) to cover must-secure scenario, as defined below
+    * Define second Policy(2) to cover should-secure scenario, as defined below
     * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
     * Each pre-shared key mush have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
-    * Set CKN as encrypted/hidden in the running configuration
+    * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
     * Set Key server priority: 15
-    * Set Security association key rekey interval: 28800 seconds
+    * Set Security association key rekey interval: 30 seconds
     * Set MACsec confidentiality offset: 0
-    * Set Replay Protection Window size: 64
+    * Set Replay Protection Window (out-of-sequence protection) size: 64
     * Set ICV enabled:True
     * Set SCI enabled:True
-    * Set Out of sequence protection window size:64
     * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
@@ -57,7 +56,7 @@ Verify:
 * No packet loss while forwarding at line rate
 * Traffic equally load-balanced across bundle interfaces in both directions
 * Header fields are as expected in both directions
-* Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by disabling MACsec on ATE ports
+* Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by changing a key on one side to a mismatch & forcing renegotiation on ATE ports
 
 ## PF-1.17.3: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec should-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -72,7 +71,7 @@ Verify:
 * No packet loss while forwarding at line rate
 * Traffic equally load-balanced across bundle interfaces in both directions
 * Header fields are as expected in both directions
-* Traffic is not dropped when the should-secure MACSec sessions are down by disabling MACsec on ATE ports
+* Traffic is not dropped when the should-secure MACSec sessions are down by changing a key on one side to a mismatch & forcing renegotiation on ATE ports
 
 ## PF-1.17.4: Verify MACSec key rotation
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -90,6 +89,9 @@ Verify:
 * No packet loss when keys one through five expires as configured
 * 100 percent packet loss after all the keys configured expires
 
+## Definitions
+  * *must-secure:*  All packets other than the macsec control/negotiation packets must be encrypted for both tx and rx; for tx if there is no key then the packet is dropped. For rx, if any packet that would be encrypted by macsec is not encrypted, it would be dropped.
+  * *should-secure:*  Unencrypted packets are permitted. The rx should, but is not required to, drop unencrypted packets if it believes it has a valid and active macsec connection. Tx should not, but is not required to, transmit unencrypted packets unless it believes that the macsec session did not properly negotiate.
 
 ## Canonical OpenConfig for MACsec configuration
  
