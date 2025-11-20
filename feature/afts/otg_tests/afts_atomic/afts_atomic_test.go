@@ -99,8 +99,9 @@ var (
 	ipv4OneNH  = map[string]bool{ateP1.IPv4: true}
 	ipv4TwoNHs = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
 
-	ipv6OneNH  = map[string]bool{ateP1.IPv6: true}
-	ipv6TwoNHs = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	ipv6LinkLocalNH = map[string]bool{"fe80::200:2ff:fe02:202": true}
+	ipv6OneNH       = map[string]bool{ateP1.IPv6: true}
+	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
 func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
@@ -128,11 +129,6 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 	dutIntf2 := dutP2.NewOCInterface(dutPort2, dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
 
-	// TODO: Move deviations into cfgplugins.
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
-		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
-	}
 	// Configure default network instance.
 	t.Log("Configure Default Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -315,7 +311,12 @@ func TestAtomic(t *testing.T) {
 
 	verifyBGPPrefixes := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4TwoNHs, ipv6TwoNHs)
 	verifyISISPrefixes := aftcache.AssertNextHopCount(t, dut, isisPrefixes, 1)
-	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
+
+	ipv6NH := ipv6OneNH
+	if deviations.LinkLocalInsteadOfNh(dut) {
+		ipv6NH = ipv6LinkLocalNH
+	}
+	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6NH)
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
 	setOneLinkDown := func() {
