@@ -150,7 +150,7 @@ Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
 #### Test pass fail criteria
 
 *   If any of the below conditions are not meet test should be declared as a "FAIL"
-    1.  Count of ISIS adjacencies in the "UP" state is less than 2
+    1.  Count of ISIS adjacencies in the "UP" state is less than 96
     2.  Count of any of the below metrics was not equal to the below values :
         a.  ISIS LSPs = 9300
         b.  ISIS IPv4 routes = 68000
