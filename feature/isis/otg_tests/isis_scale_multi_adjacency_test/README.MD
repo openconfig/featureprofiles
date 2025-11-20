@@ -52,7 +52,7 @@ graph RL
 ### DUT and OTG properties
 
 
-Device  |  Port1 IPv4 | Port1 IPv6 | Port2 IPv4 | Port2 IPv4 | Port3 IPv4 | Port3 IPv4| ISIS AREA | ISIS ID
+Device  |  Port1 IPv4 | Port1 IPv6 | Port2 IPv4 | Port2 IPv6 | Port3 IPv4 | Port3 IPv6| ISIS AREA | ISIS ID
 :------ | :-------------- | :------------- | :--------- | :-------- | :-------- | :--------:
 DUT     | 192.168.0.13/30 | 2003:db8::1/126  | 192.168.0.17/30 | 2004:db8::1/126 |192.168.0.21/30 | 2005:db8::1/126 | 49001| 640000000002
 ATE R1  | 192.168.0.6/30| 2001:db8::2/126 |N/A|N/A|N/A|N/A| 49001| 640000000003
