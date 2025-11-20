@@ -1045,8 +1045,8 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
     bool syslog_non_default_vrf_unsupported = 351;
     
-    // skip grpc validation for default network instance
-    bool skip_grpc_validation_in_default_vrf = 352;
+    // Set user provided default server name
+    string  grpc_default_server_name = 352;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

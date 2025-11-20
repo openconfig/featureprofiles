@@ -1769,7 +1769,10 @@ func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
 
-// SkipGrpcValidationInDefaultVrf returns true if devices requires to skip gRPC in the default VRF validation.
-func SkipGrpcValidationInDefaultVrf(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipGrpcValidationInDefaultVrf()
+// Set user provided default server name
+func GrpcDefaultServerName(dut *ondatra.DUTDevice) string {
+	if grpcDefaultServerName := lookupDUTDeviations(dut).GetGrpcDefaultServerName(); grpcDefaultServerName != "" {
+		return grpcDefaultServerName
+	}
+	return "DEFAULT"
 }

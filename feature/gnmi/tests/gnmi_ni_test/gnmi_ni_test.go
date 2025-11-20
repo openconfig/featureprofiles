@@ -66,9 +66,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort1NetworkInstanceIParams)
 
 	// Configure gNMI server on default network instance.
-	if !deviations.SkipGrpcValidationInDefaultVrf(dut) {
-		cfgplugins.CreateGNMIServer(batch, t, dut, &dutPort1NetworkInstanceIParams)
-	}
+	cfgplugins.CreateGNMIServer(batch, t, dut, &dutPort1NetworkInstanceIParams)
 
 	// Configuring basic interface and network instance as some devices only populate OC after configuration.
 	port1IntfPath := dutPort1.NewOCInterface(dp1.Name(), dut)
@@ -105,10 +103,16 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	// Get and validate states for default and custom networkinstances.
 	gnmiServerList := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
 	for _, gnmiServer := range gnmiServerList {
-		if gnmiServer.GetName() == deviations.DefaultNetworkInstance(dut) {
+		if gnmiServer.GetName() == deviations.DefaultNetworkInstance(dut) && dut.Vendor() != ondatra.CISCO {
 			defaultInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(deviations.DefaultNetworkInstance(dut)).State())
 			validateGnmiServerState(t, defaultInstanceState)
 		}
+
+		if gnmiServer.GetName() == deviations.GrpcDefaultServerName(dut) {
+			defaultInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(deviations.GrpcDefaultServerName(dut)).State())
+			validateGnmiServerState(t, defaultInstanceState)
+		}
+
 		if gnmiServer.GetName() == customVRFName {
 			customInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(customVRFName).State())
 			validateGnmiServerState(t, customInstanceState)

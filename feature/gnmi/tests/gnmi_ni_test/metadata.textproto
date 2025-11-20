@@ -19,7 +19,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    skip_grpc_validation_in_default_vrf: true
+    grpc_default_server_name: "gNXI-DEFAULT"
   }
 }
 platform_exceptions: {

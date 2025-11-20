@@ -38,20 +38,25 @@ import (
 
 // CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
 func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, nip *NetworkInstanceParams) {
-	var ni string
+	var servername, ni string
 	if nip.Default {
-		ni = deviations.DefaultNetworkInstance(d)
+		if name := deviations.GrpcDefaultServerName(d); name != "" {
+			servername, ni = name, nip.Name
+		} else if name := deviations.DefaultNetworkInstance(d); name != "" {
+			servername, ni = name, name
+		}
 	} else {
-		ni = nip.Name
+		servername, ni = nip.Name, nip.Name
 	}
-	t.Logf("Creating gNMI server on network instance: %s", ni)
-	gnmiServerPath := gnmi.OC().System().GrpcServer(ni)
+
+	t.Logf("Creating gNMI server on network instance: %s", servername)
+	gnmiServerPath := gnmi.OC().System().GrpcServer(servername)
 	gnmi.BatchUpdate(batch, gnmiServerPath.Config(), &oc.System_GrpcServer{
-		Name:            ygot.String(ni),
+		Name:            ygot.String(servername),
 		Port:            ygot.Uint16(9339),
 		Enable:          ygot.Bool(true),
 		NetworkInstance: ygot.String(ni),
-		// Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+		Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI, oc.SystemGrpc_GRPC_SERVICE_GNSI},
 	})
 }
 
