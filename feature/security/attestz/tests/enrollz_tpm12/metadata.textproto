@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "6ea4e7c6-0a54-40e0-8d61-bd036f305ff6"
+plan_id:  "Enrollz-2"
+description:  "TPM 1.2 RotateAIK Flow"
+testbed:  TESTBED_DUT_ATE_2LINKS
