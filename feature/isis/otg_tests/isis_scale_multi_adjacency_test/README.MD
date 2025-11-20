@@ -11,8 +11,8 @@ scale:
 *   6400 x /64 IPv6 prefix
 *   66200 x ISIS link
 
-Every test in this test suite should be able to test the router perfomance under
-different circumstances e.g static static (with no route flaps) dynamic state
+Every test in this test suite should be able to test the router performance under
+different circumstances e.g static (with no route flaps) dynamic state
 (with route flaps).. etc.
 
 
