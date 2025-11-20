@@ -116,9 +116,6 @@ func createAppendIPV4Flow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	flow.Metrics().SetEnable(true)
 	flow.Rate().SetPercentage(0.1)
 
-	ethHeader := flow.Packet().Add().Ethernet()
-	// ethHeader.Src().SetValue(top.Devices().Items()[0].Ethernets().Items()[0].Mac())
-	ethHeader.Src().SetValue("02:55:10:10:01:00")
 	if srcVlanID != 0 {
 		flow.Packet().Add().Vlan().SetId(gosnappi.NewPatternFlowVlanId().SetValue(srcVlanID))
 	}
