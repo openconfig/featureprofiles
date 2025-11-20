@@ -146,12 +146,13 @@ tests:
     mustpass: true
     priority: 3
   - name: TE-11.4 (Gribi Programming with reload)
-    path: feature/gribi/otg_tests/programming_with_reload
+    path: feature/experimental/gribi/otg_tests/programming_with_reload
     owners:
       - mananpat
     mustpass: true
     priority: 3
     timeout: 7200
+    internal: false
     pr: 2413
   - name: TE-8.1 (DUT Daemon Failure)
     path: feature/gribi/otg_tests/dut_daemon_failure
@@ -1041,7 +1042,7 @@ tests:
       - 'test_requires_otg: true' 
     groups: [ancx,P0]
   - name: TE-9.2 (MPLS based forwarding Static LSP)
-    path: feature/mpls/otg_tests/static_lsp_test
+    path: feature/gribi/otg_tests/mpls_compliance
     owners:
       - mastarke
     mustpass: true
@@ -2333,7 +2334,7 @@ tests:
     groups: [newfnt]
 
   - name: TE-18.3
-    path: feature/gribi/otg_tests/mpls_in_udp_scale
+    path: feature/gribi/mpls_in_udp/otg_tests/mpls_in_udp_scale
     owners:
       - mananpat
     mustpass: false
@@ -2947,7 +2948,7 @@ tests:
     priority: 3
 
   - name: TE-18.1 (MPLS in UDP Encapsulation with QoS scheduler)
-    path: feature/gribi/otg_tests/mpls_in_udp_qos
+    path: feature/gribi/mpls_in_udp/otg_tests/mpls_in_udp
     groups: [new_run]
     mustpass: false
     priority: 3
