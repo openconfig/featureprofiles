@@ -42,6 +42,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
   * Configure eBGP & multipath with import and export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
 
+#### Canonical OC
+
 ```json
 {
   "table-connections": {
@@ -144,6 +146,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 1 - Generate DUT configuration
   * Configure and append a drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
+
+#### Canonical OC
 
 ```json
 "routing-policy": {
