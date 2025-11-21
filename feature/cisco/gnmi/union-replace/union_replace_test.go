@@ -30,6 +30,7 @@ func TestMain(m *testing.M) {
 }
 
 var baseConfiguration string
+var dutintfName string
 
 func baseConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	runningConfig := config.CMDViaGNMI(context.Background(), t, dut, "show running-config")
@@ -507,7 +508,7 @@ func interfaceValidator(t *testing.T, dut *ondatra.DUTDevice) {
 			ipv6SubNet:  127,
 		},
 		{
-			intfName:    "FourHundredGigE0/0/0/1",
+			intfName:    dutintfName,
 			intfType:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			description: "ME01.DIA08.HU-0-0-0-11 [BE10][T=euME]",
 		},
@@ -542,7 +543,7 @@ func interfaceValidator(t *testing.T, dut *ondatra.DUTDevice) {
 			validate[string](t, dut, gnmi.OC().Interface(tc.intfName).Subinterface(0).Ipv4().Address(tc.ipv4add).Ip().State(), tc.ipv4add)
 			validate[uint8](t, dut, gnmi.OC().Interface(tc.intfName).Subinterface(0).Ipv4().Address(tc.ipv4add).PrefixLength().State(), tc.ipv4SubNet)
 		}
-		validate[oc.E_Lacp_LacpPeriodType](t, dut, gnmi.OC().Lacp().Interface("FourHundredGigE0/0/0/1").Interval().Config(), oc.Lacp_LacpPeriodType_FAST)
+		validate[oc.E_Lacp_LacpPeriodType](t, dut, gnmi.OC().Lacp().Interface(dutintfName).Interval().Config(), oc.Lacp_LacpPeriodType_FAST)
 		validate[bool](t, dut, gnmi.OC().Lldp().Interface("Bundle-Ether11").Enabled().Config(), true)
 		validate[bool](t, dut, gnmi.OC().Sampling().Sflow().Interface("Bundle-Ether11").Enabled().Config(), true)
 		validate[bool](t, dut, gnmi.OC().Sampling().Sflow().Interface("Bundle-Ether11").Enabled().State(), true)
@@ -816,6 +817,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		// Extract small deterministic base CLI fragment to reapply (stabilizes test state).
 		baseConfig := baseConfig(t, dut)
+		dutintfName = dut.Ports()[0].Name()
 
 		// Replace device CLI with base (plain SetRequest Replace using origin=cli).
 		cliBaseconfig := []*gpb.Update{{
@@ -1092,6 +1094,9 @@ func TestGnmiUnionReplace(t *testing.T) {
 			occliConfig, err := os.ReadFile(tc.configPath)
 			if err != nil {
 				t.Fatalf("failed to read %v. err: %v", tc.configPath, err)
+			}
+			if tc.configPath == "testdata/interfaces.txt" {
+				occliConfig = []byte(strings.ReplaceAll(string(occliConfig), "FourHundredGigE0/0/0/1", dutintfName))
 			}
 			req := &gpb.SetRequest{}
 			prototext.Unmarshal(occliConfig, req)
