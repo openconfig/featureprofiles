@@ -90,10 +90,10 @@ Verify:
 * 100 percent packet loss after all the keys configured expires
 
 ## Definitions
-  * *must-secure:*  All packets other than the macsec control/negotiation packets must be encrypted for both tx and rx; for tx if there is no key then the packet is dropped. For rx, if any packet that would be encrypted by macsec is not encrypted, it would be dropped.
-  * *should-secure:*  Unencrypted packets are permitted. The rx should, but is not required to, drop unencrypted packets if it believes it has a valid and active macsec connection. Tx should not, but is not required to, transmit unencrypted packets unless it believes that the macsec session did not properly negotiate.
+  * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used. On receive (rx), unencrypted packets that should be secure are dropped.
+  * *should-secure:* Unencrypted packets are permitted. On receive (rx), it's recommended but not required to drop unencrypted packets if a macsec session is active. On transmit (tx), it's recommended but not required to send unencrypted packets if macsec session negotiation has failed.
 
-## Canonical OpenConfig for MACsec configuration
+## Canonical OC
  
 ```json
 {
@@ -143,7 +143,7 @@ Verify:
                                 "GCM_AES_XPN_256"
                             ],
                             "name": "must_secure_policy",
-                            "sak-rekey-interval": 28800,
+                            "sak-rekey-interval": 30,
                             "security-policy": "MUST_SECURE"
                         },
                         "name": "must_secure_policy"
@@ -158,7 +158,7 @@ Verify:
                                 "GCM_AES_XPN_256"
                             ],
                             "name": "should_secure_policy",
-                            "sak-rekey-interval": 28800,
+                            "sak-rekey-interval": 30,
                             "security-policy": "SHOULD_SECURE"
                         },
                         "name": "should_secure_policy"
