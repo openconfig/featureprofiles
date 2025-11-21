@@ -124,6 +124,9 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	dp2 := dut.Port(t, "port2")
 	t.Log(dp1, dp2)
 
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
+
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
 	ConfigureQoS(t, dut)
@@ -1458,4 +1461,18 @@ func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType s
 			}
 		}
 	}
+}
+
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
+	hardwareInitCfg1 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	hardwareInitCfg2 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	hardwareInitCfg3 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureMplsTracking)
+	if hardwareInitCfg == "" || hardwareInitCfg1 == "" || hardwareInitCfg2 == "" || hardwareInitCfg3 == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg1)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg2)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg3)
 }
