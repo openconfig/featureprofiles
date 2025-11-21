@@ -1,4 +1,4 @@
-package gueencapsulation_test
+package staticencapgueipv4_test
 
 import (
 	"fmt"
