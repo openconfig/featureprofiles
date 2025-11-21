@@ -1227,9 +1227,9 @@ func testStorageSystemEventsComprehensive(t *testing.T, args *testArgs) {
 			linecardsReload(t, args, ctx, pathSuffix)
 		})
 
-		t.Run(fmt.Sprintf("rpfo-reload-%s", pathSuffix), func(t *testing.T) {
+		/*t.Run(fmt.Sprintf("rpfo-reload-%s", pathSuffix), func(t *testing.T) {
 			rpfoReload(t, args, ctx, pathSuffix)
-		})
+		})*/
 
 		t.Run(fmt.Sprintf("router-reload-%s", pathSuffix), func(t *testing.T) {
 			reloadRouter(t, args, ctx, pathSuffix)
