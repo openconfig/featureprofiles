@@ -61,7 +61,7 @@ ATE R3  | N/A|N/A| N/A|N/A|192.168.0.22/30 | 2005:db8::2/126| 49001| 64000000000
 
 All Simulated ISIS blocks on OTG will have a grid topology with the below specs
 
-Block Name | Dimension | Lo0 IPv4,IPv6 and ISIS sys ID first octet | Count of paralle links between 2 nodes | Link IPv4 range 
+Block Name | Dimension | Lo0 IPv4,IPv6 and ISIS sys ID first octet | Count of parallel links between 2 nodes | Link IPv4 range 
 :------ | :-------- | :-------- | :-------- | :--------:
 Block1 | 20x20 | 20 | 2 | 21.0.0.0/8
 Block2 | 20x20 | 23 | 2 | 24.0.0.0/8
