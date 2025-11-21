@@ -128,8 +128,6 @@ tests:
   mustpass: true
   internal: true
   branch: master
-  testbeds:
-  - 8818-FOX2714PNYN_mtls
 
 - name: cable_audit_test
   path: feature/gribi/otg_tests/cisco/8818_scale_profile/cable_audit
@@ -137,5 +135,3 @@ tests:
   mustpass: true
   internal: true
   branch: master
-  testbeds:
-  - 8818-FOX2714PNYN_mtls
