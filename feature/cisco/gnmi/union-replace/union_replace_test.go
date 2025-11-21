@@ -508,7 +508,7 @@ func interfaceValidator(t *testing.T, dut *ondatra.DUTDevice) {
 			ipv6SubNet:  127,
 		},
 		{
-			intfName:    "dutintfName",
+			intfName:    dutintfName,
 			intfType:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			description: "ME01.DIA08.HU-0-0-0-11 [BE10][T=euME]",
 		},
