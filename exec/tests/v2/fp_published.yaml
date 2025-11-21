@@ -2894,8 +2894,8 @@ tests:
     mustpass: false
     priority: 3
 
-  - name: OC-1.1 (System Configuration)
-    path: feature/system/tests/system_base_test
+  - name: System-1.1 (System banner test)
+    path: feature/system/tests/system_base_test/tests/system_banner_test
     groups: [new_run]
     mustpass: false
     priority: 3
