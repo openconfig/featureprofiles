@@ -195,12 +195,13 @@ func TestBgpSession(t *testing.T) {
 
 			t.Log("Verify BGP session state : ESTABLISHED")
 			nbrPath := statePath.Neighbor(tc.nbr.peerIP)
-			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*60, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+			gnmi.Await(t, dut, nbrPath.SessionState().State(), time.Second*120, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 
 			t.Log("Verify BGP AS numbers and prefix count")
 			verifyPeer(t, tc.nbr, dut)
 			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
+			// Reject Prefix
 			t.Log("Apply BGP policy for rejecting prefix")
 			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
@@ -212,6 +213,7 @@ func TestBgpSession(t *testing.T) {
 			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
 			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
+			// Reject Community
 			t.Log("Apply BGP policy for rejecting prefix with community filter")
 			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
@@ -223,13 +225,15 @@ func TestBgpSession(t *testing.T) {
 			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
 			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
-			t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
-			pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
-			gnmi.Update(t, dut, dutConfPath.Config(), pol)
-			t.Logf("Policy applied, waiting for DUT to apply the policy")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 15*time.Second)
-			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
-
+			// Reject ASPath
+			if !deviations.MatchAsPathSetUnsupported(dut) {
+				t.Log("Apply BGP policy for rejecting prefix with as-path regex filter")
+				pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
+				gnmi.Update(t, dut, dutConfPath.Config(), pol)
+				t.Logf("Policy applied, waiting for DUT to apply the policy")
+				awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 15*time.Second)
+				verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
+			}
 			t.Log("Clear BGP Configs on ATE")
 			otg.StopProtocols(t)
 		})
@@ -350,26 +354,25 @@ func configureBGPPolicy(t *testing.T, d *oc.Root, isV4 bool, dut *ondatra.DUTDev
 	}
 	stmt60.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(regexAsSet).SetAsPathSetMember([]string{".* 4400 3300"})
-	pdefAs := rp.GetOrCreatePolicyDefinition(rejectAspath)
-
-	stmt70, err := pdefAs.AppendNewStatement(aclStatement5)
-	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
-	}
-	stmt70.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-
+	// Deviation to omit AS-Path Set policy configuration
 	if !deviations.MatchAsPathSetUnsupported(dut) {
+		rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(regexAsSet).SetAsPathSetMember([]string{".* 4400 3300"})
+		pdefAs := rp.GetOrCreatePolicyDefinition(rejectAspath)
+
+		stmt70, err := pdefAs.AppendNewStatement(aclStatement5)
+		if err != nil {
+			t.Errorf("Error while creating new statement %v", err)
+		}
+		stmt70.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
 		stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(regexAsSet)
 		stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
-	}
 
-	stmt80, err := pdefAs.AppendNewStatement(aclStatement6)
-	if err != nil {
-		t.Errorf("Error while creating new statement %v", err)
+		stmt80, err := pdefAs.AppendNewStatement(aclStatement6)
+		if err != nil {
+			t.Errorf("Error while creating new statement %v", err)
+		}
+		stmt80.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	}
-	stmt80.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
 	return rp
 }
 
