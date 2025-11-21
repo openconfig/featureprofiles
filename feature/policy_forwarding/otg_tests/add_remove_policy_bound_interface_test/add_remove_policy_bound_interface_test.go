@@ -15,7 +15,7 @@
 package add_remove_policy_bound_interface_test
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
 	"time"
 
@@ -135,7 +135,7 @@ func assignToNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, intfName, niN
 	ni := &oc.NetworkInstance{Name: ygot.String(niName)}
 	id := intfName
 	if subIntf != 0 {
-		id = intfName + "." + strconv.FormatUint(uint64(subIntf), 10)
+		id = fmt.Sprintf("%s.%d", intfName, subIntf)
 	}
 	i := ni.GetOrCreateInterface(id)
 	i.Interface = ygot.String(intfName)
