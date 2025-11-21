@@ -104,7 +104,6 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 		}
 	}
 
-	handleSingleTopologyDeviation(t, dut, rootPath)
 	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(ISISData.NetworkInstanceName).Config(), rootPath.GetNetworkInstance(ISISData.NetworkInstanceName))
 	handleSingleTopologyDeviation(t, dut, b)
 	return rootPath
