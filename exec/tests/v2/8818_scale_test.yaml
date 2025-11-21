@@ -4,7 +4,7 @@ owners:
 testbeds:
   - 8818-DUT-PEER-MTLS
 tests:
-- name: 8818_scale_profile
+- name: 8818_config_test_oor
   path: feature/gribi/otg_tests/cisco/8818_scale_profile
   timeout: 300000
   mustpass: true
@@ -15,4 +15,127 @@ tests:
     hw: 1.13.0-5
     gnmi: 1.14.14
   args:
+  - '-test.run=TestDcGateOOR'
+
+- name: 8818_config_test_dcgate_scale
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDcGateScale'
+
+- name: 8818_config_test_encap_scale
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestEncapScale'
+
+- name: 8818_config_test_decap_scale
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDecapScale'
+
+- name: 8818_config_test_decap_encap_scale
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDecapEncapScale'
+
+- name: 8818_config_test_dcgate_path_flap
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDcGateTunnelPathFlaps'
+
+- name: 8818_config_test_stress
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDcGateStress'
+
+- name: 8818_config_test_triggers
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestDcGateTriggers'
   - '-logDir ($test_log_directory_path)'
+
+- name: 8818_config_test_flush_all
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  otg_version:
+    controller: 1.13.0-9
+    hw: 1.13.0-5
+    gnmi: 1.14.14
+  args:
+  - '-test.run=TestFlushAll'
+
+- name: subscription_test
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile/subscriptions
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  testbeds:
+  - 8818-FOX2714PNYN_mtls
+
+- name: cable_audit_test
+  path: feature/gribi/otg_tests/cisco/8818_scale_profile/cable_audit
+  timeout: 300000
+  mustpass: true
+  internal: true
+  branch: master
+  testbeds:
+  - 8818-FOX2714PNYN_mtls
