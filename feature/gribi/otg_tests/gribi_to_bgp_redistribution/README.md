@@ -123,6 +123,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
+
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
 * Step 4 - Send Traffic from ATE port 2 to ATE 1 (towards destination address 198.51.100.1)
 * Step 5 - Validate traffice is received at ATE Port 2 without any loss.
@@ -133,8 +134,10 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
 ```
+
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF
-* Step 8 - Validate full traffic loss at ATE Port 2.
+* Step 8 - Validate full traffic loss at ATE Port 2
+`
 
 
 ### TestID-14.2.2 - Drain Policy Validation
@@ -203,6 +206,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
+
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
 * Step 4 - Append drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
 * Step 5 - Verify route '198.51.100.1/32' is received with MED, appended AS numbers and GHUT community at ATE Port 2 
