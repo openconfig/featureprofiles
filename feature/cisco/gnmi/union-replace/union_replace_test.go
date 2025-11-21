@@ -508,7 +508,7 @@ func interfaceValidator(t *testing.T, dut *ondatra.DUTDevice) {
 			ipv6SubNet:  127,
 		},
 		{
-			intfName:    "FourHundredGigE0/0/0/1",
+			intfName:    "dutintfName",
 			intfType:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 			description: "ME01.DIA08.HU-0-0-0-11 [BE10][T=euME]",
 		},
@@ -817,6 +817,7 @@ func TestGnmiUnionReplace(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		// Extract small deterministic base CLI fragment to reapply (stabilizes test state).
 		baseConfig := baseConfig(t, dut)
+		dutintfName = dut.Ports()[0].Name()
 
 		// Replace device CLI with base (plain SetRequest Replace using origin=cli).
 		cliBaseconfig := []*gpb.Update{{
