@@ -121,17 +121,3 @@ tests:
     gnmi: 1.14.14
   args:
   - '-test.run=TestFlushAll'
-
-- name: subscription_test
-  path: feature/gribi/otg_tests/cisco/8818_scale_profile/subscriptions
-  timeout: 300000
-  mustpass: true
-  internal: true
-  branch: master
-
-- name: cable_audit_test
-  path: feature/gribi/otg_tests/cisco/8818_scale_profile/cable_audit
-  timeout: 300000
-  mustpass: true
-  internal: true
-  branch: master
