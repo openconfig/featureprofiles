@@ -205,23 +205,6 @@ func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, vrfName string,
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Config(), static)
 }
 
-func deleteStaticRoute(t *testing.T, dut *ondatra.DUTDevice, vrfName, prefix string) {
-	t.Helper()
-	t.Logf("Deleting static route %s from VRF %s", prefix, vrfName)
-	gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(prefix).Config())
-}
-
-func addStaticRoute(t *testing.T, dut *ondatra.DUTDevice, vrfName, prefix, nextHop string) {
-	t.Helper()
-	t.Logf("Adding static route %s via %s to VRF %s", prefix, nextHop, vrfName)
-	ni := oc.NetworkInstance{Name: ygot.String(vrfName)}
-	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
-	sr := static.GetOrCreateStatic(prefix)
-	nh := sr.GetOrCreateNextHop("0")
-	nh.NextHop = oc.UnionString(nextHop)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut)).Static(prefix).Config(), sr)
-}
-
 func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Configuring PBF policies")
 	d := &oc.Root{}
@@ -232,11 +215,11 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := pf.GetOrCreatePolicy(vrfSelectionPolicyName)
 	p4.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	r10 := p4.GetOrCreateRule(10)
-	r10.GetOrCreateIpv4().SetSourceAddress("0.0.0.0/0") //(atePort2.IPv4 + "/32")
+	r10.GetOrCreateIpv4().SetSourceAddress(atePort2.IPv4 + "/32")
 	r10.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
-	// r11 := p4.GetOrCreateRule(20)
-	// r11.GetOrCreateIpv4().SetSourceAddress(atePort3.IPv4 + "/32")
-	// r11.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+	r11 := p4.GetOrCreateRule(20)
+	r11.GetOrCreateIpv4().SetSourceAddress(atePort3.IPv4 + "/32")
+	r11.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), p4)
 
 	// VRF Selection Policy for IPv6
@@ -245,9 +228,6 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	r20 := p6.GetOrCreateRule(10)
 	r20.GetOrCreateIpv6().SetSourceAddress("::/0") //(atePort2.IPv6 + "/128")
 	r20.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
-	// r21 := p6.GetOrCreateRule(20)
-	// r21.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
-	// r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfPolicyv6).Config(), p6)
 }
 
@@ -398,31 +378,31 @@ func TestPolicyBoundInterface(t *testing.T) {
 		t.Log("Applying IPv4 policy")
 		applyPolicy(t, dut, p2.Name(), []string{vrfSelectionPolicyName})
 		applyPolicy(t, dut, p3.Name(), []string{vrfSelectionPolicyName})
-		// t.Run("Initial traffic check IPv4", func(t *testing.T) {
-		// 	flows := []flow{
-		// 		{name: "v4FlowPort2", wantLoss: false},
-		// 		{name: "v4FlowPort3", wantLoss: false},
-		// 	}
-		// 	verifyTraffic(t, ate, topo, flows)
-		// })
+		t.Run("Initial traffic check IPv4", func(t *testing.T) {
+			flows := []flow{
+				{name: "v4FlowPort2", wantLoss: false},
+				{name: "v4FlowPort3", wantLoss: false},
+			}
+			verifyTraffic(t, ate, topo, flows)
+		})
 
-		// t.Run("PF-1.24.1 Remove interface from policy IPv4", func(t *testing.T) {
-		// 	deletePolicy(t, dut, p2.Name())
-		// 	flows := []flow{
-		// 		{name: "v4FlowPort2", wantLoss: true},
-		// 		{name: "v4FlowPort3", wantLoss: false},
-		// 	}
-		// 	verifyTraffic(t, ate, topo, flows)
-		// })
+		t.Run("PF-1.24.1 Remove interface from policy IPv4", func(t *testing.T) {
+			deletePolicy(t, dut, p2.Name())
+			flows := []flow{
+				{name: "v4FlowPort2", wantLoss: true},
+				{name: "v4FlowPort3", wantLoss: false},
+			}
+			verifyTraffic(t, ate, topo, flows)
+		})
 
-		// t.Run("PF-1.24.2 Add interface to policy IPv4", func(t *testing.T) {
-		// 	applyPolicy(t, dut, p2.Name(), []string{vrfSelectionPolicyName})
-		// 	flows := []flow{
-		// 		{name: "v4FlowPort2", wantLoss: false},
-		// 		{name: "v4FlowPort3", wantLoss: false},
-		// 	}
-		// 	verifyTraffic(t, ate, topo, flows)
-		// })
+		t.Run("PF-1.24.2 Add interface to policy IPv4", func(t *testing.T) {
+			applyPolicy(t, dut, p2.Name(), []string{vrfSelectionPolicyName})
+			flows := []flow{
+				{name: "v4FlowPort2", wantLoss: false},
+				{name: "v4FlowPort3", wantLoss: false},
+			}
+			verifyTraffic(t, ate, topo, flows)
+		})
 
 		t.Run("PF-1.24.3 Remove interface from policy and device IPv4", func(t *testing.T) {
 			deletePolicy(t, dut, p2.Name())
