@@ -63,7 +63,7 @@ A[ATE] <-- Port3(IPv4/6) --> B[DUT];
 
 ### PF-1.24.1 - Remove an interface bound to VRF Selection Policy
 
-*   Remove DUT Port2 from the VRF 
+*   Remove DUT Port2 from the VRF Selection Policy.
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
@@ -73,7 +73,7 @@ A[ATE] <-- Port3(IPv4/6) --> B[DUT];
 
 ### PF-1.24.2 - Add an interface bound to VRF Selection Policy
 
-*   Add DUT Port2 to the VRF100
+*   Apply the VRF selection policy to DUT Port2
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
@@ -84,7 +84,7 @@ A[ATE] <-- Port3(IPv4/6) --> B[DUT];
 ### PF-1.24.3 - Remove an interface from both a policy and the device
 
 *   Use gnmi batch replace to:
-    *   Remove DUT Port2 from the VRF as well as from the device
+    *   Remove DUT Port2 from the VRF Selection policy as well as from the device
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
