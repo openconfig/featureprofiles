@@ -15,7 +15,6 @@
 package add_remove_policy_bound_interface_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -37,7 +36,6 @@ func TestMain(m *testing.M) {
 
 const (
 	trafficDuration        = 1 * time.Minute
-	sleepOnChange          = 10 * time.Second
 	plen4                  = 30
 	plen6                  = 126
 	vrf100Name             = "VRF-100"
@@ -45,13 +43,9 @@ const (
 	vrfPolicyv6            = "vrf100policy-ipv6"
 
 	ipv4NetA    = "192.168.200.0/24"
-	ipv4NetB    = "192.168.201.0/24"
 	ipv6NetA    = "3008:DB8::/126"
-	ipv6NetB    = "3009:DB9::/126"
 	ipv4NetAdst = "192.168.200.1"
-	ipv4NetBdst = "192.168.201.1"
 	ipv6NetAdst = "2001:DB2::2"
-	ipv6NetBdst = "2001:DB2::2"
 )
 
 var (
@@ -131,19 +125,6 @@ func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra
 	return i
 }
 
-func assignToNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, intfName, niName string, subIntf uint32) {
-	ni := &oc.NetworkInstance{Name: ygot.String(niName)}
-	id := intfName
-	if subIntf != 0 {
-		id = fmt.Sprintf("%s.%d", intfName, subIntf)
-	}
-	i := ni.GetOrCreateInterface(id)
-	i.Interface = ygot.String(intfName)
-	i.Subinterface = ygot.Uint32(subIntf)
-	i.Id = ygot.String(id)
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(niName).Interface(id).Config(), i)
-}
-
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, attrs *attrs.Attributes, niName string) {
 	d := gnmi.OC()
 	i := &oc.Interface{Name: ygot.String(p.Name())}
@@ -152,7 +133,7 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, att
 	applyIPInitially := !deviations.InterfaceConfigVRFBeforeAddress(dut) && !isNonDefaultVRF
 	gnmi.Update(t, dut, d.Interface(p.Name()).Config(), configInterfaceDUT(i, attrs, dut, applyIPInitially))
 	if isNonDefaultVRF || deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		assignToNetworkInstance(t, dut, p.Name(), niName, 0)
+		fptest.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
 	}
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) || isNonDefaultVRF {
 		configInterfaceDUT(i, attrs, dut, true)
@@ -180,13 +161,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTPort(t, dut, p2, &dutPort2, deviations.DefaultNetworkInstance(dut))
 	configureDUTPort(t, dut, p3, &dutPort3, deviations.DefaultNetworkInstance(dut))
 	configureDUTPort(t, dut, p1, &dutPort1, vrf100Name)
-	time.Sleep(sleepOnChange)
 
 	configureStaticRoutes(t, dut, "VRF-100", map[string]string{
 		ipv4NetA: atePort1.IPv4,
 		ipv6NetA: atePort1.IPv6,
-		ipv4NetB: atePort1.IPv4,
-		ipv6NetB: atePort1.IPv6,
 	})
 
 	configurePBFPolicy(t, dut)
@@ -407,6 +385,7 @@ func TestPolicyBoundInterface(t *testing.T) {
 		t.Run("PF-1.24.3 Remove interface from policy and device IPv4", func(t *testing.T) {
 			deletePolicy(t, dut, p2.Name())
 			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(p2.Name()).Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(p2.Name()+".0").Config())
 			}
 			gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Config())
@@ -459,7 +438,10 @@ func TestPolicyBoundInterface(t *testing.T) {
 
 		t.Run("PF-1.24.3 Remove interface from policy and device IPv6", func(t *testing.T) {
 			deletePolicy(t, dut, p2.Name())
-			gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(p2.Name()).Config())
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(p2.Name()).Config())
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(p2.Name()+".0").Config())
+			}
 			gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Subinterface(0).Config())
 			flows := []flow{
 				{name: "v6FlowPort2", wantLoss: true},
