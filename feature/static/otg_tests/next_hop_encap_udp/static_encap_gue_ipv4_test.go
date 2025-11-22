@@ -671,9 +671,20 @@ func verifyTTLDropAndICMP(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 	}
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureNGPR)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+
+}
+
 func TestGUEEncap(t *testing.T) {
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount1, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port1"}, true, true)
+
+	configureHardwareInit(t, bs.DUT)
 
 	mustConfigureDUT(t, bs.DUT)
 	dutPort1Mac = gnmi.Get(t, bs.DUT, gnmi.OC().Interface(bs.DUT.Port(t, "port1").Name()).Ethernet().MacAddress().State())
@@ -1008,7 +1019,17 @@ func TestGUEEncap(t *testing.T) {
 	})
 
 	t.Run("RT-3.53.9: IPv4 traffic GUE encapsulation to a single 5-tuple tunnel", func(t *testing.T) {
-
+		configureTosTtlOnTunnel(t,
+			bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     "V4Udp",
+				nexthopGroupName: nexthopGroupName,
+				tos:              0x60,
+				ttl:              20,
+				deleteTos:        true,
+				deleteTtl:        true,
+				index:            "0",
+			})
 		createFlow(bs.ATETop, "IPv4-GUE-Single-Traffic", "ipv4", trafficDstNetIPv4, 0x80, 10, true, gueProtocolPort, gueSrcProtocolPort, false)
 
 		enableCapture(t, bs.ATETop, capturePorts)
@@ -1037,12 +1058,21 @@ func TestGUEEncap(t *testing.T) {
 		activeport := verifySinglePathTraffic(t, bs.ATE, bs.ATETop, "IPv4-GUE-Single-Traffic")
 
 		capture := mustProcessCapture(t, bs.ATE.OTG(), activeport[0])
-		validatePackets(t, capture, "ipv4", "0x60", "0x60", 20, 9, true)
+		validatePackets(t, capture, "ipv4", "0x80", "0x80", 64, 9, true)
 
 	})
 
 	t.Run("RT-3.53.10: IPv6 traffic GUE encapsulation to a single 5-tuple tunnel", func(t *testing.T) {
-
+		configureTosTtlOnTunnel(t, bs.DUT,
+			&tunnelCfg{policyName: "policy1",
+				protocolType:     "V6Udp",
+				nexthopGroupName: nexthopGroupNameV6,
+				tos:              0x60,
+				ttl:              20,
+				deleteTos:        true,
+				deleteTtl:        true,
+				index:            "1",
+			})
 		createFlow(bs.ATETop, "IPv6-GUE-Single-Traffic", "ipv6", trafficDstNetIPv6, 0x80, 10, true, gueProtocolPort, gueSrcProtocolPort, false)
 
 		enableCapture(t, bs.ATETop, capturePorts)
@@ -1071,7 +1101,7 @@ func TestGUEEncap(t *testing.T) {
 		activeport := verifySinglePathTraffic(t, bs.ATE, bs.ATETop, "IPv6-GUE-Single-Traffic")
 
 		capture := mustProcessCapture(t, bs.ATE.OTG(), activeport[0])
-		validatePackets(t, capture, "ipv6", "0x80", "0x80", 20, 9, true)
+		validatePackets(t, capture, "ipv6", "0x80", "0x80", 64, 9, true)
 
 	})
 
