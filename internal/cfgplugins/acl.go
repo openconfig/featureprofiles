@@ -1,0 +1,182 @@
+package cfgplugins
+
+import (
+	"testing"
+
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	IPFragmentFirst   = oc.Transport_BuiltinDetail_TCP_INITIAL
+	IPFragmentLater   = oc.Transport_BuiltinDetail_FRAGMENT
+	ICMPv4ProtocolNum = 1
+	ICMPv6ProtocolNum = 58
+	TCPProtocolNum    = 6
+	UDPProtocolNum    = 17
+	DefaultEntryID    = 990
+	permitAllV4       = "0.0.0.0/0"
+	permitAllV6       = "::/0"
+)
+
+type AclParams struct {
+	Name          string
+	DefaultPermit bool
+	ACLType       oc.E_Acl_ACL_TYPE
+	Intf          string
+	Ingress       bool
+	Terms         []AclTerm
+	Update        bool
+}
+
+type AclTerm struct {
+	SeqID             uint32
+	Description       string
+	Permit            bool
+	IPSrc             string
+	IPDst             string
+	L4SrcPort         uint32
+	L4SrcPortRange    string
+	L4DstPort         uint32
+	L4DstPortRange    string
+	ICMPCode          uint8
+	ICMPType          int64
+	IPInitialFragment bool
+	Protocol          uint8
+}
+
+func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
+	t.Helper()
+	aclRoot := &oc.Root{}
+	acl := aclRoot.GetOrCreateAcl()
+	acl.SetCounterCapability(oc.Acl_ACL_COUNTER_CAPABILITY_INTERFACE_ONLY)
+	aclSet := acl.GetOrCreateAclSet(params.Name, params.ACLType)
+	for _, term := range params.Terms {
+		entry := aclSet.GetOrCreateAclEntry(term.SeqID)
+		if term.Permit {
+			entry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+		} else {
+			entry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
+		}
+		entry.GetOrCreateActions().LogAction = oc.Acl_LOG_ACTION_LOG_SYSLOG
+
+		switch params.ACLType {
+		case oc.Acl_ACL_TYPE_ACL_IPV4:
+			ipv4 := entry.GetOrCreateIpv4()
+			if term.IPSrc != "" {
+				ipv4.SourceAddress = ygot.String(term.IPSrc)
+			}
+			if term.IPDst != "" {
+				ipv4.DestinationAddress = ygot.String(term.IPDst)
+			}
+			if term.Protocol != 0 {
+				ipv4.SetProtocol(oc.UnionUint8(uint8(term.Protocol)))
+			}
+			if term.ICMPType != 0 {
+				icmp := ipv4.GetOrCreateIcmpv4()
+				if term.ICMPCode != 0 {
+					icmp.Code = oc.E_Icmpv4Types_CODE(term.ICMPCode)
+				}
+				if term.ICMPType != 0 {
+					icmp.Type = oc.E_Icmpv4Types_TYPE(term.ICMPType)
+				}
+			}
+		case oc.Acl_ACL_TYPE_ACL_IPV6:
+			ipv6 := entry.GetOrCreateIpv6()
+			if term.IPSrc != "" {
+				ipv6.SourceAddress = ygot.String(term.IPSrc)
+			}
+			if term.IPDst != "" {
+				ipv6.DestinationAddress = ygot.String(term.IPDst)
+			}
+			if term.Protocol != 0 {
+				ipv6.SetProtocol(oc.UnionUint8(uint8(term.Protocol)))
+			}
+			if term.ICMPType != 0 {
+				icmp := ipv6.GetOrCreateIcmpv6()
+				if term.ICMPCode != 0 {
+					icmp.Code = oc.E_Icmpv6Types_CODE(term.ICMPCode)
+				}
+				if term.ICMPType != 0 {
+					icmp.Type = oc.E_Icmpv6Types_TYPE(term.ICMPType)
+				}
+			}
+		}
+		if term.L4SrcPort != 0 || term.L4SrcPortRange != "" || term.L4DstPort != 0 || term.L4DstPortRange != "" {
+			transport := entry.GetOrCreateTransport()
+			if term.L4SrcPort != 0 {
+				transport.SourcePort = oc.UnionUint16(term.L4SrcPort)
+			}
+			if term.L4SrcPortRange != "" {
+				transport.SourcePortSet = ygot.String(term.L4SrcPortRange)
+			}
+			if term.L4DstPort != 0 {
+				transport.DestinationPort = oc.UnionUint16(term.L4DstPort)
+			}
+			if term.L4DstPortRange != "" {
+				transport.DestinationPortSet = ygot.String(term.L4DstPortRange)
+			}
+		}
+	}
+
+	defaultEntry := aclSet.GetOrCreateAclEntry(DefaultEntryID)
+	switch params.ACLType {
+	case oc.Acl_ACL_TYPE_ACL_IPV4:
+		ipv4 := defaultEntry.GetOrCreateIpv4()
+		ipv4.SourceAddress = ygot.String(permitAllV4)
+		ipv4.DestinationAddress = ygot.String(permitAllV4)
+	case oc.Acl_ACL_TYPE_ACL_IPV6:
+		ipv6 := defaultEntry.GetOrCreateIpv6()
+		ipv6.SourceAddress = ygot.String(permitAllV6)
+		ipv6.DestinationAddress = ygot.String(permitAllV6)
+	}
+	if params.DefaultPermit {
+		defaultEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+	} else {
+		defaultEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_DROP
+	}
+	defaultEntry.GetOrCreateActions().LogAction = oc.Acl_LOG_ACTION_LOG_SYSLOG
+
+	if params.Update {
+		t.Logf("Updating ACL %s", params.Name)
+		gnmi.BatchUpdate(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config(), aclSet)
+		return
+	}
+
+	t.Logf("Creating ACL %s", params.Name)
+	gnmi.BatchReplace(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config(), aclSet)
+
+	aclIface := acl.GetOrCreateInterface(params.Intf)
+	if params.Ingress {
+		aclIface.GetOrCreateIngressAclSet(params.Name, params.ACLType)
+	} else {
+		aclIface.GetOrCreateEgressAclSet(params.Name, params.ACLType)
+	}
+	aclIface.GetOrCreateInterfaceRef().Interface = ygot.String(params.Intf)
+	aclIface.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+
+	t.Logf("Applying ACL %s to Interface %s", params.Name, params.Intf)
+	gnmi.BatchReplace(batch, gnmi.OC().Acl().Interface(params.Intf).Config(), aclIface)
+}
+
+func DeleteACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
+	t.Helper()
+
+	if params.Name == "" || params.ACLType == oc.Acl_ACL_TYPE_UNSET || params.Intf == "" {
+		t.Error("unable to delete ACL, missing required parameters")
+		return
+	}
+
+	if params.Ingress {
+		t.Logf("Removing Ingress ACL from Interface %s", params.Intf)
+		gnmi.BatchDelete(batch, gnmi.OC().Acl().Interface(params.Intf).IngressAclSet(params.Name, params.ACLType).Config())
+	} else {
+		t.Logf("Removing Egress ACL from Interface %s", params.Intf)
+		gnmi.BatchDelete(batch, gnmi.OC().Acl().Interface(params.Intf).EgressAclSet(params.Name, params.ACLType).Config())
+	}
+
+	t.Log("Deleting ACL")
+	gnmi.BatchDelete(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config())
+
+}
