@@ -14,16 +14,22 @@ ATE port-1 <------> port-1 DUT
 
 ## Procedure
 
+### Test Environment Setup
+
+The test environment consists of a DUT connected to an ATE with the following port roles:
+
+*   **DUT Port 1:** Configured with IPv4 and IPv6 addresses. This is the interface under test where the administrative state (`enabled`) will be toggled.
+*   **ATE Port 1:** Configured with IPv4 and IPv6 addresses. Acts as the link peer to ensure the DUT interface can transition to `oper-status: UP`.
+
 1.  **Setup:**
 
     *   Connect DUT port-1 to ATE port-1.
     *   Configure IPv4/IPv6 addresses on the DUT and ATE ports.
     *   Ensure the interface is administratively UP and the link is UP.
 
-2.  **Baseline:**
+2.  **Collection:**
 
-    *   Retrieve the initial value of
-        `/interfaces/interface/state/counters/carrier-transitions`.
+    *   Start a gNMI SAMPLE subscription for `/interfaces/interface/state/counters/carrier-transitions` with a 30s interval.
 
 3.  **Trigger:**
 
@@ -34,9 +40,10 @@ ATE port-1 <------> port-1 DUT
 
 4.  **Validation:**
 
-    *   Retrieve the new value of
-        `/interfaces/interface/state/counters/carrier-transitions`.
-    *   Verify that the new value is greater than the initial value.
+    *   Wait for the collection to complete.
+    *   Verify that the counter values never decrease (monotonicity).
+    *   Verify that the counter values do not increase by more than 100 between samples.
+    *   Verify that the final value is greater than the initial value.
 
 #### Canonical OC
 
@@ -69,5 +76,13 @@ rpcs:
     gNMI.Set:
       union_replace: true
     gNMI.Subscribe:
-      on_change: true
+      mode: sample
+      sample_interval: 30s
+
 ```
+
+## Required DUT platform
+
+* MFF
+* FFF
+

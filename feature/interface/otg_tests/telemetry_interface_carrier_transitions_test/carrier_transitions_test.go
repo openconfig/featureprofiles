@@ -22,10 +22,10 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -77,14 +77,10 @@ func TestCarrierTransitions(t *testing.T) {
 	// Wait for link to be UP
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
-	// Get initial carrier-transitions count
-	initialCount, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().CarrierTransitions().State()).Val()
-	if !present {
-		// If not present, assume 0, but log it. Some devices might not initialize it until first transition.
-		t.Log("Carrier transitions counter not present initially, assuming 0")
-		initialCount = 0
-	}
-	t.Logf("Initial carrier-transitions: %d", initialCount)
+	// Start metric collection (SAMPLE mode, 30s interval)
+	t.Log("Starting carrier-transitions collection...")
+	s := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().CarrierTransitions().State(), 30*time.Second)
+	defer s.Close()
 
 	// Flap the interface
 	t.Log("Disabling interface...")
@@ -95,16 +91,51 @@ func TestCarrierTransitions(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
-	// Get final carrier-transitions count
-	// We use Await here to allow some time for the counter to update if there's latency
-	v, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().CarrierTransitions().State(), 30*time.Second, func(val *ygnmi.Value[uint64]) bool {
+	// Wait for one more sample interval to ensure we capture the final state
+	t.Log("Waiting for next sample...")
+	s.Next()
+	vals := s.All()
+
+	// Validation
+	if len(vals) < 2 {
+		t.Errorf("Insufficient samples collected: got %d, want at least 2", len(vals))
+	}
+
+	var initialCount, finalCount uint64
+	first := true
+
+	for i, val := range vals {
 		v, present := val.Val()
-		return present && v > initialCount
-	}).Await(t)
-	finalCount, _ := v.Val()
-	if !ok {
-		t.Errorf("Carrier transitions did not increment. Initial: %d, Final (last seen): %d", initialCount, finalCount)
+		if !present {
+			continue
+		}
+		ts := val.Timestamp
+		t.Logf("Sample %d: %d at %v", i, v, ts)
+
+		if first {
+			initialCount = v
+			finalCount = v
+			first = false
+			continue
+		}
+
+		// 1. Monotonicity check
+		if v < finalCount {
+			t.Errorf("Value decreased! Sample %d: %d, Previous: %d", i, v, finalCount)
+		}
+
+		// 2. Max delta check
+		if v > finalCount && (v-finalCount) > 100 {
+			t.Errorf("Value increased by too much! Sample %d: %d, Previous: %d, Delta: %d", i, v, finalCount, v-finalCount)
+		}
+
+		finalCount = v
+	}
+
+	// 3. Functional check (must increase)
+	if finalCount <= initialCount {
+		t.Errorf("Carrier transitions did not increase. Initial: %d, Final: %d", initialCount, finalCount)
 	} else {
-		t.Logf("Carrier transitions incremented successfully. Initial: %d, Final: %d", initialCount, finalCount)
+		t.Logf("Carrier transitions validated successfully. Initial: %d, Final: %d", initialCount, finalCount)
 	}
 }
