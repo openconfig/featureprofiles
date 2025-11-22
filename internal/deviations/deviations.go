@@ -1768,3 +1768,8 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
+}
