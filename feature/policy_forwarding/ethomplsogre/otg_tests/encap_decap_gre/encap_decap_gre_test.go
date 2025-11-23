@@ -351,8 +351,6 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 			"0": oc.UnionString(otgIntf2.IPv4),
 			"1": oc.UnionString(otgIntf3.IPv4),
 		},
-		NexthopGroup: false,
-		T:            t,
 	}
 
 	if _, err := cfgplugins.NewStaticRouteCfg(sfBatch, sV4, dut); err != nil {

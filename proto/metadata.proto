@@ -969,16 +969,6 @@ message Metadata {
     // Arista b/434583178
     bool match_as_path_set_unsupported = 333;
 
-    // Devices that do not support mpls static pseudowire OC
-    bool mpls_static_pseudowire_oc_unsupported = 334;
-
-    // Devices that do not support vlan client encapsulation OC
-    bool vlan_client_encapsulation_oc_unsupported = 335;
-
-    // Devices that do not support match-as-path-set
-    // Arista b/434583178
-    bool match_as_path_set_unsupported = 333;
-
     // Same apply-policy under peer-group and peer-group/afi-safi unsupported
     // Arista b/413225712
     bool same_afi_safi_and_peergroup_policies_unsupported = 334;
@@ -1054,6 +1044,12 @@ message Metadata {
     // Device does not support adding remote-syslog config under non-default VRF
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
     bool syslog_non_default_vrf_unsupported = 351;
+
+    // Devices that do not support mpls static pseudowire OC
+    bool mpls_static_pseudowire_oc_unsupported = 352;
+
+    // Devices that do not support vlan client encapsulation OC
+    bool vlan_client_encapsulation_oc_unsupported = 353;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
