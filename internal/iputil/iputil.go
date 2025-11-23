@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"strings"
 )
 
 // GenerateIPs creates list of n IPs using ipBlock
@@ -193,4 +194,19 @@ func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
 	}
 
 	return out
+}
+
+// IPv4ToHex converts an IPv4 address string (e.g., "192.168.0.1")
+// into an 8-character uppercase hex string (e.g., "C0A80001").
+func IPv4ToHex(ipStr string) (string, error) {
+	ip := net.ParseIP(strings.TrimSpace(ipStr))
+	if ip == nil {
+		return "", fmt.Errorf("invalid IP address: %q", ipStr)
+	}
+	ip4 := ip.To4()
+	if ip4 == nil {
+		return "", fmt.Errorf("not an IPv4 address: %q", ipStr)
+	}
+	// Format each byte as two hex digits.
+	return fmt.Sprintf("%02X%02X%02X%02X", ip4[0], ip4[1], ip4[2], ip4[3]), nil
 }

@@ -11,6 +11,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/iputil"
+	"github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	bpb "github.com/openconfig/gnoi/bgp"
 	"github.com/openconfig/ondatra"
@@ -57,6 +60,8 @@ const (
 	errnodeprefasn           = 200
 	testibgpasn              = 500
 	testebgpasn              = 600
+	newibgpasn               = 700
+	newebgpasn               = 800
 	med50                    = 50
 	med150                   = 150
 	routeCount               = 3
@@ -64,34 +69,41 @@ const (
 
 var (
 	dutIBGP = attrs.Attributes{
-		Desc:    "DUT to port2 ATE iBGP peer",
-		IPv4:    "192.0.2.5",
-		IPv6:    "2001:db8::192:0:2:5",
+		Desc:    "DUT to port1 ATE iBGP peer",
+		IPv4:    "192.0.2.1",
+		IPv6:    "2001:db8::192:0:2:1",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	ateIBGP = attrs.Attributes{
 		Name:    "ateIBGP",
 		MAC:     "02:00:01:01:01:01",
-		IPv4:    "192.0.2.6",
-		IPv6:    "2001:db8::192:0:2:6",
+		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8::192:0:2:2",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	dutEBGP = attrs.Attributes{
 		Desc:    "DUT to port1 ATE eBGP peer",
-		IPv4:    "192.0.2.1",
-		IPv6:    "2001:db8::192:0:2:1",
+		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8::192:0:2:5",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
 	ateEBGP = attrs.Attributes{
 		Name:    "ateEBGP",
 		MAC:     "02:00:02:01:01:01",
-		IPv4:    "192.0.2.2",
-		IPv6:    "2001:db8::192:0:2:2",
+		IPv4:    "192.0.2.6",
+		IPv6:    "2001:db8::192:0:2:6",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
+	}
+	gracefulRestartHardResetValidation = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port2",
+		CaptureName: "capture",
+		Validations: []packetvalidationhelpers.ValidationType{
+			packetvalidationhelpers.ValidateBGPHeader},
+		BGPLayer: &packetvalidationhelpers.BGPLayer{TYPE: 3, ErrorCode: 6, ErrorSubCode: 9},
 	}
 )
 
@@ -144,6 +156,16 @@ var communityConf = []communityConfig{
 		asn:  testebgpasn,
 		val:  1,
 	},
+	{
+		name: "NEW-IBGP",
+		asn:  newibgpasn,
+		val:  1,
+	},
+	{
+		name: "NEW-EBGP",
+		asn:  newebgpasn,
+		val:  1,
+	},
 }
 
 var prefixAttrs = []prefixAttributes{
@@ -175,8 +197,6 @@ var prefixAttrs = []prefixAttributes{
 			Value    uint16
 		}{
 			{errnodeprefasn, 1},
-			// TODO: stale routes are not sent to other peer, uncomment below
-			// {65535, 6},
 		},
 		expectedCommunities: []struct {
 			ASNumber uint16
@@ -195,6 +215,12 @@ var prefixAttrs = []prefixAttributes{
 			Value    uint16
 		}{
 			{testibgpasn, 1},
+		},
+		expectedCommunities: []struct {
+			ASNumber uint16
+			Value    uint16
+		}{
+			{testibgpasn, 1}, {newebgpasn, 1},
 		},
 		expectedasPath: []uint32{100, 100, 100},
 	},
@@ -246,6 +272,12 @@ var prefixAttrs = []prefixAttributes{
 		}{
 			{testebgpasn, 1},
 		},
+		expectedCommunities: []struct {
+			ASNumber uint16
+			Value    uint16
+		}{
+			{testebgpasn, 1}, {newibgpasn, 1},
+		},
 	},
 }
 
@@ -278,8 +310,6 @@ var prefixV6Attrs = []prefixAttributes{
 			Value    uint16
 		}{
 			{errnodeprefasn, 1},
-			// TODO: stale routes are not sent to other peer, uncomment below
-			// {65535, 6},
 		},
 	},
 	{
@@ -292,6 +322,12 @@ var prefixV6Attrs = []prefixAttributes{
 			Value    uint16
 		}{
 			{testibgpasn, 1},
+		},
+		expectedCommunities: []struct {
+			ASNumber uint16
+			Value    uint16
+		}{
+			{testibgpasn, 1}, {newebgpasn, 1},
 		},
 		expectedasPath: []uint32{100, 100, 100},
 	},
@@ -334,6 +370,7 @@ var prefixV6Attrs = []prefixAttributes{
 	{
 		prefix:            ipv6Prefix6,
 		ipType:            "ipv6",
+		bgpPeer:           ateIBGP.Name + ".BGP6.peer",
 		advertisedbgpPeer: ateEBGP.Name + ".BGP6.peer",
 		configuredCommunities: []struct {
 			ASNumber uint16
@@ -341,7 +378,12 @@ var prefixV6Attrs = []prefixAttributes{
 		}{
 			{testebgpasn, 1},
 		},
-		bgpPeer:     ateIBGP.Name + ".BGP6.peer",
+		expectedCommunities: []struct {
+			ASNumber uint16
+			Value    uint16
+		}{
+			{testebgpasn, 1}, {newibgpasn, 1},
+		},
 		expectedmed: ptrToUint32(50),
 	},
 }
@@ -361,6 +403,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		})
 	}
 
+	// STALE-ROUTE-POLICY
 	pd := rp.GetOrCreatePolicyDefinition("STALE-ROUTE-POLICY")
 	stmt10, err := pd.AppendNewStatement("10")
 	if err != nil {
@@ -383,85 +426,136 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("error while creating new statement %v", err)
 	}
 	stmt30.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	matchCommunitySet3 := stmt30.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-	matchCommunitySet3.SetCommunitySet("STALE")
+	matchCommunitySet3 := stmt30.GetOrCreateActions().GetOrCreateBgpActions()
+	matchCommunitySet3.SetSetLocalPref(0)
 
-	stmt40, err := pd.AppendNewStatement("40")
+	// Export-EBGP Policy
+	exportEBGP := rp.GetOrCreatePolicyDefinition("EXPORT-EBGP")
+	exportEBGPstmt10, err := exportEBGP.AppendNewStatement("10")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	stmt40.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	exportEBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	exportEBGPstmtCommunitySet := exportEBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+	exportEBGPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
+	exportEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(100)
+	exportEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(2)
 
-	appendAS := rp.GetOrCreatePolicyDefinition("APPENDAS")
-	appendASstmt1, err := appendAS.AppendNewStatement("10")
+	exportEBGPstmt20, err := exportEBGP.AppendNewStatement("20")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	appendASstmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	appendASstmtCommunitySet := appendASstmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-	appendASstmtCommunitySet.SetCommunitySet("TEST-IBGP")
-	appendASstmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(100)
-	appendASstmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(2)
+	exportEBGPstmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	appendASstmt2, err := appendAS.AppendNewStatement("20")
+	// Export-IBGP Policy
+	exportIBGP := rp.GetOrCreatePolicyDefinition("EXPORT-IBGP")
+	exportIBGPstmt10, err := exportIBGP.AppendNewStatement("10")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	appendASstmt2.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	exportIBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	newIBGP := rp.GetOrCreatePolicyDefinition("NEW-IBGP")
-	newIBGPstmt, err := newIBGP.AppendNewStatement("10")
+	exportIBGPstmt20, err := exportIBGP.AppendNewStatement("20")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	newIBGPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	exportIBGPstmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	setLP := rp.GetOrCreatePolicyDefinition("SET-LP")
-	setLPstmt, err := setLP.AppendNewStatement("10")
+	// Import-IBGP Policy
+	importIBGP := rp.GetOrCreatePolicyDefinition("IMPORT-IBGP")
+	importIBGPstmt10, err := importIBGP.AppendNewStatement("10")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	setLPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-	setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
-	setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
+	importIBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	importIBGPstmtCommunitySet := importIBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+	importIBGPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
+	importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
 
-	setLPstmt1, err := setLP.AppendNewStatement("20")
+	importIBGPstmt20, err := importIBGP.AppendNewStatement("20")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	setLPstmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	importIBGPstmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
-	setMED := rp.GetOrCreatePolicyDefinition("SET-MED")
-	setMEDstmt, err := setMED.AppendNewStatement("10")
+	// Import-EBGP policy
+	importEBGP := rp.GetOrCreatePolicyDefinition("IMPORT-EBGP")
+	importEBGPstmt10, err := importEBGP.AppendNewStatement("10")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	setMEDstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	setMEDstmtCommunitySet := setMEDstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+	importEBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	setMEDstmtCommunitySet := importEBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 	setMEDstmtCommunitySet.SetCommunitySet("TEST-EBGP")
-	setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med50))
+	importEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med50))
 	if deviations.BGPSetMedActionUnsupported(dut) {
-		setMEDstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+		importEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
 
-	setMEDstmt1, err := setMED.AppendNewStatement("20")
+	importEBGPstmt20, err := importEBGP.AppendNewStatement("20")
 	if err != nil {
 		t.Errorf("error while creating new statement %v", err)
 	}
-	setMEDstmt1.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	importEBGPstmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+
+	// TODO: update the constants to variables
+	var communitySetCLIConfig string
+	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			communitySetCLIConfig = fmt.Sprintf(
+				"route-map STALE-ROUTE-POLICY statement 20 permit 20\n"+
+					" set community community-list %[1]s\n"+
+					"route-map STALE-ROUTE-POLICY statement 30 permit 30\n"+
+					" set community community-list %[1]s",
+				"STALE",
+			)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
+
+	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			communitySetCLIConfig = fmt.Sprintf(
+				"route-map EXPORT-IBGP statement 10 permit 10\n"+
+					" match metric 50\n"+
+					"set community community-list %s %s",
+				"TEST-EBGP", "NEW-IBGP",
+			)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
+
+	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			communitySetCLIConfig = fmt.Sprintf(
+				"route-map EXPORT-EBGP statement 10 permit 10\n"+
+					"set community community-list %s %s",
+				"TEST-IBGP", "NEW-EBGP",
+			)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
 }
 
 // configureDUT configures all the interfaces and network instance on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
-	i1 := dutEBGP.NewOCInterface(dut.Port(t, "port1").Name(), dut)
+	i1 := dutIBGP.NewOCInterface(dut.Port(t, "port1").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i1.GetName()).Config(), i1)
 
-	i2 := dutIBGP.NewOCInterface(dut.Port(t, "port2").Name(), dut)
+	i2 := dutEBGP.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
 
 	t.Log("Configure/update Network Instance")
@@ -516,25 +610,25 @@ func ebgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{"APPENDAS"})
-		rpl.SetImportPolicy([]string{"SET-MED"})
+		rpl.SetExportPolicy([]string{"EXPORT-EBGP"})
+		rpl.SetImportPolicy([]string{"IMPORT-EBGP"})
 		rplv6 := pgV6.GetOrCreateApplyPolicy()
-		rplv6.SetExportPolicy([]string{"APPENDAS"})
-		rplv6.SetImportPolicy([]string{"SET-MED"})
+		rplv6.SetExportPolicy([]string{"EXPORT-EBGP"})
+		rplv6.SetImportPolicy([]string{"IMPORT-EBGP"})
 
 	} else {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pg1af4.SetEnabled(true)
 
 		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
-		pg1rpl4.SetExportPolicy([]string{"APPENDAS"})
-		pg1rpl4.SetImportPolicy([]string{"SET-MED"})
+		pg1rpl4.SetExportPolicy([]string{"EXPORT-EBGP"})
+		pg1rpl4.SetImportPolicy([]string{"IMPORT-EBGP"})
 
 		pg1af6 := pgV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		pg1af6.SetEnabled(true)
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
-		pg1rpl6.SetExportPolicy([]string{"APPENDAS"})
-		pg1rpl6.SetImportPolicy([]string{"SET-MED"})
+		pg1rpl6.SetExportPolicy([]string{"EXPORT-EBGP"})
+		pg1rpl6.SetImportPolicy([]string{"IMPORT-EBGP"})
 	}
 
 	for _, nbr := range nbrs {
@@ -585,25 +679,25 @@ func ibgpWithNbr(params cfgplugins.BGPGracefulRestartConfig, nbrs []*bgpNeighbor
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg.GetOrCreateApplyPolicy()
-		rpl.SetExportPolicy([]string{"NEW-IBGP"})
-		rpl.SetImportPolicy([]string{"SET-LP"})
+		rpl.SetExportPolicy([]string{"EXPORT-IBGP"})
+		rpl.SetImportPolicy([]string{"IMPORT-IBGP"})
 		rplv6 := pgV6.GetOrCreateApplyPolicy()
-		rplv6.SetExportPolicy([]string{"NEW-IBGP"})
-		rplv6.SetImportPolicy([]string{"SET-LP"})
+		rplv6.SetExportPolicy([]string{"EXPORT-IBGP"})
+		rplv6.SetImportPolicy([]string{"IMPORT-IBGP"})
 
 	} else {
 		pg1af4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pg1af4.SetEnabled(true)
 
 		pg1rpl4 := pg1af4.GetOrCreateApplyPolicy()
-		pg1rpl4.SetExportPolicy([]string{"NEW-IBGP"})
-		pg1rpl4.SetImportPolicy([]string{"SET-LP"})
+		pg1rpl4.SetExportPolicy([]string{"EXPORT-IBGP"})
+		pg1rpl4.SetImportPolicy([]string{"IMPORT-IBGP"})
 
 		pg1af6 := pgV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		pg1af6.SetEnabled(true)
 		pg1rpl6 := pg1af6.GetOrCreateApplyPolicy()
-		pg1rpl6.SetExportPolicy([]string{"NEW-IBGP"})
-		pg1rpl6.SetImportPolicy([]string{"SET-LP"})
+		pg1rpl6.SetExportPolicy([]string{"EXPORT-IBGP"})
+		pg1rpl6.SetImportPolicy([]string{"IMPORT-IBGP"})
 	}
 
 	for _, nbr := range nbrs {
@@ -783,17 +877,25 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, params cfgplugins.BGPGra
 	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
-	ateEBGP.AddToOTG(config, p1, &dutEBGP)
-	ateIBGP.AddToOTG(config, p2, &dutIBGP)
+	ateIBGP.AddToOTG(config, p1, &dutIBGP)
+	ateEBGP.AddToOTG(config, p2, &dutEBGP)
 
-	iBGPDev := config.Devices().Items()[1]
+	iBGPDev := config.Devices().Items()[0]
 	iBGPEth := iBGPDev.Ethernets().Items()[0]
 	iBGPIPv4 := iBGPEth.Ipv4Addresses().Items()[0]
 	iBGPIPv6 := iBGPEth.Ipv6Addresses().Items()[0]
-	eBGPDev := config.Devices().Items()[0]
+	eBGPDev := config.Devices().Items()[1]
 	eBGPEth := eBGPDev.Ethernets().Items()[0]
 	eBGPIPv4 := eBGPEth.Ipv4Addresses().Items()[0]
 	eBGPIPv6 := eBGPEth.Ipv6Addresses().Items()[0]
+
+	cap := config.Captures().Add().SetName("capture").SetPortNames([]string{p2.ID()}).SetFormat(gosnappi.CaptureFormat.PCAP)
+	filter := cap.Filters().Add()
+	ipToHex, err := iputil.IPv4ToHex(ateEBGP.IPv4)
+	if err != nil {
+		t.Errorf("failed to convert ip to hex: %v", err)
+	}
+	filter.Ipv4().Dst().SetValue(ipToHex)
 
 	iBGP := iBGPDev.Bgp().SetRouterId(iBGPIPv4.Address())
 	iBGP4Peer := iBGP.Ipv4Interfaces().Add().SetIpv4Name(iBGPIPv4.Name()).Peers().Add().SetName(ateIBGP.Name + ".BGP4.peer")
@@ -1041,6 +1143,42 @@ func validatePrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefix
 
 }
 
+func validateV4PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
+	for _, ep := range prefixAttrs {
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Afts().Ipv4Entry(fmt.Sprintf("%s/32", ep.prefix))
+
+		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			entry, present := val.Val()
+			t.Log(entry.GetPrefix())
+			return present && entry.GetPrefix() == fmt.Sprintf("%s/32", ep.prefix)
+		}
+
+		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
+			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
+		}
+		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
+	}
+}
+
+func validateV6PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, prefixAttrs []prefixAttributes) {
+	for _, ep := range prefixAttrs {
+		ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			Afts().Ipv6Entry(fmt.Sprintf("%s/128", ep.prefix))
+
+		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			entry, present := val.Val()
+			t.Log(entry.GetPrefix())
+			return present && entry.GetPrefix() == fmt.Sprintf("%s/128", ep.prefix)
+		}
+
+		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
+			t.Errorf("Prefix not learnt: got %v, want %s", got, ep.prefix)
+		}
+		t.Logf("Prefix %s learnt by DUT...", ep.prefix)
+	}
+}
+
 func validateV6PrefixesWithAttributes(t *testing.T, ate *ondatra.ATEDevice, prefixAttrs []prefixAttributes) {
 	t.Helper()
 	for _, ep := range prefixAttrs {
@@ -1134,6 +1272,13 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 
 func ptrToUint32(val uint32) *uint32 {
 	return &val
+}
+
+func mustValidateGracefulRestartHardResetCode6Subcode9(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
+	if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, gracefulRestartHardResetValidation); err != nil {
+		t.Fatalf("validation error: %v", err)
+	}
 }
 
 func validateExrr(t *testing.T, flowsWithNoERR []string, flowsWithNoLoss []string, hardReset bool, params cfgplugins.BGPGracefulRestartConfig) {
@@ -1307,6 +1452,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
+				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
+				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {
@@ -1421,6 +1568,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, false, bgpGracefulRestartConfigParams)
 					b.Set(t, dut)
 
+					cs := packetvalidationhelpers.StartCapture(t, ate)
+
 					ate.OTG().StartTraffic(t)
 
 					gnoiClient := dut.RawAPIs().GNOI(t)
@@ -1431,6 +1580,9 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					if _, err := gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq); err != nil {
 						t.Fatalf("Failed to clear BGP neighbor: %v", err)
 					}
+
+					packetvalidationhelpers.StopCapture(t, ate, cs)
+					mustValidateGracefulRestartHardResetCode6Subcode9(t, ate)
 
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
@@ -1462,18 +1614,18 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				d := &oc.Root{}
 				rp := d.GetOrCreateRoutingPolicy()
 
-				setLP := rp.GetOrCreatePolicyDefinition("SET-LP")
-				setLPstmt, err := setLP.AppendNewStatement("10")
+				importIBGP := rp.GetOrCreatePolicyDefinition("IMPORT-IBGP")
+				importIBGPstmt10, err := importIBGP.AppendNewStatement("10")
 				if err != nil {
 					t.Errorf("error while creating new statement %v", err)
 				}
-				setLPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-				setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-				setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med150))
+				importIBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+				importIBGPstmtCommunitySet := importIBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+				importIBGPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
+				importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
+				importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med150))
 				if deviations.BGPSetMedActionUnsupported(dut) {
-					setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+					importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 				}
 
 				gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -1621,6 +1773,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					t.Fatalf("checkBgpGRConfig failed: %v", err)
 				}
 
+				validateV4PrefixesWithAftEntries(t, dut, prefixAttrs)
+				validateV6PrefixesWithAftEntries(t, dut, prefixV6Attrs)
 				validatePrefixesWithAttributes(t, ate, prefixAttrs)
 				validateV6PrefixesWithAttributes(t, ate, prefixV6Attrs)
 				if err := validateTrafficFlows(t, ate, config, true); err != nil {
@@ -1735,6 +1889,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					cfgplugins.ApplyExtendedRouteRetention(t, dut, b, true, bgpGracefulRestartConfigParams)
 					b.Set(t, dut)
 
+					cs := packetvalidationhelpers.StartCapture(t, ate)
+
 					ate.OTG().StartTraffic(t)
 
 					gnoiClient := dut.RawAPIs().GNOI(t)
@@ -1745,6 +1901,9 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					if _, err := gnoiClient.BGP().ClearBGPNeighbor(context.Background(), bgpReq); err != nil {
 						t.Fatalf("Failed to clear BGP neighbor: %v", err)
 					}
+
+					packetvalidationhelpers.StopCapture(t, ate, cs)
+					mustValidateGracefulRestartHardResetCode6Subcode9(t, ate)
 
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
@@ -1776,18 +1935,18 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 				d := &oc.Root{}
 				rp := d.GetOrCreateRoutingPolicy()
 
-				setLP := rp.GetOrCreatePolicyDefinition("SET-LP")
-				setLPstmt, err := setLP.AppendNewStatement("10")
+				importIBGP := rp.GetOrCreatePolicyDefinition("IMPORT-IBGP")
+				importIBGPstmt10, err := importIBGP.AppendNewStatement("10")
 				if err != nil {
 					t.Errorf("error while creating new statement %v", err)
 				}
-				setLPstmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-				setLPstmtCommunitySet := setLPstmt.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-				setLPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
-				setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med150))
+				importIBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+				importIBGPstmtCommunitySet := importIBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+				importIBGPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
+				importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(200)
+				importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(med150))
 				if deviations.BGPSetMedActionUnsupported(dut) {
-					setLPstmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+					importIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 				}
 
 				gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
