@@ -225,9 +225,23 @@ func generateNetConfig(intfCount int) (*networkConfig, error) {
 	}, nil
 }
 
+// configureHardwareInit sets up the initial hardware configuration on the DUT.
+// It pushes hardware initialization configs for:
+// 1. Policy Forwarding feature.
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	if hardwarePfCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+}
+
 // configureDUT configures DUT interfaces, static routes, and MPLS-in-GRE encapsulation.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, netConfig *networkConfig, encapParams cfgplugins.OCEncapsulationParams, ocPFParams cfgplugins.OcPolicyForwardingParams, ocNHGParams cfgplugins.StaticNextHopGroupParams) {
 	t.Helper()
+	configureHardwareInit(t, dut)
+
 	aggID = netutil.NextAggregateInterface(t, dut)
 	var interfaces []*attrs.Attributes
 	for i := range encapParams.Count {
