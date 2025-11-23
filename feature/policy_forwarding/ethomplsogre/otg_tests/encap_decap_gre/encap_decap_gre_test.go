@@ -595,7 +595,6 @@ func verifyLoadBalanceAcrossGre(t *testing.T, singlePath bool, packetSource []*g
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, otg *otg.OTG, flowName string) {
 	otgutils.LogFlowMetrics(t, otg, otgConfig)
 	otgutils.LogPortMetrics(t, otg, otgConfig)
-	otgutils.LogLAGMetrics(t, otg, otgConfig)
 
 	FlowIPv4Validation.Flow.Name = flowName
 	if err := FlowIPv4Validation.ValidateLossOnFlows(t, ate); err != nil {
