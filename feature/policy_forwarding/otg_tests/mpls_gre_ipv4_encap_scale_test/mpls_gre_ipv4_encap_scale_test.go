@@ -28,16 +28,16 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	ieee8023adLag                = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	greProtocol                  = 47
-	dutStartIP                   = "169.254.0.1"
-	otgStartIP                   = "169.254.0.2"
-	dutStartIPV6                 = "2000:0:0:1::1"
-	otgStartIPV6                 = "2000:0:0:1::2"
-	stepV4                       = "0.0.0.4"
-	stepV6                       = "0:0:0:1::"
-	greTunnelDestinationsStartIP = "10.99.1.1/24"
-	trafficDuration              = 20 * time.Second
+	ieee8023adLag                  = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	greProtocol                    = 47
+	dutStartIPv4                   = "169.254.0.1"
+	otgStartIPv4                   = "169.254.0.2"
+	dutStartIPv6                   = "2000:0:0:1::1"
+	otgStartIPv6                   = "2000:0:0:1::2"
+	stepIPv4                       = "0.0.0.4"
+	stepIPv6                       = "0:0:0:1::"
+	greTunnelDestinationsStartIPv4 = "10.99.1.1/24"
+	trafficDuration                = 20 * time.Second
 )
 
 var (
@@ -89,7 +89,7 @@ var (
 		{Size: 512, Weight: 10},
 		{Size: 1500, Weight: 30},
 	}
-	flowResolveArp = &otgvalidationhelpers.OTGValidation{
+	flowResolveARP = &otgvalidationhelpers.OTGValidation{
 		Interface: &otgvalidationhelpers.InterfaceParams{Names: []string{agg2.Name}},
 	}
 	// MPLSOGRE Encap IPv4 interface IPv4 Payload
@@ -135,12 +135,12 @@ var (
 		Label: 19016,
 		Tc:    1,
 	}
-	innerIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
+	innerLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
 		DstIP: "194.0.2.2",
 		Tos:   1,
 		TTL:   63,
 	}
-	innerIPLayerIPv6 = &packetvalidationhelpers.IPv6Layer{
+	innerLayerIPv6 = &packetvalidationhelpers.IPv6Layer{
 		DstIP:        "2000:1::1",
 		TrafficClass: 10,
 		HopLimit:     63,
@@ -154,8 +154,8 @@ var (
 			packetvalidationhelpers.ValidateMPLSLayer,
 			packetvalidationhelpers.ValidateInnerIPv4Header,
 		},
-		InnerIPLayerIPv4: innerIPLayerIPv4,
-		InnerIPLayerIPv6: innerIPLayerIPv6,
+		InnerIPLayerIPv4: innerLayerIPv4,
+		InnerIPLayerIPv6: innerLayerIPv6,
 		TCPLayer:         &packetvalidationhelpers.TCPLayer{SrcPort: 49152, DstPort: 179},
 		UDPLayer:         &packetvalidationhelpers.UDPLayer{SrcPort: 49152, DstPort: 3784},
 	}
@@ -174,11 +174,8 @@ func configureOTG(t *testing.T) {
 	top.Captures().Clear()
 	ate := ondatra.ATE(t, "ate")
 
-	// Create a slice of aggPortData for easier iteration
-	aggs := []*otgconfighelpers.Port{agg1, agg2}
-
 	// Configure OTG Interfaces
-	for _, agg := range aggs {
+	for _, agg := range []*otgconfighelpers.Port{agg1, agg2} {
 		otgconfighelpers.ConfigureNetworkInterface(t, top, ate, agg)
 	}
 	ate.OTG().PushConfig(t, top)
@@ -194,24 +191,24 @@ type networkConfig struct {
 
 // generateNetConfig generates IPv4 and IPv6 network configurations for DUT and OTG.
 func generateNetConfig(intfCount int) (*networkConfig, error) {
-	dutIPs, err := iputil.GenerateIPsWithStep(dutStartIP, intfCount, stepV4)
+	dutIPs, err := iputil.GenerateIPsWithStep(dutStartIPv4, intfCount, stepIPv4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPs: %w", err)
 	}
 
-	otgIPs, err := iputil.GenerateIPsWithStep(otgStartIP, intfCount, stepV4)
+	otgIPs, err := iputil.GenerateIPsWithStep(otgStartIPv4, intfCount, stepIPv4)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPs: %w", err)
 	}
 
 	otgMACs := iputil.GenerateMACs("00:00:00:00:00:AA", intfCount, "00:00:00:00:00:01")
 
-	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutStartIPV6, intfCount, stepV6)
+	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutStartIPv6, intfCount, stepIPv6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate DUT IPv6s: %w", err)
 	}
 
-	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgStartIPV6, intfCount, stepV6)
+	otgIPsV6, err := iputil.GenerateIPv6sWithStep(otgStartIPv6, intfCount, stepIPv6)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate OTG IPv6s: %w", err)
 	}
@@ -286,7 +283,7 @@ func mustConfigureSetup(t *testing.T) {
 		ocEncapParams.MPLSLabelStartForIPv6 = 524280
 		ocEncapParams.MPLSLabelStep = 1000
 		ocEncapParams.GRETunnelSources = greTunnelSources
-		ocEncapParams.GRETunnelDestinationsStartIP = greTunnelDestinationsStartIP
+		ocEncapParams.GRETunnelDestinationsStartIP = greTunnelDestinationsStartIPv4
 	default:
 		t.Fatalf("Unsupported vendor %s for now, need to check the maximum interface count", dut.Vendor())
 	}
@@ -300,18 +297,16 @@ func mustConfigureSetup(t *testing.T) {
 	}
 	ocEncapParams.MPLSStaticLabels = func() []int {
 		var r []int
-		for count, label := 0, ocEncapParams.MPLSLabelStartForIPv4; count < ocEncapParams.MPLSLabelCount; count++ {
-			r = append(r, label)
-			label += ocEncapParams.MPLSLabelStep
+		for i := range ocEncapParams.MPLSLabelCount {
+			r = append(r, ocEncapParams.MPLSLabelStartForIPv4+(i*ocEncapParams.MPLSLabelStep))
 		}
 		return r
 	}()
 
 	ocEncapParams.MPLSStaticLabelsForIPv6 = func() []int {
 		var r []int
-		for count, label := 0, ocEncapParams.MPLSLabelStartForIPv6; count < ocEncapParams.MPLSLabelCount; count++ {
-			r = append(r, label)
-			label += ocEncapParams.MPLSLabelStep
+		for i := range ocEncapParams.MPLSLabelCount {
+			r = append(r, ocEncapParams.MPLSLabelStartForIPv6+(i*ocEncapParams.MPLSLabelStep))
 		}
 		return r
 	}()
@@ -343,7 +338,6 @@ func mustConfigureSetup(t *testing.T) {
 // matching the values in the provided JSON example.
 func fetchDefaultStaticNextHopGroupParams() cfgplugins.StaticNextHopGroupParams {
 	return cfgplugins.StaticNextHopGroupParams{
-
 		StaticNHGName: "MPLS_in_GRE_Encap",
 		NHIPAddr1:     "nh_ip_addr_1",
 		NHIPAddr2:     "nh_ip_addr_2",
@@ -400,7 +394,7 @@ func mustSendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+	if err := flowResolveARP.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
 	ate.OTG().StartTraffic(t)
@@ -541,7 +535,7 @@ func mustSendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Helper()
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	if err := flowResolveArp.IsIPv4Interfaceresolved(t, ate); err != nil {
+	if err := flowResolveARP.IsIPv4Interfaceresolved(t, ate); err != nil {
 		t.Fatalf("Failed to resolve IPv4 interface for ATE: %v, error: %v", ate, err)
 	}
 	cs := packetvalidationhelpers.StartCapture(t, ate)
