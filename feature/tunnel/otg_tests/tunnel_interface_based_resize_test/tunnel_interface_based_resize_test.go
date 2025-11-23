@@ -208,6 +208,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	t.Helper()
 	config := &oc.Root{}
 
+	configureHardwareInit(t, dut)
+
 	dp1 := dut.Port(t, "port1")
 	ingressp := ingressIntf.ConfigOCInterface(config.GetOrCreateInterface(dp1.Name()), dut)
 	gnmi.Replace(t, dut, gnmi.OC().Interface(ingressp.GetName()).Config(), ingressp)
@@ -224,6 +226,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
 	encapInGRE(t, dut, pf, ni, ocPFParams, ocNHGParams)
 
+}
+
+// configureHardwareInit sets up the initial hardware configuration on the DUT.
+// It pushes hardware initialization configs for:
+// 1. AFT Summaries
+// 2. Policy Forwarding feature.
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	hardwareAftSummariesCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	if hardwareAftSummariesCfg == "" || hardwarePfCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareAftSummariesCfg)
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
 // fetchDefaultStaticNextHopGroupParams provides default parameters for the generator.
