@@ -405,6 +405,7 @@ message Metadata {
     bool skip_isis_set_level = 144;
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
+    // Cisco b/456075095
     bool skip_isis_set_metric_style_type = 145;    
     // Skip setting disable-metric-propagation while configuring
     // table-connection
