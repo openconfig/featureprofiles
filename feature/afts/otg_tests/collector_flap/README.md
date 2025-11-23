@@ -18,9 +18,7 @@ Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
 * IS-IS must be level 2 only with wide metric.
 * IS-IS must be point to point.
 * Send `Z` IPv4 and `Z` IPv6 prefixes from ATE:port1 to DUT:port1.
-
 Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
-
 * Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
 * Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
 * Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
@@ -31,7 +29,6 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * ATE configuration must be pushed.
 
 ### Verifications
-
 * eBGP routes advertised from ATE:port1,port2 must have 2 next hops.
 * Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
 * Verify AFTs prefixes advertised by eBGP and IS-IS.
@@ -42,19 +39,14 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Verify all other leaves mentioned in the path section have the data populated correctly.
 
 ## AFT-1.3: AFT collector restart
-
-### Procedure
-
 * Stop and restart one of the gNMI collectors.
 
-
 ### Verifications
-
 * Verify AFTs prefixes advertised by eBGP and IS-IS on both the collectors.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
-* Stop the second collector and take a system memory usage in the DUT.
+* Stop the second collector and take a system memory usage in the DUT by subscribing "openconfig:system/processes/process/state/memory-utilization" and "openconfig:components/component/cpu/utilization/state/instant"
 * Recreate a gNMI session for the second collector and verify the convergence time for the second collector.
-* Also check the memory usage in the DUT after the second collector is added and converged. The memory usage for BGP and the Routing Engine (RE) should not increase by more than 2%.
+* Also check the memory usage in the DUT after the second collector is added and converged. The memory usage for BGP and the Routing Engine (RE) should not increase before the first step and also monitor for any abnormal CPU util.(more than 80%).
 
 ## OpenConfig Path and RPC Coverage
 The below YAML defines the OC paths intended to be covered by this test.
