@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "99ebd3aa-d6b0-4dfc-91ba-391a1e0d1ae7"
+plan_id: "gNMI-1.26"
+description: "Telemetry: Firewall High Availability."
+testbed: TESTBED_DUT_ATE_2LINKS
