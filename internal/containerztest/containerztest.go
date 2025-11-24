@@ -85,7 +85,7 @@ func (o StartContainerOptions) withDefaults() StartContainerOptions {
 	res := o // Create a copy
 
 	if res.ImageName == "" {
-		res.ImageName = "cntrsrv"
+		res.ImageName = "cntrsrv_image"
 	}
 	if res.ImageTag == "" {
 		res.ImageTag = "latest"
