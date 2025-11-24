@@ -22,8 +22,8 @@ Telemetry: Firewall High Availability
 #### Configuration
 
 * configure FW cluster between DUT1 and DUT2 with preemption is enabled
-* DUT1 with low priority (ACTIVE)
-* DUT2 with high priority (PASSIVE)
+* DUT1 with low priority
+* DUT2 with high priority
 * Configure a link group with 4 links between DUT1 and DUT2
 
 ### gNMI-1.26.1: Verify FW Cluster correctly reports the active/primary state, control/data links state, interface groups state.
@@ -75,8 +75,8 @@ Telemetry: Firewall High Availability
 
 ```yaml
 paths:
-/ha-groups/ha-group/state/ha-state:
-/ha-groups/ha-group/config/ha-enabled:
+    /ha-groups/ha-group/state/ha-state:
+    /ha-groups/ha-group/config/ha-enabled:
 
 rpcs:
   gnmi:

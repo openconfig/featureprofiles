@@ -2191,6 +2191,6 @@ test: {
 test: {
   id: "gNMI-1.26"
   description: "Telemetry: Firewall High Availability"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/otg_tests/telemetry_high_availability_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_high_availability_test/README.md"
   exec: ""
 }
