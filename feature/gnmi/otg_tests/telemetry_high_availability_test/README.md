@@ -34,17 +34,17 @@ Telemetry: Firewall High Availability
 
 ### gNMI-1.26.2: FW Cluster correctly reports HA state changes in the event of an operator triggered failover.
 
-* On Active device execute ex: "request high-availability state suspend"
+* On Active device, suspend high-availability.
 * Passive device should detect suspension and become Active
 * Verify the state change the Firewall device.
-* Bring back the suspended device to functional state ex: "request high-availability state functional"
-* Verify the cluster status
+* Bring back the suspended device to functional state.
+* Verify the cluster status.
 
 ### gNMI-1.26.3: FW Cluster correctly reports HA state changes in the event of a failure either of the FW Cluster or its links.
 
 * On the Active device verify link monitoring
-* Trigger "request restart system" on Active FW cluster
-* Verify "show high-availability state" on Passive device, the state should change to active
+* Trigger restart system on Active FW cluster
+* Verify state/ha-state on Passive device, the state should change to active
 * Wait for previous active to come up, verify the active state is preempted once the device is "UP"
 
 #### Canonical OC
