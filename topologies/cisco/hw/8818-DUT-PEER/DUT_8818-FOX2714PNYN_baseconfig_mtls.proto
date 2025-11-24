@@ -47,7 +47,6 @@ replace: {
     "grpc\n"
     " vrf mgmtVrf\n"
     " dscp cs4\n"
-    " port 8818\n"
     " tls-mutual\n"
     " certificate-authentication\n"
     " gnmi\n"
