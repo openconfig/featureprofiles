@@ -2188,4 +2188,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/telemetry_interface_last_change_test.go"
 }
-
+test: {
+  id: "gNMI-1.26"
+  description: "Telemetry: Firewall High Availability"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_high_availability_test/README.md"
+  exec: ""
+}
