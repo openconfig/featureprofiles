@@ -6,7 +6,7 @@ Telemetry: Firewall High Availability
 
 ## Testbed type
 
-*  [`featureprofiles/topologies/atedut_2.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dutdut.testbed)
+*  [`featureprofiles/topologies/dutdut.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/dutdut.testbed)
 
 ## Procedure
 
@@ -24,7 +24,7 @@ Telemetry: Firewall High Availability
 * configure FW cluster between DUT1 and DUT2 with preemption is enabled
 * DUT1 with low priority (ACTIVE)
 * DUT2 with high priority (PASSIVE)
-* Configure a link group with 2 links between DUT1 and DUT2
+* Configure a link group with 4 links between DUT1 and DUT2
 
 ### gNMI-1.26.1: Verify FW Cluster correctly reports the active/primary state, control/data links state, interface groups state.
 
@@ -75,8 +75,8 @@ Telemetry: Firewall High Availability
 
 ```yaml
 paths:
-ha-groups/ha-group/state/ha-state:
-ha-groups/ha-group/state/ha-peer-state:
+/ha-groups/ha-group/state/ha-state:
+/ha-groups/ha-group/config/ha-enabled:
 
 rpcs:
   gnmi:
