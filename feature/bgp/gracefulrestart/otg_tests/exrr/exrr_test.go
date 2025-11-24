@@ -1151,7 +1151,7 @@ func validateV4PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, pref
 		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 			entry, present := val.Val()
 			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/32", ep.prefix)
+			return present && entry.GetPrefix() == fmt.Sprintf("%s/32", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 		}
 
 		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
@@ -1169,7 +1169,7 @@ func validateV6PrefixesWithAftEntries(t *testing.T, dut *ondatra.DUTDevice, pref
 		watchFN := func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
 			entry, present := val.Val()
 			t.Log(entry.GetPrefix())
-			return present && entry.GetPrefix() == fmt.Sprintf("%s/128", ep.prefix)
+			return present && entry.GetPrefix() == fmt.Sprintf("%s/128", ep.prefix) && entry.GetOriginProtocol() == oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
 		}
 
 		if got, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, watchFN).Await(t); !ok {
