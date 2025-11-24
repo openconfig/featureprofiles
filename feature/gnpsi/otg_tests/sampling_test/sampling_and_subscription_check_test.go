@@ -20,7 +20,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/gnpsi/proto/gnpsi"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
@@ -230,7 +230,7 @@ func TestSamplingAndSubscription(t *testing.T) {
 	}
 }
 
-func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.GNPSIClient) (gnpsi.GNPSI_SubscribeClient, error) {
+func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb.GNPSIClient) (gnpsipb.GNPSI_SubscribeClient, error) {
 	ticker := time.NewTicker(connectionRetryInterval)
 	defer ticker.Stop()
 	timeout := time.After(connectionTimeout)
@@ -337,7 +337,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	ate.OTG().PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	gnpsiClients := []gnpsi.GNPSI_SubscribeClient{}
+	gnpsiClients := []gnpsipb.GNPSI_SubscribeClient{}
 
 	for range gnpsiClientsInParallel {
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
@@ -438,7 +438,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, flow flowConfig) {
 	ctx, closeContext := context.WithCancel(t.Context())
 	defer closeContext()
-	var stream gnpsi.GNPSI_SubscribeClient
+	var stream gnpsipb.GNPSI_SubscribeClient
 	var err error
 	gnpsiClient := dut.RawAPIs().GNPSI(t)
 
