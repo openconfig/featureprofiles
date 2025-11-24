@@ -1046,7 +1046,8 @@ message Metadata {
     bool syslog_non_default_vrf_unsupported = 351;
 
     // Device does not support sampling QoS counters
-    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+    // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+    // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
     
     // Reserved field numbers and identifiers.
