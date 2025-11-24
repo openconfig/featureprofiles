@@ -21,7 +21,7 @@ Telemetry: Firewall High Availability
 
 #### Configuration
 
-* configure FW cluster between DUT1 and DUT2 with preemption is enabled
+* configure FW cluster between DUT1 and DUT2 with preemption enabled
 * DUT1 with low priority
 * DUT2 with high priority
 * Configure a link group with 4 links between DUT1 and DUT2
