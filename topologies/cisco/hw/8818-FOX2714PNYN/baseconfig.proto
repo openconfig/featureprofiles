@@ -53,7 +53,6 @@ replace: {
       "grpc\n"
       " vrf mgmtVrf\n"
       " dscp cs4\n"
-      " port 8818\n"
       " gnmi\n"
       " !\n"
       " p4rt\n"
