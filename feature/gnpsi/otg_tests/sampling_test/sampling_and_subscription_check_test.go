@@ -240,7 +240,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb
 		case <-timeout:
 			return nil, fmt.Errorf("failed to connect to GNPSI server within %v seconds", connectionTimeout)
 		case <-ticker.C:
-			stream, err := gnpsiClient.Subscribe(ctx, &gnpsi.Request{})
+			stream, err := gnpsiClient.Subscribe(ctx, &gnpsipb.Request{})
 			if err != nil {
 				t.Logf("Unable to connect to GNPSI server: %v, retrying", err)
 				continue
@@ -250,7 +250,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb
 	}
 }
 
-func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
+func receiveSamples(t *testing.T, stream gnpsipb.dGNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
 	sampleCount := 0
 	t.Log("Waiting for GNPSI samples")
