@@ -386,21 +386,21 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				gnmi.Await(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).State(), 2*time.Minute, configContainer)
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
-				componentName, schemaValue), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
-				groupDetails := gnmi.Get(t, dut, state.Config())
-				index := *groupDetails.Index
-				numBreakouts := *groupDetails.NumBreakouts
-				breakoutSpeed := groupDetails.BreakoutSpeed
-				var numPhysicalChannels uint8
-				if !deviations.NumPhysyicalChannelsUnsupported(dut) {
-					numPhysicalChannels = *groupDetails.NumPhysicalChannels
-				} else {
-					numPhysicalChannels = *ygot.Uint8(0)
-				}
+					componentName, schemaValue), func(t *testing.T) {
+					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+					groupDetails := gnmi.Get(t, dut, state.Config())
+					index := *groupDetails.Index
+					numBreakouts := *groupDetails.NumBreakouts
+					breakoutSpeed := groupDetails.BreakoutSpeed
+					var numPhysicalChannels uint8
+					if !deviations.NumPhysyicalChannelsUnsupported(dut) {
+						numPhysicalChannels = *groupDetails.NumPhysicalChannels
+					} else {
+						numPhysicalChannels = *ygot.Uint8(0)
+					}
 
-				verifyBreakout(dut, index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
-					breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
+					verifyBreakout(dut, index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
+						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
