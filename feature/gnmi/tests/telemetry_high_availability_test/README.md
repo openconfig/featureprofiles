@@ -75,12 +75,12 @@ Telemetry: Firewall High Availability
 
 ```yaml
 paths:
-    /ha-groups/ha-group/state/ha-state:
-    /ha-groups/ha-group/config/ha-enabled:
+  - /ha-groups/ha-group/state/ha-state
+  - /ha-groups/ha-group/config/ha-enabled
 
 rpcs:
   gnmi:
-    gNMI.Subscribe:
-    gNMI.Set:
-    gNMI.Get:
+    - gNMI.Subscribe
+    - gNMI.Set
+    - gNMI.Get
 ```
