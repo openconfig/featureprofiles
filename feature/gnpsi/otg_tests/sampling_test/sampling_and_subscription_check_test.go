@@ -250,7 +250,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb
 	}
 }
 
-func receiveSamples(t *testing.T, stream gnpsipb.dGNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
+func receiveSamples(t *testing.T, stream gnpsipb.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
 	sampleCount := 0
 	t.Log("Waiting for GNPSI samples")
