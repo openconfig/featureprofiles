@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -52,10 +51,8 @@ const (
 	contextTimeout = 20 * time.Minute
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 15 * time.Minute
-	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval = 10 * time.Second
-	IPv4               = "IPv4"
-	IPv6               = "IPv6"
+	IPv4          = "IPv4"
+	IPv6          = "IPv6"
 )
 
 var (
@@ -89,17 +86,14 @@ var (
 		IPv6:    "2001:db8::5",
 		IPv6Len: v6PrefixLen,
 	}
-	ateAttrs        = []attrs.Attributes{ateP1, ateP2}
-	dutAttrs        = []attrs.Attributes{dutP1, dutP2}
-	v4PeerGrpNames  = []string{peerGrpNameV4P1, peerGrpNameV4P2}
-	v6PeerGrpNames  = []string{peerGrpNameV6P1, peerGrpNameV6P2}
-	port1Name       = "port1"
-	port2Name       = "port2"
-	ipv4OneNH       = map[string]bool{ateP1.IPv4: true}
-	ipv4TwoNHs      = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	ipv6LinkLocalNH = map[string]bool{"fe80::200:2ff:fe02:202": true}
-	ipv6OneNH       = map[string]bool{ateP1.IPv6: true}
-	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	ateAttrs       = []attrs.Attributes{ateP1, ateP2}
+	dutAttrs       = []attrs.Attributes{dutP1, dutP2}
+	v4PeerGrpNames = []string{peerGrpNameV4P1, peerGrpNameV4P2}
+	v6PeerGrpNames = []string{peerGrpNameV6P1, peerGrpNameV6P2}
+	port1Name      = "port1"
+	port2Name      = "port2"
+	ipv4TwoNHs     = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	ipv6TwoNHs     = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
 func TestMain(m *testing.M) {
@@ -264,35 +258,12 @@ func generateISISPrefixes(t *testing.T) map[string]bool {
 	return wantPrefixes
 }
 
-// setOTGInterfaceState sets the state of the provided port.
-func setOTGInterfaceState(t *testing.T, ate *ondatra.ATEDevice, portName string, state gosnappi.StatePortLinkStateEnum) {
-	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
-	ate.OTG().SetControlState(t, portStateAction)
-}
-
-func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) error {
-	d := &oc.Root{}
-	routePolicy := d.GetOrCreateRoutingPolicy()
-	policyDefinition := routePolicy.GetOrCreatePolicyDefinition(cfgplugins.ALLOW)
-	policyStatement, err := policyDefinition.AppendNewStatement("policy-1")
-	if err != nil {
-		return fmt.Errorf("failed to append new statement to policy definition %s: %v", cfgplugins.ALLOW, err)
-	}
-	policyStatement.GetOrCreateActions().PolicyResult = applyPolicyType
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
-	return nil
-}
-
 func (tc *testCase) bootTime(t *testing.T) (uint64, error) {
 	var bootTime uint64
 	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().BootTime().State(), gnmiTimeout, func(val *ygnmi.Value[uint64]) bool {
 		var ok bool
 		bootTime, ok = val.Val()
-		if !ok {
-			return false
-		}
-		return true
+		return ok
 	}).Await(t)
 	if !ok {
 		return 0, fmt.Errorf("failed to get boot time")
@@ -348,7 +319,11 @@ func (tc *testCase) rebootDUT(t *testing.T) {
 	t.Log("Sending reboot request to DUT")
 	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), contextTimeout)
 	defer cancel()
-	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
+	defer func() {
+		if _, err := gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{}); err != nil {
+			t.Logf("Error returned from cancel reboot command: %v", err)
+		}
+	}()
 	if _, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest); err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
@@ -384,6 +359,9 @@ func TestReboot(t *testing.T) {
 		t.Log("Waiting for BGP neighbor to establish...")
 		if err := tc.waitForBGPSession(t); err != nil {
 			t.Fatalf("Unable to establish BGP session: %v", err)
+		}
+		if err := tc.waitForISISAdjacency(t); err != nil {
+			t.Fatalf("Unable to establish ISIS Adjacency: %v", err)
 		}
 		aftSession := aftcache.NewAFTStreamSession(t.Context(), t, gnmiClient, tc.dut)
 		t.Logf("Initial verification of %d bgp prefixes and %d isis prefixes", len(bgpPrefixes), len(isisPrefixes))
