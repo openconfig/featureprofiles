@@ -1825,6 +1825,8 @@ tests:
     mustpass: false
     priority: 3
     groups: [newfnt]
+    internal: false
+    pr: 4820
 
   - name: MTU-1.4 (Large IP Packet through GRE/GUE tunnel Transmission)
     path: feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission
