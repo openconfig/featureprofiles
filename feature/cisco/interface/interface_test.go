@@ -1090,7 +1090,9 @@ func TestInterfaceState(t *testing.T) {
 	})
 	member := iut.Members()[0]
 	reqspeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-	if strings.Contains(member, "FourHun") {
+	if strings.Contains(member, "EightHundred") {
+		reqspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
+	} else if strings.Contains(member, "FourHundred") {
 		reqspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
 	}
 	t.Run("Subscribe//interfaces/interface/ethernet/state/port-speed", func(t *testing.T) {

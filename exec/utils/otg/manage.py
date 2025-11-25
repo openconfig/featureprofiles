@@ -135,10 +135,10 @@ def _write_otg_docker_compose_file(docker_file, reserved_testbed,controller,laye
     with open(docker_file, 'w') as fp:
         fp.write(_otg_docker_compose_template(otg_info['controller_port'], otg_info['gnmi_port'], otg_info['rest_port'],controller,layer23,gnmi,controller_command))
 
-def _replace_binding_placeholders(fp_repo_dir, baseconf_files, binding_file):
-    tb_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_TRUST_BUNDLE_FILE)
-    key_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_KEY_FILE)
-    cert_file = _resolve_path_if_needed(fp_repo_dir, MTLS_DEFAULT_CERT_FILE)
+def _replace_binding_placeholders(fp_repo_dir, reserved_testbed, baseconf_files, binding_file):
+    tb_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed.get('tls_ca', MTLS_DEFAULT_TRUST_BUNDLE_FILE))
+    key_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed.get('tls_key', MTLS_DEFAULT_KEY_FILE))
+    cert_file = _resolve_path_if_needed(fp_repo_dir, reserved_testbed.get('tls_cert', MTLS_DEFAULT_CERT_FILE))
     with open(binding_file, 'r') as fp:
         data = fp.read()
     data = data.replace('$TRUST_BUNDLE_FILE', tb_file)
@@ -213,11 +213,11 @@ def _write_otg_binding(fp_repo_dir, reserved_testbed, baseconf_files, otg_bindin
             f'-out {otg_binding_file}'
             
         check_output(cmd, cwd=fp_repo_dir)        
-        _replace_binding_placeholders(fp_repo_dir, baseconf_files, otg_binding_file)
+        _replace_binding_placeholders(fp_repo_dir, reserved_testbed, baseconf_files, otg_binding_file)
 
 def _write_ate_binding(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["binding"]), ate_binding_file)
-    _replace_binding_placeholders(fp_repo_dir, baseconf_files, ate_binding_file)
+    _replace_binding_placeholders(fp_repo_dir, reserved_testbed, baseconf_files, ate_binding_file)
         
 def _write_testbed_file(fp_repo_dir, reserved_testbed, testbed_file):
     shutil.copy(_resolve_path_if_needed(fp_repo_dir, reserved_testbed["testbed"]), testbed_file)

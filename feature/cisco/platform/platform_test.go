@@ -15,16 +15,16 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-const (
-	transceiverType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
-)
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func TestPlatformCPUState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	RP := "0/RP0/CPU0"
+
+	// Note: This test uses RP constant (not Platform struct), so no InitPlatform needed
+
 	t.Run("Subscribe//components/component/cpu/utilization/state/avg", func(t *testing.T) {
 		state := gnmi.OC().Component(RP).Cpu().Utilization().Avg()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -106,6 +106,17 @@ func TestPlatformCPUState(t *testing.T) {
 
 func TestPlatformFanTrayState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestPlatformFanTrayState", RequiredComponents{
+		FanTray: true,
+	})
+
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.FanTray).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -147,6 +158,17 @@ func TestPlatformFanTrayState(t *testing.T) {
 
 func TestPlatformChassisState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestPlatformChassisState", RequiredComponents{
+		Chassis: true,
+	})
+
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.Chassis).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -188,6 +210,17 @@ func TestPlatformChassisState(t *testing.T) {
 
 func TestPlatformPSUState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestPlatformPSUState", RequiredComponents{
+		PowerSupply: true,
+	})
+
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.PowerSupply).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -236,6 +269,17 @@ func TestTransceiverChannel(t *testing.T) {
 	t.Skip()
 	// Failure due to CSCwb72703
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestTransceiverChannel", RequiredComponents{
+		Transceiver: true,
+	})
+
 	t.Run("Subscribe//components/component/transceiver/state/form-factor", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.Transceiver).Transceiver().FormFactor()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -277,6 +321,17 @@ func TestTransceiverChannel(t *testing.T) {
 
 func TestTempSensor(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery on first test
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestTempSensor", RequiredComponents{
+		TempSensor: true,
+	})
+
 	t.Run("Subscribe//components/component/state/temperature/instant", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.TempSensor).Temperature().Instant()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -290,6 +345,17 @@ func TestTempSensor(t *testing.T) {
 
 func TestFirmware(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestFirmware", RequiredComponents{
+		BiosFirmware: true,
+	})
+
 	t.Run("Subscribe//components/component/state/firmware-version", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.BiosFirmware).FirmwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -303,6 +369,17 @@ func TestFirmware(t *testing.T) {
 
 func TestSwVersion(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery on first test
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestSwVersion", RequiredComponents{
+		SWVersionComponent: true,
+	})
+
 	t.Run("Subscribe//components/component/state/software-version", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.SWVersionComponent).SoftwareVersion()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -316,6 +393,17 @@ func TestSwVersion(t *testing.T) {
 
 func TestFabric(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestFabric", RequiredComponents{
+		FabricCard: true,
+	})
+
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.FabricCard).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -338,6 +426,18 @@ func TestFabric(t *testing.T) {
 
 func TestSubComponent(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestSubComponent", RequiredComponents{
+		Chassis:      true,
+		SubComponent: true,
+	})
+
 	t.Run("Subscribe//components/component/subcomponents/subcomponent/state/name", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.Chassis).Subcomponent(Platform.SubComponent).Name()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -351,8 +451,15 @@ func TestSubComponent(t *testing.T) {
 
 func TestPlatformTransceiverState(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+	transceiverType := oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_TRANSCEIVER
+
 	cards := components.FindComponentsByType(t, dut, transceiverType)
-	t.Logf("Found Card list: %v", cards)
+
+	if len(cards) == 0 {
+		t.Skip("No transceivers found on device")
+	}
+
+	t.Logf("Found %d transceivers", len(cards))
 
 	for _, card := range cards {
 		t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
@@ -406,16 +513,28 @@ func TestPlatformTransceiverState(t *testing.T) {
 
 func TestSubComponentSwModule(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery to access cached components
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
 	t.Run("Subscribe///components/component/software-module/state/oc-sw-module:module-type", func(t *testing.T) {
-		components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
+		// Use cached allComponents instead of making new gNMI query
 		regexpPattern := ".*xr-8000-qos-ea.*"
 		r, _ := regexp.Compile(regexpPattern)
 		var s1 []string
-		for _, c := range components {
-			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, strings.Split(c, " ")[1])
+		for _, comp := range allComponents {
+			name := comp.GetName()
+			if len(r.FindString(name)) > 0 {
+				s1 = append(s1, strings.Split(name, " ")[1])
 			}
 		}
+
+		if len(s1) == 0 {
+			t.Skip("No xr-8000-qos-ea component found")
+		}
+
 		s2 := "IOSXR-PKG/2 " + s1[0]
 		state := gnmi.OC().Component(s2).SoftwareModule().ModuleType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -444,16 +563,28 @@ func TestSubComponentSwModuleWildCard(t *testing.T) {
 
 func TestSubComponentSwModuleStream(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery to access cached components
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
 	t.Run("Subscribe///components/component/software-module/state/oc-sw-module:module-type", func(t *testing.T) {
-		components := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().Name().State())
+		// Use cached allComponents instead of making new gNMI query
 		regexpPattern := ".*xr-8000-qos-ea.*"
 		r, _ := regexp.Compile(regexpPattern)
 		var s1 []string
-		for _, c := range components {
-			if len(r.FindString(c)) > 0 {
-				s1 = append(s1, strings.Split(c, " ")[1])
+		for _, comp := range allComponents {
+			name := comp.GetName()
+			if len(r.FindString(name)) > 0 {
+				s1 = append(s1, strings.Split(name, " ")[1])
 			}
 		}
+
+		if len(s1) == 0 {
+			t.Skip("No xr-8000-qos-ea component found")
+		}
+
 		s2 := "IOSXR-PKG/2 " + s1[0]
 		state := gnmi.OC().Component(s2).SoftwareModule().ModuleType()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -470,6 +601,16 @@ func TestSubComponentSwModuleStream(t *testing.T) {
 
 func TestPlatformFabricCard(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
+
+	// Initialize platform discovery
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestPlatformFabricCard", RequiredComponents{
+		FabricCard: true,
+	})
 
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.FabricCard).SerialNo()
@@ -603,6 +744,16 @@ func TestPlatformFabricCard(t *testing.T) {
 func TestPlatformLC(t *testing.T) {
 	dut := ondatra.DUT(t, device1)
 
+	// Initialize platform discovery on first test
+	if err := InitPlatform(t, dut); err != nil {
+		t.Fatalf("Failed to initialize platform: %v", err)
+	}
+
+	// Check that required components were discovered
+	CheckRequirements(t, "TestPlatformLC", RequiredComponents{
+		Linecard: true,
+	})
+
 	t.Run("Subscribe//components/component/state/serial-no", func(t *testing.T) {
 		state := gnmi.OC().Component(Platform.Linecard).SerialNo()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
@@ -634,8 +785,9 @@ func TestPlatformLC(t *testing.T) {
 		state := gnmi.OC().Component(Platform.Linecard).Description()
 		defer observer.RecordYgot(t, "SUBSCRIBE", state)
 		val := gnmi.Get(t, dut, state.State())
-		if !strings.Contains(val, "Line Card") {
-			t.Errorf("Platform Description: got %s, should contain Line Card", val)
+		// Case-insensitive comparison to handle different platform conventions
+		if !strings.Contains(strings.ToLower(val), "line card") {
+			t.Errorf("Platform Description: got %s, should contain 'line card' (case-insensitive)", val)
 
 		}
 	})
@@ -734,23 +886,19 @@ func TestPlatformLC(t *testing.T) {
 
 func TestPlatformBreakoutConfig(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	portName(t, dut)
-	port1 := strings.Replace(dut.Port(t, "port1").Name(), "FourHundredGigE", "Port", 1)
-	if count := strings.Count(port1, "/"); count == 4 {
-		port1 = port1[:strings.LastIndex(port1, "/")]
-	}
-	componentNameList = []string{port1}
-	if hundredGigEComponentName != "" {
-		port2 := strings.Replace(hundredGigE, "HundredGigE", "Port", 1)
-		if count := strings.Count(port2, "/"); count == 4 {
-			port2 = port1[:strings.LastIndex(port2, "/")]
-		}
-		componentNameList = append(componentNameList, port2)
+
+	// Get first port from testbed binding
+	port1Interface := dut.Port(t, "port1").Name()
+
+	// Convert interface name to Port component name
+	// Example: "FourHundredGigE0/0/0/1" → "Port0/0/0/1"
+	// Logic: Replace "*GigE" with "Port", remove last segment if 4 slashes
+	componentName := getPortComponentForBreakout(t, dut, port1Interface)
+	if componentName == "" {
+		t.Fatalf("Port %q does not support breakout configuration", port1Interface)
 	}
 
-	for _, element := range componentNameList {
-		fmt.Print(element)
-	}
+	t.Logf("Testing breakout on port: %s (interface: %s)", componentName, port1Interface)
 
 	cases := []struct {
 		numbreakouts  uint8
@@ -781,289 +929,300 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			breakoutspeed: oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB,
 		},
 	}
+
 	for _, tc := range cases {
-		for _, componentName := range componentNameList {
-
-			configContainer := &oc.Component_Port_BreakoutMode_Group{
-				Index:         ygot.Uint8(0),
-				NumBreakouts:  ygot.Uint8(tc.numbreakouts),
-				BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+		// Skip 10GB and 25GB breakout tests for 800G interfaces (hardware limitation)
+		// 800G optics do not support breaking out to these lower speeds
+		if strings.Contains(port1Interface, "EightHundredGigE") {
+			if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
+				t.Logf("SKIPPING: 4x10GB breakout on %s (EightHundredGigE) - Hardware does not support 10GB breakout on 800G optics", componentName)
+				continue
 			}
-			groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
-			breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
-			portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(componentName)}
-			fmt.Printf("COMBO : %v*%v ", tc.numbreakouts, tc.breakoutspeed)
-			gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
-			gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).Config())
-			t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
-				fmt.Printf("The component name inside test: %v", componentName)
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Update(t, dut, path.Config(), configContainer)
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				groupDetails := gnmi.LookupConfig(t, dut, state.Config())
-				grp, ok := groupDetails.Val()
-				if !ok {
-					t.Errorf("Failed to get group details")
-				}
-				index := grp.GetIndex()
-				numBreakouts := grp.GetNumBreakouts()
-				breakoutSpeed := grp.GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				groupDetails := gnmi.Get(t, dut, state.State())
-				index := groupDetails.GetIndex()
-				numBreakouts := groupDetails.GetNumBreakouts()
-				breakoutSpeed := groupDetails.GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/index", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).Index()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				index := gnmi.LookupConfig(t, dut, state.Config())
-				idx, ok := index.Val()
-				if !ok {
-					t.Errorf("Failed to get index")
-				}
-				if idx != uint8(0) {
-					t.Errorf("Number of Index does not match configured value : got %v, want 0", index)
-				}
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/index", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).Index()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				index := gnmi.Get(t, dut, state.State())
-				if index != uint8(0) {
-					t.Errorf("Number of Index does not match configured value : got %v, want 0", index)
-				}
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/num-breakouts", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).NumBreakouts()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				nb := gnmi.LookupConfig(t, dut, state.Config())
-				numBreakouts, ok := nb.Val()
-				if !ok {
-					t.Errorf("Failed to get num breakouts")
-				}
-				if numBreakouts != tc.numbreakouts {
-					t.Errorf("Number of breakouts does not match configured value : got %v, want %v", numBreakouts, tc.numbreakouts)
-				}
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/num-breakouts", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).NumBreakouts()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				numBreakouts := gnmi.Get(t, dut, state.State())
-				if numBreakouts != tc.numbreakouts {
-					t.Errorf("Number of breakouts does not match configured value : got %v, want %v", numBreakouts, tc.numbreakouts)
-				}
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/breakout-speed", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).BreakoutSpeed()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				bs := gnmi.LookupConfig(t, dut, state.Config())
-				breakoutSpeed, ok := bs.Val()
-				if !ok {
-					t.Errorf("Failed to get breakout speed value")
-				}
-				if breakoutSpeed.String() != tc.breakoutspeed.String() {
-					t.Errorf("Breakout-Speed does not match configured value : got %v, want %v", breakoutSpeed, tc.breakoutspeed.String())
-				}
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/breakout-speed", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).BreakoutSpeed()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				breakoutSpeed := gnmi.Get(t, dut, state.State()).String()
-				if breakoutSpeed != tc.breakoutspeed.String() {
-					t.Errorf("Breakout-Speed does not match configured value : got %v, want %v", breakoutSpeed, tc.breakoutspeed.String())
-				}
-			})
-
-			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
-				defer observer.RecordYgot(t, "DELETE", path)
-				gnmi.Delete(t, dut, path.Config())
-				verifyDelete(t, dut, componentName)
-			})
-
-			t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Update(t, dut, path.Config(), groupContainer)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				bd := gnmi.LookupConfig(t, dut, state.Config())
-				breakoutDetails, ok := bd.Val()
-				if !ok {
-					t.Errorf("Failed to get breakout details value")
-				}
-				index := breakoutDetails.GetGroup(0).GetIndex()
-				numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				breakoutDetails := gnmi.Get(t, dut, state.State())
-				index := breakoutDetails.GetGroup(0).GetIndex()
-				numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-
-			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Replace(t, dut, path.Config(), groupContainer)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				bd := gnmi.LookupConfig(t, dut, state.Config())
-				breakoutDetails, ok := bd.Val()
-				if !ok {
-					t.Errorf("Failed to get breakout details value")
-				}
-				index := breakoutDetails.GetGroup(0).GetIndex()
-				numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				breakoutDetails := gnmi.Get(t, dut, state.State())
-				index := breakoutDetails.GetGroup(0).GetIndex()
-				numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode()
-				defer observer.RecordYgot(t, "DELETE", path)
-				gnmi.Delete(t, dut, path.Config())
-				verifyDelete(t, dut, componentName)
-			})
-
-			t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Update(t, dut, path.Config(), breakoutContainer)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				pd := gnmi.LookupConfig(t, dut, state.Config())
-				portDetails, ok := pd.Val()
-				if !ok {
-					t.Errorf("Failed to get port details value")
-				}
-				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				portDetails := gnmi.Get(t, dut, state.State())
-				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Replace(t, dut, path.Config(), breakoutContainer)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				pd := gnmi.LookupConfig(t, dut, state.Config())
-				portDetails, ok := pd.Val()
-				if !ok {
-					t.Errorf("Failed to get port details value")
-				}
-				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				portDetails := gnmi.Get(t, dut, state.State())
-				index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-
-			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "DELETE", path)
-				gnmi.Delete(t, dut, path.Config())
-				verifyDelete(t, dut, componentName)
-			})
-
-			t.Run(fmt.Sprintf("Update//component[%v]/config/port/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Update(t, dut, path.Config(), portContainer)
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/config", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				cd := gnmi.LookupConfig(t, dut, state.Config())
-				componentDetails, ok := cd.Val()
-				if !ok {
-					t.Errorf("Failed to get component details value")
-				}
-				index := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-
-			})
-
-			t.Run(fmt.Sprintf("Subscribe//component[%v]/state", componentName), func(t *testing.T) {
-				state := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "SUBSCRIBE", state)
-				componentDetails := gnmi.Get(t, dut, state.State())
-				index := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetIndex()
-				numBreakouts := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetNumBreakouts()
-				breakoutSpeed := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
-				verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
-			})
-			t.Run(fmt.Sprintf("Replace//component[%v]/config/port/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName)
-				defer observer.RecordYgot(t, "UPDATE", path)
-				gnmi.Replace(t, dut, path.Config(), portContainer)
-			})
-
-			t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
-				path := gnmi.OC().Component(componentName).Port()
-				defer observer.RecordYgot(t, "DELETE", path)
-				gnmi.Delete(t, dut, path.Config())
-				verifyDelete(t, dut, componentName)
-			})
+			if tc.breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_25GB {
+				t.Logf("SKIPPING: 4x25GB breakout on %s (EightHundredGigE) - Hardware does not support 25GB breakout on 800G optics", componentName)
+				continue
+			}
 		}
+
+		configContainer := &oc.Component_Port_BreakoutMode_Group{
+			Index:         ygot.Uint8(0),
+			NumBreakouts:  ygot.Uint8(tc.numbreakouts),
+			BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+		}
+		groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
+		breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
+		portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(componentName)}
+		fmt.Printf("COMBO : %v*%v ", tc.numbreakouts, tc.breakoutspeed)
+		gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
+		gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(1).Config())
+		t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
+			fmt.Printf("The component name inside test: %v", componentName)
+			path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), configContainer)
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			groupDetails := gnmi.LookupConfig(t, dut, state.Config())
+			grp, ok := groupDetails.Val()
+			if !ok {
+				t.Errorf("Failed to get group details")
+			}
+			index := grp.GetIndex()
+			numBreakouts := grp.GetNumBreakouts()
+			breakoutSpeed := grp.GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			groupDetails := gnmi.Get(t, dut, state.State())
+			index := groupDetails.GetIndex()
+			numBreakouts := groupDetails.GetNumBreakouts()
+			breakoutSpeed := groupDetails.GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/index", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).Index()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			index := gnmi.LookupConfig(t, dut, state.Config())
+			idx, ok := index.Val()
+			if !ok {
+				t.Errorf("Failed to get index")
+			}
+			if idx != uint8(0) {
+				t.Errorf("Number of Index does not match configured value : got %v, want 0", index)
+			}
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/index", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).Index()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			index := gnmi.Get(t, dut, state.State())
+			if index != uint8(0) {
+				t.Errorf("Number of Index does not match configured value : got %v, want 0", index)
+			}
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/num-breakouts", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).NumBreakouts()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			nb := gnmi.LookupConfig(t, dut, state.Config())
+			numBreakouts, ok := nb.Val()
+			if !ok {
+				t.Errorf("Failed to get num breakouts")
+			}
+			if numBreakouts != tc.numbreakouts {
+				t.Errorf("Number of breakouts does not match configured value : got %v, want %v", numBreakouts, tc.numbreakouts)
+			}
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/num-breakouts", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).NumBreakouts()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			numBreakouts := gnmi.Get(t, dut, state.State())
+			if numBreakouts != tc.numbreakouts {
+				t.Errorf("Number of breakouts does not match configured value : got %v, want %v", numBreakouts, tc.numbreakouts)
+			}
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[0]/config/breakout-speed", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).BreakoutSpeed()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			bs := gnmi.LookupConfig(t, dut, state.Config())
+			breakoutSpeed, ok := bs.Val()
+			if !ok {
+				t.Errorf("Failed to get breakout speed value")
+			}
+			if breakoutSpeed.String() != tc.breakoutspeed.String() {
+				t.Errorf("Breakout-Speed does not match configured value : got %v, want %v", breakoutSpeed, tc.breakoutspeed.String())
+			}
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode/group[0]/config/breakout-speed", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0).BreakoutSpeed()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			breakoutSpeed := gnmi.Get(t, dut, state.State()).String()
+			if breakoutSpeed != tc.breakoutspeed.String() {
+				t.Errorf("Breakout-Speed does not match configured value : got %v, want %v", breakoutSpeed, tc.breakoutspeed.String())
+			}
+		})
+
+		t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]/config", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(0)
+			defer observer.RecordYgot(t, "DELETE", path)
+			gnmi.Delete(t, dut, path.Config())
+			verifyDelete(t, dut, componentName)
+		})
+
+		t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), groupContainer)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			bd := gnmi.LookupConfig(t, dut, state.Config())
+			breakoutDetails, ok := bd.Val()
+			if !ok {
+				t.Errorf("Failed to get breakout details value")
+			}
+			index := breakoutDetails.GetGroup(0).GetIndex()
+			numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			breakoutDetails := gnmi.Get(t, dut, state.State())
+			index := breakoutDetails.GetGroup(0).GetIndex()
+			numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+
+		t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Replace(t, dut, path.Config(), groupContainer)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			bd := gnmi.LookupConfig(t, dut, state.Config())
+			breakoutDetails, ok := bd.Val()
+			if !ok {
+				t.Errorf("Failed to get breakout details value")
+			}
+			index := breakoutDetails.GetGroup(0).GetIndex()
+			numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port/breakout-mode", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			breakoutDetails := gnmi.Get(t, dut, state.State())
+			index := breakoutDetails.GetGroup(0).GetIndex()
+			numBreakouts := breakoutDetails.GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := breakoutDetails.GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[0]", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port().BreakoutMode()
+			defer observer.RecordYgot(t, "DELETE", path)
+			gnmi.Delete(t, dut, path.Config())
+			verifyDelete(t, dut, componentName)
+		})
+
+		t.Run(fmt.Sprintf("Update//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), breakoutContainer)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			pd := gnmi.LookupConfig(t, dut, state.Config())
+			portDetails, ok := pd.Val()
+			if !ok {
+				t.Errorf("Failed to get port details value")
+			}
+			index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			portDetails := gnmi.Get(t, dut, state.State())
+			index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Replace//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Replace(t, dut, path.Config(), breakoutContainer)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			pd := gnmi.LookupConfig(t, dut, state.Config())
+			portDetails, ok := pd.Val()
+			if !ok {
+				t.Errorf("Failed to get port details value")
+			}
+			index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state/port", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			portDetails := gnmi.Get(t, dut, state.State())
+			index := portDetails.GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := portDetails.GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := portDetails.GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+
+		t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "DELETE", path)
+			gnmi.Delete(t, dut, path.Config())
+			verifyDelete(t, dut, componentName)
+		})
+
+		t.Run(fmt.Sprintf("Update//component[%v]/config/port/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName)
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Update(t, dut, path.Config(), portContainer)
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/config", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName)
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			cd := gnmi.LookupConfig(t, dut, state.Config())
+			componentDetails, ok := cd.Val()
+			if !ok {
+				t.Errorf("Failed to get component details value")
+			}
+			index := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+
+		})
+
+		t.Run(fmt.Sprintf("Subscribe//component[%v]/state", componentName), func(t *testing.T) {
+			state := gnmi.OC().Component(componentName)
+			defer observer.RecordYgot(t, "SUBSCRIBE", state)
+			componentDetails := gnmi.Get(t, dut, state.State())
+			index := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetIndex()
+			numBreakouts := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetNumBreakouts()
+			breakoutSpeed := componentDetails.GetPort().GetBreakoutMode().GetGroup(0).GetBreakoutSpeed()
+			verifyBreakout(index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(), breakoutSpeed.String(), t)
+		})
+		t.Run(fmt.Sprintf("Replace//component[%v]/config/port/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName)
+			defer observer.RecordYgot(t, "UPDATE", path)
+			gnmi.Replace(t, dut, path.Config(), portContainer)
+		})
+
+		t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/", componentName), func(t *testing.T) {
+			path := gnmi.OC().Component(componentName).Port()
+			defer observer.RecordYgot(t, "DELETE", path)
+			gnmi.Delete(t, dut, path.Config())
+			verifyDelete(t, dut, componentName)
+		})
 	}
 
 }

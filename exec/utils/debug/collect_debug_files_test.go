@@ -224,6 +224,9 @@ func executeCommandsForDUT(t *testing.T, dutID string, target targetInfo, fileNa
 			if t == "sanitizer" {
 				fname = filepath.Join(techDirectory, "showtech-sanitizer-"+dutID)
 			}
+			if t == "cflow" {
+				fname = filepath.Join(techDirectory, "showtech-cflow-"+dutID)
+			}
 			commands = append(commands, fmt.Sprintf("show tech-support %s file %s", t, fname))
 		}
 	}

@@ -149,6 +149,23 @@ func TestSoftwareUpgrade(t *testing.T) {
 			t.Fatalf("Install operation timed out")
 		}
 
+		success = false
+		for start := time.Now(); time.Since(start) < installTimeout && !success; {
+			time.Sleep(statusCheckDelay)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			}); errMsg != nil {
+				t.Logf("Waiting for grpc connection...")
+			} else {
+				success = true
+			}
+		}
+
+		if !success {
+			t.Fatalf("Timed out waiting for device to come back up")
+		}
+
 		waitForComponents(t, dut, components)
 
 		if !verifyInstall(t, dut, lineup, efr) {
