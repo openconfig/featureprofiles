@@ -157,6 +157,7 @@ type BGPGracefulRestartConfig struct {
 	ERRetentionTime               uint32
 	BgpNeighbors                  []string
 	BgpPeerGroups                 []string
+	BgpPeers                      []string
 }
 
 // BGPSession is a convenience wrapper around the dut, ate, ports, and topology we're using.

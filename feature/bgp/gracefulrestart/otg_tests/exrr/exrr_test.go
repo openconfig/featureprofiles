@@ -872,6 +872,21 @@ func mustCheckBgpStatusDown(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+func mustCheckEndOfRibReceived(t *testing.T, ate *ondatra.ATEDevice, params cfgplugins.BGPGracefulRestartConfig) {
+	t.Helper()
+	for _, peer := range params.BgpPeers {
+		nbrPath := gnmi.OTG().BgpPeer(peer)
+		_, ok := gnmi.Watch(t, ate.OTG(), nbrPath.Counters().InEndOfRib().State(), 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			currState, ok := val.Val()
+			return ok && currState >= 1
+		}).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP End of state", nbrPath.State(), gnmi.Get(t, ate.OTG(), nbrPath.State()))
+			t.Errorf("No BGP End of RIB received %s", peer)
+		}
+	}
+}
+
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, params cfgplugins.BGPGracefulRestartConfig) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
@@ -1399,6 +1414,13 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		"IBGP-PEER-GROUP-V6",
 	}
 
+	peers := []string{
+		ateIBGP.Name + ".BGP4.peer",
+		ateEBGP.Name + ".BGP4.peer",
+		ateIBGP.Name + ".BGP6.peer",
+		ateEBGP.Name + ".BGP6.peer",
+	}
+
 	bgpGracefulRestartConfigParams := cfgplugins.BGPGracefulRestartConfig{
 		GracefulRestartTime:           grRestartTime,
 		GracefulRestartStaleRouteTime: grStaleRouteTime,
@@ -1406,6 +1428,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		DutAS:                         dutAS,
 		BgpNeighbors:                  bgpNeighbors,
 		BgpPeerGroups:                 bgpPeerGroups,
+		BgpPeers:                      peers,
 	}
 
 	config := setup(t, bgpGracefulRestartConfigParams)
@@ -1419,13 +1442,6 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix4, ipv4Prefix1),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix1, ipv6Prefix4),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix1, ipv6Prefix4)}
-
-	peers := []string{
-		ateIBGP.Name + ".BGP4.peer",
-		ateEBGP.Name + ".BGP4.peer",
-		ateIBGP.Name + ".BGP6.peer",
-		ateEBGP.Name + ".BGP6.peer",
-	}
 
 	flowsWithNoLoss := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix5, ipv4Prefix2),
@@ -1487,6 +1503,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				// Check Routes are re-learnt after graceful-restart completes
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1513,6 +1531,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				ate.OTG().SetControlState(t, startBgp)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1538,6 +1558,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, false, bgpGracefulRestartConfigParams)
 
 					mustCheckBgpStatus(t, dut, routeCount)
+
+					mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 				}
 			},
 		},
@@ -1557,6 +1579,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				// Check Routes are re-learnt after graceful-restart completes
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1587,6 +1611,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
 					mustCheckBgpStatus(t, dut, routeCount)
+
+					mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 				}
 			},
 		},
@@ -1605,6 +1631,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1642,6 +1670,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, false, bgpGracefulRestartConfigParams)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1672,6 +1702,8 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				ate.OTG().SetControlState(t, startBgp)
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1721,12 +1753,20 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 		"IBGP-PEER-GROUP-V6",
 	}
 
+	peers := []string{
+		ateIBGP.Name + ".BGP4.peer",
+		ateEBGP.Name + ".BGP4.peer",
+		ateIBGP.Name + ".BGP6.peer",
+		ateEBGP.Name + ".BGP6.peer",
+	}
+
 	bgpGracefulRestartConfigParams := cfgplugins.BGPGracefulRestartConfig{
 		GracefulRestartTime:           grRestartTime,
 		GracefulRestartStaleRouteTime: grStaleRouteTime,
 		ERRetentionTime:               erRetentionTime,
 		DutAS:                         dutAS,
 		BgpPeerGroups:                 bgpPeerGroups,
+		BgpPeers:                      peers,
 	}
 
 	config := setup(t, bgpGracefulRestartConfigParams)
@@ -1740,13 +1780,6 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix4, ipv4Prefix1),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix1, ipv6Prefix4),
 		fmt.Sprintf("%s-%s-Ipv6", ipv6Prefix1, ipv6Prefix4)}
-
-	peers := []string{
-		ateIBGP.Name + ".BGP4.peer",
-		ateEBGP.Name + ".BGP4.peer",
-		ateIBGP.Name + ".BGP6.peer",
-		ateEBGP.Name + ".BGP6.peer",
-	}
 
 	flowsWithNoLoss := []string{fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix2, ipv4Prefix5),
 		fmt.Sprintf("%s-%s-Ipv4", ipv4Prefix5, ipv4Prefix2),
@@ -1808,6 +1841,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 
 				// Check Routes are re-learnt after graceful-restart completes
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1834,6 +1869,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 				ate.OTG().SetControlState(t, startBgp)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1859,6 +1896,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, false, bgpGracefulRestartConfigParams)
 
 					mustCheckBgpStatus(t, dut, routeCount)
+
+					mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 				}
 			},
 		},
@@ -1878,6 +1917,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 
 				// Check Routes are re-learnt after graceful-restart completes
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1908,6 +1949,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 					validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
 					mustCheckBgpStatus(t, dut, routeCount)
+
+					mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 				}
 			},
 		},
@@ -1926,6 +1969,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, true, bgpGracefulRestartConfigParams)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1963,6 +2008,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 				validateExrr(t, flowsWithNoERR, flowsWithNoLoss, false, bgpGracefulRestartConfigParams)
 
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
@@ -1993,6 +2040,8 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 
 				ate.OTG().SetControlState(t, startBgp)
 				mustCheckBgpStatus(t, dut, routeCount)
+
+				mustCheckEndOfRibReceived(t, ate, bgpGracefulRestartConfigParams)
 			},
 		},
 		{
