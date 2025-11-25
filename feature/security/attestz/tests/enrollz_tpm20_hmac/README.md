@@ -2,7 +2,7 @@
 
 ## Summary
 
-This document outlines the functional network tests (FNTs) for the TPM 2.0 HMAC-based enrollment flow mainly for devices that lack a pre-provisioned Initial Device Identifier (IDevID) certificate (but supports all TPM 2.0 devices). This workflow uses a Hash-based Message Authentication Code (HMAC) challenge-response mechanism to securely verify the device's identity. The process provisions Initial Attestation Key (IAK) and IDevID by establishing a chain of trust from the Endorsement Key (EK) or Platform Primary Key (PPK), to the Initial Attestation Key (IAK), and finally to the IDevID.
+This document outlines the functional network tests (FNTs) for the TPM 2.0 HMAC-based enrollment flow mainly for devices that lack a pre-provisioned Initial Device Identifier (IDevID) certificate (but supports all TPM 2.0 devices). This workflow uses a Hash-based Message Authentication Code (HMAC) challenge-response mechanism to securely verify the device's identity. The process provisions an owner Initial Attestation Key (oIAK) and an owner IDevID (oIDevID) after establishing a chain of trust from the Endorsement Key (EK) or Platform Primary Key (PPK), to the Initial Attestation Key (IAK), and finally to the IDevID.
 
 The primary objective is to test the device's ability to correctly handle the enrollment sequence, including cryptographic operations, request validation, and error handling.
 
