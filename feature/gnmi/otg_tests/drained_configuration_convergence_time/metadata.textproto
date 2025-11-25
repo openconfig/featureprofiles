@@ -36,7 +36,7 @@ platform_exceptions: {
     missing_isis_interface_afi_safi_enable: true
     isis_interface_afi_unsupported: true
     isis_require_same_l1_metric_with_l2_metric: true
-    bgp_set_med_requires_equal_ospf_set_metric: true
+    same_afi_safi_and_peergroup_policies_unsupported: true
     isis_instance_enabled_required: true      
   }
 }
