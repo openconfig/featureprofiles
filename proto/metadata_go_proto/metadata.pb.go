@@ -1214,7 +1214,7 @@ type Metadata_Deviations struct {
 	// /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
 	AggregateSidCounterOutPktsUnsupported bool `protobuf:"varint,345,opt,name=aggregate_sid_counter_out_pkts_unsupported,json=aggregateSidCounterOutPktsUnsupported,proto3" json:"aggregate_sid_counter_out_pkts_unsupported,omitempty"`
 	// Devices that require no-php flag for ISIS SR prefix and node segments
-	// Arista: requires no-php for receiving packet with self advertised label
+	// Arista: b/462580165 requires no-php for receiving packet with self advertised label
 	IsisSrNoPhpRequired bool `protobuf:"varint,346,opt,name=isis_sr_no_php_required,json=isisSrNoPhpRequired,proto3" json:"isis_sr_no_php_required,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache

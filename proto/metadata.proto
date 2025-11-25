@@ -1023,7 +1023,7 @@ message Metadata {
     bool aggregate_sid_counter_out_pkts_unsupported = 345;
 
     // Devices that require no-php flag for ISIS SR prefix and node segments
-    // Arista: requires no-php for receiving packet with self advertised label
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 346;
 
     // Reserved field numbers and identifiers.
