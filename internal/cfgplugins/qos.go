@@ -99,39 +99,15 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 func NewQosInitialize(t *testing.T, dut *ondatra.DUTDevice) {
 	if dut.Vendor() == ondatra.ARISTA {
 		queues := netutil.CommonTrafficQueues(t, dut)
-		qosQNameSet := `
-		configure terminal
-		!
-		qos tx-queue %d name %s
-		!
-		`
-		qosMapTC := `
-		configure terminal
-		!
-		qos map traffic-class %d to tx-queue %d
-		!
-		`
-		qosCfgTargetGroup := `
-		configure terminal
-		!
-		qos traffic-class %d name %s
-		!
-		`
 		qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+		var cliConfig strings.Builder
+		cliConfig.WriteString("configure terminal\n")
 		for index, queue := range qList {
-			cliConfig := fmt.Sprintf(qosQNameSet, index, queue)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
-			time.Sleep(time.Second)
-			cliConfig = fmt.Sprintf(qosMapTC, index, index)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
-			time.Sleep(time.Second)
-			cliConfig = fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue))
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
-			time.Sleep(time.Second)
+			cliConfig.WriteString(fmt.Sprintf("qos tx-queue %d name %s\n!\n", index, queue))
+			cliConfig.WriteString(fmt.Sprintf("qos map traffic-class %d to tx-queue %d\n!\n", index, index))
+			cliConfig.WriteString(fmt.Sprintf("qos traffic-class %d name %s\n!\n", index, fmt.Sprintf("target-group-%s", queue)))
 		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	}
 }
 
@@ -526,4 +502,3 @@ func QosClassificationOCConfig(t *testing.T) {
 	// stmt := policy.GetOrCreateStatement("class-default")
 	// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
 }
-
