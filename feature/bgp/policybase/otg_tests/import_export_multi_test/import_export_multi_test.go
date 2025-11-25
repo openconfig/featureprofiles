@@ -906,6 +906,8 @@ func TestImportExportMultifacetMatchActionsBGPPolicy(t *testing.T) {
 
 	configureOTG(t, bs, prefixesV4, prefixesV6, communityMembers)
 	bs.PushAndStart(t)
+	otgutils.WaitForARP(t, otg, otgConfig, "IPv4")
+	otgutils.WaitForARP(t, otg, otgConfig, "IPv6")
 
 	t.Log("Verify DUT BGP sessions up")
 	cfgplugins.VerifyDUTBGPEstablished(t, bs.DUT)
