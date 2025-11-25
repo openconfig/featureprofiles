@@ -215,7 +215,6 @@ func NextIPMultiSteps(ip net.IP, count int) net.IP {
 	return nextIPAddress
 }
 
-
 // IPv4ToHex converts an IPv4 address string (e.g., "192.168.0.1")
 // into an 8-character uppercase hex string (e.g., "C0A80001").
 func IPv4ToHex(ipStr string) (string, error) {
