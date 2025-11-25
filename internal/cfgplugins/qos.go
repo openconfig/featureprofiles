@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// QosClassifier is a struct to hold the QoS classifier configuration parameters.
 type QosClassifier struct {
 	Desc        string
 	Name        string
@@ -40,6 +41,7 @@ type QosClassifier struct {
 	RemarkDscp  uint8
 }
 
+// SchedulerPolicy is a struct to hold the scheduler policy configuration.
 type SchedulerPolicy struct {
 	Desc        string
 	Sequence    uint32
@@ -52,6 +54,7 @@ type SchedulerPolicy struct {
 	TargetGroup string
 }
 
+// ForwardingGroup is a struct to hold the forwarding group configuration.
 type ForwardingGroup struct {
 	Desc        string
 	QueueName   string
@@ -59,12 +62,14 @@ type ForwardingGroup struct {
 	Priority    uint8
 }
 
+// QoSSchedulerInterface is a struct to hold the QoS scheduler interface configuration.
 type QoSSchedulerInterface struct {
 	Desc      string
 	QueueName string
 	Scheduler string
 }
 
+// SchedulerParams is a struct to hold parameters for configuring a QoS scheduler.
 type SchedulerParams struct {
 	SchedulerName  string
 	PolicerName    string
@@ -88,44 +93,49 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	return output.Output()
 }
 
+// NewQosInitialize initializes the QoS on the DUT.
+// This is a temporary solution to initialize the QoS on the DUT.
+// This will be removed once the QoS initialization is supported in the Ondatra.
 func NewQosInitialize(t *testing.T, dut *ondatra.DUTDevice) {
 	if dut.Vendor() == ondatra.ARISTA {
 		queues := netutil.CommonTrafficQueues(t, dut)
 		qosQNameSet := `
-	configure terminal
-	!
-	qos tx-queue %d name %s
-	!
-	`
+		configure terminal
+		!
+		qos tx-queue %d name %s
+		!
+		`
 		qosMapTC := `
-	configure terminal
-	!
-	qos map traffic-class %d to tx-queue %d
-	!
-	`
-
+		configure terminal
+		!
+		qos map traffic-class %d to tx-queue %d
+		!
+		`
 		qosCfgTargetGroup := `
-	configure terminal
-	!
-	qos traffic-class %d name %s
-	!
-	`
-
-		runCliCommand(t, dut, "show version")
-
+		configure terminal
+		!
+		qos traffic-class %d name %s
+		!
+		`
 		qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
 		for index, queue := range qList {
-
-			runCliCommand(t, dut, fmt.Sprintf(qosQNameSet, index, queue))
+			cliConfig := fmt.Sprintf(qosQNameSet, index, queue)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
 			time.Sleep(time.Second)
-			runCliCommand(t, dut, fmt.Sprintf(qosMapTC, index, index))
+			cliConfig = fmt.Sprintf(qosMapTC, index, index)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
 			time.Sleep(time.Second)
-			runCliCommand(t, dut, fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue)))
+			cliConfig = fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue))
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+			t.Logf("Applied Arista cEOS specific config for %s: %s", queue, cliConfig)
 			time.Sleep(time.Second)
 		}
 	}
 }
 
+// NewQoSClassifierConfiguration creates a QoS classifier configuration.
 func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, classifiers []QosClassifier) *oc.Qos {
 
 	t.Logf("QoS classifiers config: %v", classifiers)
@@ -165,6 +175,7 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 	return q
 }
 
+// NewQoSSchedulerPolicy creates a QoS scheduler policy configuration.
 func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policies []SchedulerPolicy) *oc.Qos {
 
 	t.Logf("QoS scheduler policy config: %v", policies)
@@ -185,6 +196,7 @@ func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, poli
 	return q
 }
 
+// NewQoSForwardingGroup creates a QoS forwarding group configuration.
 func NewQoSForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forwardingGroups []ForwardingGroup) {
 	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	for _, fg := range forwardingGroups {
@@ -192,6 +204,7 @@ func NewQoSForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forw
 	}
 }
 
+// NewQoSSchedulerInterface creates a QoS scheduler interface configuration.
 func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, schedulerIntfs []QoSSchedulerInterface, schedulerPort string) *oc.Qos {
 	t.Logf("QoS output interface config: %v", schedulerIntfs)
 	schPort := dut.Port(t, schedulerPort)
@@ -211,6 +224,7 @@ func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, s
 	return q
 }
 
+// NewQoSQueue creates a QoS queue configuration.
 func NewQoSQueue(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos) {
 	queues := netutil.CommonTrafficQueues(t, dut)
 
@@ -236,6 +250,7 @@ func configureQosClassifierDscpRemarkFromCli(t *testing.T, dut *ondatra.DUTDevic
 	}
 }
 
+// ConfigureQosClassifierDscpRemark configures the QoS classifier DSCP remark through OC or CLI based on the deviation.
 func ConfigureQosClassifierDscpRemark(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
 	if deviations.QosRemarkOCUnsupported(dut) {
 		t.Logf("Configuring qos dscp remark through CLI")
@@ -284,6 +299,9 @@ func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string,
 		return ""
 	}
 }
+
+// CreateQueues configures the given queues within the provided oc.Qos object.
+// It handles setting the queue name and optionally the QueueId based on deviations.
 func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []string) {
 	for index, q := range queues {
 		queue := qos.GetOrCreateQueue(q)
@@ -331,6 +349,8 @@ func configureTwoRateThreeColorSchedulerFromCLI(t *testing.T, dut *ondatra.DUTDe
 	}
 }
 
+// NewTwoRateThreeColorScheduler configures a two-rate three-color policer/scheduler on the DUT.
+// It uses either OC or CLI based on the QosTwoRateThreeColorPolicerOCUnsupported deviation.
 func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
 		configureTwoRateThreeColorSchedulerFromCLI(t, dut, params)
@@ -339,6 +359,8 @@ func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *
 	}
 }
 
+// ApplyQosPolicyOnInterface applies a QoS policy on the specified interface.
+// The configuration is applied using either CLI or OC based on the QosSchedulerIngressPolicer deviation.
 func ApplyQosPolicyOnInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	if deviations.QosSchedulerIngressPolicer(dut) {
 		applyQosPolicyOnInterfaceFromCLI(t, dut, params)
@@ -375,6 +397,8 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cliConfig := fmt.Sprintf("show policy-map type qos %s counters", policyName)
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		t.Logf("Applied Arista cEOS specific config for %s: %s", policyName, cliConfig)
 		return runCliCommand(t, dut, cliConfig)
 	default:
 		return ""
@@ -502,3 +526,4 @@ func QosClassificationOCConfig(t *testing.T) {
 	// stmt := policy.GetOrCreateStatement("class-default")
 	// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
 }
+
