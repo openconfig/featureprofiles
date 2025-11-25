@@ -104,26 +104,22 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	// Get all network instances.
 	netInstanceList := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstanceAny().State())
 	t.Logf("Network instance list length: %v", len(netInstanceList))
-	for _, netInstance := range netInstanceList {
-		t.Logf("----------------------------------------------------")
-		t.Logf("VRF / Network instance")
-		t.Logf("----------------------------------------------------")
-		t.Logf("Network instance name: %s", netInstance.GetName())
-		t.Logf("Network instance type: %s", netInstance.GetType())
-
-	}
 
 	// Get and validate states for default and custom networkinstances.
 	gnmiServerList := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
 	t.Logf("gNMI server list length: %v", len(gnmiServerList))
-	for _, gnmiServer := range gnmiServerList {
-		t.Logf("----------------------------------------------------")
-		t.Logf("gNMI server name: %v", gnmiServer.GetName())
-		t.Logf("----------------------------------------------------")
-		t.Logf("gNMI server network-instance: %v", gnmiServer.GetNetworkInstance())
-		t.Logf("gNMI server port: %v", gnmiServer.GetPort())
-		t.Logf("gNMI server enable: %v", gnmiServer.GetEnable())
-		t.Logf("gnmi server services: %v", gnmiServer.GetServices())
+	}
+
+	// Two VRF should be running on the DUT.
+	niCount := len(netInstanceList)
+	if niCount < 2 {
+		t.Fatalf("Expected 2+ VRF , got %d.", niCount)
+	}
+
+	// Two Servers should be running on the DUT.
+	gnmiServerCount := len(gnmiServerList)
+	if gnmiServerCount < 2 {
+		t.Fatalf("Expected 2+ gNMI servers, got %d.", gnmiServerCount)
 	}
 
 	for _, gnmiServer := range gnmiServerList {
@@ -145,12 +141,6 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 			customInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(customVRFName).State())
 			validateGnmiServerState(t, customInstanceState)
 		}
-	}
-
-	// Two Servers should be running on the DUT.
-	gnmiServerCount := len(gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State()))
-	if gnmiServerCount < 2 {
-		t.Fatalf("Expected 2+ gNMI servers, got %d.", gnmiServerCount)
 	}
 }
 
