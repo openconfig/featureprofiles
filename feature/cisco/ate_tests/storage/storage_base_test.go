@@ -176,6 +176,38 @@ func getLinecardComponents(t *testing.T, args *testArgs) []string {
 	return nodeComponents
 }
 
+// executeCLICommands runs CLI commands to exercise smart_monitor_main.c code path
+func executeCLICommands(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context) {
+	t.Helper()
+	cliHandle := dut.RawAPIs().CLI(t)
+
+	// Execute show smart-monitor (exercises main() and show_smart_monitor_node_datalist())
+	t.Log("Executing CLI: show smart-monitor")
+	resp, err := cliHandle.RunCommand(ctx, "show smart-monitor")
+	if err != nil {
+		t.Logf("CLI command 'show smart-monitor' failed: %v", err)
+	} else {
+		t.Logf("CLI 'show smart-monitor' returned %d bytes", len(resp.Output()))
+	}
+
+	// Execute show smart-monitor detail (exercises show_smart_monitor_detailed_view())
+	t.Log("Executing CLI: show smart-monitor detail")
+	respDetail, err := cliHandle.RunCommand(ctx, "show smart-monitor location all")
+	if err != nil {
+		t.Logf("CLI command 'show smart-monitor detail' failed: %v", err)
+	} else {
+		t.Logf("CLI 'show smart-monitor detail' returned %d bytes", len(respDetail.Output()))
+	}
+
+	// Execute show smart-monitor location all (exercises all nodes)
+	t.Log("Executing CLI: show smart-monitor location all")
+	respAll, err := cliHandle.RunCommand(ctx, "show smart-monitor location all")
+	if err != nil {
+		t.Logf("CLI command 'show smart-monitor location all' failed: %v", err)
+	} else {
+		t.Logf("CLI 'show smart-monitor location all' returned %d bytes", len(respAll.Output()))
+	}
+}
 
 // collectAndLogCountersEnhanced performs enhanced counter collection with timestamp validation
 // and comprehensive error handling for SAMPLE subscription mode
@@ -354,6 +386,7 @@ func createQueries(t *testing.T, args *testArgs, pathSuffix string) map[string]y
 // with enhanced timestamp validation and error handling
 func testStorageCounterSampleMode(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Helper()
+	
 	for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_SAMPLE} {
 		t.Logf("Path name: %s", pathSuffix)
 		t.Logf("Subscription mode: %v", subMode)

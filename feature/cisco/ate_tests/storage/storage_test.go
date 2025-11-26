@@ -22,6 +22,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
+
 	configureDUT(t, dut)
 	ate := ondatra.ATE(t, "ate")
 	//top := configureATE(t, ate)
@@ -101,6 +102,7 @@ func TestStorageFileSystemCheck(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.fn(ctx, t, args, tt.path)
+			executeCLICommands(t, dut, ctx)
 		})
 	}
 }
