@@ -11,10 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
     # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
     # space for the container by removing unnecessary tooling.
     - name: Free additional disk space
@@ -24,6 +20,10 @@ jobs:
         sudo rm -rf /opt/hostedtoolcache/CodeQL
         sudo mv "${HOME}/.cache" /mnt/cache
         ln -s /mnt/cache "${HOME}/.cache"
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
     - name: Cache
       uses: actions/cache@v4
       with:
@@ -41,10 +41,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:    
       - uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: 'go.mod'
       # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
       # space for the container by removing unnecessary tooling.
       - name: Free additional disk space
@@ -54,6 +50,10 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache/CodeQL
           sudo mv "${HOME}/.cache" /mnt/cache
           ln -s /mnt/cache "${HOME}/.cache"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
       - name: Cache
         uses: actions/cache@v4
         with:
