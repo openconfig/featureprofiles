@@ -517,7 +517,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 		var inputPorts, inputPort1 []string
 		portinps := []string{p[0].Name(), p[2].Name()}
 		switch {
-		case args.memberCount == 16:
+		case args.memberCount >= 16:
 			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[6].Name()}
 			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
 		case args.memberCount == 8:
@@ -1587,11 +1587,11 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		t.Logf("Source port %v", sport)
 		var inputPorts, inputPort1 []string
 		portinps := []string{p[0].Name(), p[2].Name()}
-		switch args.memberCount {
-		case 16:
+		switch  {
+		case args.memberCount >= 16:
 			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[6].Name()}
 			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
-		case 8:
+		case args.memberCount == 8:
 			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
 			inputPort1 = inputPorts
 		}
