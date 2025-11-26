@@ -632,6 +632,8 @@ tests:
       - sprem
     mustpass: true
     priority: 1002
+    internal: false
+    pr: 4627
     testbeds:
       - 8808-2DUT
   - name: RT-1.2 (BGP Policy and Route Installation)
