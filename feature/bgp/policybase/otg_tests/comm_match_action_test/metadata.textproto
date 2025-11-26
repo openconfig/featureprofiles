@@ -45,6 +45,14 @@ platform_exceptions:  {
     skip_setting_statement_for_policy: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE

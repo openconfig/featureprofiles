@@ -46,5 +46,12 @@ platform_exceptions: {
     skip_setting_allow_multiple_as: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_DATACENTER_EDGE
-

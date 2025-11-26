@@ -25,3 +25,11 @@ platform_exceptions: {
     skip_optical_channel_output_power_interval: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
