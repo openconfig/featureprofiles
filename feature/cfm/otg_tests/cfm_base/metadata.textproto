@@ -5,3 +5,24 @@ uuid: "101ebaf7-467a-48f9-865b-2b255ea49c9a"
 plan_id: "CFM-1.1"
 description: "CFM over ETHoCWoMPLSoGRE"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    default_network_instance: "default"
+    require_routed_subinterface_0: true
+    omit_l2_mtu: true
+    cfm_unsupported: true
+    next_hop_group_config_unsupported: true
+    gre_decapsulation_oc_unsupported: true
+    mpls_static_pseudowire_oc_unsupported: true
+    vlan_client_encapsulation_oc_unsupported: true
+    qos_classification_unsupported: true
+    mpls_unsupported: true
+    mpls_label_classification_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+  }
+}
