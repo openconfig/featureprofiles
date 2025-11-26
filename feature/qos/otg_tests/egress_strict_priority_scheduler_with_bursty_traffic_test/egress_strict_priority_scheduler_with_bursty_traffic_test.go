@@ -63,7 +63,7 @@ func TestEgressStrictPrioritySchedulerBurstTraffic(t *testing.T) {
 	configureHardwareInit(t, dut)
 
 	t.Logf("Configuring QoS Global parameters")
-	configureQoSGlobalParams(t, dut)
+	cfgplugins.NewQosInitialize(t, dut)
 
 	verifyEgressStrictPrioritySchedulerBurstTrafficIPv4(t, dut)
 	verifyEgressStrictPrioritySchedulerBurstTrafficIPv6(t, dut)
@@ -2524,41 +2524,18 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 }
 
 func configureQoSGlobalParams(t *testing.T, dut *ondatra.DUTDevice) {
-
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qosQNameSet := `
-	configure terminal
-	!
-	qos tx-queue %d name %s
-	!
-	`
-	qosMapTC := `
-	configure terminal
-	!
-	qos map traffic-class %d to tx-queue %d
-	!
-	`
-
-	qosCfgTargetGroup := `
-	configure terminal
-	!
-	qos traffic-class %d name %s
-	!
-	`
-
-	runCliCommand(t, dut, "show version")
-
-	qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
-	for index, queue := range qList {
-
-		runCliCommand(t, dut, fmt.Sprintf(qosQNameSet, index, queue))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosMapTC, index, index))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue)))
-		time.Sleep(time.Second)
+	if dut.Vendor() == ondatra.ARISTA {
+		queues := netutil.CommonTrafficQueues(t, dut)
+		qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+		var cliConfig strings.Builder
+		cliConfig.WriteString("configure terminal\n")
+		for index, queue := range qList {
+			cliConfig.WriteString(fmt.Sprintf("qos tx-queue %d name %s\n!\n", index, queue))
+			cliConfig.WriteString(fmt.Sprintf("qos map traffic-class %d to tx-queue %d\n!\n", index, index))
+			cliConfig.WriteString(fmt.Sprintf("qos traffic-class %d name %s\n!\n", index, fmt.Sprintf("target-group-%s", queue)))
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	}
-
 }
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
