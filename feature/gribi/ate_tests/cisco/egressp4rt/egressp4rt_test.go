@@ -514,6 +514,7 @@ func testWithDCUnoptimized(ctx context.Context, t *testing.T, args *testArgs, is
 			stream = stream2
 		}
 		t.Logf("Source port %v", sport)
+		t.Logf("args.memberCount %v", args.memberCount)
 		var inputPorts, inputPort1 []string
 		portinps := []string{p[0].Name(), p[2].Name()}
 		switch {
@@ -1587,7 +1588,7 @@ func testWithRegionalization(ctx context.Context, t *testing.T, args *testArgs, 
 		t.Logf("Source port %v", sport)
 		var inputPorts, inputPort1 []string
 		portinps := []string{p[0].Name(), p[2].Name()}
-		switch  {
+		switch {
 		case args.memberCount >= 16:
 			inputPorts = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name(), p[4].Name(), p[8].Name(), p[9].Name(), p[10].Name(), p[11].Name(), p[12].Name(), p[13].Name(), p[14].Name(), p[6].Name()}
 			inputPort1 = []string{p[1].Name(), p[3].Name(), p[5].Name(), p[7].Name()}
@@ -1823,10 +1824,10 @@ func mapPortID(t *testing.T, args *testArgs, dut *ondatra.DUTDevice) ([]*ondatra
 	IDMap := make(map[string]string)
 	ids := []string{"10", "11", "12", "13", "14", "15", "27", "16", "18", "19", "20", "21", "22", "23", "24"}
 
-	switch args.memberCount {
-	case 16:
+	switch {
+	case args.memberCount >= 16:
 		memberCount = 15
-	case 8:
+	case args.memberCount == 8:
 		memberCount = args.memberCount
 	}
 	for i := 0; i < memberCount; i++ {
