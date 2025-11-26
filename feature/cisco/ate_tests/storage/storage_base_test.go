@@ -187,25 +187,235 @@ func executeCLICommands(t *testing.T, dut *ondatra.DUTDevice, ctx context.Contex
 	if err != nil {
 		t.Logf("CLI command 'show smart-monitor' failed: %v", err)
 	} else {
-		t.Logf("CLI 'show smart-monitor' returned %d bytes", len(resp.Output()))
+		output := resp.Output()
+		t.Logf("CLI 'show smart-monitor' returned %d bytes", len(output))
+		parseSMARTMonitorOutput(t, output)
 	}
 
 	// Execute show smart-monitor detail (exercises show_smart_monitor_detailed_view())
-	t.Log("Executing CLI: show smart-monitor detail")
-	respDetail, err := cliHandle.RunCommand(ctx, "show smart-monitor location all")
-	if err != nil {
-		t.Logf("CLI command 'show smart-monitor detail' failed: %v", err)
-	} else {
-		t.Logf("CLI 'show smart-monitor detail' returned %d bytes", len(respDetail.Output()))
-	}
-
-	// Execute show smart-monitor location all (exercises all nodes)
 	t.Log("Executing CLI: show smart-monitor location all")
-	respAll, err := cliHandle.RunCommand(ctx, "show smart-monitor location all")
+	respDetail, err := cliHandle.RunCommand(ctx, "show smart-monitor location all")
 	if err != nil {
 		t.Logf("CLI command 'show smart-monitor location all' failed: %v", err)
 	} else {
-		t.Logf("CLI 'show smart-monitor location all' returned %d bytes", len(respAll.Output()))
+		outputDetail := respDetail.Output()
+		t.Logf("CLI 'show smart-monitor location all' returned %d bytes", len(outputDetail))
+		parseSMARTMonitorDetailedOutput(t, outputDetail)
+	}
+}
+
+// parseSMARTMonitorOutput parses the basic show smart-monitor output
+func parseSMARTMonitorOutput(t *testing.T, output string) {
+	t.Helper()
+
+	if output == "" {
+		t.Log("Warning: Empty output from show smart-monitor")
+		return
+	}
+
+	t.Log("=== Parsing SMART Monitor Output ===")
+	lines := strings.Split(output, "\n")
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		t.Logf("  %s", line)
+	}
+}
+
+// DiskSMARTData holds parsed SMART monitor data for a disk
+type DiskSMARTData struct {
+	Location                    string
+	DiskName                    string
+	Model                       string
+	SerialNumber                string
+	HealthStatus                string
+	SoftReadErrorRate           uint64
+	ReallocatedSectors          uint64
+	EndToEndError               uint64
+	OfflineUncorrectableSectors uint64
+	LifeRemaining               uint32
+	PercentageUsed              uint32
+}
+
+// parseHealthStatus extracts and validates SMART health status from the output
+// Checks for various health status formats as per SMART specification
+func parseHealthStatus(output string) string {
+	// Check for overall health assessment test results (ATA/SATA drives)
+	if strings.Contains(output, "SMART overall-health self-assessment test result: PASSED") {
+		return "PASSED"
+	} else if strings.Contains(output, "SMART overall-health self-assessment test result: FAILED") {
+		return "FAILED"
+	}
+
+	// Default to UNKNOWN if no recognized health status found
+	return "UNKNOWN"
+}
+
+// parseSMARTMonitorDetailedOutput parses the detailed SMART monitor output
+// and extracts all SMART counter values from the show smart-monitor location all output
+func parseSMARTMonitorDetailedOutput(t *testing.T, output string) {
+	t.Helper()
+
+	if output == "" {
+		t.Log("Warning: Empty output from show smart-monitor location all")
+		return
+	}
+
+	t.Log("=== Parsing SMART Monitor Detailed Output ===")
+
+	// First, check for overall health status in the output
+	overallHealth := parseHealthStatus(output)
+	t.Logf("Overall SMART Health Assessment: %s", overallHealth)
+
+	var disks []DiskSMARTData
+	var currentDisk *DiskSMARTData
+	var currentLocation string
+
+	lines := strings.Split(output, "\n")
+
+	// Regular expressions for parsing different fields
+	locationRe := regexp.MustCompile(`Detailed SMART Monitor Info for Location:\s*(.+)`)
+	diskRe := regexp.MustCompile(`Disk:\s*(.+)`)
+	modelRe := regexp.MustCompile(`Model:\s*(.+)`)
+	serialRe := regexp.MustCompile(`Serial Number:\s*(.+)`)
+	healthRe := regexp.MustCompile(`Health Status:\s*(.+)`)
+	softReadErrorRe := regexp.MustCompile(`Soft Read Error Rate:\s*(\d+)`)
+	reallocatedSectorsRe := regexp.MustCompile(`Reallocated Sectors:\s*(\d+)`)
+	endToEndErrorRe := regexp.MustCompile(`End-to-End Error:\s*(\d+)`)
+	offlineUncorrectableRe := regexp.MustCompile(`Offline Uncorrectable Sectors:\s*(\d+)`)
+	lifeRemainingRe := regexp.MustCompile(`Life Remaining:\s*(\d+)%`)
+	percentageUsedRe := regexp.MustCompile(`Percentage Used:\s*(\d+)%`)
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+
+		// Check for location header
+		if matches := locationRe.FindStringSubmatch(line); matches != nil {
+			currentLocation = strings.TrimSpace(matches[1])
+			t.Logf("Found location: %s", currentLocation)
+			continue
+		}
+
+		// Check for disk entry
+		if matches := diskRe.FindStringSubmatch(line); matches != nil {
+			// Save previous disk if exists
+			if currentDisk != nil {
+				disks = append(disks, *currentDisk)
+			}
+
+			// Start new disk
+			currentDisk = &DiskSMARTData{
+				Location: currentLocation,
+				DiskName: strings.TrimSpace(matches[1]),
+			}
+			t.Logf("Found disk: %s", currentDisk.DiskName)
+			continue
+		}
+
+		if currentDisk == nil {
+			continue
+		}
+
+		// Parse disk attributes
+		if matches := modelRe.FindStringSubmatch(line); matches != nil {
+			currentDisk.Model = strings.TrimSpace(matches[1])
+			t.Logf("  Model: %s", currentDisk.Model)
+		} else if matches := serialRe.FindStringSubmatch(line); matches != nil {
+			currentDisk.SerialNumber = strings.TrimSpace(matches[1])
+			t.Logf("  Serial Number: %s", currentDisk.SerialNumber)
+		} else if matches := healthRe.FindStringSubmatch(line); matches != nil {
+			healthStatus := strings.TrimSpace(matches[1])
+			currentDisk.HealthStatus = healthStatus
+
+			// Validate and classify health status
+			validHealthStatuses := []string{"PASSED", "FAILED", "UNKNOWN"}
+			isValid := false
+			for _, validStatus := range validHealthStatuses {
+				if strings.EqualFold(healthStatus, validStatus) {
+					isValid = true
+					break
+				}
+			}
+
+			if isValid {
+				t.Logf("  Health Status: %s (Valid)", currentDisk.HealthStatus)
+			} else {
+				t.Logf("  Health Status: %s (Warning: Unexpected status value)", currentDisk.HealthStatus)
+			}
+		} else if matches := softReadErrorRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 64); err == nil {
+				currentDisk.SoftReadErrorRate = val
+				t.Logf("  Soft Read Error Rate: %d", val)
+			}
+		} else if matches := reallocatedSectorsRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 64); err == nil {
+				currentDisk.ReallocatedSectors = val
+				t.Logf("  Reallocated Sectors: %d", val)
+			}
+		} else if matches := endToEndErrorRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 64); err == nil {
+				currentDisk.EndToEndError = val
+				t.Logf("  End-to-End Error: %d", val)
+			}
+		} else if matches := offlineUncorrectableRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 64); err == nil {
+				currentDisk.OfflineUncorrectableSectors = val
+				t.Logf("  Offline Uncorrectable Sectors: %d", val)
+			}
+		} else if matches := lifeRemainingRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 32); err == nil {
+				currentDisk.LifeRemaining = uint32(val)
+				t.Logf("  Life Remaining: %d%%", val)
+			}
+		} else if matches := percentageUsedRe.FindStringSubmatch(line); matches != nil {
+			if val, err := strconv.ParseUint(matches[1], 10, 32); err == nil {
+				currentDisk.PercentageUsed = uint32(val)
+				t.Logf("  Percentage Used: %d%%", val)
+			}
+		}
+	}
+
+	// Save last disk if exists
+	if currentDisk != nil {
+		disks = append(disks, *currentDisk)
+	}
+
+	// Summary report
+	t.Logf("\n=== SMART Monitor Parsing Summary ===")
+	t.Logf("Total disks parsed: %d", len(disks))
+	
+	// Health status statistics
+	healthStatusCounts := make(map[string]int)
+	for _, disk := range disks {
+		healthStatusCounts[disk.HealthStatus]++
+	}
+
+	t.Logf("\nHealth Status Distribution:")
+	for status, count := range healthStatusCounts {
+		t.Logf("  %s: %d disk(s)", status, count)
+	}
+
+	for i, disk := range disks {
+		t.Logf("\nDisk %d Summary:", i+1)
+		t.Logf("  Location: %s", disk.Location)
+		t.Logf("  Name: %s", disk.DiskName)
+		t.Logf("  Model: %s", disk.Model)
+		t.Logf("  Serial: %s", disk.SerialNumber)
+		t.Logf("  Health: %s", disk.HealthStatus)
+		t.Logf("  Counters:")
+		t.Logf("    Soft Read Error Rate: %d", disk.SoftReadErrorRate)
+		t.Logf("    Reallocated Sectors: %d", disk.ReallocatedSectors)
+		t.Logf("    End-to-End Error: %d", disk.EndToEndError)
+		t.Logf("    Offline Uncorrectable Sectors: %d", disk.OfflineUncorrectableSectors)
+		t.Logf("    Life Remaining: %d%%", disk.LifeRemaining)
+		t.Logf("    Percentage Used: %d%%", disk.PercentageUsed)
+	}
+
+	if len(disks) == 0 {
+		t.Log("Warning: No disk data was successfully parsed from the output")
 	}
 }
 
@@ -386,7 +596,7 @@ func createQueries(t *testing.T, args *testArgs, pathSuffix string) map[string]y
 // with enhanced timestamp validation and error handling
 func testStorageCounterSampleMode(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Helper()
-	
+
 	for _, subMode := range []gpb.SubscriptionMode{gpb.SubscriptionMode_SAMPLE} {
 		t.Logf("Path name: %s", pathSuffix)
 		t.Logf("Subscription mode: %v", subMode)
