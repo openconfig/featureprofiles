@@ -1,12 +1,13 @@
-# TPM 1.2 RotateAIK Flow
+# enrollz-2: enrollz test for TPM 1.2 Enrollment flow
+
+## Summary
 
 This document details the RotateAIK enrollment flow for devices equipped with TPM 1.2. It describes the interaction between the EnrollZ Service and the device, the cryptographic structures involved, and the mapping to the `RotateAIKCertRequest` and `RotateAIKCertResponse` Protocol Buffers.
 
 ## Overview
 
-The RotateAIK flow for TPM 1.2 is used to generate an Attestation Identity Key (AIK) pair on the device, certify it using the device's Endorsement Key (EK), and install the resulting AIK Certificate.
-This flow requires the service to have prior knowledge of the device's public Endorsement Key (EK), which is typically retrieved from the device's Endorsement Certificate.
-Unlike TPM 2.0 (which uses `MakeCredential`/`ActivateCredential`), TPM 1.2 utilizes the `MakeIdentity` protocol. This process involves the device generating a `TPM_IDENTITY_REQ`, and the service responding with an encrypted credential that only the device's EK can decrypt.
+The RotateAIK flow for TPM 1.2 is used to generate an Attestation Identity Key (AIK) pair on the device, certify it using the device's Endorsement Key (EK), and install the resulting AIK Certificate. 
+This flow requires the service to have prior knowledge of the device's public Endorsement Key (EK), which is typically retrieved from the device's Endorsement Certificate. TPM 1.2 utilizes the `MakeIdentity` protocol. This process involves the device generating a `TPM_IDENTITY_REQ`, and the service responding with an encrypted credential that only the device's EK can decrypt.
 
 ## Protocol Buffer Definitions
 
@@ -74,22 +75,28 @@ The workflow relies on the correct formation, serialization, and parsing of seve
 
 This section validates that the device correctly implements the service-driven TPM 1.2 RotateAIK enrollment workflow. The following test cases cover both the successful enrollment path and various failure scenarios from the device's perspective.
 
-| ID            | Case                                                                                                                                                             | Expected Result                                                                                                                                                                                                                           |
-| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **enrollz-2.1** | Successful RotateAIK flow.                                                                                                                                       | The device successfully generates an AIK, provides the `application_identity_request`, decrypts the `IssuerCertPayload`, installs the AIK certificate, returns the AIK cert for verification, and acknowledges the `finalize` message. |
-| **enrollz-2.2** | Service sends an initial `RotateAIKCertRequest` with a malformed or missing `issuer_public_key`.                                                              | The device returns an error and closes the stream.                                                                                                                                                                        |
-| **enrollz-2.3** | Service sends `RotateAIKCertRequest` with `issuer_cert_payload` but the `symmetric_key_blob` is not decryptable with the device's EK.                            | The device cannot decrypt the session key and returns an error, closing the stream.                                                                                                                                       |
-| **enrollz-2.4** | Service sends `RotateAIKCertRequest` with `issuer_cert_payload` where `symmetric_key_blob` decrypts, but the `TPM_ASYM_CA_CONTENTS` digest does not match the AIK. | The device's TPM fails the `TPM_ActivateIdentity` step, and the device returns an error.                                                                                                                                  |
-| **enrollz-2.5** | Service sends `RotateAIKCertRequest` with `issuer_cert_payload` where the `aik_cert_blob` is not decryptable with the recovered session key.                     | The device cannot decrypt the AIK certificate and returns an error.                                                                                                                                                     |
-| **enrollz-2.6** | Service sends `RotateAIKCertRequest` with `issuer_cert_payload` where `aik_cert_blob` is a malformed `TPM_SYM_CA_ATTESTATION` structure.                          | The device fails to parse the structure and returns an error.                                                                                                                                                             |
-| **enrollz-2.7** | Service sends `RotateAIKCertRequest` with `issuer_cert_payload` where the decrypted `aik_cert_blob` contains a malformed PEM certificate.                        | The device fails to install the certificate and returns an error.                                                                                                                                                         |
-| **enrollz-2.8** | Service sends a `RotateAIKCertRequest` with `finalize = true` *before* the device has returned its `aik_cert` in Phase 4.                                        | The device should ideally ignore the premature finalize or return an error indicating the state is unexpected.                                                                                                          |
-| **enrollz-2.9** | Service closes the stream prematurely at any stage.                                                                                                              | The device enrollment process is aborted. No new AIK certificate is persisted.                                                                                                                                            |
-| **enrollz-2.10**| Invalid `ControlCardSelection` in any `RotateAIKCertRequest`.                                                                                                    | The device returns an invalid request error.                                                                                                                                                                              |
-| **enrollz-2.11**| Device fails to generate `TPM_IDENTITY_REQ` after receiving the `issuer_public_key`.                                                                           | The device returns an error to the service.                                                                                                                                                                               |
-| **enrollz-2.12**| Service sends `RotateAIKCertRequest` with `issuer_cert_payload` where `symmetric_key_blob` is malformed (e.g., not valid RSAES-OAEP format).                    | The device fails to decrypt the `symmetric_key_blob` and returns an error.                                                                                                                                              |
-| **enrollz-2.13**| Service sends an `aik_cert_blob` which, when decrypted, contains a certificate for a *different* AIK public key than the one generated by the device in Phase 1. | The device should detect the mismatch and return an error, refusing to install the certificate.                                                                                                                             |
+| ID | Case | Expected Result |
+| --- | --- | --- |
+| enrollz-2.1 | Successful enrollment flow. | The device successfully completes the enrollment, obtains AIK cert, and updates the SSL profile to use the new AIK cert. TLS connection with AIK should succeed after this step. |
+| enrollz-2.2 | RotateAIKCertRequest with a missing control_card_selection. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.3 | RotateAIKCertRequest with an invalid control_card_selection. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.4 | Service sends an initial RotateAIKCertRequest with a missing issuer_public_key. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.5 | Service sends an initial RotateAIKCertRequest with a malformed issuer_public_key. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.6 | Service sends RotateAIKCertRequest with issuer_cert_payload but the symmetric_key_blob is missing. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.7 | Service sends RotateAIKCertRequest with issuer_cert_payload where the aik_cert_blob is missing. | The device returns an invalid request error and closes the stream. |
+| enrollz-2.8 | Service sends RotateAIKCertRequest with issuer_cert_payload but the symmetric_key_blob is not decryptable with the device's EK. | The device cannot decrypt the session key and returns an error, closing the stream. |
+| enrollz-2.9 | Service sends RotateAIKCertRequest with issuer_cert_payload where symmetric_key_blob is malformed (e.g., not valid RSAES-OAEP format). | The device fails to decrypt the symmetric_key_blob and returns an error. |
+| enrollz-2.10| Service sends RotateAIKCertRequest with issuer_cert_payload where symmetric_key_blob decrypts, but the TPM_ASYM_CA_CONTENTS digest does not match the AIK. | The device's TPM fails the TPM_ActivateIdentity step, and the device returns an error. |
+| enrollz-2.11| Service sends RotateAIKCertRequest with issuer_cert_payload where the aik_cert_blob is not decryptable with the recovered session key. | The device cannot decrypt the AIK certificate and returns an error. |
+| enrollz-2.12| Service sends RotateAIKCertRequest with issuer_cert_payload where aik_cert_blob is a malformed TPM_SYM_CA_ATTESTATION structure. | The device fails to parse the structure and returns an error. |
+| enrollz-2.13| Service sends RotateAIKCertRequest with issuer_cert_payload where the decrypted aik_cert_blob contains a malformed PEM certificate. | The device fails to install the certificate and returns an error. |
+| enrollz-2.14| Service sends an aik_cert_blob which, when decrypted, contains a certificate for a different AIK public key than the one generated by the device in Phase 1. | The device should detect the mismatch and return an error, refusing to install the certificate. |
+| enrollz-2.15| Service sends a RotateAIKCertRequest with finalize = true before the device has returned its aik_cert in Phase 4. | The device should return an error indicating the state is unexpected. |
+| enrollz-2.16| Service closes the stream prematurely at any stage. | The device enrollment process is aborted. No new AIK certificate is persisted. |
+| enrollz-2.17| Reboot at any time during enrollment (before finalize message) and restart enrollment. | The device successfully completes the enrollment, obtains AIK cert, and updates the SSL profile to use the new AIK cert. TLS connection with AIK should succeed after this step. |
+| enrollz-2.18| Reboot after successful enrollment (after finalize message) | The device comes up successfully and can establish a TLS connection using the AIK certificate. |                                                                                                               |
 ---
+
 ## Workflow Steps
 
 ### Phase 1: Initialization & Key Generation
@@ -164,3 +171,18 @@ Once the AIK is verified:
 | Hash Algorithm | SHA-1 |
 | Symmetric Key | AES-256 (for Cert encryption) |
 | Issuer Key | RSA 2048 |
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+```
+
+## Canonical OC
+
+```json
+{}
+```
