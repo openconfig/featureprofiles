@@ -58,8 +58,17 @@ message NOSImageProfile {
   // OpenConfig RPCs supported by the network operating system.
   openconfig.ocrpcs.OCRPCs ocrpcs = 6;
 
-  // Tests supported by the network operating system. (Tests which were verified to pass)
-  repeated openconfig.featureprofiles.testregistry.Test supported_tests = 8;
+  // supported_tests is a list of featureprofiles metadata.plan_ids which the
+  // NOS software supports (verified as passing)
+  repeated FeatureProfileTest supported_tests = 8;
 
 }
 
+message FeatureProfileTest {
+  // The unique identifier for a featureprofiles test plan.  This string must match
+  // the Metadata plain_id defined for the referenced test.
+  string plan_id = 1;
+  
+  // The git commit hash for the featureprofiles repository containing the referenced test
+  string commit = 2;
+}
