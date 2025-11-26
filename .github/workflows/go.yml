@@ -10,28 +10,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Free Disk Space (Tailored for Go/JS)
-      uses: jlumbroso/free-disk-space@v1.3.1
-      with:
-        # Removes Android SDKs/NDKs (~11 GB)
-        android: true
-      
-        # Removes .NET runtimes/SDKs (~1 GB) - The Runner itself is self-contained
-        dotnet: true
-      
-        # Removes GHC (Haskell) (~2.7 GB)
-        haskell: true
-      
-        # Removes cached Docker images (~3 GB) - Safe unless you rely on pre-cached base images to speed up build
-        docker-images: true
-      
-        # Wipes swap partition (~4 GB)
-        swap-storage: true
-      
-        # CRITICAL: KEEP FALSE
-        # If set to true, this would delete Go, Node, Python, and Ruby.
-        tool-cache: false 
     - uses: actions/checkout@v4
+    - name: Free additional disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
+        sudo mv "${HOME}/.cache" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
@@ -52,27 +38,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:    
-      - name: Free Disk Space (Tailored for Go/JS)
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          # Removes Android SDKs/NDKs (~11 GB)
-          android: true
-        
-          # Removes .NET runtimes/SDKs (~1 GB) - The Runner itself is self-contained
-          dotnet: true
-        
-          # Removes GHC (Haskell) (~2.7 GB)
-          haskell: true
-        
-          # Removes cached Docker images (~3 GB) - Safe unless you rely on pre-cached base images to speed up build
-          docker-images: true
-        
-          # Wipes swap partition (~4 GB)
-          swap-storage: true
-        
-          # CRITICAL: KEEP FALSE
-          # If set to true, this would delete Go, Node, Python, and Ruby.
-          tool-cache: false   
+      - name: Free additional disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo mv "${HOME}/.cache" /mnt/cache
+          ln -s /mnt/cache "${HOME}/.cache"
       - uses: actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -99,27 +71,6 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     steps:
-    - name: Free Disk Space (Tailored for Go/JS)
-      uses: jlumbroso/free-disk-space@v1.3.1
-      with:
-        # Removes Android SDKs/NDKs (~11 GB)
-        android: true
-      
-        # Removes .NET runtimes/SDKs (~1 GB) - The Runner itself is self-contained
-        dotnet: true
-      
-        # Removes GHC (Haskell) (~2.7 GB)
-        haskell: true
-      
-        # Removes cached Docker images (~3 GB) - Safe unless you rely on pre-cached base images to speed up build
-        docker-images: true
-      
-        # Wipes swap partition (~4 GB)
-        swap-storage: true
-      
-        # CRITICAL: KEEP FALSE
-        # If set to true, this would delete Go, Node, Python, and Ruby.
-        tool-cache: false
     - uses: actions/checkout@v4
     - name: Set up Go
       uses: actions/setup-go@v5
