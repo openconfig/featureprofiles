@@ -1151,6 +1151,12 @@ message Metadata {
     // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
     bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
 
+    // Devices that do not support mpls static pseudowire OC
+    bool mpls_static_pseudowire_oc_unsupported = 379;
+
+    // Devices that do not support vlan client encapsulation OC
+    bool vlan_client_encapsulation_oc_unsupported = 380;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
