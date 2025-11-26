@@ -62,3 +62,4 @@ message NOSImageProfile {
   repeated openconfig.featureprofiles.testregistry.Test supported_tests = 8;
 
 }
+
