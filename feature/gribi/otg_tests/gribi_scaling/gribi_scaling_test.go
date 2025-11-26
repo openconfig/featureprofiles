@@ -311,12 +311,13 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
-	
+
+	createFlow(t, ate, top, vrfConfigs[1])
+
 	t.Log("ARP resolved. Applying Forwarding Policy now")
 	dp1 := dut.Port(t, "port1")
 	applyForwardingPolicy(t, dp1.Name())
-
-	createFlow(t, ate, top, vrfConfigs[1])
+	
 	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
