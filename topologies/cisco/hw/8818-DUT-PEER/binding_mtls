@@ -153,11 +153,11 @@ duts {
     name: "HundredGigE0/16/0/34"  # Change this to the actual port name.
     speed: S_100GB   
   }
- # ports {
- #   id: "port15"
- #   name: "HundredGigE0/17/0/0"  # Change this to the actual port name.
- #   speed: S_100GB   
- # }
+  ports {
+    id: "port15"
+    name: "HundredGigE0/17/0/0"  # Change this to the actual port name.
+    speed: S_100GB   
+  }
 }
 ###################################### PEER 8808-FOX2733PDKP ########################################
 #router static
