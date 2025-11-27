@@ -51,14 +51,10 @@ duts {
     id: "port13"
     speed: S_100GB  
   }
-    ports {
+  ports {
     id: "port14"
     speed: S_100GB  
   }
-  ports {
-    id: "port15"
-    speed: S_100GB  
-  }   
 }
 
 duts {
@@ -121,10 +117,6 @@ ates {
     id: "port14"
     speed: S_100GB  
   }
-  ports {
-    id: "port15"
-    speed: S_100GB  
-  }  
   ports {
     id: "port16"
     speed: S_100GB  
@@ -189,11 +181,6 @@ links {
 links {
   a: "dut:port14"
   b: "ate:port14"
-}
-
-links {
-  a: "dut:port15"
-  b: "ate:port15"
 }
 
 links {
