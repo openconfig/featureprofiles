@@ -317,7 +317,7 @@ func TestScaling(t *testing.T) {
 	t.Log("ARP resolved. Applying Forwarding Policy now")
 	dp1 := dut.Port(t, "port1")
 	applyForwardingPolicy(t, dp1.Name())
-	
+
 	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
