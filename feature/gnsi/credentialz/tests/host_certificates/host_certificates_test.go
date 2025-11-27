@@ -102,7 +102,7 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
+		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn*1e9; got != want {
 			t.Errorf(
 				"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
 				want, got,
