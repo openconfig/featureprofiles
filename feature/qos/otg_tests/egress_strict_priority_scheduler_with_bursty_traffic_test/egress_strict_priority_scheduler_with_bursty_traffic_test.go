@@ -2513,16 +2513,6 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
-}
-
 func buildCliSetRequest(config string) *gpb.SetRequest {
 	gpbSetRequest := &gpb.SetRequest{
 		Update: []*gpb.Update{
