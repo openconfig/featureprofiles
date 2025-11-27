@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -2522,21 +2521,6 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	}
 	t.Logf("Received from cli: %s", output.Output())
 	return output.Output()
-}
-
-func configureQoSGlobalParams(t *testing.T, dut *ondatra.DUTDevice) {
-	if dut.Vendor() == ondatra.ARISTA {
-		queues := netutil.CommonTrafficQueues(t, dut)
-		qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
-		var cliConfig strings.Builder
-		cliConfig.WriteString("configure terminal\n")
-		for index, queue := range qList {
-			cliConfig.WriteString(fmt.Sprintf("qos tx-queue %d name %s\n!\n", index, queue))
-			cliConfig.WriteString(fmt.Sprintf("qos map traffic-class %d to tx-queue %d\n!\n", index, index))
-			cliConfig.WriteString(fmt.Sprintf("qos traffic-class %d name %s\n!\n", index, fmt.Sprintf("target-group-%s", queue)))
-		}
-		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
-	}
 }
 
 func buildCliSetRequest(config string) *gpb.SetRequest {
