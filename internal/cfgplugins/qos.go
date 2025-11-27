@@ -373,8 +373,6 @@ func GetPolicyCLICounters(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cliConfig := fmt.Sprintf("show policy-map type qos %s counters", policyName)
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-		t.Logf("Applied Arista cEOS specific config for %s: %s", policyName, cliConfig)
 		return runCliCommand(t, dut, cliConfig)
 	default:
 		return ""
