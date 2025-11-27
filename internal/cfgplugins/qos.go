@@ -17,8 +17,8 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
