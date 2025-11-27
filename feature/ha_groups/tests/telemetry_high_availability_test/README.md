@@ -1,4 +1,4 @@
-# gNMI-1.26: Telemetry: Firewall High Availability.
+# HA-1.0: Telemetry: Firewall High Availability.
 
 ## Summary
 
