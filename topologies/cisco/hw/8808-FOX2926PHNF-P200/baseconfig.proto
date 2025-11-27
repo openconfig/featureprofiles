@@ -91,7 +91,7 @@ replace: {
 " breakout 2x400\n"
 "!\n"
 "controller Optics0/6/0/10\n"
-" breakout 4x100\n"
+" breakout 8x100\n"
 "!\n"
 "controller Optics0/6/0/12\n"
 " breakout 2x400\n"
