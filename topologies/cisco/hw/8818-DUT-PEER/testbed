@@ -12,6 +12,10 @@ duts {
     speed: S_100GB   
   }
   ports {
+    id: "port2"
+    speed: S_100GB   
+  }
+  ports {
     id: "port3"
     speed: S_100GB  
   }
@@ -30,6 +34,10 @@ duts {
   ports {
     id: "port7"
     speed: S_100GB  
+  }
+  ports {
+    id: "port8"
+    speed: S_100GB   
   }
   ports {
     id: "port9"
@@ -54,6 +62,10 @@ duts {
   ports {
     id: "port14"
     speed: S_100GB  
+  }
+  ports {
+    id: "port15"
+    speed: S_100GB   
   }
 }
 
@@ -73,6 +85,10 @@ ates {
     id: "port1"
     speed: S_100GB   
   }
+    ports {
+    id: "port2"
+    speed: S_100GB   
+  }
   ports {
     id: "port3"
     speed: S_100GB  
@@ -92,6 +108,10 @@ ates {
   ports {
     id: "port7"
     speed: S_100GB  
+  }
+    ports {
+    id: "port8"
+    speed: S_100GB   
   }
   ports {
     id: "port9"
@@ -117,6 +137,10 @@ ates {
     id: "port14"
     speed: S_100GB  
   }
+    ports {
+    id: "port15"
+    speed: S_100GB   
+  }
   ports {
     id: "port16"
     speed: S_100GB  
@@ -126,6 +150,11 @@ ates {
 links {
   a: "dut:port1"
   b: "ate:port1"
+}
+
+links {
+  a: "dut:port2"
+  b: "ate:port2"
 }
 
 links {
@@ -151,6 +180,11 @@ links {
 links {
   a: "dut:port7"
   b: "ate:port7"
+}
+
+links {
+  a: "dut:port8"
+  b: "ate:port8"
 }
 
 links {
@@ -181,6 +215,11 @@ links {
 links {
   a: "dut:port14"
   b: "ate:port14"
+}
+
+links {
+  a: "dut:port15"
+  b: "ate:port15"
 }
 
 links {
