@@ -116,6 +116,15 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.RoutingPolicyBGPAdvertiseAggregate(t, dut, triggerRoutePolicyName, triggerRoute, generatedRoutePolicyName, defaultRoute, dutAS, localAggregateName)
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	aftSummariesCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
+	if aftSummariesCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, aftSummariesCfg)
+}
+
 // configureATE creates a basic OTG configuration with a BGP neighbor.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
@@ -185,6 +194,7 @@ func TestDefaultRouteGeneration(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
 
+	configureHardwareInit(t, dut)
 	configureDUT(t, dut)
 
 	ateConf := configureATE(t, ate)
