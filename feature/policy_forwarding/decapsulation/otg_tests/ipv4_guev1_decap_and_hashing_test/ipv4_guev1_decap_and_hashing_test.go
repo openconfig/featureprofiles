@@ -445,7 +445,6 @@ func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipTyp
 		GUEPort:             uint32(decapPort),
 		IPType:              ipType,
 		Dynamic:             true,
-		DecapProtocol:       ipType,
 	}
 }
 
