@@ -85,6 +85,12 @@ test: {
   exec: ""
 }
 test: {
+  id: "AFT-1.3"
+  description: "AFTs collector Flap"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/collector_flap/README.md"
+  exec: ""
+}
+test: {
   id: "AFT-2.1"
   description: "AFTs Prefix Counters"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/prefix_counters/otg_tests/afts_prefix_counters/README.md"
@@ -2189,8 +2195,8 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_last_change_test/telemetry_interface_last_change_test.go"
 }
 test: {
-  id: "gNMI-1.26"
+  id: "HA-1.0"
   description: "Telemetry: Firewall High Availability"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_high_availability_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: ""
 }
