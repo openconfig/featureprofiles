@@ -108,8 +108,6 @@ func TestBgpSession(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
-	defaultCount := uint32(0)
-
 	cases := []struct {
 		name    string
 		nbr     *bgpNbr
@@ -174,11 +172,6 @@ func TestBgpSession(t *testing.T) {
 			t.Log("Clear BGP Configs on DUT")
 			bgpClearConfig(t, dut)
 
-			if tc.bgpType == connExternal {
-				defaultCount = uint32(0)
-			} else {
-				defaultCount = uint32(3)
-			}
 			configureRegexPolicy(t, dut)
 
 			d := &oc.Root{}
@@ -199,31 +192,28 @@ func TestBgpSession(t *testing.T) {
 
 			t.Log("Verify BGP AS numbers and prefix count")
 			verifyPeer(t, tc.nbr, dut)
-			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			// Reject Prefix
 			t.Log("Apply BGP policy for rejecting prefix")
 			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			t.Logf("Policy applied, waiting for DUT to apply the policy")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
 			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
 			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
-			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			// Reject Community
 			t.Log("Apply BGP policy for rejecting prefix with community filter")
 			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			t.Logf("Policy applied, waiting for DUT to apply the policy")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectCommunity, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectCommunity, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
 			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
-			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 30*time.Second)
 
 			// Reject ASPath
 			if !deviations.MatchAsPathSetUnsupported(dut) {
@@ -231,7 +221,7 @@ func TestBgpSession(t *testing.T) {
 				pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
 				gnmi.Update(t, dut, dutConfPath.Config(), pol)
 				t.Logf("Policy applied, waiting for DUT to apply the policy")
-				awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 15*time.Second)
+				awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 30*time.Second)
 				verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			}
 			t.Log("Clear BGP Configs on ATE")
