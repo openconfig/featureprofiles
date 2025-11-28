@@ -48,6 +48,8 @@ const (
 	ipv4Dst                   = "198.51.200.1"
 	ipv6Src                   = "2001:DB8:1::1"
 	ipv6Dst                   = "2001:DB8:2::1"
+	rplType                   = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	rplName                   = "ALLOW"
 	peerv4Grp1Name            = "BGP-PEER-GROUP1-V4"
 	peerv6Grp1Name            = "BGP-PEER-GROUP1-V6"
 	peerv4Grp2Name            = "BGP-PEER-GROUP2-V4"
@@ -136,6 +138,18 @@ type testCase struct {
 	flownames []string
 }
 
+func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pd := rp.GetOrCreatePolicyDefinition(name)
+	st, err := pd.AppendNewStatement("id-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.GetOrCreateActions().PolicyResult = pr
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+}
+
 func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -148,6 +162,7 @@ func TestMultipleVrfsAndGueDecap(t *testing.T) {
 	configureHardwareInit(t, dut)
 	createVRF(t, dut)
 	configureDUTIntf(t, dut)
+	configureRoutePolicy(t, dut, rplName, rplType)
 	configureBgp(t, dut)
 	configureQoSDUTIpv4Ipv6(t, dut)
 

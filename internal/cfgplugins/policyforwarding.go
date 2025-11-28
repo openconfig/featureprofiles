@@ -269,15 +269,6 @@ ip decap-group %s
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
 
-	decapGroupGUEAristaMPLSTemplate = `
-ip decap-group type udp destination port %v payload ip
-ip decap-group %s
-tunnel type udp
-tunnel decap-ip %s
-tunnel decap-interface %s
-tunnel overlay mpls qos map mpls-traffic-class to traffic-class
-!`
-
 	interfaceTrafficPolicyAristaTemplate = `
 interface %s
 traffic-policy input %s
