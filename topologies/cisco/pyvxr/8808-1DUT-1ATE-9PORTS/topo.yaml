@@ -21,7 +21,12 @@ devices:
     - eth2
     - eth3
     - eth4
-    image: /auto/b4ws/images/kne/kne.qcow2
+    - eth5
+    - eth6
+    - eth7
+    - eth8
+    - eth9
+    image: /auto/b4ws/images/otg/otg.qcow2
     linux_username: vxr
     linux_password: cisco123
     linux_prompt: 'vxr@ubuntu22:~\$'
@@ -62,3 +67,18 @@ connections:
     port4:
     - dut.FourHundredGigE0/0/0/13
     - otg.eth4
+    port5:
+    - dut.FourHundredGigE0/0/0/14
+    - otg.eth5
+    port6:
+    - dut.FourHundredGigE0/0/0/15
+    - otg.eth6
+    port7:
+    - dut.FourHundredGigE0/0/0/16
+    - otg.eth7
+    port8:
+    - dut.FourHundredGigE0/0/0/17
+    - otg.eth8
+    port9:
+    - dut.FourHundredGigE0/0/0/18
+    - otg.eth9

@@ -1359,7 +1359,7 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
         with open(outFile, 'r') as fp:
             j = json.load(fp)
 
-    if 'otg' in reserved_testbed and not reserved_testbed.get('sim', False):
+    if 'otg' in reserved_testbed:
         otg_info = reserved_testbed['otg']
         controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
         gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
@@ -1399,17 +1399,18 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
             break
 
         # convert binding to prototext
-        with tempfile.NamedTemporaryFile() as f:
-            tmp_binding_file = f.name
-            with open(tmp_binding_file, "w") as outfile:
-                outfile.write(json.dumps(j))
+        if not reserved_testbed.get('sim', False):
+            with tempfile.NamedTemporaryFile() as f:
+                tmp_binding_file = f.name
+                with open(tmp_binding_file, "w") as outfile:
+                    outfile.write(json.dumps(j))
 
-            cmd = f'{GO_BIN} run ' \
-                f'./exec/utils/proto/binding/fromjson ' \
-                f'-binding {tmp_binding_file} ' \
-                f'-out {reserved_testbed["otg_binding_file"]}'
+                cmd = f'{GO_BIN} run ' \
+                    f'./exec/utils/proto/binding/fromjson ' \
+                    f'-binding {tmp_binding_file} ' \
+                    f'-out {reserved_testbed["otg_binding_file"]}'
 
-            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+                check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
     j.pop('ates', None)
 
@@ -1549,7 +1550,6 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['noate_binding_file'] = ondatra_noate_binding_path
-    reserved_testbed['binding_file'] = reserved_testbed['noate_binding_file']
 
     reserved_testbed['testbed_info_file'] = testbed_info_path
     reserved_testbed['install_lock_file'] = install_lock_file
