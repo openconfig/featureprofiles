@@ -24,10 +24,7 @@ devices:
     - eth7
     - eth8
     - eth9
-    disks:
-      - hda:
-          file: /auto/b4ws/images/kne/kne.qcow2
-          type: direct
+    image: /auto/b4ws/images/kne/kne.qcow2
     linux_username: vxr
     linux_password: cisco123
     linux_prompt: 'vxr@ubuntu22:~\$'
