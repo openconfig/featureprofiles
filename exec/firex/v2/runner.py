@@ -2043,7 +2043,7 @@ def DeployOTGTopology(self, reserved_testbed, otg_release='v1.41.0-8'):
         'port': otg_port
     }
     
-    remote_exec(f'/usr/local/bin/otg_deploy {reserved_testbed["otg"]["num_ports"]} topo new --version {otg_release}', otg_host, shell=True, **conn_args)
+    remote_exec(f'/usr/local/bin/otg_deploy {reserved_testbed["otg"]["num_ports"]} topo new --version "{otg_release}"', otg_host, shell=True, **conn_args)
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
