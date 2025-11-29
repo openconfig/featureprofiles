@@ -2256,6 +2256,10 @@ tests:
     pr: 4687    
     priority: 3
     groups: [newfnt]
+    otg_version:
+      controller: 1.40.0-15
+      hw: 1.40.0-5
+      gnmi: 1.40.3  
 
   - name: RT-7.7 (BGP Link Bandwidth Community - Set Bandwidth)
     path:  
