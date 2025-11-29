@@ -1349,7 +1349,7 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
             f'./exec/utils/proto/binding/tojson ' \
-            f'-binding {reserved_testbed["ate_binding_file"]} ' \
+            f'-binding {reserved_testbed["binding_file"]} ' \
             f'-out {outFile}'
 
         env = dict(os.environ)
@@ -1359,7 +1359,7 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
         with open(outFile, 'r') as fp:
             j = json.load(fp)
 
-    if 'otg' in reserved_testbed:
+    if 'otg' in reserved_testbed and not reserved_testbed.get('sim', False):
         otg_info = reserved_testbed['otg']
         controller_port = otg_info.get('controller_port_redir', otg_info['controller_port'])
         gnmi_port = otg_info.get('gnmi_port_redir', otg_info['gnmi_port'])
@@ -1545,6 +1545,7 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['noate_testbed_file'] = ondatra_noate_testbed_path
     reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
 
+    reserved_testbed['binding_file'] = ondatra_binding_path
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['noate_binding_file'] = ondatra_noate_binding_path
