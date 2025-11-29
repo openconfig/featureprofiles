@@ -54,28 +54,28 @@ connections:
   hubs:
     port1:
     - dut.FourHundredGigE0/0/0/10
-    - ate.eth1
+    - otg.eth1
     port2:
     - dut.FourHundredGigE0/0/0/20
-    - ate.eth2
+    - otg.eth2
     port3:
     - dut.FourHundredGigE0/0/0/12
-    - ate.eth3
+    - otg.eth3
     port4:
     - dut.FourHundredGigE0/0/0/13
-    - ate.eth4
+    - otg.eth4
     port5:
     - dut.FourHundredGigE0/0/0/14
-    - ate.eth5
+    - otg.eth5
     port6:
     - dut.FourHundredGigE0/0/0/15
-    - ate.eth6
+    - otg.eth6
     port7:
     - dut.FourHundredGigE0/0/0/16
-    - ate.eth7
+    - otg.eth7
     port8:
     - dut.FourHundredGigE0/0/0/17
-    - ate.eth8
+    - otg.eth8
     port9:
     - dut.FourHundredGigE0/0/0/18
-    - ate.eth9
+    - otg.eth9
