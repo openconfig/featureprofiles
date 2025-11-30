@@ -9,7 +9,7 @@ simulation:
     hours: 72
     pending_timeout: 30
 devices: 
-  otg:
+  ate:
     platform: linux
     custom:
       type: OTG
@@ -46,13 +46,13 @@ connections:
   hubs: 
     port1: 
       - dut.FourHundredGigE0/0/0/10
-      - otg.eth1
+      - ate.eth1
     port2: 
       - dut.FourHundredGigE0/0/0/11
-      - otg.eth2
+      - ate.eth2
     port3: 
       - dut.FourHundredGigE0/0/0/12
-      - otg.eth3
+      - ate.eth3
     port4: 
       - dut.FourHundredGigE0/0/0/13
-      - otg.eth4
+      - ate.eth4

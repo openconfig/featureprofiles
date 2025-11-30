@@ -1452,8 +1452,8 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f'{python_bin} {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         sim_port_redir = _sim_get_port_redir(testbed_logs_dir)
-        if 'otg' in sim_port_redir:
-            e = sim_port_redir['otg']
+        if 'ate' in sim_port_redir:
+            e = sim_port_redir['ate']
             reserved_testbed['otg'] = {
                 'host': e['host'],
                 'port': e['ports'][22],
