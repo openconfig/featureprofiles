@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -176,22 +177,37 @@ func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetB
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			greTunnelDestinations := iputil.GenerateIPs(encapparams.GRETunnelDestinationsStartIP, encapparams.Count)
 
 			buildConfig := func(prefix string, labels []int) string {
 				b := new(strings.Builder)
+				ipParts := strings.Split(strings.Split(encapparams.GRETunnelDestinationsStartIP, "/")[0], ".")
+				octet1, _ := strconv.Atoi(ipParts[0])
+				octet2, _ := strconv.Atoi(ipParts[1])
+				octet3, _ := strconv.Atoi(ipParts[2])
+				octet4 := 0 // Start from 1 in loop
+
 				for i := 1; i <= encapparams.Count; i++ {
 					fmt.Fprintf(b, `
 nexthop-group %s%d type mpls-over-gre
  tos 96
  ttl 64
- fec hierarchical
-`,
-						prefix, i,
-					)
+ fec hierarchical`, prefix, i)
+
+					octet4++
+					if octet4 > 254 {
+						octet4 = 1
+						octet3++
+						if octet3 > 254 {
+							t.Fatalf("Exceeded valid IP range while generating tunnel destinations")
+						}
+					}
+
+					tunnelDest := fmt.Sprintf("%d.%d.%d.%d", octet1, octet2, octet3, octet4)
+
 					for entry, src := range encapparams.GRETunnelSources {
 						fmt.Fprintf(b, `  
- entry %d push label-stack %d tunnel-destination %s tunnel-source %s`, entry, labels[i-1], greTunnelDestinations[i-1], src)
+ entry  %d push label-stack %d tunnel-destination %s tunnel-source %s`,
+							entry, labels[i-1], tunnelDest, src)
 					}
 					b.WriteString("\n!")
 				}

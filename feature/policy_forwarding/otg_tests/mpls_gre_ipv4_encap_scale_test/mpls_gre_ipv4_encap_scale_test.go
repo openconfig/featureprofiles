@@ -126,7 +126,7 @@ var (
 		Flow:      &otgvalidationhelpers.FlowParams{Name: flowIPv6.FlowName, TolerancePct: 0.5},
 	}
 	outerGREIPLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
-		DstIP:    "10.99.1.19",
+		DstIP:    "10.99.1.20",
 		Protocol: greProtocol,
 		Tos:      96,
 		TTL:      64,
@@ -277,8 +277,8 @@ func mustConfigureSetup(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		ocEncapParams.Count = 250
-		ocEncapParams.MPLSLabelCount = 250
+		ocEncapParams.Count = 250 // change the number as per scale
+		ocEncapParams.MPLSLabelCount = 250 // change the number as per scale
 		ocEncapParams.MPLSLabelStartForIPv4 = 16
 		ocEncapParams.MPLSLabelStartForIPv6 = 524280
 		ocEncapParams.MPLSLabelStep = 1000
