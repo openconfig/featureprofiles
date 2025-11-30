@@ -303,12 +303,18 @@ create_ixia_c_b2b_cpdp() {
     $(gnmi_server_img)                                  \
     "-http-server" "https://172.17.0.1:8443" "--debug"
     
-    # Create traffic and protocol engines for each port
+    # Process each port sequentially: create containers, wait for ready, then push interface
     local port_base=5555
+    local timeout=120
+    
     for ((i=0; i<${#ETH_PORTS[@]}; i++)); do
         local eth=${ETH_PORTS[$i]}
         local port=$((port_base + i))
         
+        echo "Processing port ${eth} ($((i+1))/${#ETH_PORTS[@]})..."
+        
+        # Create traffic engine container
+        echo "Creating traffic engine for ${eth}..."
         docker run --privileged -d                           \
             --name=ixia-c-traffic-engine-${eth}              \
             --publish 0.0.0.0:${port}:5555                   \
@@ -320,30 +326,13 @@ create_ixia_c_b2b_cpdp() {
             -e OPT_ADAPTIVE_CPU_USAGE="Yes"                  \
             $(ixia_c_traffic_engine_img)
         
-        if [ -z "${DATA_PLANE_ONLY}" ]; then
-            docker run --privileged -d                           \
-                --net=container:ixia-c-traffic-engine-${eth}     \
-                --name=ixia-c-protocol-engine-${eth}             \
-                -e INTF_LIST="${eth}"                            \
-                $(ixia_c_protocol_engine_img)
-        fi
-
-        sleep 5
-    done
-    
-    docker ps -a
-    
-    # Wait for all containers to be running
-    echo "Waiting for all containers to be running..."
-    for eth in "${ETH_PORTS[@]}"; do
-        local container_name="ixia-c-traffic-engine-${eth}"
-        local timeout=120
+        # Wait for traffic engine to be running
+        echo "Waiting for traffic engine ${eth} to be ready..."
         local elapsed=0
-        
         while [ $elapsed -lt $timeout ]; do
-            local status=$(docker inspect --format='{{.State.Status}}' ${container_name} 2>/dev/null)
+            local status=$(docker inspect --format='{{.State.Status}}' ixia-c-traffic-engine-${eth} 2>/dev/null)
             if [ "$status" == "running" ]; then
-                echo "Container ${container_name} is running"
+                echo "Traffic engine ${eth} is running"
                 break
             fi
             sleep 1
@@ -351,17 +340,26 @@ create_ixia_c_b2b_cpdp() {
         done
         
         if [ $elapsed -ge $timeout ]; then
-            echo "ERROR: Container ${container_name} failed to start within ${timeout} seconds"
+            echo "ERROR: Traffic engine ${eth} failed to start within ${timeout} seconds"
             exit 1
         fi
         
+        # Create protocol engine if not data plane only
         if [ -z "${DATA_PLANE_ONLY}" ]; then
-            local pe_container_name="ixia-c-protocol-engine-${eth}"
+            echo "Creating protocol engine for ${eth}..."
+            docker run --privileged -d                           \
+                --net=container:ixia-c-traffic-engine-${eth}     \
+                --name=ixia-c-protocol-engine-${eth}             \
+                -e INTF_LIST="${eth}"                            \
+                $(ixia_c_protocol_engine_img)
+            
+            # Wait for protocol engine to be running
+            echo "Waiting for protocol engine ${eth} to be ready..."
             elapsed=0
             while [ $elapsed -lt $timeout ]; do
-                local pe_status=$(docker inspect --format='{{.State.Status}}' ${pe_container_name} 2>/dev/null)
+                local pe_status=$(docker inspect --format='{{.State.Status}}' ixia-c-protocol-engine-${eth} 2>/dev/null)
                 if [ "$pe_status" == "running" ]; then
-                    echo "Container ${pe_container_name} is running"
+                    echo "Protocol engine ${eth} is running"
                     break
                 fi
                 sleep 1
@@ -369,18 +367,19 @@ create_ixia_c_b2b_cpdp() {
             done
             
             if [ $elapsed -ge $timeout ]; then
-                echo "ERROR: Container ${pe_container_name} failed to start within ${timeout} seconds"
+                echo "ERROR: Protocol engine ${eth} failed to start within ${timeout} seconds"
                 exit 1
             fi
         fi
-    done
-    
-    echo "All containers are running. Proceeding with interface configuration..."
-    
-    # Push all interfaces to containers
-    for eth in "${ETH_PORTS[@]}"; do
+        
+        # Push interface to container
+        echo "Pushing interface ${eth} to container..."
         push_ifc_to_container ${eth} ixia-c-traffic-engine-${eth}
+        echo "Successfully configured port ${eth}"
+        echo ""
     done
+    
+    docker ps -a
     
     # Generate controller config
     if [ -z "${DATA_PLANE_ONLY}" ]; then
