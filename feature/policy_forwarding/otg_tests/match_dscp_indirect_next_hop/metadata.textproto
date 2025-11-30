@@ -15,3 +15,11 @@ platform_exceptions: {
     policy_forwarding_to_next_hop_oc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

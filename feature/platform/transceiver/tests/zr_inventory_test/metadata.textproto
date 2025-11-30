@@ -31,3 +31,11 @@ platform_exceptions: {
     explicit_dco_config: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

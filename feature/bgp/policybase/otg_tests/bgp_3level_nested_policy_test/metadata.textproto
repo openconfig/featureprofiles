@@ -16,3 +16,11 @@ platform_exceptions: {
   bgp_rib_oc_path_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

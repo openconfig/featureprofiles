@@ -28,4 +28,12 @@ platform_exceptions: {
     policy_forwarding_gre_encapsulation_oc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_AGGREGATION

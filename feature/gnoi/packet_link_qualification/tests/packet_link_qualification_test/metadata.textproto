@@ -36,3 +36,11 @@ platform_exceptions: {
     plq_generator_capabilities_max_pps: 40000000
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

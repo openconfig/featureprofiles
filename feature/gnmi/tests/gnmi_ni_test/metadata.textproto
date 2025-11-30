@@ -39,3 +39,11 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

@@ -23,3 +23,11 @@ platform_exceptions:  {
     isis_sr_node_segment_config_unsupported:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

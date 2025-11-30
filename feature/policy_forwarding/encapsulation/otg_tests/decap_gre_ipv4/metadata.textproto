@@ -17,3 +17,11 @@ platform_exceptions: {
     gre_decapsulation_oc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

@@ -41,4 +41,12 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_TRANSIT
