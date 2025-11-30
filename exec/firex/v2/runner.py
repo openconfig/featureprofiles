@@ -1411,6 +1411,8 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
                     f'-out {reserved_testbed["otg_binding_file"]}'
 
                 check_output(cmd, env=env, cwd=internal_fp_repo_dir)
+        else:
+            shutil.copyfile(reserved_testbed['binding_file'], reserved_testbed["otg_binding_file"])
 
     j.pop('ates', None)
 
