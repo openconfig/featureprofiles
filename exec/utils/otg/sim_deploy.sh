@@ -100,6 +100,7 @@ push_ifc_to_container() {
     && sudo ip netns exec ${cid} ip link set ${1} name ${1} \
     && sudo ip netns exec ${cid} ip -4 addr add 0/0 dev ${1} \
     && sudo ip netns exec ${cid} ip -4 link set ${1} up \
+    && sudo ip netns exec ${cid} ip -4 link set ${1} promisc on \
     && echo "Successfully changed namespace of ifc ${1}"
 
     sudo rm -rf ${newPath}
@@ -289,6 +290,7 @@ create_ixia_c_b2b_cpdp() {
     # Create controller and gnmi server
     docker run -d                                        \
     --name=keng-controller                              \
+    --restart unless-stopped                            \
     --publish 40051:40051                       \
     --publish 8443:8443                         \
     -e LICENSE_SERVERS="10.85.70.247"           \
@@ -299,6 +301,7 @@ create_ixia_c_b2b_cpdp() {
     
     docker run -d                                        \
     --name=otg-gnmi-server                              \
+    --restart unless-stopped                            \
     --publish 0.0.0.0:50051:50051                       \
     $(gnmi_server_img)                                  \
     "-http-server" "https://172.17.0.1:8443" "--debug"
@@ -311,19 +314,26 @@ create_ixia_c_b2b_cpdp() {
         local eth=${ETH_PORTS[$i]}
         local port=$((port_base + i))
         
-        echo "Processing port ${eth} ($((i+1))/${#ETH_PORTS[@]})..."
+        # Compute cpuset-cpus: eth1 gets 0,1,2; eth2 gets 0,3,4; eth3 gets 0,5,6, etc.
+        # Formula: 0, (i*2+1), (i*2+2)
+        local cpu1=$((i * 2 + 1))
+        local cpu2=$((i * 2 + 2))
+        local cpuset="0,${cpu1},${cpu2}"
+        
+        echo "Processing port ${eth} ($((i+1))/${#ETH_PORTS[@]}) with cpuset=${cpuset}..."
         
         # Create traffic engine container
         echo "Creating traffic engine for ${eth}..."
         docker run --privileged -d                           \
             --name=ixia-c-traffic-engine-${eth}              \
+            --restart unless-stopped                         \
+            --cpuset-cpus "${cpuset}"                        \
             --publish 0.0.0.0:${port}:5555                   \
             -e OPT_LISTEN_PORT="5555"                        \
             -e ARG_IFACE_LIST="virtual@af_packet,${eth}"    \
             -e OPT_NO_HUGEPAGES="Yes"                        \
             -e OPT_NO_PINNING="Yes"                           \
             -e WAIT_FOR_IFACE="Yes"                          \
-            -e OPT_ADAPTIVE_CPU_USAGE="Yes"                  \
             $(ixia_c_traffic_engine_img)
         
         # Wait for traffic engine to be running
@@ -350,6 +360,7 @@ create_ixia_c_b2b_cpdp() {
             docker run --privileged -d                           \
                 --net=container:ixia-c-traffic-engine-${eth}     \
                 --name=ixia-c-protocol-engine-${eth}             \
+                --restart unless-stopped                         \
                 -e INTF_LIST="${eth}"                            \
                 $(ixia_c_protocol_engine_img)
             

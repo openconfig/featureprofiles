@@ -980,6 +980,9 @@ def b4_chain_provider(ws, testsuite_id,
     # if test_requires_bootz:
     #     chain |= ConfigDhcpForBootz.s()
 
+    if is_otg and reserved_testbed.get('sim', False):
+        chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
+
     if fp_pre_tests:
         for pt in fp_pre_tests:
             for k, v in pt.items():
@@ -1021,6 +1024,20 @@ def b4_chain_provider(ws, testsuite_id,
         else: chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
 
     return chain
+
+# noinspection PyPep8Naming
+@app.task(bind=True)
+def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
+    repo = git.Repo(test_repo_dir)
+    remote = repo.remote()
+    if not internal_test:
+        try:
+            remote = repo.remote("b4test")
+        except:
+            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
+            remote.fetch()
+    # patch adds delay before start traffic (pending keysight fix)
+    remote.repo.git.checkout(f'{remote.name}/otg_patch', 'internal/fptest/otg_patch.go')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
@@ -1126,6 +1143,9 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     if not collect_dut_info:
         test_args += f' -collect_dut_info=false'
+
+    if reserved_testbed.get('sim', False):
+        test_args += f' -deviation_ate_port_link_state_operations_unsupported'
 
     # Set timeouts for test execution
     inactivity_timeout = 1800
