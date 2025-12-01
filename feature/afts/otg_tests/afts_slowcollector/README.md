@@ -67,7 +67,7 @@ Withdraw the routes from bgp neighbor from ATE:port2 using OTG API.
 * Verify the number of next hop per prefix must be 1.
 * Verify the memory and CPU util. as mentioned in AFT-1.4.1,
 
-## AFT-1.4.3: AFT Withdraw prefixes from both the BGP neigbhor scenario 2
+## AFT-1.4.3: AFT Withdraw prefixes from both the BGP neighbor scenario 2
 
 ### Procedure
 
