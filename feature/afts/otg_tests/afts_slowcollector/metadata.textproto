@@ -3,5 +3,5 @@
 
 uuid: "3c77b5f5-75f4-467e-955c-b28bf605b25f"
 plan_id: "AFT-1.4"
-description: "AFTs collector Flap"
+description: "AFTs slow collector"
 testbed: TESTBED_DUT_ATE_2LINKS
