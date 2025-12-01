@@ -46,7 +46,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Stop the second collector and take a system memory usage in the DUT by subscribing "openconfig:system/processes/process/state/memory-utilization" and "openconfig:components/component/cpu/utilization/state/instant"
 * Recreate a gNMI session for the second collector and verify the convergence time for the second collector.
-* Also check the memory usage in the DUT after the second collector is added and converged. The memory usage for BGP and the Routing Engine (RE) should not increase before the first step and also monitor for any abnormal CPU util.(more than 80%).
+* Also check the memory usage in the DUT after the second collector is added and converged. The memory usage for BGP and the Routing Engine (RE) should not increase before the first step and also monitor for any abnormal CPU utilization (more than 80%).
 
 ## OpenConfig Path and RPC Coverage
 The below YAML defines the OC paths intended to be covered by this test.
