@@ -190,7 +190,7 @@ rpcs:
                       "peer-group-name": "BGP-PEER-GROUP-V4-P1",
                       "config": {
                         "peer-group-name": "BGP-PEER-GROUP-V4-P1",
-                        "peer-as": 200
+                        "peer-as": 65511
                       },
                       "afi-safis": {
                         "afi-safi": [
