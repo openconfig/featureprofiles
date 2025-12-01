@@ -39,7 +39,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Verify all other leaves mentioned in the path section have the data populated correctly.
 
 ## AFT-1.4.1: AFT slow collector (base case)
-* have a slow gNMI collector our of two gNMI collectors.
+* have a slow gNMI collector out of two gNMI collectors.
 
 ### Verifications
 * Verify AFTs prefixes advertised by eBGP and IS-IS on both the collectors.
