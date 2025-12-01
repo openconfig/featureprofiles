@@ -62,7 +62,7 @@ Withdraw the routes from bgp neighbor from ATE:port2 using OTG API.
 
 * eBGP routes advertised from ATE:port1,port2 must have 1 nexthop (pointing to ATE:port1).
 * IS-IS routes advertised from ATE:port1 must have one next hop.
-* Verify AFTs prefixes advertised by eBGP and ISIS.
+* Verify AFTs prefixes advertised by eBGP and IS-IS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix must be 1.
 * Verify the memory and CPU util. as mentioned in AFT-1.4.1,
