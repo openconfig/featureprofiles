@@ -94,7 +94,7 @@ Readvertise the BGP (both IPv4 and IPv6) prefixes from the BGP neighbor(s) of AT
 * Verify the number of next hop per prefix is 1.
 * Verify the memory and CPU util. as mentioned in AFT-1.4.1.
 
-## AFT-1.1.5: AFT Readvertise the BGP prefixes from both the neighbors scenario 4
+## AFT-1.4.5: AFT Readvertise the BGP prefixes from both the neighbors scenario 4
 
 ### Procedure
 
