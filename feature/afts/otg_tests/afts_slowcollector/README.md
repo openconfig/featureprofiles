@@ -76,7 +76,7 @@ Withdraw the routes from bgp neighbor from ATE:port2 using OTG API.
 ### Verifications
 
 * eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
-* ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
+* ISIS routes advertised from ATE:port1 must present from RIB and FIB of the DUT (query result should be nil).
 * Verify the memory and CPU util. as mentioned in AFT-1.4.1.
 
 ## AFT-1.4.4: AFT readvertise the prefixes from port1 bgp neighbor scenario 3
