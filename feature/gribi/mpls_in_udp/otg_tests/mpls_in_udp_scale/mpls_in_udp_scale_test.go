@@ -44,8 +44,8 @@ const (
 	portSpeed       = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 	startVLANPort1  = 100
 	startVLANPort2  = 200
-	numVRFs         = 10
-	vlanCount       = 10 // As per the README, the VLAN count is 16. However, since we do not support configuring multiple VRFs on the same VLAN or interface, the count has been set to match the number of VRFs instead.
+	numVRFs         = 1023
+	vlanCount       = 1023 // As per the README, the VLAN count is 16. However, since we do not support configuring multiple VRFs on the same VLAN or interface, the count has been set to match the number of VRFs instead.
 	trafficDuration = 15 * time.Second
 	nextHopID       = uint64(10001)
 	nextHopGroupID  = uint64(20001)
@@ -117,13 +117,13 @@ var (
 	}
 	portsTrafficDistribution = []uint64{50, 50}
 	profiles                 = map[vrfProfile]profileConfig{
-		profileSingleVRF:      {20, 1}, // 20k NHGs × 1 NH
-		profileMultiVRF:       {20, 1}, // same as profile 1
-		profileMultiVRFSkew:   {20, 1}, // same as profile 1
-		profileSingleVRFECMP:  {20, 8}, // 2.5k NHGs × 8 NHs = 20k NHs
-		profileSingleVRFgRIBI: {20, 1}, // QPS scaling
+		profileSingleVRF:      {20000, 1}, // 20k NHGs × 1 NH
+		profileMultiVRF:       {20000, 1}, // same as profile 1
+		profileMultiVRFSkew:   {20000, 1}, // same as profile 1
+		profileSingleVRFECMP:  {2500, 8},  // 2.5k NHGs × 8 NHs = 20k NHs
+		profileSingleVRFgRIBI: {20000, 1}, // QPS scaling
 	}
-	totalPrefixes      = 20
+	totalPrefixes      = 20000
 	tDstLists          = []string{}
 	labelLists         = []int{}
 	pfx1V4Lists        = []string{}
@@ -297,11 +297,11 @@ func configureDUTSubinterfaces(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root
 	// Each VLAN subinterface is configured with both IPv4 and IPv6 addresses derived from prefixFmtV4 and prefixFmtV6 patterns.
 	dutIPs, err := iputil.GenerateIPsWithStep(prefixFmtV4, vlanCount, intStepV4)
 	if err != nil {
-		fmt.Errorf("failed to generate DUT IPs: %w", err)
+		t.Errorf("failed to generate DUT IPs: %v", err)
 	}
 	dutIPsV6, err := iputil.GenerateIPv6sWithStep(prefixFmtV6, vlanCount, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate DUT IPv6s: %w", err)
+		t.Errorf("failed to generate DUT IPv6s: %v", err)
 	}
 	if pfx {
 		pfx1V4Lists = dutIPs
@@ -351,19 +351,19 @@ func mustConfigureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, ateP
 	t.Helper()
 	dutIPsV6, err := iputil.GenerateIPv6sWithStep(dutPfxFmtV6, vlanCount, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate DUT IPv6s: %w", err)
+		t.Errorf("failed to generate DUT IPv6s: %v", err)
 	}
 	otgIPsV6, err := iputil.GenerateIPv6sWithStep(atePfxFmtV6, vlanCount, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate OTG IPv6s: %w", err)
+		t.Errorf("failed to generate OTG IPv6s: %v", err)
 	}
 	dutIPsV4, err := iputil.GenerateIPsWithStep(dutPfxFmtV4, vlanCount, intStepV4)
 	if err != nil {
-		fmt.Errorf("failed to generate DUT IPv4s: %w", err)
+		t.Errorf("failed to generate DUT IPv4s: %v", err)
 	}
 	otgIPsV4, err := iputil.GenerateIPsWithStep(atePfxFmtV4, vlanCount, intStepV4)
 	if err != nil {
-		fmt.Errorf("failed to generate OTG IPv4s: %w", err)
+		t.Errorf("failed to generate OTG IPv4s: %v", err)
 	}
 	for i := range vlanCount {
 		vlanID := uint16(startVLANPort + i)
@@ -435,7 +435,7 @@ func programBasicEntries(t *testing.T, dut *ondatra.DUTDevice, c *gribi.Client, 
 	defaultNI := deviations.DefaultNetworkInstance(dut)
 	tunnelPrefix, err := iputil.GenerateIPv6sWithStep(outerIPv6Dst, len(vrfs), intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate DUT IPv6s: %w", err)
+		t.Errorf("failed to generate DUT IPv6s: %v", err)
 	}
 	tDstLists = tunnelPrefix
 	// iterate VRFs and program unique NH, NHG in default NI; program IPv6 prefix in the VRF
@@ -500,11 +500,11 @@ func programMPLSinUDPEntries(t *testing.T, dut *ondatra.DUTDevice, nextHopID, nh
 	entries := make([]fluent.GRIBIEntry, 0, 1+2*numNHGs*len(vrfs))
 	prefixIPv6s, err := iputil.GenerateIPv6sWithStep(baseIPv6, len(vrfs)*numNHGs, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate prefixIPv6s: %w", err)
+		t.Errorf("failed to generate prefixIPv6s: %v", err)
 	}
 	vrfOuterDst, err := iputil.GenerateIPv6sWithStep(outerIPv6Dst, len(vrfs), intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate vrfOuterDst IPv6s: %w", err)
+		t.Errorf("failed to generate vrfOuterDst IPv6s: %v", err)
 	}
 	nhIndex := 0
 	for vrfIdx, vrf := range vrfs {
@@ -1346,11 +1346,11 @@ func programMPLSinUDPSkewedEntries(t *testing.T, dut *ondatra.DUTDevice, vrfs []
 	nhIndex := 0
 	prefixIPv6s, err := iputil.GenerateIPv6sWithStep(baseIPv6, totalRoutes, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate prefixIPv6s: %w", err)
+		t.Errorf("failed to generate prefixIPv6s: %v", err)
 	}
 	vrfOuterDst, err := iputil.GenerateIPv6sWithStep(outerIPv6Dst, len(vrfs), intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate vrfOuterDst IPv6s: %w", err)
+		t.Errorf("failed to generate vrfOuterDst IPv6s: %v", err)
 	}
 	for vrfIdx, vrfName := range vrfs {
 		label := mplsLabelStart + uint64(vrfIdx)
@@ -1415,7 +1415,7 @@ func expectedMPLSinUDPSkewedResults(t *testing.T, vrfs []string, mplsNHBase, nhg
 	nhIndex := 0
 	prefixIPv6s, err := iputil.GenerateIPv6sWithStep(baseIPv6, totalRoutes, intStepV6)
 	if err != nil {
-		fmt.Errorf("failed to generate IPv6s: %w", err)
+		t.Errorf("failed to generate IPv6s: %v", err)
 	}
 	for vrfIdx := range vrfs {
 		vrfNHID := mplsNHBase + uint64(vrfIdx)
