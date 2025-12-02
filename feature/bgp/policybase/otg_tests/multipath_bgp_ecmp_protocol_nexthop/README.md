@@ -11,7 +11,7 @@ iBGP which is routed using IS-IS protocol nexthop.
 
 [TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-## Topology
+## Topolgy
 
 Each Interface bundle below is made up of 1x100G ports.
 
@@ -32,23 +32,36 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
   * ATE:Port3 (192.1.3.2/24) - DUT:Port3 (192.1.3.1/24)
   * ATE:Port4 (192.1.4.2/24) - DUT:Port4 (192.1.4.1/24)
 
+  * ATE:Port1 (192.1.1.2::2/64) - DUT:Port1 (192.1.1.1::1/64)
+  * ATE:Port2 (192.1.2.2::2/64) - DUT:Port2 (192.1.2.1::1/64)
+  * ATE:Port3 (192.1.3.2::2/64) - DUT:Port3 (192.1.3.1::1/64)
+  * ATE:Port4 (192.1.4.2::2/64) - DUT:Port4 (192.1.4.1::1/64)
+
   * Routes advertised via IS-IS as below from PORTB,C,D are as below
-      *PORTB-R1 - 193.1.1.1/24
-      *PORTC-R2 - 193.1.1.2/24
-      *PORTD-R3 - 193.1.1.3/24
+      *PORTB-R1 - 193.1.1.1/24 (IPv4), 193.1.1.1::1/128 (IPv6)
+      *PORTC-R2 - 193.1.1.2/24 (IPv4), 193.1.1.2::1/128 (IPv6)
+      *PORTD-R3 - 193.1.1.3/24 (IPv4), 193.1.1.3::1/128 (IPv6)
   * ATE:Port2:iBGP-Session1(193.1.1.1/24)  - DUT:Loopback0:iBGP-Session1 (10.10.10.1)
   * ATE:Port3:iBGP-Session2(193.1.1.2/24)  - DUT:Loopback0:iBGP-Session2 (10.10.10.1)
   * ATE:Port4:iBGP-Session3(193.1.1.3/24)  - DUT:Loopback0:iBGP-Session3 (10.10.10.1)
-
+  * ATE:Port2:iBGP-Session1(193.1.1.1::1/128)  - DUT:Loopback0:iBGP-Session1 (10.10.10.1::1/128)
+  * ATE:Port3:iBGP-Session2(193.1.1.2::2/128)  - DUT:Loopback0:iBGP-Session2 (10.10.10.1::1/128)
+  * ATE:Port4:iBGP-Session3(193.1.1.3::3/128)  - DUT:Loopback0:iBGP-Session3 (10.10.10.1::1/128)
   * AS Path: 64501
 
-  * Routes advertised from the iBGP peer is 100.1.1.0/24 from all 3 ports
-    (PORTB, PORTC, PORTD)
+  * Routes advertised from the iBGP peer from all 3 ports PORTB, PORTC, PORTD
+    * IPv4 -> 100.1.1.1/24
+    * IPv6 -> 100.1.1.1::1/128
 
 ### Source port for sending traffic
-  * Configure PORTA to send traffic such that the flows have below properties
+  * Configure PORTA to send IPv4 traffic such that the flows have below properties
     Source: 192.1.1.2/24
     Destination: 100.1.1.1/24
+    Packet Rate: 30000 packets per second
+    Packet Header: UDP/TCP ports of Range 3000-15000
+  * Configure PORTA to send IPv6 traffic such that the flows have below properties
+    Source: 192.1.1.2::2/64
+    Destination: 100.1.1.1::1/128
     Packet Rate: 30000 packets per second
     Packet Header: UDP/TCP ports of Range 3000-15000
   * Configure ATE Port2, Port3, Port4 as receiver ports such that in case of
@@ -60,7 +73,51 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
 
 ## Test cases
 
-### RT-7.9.1: Traffic with best path selection
+### RT-7.9.1: Traffic with best path selection IPv4
+#### Staging
+    * Configure IS-IS on the PORTb, PORTC, PORTD
+    * Configure routes to be advertised from ATE as below
+      * PORTB:R1, PORTC:R2, PORTD:R3
+    * Configure iBGP sesssion1 on PORTB, session2 on PORTC, session3 on
+      PORTD with the BGP parameters as below
+      * AS Number: 64501
+      * Multipath Enabled: False
+      * Keepalive: Default (60)
+      * Holdtime: Default (180)
+      * Policy: Default policy to Allow all routes
+      * Route Advertised: 100.1.1.1/24
+    * Configure the traffic flows as mentioned in test environment setup.
+
+#### Verification
+  * Verify that route summary for 100.1.1.1/24 shows only one of the ports
+    PORTB/PORTC/PORTD as forwarding.
+  * Verify that the traffic (30k PPS) sent from PORTA is received by only one
+    of the receiver ports PORTB/PORTC/PORTD.
+
+### RT-7.9.2: Traffic with Multipath enabled and equal distribution of traffic IPv4
+
+#### Staging
+    * Configure IS-IS on the PORTb, PORTC, PORTD
+    * Configure routes to be advertised from ATE as below
+      * PORTB:R1, PORTC:R2, PORTD:R3
+    * Configure iBGP sesssion1 on PORTB, session2 on PORTC, session3 on
+      PORTD with the BGP parameters as below
+      * AS Number: 64501
+      * Multipath Enabled: False
+      * Keepalive: Default (60)
+      * Holdtime: Default (180)
+      * Policy: Default policy to Allow all routes
+      * Route Advertised: 100.1.1.1/24
+    * Configure the traffic flows as mentioned in test environment setup
+
+#### Verification
+  * Verify that route summary for 100.1.1.1/24 shows all the ports
+    PORTB/PORTC/PORTD as forwarding.
+  * Verify that the traffic (30k PPS) sent from PORTA is received by PORTB,
+    PORTC and PORTD equally such that each port receives 10k traffic each with
+    a tolerance of 5%
+
+### RT-7.9.3: Traffic with best path selection IPv6
 #### Staging
     * Configure IS-IS on the PORTb, PORTC, PORTD
     * Configure routes to be advertised from ATE as below
@@ -71,7 +128,7 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
       * Keepalive: Default (60)
       * Holdtime: Default (180)
       * Policy: Default policy to Allow all routes
-      * Route Advertised: 100.1.1.0/24
+      * Route Advertised: 100.1.1.1::1/128
     * Configure the traffic flows as mentioned in test environment setup.
 
 #### Verification
@@ -80,30 +137,30 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
   * Verify that the traffic (30k PPS) sent from PORTA is received by only one
     of the receiver ports PORTB/PORTC/PORTD.
 
-### RT-7.9.2: Traffic with Multipath enabled and equal distribution of traffic
+### RT-7.9.4: Traffic with Multipath enabled and equal distribution of traffic IPv6
 
 #### Staging
     * Configure IS-IS on the PORTb, PORTC, PORTD
     * Configure routes to be advertised from ATE as below
       * PORTB:R1, PORTC:R2, PORTD:R3
-    * Configure iBGP session session1 on PORTB, session2 on PORTC, session 3 on
+    * Configure iBGP session1 on PORTB, session2 on PORTC, session 3 on
       PORTD with the BGP parameters as below
       * AS Number: 64501
       * Multipath Enabled: False
       * Keepalive: Default (60)
       * Holdtime: Default (180)
       * Policy: Default policy to Allow all routes
-      * Route Advertised: 100.1.1.0/24
+      * Route Advertised: 100.1.1.1::1/128
     * Configure the traffic flows as mentioned in test environment setup
 
 #### Verification
-  * Verify that route summary for 100.1.1.1/24 shows all the ports
+  * Verify that route summary for 100.1.1.1::1/128 shows all the ports
     PORTB/PORTC/PORTD as forwarding.
   * Verify that the traffic (30k PPS) sent from PORTA is received by PORTB,
     PORTC and PORTD equally such that each port receives 10k traffic each with
     a tolerance of 5%
 
-#### Canonical OC
+#### Canonical OC for DUT configuration
 
 This section should contain a JSON formatted stanza representing the
 canonical OC to configure BGP add-paths. (See the
@@ -494,6 +551,11 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths:
 
   ## State Paths ##
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=]/state:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops:
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
   /interfaces/interface/state/counters/out-pkts:
