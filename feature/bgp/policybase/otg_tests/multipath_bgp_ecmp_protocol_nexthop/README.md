@@ -11,7 +11,7 @@ iBGP which is routed using IS-IS protocol nexthop.
 
 [TESTBED_DUT_ATE_4LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-## Topolgy
+## Topology
 
 Each Interface bundle below is made up of 1x100G ports.
 
@@ -29,8 +29,8 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
 ### Connection Network IP's and IS-IS/BGP Sessions
   * ATE:Port1 (192.1.1.2/24) - DUT:Port1 (192.1.1.1/24)
   * ATE:Port2 (192.1.2.2/24) - DUT:Port2 (192.1.2.1/24)
-  * ATE:Port3 (192.1.3.2/24) - DUT:Port2 (192.1.3.1/24)
-  * ATE:Port4 (192.1.4.2/24) - DUT:Port2 (192.1.4.1/24)
+  * ATE:Port3 (192.1.3.2/24) - DUT:Port3 (192.1.3.1/24)
+  * ATE:Port4 (192.1.4.2/24) - DUT:Port4 (192.1.4.1/24)
 
   * Routes advertised via IS-IS as below from PORTB,C,D are as below
       *PORTB-R1 - 193.1.1.1/24
@@ -40,7 +40,7 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
   * ATE:Port3:iBGP-Session2(193.1.1.2/24)  - DUT:Loopback0:iBGP-Session2 (10.10.10.1)
   * ATE:Port4:iBGP-Session3(193.1.1.3/24)  - DUT:Loopback0:iBGP-Session3 (10.10.10.1)
 
-  * AS Path: 65000
+  * AS Path: 64501
 
   * Routes advertised from the iBGP peer is 100.1.1.0/24 from all 3 ports
     (PORTB, PORTC, PORTD)
@@ -66,7 +66,7 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
     * Configure routes to be advertised from ATE as below
       * PORTB:R1, PORTC:R2, PORTD:R3
     * Configure iBGP session with the BGP parameters as below
-      * AS Number: 65001
+      * AS Number: 64501
       * Multipath Enabled: False
       * Keepalive: Default (60)
       * Holdtime: Default (180)
@@ -86,9 +86,9 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
     * Configure IS-IS on the PORTb, PORTC, PORTD
     * Configure routes to be advertised from ATE as below
       * PORTB:R1, PORTC:R2, PORTD:R3
-    * Configure iBGP session sesssion1 on PORTB, session2 on PORTC, session 3 on
+    * Configure iBGP session session1 on PORTB, session2 on PORTC, session 3 on
       PORTD with the BGP parameters as below
-      * AS Number: 65001
+      * AS Number: 64501
       * Multipath Enabled: False
       * Keepalive: Default (60)
       * Holdtime: Default (180)
@@ -494,11 +494,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths:
 
   ## State Paths ##
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=]/state:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops:
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
   /interfaces/interface/state/counters/out-pkts:
