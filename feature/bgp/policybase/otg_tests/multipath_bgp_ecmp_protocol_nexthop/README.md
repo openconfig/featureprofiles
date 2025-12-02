@@ -103,14 +103,15 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
     PORTC and PORTD equally such that each port receives 10k traffic each with
     a tolerance of 5%
 
-#### Canonical OC for DUT configuration
+#### Canonical OC
 
 This section should contain a JSON formatted stanza representing the
 canonical OC to configure BGP add-paths. (See the
 [README Template](https://github.com/openconfig/featureprofiles/blob/main/doc/test-requirements-template.md#procedure))
 
 ```json
-  "openconfig-network-instance:network-instances": {
+{
+  "network-instances": {
     "network-instance": [
       {
         "config": {
