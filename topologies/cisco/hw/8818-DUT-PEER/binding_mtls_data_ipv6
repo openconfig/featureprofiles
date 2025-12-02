@@ -292,22 +292,22 @@ ates {
   }
   ports {
     id: "port5"
-    name: "1/65" # Change this to the actual port name.
+    name: "1/53" # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port6"
-    name: "1/66"  # Change this to the actual port name.
+    name: "1/54"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port7"
-    name: "1/67"  # Change this to the actual port name.
+    name: "1/55"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
    id: "port8"
-   name: "1/68"  # Change this to the actual port name.
+   name: "1/56"  # Change this to the actual port name.
    speed: S_100GB   
   }
   ports {
@@ -332,22 +332,22 @@ ates {
   }
   ports {
     id: "port13"
-    name: "1/69" # Change this to the actual port name.
+    name: "1/61" # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port14"
-    name: "1/70"  # Change this to the actual port name.
+    name: "1/62"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port15"
-    name: "1/71"  # Change this to the actual port name.
+    name: "1/63"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
    id: "port16"
-   name: "1/72"  # Change this to the actual port name.
+   name: "1/64"  # Change this to the actual port name.
    speed: S_100GB   
-  }  
+  }
 }
