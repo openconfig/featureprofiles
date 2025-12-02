@@ -1,5 +1,5 @@
-// Package isisscalehelpers provides helper functions for the ISIS scale tests.
-package isisscalehelpers
+// Package isisscale provides helper functions for the ISIS scale tests.
+package isisscale
 
 import (
 	"fmt"
