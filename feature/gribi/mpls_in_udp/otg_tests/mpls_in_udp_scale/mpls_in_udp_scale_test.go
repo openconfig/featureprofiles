@@ -148,7 +148,6 @@ type flowAttr struct {
 	srcPort  []string // source OTG ports
 	dstPorts []string // destination OTG ports
 	srcMac   string   // source MAC address
-	dstMac   string   // destination MAC address
 	topo     gosnappi.Config
 }
 
@@ -1026,8 +1025,6 @@ func TestMPLSinUDPScale(t *testing.T) {
 	c := newGRIBIClient(t, dut)
 	t.Cleanup(func() {
 		c.FlushAll(t)
-		end := time.Now()
-		t.Logf("DeleteEntries end:   %s", end.Format(time.RFC3339))
 		c.Close(t)
 	})
 	programBasicEntries(t, dut, c, vrfsList)
