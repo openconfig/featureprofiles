@@ -108,6 +108,9 @@ Readvertise the BGP (both IPv4 and IPv6) prefixes from the BGP neighbor(s) of AT
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the memory and CPU util. as mentioned in AFT-1.2.1.
 
+## OpenConfig Path and RPC Coverage
+The below YAML defines the OC paths intended to be covered by this test.
+OC paths used for test setup are not listed here.
 
 ```yaml
 paths:
