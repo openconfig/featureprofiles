@@ -551,7 +551,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths:
 
   ## State Paths ##
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops:
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
   /interfaces/interface/state/counters/out-pkts:
