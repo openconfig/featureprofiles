@@ -195,31 +195,6 @@ func GenerateMACs(startMAC string, count int, stepMACStr string) []string {
 	return out
 }
 
-// GenerateIPv6WithOffset increments the given IPv6 address by the specified offset. Returns nil if input is not a valid IPv6 address.
-func GenerateIPv6WithOffset(baseIP net.IP, offset int64) net.IP {
-	if baseIP == nil {
-		return nil
-	}
-
-	// Handle negative offsets
-	if offset < 0 {
-		// Convert to equivalent positive offset modulo 2^128
-		max := new(big.Int).Lsh(big.NewInt(1), 128)
-		negOffset := new(big.Int).Mod(big.NewInt(offset), max)
-		ipInt := ipToBigInt(baseIP.To16())
-		result := new(big.Int).Add(ipInt, negOffset)
-		result.Mod(result, max)
-		return bigIntToIP(result)
-	}
-
-	// Use IncrementIPv6 for positive offsets
-	ip, err := IncrementIPv6(baseIP, uint64(offset))
-	if err != nil {
-		return nil
-	}
-	return ip
-}
-
 // IncrementMAC increments the given MAC address by `i` and returns the result.
 // This is just a convenience wrapper around GenerateMACs.
 func IncrementMAC(startMAC string, i int) (string, error) {
@@ -228,72 +203,4 @@ func IncrementMAC(startMAC string, i int) (string, error) {
 		return "", fmt.Errorf("failed to generate MAC address")
 	}
 	return macs[0], nil
-}
-
-// IncrementIPv4 increments the given IPv4 address by n. Returns the incremented IP, or an error if the input is invalid.
-func IncrementIPv4(ip net.IP, n uint32) (net.IP, error) {
-	if ip == nil {
-		return nil, fmt.Errorf("IP is nil")
-	}
-	ip4 := ip.To4()
-	if ip4 == nil {
-		return nil, fmt.Errorf("invalid IPv4 address: %v", ip)
-	}
-	ipInt := ipv4ToInt(ip4)
-	if ipInt == 0 {
-		return nil, fmt.Errorf("base IP %q is invalid", ip4.String())
-	}
-	offset := ipInt + n
-	if offset < ipInt {
-		return nil, fmt.Errorf("base IP %q plus increment %d overflowed IPv4 space", ip4.String(), n)
-	}
-	return intToIPv4(offset), nil
-}
-
-// ipv4ToInt converts a net.IP (expected to be IPv4) to a uint32.
-func ipv4ToInt(ipv4 net.IP) uint32 {
-	ipv4Bytes := ipv4.To4()
-	if ipv4Bytes == nil {
-		return 0
-	}
-	return binary.BigEndian.Uint32(ipv4Bytes)
-}
-
-// intToIPv4 converts a net.IP (expected to be IPv4) to a uint32.
-func intToIPv4(n uint32) net.IP {
-	// Create a 4-byte slice
-	b := make([]byte, 4)
-
-	// Use BigEndian to put the uint32 into the byte slice
-	binary.BigEndian.PutUint32(b, n)
-
-	// Convert the byte slice to net.IP
-	return net.IP(b)
-}
-
-// IncrementIPv6 increments the given IPv6 address by n steps. Returns an error if the input IP is not a valid IPv6 address, if it is IPv4, or if the increment cannot be performed.
-func IncrementIPv6(ip net.IP, n uint64) (net.IP, error) {
-	if ip == nil {
-		return nil, fmt.Errorf("IP is nil")
-	}
-
-	// Reject IPv4 or IPv4-mapped IPv6
-	if ip.To4() != nil {
-		return nil, fmt.Errorf("invalid IPv6 address (IPv4 detected): %s", ip.String())
-	}
-
-	ip6 := ip.To16()
-	if ip6 == nil {
-		return nil, fmt.Errorf("invalid IPv6 address: %s", ip.String())
-	}
-
-	ipInt := ipToBigInt(ip6)
-	increment := new(big.Int).SetUint64(n)
-	result := new(big.Int).Add(ipInt, increment)
-
-	// 2^128 is the IPv6 address space limit
-	max := new(big.Int).Lsh(big.NewInt(1), 128)
-	result.Mod(result, max)
-
-	return bigIntToIP(result), nil
 }

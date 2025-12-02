@@ -32,10 +32,7 @@ type FeatureType int
 
 // VRFConfig holds input parameters for creating VRFs in a batched way.
 type VRFConfig struct {
-	VRFCount      int
-	EnablePBF     bool
-	VRFPolicyName string
-	VRFIPv6       string
+	VRFCount int
 }
 
 const (
@@ -496,17 +493,11 @@ func CreateVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch, c
 
 	// VRFs
 	for i := 1; i <= cfg.VRFCount; i++ {
-		name := fmt.Sprintf("VRF_%03d", i)
+		name := fmt.Sprintf("VRF_%04d", i)
 		vrfs = append(vrfs, name)
 		ni := droot.GetOrCreateNetworkInstance(name)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		gnmi.BatchReplace(vrfBatch, gnmi.OC().NetworkInstance(name).Config(), ni)
-	}
-
-	// PBF
-	if cfg.EnablePBF {
-		pbf := ConfigurePBF(t, dut, PBFConfig{PBFCount: cfg.VRFCount, PolicyName: cfg.VRFPolicyName, PBFIPv6: cfg.VRFIPv6})
-		gnmi.BatchReplace(vrfBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pbf)
 	}
 
 	return vrfs
