@@ -9,6 +9,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1561,7 +1562,7 @@ func (fa *flowAttr) createFlow(flowType, name, dstmac, srcPort string, dscp, vla
 		e1 := flow.Packet().Add().Ethernet()
 		e1.Src().SetValue(fa.srcMac)
 		e1.Dst().SetValue(dstmac)
-		if entry.VRF != "default" {
+		if strings.ToUpper(entry.VRF) != "DEFAULT" {
 			flow.Packet().Add().Vlan().Id().SetValue(vlanID)
 			vlanID++
 		}
