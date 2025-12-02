@@ -564,4 +564,3 @@ rpcs:
 
 ## Minimum DUT platform requirement
 * FFF
-
