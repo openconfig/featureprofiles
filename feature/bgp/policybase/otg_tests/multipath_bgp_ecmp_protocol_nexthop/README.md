@@ -160,7 +160,7 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
     PORTC and PORTD equally such that each port receives 10k traffic each with
     a tolerance of 5%
 
-#### Canonical OC for DUT configuration
+#### Canonical OC
 
 This section should contain a JSON formatted stanza representing the
 canonical OC to configure BGP add-paths. (See the
@@ -551,10 +551,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths:
 
   ## State Paths ##
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state:
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group[id=]/state:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops:
   /network-instances/network-instance/protocols/protocol/isis/global/state/weighted-ecmp:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/state/load-balancing-weight:
