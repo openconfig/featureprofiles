@@ -1,4 +1,4 @@
-# AFT-1.4: AFTs slow collector 
+# AFT-1.2: AFTs slow collector 
 
 ## Summary
 Reset one of the gNMI collectors, which are collecting the IPv4/IPv6 unicast routes' next-hop groups and next hops.
@@ -38,7 +38,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 * Verify the prefixes are pointing to the correct egress interface(s).
 * Verify all other leaves mentioned in the path section have the data populated correctly.
 
-## AFT-1.4.1: AFT slow collector (base case)
+## AFT-1.2.1: AFT slow collector (base case)
 * have a slow gNMI collector out of two gNMI collectors.
 
 ### Verifications
@@ -52,7 +52,7 @@ Establish eBGP multipath sessions between ATE:port1,port2 and DUT:port1,port2
 The below YAML defines the OC paths intended to be covered by this test.
 OC paths used for test setup are not listed here.
 
-## AFT-1.4.2: AFT route withdrawal from one BGP peer scenario 1
+## AFT-1.2.2: AFT route withdrawal from one BGP peer scenario 1
 
 ### Procedure
 
@@ -65,9 +65,9 @@ Withdraw the routes from bgp neighbor from ATE:port2 using OTG API.
 * Verify AFTs prefixes advertised by eBGP and IS-IS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix must be 1.
-* Verify the memory and CPU util. as mentioned in AFT-1.4.1,
+* Verify the memory and CPU util. as mentioned in AFT-1.2.1,
 
-## AFT-1.4.3: AFT Withdraw prefixes from both the BGP neighbor scenario 2
+## AFT-1.2.3: AFT Withdraw prefixes from both the BGP neighbor scenario 2
 
 ### Procedure
 
@@ -77,9 +77,9 @@ Withdraw the routes from bgp neighbor from ATE:port2 using OTG API.
 
 * eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
 * ISIS routes advertised from ATE:port1 must present from RIB and FIB of the DUT (query result should be nil).
-* Verify the memory and CPU util. as mentioned in AFT-1.4.1.
+* Verify the memory and CPU util. as mentioned in AFT-1.2.1.
 
-## AFT-1.4.4: AFT readvertise the prefixes from port1 bgp neighbor scenario 3
+## AFT-1.2.4: AFT readvertise the prefixes from port1 bgp neighbor scenario 3
 
 ### Procedure
 
@@ -92,9 +92,9 @@ Readvertise the BGP (both IPv4 and IPv6) prefixes from the BGP neighbor(s) of AT
 * Verify AFTs prefixes advertised by eBGP and ISIS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
 * Verify the number of next hop per prefix is 1.
-* Verify the memory and CPU util. as mentioned in AFT-1.4.1.
+* Verify the memory and CPU util. as mentioned in AFT-1.2.1.
 
-## AFT-1.4.5: AFT Readvertise the BGP prefixes from both the neighbors scenario 4
+## AFT-1.2.5: AFT Readvertise the BGP prefixes from both the neighbors scenario 4
 
 ### Procedure
 
@@ -106,7 +106,7 @@ Readvertise the BGP (both IPv4 and IPv6) prefixes from the BGP neighbor(s) of AT
 * IS-IS routes advertised from ATE:port1 must have one next hop.
 * Verify AFTs prefixes advertised by eBGP and ISIS.
 * Verify their next hop group, number of next hops, and the name of the interfaces.
-* Verify the memory and CPU util. as mentioned in AFT-1.4.1.
+* Verify the memory and CPU util. as mentioned in AFT-1.2.1.
 
 
 ```yaml
