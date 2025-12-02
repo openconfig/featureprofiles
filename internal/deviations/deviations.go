@@ -152,6 +152,16 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
+func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
+}
+
+// BgpGracefulRestartUnderAfiSafiUnsupported returns whether the device does not support bgp GR-RESTART under AFI/SAFI.
+func BgpGracefulRestartUnderAfiSafiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartUnderAfiSafiUnsupported()
+}
+
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingBgpLastNotificationErrorCode()
@@ -1751,4 +1761,16 @@ func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
 // GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
 func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
+
+// SyslogNonDefaultVrfUnsupported returns true if device does not support adding remote-syslog config under
+// non-default VRF
+func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
+}
+
+// SkipSamplingQosCounters returns true if device does not support sampling QoS counters
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
 }
