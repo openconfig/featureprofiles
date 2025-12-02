@@ -1,4 +1,4 @@
-# gNMI-1.26: Telemetry: Firewall High Availability.
+# HA-1.0: Telemetry: Firewall High Availability.
 
 ## Summary
 
@@ -26,13 +26,13 @@ Telemetry: Firewall High Availability
 * DUT2 with high priority
 * Configure a link group with 4 links between DUT1 and DUT2
 
-### gNMI-1.26.1: Verify FW Cluster correctly reports the active/primary state, control/data links state, interface groups state.
+### HA-1.0.1: Verify FW Cluster correctly reports the active/primary state, control/data links state, interface groups state.
 
 * Verify FW Cluster correctly reports the active/primary state
 * Verify control/data links state
 * Verify interface groups state
 
-### gNMI-1.26.2: FW Cluster correctly reports HA state changes in the event of an operator triggered failover.
+### HA-1.0.2: FW Cluster correctly reports HA state changes in the event of an operator triggered failover.
 
 * On Active device, suspend high-availability.
 * Passive device should detect suspension and become Active
@@ -40,7 +40,7 @@ Telemetry: Firewall High Availability
 * Bring back the suspended device to functional state.
 * Verify the cluster status.
 
-### gNMI-1.26.3: FW Cluster correctly reports HA state changes in the event of a failure either of the FW Cluster or its links.
+### HA-1.0.3: FW Cluster correctly reports HA state changes in the event of a failure either of the FW Cluster or its links.
 
 * On the Active device verify link monitoring
 * Trigger restart system on Active FW cluster
