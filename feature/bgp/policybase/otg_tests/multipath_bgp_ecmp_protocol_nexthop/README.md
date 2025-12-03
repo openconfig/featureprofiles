@@ -21,7 +21,7 @@ graph LR;
 PORTA [ATE PORT1] <-- IPv4-IPv6 --> B[DUT PORT1];
 PORTB [ATE:PORT2] <-- IS-IS (iBGP-Session1 with next-hop via IS-IS)--> D[DUT PORT2];
 PORTC [ATE:PORT3] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT PORT3];
-PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT PORT4];
+PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session3 with next-hop via IS-IS)--> D[DUT PORT4];
 ```
 
 ## Procedure
