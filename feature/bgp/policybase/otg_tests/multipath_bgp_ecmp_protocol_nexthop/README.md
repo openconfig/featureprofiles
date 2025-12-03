@@ -1,8 +1,9 @@
-# RT-7.9: BGP ecmp protocol nexthop
+# RT-7.9: BGP ECMP for iBGP with IS-IS protocol nexthop
 
 ## Summary
 
-This is to ensure that,
+This test is run to make sure that the BGP resolved over IS-IS next-hop and the
+traffic is load balance on these resolved nexthops while forwarding traffic.
 
 Implementations can be configured for equal cost multipath (ECMP) routing for 
 iBGP which is routed using IS-IS protocol nexthop.
@@ -13,7 +14,7 @@ iBGP which is routed using IS-IS protocol nexthop.
 
 ## Topolgy
 
-Each Interface bundle below is made up of 1x100G ports.
+Each Interface below is made up of 1x100G ports.
 
 ```mermaid
 graph LR;
@@ -103,7 +104,7 @@ PORTD [ATE:PORT4] <-- IS-IS (iBGP-Session2 with next-hop via IS-IS)--> D[DUT POR
     * Configure iBGP sesssion1 on PORTB, session2 on PORTC, session3 on
       PORTD with the BGP parameters as below
       * AS Number: 64501
-      * Multipath Enabled: False
+      * Multipath Enabled: True
       * Keepalive: Default (60)
       * Holdtime: Default (180)
       * Policy: Default policy to Allow all routes
@@ -264,9 +265,9 @@ canonical OC to configure BGP add-paths. (See the
                       "config": {
                         "circuit-type": "POINT_TO_POINT",
                         "enabled": true,
-                        "interface-id": "Bundle-Ether1"
+                        "interface-id": "Ethernet2/1"
                       },
-                      "interface-id": "Bundle-Ether1",
+                      "interface-id": "Ethernet2/1",
                       "levels": {
                         "level": [
                           {
@@ -351,9 +352,9 @@ canonical OC to configure BGP add-paths. (See the
                       "config": {
                         "circuit-type": "POINT_TO_POINT",
                         "enabled": true,
-                        "interface-id": "Bundle-Ether2"
+                        "interface-id": "Ethernet2/2"
                       },
-                      "interface-id": "Bundle-Ether2",
+                      "interface-id": "Ethernet2/2",
                       "levels": {
                         "level": [
                           {
@@ -564,3 +565,4 @@ rpcs:
 
 ## Minimum DUT platform requirement
 * FFF
+
