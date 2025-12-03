@@ -42,7 +42,7 @@ func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, 
 	var gnmiServerName string
 
 	if nip.Default {
-		// It is expected that netork-instance name and gRPC server name are "DEFAULT" for default network instance.
+		// It is expected that network-instance name and gRPC server name are "DEFAULT" for default network instance.
 		niName = nip.Name
 		gnmiServerName = nip.Name
 		// If not aligned with OC, then use deviation flags to set network-instance name and gRPC server name.
