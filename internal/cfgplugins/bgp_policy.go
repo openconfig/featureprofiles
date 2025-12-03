@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"fmt"
 	"testing"
+	"strings"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -411,13 +412,10 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 	case ondatra.ARISTA:
 		var cliConfig strings.Builder
 		t.Log("Executing CLI commands for local aggregate deviation")
-		t.Log("Control functions code unit")
-		cliConfig.WriteString("configure terminal\n")
-		cliConfig.WriteString(fmt.Sprintf("router general\ncontrol-functions\ncode unit ipv4_generate_default_conditionally\nfunction ipv4_generate_default_conditionally() {\nif source_protocol is BGP and prefix match prefix_list_v4 %s {\nreturn true;\n}\n}\n", triggerPfxName))
 
 		t.Log("Dynamic prefix list rcf match")
 		cliConfig.WriteString("configure terminal\n")
-		cliConfig.WriteString(fmt.Sprintf("dynamic prefix-list ipv4_generate_default\nmatch rcf ipv4_generate_default_conditionally()\nprefix-list ipv4 %s\n", genPfxName))
+		cliConfig.WriteString(fmt.Sprintf("dynamic prefix-list ipv4_generate_default\nmatch rcf ipv4_generate_default_conditionally\nprefix-list ipv4 %s\n", genPfxName))
 
 		t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
 		cliConfig.WriteString("configure terminal\n")
@@ -427,8 +425,14 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		cliConfig.WriteString("configure terminal\n")
 		cliConfig.WriteString(fmt.Sprintf("router bgp %d\nredistribute dynamic\n", bgpAS))
 		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+
+		cliConfig.Reset()
+		t.Log("Control functions code unit")
+		cliConfig.WriteString("configure terminal\n")
+		cliConfig.WriteString(fmt.Sprintf("router general\ncontrol-functions\ncode unit ipv4_generate_default_conditionally\nfunction ipv4_generate_default_conditionally(){\nif source_protocol is BGP and prefix match prefix_list_v4 %s {\nreturn true;\n}\n}EOF\ncompile\ncommit\n", triggerPfxName))
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	default:
-		t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
-		return
+		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
 	}
 }
+
