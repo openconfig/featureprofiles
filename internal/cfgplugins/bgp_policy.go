@@ -439,7 +439,7 @@ match rcf ipv4_generate_default_conditionally()
 prefix-list ipv4 %s
 `, genPfxName)
 
-		runCliCommand(t, dut, bgpLocalAggConfigDynamicPfxRcf)
+		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigDynamicPfxRcf)
 
 		t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
 		bgpLocalAggConfigPfxInstallDropNH := `
@@ -449,7 +449,7 @@ router general
 vrf default
 routes dynamic prefix-list ipv4_generate_default install drop
 `
-		runCliCommand(t, dut, bgpLocalAggConfigPfxInstallDropNH)
+		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxInstallDropNH)
 
 		t.Log("Redistribute advertised prefix into BGP")
 		bgpLocalAggConfigPfxRedistribute := fmt.Sprintf(`
@@ -459,6 +459,6 @@ router bgp %d
 redistribute dynamic
 `, bgpAS)
 
-		runCliCommand(t, dut, bgpLocalAggConfigPfxRedistribute)
+		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxRedistribute)
 	}
 }
