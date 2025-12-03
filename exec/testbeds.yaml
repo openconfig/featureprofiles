@@ -227,7 +227,7 @@ testbeds:
       gnmi_port: 50067
       rest_port: 30067    
   
-  8808-FOX2926PHNF-P200: 
+  8808-FOX2926PHNF-P200: &8808-FOX2926PHNF-P200_DEFAULTS
     hw: 8808-FOX2926PHNF-P200
     owner: arvbaska
     testbed: topologies/cisco/hw/8808-FOX2926PHNF-P200/testbed
@@ -238,7 +238,12 @@ testbeds:
       controller_port: 40068
       gnmi_port: 50068
       rest_port: 30068       
-      
+
+  8808-FOX2926PHNF-800GZR:
+    <<: *8808-FOX2926PHNF-P200_DEFAULTS
+    testbed: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/testbed
+    binding: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/binding
+    baseconf: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/baseconfig.proto
   2DUT-TB1:
     hw:
       - 8808-FOX2508P0JU

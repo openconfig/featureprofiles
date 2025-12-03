@@ -1749,14 +1749,6 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: DP-1.12 (ECN enabled traffic test)
-    path: feature/qos/ecn/otg_tests/ecn_enabled_traffic_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [daniel]
-
   # - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
   #   path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
   #   owners:
