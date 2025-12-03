@@ -343,15 +343,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			policyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		},
 		{
-			name: "accept_all_3_comms",
-			cs: communitySet{
-				name:            "all_3_comms",
-				communityMatch:  []string{"100:1", "104:1", "201:1"},
-				matchSetOptions: oc.BgpPolicy_MatchSetOptionsType_ALL,
-			},
-			policyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
-		},
-		{
 			name: "accept_any_my_regex_comms",
 			cs: communitySet{
 				name:            "any_my_regex_comms",
@@ -360,6 +351,18 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 			},
 			policyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
 		},
+	}
+	if !deviations.MatchCommunitySetMatchSetOptionsAllUnsupported(dut) {
+		allStatement := policyStatement{
+			name: "accept_all_3_comms",
+			cs: communitySet{
+				name:            "all_3_comms",
+				communityMatch:  []string{"100:1", "104:1", "201:1"},
+				matchSetOptions: oc.BgpPolicy_MatchSetOptionsType_ALL,
+			},
+			policyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE,
+		}
+		statements = append(statements, allStatement)
 	}
 	for _, s := range statements {
 		stmt, err := pd.AppendNewStatement(s.name)
@@ -998,11 +1001,14 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 
 	top.Flows().Clear()
 	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
-		// rxName := fmt.Sprintf(`%sdst%d.IPv4`, atePort2.Name, i)
 		rxName := fmt.Sprintf(`v4-bgpNet-%sdst%d.Dev`, atePort2.Name, i)
+		rxNames := []string{}
+		for _, pfxLen := range []int{22, 24, 30} {
+			rxNames = append(rxNames, fmt.Sprintf(`%s-%d`, rxName, pfxLen))
+		}
 		flow := top.Flows().Add().SetName(fmt.Sprintf("flow%d", i))
 		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{rxName})
+		flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames(rxNames)
 		flow.Size().SetFixed(512)
 		flow.Rate().SetPps(100)
 		e1 := flow.Packet().Add().Ethernet()
