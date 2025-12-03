@@ -1802,3 +1802,10 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
+
+// MatchCommunitySetMatchSetOptionsAllUnsupported returns true if device does not support match-set-options=ALL
+// for bgp-conditions community-sets
+// Arista: b/335739231
+func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
