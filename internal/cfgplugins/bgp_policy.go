@@ -16,8 +16,8 @@ package cfgplugins
 
 import (
 	"fmt"
-	"testing"
 	"strings"
+	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -415,14 +415,12 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 
 		t.Log("Dynamic prefix list rcf match")
 		cliConfig.WriteString("configure terminal\n")
-		cliConfig.WriteString(fmt.Sprintf("dynamic prefix-list ipv4_generate_default\nmatch rcf ipv4_generate_default_conditionally\nprefix-list ipv4 %s\n", genPfxName))
+		cliConfig.WriteString(fmt.Sprintf("dynamic prefix-list ipv4_generate_default\nmatch rcf ipv4_generate_default_conditionally()\nprefix-list ipv4 %s\n", genPfxName))
 
 		t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
-		cliConfig.WriteString("configure terminal\n")
 		cliConfig.WriteString("router general\nvrf default\nroutes dynamic prefix-list ipv4_generate_default install drop\n")
 
 		t.Log("Redistribute advertised prefix into BGP")
-		cliConfig.WriteString("configure terminal\n")
 		cliConfig.WriteString(fmt.Sprintf("router bgp %d\nredistribute dynamic\n", bgpAS))
 		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 
@@ -435,4 +433,3 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
 	}
 }
-
