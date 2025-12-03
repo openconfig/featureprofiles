@@ -427,7 +427,7 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		cliConfig.Reset()
 		t.Log("Control functions code unit")
 		cliConfig.WriteString("configure terminal\n")
-		cliConfig.WriteString(fmt.Sprintf("router general\ncontrol-functions\ncode unit ipv4_generate_default_conditionally\nfunction ipv4_generate_default_conditionally(){\nif source_protocol is BGP and prefix match prefix_list_v4 %s {\nreturn true;\n}\n}EOF\ncompile\ncommit\n", triggerPfxName))
+		cliConfig.WriteString(fmt.Sprintf("router general\ncontrol-functions\ncode unit ipv4_generate_default_conditionally\nfunction ipv4_generate_default_conditionally()\n{\nif source_protocol is BGP and prefix match prefix_list_v4 %s {\nreturn true;\n}\n}EOF\ncompile\ncommit\n", triggerPfxName))
 		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	default:
 		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
