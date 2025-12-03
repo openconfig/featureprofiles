@@ -877,7 +877,7 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	}
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
-		if deviations.IPv4MissingEnabled(dut) {
+		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
@@ -900,7 +900,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) {
+	if deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
@@ -1273,4 +1273,22 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
 		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
 	}
+}
+
+// EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
+func EnableInterfaceAndSubinterfaces(t *testing.T, b *gnmi.SetBatch, dut *ondatra.DUTDevice, portAttribs attrs.Attributes) {
+	t.Helper()
+	port := dut.Port(t, portAttribs.Name)
+	intPath := gnmi.OC().Interface(port.Name()).Config()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		intf.Enabled = ygot.Bool(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
+	}
+	gnmi.BatchUpdate(b, intPath, intf)
 }
