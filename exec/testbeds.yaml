@@ -1,7 +1,7 @@
 testbeds:
   8808_FOX2506P2QT: &8808_FOX2506P2QT_DEFAULTS
     hw: 8808_FOX2506P2QT
-    owner: kjahed
+    owner: regression 
     testbed: topologies/cisco/hw/8808_FOX2506P2QT/testbed
     binding: topologies/cisco/hw/8808_FOX2506P2QT/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT/baseconfig_mtls.proto
@@ -29,7 +29,7 @@ testbeds:
 
   8808-36FH_FOX2613PHWL: &8808-36FH_FOX2613PHWL_DEFAULTS
     hw: 8808-36FH_FOX2613PHWL
-    owner: wdolaast
+    owner: regression
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
@@ -50,19 +50,12 @@ testbeds:
       gnmi_port: 50057
       rest_port: 30057
 
-  8201-FOC2448P0MP:
-    hw: 8201-FOC2448P0MP
-    owner: khrasool
-    testbed: topologies/cisco/hw/8201-FOC2448P0MP/testbed
-    binding: topologies/cisco/hw/8201-FOC2448P0MP/binding
-    baseconf: topologies/cisco/hw/8201-FOC2448P0MP/basic_config.proto
-
-  8808-FOX2508P0JU: &8808_FOX2508P0JU_DEFAULTS
-    hw: 8808-FOX2508P0JU
-    owner: vbhan
-    testbed: topologies/cisco/hw/8808-FOX2508P0JU/testbed
-    binding: topologies/cisco/hw/8808-FOX2508P0JU/binding-ipv6-tun
-    baseconf: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
+  8808-FOX2508P0JU_MGMT_GRPC:
+    hw: 8808-FOX2508P0JU_MGMT_GRPC
+    owner: regression
+    testbed: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/testbed
+    binding: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/binding
+    baseconf: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/base_config_mgmt_vrf.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40058
@@ -73,19 +66,8 @@ testbeds:
       mgmt_ip: 5.78.24.106/16
       mgmt_gw: 5.78.11.49
 
-  8808-FOX2508P0JU_MGMT_GRPC:
-    << : *8808_FOX2508P0JU_DEFAULTS
-    binding: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/binding
-    baseconf: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/base_config_mgmt_vrf.proto
-    otg:
-      host: ott-ucs4-b4
-      controller_port: 40058
-      gnmi_port: 50058
-      rest_port: 30058
-
   8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
     hw: 8808-36FH_FOX2504P3CE
-    owner: mananpat
     testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
@@ -97,7 +79,6 @@ testbeds:
 
   8201-32FH_FLM254206E7:
     hw: 8201-32FH_FLM254206E7
-    owner: kjahed
     testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
@@ -109,7 +90,6 @@ testbeds:
 
   8201-32FH_FLM253900HJ:
     hw: 8201-32FH_FLM253900HJ
-    owner: arvbaska
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
@@ -123,20 +103,9 @@ testbeds:
       api_port: 8001
       gateway: 5.78.11.49
 
-  8808_FOX2625PLW8: &8808_FOX2625PLW8_DEFAULTS
-    hw: 8808_FOX2625PLW8
-    owner: arvbaska
-    testbed: topologies/cisco/hw/8808_FOX2625PLW8/testbed
-    binding: topologies/cisco/hw/8808_FOX2625PLW8/binding_gnmi_v6
-    baseconf: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
-    otg:
-      host: ott-ucs-b4
-      controller_port: 40056
-      gnmi_port: 50056
-      rest_port: 30056
-
   8808_FOX2625PLW8_MGMT_GRPC:
-    <<: *8808_FOX2625PLW8_DEFAULTS
+    hw: 8808_FOX2625PLW8_MGMT_GRPC
+    testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig.proto
     otg:
@@ -147,7 +116,7 @@ testbeds:
 
   8808_FOX2506P5XE:
     hw: 8808_FOX2506P5XE
-    owner: kjahed
+    owner: regression
     testbed: topologies/cisco/hw/8808-36FH_FOX2506P5XE/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2506P5XE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2506P5XE/basecfgfp.proto
@@ -159,7 +128,6 @@ testbeds:
 
   8808_FOX2643Q39J: &8808_FOX2643Q39J_DEFAULTS
     hw: 8808_FOX2643Q39J
-    owner: harikri4
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
     baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto
@@ -177,7 +145,6 @@ testbeds:
 
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
-    owner: suredhar
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
@@ -189,7 +156,6 @@ testbeds:
 
   8818-FOX2714PNYN: &8818-FOX2714PNYN_DEFAULTS
     hw: 8818-FOX2714PNYN
-    owner: arvbaska
     testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
     binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
     baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
@@ -210,14 +176,13 @@ testbeds:
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
-    owner: harikri4
     testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
     binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
     baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
     
   P200_DE_HW_TB: 
     hw: P200_DE_HW_TB
-    owner: arvbaska
+    owner: regression
     testbed: topologies/cisco/hw/P200_DE_HW_TB/testbed
     binding: topologies/cisco/hw/P200_DE_HW_TB/binding
     baseconf: topologies/cisco/hw/P200_DE_HW_TB/baseconfig.proto
@@ -229,7 +194,7 @@ testbeds:
   
   8808-FOX2926PHNF-P200: &8808-FOX2926PHNF-P200_DEFAULTS
     hw: 8808-FOX2926PHNF-P200
-    owner: arvbaska
+    owner: regression
     testbed: topologies/cisco/hw/8808-FOX2926PHNF-P200/testbed
     binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
@@ -246,14 +211,14 @@ testbeds:
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/baseconfig.proto
   2DUT-TB1:
     hw:
-      - 8808-FOX2508P0JU
-      - 8808_FOX2625PLW8
-    owner: arvbaska
+      - 8808-FOX2508P0JU_MGMT_GRPC
+      - 8808_FOX2625PLW8_MGMT_GRPC
+    owner: regression
     testbed: topologies/cisco/hw/2DUT-TB1/testbed
     binding: topologies/cisco/hw/2DUT-TB1/binding
     baseconf:
-      dut1: topologies/cisco/hw/8808-FOX2508P0JU/base_config_mgmt_vrf.proto
-      dut2: topologies/cisco/hw/8808_FOX2625PLW8/baseconfig_gnmi_v6_mgmt.proto
+      dut1: topologies/cisco/hw/8808-FOX2508P0JU_MGMT_GRPC/base_config_vrf.proto
+      dut2: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig_gnmi_v6_mgmt.proto
     otg:
       host: kne2-lnx
       controller_port: 40058
@@ -264,7 +229,7 @@ testbeds:
     hw:
       - 8808_FOX2506P2QT
       - 8808_FOX2506P5XE
-    owner: arvbaska
+    owner: regression
     testbed: topologies/cisco/hw/2DUT-TB2/testbed
     binding: topologies/cisco/hw/2DUT-TB2/binding
     baseconf:
@@ -279,7 +244,6 @@ testbeds:
   8818-DUT-PEER-MTLS:
     hw:
       - 8818-FOX2714PNYN
-    owner: arvbaska
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls
     baseconf:
@@ -294,7 +258,6 @@ testbeds:
   8818-DUT-PEER-MTLS-V6-OOB:
     hw:
       - 8818-FOX2714PNYN
-    owner: arvbaska
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_mgmt_ipv6
     baseconf:
@@ -310,7 +273,6 @@ testbeds:
   8818-DUT-PEER-MTLS-V6-IB:
     hw:
       - 8818-FOX2714PNYN
-    owner: arvbaska
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_data_ipv6
     baseconf:
@@ -326,7 +288,6 @@ testbeds:
     hw:
       - 8202-FLM275101MJ
       - 8202-FLM275203KT
-    owner: arvbaska
     testbed: topologies/cisco/hw/8202-DUT-PEER/testbed
     binding: topologies/cisco/hw/8202-DUT-PEER/binding
     baseconf:
@@ -340,7 +301,6 @@ testbeds:
 
   8202-FLM275203KT: &8202-FLM275203KT_DEFAULTS
     hw: 8202-FLM275203KT
-    owner: arvbaska
     testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
     binding: topologies/cisco/hw/8202-FLM275203KT/binding
     baseconf:
@@ -359,7 +319,6 @@ testbeds:
 
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
-    owner: arvbaska
     testbed: topologies/cisco/hw/8202-FLM275101MJ/testbed
     binding: topologies/cisco/hw/8202-FLM275101MJ/binding
     baseconf:
@@ -370,23 +329,14 @@ testbeds:
       gnmi_port: 59202
       rest_port: 39202
   
-  8800-FOC2330PAZK:
-    hw: 8800-FOC2330PAZK
-    owner: khrasool
-    testbed: topologies/cisco/hw/8800-FOC2330PAZK/testbed
-    binding: topologies/cisco/hw/8800-FOC2330PAZK/binding
-    baseconf: topologies/cisco/hw/8800-FOC2330PAZK/base_config.proto
-
   8608-FOX2543PNNM:
     hw: 8608-FOX2543PNNM
-    owner: anidamod
     testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
   8808_FOX2730P191: &8808_FOX2730P191_DEFAULTS
     hw: 8808_FOX2730P191
-    owner: mananpat
     testbed: topologies/cisco/hw/8808_FOX2730P191/testbed
     binding: topologies/cisco/hw/8808_FOX2730P191/binding
     baseconf: topologies/cisco/hw/8808_FOX2730P191/base_config.proto
@@ -404,7 +354,6 @@ testbeds:
   
   8808_FOX2731P4L7:
     hw: 8808_FOX2731P4L7
-    owner: mananpat
     testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
     binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
     baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
@@ -416,7 +365,6 @@ testbeds:
   
   8201-32FH-FLM254506DQ:
     hw: 8201-32FH-FLM254506DQ
-    owner: wdolaast
     testbed: topologies/cisco/hw/8201-32FH-FLM254506DQ/testbed
     binding: topologies/cisco/hw/8201-32FH-FLM254506DQ/binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
@@ -430,7 +378,6 @@ testbeds:
     hw:
       - 8808_FOX2730P191
       - 8808_FOX2731P4L7
-    owner: arvbaska
     testbed: topologies/cisco/hw/2DUT-TB3/testbed
     binding: topologies/cisco/hw/2DUT-TB3/binding
     baseconf:
@@ -624,7 +571,6 @@ testbeds:
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
-    owner: karremil
     testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
@@ -638,7 +584,6 @@ testbeds:
     hw:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
-    owner: wdolaast
     testbed: topologies/cisco/hw/2DUT-TB4/testbed
     binding: topologies/cisco/hw/2DUT-TB4/binding
     baseconf:
@@ -653,7 +598,7 @@ testbeds:
   P200-DEV-HW-2DUT:
     hw:
       - P200_DE_HW_TB
-    owner: arvbaska
+    owner: regression
     testbed: topologies/cisco/hw/P200-HW-2DUT/testbed
     binding: topologies/cisco/hw/P200-HW-2DUT/binding
     baseconf:
@@ -669,7 +614,6 @@ testbeds:
     hw:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
-    owner: wdolaast
     testbed: topologies/cisco/hw/2DUT-TB4/testbed_gribi
     binding: topologies/cisco/hw/2DUT-TB4/binding_gribi
     baseconf:
@@ -686,7 +630,7 @@ testbeds:
   # Below testbed used by Optics DT team (Sanket)
   ZRP_OPTICS_ACACIA: &ZRP_OPTICS_DEFAULTS
     hw: ZRP_OPTICS_ACACIA
-    owner: liawalsh
+    owner: ZRP 
     testbed: topologies/cisco/hw/ZRP_OPTICS/testbed
     binding: topologies/cisco/hw/ZRP_OPTICS/binding_acacia
     baseconf: topologies/cisco/hw/ZRP_OPTICS/baseconfig.proto
@@ -698,7 +642,7 @@ testbeds:
   # Below testbed used by gusomasu from account team, dont use without checking
   ZR_TB_GURU: &ZR_TB_GURU_DEFAULTS
     hw: ZR_TB_GURU
-    owner: arvbaska
+    owner: GURU_ZRP
     testbed: topologies/cisco/hw/ZR_TB_GURU/testbed
     binding: topologies/cisco/hw/ZR_TB_GURU/binding_zr
     baseconf: topologies/cisco/hw/ZR_TB_GURU/baseconfig.proto
