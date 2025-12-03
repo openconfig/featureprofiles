@@ -68,6 +68,7 @@ testbeds:
 
   8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
     hw: 8808-36FH_FOX2504P3CE
+    owner:
     testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2504P3CE/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2504P3CE/basecfgfp-ottawa-lab1-r1.proto
@@ -79,6 +80,7 @@ testbeds:
 
   8201-32FH_FLM254206E7:
     hw: 8201-32FH_FLM254206E7
+    owner:
     testbed: topologies/cisco/hw/8201-32FH_FLM254206E7/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM254206E7/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM254206E7/basecfgfp-ottawa-lab2-r3.proto
@@ -90,6 +92,7 @@ testbeds:
 
   8201-32FH_FLM253900HJ:
     hw: 8201-32FH_FLM253900HJ
+    owner:
     testbed: topologies/cisco/hw/8201-32FH_FLM253900HJ/testbed
     binding: topologies/cisco/hw/8201-32FH_FLM253900HJ/binding
     baseconf: topologies/cisco/hw/8201-32FH_FLM253900HJ/baseconfig.proto
@@ -105,6 +108,7 @@ testbeds:
 
   8808_FOX2625PLW8_MGMT_GRPC:
     hw: 8808_FOX2625PLW8_MGMT_GRPC
+    owner:
     testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig.proto
@@ -128,6 +132,7 @@ testbeds:
 
   8808_FOX2643Q39J: &8808_FOX2643Q39J_DEFAULTS
     hw: 8808_FOX2643Q39J
+    owner:
     testbed: topologies/cisco/hw/8808_FOX2643Q39J/testbed
     binding: topologies/cisco/hw/8808_FOX2643Q39J/binding_gnmi_v6
     baseconf: topologies/cisco/hw/8808_FOX2643Q39J/baseconfig_gnmi_v6_mgmt.proto
@@ -145,6 +150,7 @@ testbeds:
 
   8812-FOC2326NBZB:
     hw: 8812-FOC2326NBZB
+    owner:
     testbed: topologies/cisco/hw/8812-FOC2326NBZB/testbed
     binding: topologies/cisco/hw/8812-FOC2326NBZB/binding
     baseconf: topologies/cisco/hw/8812-FOC2326NBZB/qos-base-config.proto
@@ -156,6 +162,7 @@ testbeds:
 
   8818-FOX2714PNYN: &8818-FOX2714PNYN_DEFAULTS
     hw: 8818-FOX2714PNYN
+    owner: D18
     testbed: topologies/cisco/hw/8818-FOX2714PNYN/testbed
     binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
     baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
@@ -176,6 +183,7 @@ testbeds:
 
   8808_FOX2731P4L7: 
     hw: 8808_FOX2731P4L7
+    owner:
     testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
     binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
     baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
@@ -244,6 +252,7 @@ testbeds:
   8818-DUT-PEER-MTLS:
     hw:
       - 8818-FOX2714PNYN
+    owner:
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls
     baseconf:
@@ -258,6 +267,7 @@ testbeds:
   8818-DUT-PEER-MTLS-V6-OOB:
     hw:
       - 8818-FOX2714PNYN
+    owner:
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_mgmt_ipv6
     baseconf:
@@ -273,6 +283,7 @@ testbeds:
   8818-DUT-PEER-MTLS-V6-IB:
     hw:
       - 8818-FOX2714PNYN
+    owner:
     testbed: topologies/cisco/hw/8818-DUT-PEER/testbed
     binding: topologies/cisco/hw/8818-DUT-PEER/binding_mtls_data_ipv6
     baseconf:
@@ -288,6 +299,7 @@ testbeds:
     hw:
       - 8202-FLM275101MJ
       - 8202-FLM275203KT
+    owner:
     testbed: topologies/cisco/hw/8202-DUT-PEER/testbed
     binding: topologies/cisco/hw/8202-DUT-PEER/binding
     baseconf:
@@ -301,6 +313,7 @@ testbeds:
 
   8202-FLM275203KT: &8202-FLM275203KT_DEFAULTS
     hw: 8202-FLM275203KT
+    owner:
     testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
     binding: topologies/cisco/hw/8202-FLM275203KT/binding
     baseconf:
@@ -319,6 +332,7 @@ testbeds:
 
   8202-FLM275101MJ:
     hw: 8202-FLM275101MJ
+    owner:
     testbed: topologies/cisco/hw/8202-FLM275101MJ/testbed
     binding: topologies/cisco/hw/8202-FLM275101MJ/binding
     baseconf:
@@ -331,12 +345,14 @@ testbeds:
   
   8608-FOX2543PNNM:
     hw: 8608-FOX2543PNNM
+    owner:
     testbed: topologies/cisco/hw/8608-FOX2543PNNM/testbed
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
   8808_FOX2730P191: &8808_FOX2730P191_DEFAULTS
     hw: 8808_FOX2730P191
+    owner:
     testbed: topologies/cisco/hw/8808_FOX2730P191/testbed
     binding: topologies/cisco/hw/8808_FOX2730P191/binding
     baseconf: topologies/cisco/hw/8808_FOX2730P191/base_config.proto
@@ -354,6 +370,7 @@ testbeds:
   
   8808_FOX2731P4L7:
     hw: 8808_FOX2731P4L7
+    owner:
     testbed: topologies/cisco/hw/8808_FOX2731P4L7/testbed
     binding: topologies/cisco/hw/8808_FOX2731P4L7/binding
     baseconf: topologies/cisco/hw/8808_FOX2731P4L7/base_config.proto
@@ -365,6 +382,7 @@ testbeds:
   
   8201-32FH-FLM254506DQ:
     hw: 8201-32FH-FLM254506DQ
+    owner:
     testbed: topologies/cisco/hw/8201-32FH-FLM254506DQ/testbed
     binding: topologies/cisco/hw/8201-32FH-FLM254506DQ/binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254506DQ/basecfgfp-ottawa-lab1-r2.proto
@@ -378,6 +396,7 @@ testbeds:
     hw:
       - 8808_FOX2730P191
       - 8808_FOX2731P4L7
+    owner:
     testbed: topologies/cisco/hw/2DUT-TB3/testbed
     binding: topologies/cisco/hw/2DUT-TB3/binding
     baseconf:
@@ -571,6 +590,7 @@ testbeds:
   # OTG
   8201-32FH-FLM254306M8_OTG:
     hw: 8201-32FH-FLM254306M8_OTG
+    owner:
     testbed: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.testbed
     binding: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight.binding
     baseconf: topologies/cisco/hw/8201-32FH-FLM254306M8_OTG/keysight_otg.proto
@@ -584,6 +604,7 @@ testbeds:
     hw:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
+    owner:
     testbed: topologies/cisco/hw/2DUT-TB4/testbed
     binding: topologies/cisco/hw/2DUT-TB4/binding
     baseconf:
@@ -614,6 +635,7 @@ testbeds:
     hw:
       - 8808-36FH_FOX2504P3CE
       - 8201-32FH-FLM254506DQ
+    owner:
     testbed: topologies/cisco/hw/2DUT-TB4/testbed_gribi
     binding: topologies/cisco/hw/2DUT-TB4/binding_gribi
     baseconf:
