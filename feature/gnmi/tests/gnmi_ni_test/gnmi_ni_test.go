@@ -100,6 +100,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
+
 	t.Log("\nValidating network instance after configuration\n")
 	// Get all network instances.
 	netInstanceList := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstanceAny().State())
@@ -108,12 +109,11 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	// Get and validate states for default and custom networkinstances.
 	gnmiServerList := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
 	t.Logf("gNMI server list length: %v", len(gnmiServerList))
-	}
 
 	// Two VRF should be running on the DUT.
-	niCount := len(netInstanceList)
-	if niCount < 2 {
-		t.Fatalf("Expected 2+ VRF , got %d.", niCount)
+	niC := len(netInstanceList)
+	if len(netInstanceList) < 2 {
+		t.Fatalf("Expected 2+ VRF , got %d.", niC)
 	}
 
 	// Two Servers should be running on the DUT.
