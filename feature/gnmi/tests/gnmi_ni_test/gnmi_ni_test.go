@@ -51,7 +51,7 @@ var (
 	}
 )
 
-func TestCodelab(t *testing.T) {
+func TestGNMIAdditionalNetworkInstance(t *testing.T) {
 	// configure DUT
 	dut := ondatra.DUT(t, "dut")
 	batch := &gnmi.SetBatch{}
@@ -67,7 +67,7 @@ func TestCodelab(t *testing.T) {
 func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Configuring basic interface and subinterfaces.
-	cfgplugins.EnableInterfaceAndSubinterfaces(t, batch, dut, dutPort1)
+	cfgplugins.EnableInterfaceAndSubinterfaces(t, dut, batch, dutPort1)
 
 	// Deviations for vendors that require explicit interface to network instance assignment.
 	// This is not required for all vendors, as the interface to network instance mapping is implicit to default network instance.
@@ -79,7 +79,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort1NetworkInstanceIParams)
 
 	// Configure gNMI server on default network instance.
-	cfgplugins.CreateGNMIServer(batch, t, dut, &dutPort1NetworkInstanceIParams)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams)
 }
 
 // ConfigureAdditionalNetworkInstance configures a new network instance in DUT and changes the network instance of port2
@@ -88,7 +88,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	t.Logf("\nConfiguring network instance and gNMI server: Network instance: %s \n", ni)
 
 	// Configuring basic interface and subinterfaces.
-	cfgplugins.EnableInterfaceAndSubinterfaces(t, batch, dut, dutPort2)
+	cfgplugins.EnableInterfaceAndSubinterfaces(t, dut, batch, dutPort2)
 	// Assigning interface to non-default network instance.
 	cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dut.Port(t, "port2").Name(), &dutPort2NetworkInstanceIParams, dutPort2.Subinterface)
 
@@ -96,7 +96,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort2NetworkInstanceIParams)
 
 	// Configure non-default gNMI server.
-	cfgplugins.CreateGNMIServer(batch, t, dut, &dutPort2NetworkInstanceIParams)
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams)
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
@@ -122,25 +122,34 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Expected 2+ gNMI servers, got %d.", gnmiServerCount)
 	}
 
+	// As per `CreateGNMIServer`, the custom gNMI server is prefixed with "gnxi-".
+	customGnmiServerName := "gnxi-" + customVRFName
+
+	var defaultValidated, customValidated bool
 	for _, gnmiServer := range gnmiServerList {
-		// This check is for vendors aligned with OC string expectation for default gRPC server name being "DEFAULT".
-		if gnmiServer.GetName() == "DEFAULT" || gnmiServer.GetName() == deviations.DefaultNetworkInstance(dut) {
-			defaultInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer("DEFAULT").State())
-			validateGnmiServerState(t, defaultInstanceState)
-		}
+		serverName := gnmiServer.GetName()
+		// Using gnmiServer.GetName() to get the state is better than hardcoding.
+		serverState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).State())
 
-		// This check is for vendors not aligned with OC string expectation for default gRPC server name being "DEFAULT" and custom gRPC server name being "gnxi-customVRFName".
-		// This looks for deviation flag "default_ni_gnmi_server_name"
-		if gnmiServer.GetName() == deviations.DefaultNiGnmiServerName(dut) {
-			customInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(deviations.DefaultNiGnmiServerName(dut)).State())
-			validateGnmiServerState(t, customInstanceState)
+		switch serverName {
+		case customGnmiServerName:
+			validateGnmiServerState(t, serverState)
+			customValidated = true
+		// Handle default gNMI server, which could have several names.
+		case "DEFAULT", deviations.DefaultNetworkInstance(dut), deviations.DefaultNiGnmiServerName(dut):
+			// To avoid validating the same server multiple times if names overlap.
+			if !defaultValidated {
+				validateGnmiServerState(t, serverState)
+				defaultValidated = true
+			}
 		}
+	}
 
-		// Validate custom network instance state.
-		if gnmiServer.GetName() == customVRFName {
-			customInstanceState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(customVRFName).State())
-			validateGnmiServerState(t, customInstanceState)
-		}
+	if !defaultValidated {
+		t.Error("Default gNMI server was not found or validated.")
+	}
+	if !customValidated {
+		t.Errorf("Custom gNMI server '%s' was not found or validated.", customGnmiServerName)
 	}
 }
 

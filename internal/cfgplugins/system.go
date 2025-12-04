@@ -37,7 +37,7 @@ import (
 )
 
 // CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
-func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, nip *NetworkInstanceParams) {
+func CreateGNMIServer(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, nip *NetworkInstanceParams) {
 	var niName string
 	var gnmiServerName string
 
