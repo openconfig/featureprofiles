@@ -1336,12 +1336,15 @@ func TestMultiGrpcServices(t *testing.T) {
 		ctx := context.Background()
 		config := getTargetConfig(t)
 		grpcPort := config.grpcPort
+		sshIP := config.sshIp
+		username := config.sshUser
+		password := config.sshPass
 		Configurep4RTService(t)
 
 		// Configure gRPC server server1
 		cfg1 := BuildGrpcServerConfig(GrpcServerParams{
 			ServerName: "server1",
-			Port:       uint16(grpcPort),
+			Port:       56666,
 			Enable:     true,
 			Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
 		})
@@ -1371,11 +1374,11 @@ func TestMultiGrpcServices(t *testing.T) {
 		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
 
 		// Validate gRPC server1 configuration
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(grpcPort), true)
+		ValidateGrpcServerField(t, dut, "server1", "port", uint16(56666), true)
 		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
 
 		// Validate eMSD Core server1 brief values
-		expectedstats := EMSDServerBrief{Name: "server1", Status: "Di", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		expectedstats := EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
 		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
 
 		// Validate gRPC service behavior
@@ -1383,19 +1386,34 @@ func TestMultiGrpcServices(t *testing.T) {
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: true, GNSI_AuthzRotate: true, GNSI_AuthzGet: true,
 			GRIBI_Modify: true, GRIBI_Get: true, P4RT: true})
 
+		conn := DialSecureGRPC(ctx, t, sshIP, 56666, username, password)
+
+		t.Logf("[%s] Validating configured gRPC services for Server1", time.Now().Format("15:04:05.000"))
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: false, GNMI_Subscribe: false, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
+		cmd := `show logging | include "profile not configured for server server1"`
+		output := CMDViaGNMI(ctx, t, dut, cmd)
+
+		if output == "" {
+			t.Fatalf("No CLI output received")
+		}
+
+		logmsg := "SSL profile not configured for server server1"
+		if !strings.Contains(output, logmsg) {
+			t.Fatalf("Expected log %q not found. Output:\n%s", logmsg, output)
+		}
+
+		t.Logf("Validation successful: found expected log entry: %s", logmsg)
+
 		// Perform RP Switchover
 		utils.Dorpfo(context.Background(), t, true)
 
 		// validate NSR-Ready is ready
 		redundancy_nsrState(context.Background(), t, true)
 
-		// Validate gRPC server1 config after RP switchover
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(grpcPort), true)
-		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
-
-		// Validate eMSD core server1 brief values after RP switchover
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
-		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+		conn = DialSecureGRPC(ctx, t, sshIP, 56666, username, password)
 
 		// Validate gRPC Default config after emsd restart
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
@@ -1418,8 +1436,32 @@ func TestMultiGrpcServices(t *testing.T) {
 
 		// Validate gRPC service behavior after RP switchover
 		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
-			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: true, GNSI_AuthzRotate: true, GNSI_AuthzGet: true,
+			GRIBI_Modify: true, GRIBI_Get: true, P4RT: true})
+
+		// Validate gRPC server1 config after RP switchover
+		ValidateGrpcServerField(t, dut, "server1", "port", uint16(56666), true)
+		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
+
+		// Validate eMSD core server1 brief values after RP switchover
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		t.Logf("[%s] Validating configured gRPC services for Server1 after RP Switchover", time.Now().Format("15:04:05.000"))
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: false, GNMI_Subscribe: false, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
 			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
+		// Configure gRPC server server1
+		cfg1 = BuildGrpcServerConfig(GrpcServerParams{
+			ServerName:    "server2",
+			Port:          uint16(grpcPort),
+			Enable:        true,
+			Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+			CertificateID: "system_default_profile",
+		})
+		t.Log("Applying initial gRPC server2 config...")
+		gnmi.Update(t, dut, gnmi.OC().System().Config(), cfg1)
 
 		// Disable the default gRPC server (this is expected to fail)
 		cfg := fmt.Sprintf("grpc\n  %s\n!", "default-server-disable")
@@ -1434,13 +1476,21 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Wait for port clash to be resolved
 		time.Sleep(30 * time.Second)
 
-		// Validate gRPC server1 Behavior after default server disable
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(grpcPort), true)
+		// Validate gRPC server1 config after RP switchover
+		ValidateGrpcServerField(t, dut, "server1", "port", uint16(56666), true)
 		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
 
-		// Validate eMSD core server1 brief values after default server disable
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: fmt.Sprintf("%d", grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		// Validate eMSD core server1 brief values after RP switchover
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
 		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		// Validate gRPC server1 Behavior after default server disable
+		ValidateGrpcServerField(t, dut, "server2", "port", uint16(grpcPort), true)
+		ValidateGrpcServerField(t, dut, "server2", "name", "server2", true)
+
+		// Validate eMSD core server1 brief values after default server disable
+		expectedstats = EMSDServerBrief{Name: "server2", Status: "En", Port: fmt.Sprintf("%d", grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", expectedstats, true)
 
 		// Validate gRPC Default config after default server disable
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
@@ -1462,33 +1512,69 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Positive validation (Default server should exist)
 		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
 
-		// Validate gRPC service behavior after default server disable
+		sslprofile := BuildGrpcServerConfig(GrpcServerParams{
+			ServerName:    "server1",
+			Enable:        true,
+			CertificateID: "system_default_profile",
+		})
+		t.Log("Applying initial gRPC server1 config...")
+		gnmi.Update(t, dut, gnmi.OC().System().Config(), sslprofile)
+		time.Sleep(30 * time.Second)
+
+		// Validate gRPC service behavior after default server disable , service should work based on server1 port
 		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
 			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false,
 		})
 
+		// Validate gRPC service behavior after configuring system_default_profile
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
 		// Restart the emsd process through CLI (RunCommand) after default server disable
 		RestartAndValidateEMSD(t, dut)
 
 		// Validate gRPC server1 config after emsd restart
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(grpcPort), true)
+		ValidateGrpcServerField(t, dut, "server1", "port", uint16(56666), true)
 		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
 
-		// Validate eMSD Core server1 brief values after emsd restart
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		// Validate eMSD core server1 brief values after emsd restart
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
 		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		// Validate gRPC service behavior after emsd restart
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
+		// Validate eMSD Core server1 stats after default server enable
+		ValidateEMSDServerStats_SSH(t, dut, "server1", EMSDServerStats{
+			ServerName: "server1",
+			RPCStatsByPath: map[string]RPCStats{
+				"/gnmi.gNMI/Set":       {Requests: 1, Responses: 1},
+				"/gnmi.gNMI/Subscribe": {Requests: 1, Responses: 1},
+			},
+		}, false)
+
+		// Validate gRPC server1 Behavior after emsd restart
+		ValidateGrpcServerField(t, dut, "server2", "port", uint16(grpcPort), true)
+		ValidateGrpcServerField(t, dut, "server2", "name", "server2", true)
+
+		// Validate eMSD core server1 brief values after emsd restart
+		expectedstats = EMSDServerBrief{Name: "server2", Status: "En", Port: fmt.Sprintf("%d", grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", expectedstats, true)
 
 		// Validate gRPC Default config after emsd restart
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
 		ValidateGrpcServerField(t, dut, "DEFAULT", "name", "DEFAULT", true)
 
-		// Validate eMSD Core Default brief values after emsd restart
+		// Validate eMSD Core default brief values after emsd restart
 		expected = EMSDServerBrief{
 			Name:          "DEFAULT",
 			Status:        "Di", // Disabled
 			ListenAddress: "ANY",
-			Port:          fmt.Sprint(grpcPort),
+			Port:          fmt.Sprintf("%d", grpcPort),
 			TLS:           "En", // Enabled
 			VRF:           "global-vrf",
 			Services: []string{
@@ -1496,8 +1582,13 @@ func TestMultiGrpcServices(t *testing.T) {
 				"P4RT", "ENROLLZ", "ATTESTZ", "SRTE", "GNMI", "GRIBI",
 			},
 		}
-		// Positive validation (Default server should exist)
 		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
+
+		// Validate gRPC service behavior after emsd restart
+		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
+			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false,
+		})
 
 		// Enable the default gRPC server
 		cfg = "no grpc default-server-disable"
@@ -1507,13 +1598,13 @@ func TestMultiGrpcServices(t *testing.T) {
 			t.Errorf("Failed to enable default gRPC server: %v", err)
 		}
 		// Wait for config to be applied
-		time.Sleep(40 * time.Second)
+		time.Sleep(30 * time.Second)
 
 		// Validate gRPC Default config after default server enable
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
 		ValidateGrpcServerField(t, dut, "DEFAULT", "name", "DEFAULT", true)
 
-		// Validate eMSD Core Default brief values after emsd restart
+		// Validate eMSD Core Default brief values after default server enable
 		expected = EMSDServerBrief{
 			Name:          "DEFAULT",
 			Status:        "En",
@@ -1530,89 +1621,34 @@ func TestMultiGrpcServices(t *testing.T) {
 		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
 
 		// Validate gRPC server1 config after default server enable
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(grpcPort), true)
-		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
+		ValidateGrpcServerField(t, dut, "server2", "port", uint16(grpcPort), true)
+		ValidateGrpcServerField(t, dut, "server2", "name", "server2", true)
 
 		// Validate eMSD Core Server1 brief values after default server enable
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
-		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+		expectedstats = EMSDServerBrief{Name: "server2", Status: "En", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", expectedstats, true)
 
-		// Validate gRPC service behavior after default server enable
+		// Validate server2 gRPC service behavior after default server enable
 		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
 			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false,
 		})
 
-		// Validate eMSD Core server1 stats after default server enable
-		ValidateEMSDServerStats_SSH(t, dut, "server1", EMSDServerStats{
-			ServerName: "server1",
-			RPCStatsByPath: map[string]RPCStats{
-				"/gnmi.gNMI/Set":       {Requests: 2, Responses: 2},
-				"/gnmi.gNMI/Subscribe": {Requests: 9, Responses: 9},
-			},
-		}, false)
-
-		// Restart emsd process through CLI (RunCommand)
-		RestartAndValidateEMSD(t, dut)
-
-		// Validate eMSD Core Server1 brief values after emsd restart
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: fmt.Sprint(grpcPort), TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
-		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
-
-		// Validate gRPC Services after emsd restart
-		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
-			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
-			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false,
-		})
-
-		// Validate eMSD Core server1 stats after emsd restart
-		ValidateEMSDServerStats_SSH(t, dut, "server1", EMSDServerStats{
-			ServerName: "server1",
-			RPCStatsByPath: map[string]RPCStats{
-				"/gnmi.gNMI/Set":       {Requests: 1, Responses: 1},
-				"/gnmi.gNMI/Subscribe": {Requests: 1, Responses: 1},
-			},
-		}, false)
-
-		// Validate eMSD Core Default brief values after emsd restart
-		expected = EMSDServerBrief{
-			Name:          "DEFAULT",
-			Status:        "En",
-			ListenAddress: "ANY",
-			Port:          fmt.Sprint(grpcPort),
-			TLS:           "En", // Enabled
-			VRF:           "global-vrf",
-			Services: []string{
-				"GNOI", "GNPSI", "CNMI", "GNSI", "SLAPI",
-				"P4RT", "ENROLLZ", "ATTESTZ", "SRTE", "GNMI", "GRIBI",
-			},
-		}
-		// Positive validation (Default server should exist)
-		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
-
-		// Delete the port configuration for server1
-		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer("server1").Port().Config())
+		// Delete the port configuration for server2
+		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer("server2").Port().Config())
 		time.Sleep(30 * time.Second)
 
-		// Validate gRPC server1 config after port delete
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(0), true)
-		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
-
-		// Validate eMSD Core server1 brief values after Server1 port delete
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "Di", Port: "0", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
-		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
-
-		// Validate gRPC Default config after Server1 port delete
+		// Validate gRPC Default config after deleting server2 port
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
 		ValidateGrpcServerField(t, dut, "DEFAULT", "name", "DEFAULT", true)
 
-		// Validate eMSD Core Default brief values after Server1 port delete
+		// Validate eMSD Core Default brief values after deleting server2 port
 		expected = EMSDServerBrief{
 			Name:          "DEFAULT",
 			Status:        "En",
 			ListenAddress: "ANY",
 			Port:          fmt.Sprint(grpcPort),
-			TLS:           "En", // Enabled
+			TLS:           "En",
 			VRF:           "global-vrf",
 			Services: []string{
 				"GNOI", "GNPSI", "CNMI", "GNSI", "SLAPI",
@@ -1622,17 +1658,31 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Positive validation (Default server should exist)
 		ValidateEMSDServerBrief_SSH(t, dut, "DEFAULT", expected, true)
 
-		// // Make sure grpc service works on default port after server1 port delete
+		// Validate eMSD Core server2 brief values after Server2 port delete
+		expectedstats = EMSDServerBrief{Name: "server2", Status: "Di", Port: "0", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", expectedstats, true)
+
+		// Validate eMSD Core Server1 brief values after Server2 port delete
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		// Validate DEFAULT gRPC Services after deleting server2 port
 		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: true, GNSI_AuthzRotate: true, GNSI_AuthzGet: true,
-			GRIBI_Modify: true, GRIBI_Get: true, P4RT: true})
+			GRIBI_Modify: true, GRIBI_Get: true, P4RT: true,
+		})
 
-		// Validate eMSD Core server1 stats after Server1 port delete
+		// Validate server1 gRPC Services after deleting server2 port
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
+		// Validate eMSD Core server1 stats after Server2 port delete
 		ValidateEMSDServerStats_SSH(t, dut, "server1", EMSDServerStats{
 			ServerName: "server1",
 			RPCStatsByPath: map[string]RPCStats{
 				"/gnmi.gNMI/Set":       {Requests: 2, Responses: 2},
-				"/gnmi.gNMI/Subscribe": {Requests: 5, Responses: 5},
+				"/gnmi.gNMI/Subscribe": {Requests: 2, Responses: 2},
 			},
 		}, false)
 
@@ -1640,12 +1690,20 @@ func TestMultiGrpcServices(t *testing.T) {
 		perf.ReloadRouter(t, dut)
 
 		// Validate gRPC server1 config after router reload
-		ValidateGrpcServerField(t, dut, "server1", "port", uint16(0), true)
+		ValidateGrpcServerField(t, dut, "server1", "port", uint16(56666), true)
 		ValidateGrpcServerField(t, dut, "server1", "name", "server1", true)
 
 		// Validate eMSD Core server1 brief values after router reload
-		expectedstats = EMSDServerBrief{Name: "server1", Status: "Di", Port: "0", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "En", Port: "56666", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
 		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		// Validate gRPC server2 config after router reload
+		ValidateGrpcServerField(t, dut, "server2", "port", uint16(0), true)
+		ValidateGrpcServerField(t, dut, "server2", "name", "server2", true)
+
+		// Validate eMSD Core server2 brief values after router reload
+		expectedstats = EMSDServerBrief{Name: "server2", Status: "Di", Port: "0", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", expectedstats, true)
 
 		// Validate gRPC Default config after router reload
 		ValidateGrpcServerField(t, dut, "DEFAULT", "port", uint16(grpcPort), true)
@@ -1672,8 +1730,26 @@ func TestMultiGrpcServices(t *testing.T) {
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: true, GNSI_AuthzRotate: true, GNSI_AuthzGet: true,
 			GRIBI_Modify: true, GRIBI_Get: true, P4RT: true})
 
-		// // Make sure eMSD Core server1 stats is empty after router reload
+		// Delete the Port configuration for server1
+		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer("server1").Port().Config())
+		time.Sleep(30 * time.Second)
+
+		// Validate eMSD Core server1 brief values after router reload
+		expectedstats = EMSDServerBrief{Name: "server1", Status: "Di", Port: "0", TLS: "En", VRF: "global-vrf", ListenAddress: "ANY", Services: []string{"GNMI"}}
+		ValidateEMSDServerBrief_SSH(t, dut, "server1", expectedstats, true)
+
+		conn = DialSecureGRPC(ctx, t, sshIP, 56666, username, password)
+
+		t.Logf("[%s] Validating configured gRPC services for Server1 after RP Switchover", time.Now().Format("15:04:05.000"))
+		VerifygRPCServicesForMultiServer(t, conn, RPCValidationMatrix{
+			GNMI_Set: false, GNMI_Subscribe: false, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
+			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
+
+		// Make sure eMSD Core server1 stats is empty after router reload
 		ValidateEMSDServerStats_SSH(t, dut, "server1", EMSDServerStats{}, true)
+
+		// Make sure eMSD server2 stats is empty after router reload
+		ValidateEMSDServerStats_SSH(t, dut, "server2", EMSDServerStats{}, true)
 
 		// Delete the server1 configuration
 		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer("server1").Config())
@@ -1683,6 +1759,12 @@ func TestMultiGrpcServices(t *testing.T) {
 
 		// Negative validation (server should NOT exist)
 		ValidateEMSDServerBrief_SSH(t, dut, "server1", EMSDServerBrief{}, false)
+
+		// Delete the server2 configuration
+		gnmi.Delete(t, dut, gnmi.OC().System().GrpcServer("server2").Config())
+
+		// Negative validation (server should NOT exist)
+		ValidateEMSDServerBrief_SSH(t, dut, "server2", EMSDServerBrief{}, false)
 
 		// Make sure grpc service works on default port after server1 delete
 		VerifygRPCServicesForDefaultPort(t, RPCValidationMatrix{
@@ -1872,14 +1954,13 @@ func TestMultiGrpcServices(t *testing.T) {
 		password := config.sshPass
 
 		// Configure p4RT service.
-		// Configure p4RT service.
 		Configurep4RTService(t)
 
 		// Step 1: Apply initial config with port 56666 for server1
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		initialCfg := GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server1", Port: 56666, Services: []string{"GNMI", "GNOI"}},
+				{Name: "server1", Port: 56666, Services: []string{"GNMI", "GNOI"}, SSLProfileID: "system_default_profile"},
 			},
 		}
 		initialBuilder := buildGrpcConfigBuilder(initialCfg)
@@ -1907,10 +1988,11 @@ func TestMultiGrpcServices(t *testing.T) {
 
 		// Step 2: Attempt to apply config for server2 with same port.
 		cfg2 := BuildGrpcServerConfig(GrpcServerParams{
-			ServerName: "server2",
-			Port:       56666, // Same port as server1
-			Enable:     true,
-			Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+			ServerName:    "server2",
+			Port:          56666, // Same port as server1
+			Enable:        true,
+			Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+			CertificateID: "system_default_profile",
 		})
 
 		t.Log("Applying initial gRPC server2 config...")
@@ -2177,15 +2259,13 @@ func TestMultiGrpcServices(t *testing.T) {
 		username := config.sshUser
 		password := config.sshPass
 
-		// Configure p4RT service.le(t)[0].sshPass
-
 		// Configure p4RT service.
 		Configurep4RTService(t)
 
 		// Step 1: Apply initial config with port 56666
 		initialCfg := GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server1", Port: 56666, Services: []string{"GNMI"}},
+				{Name: "server1", Port: 56666, Services: []string{"GNMI"}, SSLProfileID: "system_default_profile"},
 			},
 		}
 		initialBuilder := buildGrpcConfigBuilder(initialCfg)
@@ -2202,7 +2282,7 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Step 2: Overwrite with port 58888
 		initialCfg = GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server1", Port: 58888, Services: []string{"GNMI", "GNOI"}},
+				{Name: "server1", Port: 58888, Services: []string{"GNMI", "GNOI"}, SSLProfileID: "system_default_profile"},
 			},
 		}
 		initialBuilder = buildGrpcConfigBuilder(initialCfg)
@@ -2405,23 +2485,23 @@ func TestMultiGrpcServices(t *testing.T) {
 		username := config.sshUser
 		password := config.sshPass
 
-		// Configure p4RT service.le(t)[0].sshPass
-
 		// Configure p4RT service.
 		Configurep4RTService(t)
 
 		servers := []GrpcServerParams{
 			{
-				ServerName: "server1",
-				Port:       56666,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_P4RT},
+				ServerName:    "server1",
+				Port:          56666,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_P4RT},
+				CertificateID: "system_default_profile",
 			},
 			{
-				ServerName: "server2",
-				Port:       58888,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				ServerName:    "server2",
+				Port:          58888,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				CertificateID: "system_default_profile",
 			},
 		}
 
@@ -2553,16 +2633,18 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Configure gRPC servers
 		servers := []GrpcServerParams{
 			{
-				ServerName: "server1",
-				Port:       56666,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNSI},
+				ServerName:    "server1",
+				Port:          56666,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNSI},
+				CertificateID: "system_default_profile",
 			},
 			{
-				ServerName: "server2",
-				Port:       58888,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNSI},
+				ServerName:    "server2",
+				Port:          58888,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNSI},
+				CertificateID: "system_default_profile",
 			},
 		}
 
@@ -2952,7 +3034,7 @@ func TestMultiGrpcServices(t *testing.T) {
 		// ─── Configure Server2 using gNMI with TLS ───
 		server2 := GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server2", Port: 58888, Services: []string{"GRIBI", "SLAPI"}},
+				{Name: "server2", Port: 58888, Services: []string{"GRIBI", "SLAPI"}, SSLProfileID: "system_default_profile"},
 			},
 		}
 		initialBuilder = buildGrpcConfigBuilder(server2)
@@ -3135,11 +3217,19 @@ func TestMultiGrpcServices(t *testing.T) {
 			GNMI_Set: false, GNMI_Subscribe: false, GNOI_SystemTime: false, GNSI_AuthzRotate: false, GNSI_AuthzGet: false,
 			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
 
-		// Re-establish gRPC connection with port 56666 without SSL profile after emsd restart
+		server1 = GrpcConfig{
+			Servers: []GrpcServerConfig{
+				{Name: "server1", SSLProfileID: "system_default_profile"},
+			},
+		}
+		initialBuilder = buildGrpcConfigBuilder(server1)
+		pushGrpcCLIConfig(t, gnmiClient, initialBuilder, false)
+		time.Sleep(20 * time.Second)
+
 		conn1 = DialSecureGRPC(ctx, t, sshIP, 56666, username, password)
 
 		// Make sure gRPC services using port 56666 are accessible after emsd restart
-		t.Logf("[%s] Make sure gRPC services using port 56666 are accessible after emsd restart", time.Now().Format("15:04:05.000"))
+		t.Logf("[%s] Make sure gRPC services using port 56666 are accessible after adding default ssl profile", time.Now().Format("15:04:05.000"))
 		VerifygRPCServicesForMultiServer(t, conn1, RPCValidationMatrix{
 			GNMI_Set: true, GNMI_Subscribe: true, GNOI_SystemTime: true, GNSI_AuthzRotate: true, GNSI_AuthzGet: true,
 			GRIBI_Modify: false, GRIBI_Get: false, P4RT: false})
@@ -3229,16 +3319,18 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Define two gRPC servers with the same service but different ports
 		servers := []GrpcServerParams{
 			{
-				ServerName: "server1",
-				Port:       56666,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				ServerName:    "server1",
+				Port:          56666,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				CertificateID: "system_default_profile",
 			},
 			{
-				ServerName: "server2",
-				Port:       58888,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				ServerName:    "server2",
+				Port:          58888,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				CertificateID: "system_default_profile",
 			},
 		}
 
@@ -3655,6 +3747,7 @@ func TestMultiGrpcServices(t *testing.T) {
 				Services:         []string{"GNMI"},
 				KeepaliveTime:    &cliKaTime,
 				KeepaliveTimeout: &cliKaTimeout,
+				SSLProfileID:     "system_default_profile",
 			}},
 		}
 		pushGrpcCLIConfig(t, gnmiClient, buildGrpcConfigBuilder(cfg), false)
@@ -3930,7 +4023,7 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Step 3: Configure single custom gRPC server (port 56666)
 		initialCfg := GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server1", Port: 56666, Services: []string{"GNMI"}},
+				{Name: "server1", Port: 56666, Services: []string{"GNMI"}, SSLProfileID: "system_default_profile"},
 			},
 		}
 		initialBuilder := buildGrpcConfigBuilder(initialCfg)
@@ -4136,7 +4229,7 @@ func TestMultiGrpcServices(t *testing.T) {
 		// Validate server2 config applied correctly
 		server2 := GrpcConfig{
 			Servers: []GrpcServerConfig{
-				{Name: "server2", Port: 58888, Services: []string{"GNMI"}, LocalConn: true},
+				{Name: "server2", Port: 58888, Services: []string{"GNMI"}, LocalConn: true, SSLProfileID: "system_default_profile"},
 			},
 		}
 		builder2 := buildGrpcConfigBuilder(server2)
@@ -5040,12 +5133,14 @@ func TestMultiGrpcServicesVrf(t *testing.T) {
 				Enable:          true,
 				Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_P4RT},
 				NetworkInstance: "mgmt",
+				CertificateID:   "system_default_profile",
 			},
 			{
-				ServerName: "server2",
-				Port:       58888,
-				Enable:     true,
-				Services:   []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				ServerName:    "server2",
+				Port:          58888,
+				Enable:        true,
+				Services:      []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+				CertificateID: "system_default_profile",
 			},
 		}
 
@@ -7287,11 +7382,11 @@ func TestFEAT36485(t *testing.T) {
 
 		// Step 1: Configure 5 unique servers with unique services
 		servers := []GrpcServerConfig{
-			{Name: "server1", Port: 50051, Services: []string{"GNMI"}},
-			{Name: "server2", Port: 50052, Services: []string{"GNOI"}},
-			{Name: "server3", Port: 50053, Services: []string{"GNSI"}},
-			{Name: "server4", Port: 50054, Services: []string{"GRIBI"}},
-			{Name: "server5", Port: 50055, Services: []string{"P4RT"}},
+			{Name: "server1", Port: 50051, Services: []string{"GNMI"}, SSLProfileID: "system_default_profile"},
+			{Name: "server2", Port: 50052, Services: []string{"GNOI"}, SSLProfileID: "system_default_profile"},
+			{Name: "server3", Port: 50053, Services: []string{"GNSI"}, SSLProfileID: "system_default_profile"},
+			{Name: "server4", Port: 50054, Services: []string{"GRIBI"}, SSLProfileID: "system_default_profile"},
+			{Name: "server5", Port: 50055, Services: []string{"P4RT"}, SSLProfileID: "system_default_profile"},
 		}
 
 		initialCfg := GrpcConfig{Servers: servers}

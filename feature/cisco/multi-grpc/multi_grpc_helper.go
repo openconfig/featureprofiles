@@ -1728,7 +1728,7 @@ func TestgRPCServiceForMultiServer(t testing.TB, name string, conn *grpc.ClientC
 	}
 
 	if expectErr {
-		t.Errorf("Expected error for RPC %s but it succeeded", name)
+		t.Errorf("[FAIL] Expected error for RPC %s but it succeeded", name)
 		return
 	}
 
@@ -2091,6 +2091,7 @@ func ParseEMSDServerBrief_CLI(output, serverName string) (EMSDServerBrief, error
 }
 
 func ValidateEMSDServerBrief_SSH(t *testing.T, dut *ondatra.DUTDevice, serverName string, expected EMSDServerBrief, negative bool) {
+	fmt.Printf("Validating EMSD Server Brief for server: %s\n", serverName)
 	ctx := context.Background()
 	cli := dut.RawAPIs().CLI(t)
 
