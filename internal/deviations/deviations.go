@@ -1774,3 +1774,8 @@ func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
 }
+
+// StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
+}
