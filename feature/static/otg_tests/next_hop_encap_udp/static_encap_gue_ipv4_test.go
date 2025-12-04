@@ -368,6 +368,45 @@ func createFlow(otgConfig gosnappi.Config, flowName string, flowtype string, ipA
 		}
 	}
 
+	// egress packet validation for outer + gue + inner layer
+	egressTracking := flow.EgressPacket()
+	egressTracking.Add().Ethernet()
+
+	// outer layer
+	if flowtype == "ipv4" {
+		egressTracking.Add().Ipv4()
+		// tosV4 := outerV4.Priority().Tos().Precedence().MetricTags().Add()
+		// tosV4.SetName("egress_ipv4_tos")
+		// tosV4.SetOffset(0).SetLength(3)
+
+	} else {
+		egressTracking.Add().Ipv6()
+		// ttlV4 := outerV6.HopLimit().MetricTags().Add()
+		// ttlV4.SetName("egress_ipv6_ttl")
+		// ttlV4.SetOffset(7).SetLength(8)
+
+		// tosV4 := outerV6.TrafficClass().MetricTags().Add()
+		// tosV4.SetName("egress_ipv6_tos")
+		// tosV4.SetOffset(0).SetLength(8)
+	}
+
+	// inner layer
+	if flowtype == "ipv4" {
+		egressTracking.Add().Ipv4()
+		// ttlV4 := innerV4.Priority().Tos().Precedence().MetricTags().Add()
+		// ttlV4.SetName("egress_inner_ipv4_ttl")
+		// ttlV4.SetOffset(0).SetLength(3)
+	} else {
+		egressTracking.Add().Ipv6()
+		// ttlV4 := innerV6.HopLimit().MetricTags().Add()
+		// ttlV4.SetName("egress_inner_ipv6_ttl")
+		// ttlV4.SetOffset(7).SetLength(8)
+
+		// tosV4 := innerV6.TrafficClass().MetricTags().Add()
+		// tosV4.SetName("egress_inner_ipv6_tos")
+		// tosV4.SetOffset(0).SetLength(8)
+	}
+
 }
 
 // verifyTraffic checks packet counts and ECMP load balancing.
