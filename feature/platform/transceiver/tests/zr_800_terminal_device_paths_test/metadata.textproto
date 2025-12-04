@@ -24,7 +24,6 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     explicit_dco_config: true
-    eth_channel_ingress_parameters_unsupported: true
     breakout_mode_unsupported_for_eight_hundred_gb: true
     port_speed_duplex_mode_unsupported_for_interface_config: true
     explicit_breakout_interface_config: true
