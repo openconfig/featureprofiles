@@ -28,6 +28,7 @@ import (
 	otg "github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 )
 
 func TestMain(m *testing.M) {
@@ -286,6 +287,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
 	return config
 }
 
