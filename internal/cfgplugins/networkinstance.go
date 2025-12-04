@@ -83,7 +83,7 @@ func UpdateNetworkInstanceOnDut(t *testing.T, dut *ondatra.DUTDevice, netInstNam
 }
 
 // ConfigureCustomNetworkInstance configures a default or non-default network instance name and type.
-func NewNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, nip *NetworkInstanceParams) {
+func NewNetworkInstance(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, nip *NetworkInstanceParams) {
 	t.Helper()
 	//ni := nip.Name not required as for default we use deviations.DefaultNetworkInstance(d)
 	if nip.Default {
