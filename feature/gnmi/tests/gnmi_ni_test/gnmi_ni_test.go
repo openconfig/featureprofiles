@@ -76,7 +76,7 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Configure default network instance.
-	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort1NetworkInstanceIParams)
+	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort1NetworkInstanceIParams)
 
 	// Configure gNMI server on default network instance.
 	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams)
@@ -93,7 +93,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dut.Port(t, "port2").Name(), &dutPort2NetworkInstanceIParams, dutPort2.Subinterface)
 
 	// Configure non-default network instance.
-	cfgplugins.NewNetworkInstance(t, batch, dut, &dutPort2NetworkInstanceIParams)
+	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
 
 	// Configure non-default gNMI server.
 	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams)

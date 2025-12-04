@@ -1276,7 +1276,7 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 }
 
 // EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
-func EnableInterfaceAndSubinterfaces(t *testing.T, b *gnmi.SetBatch, dut *ondatra.DUTDevice, portAttribs attrs.Attributes) {
+func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
 	t.Helper()
 	port := dut.Port(t, portAttribs.Name)
 	intPath := gnmi.OC().Interface(port.Name()).Config()
@@ -1286,7 +1286,6 @@ func EnableInterfaceAndSubinterfaces(t *testing.T, b *gnmi.SetBatch, dut *ondatr
 		Enabled: ygot.Bool(true),
 	}
 	if deviations.InterfaceEnabled(dut) {
-		intf.Enabled = ygot.Bool(true)
 		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
 		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
 	}
