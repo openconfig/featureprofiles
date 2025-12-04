@@ -4,7 +4,7 @@
 uuid:  "1c0cc46d-4b13-4bd3-bfd5-cf0fc1c074ad"
 plan_id:  "RT-3.53"
 description:  "Static route based GUE Encapsulation to IPv4 tunnel"
-testbed:  TESTBED_DUT_ATE_5LINKS
+testbed:  TESTBED_DUT_ATE_8LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
