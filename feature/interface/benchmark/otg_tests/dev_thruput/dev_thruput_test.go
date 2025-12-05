@@ -281,7 +281,6 @@ func TestInterfacePerformance(t *testing.T) {
 			currentConfig := ate.OTG().FetchConfig(t)
 			createTrafficFlow(t, flowName, tc.addressFamily, tc.dstMac, tc.frameSize, tc.pps, tc.isMixed, currentConfig)
 			ate.OTG().PushConfig(t, currentConfig)
-			ate.OTG().StartProtocols(t)
 
 			t.Logf("Starting traffic for %s", flowName)
 			ate.OTG().StartTraffic(t)
