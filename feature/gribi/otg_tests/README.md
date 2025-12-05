@@ -142,7 +142,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
 * Step 4 - Send Traffic from ATE port 2 to ATE 1 (towards destination address 198.51.100.1)
-* Step 5 - Validate traffice is received at ATE Port 1 without any loss.
+* Step 5 - Validate traffic is received at ATE Port 1 without any loss.
 * Step 6 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF
 
 ```yaml
