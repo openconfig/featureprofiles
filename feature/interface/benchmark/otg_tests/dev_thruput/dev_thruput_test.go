@@ -250,7 +250,6 @@ func verifySystemHealth(t *testing.T, dut *ondatra.DUTDevice) {
 func TestInterfacePerformance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-
 	t.Log("Configuring DUT interfaces and VLANs for snake topology...")
 	dutPortList := configureDUT(t, dut)
 	t.Log("Configuring ATE ports...")
