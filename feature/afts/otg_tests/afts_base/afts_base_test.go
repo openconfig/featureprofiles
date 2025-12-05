@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -72,10 +73,17 @@ const (
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 10 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 1500000
-	bgpRouteCountIPv6LowScale = 512000
+	bgpRouteCountIPv4LowScale = 2000000
+	bgpRouteCountIPv6LowScale = 1000000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
+	// contextTimeout is the overall timeout for the gNOI reboot operation.
+	contextTimeout = 15 * time.Minute
+	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
+	maxRebootTime = 20 * time.Minute
+	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
+	rebootPollInterval   = 30 * time.Second
+	maxTelemetrySyncTime = 20 * time.Minute
 )
 
 var (
@@ -133,6 +141,26 @@ func getPostChurnIPv6NH(dut *ondatra.DUTDevice) map[string]bool {
 		return map[string]bool{linkLocalAddress: true}
 	}
 	return map[string]bool{ateP1.IPv6: true}
+}
+
+// configureDUT configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureHwProfile(t *testing.T) error {
+	tc.dut.Config().New().
+		WithAristaText("").
+		WithCiscoText("hw-module profile route scale lpm tcam-banks").
+		WithJuniperText("").
+		Append(t)
+	return nil
+}
+
+// configureDUT configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
+	tc.dut.Config().New().
+		WithAristaText("").
+		WithCiscoText("no hw-module profile route scale lpm tcam-banks").
+		WithJuniperText("").
+		Append(t)
+	return nil
 }
 
 // configureDUT configures all the interfaces and BGP on the DUT.
@@ -225,6 +253,49 @@ const (
 	IPv4
 	IPv6
 )
+
+func (tc *testCase) rebootDUT(t *testing.T) {
+	t.Helper()
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	}
+	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v %v", bootTimeBeforeReboot, time.Now())
+	t.Log("Sending reboot request to DUT")
+
+	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), contextTimeout)
+	defer cancel()
+	_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
+	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	startReboot := time.Now()
+	t.Logf("Sleep for %v seconds", 2*time.Minute)
+	time.Sleep(2 * time.Minute)
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	// Wait for the device to become reachable again.
+	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().CurrentDatetime().State(), maxRebootTime, func(val *ygnmi.Value[string]) bool {
+		_, ok := val.Val()
+		return ok
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Timeout exceeded: DUT did not reboot within %v", maxRebootTime)
+	}
+	t.Logf("Device is reachable, waiting for boot time to update.")
+	t.Logf("Device boot time: %.2f seconds.", time.Since(startReboot).Seconds())
+
+	bootTimeAfterReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+}
 
 func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	d := &oc.Root{}
@@ -492,8 +563,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 }
 
 func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int, cacheNHGID bool) error {
+	var nhgID1 uint64 = 0
+	var pfix string = ""
 	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
 		nhgID, ok := aft.Prefixes[pfix]
+		nhgID1 = nhgID
 		if !ok {
 			return fmt.Errorf("prefix %s not found in AFT", pfix)
 		}
@@ -515,16 +589,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			}
 			// TODO: - Add check for exact interface name
 			// TODO: - Remove deviation and add recursive check for interface
-			if deviations.SkipInterfaceNameCheck(tc.dut) {
-				isAddrIPv6 := strings.Contains(pfix, ":")
-				// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
-				if cacheNHGID {
-					prevNHGIDIPv4 = nhgID
-					if isAddrIPv6 {
-						prevNHGIDIPv6 = nhgID
-					}
-				}
-			} else {
+			if !deviations.SkipInterfaceNameCheck(tc.dut) {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 				}
@@ -544,6 +609,19 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 				firstWeight = weight
 			} else if weight != firstWeight { // Compare with the first encountered weight
 				return fmt.Errorf("next hop group %d has unequal weights. Expected %d, got %d for next-hop %d for prefix %s", nhgID, firstWeight, weight, nhID, pfix)
+			}
+		}
+	}
+	if deviations.SkipInterfaceNameCheck(tc.dut) {
+		isAddrIPv6 := strings.Contains(pfix, ":")
+		// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
+		if cacheNHGID && nhgID1 != 0 && pfix != "" {
+			if isAddrIPv6 {
+				t.Logf("NHGID %v is updated for AddrIPv6, ptrv NHGID %v", nhgID1, cacheNHGID)
+				prevNHGIDIPv6 = nhgID1
+			} else {
+				prevNHGIDIPv4 = nhgID1
+				t.Logf("NHGID %v is updated for AddrIPv4, ptrv NHGID %v", nhgID1, cacheNHGID)
 			}
 		}
 	}
@@ -603,6 +681,24 @@ type testCase struct {
 func TestBGP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	tc := &testCase{
+		name:        "AFT Churn Test With Scale",
+		dut:         dut,
+		ate:         ate,
+		gnmiClient1: nil,
+		gnmiClient2: nil,
+	}
+	// TODO: - Add  deviation if any HW profile change is required
+	if tc.dut.Vendor() == ondatra.CISCO {
+		t.Log("Configuring DUT HW profile for Cisco and rebooting DUT")
+		if err := tc.configureHwProfile(t); err != nil {
+			t.Fatalf("failed to configure DUT HW profile: %v", err)
+		}
+		tc.rebootDUT(t)
+		defer tc.configureDefaultHwProfile(t)
+		defer tc.rebootDUT(t)
+	}
+
 	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
@@ -611,14 +707,8 @@ func TestBGP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
-	tc := &testCase{
-		name:        "AFT Churn Test With Scale",
-		dut:         dut,
-		ate:         ate,
-		gnmiClient1: gnmiClient1,
-		gnmiClient2: gnmiClient2,
-	}
-
+	tc.gnmiClient1 = gnmiClient1
+	tc.gnmiClient2 = gnmiClient2
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
