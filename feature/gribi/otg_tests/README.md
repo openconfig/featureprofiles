@@ -46,18 +46,28 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 ```json
 {
-  "table-connections": {
-    "table-connection": [
+  "network-instances": {
+    "network-instance": [
       {
-        "src-protocol": "openconfig-policy-types:GRIBI",
-        "dst-protocol": "openconfig-policy-types:BGP",
-        "address-family": "openconfig-types:IPV4",
+        "name": "TEST_VRF",
         "config": {
-          "src-protocol": "openconfig-policy-types:GRIBI",
-          "dst-protocol": "openconfig-policy-types:BGP",
-          "address-family": "openconfig-types:IPV4",
-          "default-export-policy": "REJECT_ROUTE",
-          "export-policy": "GRIBI-TO-BGP"
+          "name": "TEST_VRF"
+        },
+        "table-connections": {
+          "table-connection": [
+            {
+              "src-protocol": "openconfig-policy-types:GRIBI",
+              "dst-protocol": "openconfig-policy-types:BGP",
+              "address-family": "openconfig-types:IPV4",
+              "config": {
+                "src-protocol": "openconfig-policy-types:GRIBI",
+                "dst-protocol": "openconfig-policy-types:BGP",
+                "address-family": "openconfig-types:IPV4",
+                "default-export-policy": "REJECT_ROUTE",
+                "export-policy": "GRIBI-TO-BGP"
+              }
+            }
+          ]
         }
       }
     ]
@@ -67,57 +77,58 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 ```json
 {
-  "policy-definitions": {
-    "policy-definition": [
-      {
-        "name": "GRIBI-TO-BGP",
-        "config": {
-          "name": "GRIBI-TO-BGP"
-        },
-        "statements": {
-          "statement": [
-            {
-              "name": "REDISTRIBUTE_GRIBI_IPV4",
-              "config": {
-                "name": "REDISTRIBUTE_GRIBI_IPV4"
-              },
-              "conditions": {
-                "match-prefix-set": {
-                  "config": {
-                    "prefix-set": "EF_AGG",
-                    "match-set-options": "ANY"
-                  }
-                }
-              },
-              "actions": {
+  "routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "GRIBI-TO-BGP",
+          "config": {
+            "name": "GRIBI-TO-BGP"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "REDISTRIBUTE_GRIBI_IPV4",
                 "config": {
-                  "policy-result": "ACCEPT_ROUTE"
+                  "name": "REDISTRIBUTE_GRIBI_IPV4"
                 },
-                "openconfig-bgp-policy:bgp-actions": {
-                  "set-community": {
+                "conditions": {
+                  "match-prefix-set": {
                     "config": {
-                      "method": "REFERENCE",
-                      "options": "ADD"
-                    },
-                    "reference": {
+                      "prefix-set": "EF_AGG",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": {
+                    "policy-result": "ACCEPT_ROUTE"
+                  },
+                  "openconfig-bgp-policy:bgp-actions": {
+                    "set-community": {
                       "config": {
-                        "community-set-refs": [
-                          "EF_ALL",
-                          "NO-CORE"
-                        ]
+                        "method": "REFERENCE",
+                        "options": "ADD"
+                      },
+                      "reference": {
+                        "config": {
+                          "community-set-refs": [
+                            "EF_ALL",
+                            "NO-CORE"
+                          ]
+                        }
                       }
                     }
                   }
                 }
               }
-            }
-          ]
+            ]
+          }
         }
-      }
-    ]
+      ]
+    }
   }
 }
-
 ```
 
 * Step 2 - Program a gRIBI route in TEST_VRF
@@ -167,7 +178,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 #### Canonical OC
 
 ```json
-"routing-policy": {
+{
+  "routing-policy": {
     "policy-definitions": {
       "policy-definition": [
         {
@@ -188,12 +200,11 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                   },
                   "bgp-actions": {
                     "config": {
-                      "set-med": "+100",
+                      "set-med": "+100"
                     },
                     "set-as-path-prepend": {
                       "config": {
-                        "repeat-n": 5,
-                        "asn": 64701
+                        "repeat-n": 5
                       }
                     },
                     "set-community": {
@@ -216,6 +227,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
         }
       ]
     }
+  }
 }
 ```
 
