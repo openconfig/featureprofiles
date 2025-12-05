@@ -319,7 +319,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 ```
 
 * Step 5 - Append drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
-* Step 6 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
+* Step 6 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GSHUT community at ATE Port 2
 * Step 7 - Disable bgp session on ATE Port 2
 * Step 8 - Re-enable bgp session on ATE Port 2
 * Step 9 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
