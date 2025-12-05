@@ -35,7 +35,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
-### TestID-14.2.1 - gRIBI to BGP Redistribution
+### TestID-14.3.1 - gRIBI to BGP Redistribution
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -128,7 +128,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
 * Step 4 - Send Traffic from ATE port 2 to ATE 1 (towards destination address 198.51.100.1)
-* Step 5 - Validate traffice is received at ATE Port 2 without any loss.
+* Step 5 - Validate traffice is received at ATE Port 1 without any loss.
 * Step 6 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF
 
 ```yaml
@@ -138,13 +138,27 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 ```
 
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF
-* Step 8 - Validate full traffic loss at ATE Port 2
+* Step 8 - Validate full traffic loss at ATE Port 1
 `
 
-
-### TestID-14.2.2 - Drain Policy Validation
+### TestID-14.3.2 - Drain Policy Validation
 
 * Step 1 - Generate DUT configuration
+  * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
+  * Configure eBGP & multipath with import and export policies.
+  * Configure gRIBI to BGP redistribution policy and table connection.
+    
+* Step 2 - Program a gRIBI route in TEST_VRF
+
+```yaml
+#gRIBI Entry using gribic: Redistribute gRIBI to BGP
+'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
+```
+* Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2 with EF_ALL community, without GSHUT.
+
+* Step 4 - Generate drain policy configuration
   * Configure and append a drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
 
 #### Canonical OC
@@ -202,6 +216,25 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 }
 ```
 
+* Step 5 - Append drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
+* Step 6 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2 
+* Step 7 - Delete drain policy 'peer_drain'
+* Step 8 - Verify route '198.51.100.1/32' BGP attributes are reverted back to orginial attributes (including EF_ALL community) at ATE Port 2
+* Step 9 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
+
+```yaml
+'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
+'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
+'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
+```
+
+### TestID-14.3.3 - Disable BGP session with drain policy
+
+* Step 1 - Generate DUT configuration
+  * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
+  * Configure eBGP & multipath with import and export policies.
+  * Configure gRIBI to BGP redistribution policy and table connection.
+    
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
@@ -210,13 +243,74 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
+* Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2 with EF_ALL community, without GSHUT.
 
-* Step 3 - Verify gRIBI route '198.51.100.1/32' is received over eBGP session at ATE Port 2
-* Step 4 - Append drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
-* Step 5 - Verify route '198.51.100.1/32' is received with MED, appended AS numbers and GHUT community at ATE Port 2 
-* Step 5 - Delete drain policy 'peer_drain'
-* Step 3 - Verify route '198.51.100.1/32' BGP attributes are reverted back to orginial at ATE Port 2
-* Step 6 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
+* Step 4 - Generate drain policy configuration
+  * Configure and append a drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
+
+#### Canonical OC
+
+```json
+"routing-policy": {
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "peer_drain",
+          "config": {
+            "name": "peer_drain"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "DRAIN-ACTIONS",
+                "config": {
+                  "name": "DRAIN-ACTIONS"
+                },
+                "actions": {
+                  "config": {
+                    "policy-result": "NEXT_STATEMENT"
+                  },
+                  "bgp-actions": {
+                    "config": {
+                      "set-med": "+100",
+                    },
+                    "set-as-path-prepend": {
+                      "config": {
+                        "repeat-n": 5,
+                        "asn": 64701
+                      }
+                    },
+                    "set-community": {
+                      "config": {
+                         "options": "ADD"
+                      },
+                      "reference": {
+                        "config": {
+                          "community-set-refs": [
+                            "GSHUT-COMMUNITY"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+}
+```
+
+* Step 5 - Append drain policy 'peer_drain' to existing bgp export policy towards ATE Port 2 BGP session.
+* Step 6 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
+* Step 7 - Disable bgp session on ATE Port 2
+* Step 8 - Re-enable bgp session on ATE Port 2
+* Step 9 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
+* Step 10 - Delete drain policy 'peer_drain'
+* Step 11 - Verify route '198.51.100.1/32' BGP attributes are reverted back to orginial attributes (including EF_ALL community) at ATE Port 2
+* Step 12 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
