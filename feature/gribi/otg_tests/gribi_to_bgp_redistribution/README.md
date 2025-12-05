@@ -56,12 +56,16 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
         "table-connections": {
           "table-connection": [
             {
-              "src-protocol": "openconfig-policy-types:GRIBI",
-              "dst-protocol": "openconfig-policy-types:BGP",
-              "address-family": "openconfig-types:IPV4",
+              "src-protocol": "GRIBI",
+              "dst-protocol": "BGP",
+              "address-family": "IPV4",
               "config": {
-                "default-export-policy": "REJECT_ROUTE",
-                "export-policy": "GRIBI-TO-BGP"
+                "address-family": "IPV4",
+                "dst-protocol": "BGP",
+                "import-policy": [
+                  "GRIBI-TO-BGP"
+                ]
+                "src-protocol": "GRIBI"
               }
             }
           ]
