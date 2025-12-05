@@ -52,3 +52,11 @@ platform_exceptions:  {
     encap_tunnel_shut_backup_nhg_zero_traffic: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

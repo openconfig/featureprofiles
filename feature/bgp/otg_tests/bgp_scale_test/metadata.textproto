@@ -85,3 +85,11 @@ platform_exceptions: {
     bgp_explicit_prefix_limit_received: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

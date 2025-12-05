@@ -44,4 +44,11 @@ platform_exceptions: {
     community_invert_any_unsupported: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
