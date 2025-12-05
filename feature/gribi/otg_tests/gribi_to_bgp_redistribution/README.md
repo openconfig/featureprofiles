@@ -200,7 +200,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                   },
                   "bgp-actions": {
                     "config": {
-                      "set-med": "+100"
+                      "set-med": 100,
+                      "set-med-action": "ADD"
                     },
                     "set-as-path-prepend": {
                       "config": {
@@ -287,7 +288,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                   },
                   "bgp-actions": {
                     "config": {
-                      "set-med": "+100",
+                      "set-med": 100,
+                      "set-med-action": "ADD"
                     },
                     "set-as-path-prepend": {
                       "config": {
