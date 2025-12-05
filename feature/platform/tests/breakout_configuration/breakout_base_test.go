@@ -34,32 +34,74 @@ func getSpeedValue(speed oc.E_IfEthernet_ETHERNET_SPEED) string {
 	return ""
 }
 
-func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numBreakouts uint8, speed oc.E_IfEthernet_ETHERNET_SPEED) bool {
+func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numBreakouts uint8, speed oc.E_IfEthernet_ETHERNET_SPEED, numPhysicalChannels uint8) bool {
 	t.Logf("check phy for port %s", port)
-
 	cliHandle := dut.RawAPIs().CLI(t)
-	resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show controllers phy breakout interface %s", port))
-	if err != nil {
-		t.Errorf("Failed to get breakout info: %v", err)
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show controllers phy breakout interface %s", port))
+		if err != nil {
+			t.Errorf("Failed to get breakout info for Cisco: %v", err)
+			return false
+		}
+
+		// Create expected format (e.g., "4x100G")
+		expectedBreakout := fmt.Sprintf("%dx%sG", numBreakouts, getSpeedValue(speed))
+
+		// Find pattern like "4x100G" in "OPTICS_BO_TYPE_4x100G"
+		re := regexp.MustCompile(`TYPE_(\d+x\d+G)`)
+		matches := re.FindStringSubmatch(resp.Output())
+
+		var foundBreakout string
+		if len(matches) > 1 {
+			foundBreakout = matches[1]
+		}
+
+		t.Logf("Optic Supports the Following Breakout Mode: %s, "+
+			"Target breakout Configuration is: %s", foundBreakout, expectedBreakout)
+
+		return foundBreakout == expectedBreakout
+
+	case ondatra.ARISTA:
+		// Logic for Arista devices based on "show interfaces <port> hardware"
+		portName := dut.Port(t, "port1").Name()
+		resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show interfaces %s hardware", portName))
+		if err != nil {
+			t.Logf("Failed to get hardware info for Arista: %v", err)
+			return false
+		}
+
+		// Create expected format (e.g., "100G-2" or "400G-8")
+		expectedBreakout := fmt.Sprintf("%sG-%d", getSpeedValue(speed), numPhysicalChannels)
+		t.Logf("expectedBreakout is: %s", expectedBreakout)
+
+		// Regex to find the "Speed/duplex: ..." line and capture its content
+		re := regexp.MustCompile(`Speed/duplex:\s+(.*)`)
+		matches := re.FindStringSubmatch(resp.Output())
+
+		if len(matches) < 2 {
+			t.Errorf("Could not find 'Speed/duplex:' line in Arista output for port %s. Output: %s", port, resp.Output())
+			return false
+		}
+		speedDuplexLine := matches[1]
+		t.Logf("Found Arista Speed/duplex line: %s", speedDuplexLine)
+		supportedModes := strings.Split(speedDuplexLine, ",")
+
+		// Check if any of the supported modes start with our expected string
+		for _, mode := range supportedModes {
+			// Check prefix. e.g., " 400G-8/full(default)" starts with "400G-8"
+			if strings.HasPrefix(strings.TrimSpace(mode), expectedBreakout) {
+				t.Logf("SUCCESS: Found supported mode '%s' which matches expected breakout '%s'", strings.TrimSpace(mode), expectedBreakout)
+				return true
+			}
+		}
+
+		t.Logf("FAIL: Target breakout '%s' not found in Arista supported modes: [%s]", expectedBreakout, speedDuplexLine)
+		return false
+
+	default:
 		return false
 	}
-
-	// Create expected format (e.g., "4x100G")
-	expectedBreakout := fmt.Sprintf("%dx%sG", numBreakouts, getSpeedValue(speed))
-
-	// Find pattern like "4x100G" in "OPTICS_BO_TYPE_4x100G"
-	re := regexp.MustCompile(`TYPE_(\d+x\d+G)`)
-	matches := re.FindStringSubmatch(resp.Output())
-
-	var foundBreakout string
-	if len(matches) > 1 {
-		foundBreakout = matches[1]
-	}
-
-	t.Logf("Optic Supports the Following Breakout Mode: %s, "+
-		"Target breakout Configuration is: %s", foundBreakout, expectedBreakout)
-
-	return foundBreakout == expectedBreakout
 }
 
 // verifyBreakout checks if the breakout configuration matches the expected values.
@@ -177,18 +219,14 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 
 	case ondatra.ARISTA:
 
-		// Ensure there is a slash and it's not the last character (i.e., there's a number after it).
-		if lastSlashIndex == -1 || lastSlashIndex == len(originalPortName)-1 {
-			return nil, fmt.Errorf("Arista: invalid port name format '%s'. Expected format like 'Prefix/SubPortNumber' (e.g., 'Ethernet1/2/3')", originalPortName)
+		for i, port := range dut.Ports() {
+			t.Logf("port in index %d is: %s", i, port.Name())
 		}
-
-		baseNamePrefix := originalPortName[:lastSlashIndex+1]
-		// startSubPortStr := originalPortName[lastSlashIndex+1:] // E.g., "5"
-
-		var newPortNames []string
-		for currentSubPortNum := 1; currentSubPortNum <= int(numBreakouts); currentSubPortNum++ {
-			newPortName := baseNamePrefix + strconv.Itoa(currentSubPortNum)
-			newPortNames = append(newPortNames, newPortName)
+		newPortNames := make([]string, numBreakouts)
+		for i := 0; i < int(numBreakouts); i++ {
+			portID := "port" + strconv.Itoa(i+1)
+			newPortNames[i] = dut.Port(t, portID).Name()
+			t.Logf("Index %d: Mapped testbed ID '%s' to port name '%s'", i, portID, newPortNames[i])
 		}
 		return newPortNames, nil
 

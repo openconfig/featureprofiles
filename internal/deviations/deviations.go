@@ -1768,3 +1768,17 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// SkipSamplingQosCounters returns true if device does not support sampling QoS counters
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
+}
+
+// DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
+func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
+	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
+		return gnmiServerName
+	}
+	return "DEFAULT"
+}
