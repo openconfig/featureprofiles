@@ -64,7 +64,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                 "dst-protocol": "BGP",
                 "import-policy": [
                   "GRIBI-TO-BGP"
-                ]
+                ],
                 "src-protocol": "GRIBI"
               }
             }
