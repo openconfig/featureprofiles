@@ -1275,6 +1275,23 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 	}
 }
 
+// EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
+func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
+	t.Helper()
+	port := dut.Port(t, portAttribs.Name)
+	intPath := gnmi.OC().Interface(port.Name()).Config()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
+	}
+	gnmi.BatchUpdate(b, intPath, intf)
+}
+
 // VlanParams defines the parameters for configuring a VLAN.
 type VlanParams struct {
 	VlanID uint16

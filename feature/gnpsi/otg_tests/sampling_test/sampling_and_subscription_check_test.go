@@ -20,7 +20,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gnoi"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/gnpsi/proto/gnpsi"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
@@ -230,7 +230,7 @@ func TestSamplingAndSubscription(t *testing.T) {
 	}
 }
 
-func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.GNPSIClient) (gnpsi.GNPSI_SubscribeClient, error) {
+func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb.GNPSIClient) (gnpsipb.GNPSI_SubscribeClient, error) {
 	ticker := time.NewTicker(connectionRetryInterval)
 	defer ticker.Stop()
 	timeout := time.After(connectionTimeout)
@@ -240,7 +240,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.G
 		case <-timeout:
 			return nil, fmt.Errorf("failed to connect to GNPSI server within %v seconds", connectionTimeout)
 		case <-ticker.C:
-			stream, err := gnpsiClient.Subscribe(ctx, &gnpsi.Request{})
+			stream, err := gnpsiClient.Subscribe(ctx, &gnpsipb.Request{})
 			if err != nil {
 				t.Logf("Unable to connect to GNPSI server: %v, retrying", err)
 				continue
@@ -250,7 +250,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsi.G
 	}
 }
 
-func receiveSamples(t *testing.T, stream gnpsi.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
+func receiveSamples(t *testing.T, stream gnpsipb.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
 	sampleCount := 0
 	t.Log("Waiting for GNPSI samples")
@@ -337,7 +337,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	ate.OTG().PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	gnpsiClients := []gnpsi.GNPSI_SubscribeClient{}
+	gnpsiClients := []gnpsipb.GNPSI_SubscribeClient{}
 
 	for range gnpsiClientsInParallel {
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
@@ -438,7 +438,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, flow flowConfig) {
 	ctx, closeContext := context.WithCancel(t.Context())
 	defer closeContext()
-	var stream gnpsi.GNPSI_SubscribeClient
+	var stream gnpsipb.GNPSI_SubscribeClient
 	var err error
 	gnpsiClient := dut.RawAPIs().GNPSI(t)
 
