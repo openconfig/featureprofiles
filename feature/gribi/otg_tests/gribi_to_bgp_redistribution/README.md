@@ -1,4 +1,4 @@
-# TestID-14.3: gRIBI to BGP Route Redistribution for IPv4
+# TestID-16.4: gRIBI to BGP Route Redistribution for IPv4
 
 ## Summary
 
@@ -35,7 +35,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
-### TestID-14.3.1 - gRIBI to BGP Redistribution
+### TestID-16.4.1 - gRIBI to BGP Redistribution
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -154,7 +154,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF
 * Step 8 - Validate full traffic loss at ATE Port 1
 
-### TestID-14.3.2 - Drain Policy Validation
+### TestID-16.4.2 - Drain Policy Validation
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -242,7 +242,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
 ```
 
-### TestID-14.3.3 - Disable BGP session with drain policy
+### TestID-16.4.3 - Disable BGP session with drain policy
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -264,6 +264,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 #### Canonical OC
 
 ```json
+{
 "routing-policy": {
     "policy-definitions": {
       "policy-definition": [
@@ -314,6 +315,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
         }
       ]
     }
+  }
 }
 ```
 
