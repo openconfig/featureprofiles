@@ -4,7 +4,7 @@
 
 Validates that the `carrier-transitions` counter increments correctly when the
 interface link state changes.
-TODO: Use `/interfaces/interface/state/counters/interface-transitions` and
+[TODO] Use `/interfaces/interface/state/counters/interface-transitions` and
 `/interfaces/interface/state/counters/link-transitions` for the interface state
 changes.
 
@@ -19,7 +19,7 @@ ATE port-1 <------> port-1 DUT
 
 ### Test Environment Setup
 
-TODO: Deprecate this test when `interface-transitions` and `link-transitions` OC
+[TODO] Deprecate this test when `interface-transitions` and `link-transitions` OC
 Paths are implemented.
 
 The test environment consists of a DUT connected to an ATE with the following
