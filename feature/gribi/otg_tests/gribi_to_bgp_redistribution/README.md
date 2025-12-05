@@ -60,9 +60,6 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
               "dst-protocol": "openconfig-policy-types:BGP",
               "address-family": "openconfig-types:IPV4",
               "config": {
-                "src-protocol": "openconfig-policy-types:GRIBI",
-                "dst-protocol": "openconfig-policy-types:BGP",
-                "address-family": "openconfig-types:IPV4",
                 "default-export-policy": "REJECT_ROUTE",
                 "export-policy": "GRIBI-TO-BGP"
               }
