@@ -202,6 +202,10 @@ var (
 		{Size: 1024, Weight: 48},
 	}
 
+	jumboWeightProfile = []otgconfighelpers.SizeWeightPair{
+		{Size: 9000, Weight: 2},
+	}
+
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
 		Flow: &otgvalidationhelpers.FlowParams{TolerancePct: 0.5},
 	}
@@ -278,7 +282,18 @@ type BGPNeighbor struct {
 	peerGroup  string
 }
 
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureAnPF)
+	if hardwareInitCfg == "" {
+		return
+	}
+	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+
+}
+
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+	configureHardwareInit(t, dut)
+
 	for _, l := range custLagData {
 		b := &gnmi.SetBatch{}
 		// Create LAG interface
@@ -700,14 +715,14 @@ func TestEncapDecapGre(t *testing.T) {
 			name:        "PF1.23.4 : EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
 			flow: otgconfighelpers.Flow{
-				TxPort:     otgConfig.Lags().Items()[0].Name(),
-				RxPorts:    []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
-				IsTxRxPort: true,
-				FlowName:   "EthoMPLSoGREJumboMTU",
-				FrameSize:  9000,
-				EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
-				VLANFlow:   &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
-				IPv4Flow:   &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
+				TxPort:            otgConfig.Lags().Items()[0].Name(),
+				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
+				IsTxRxPort:        true,
+				FlowName:          "EthoMPLSoGREJumboMTU",
+				SizeWeightProfile: &jumboWeightProfile,
+				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
+				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapJumboMTU,
 		},
@@ -952,12 +967,12 @@ func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	InnerIPLayerIPv4 := &packetvalidationhelpers.IPv4Layer{
-		Tos: dscp,
-	}
+	// IPv4Layer := &packetvalidationhelpers.IPv4Layer{
+	// 	Tos: dscp,
+	// }
 
 	for _, v := range encapValidation {
-		v.InnerIPLayerIPv4 = InnerIPLayerIPv4
+		v.IPv4Layer.Tos = dscp
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
