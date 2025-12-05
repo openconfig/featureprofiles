@@ -341,20 +341,6 @@ paths are required, they should also be included here as a TODO comment.
 
 ```yaml
 paths:
-/network-instances/network-instance/table-connections/table-connection[src-protocol='GRIBI'][dst-protocol='BGP'][address-family='IPV4']/config/src-protocol
-/network-instances/network-instance/table-connections/table-connection[src-protocol='GRIBI'][dst-protocol='BGP'][address-family='IPV4']/config/dst-protocol
-/network-instances/network-instance/table-connections/table-connection[src-protocol='GRIBI'][dst-protocol='BGP'][address-family='IPV4']/config/address-family
-/network-instances/network-instance/table-connections/table-connection[src-protocol='GRIBI'][dst-protocol='BGP'][address-family='IPV4']/config/default-export-policy
-/network-instances/network-instance/table-connections/table-connection[src-protocol='GRIBI'][dst-protocol='BGP'][address-family='IPV4']/config/export-policy
-
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/config/name
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/config/name
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/conditions/match-prefix-set/config/prefix-set
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/conditions/match-prefix-set/config/match-set-options
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/actions/config/policy-result
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/actions/openconfig-bgp-policy:bgp-actions/set-community/config/method
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/actions/openconfig-bgp-policy:bgp-actions/set-community/config/options
-/routing-policy/policy-definitions/policy-definition[name='GRIBI-TO-BGP']/statements/statement[name='REDISTRIBUTE_GRIBI_IPV4']/actions/openconfig-bgp-policy:bgp-actions/set-community/reference/config/community-set-refs
 
 rpcs:
   gnmi:
