@@ -35,6 +35,75 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
+### Canonical OC - Defined Sets
+
+The following sets are used in the policies below.
+
+```json
+{
+  "routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "EF_AGG",
+            "config": {
+              "name": "EF_AGG",
+              "mode": "IPV4"
+            },
+            "prefixes": {
+              "prefix": [
+                {
+                  "ip-prefix": "198.51.100.0/26",
+                  "masklength-range": "32..32",
+                  "config": {
+                    "ip-prefix": "198.51.100.0/26",
+                    "masklength-range": "32..32"
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "openconfig-bgp-defined-sets": {
+        "community-sets": {
+          "community-set": [
+            {
+              "community-set-name": "EF_ALL",
+              "config": {
+                "community-set-name": "EF_ALL",
+                "community-member": [
+                  "65535:65535"
+                ]
+              }
+            },
+            {
+              "community-set-name": "NO-CORE",
+              "config": {
+                "community-set-name": "NO-CORE",
+                "community-member": [
+                  "65534:20420"
+                ]
+              }
+            },
+            {
+              "community-set-name": "GSHUT-COMMUNITY",
+              "config": {
+                "community-set-name": "GSHUT-COMMUNITY",
+                "community-member": [
+                  "65535:0"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+```
+
 ### TestID-16.4.1 - gRIBI to BGP Redistribution
 
 * Step 1 - Generate DUT configuration
