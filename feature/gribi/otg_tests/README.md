@@ -324,7 +324,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * Step 8 - Re-enable bgp session on ATE Port 2
 * Step 9 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
 * Step 10 - Delete drain policy 'peer_drain'
-* Step 11 - Verify route '198.51.100.1/32' BGP attributes are reverted back to orginial attributes (including EF_ALL community) at ATE Port 2
+* Step 11 - Verify route '198.51.100.1/32' BGP attributes are reverted back to original attributes (including EF_ALL community) at ATE Port 2
 * Step 12 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
 
 ```yaml
