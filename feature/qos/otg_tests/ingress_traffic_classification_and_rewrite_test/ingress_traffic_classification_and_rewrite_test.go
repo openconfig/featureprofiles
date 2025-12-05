@@ -68,6 +68,8 @@ const (
 	donotExecuteGue      = false
 	greProtocol          = 47
 	gueProtocolPort      = 6080
+	encapDscp            = 24
+	encapTrafficClass    = 3
 )
 
 var (
@@ -562,12 +564,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv6", "ipv6-over-udp", true)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	intialpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	intialpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	intialpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	intialpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	intialpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	intialpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
@@ -596,12 +598,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		verifyIpv6DscpCapture(t, ate, "port2")
 	}
 
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	finalpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	finalpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	finalpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	finalpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -700,12 +702,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv4", "ipv4-over-udp", true)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	intialpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	intialpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	intialpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	intialpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	intialpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	intialpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "intf1-nc1-ipv4")
@@ -731,12 +733,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	} else {
 		verifyIpv4DscpCapture(t, ate, "port2")
 	}
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	finalpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	finalpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	finalpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	finalpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -1130,7 +1132,7 @@ func contains(arr []int, target int) bool {
 	return false
 }
 
-func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
+func verify_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
 	dp1 := dut.Port(t, "port1")
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
@@ -1176,13 +1178,13 @@ func configureGreGuePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice
         		actions
         		count
         		redirect next-hop group SRC1_NH
-				set dscp 24
-				set traffic class 3
+				set dscp %d
+				set traffic class %d
 			    nexthop-group SRC1_NH type %s
         		tunnel-source intf %s
 				fec hierarchical
                 entry 1 tunnel-destination %s
-        	`, atePort2.IPv4, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+        	`, atePort2.IPv4, encapDscp, encapTrafficClass, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
 			} else {
 				matchRules += fmt.Sprintf(`				
         		match rule-src1-v6 ipv6
@@ -1190,13 +1192,13 @@ func configureGreGuePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice
         		actions
         		count
         		redirect next-hop group SRC1_NH
-				set dscp 24
-				set traffic class 3
+				set dscp %d
+				set traffic class %d
 				nexthop-group SRC1_NH type %s
         		tunnel-source intf %s
 				fec hierarchical
                 entry 2 tunnel-destination %s
-        	`, atePort2.IPv6, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+        	`, atePort2.IPv6, encapDscp, encapTrafficClass, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
 			}
 
 			// Apply Policy on the interface
@@ -1466,16 +1468,19 @@ func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType s
 	}
 }
 
+// configureHardwareInit configure the TCAM Profile based on the test.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
-	hardwareInitCfg1 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
-	hardwareInitCfg2 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureEnableAFTSummaries)
-	hardwareInitCfg3 := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureMplsTracking)
-	if hardwareInitCfg == "" || hardwareInitCfg1 == "" || hardwareInitCfg2 == "" || hardwareInitCfg3 == "" {
-		return
+	t.Helper()
+	features := []cfgplugins.FeatureType{
+		cfgplugins.FeatureVrfSelectionExtended,
+		cfgplugins.FeaturePolicyForwarding,
+		cfgplugins.FeatureEnableAFTSummaries,
+		cfgplugins.FeatureMplsTracking,
 	}
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg1)
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg2)
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg3)
+	for _, feature := range features {
+		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
+		if hardwareInitCfg != "" {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+		}
+	}
 }
