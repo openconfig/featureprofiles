@@ -63,6 +63,9 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     ]
   }
 }
+```
+
+```json
 {
   "policy-definitions": {
     "policy-definition": [
