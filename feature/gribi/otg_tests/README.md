@@ -153,7 +153,6 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF
 * Step 8 - Validate full traffic loss at ATE Port 1
-`
 
 ### TestID-14.3.2 - Drain Policy Validation
 
