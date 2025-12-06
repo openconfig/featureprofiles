@@ -115,27 +115,17 @@ The following sets are used in the policies below.
 
 ```json
 {
-  "network-instances": {
-    "network-instance": [
+  "table-connections": {
+    "table-connection": [
       {
-        "name": "TEST_VRF",
+        "src-protocol": "openconfig-policy-types:GRIBI",
+        "dst-protocol": "openconfig-policy-types:BGP",
+        "address-family": "openconfig-types:IPV4",
         "config": {
-          "name": "TEST_VRF"
-        },
-        "table-connections": {
-          "table-connection": [
-            {
-              "src-protocol": "openconfig-policy-types:GRIBI",
-              "dst-protocol": "openconfig-policy-types:BGP",
-              "address-family": "openconfig-types:IPV4",
-              "config": {
-                "import-policy": [
-                  "GRIBI-TO-BGP"
-                ],
-                "default-import-policy": "REJECT_ROUTE"
-              }
-            }
-          ]
+          "import-policy": [
+            "GRIBI-TO-BGP"
+          ],
+          "default-import-policy": "REJECT_ROUTE"
         }
       }
     ]
