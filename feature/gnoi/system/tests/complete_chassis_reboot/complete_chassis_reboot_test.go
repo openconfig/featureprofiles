@@ -192,7 +192,7 @@ func TestChassisReboot(t *testing.T) {
 					case <-ticker.C:
 						var currentTime string
 						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+							currentTime = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithRequestTimeout(30*time.Second)), gnmi.OC().System().CurrentDatetime().State())
 						})
 						if errMsg != nil {
 							if !deviceWentDown {
