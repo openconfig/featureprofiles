@@ -43,8 +43,6 @@ const (
 	rebootPollInterval = 10 * time.Second
 	// contextTimeout is the overall timeout for the gNOI reboot operation.
 	contextTimeout = 20 * time.Minute
-	// gnmiClientTimeoutAfterReboot is the timeout for gNMI client requests after device reboot to prevent client waiting indefinitely
-	gnmiClientTimeoutAfterReboot = 30 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -191,7 +189,7 @@ func TestChassisReboot(t *testing.T) {
 					case <-ticker.C:
 						var currentTime string
 						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-							watch := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), gnmiClientTimeoutAfterReboot, func(val *ygnmi.Value[string]) bool {
+							watch := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
 								_, present := val.Val()
 								if present {
 									return true
