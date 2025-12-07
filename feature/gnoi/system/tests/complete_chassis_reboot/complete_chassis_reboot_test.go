@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -190,7 +191,17 @@ func TestChassisReboot(t *testing.T) {
 					case <-ticker.C:
 						var currentTime string
 						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-							currentTime = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithRequestTimeout(gnmiClientTimeoutAfterReboot)), gnmi.OC().System().CurrentDatetime().State())
+							watch := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), gnmiClientTimeoutAfterReboot, func(val *ygnmi.Value[string]) bool {
+								_, present := val.Val()
+								if present {
+									return true
+								}
+								return false
+							})
+							if val, ok := watch.Await(t); !ok {
+								t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+							}
+							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 						})
 						if errMsg != nil {
 							if !deviceWentDown {
