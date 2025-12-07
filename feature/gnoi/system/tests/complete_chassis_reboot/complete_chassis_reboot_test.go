@@ -172,10 +172,6 @@ func TestChassisReboot(t *testing.T) {
 				}
 			}
 
-			// Wait for grace period to avoid race condition where device is mid-reboot
-			t.Logf("Waiting 60 seconds grace period before polling for device reboot...")
-			time.Sleep(60 * time.Second)
-
 			startReboot := time.Now()
 			t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 			{
