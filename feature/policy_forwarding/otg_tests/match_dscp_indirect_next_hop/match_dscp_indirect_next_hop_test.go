@@ -138,9 +138,6 @@ type ipAddr struct {
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
-	if hardwarePfCfg == "" {
-		return
-	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
 }
 
@@ -148,6 +145,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dc := gnmi.OC()
 
+	t.Log("Configuring DUT hardware profile for Policy Forwarding")
 	configureHardwareInit(t, dut)
 
 	for _, portAttr := range []attrs.Attributes{dutP1, dutP2, dutP3} {
