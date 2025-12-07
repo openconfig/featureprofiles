@@ -1362,6 +1362,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 			Direction: "input",
 		},
 	}
+
 	for _, acl := range aclConfigs {
 		cfgplugins.ConfigureTrafficPolicyACL(t, dut, acl)
 	}
