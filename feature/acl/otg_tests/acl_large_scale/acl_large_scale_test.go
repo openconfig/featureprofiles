@@ -15,9 +15,10 @@
 package acllargescale_test
 
 import (
+	"encoding/binary"
 	"fmt"
-	"math/rand"
-	"strconv"
+	"math/big"
+	"net"
 	"strings"
 	"testing"
 	"time"
@@ -27,7 +28,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -84,12 +84,6 @@ const (
 	aclNameIPv4Len22 = "ACL_IPV4_Match_length_22_tcp_range"
 	aclNameIPv4Len24 = "ACL_IPV4_Match_length_24_tcp_range"
 	aclNameHighScale = "ACL_IPV4_Match_high_scale_statements"
-
-	aclTypeIPv4 = oc.Acl_ACL_TYPE_ACL_IPV4
-	aclTypeIPv6 = oc.Acl_ACL_TYPE_ACL_IPV6
-
-	ipProtoTCP = 6
-	bgpPort    = 179
 )
 
 var prfxListSrcIpv4List = []string{"60.1.0.0", "70.1.0.0", "80.1.0.0", "90.1.0.0"}
@@ -102,11 +96,11 @@ var prfxListSrcV6SubnetList = []uint32{48, 64, 96, 126}
 var prfxListDstIpv6List = []string{"1500:2::0", "2500:2::0", "3500:2::0", "4500:2::0"}
 var prfxListDstV6Subnet = 112
 
-var srcPortIPv4Len22 = []string{"900", "80", "30", "40", "150", "1600", "2700", "21000 - 45000", "30000 - 50000"}
-var dstPortIPv4Len22 = []string{"800", "900", "100 - 20000"}
+var srcPortIPv4Len22 = "900 , 80, 30, 40, 150, 1600, 2700, 21000 - 45000, 30000 - 50000"
+var dstPortIPv4Len22 = "800, 900, 100 - 20000"
 
-var srcPortIPv4Len24 = []string{"100", "200", "300", "400", "500", "600", "700", "2000 - 4000", "20000 - 40000"}
-var dstPortIPv4Len24 = []string{"100 - 20000"}
+var srcPortIPv4Len24 = "100, 200, 300, 400, 500, 600, 700, 2000 - 4000, 20000 - 40000"
+var dstPortIPv4Len24 = "100 - 20000"
 
 var (
 	dutPort1 = &attrs.Attributes{
@@ -207,22 +201,12 @@ type bgpNeighbor struct {
 	name       string
 }
 
-type aclConfig struct {
-	name       string
-	srcIp      string
-	destIp     []string
-	srcTCPPort []string
-	dstTCPPort []string
-	action     string
-	isV4       bool
-}
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureACL)
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureNGPR)
 	if hardwareInitCfg == "" {
 		return
 	}
@@ -231,7 +215,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
-	// configureHardwareInit(t, dut)
+	configureHardwareInit(t, dut)
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(p1, dutPort1, dut))
@@ -278,214 +262,145 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
 	}
 }
 
-func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
-	aclRoot := &oc.Root{}
-	acl := aclRoot.GetOrCreateAcl()
+// func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
+// 	aclRoot := &oc.Root{}
+// 	acl := aclRoot.GetOrCreateAcl()
 
-	rangeFlag := 0
+// 	rangeFlag := 0
 
-	var src int
-	var dst int
-	if aclConfig.isV4 {
-		aclEntryId := 10
-		aclv4 := acl.GetOrCreateAclSet(aclConfig.name, oc.Acl_ACL_TYPE_ACL_IPV4)
-		for _, dstIp := range aclConfig.destIp {
-			for _, srcPort := range aclConfig.srcTCPPort {
-				subrange := strings.Split(srcPort, "-")
-				if len(subrange) > 1 {
-					srcPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-					rangeFlag = 1
-				} else {
-					src, _ = strconv.Atoi(srcPort)
-				}
-				for _, dstPort := range aclConfig.dstTCPPort {
-					aclEntry := aclv4.GetOrCreateAclEntry(uint32(aclEntryId))
-					aclEntry.SetSequenceId(uint32(aclEntryId))
-					aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
-					a := aclEntry.GetOrCreateIpv4()
-					a.Protocol = oc.UnionUint8(ipProtoTCP)
-					a.SetSourceAddress(aclConfig.srcIp)
-					a.SetDestinationAddress(dstIp)
+// 	var src int
+// 	var dst int
+// 	if aclConfig.isV4 {
+// 		aclEntryId := 10
+// 		aclv4 := acl.GetOrCreateAclSet(aclConfig.name, oc.Acl_ACL_TYPE_ACL_IPV4)
+// 		for _, dstIp := range aclConfig.destIp {
+// 			for _, srcPort := range aclConfig.srcTCPPort {
+// 				subrange := strings.Split(srcPort, "-")
+// 				if len(subrange) > 1 {
+// 					srcPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
+// 					rangeFlag = 1
+// 				} else {
+// 					src, _ = strconv.Atoi(srcPort)
+// 				}
+// 				for _, dstPort := range aclConfig.dstTCPPort {
+// 					aclEntry := aclv4.GetOrCreateAclEntry(uint32(aclEntryId))
+// 					aclEntry.SetSequenceId(uint32(aclEntryId))
+// 					aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+// 					a := aclEntry.GetOrCreateIpv4()
+// 					a.Protocol = oc.UnionUint8(ipProtoTCP)
+// 					a.SetSourceAddress(aclConfig.srcIp)
+// 					a.SetDestinationAddress(dstIp)
 
-					if rangeFlag == 1 {
-						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPort)}
-						aclEntry.GetOrCreateTransport().SetSourcePort(setRangeValue[0])
-						rangeFlag = 0
-					} else {
-						aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(src)
-					}
+// 					if rangeFlag == 1 {
+// 						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPort)}
+// 						aclEntry.GetOrCreateTransport().SetSourcePort(setRangeValue[0])
+// 						rangeFlag = 0
+// 					} else {
+// 						aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(src)
+// 					}
 
-					subrange := strings.Split(dstPort, "-")
-					if len(subrange) > 1 {
-						dstPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-						rangeFlag = 1
-					} else {
-						dst, _ = strconv.Atoi(dstPort)
-					}
-					if rangeFlag == 1 {
-						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPort)}
-						aclEntry.GetOrCreateTransport().SetDestinationPort(setRangeValue[0])
-						rangeFlag = 0
-					} else {
-						aclEntry.GetOrCreateTransport().DestinationPort = oc.UnionUint16(dst)
-					}
+// 					subrange := strings.Split(dstPort, "-")
+// 					if len(subrange) > 1 {
+// 						dstPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
+// 						rangeFlag = 1
+// 					} else {
+// 						dst, _ = strconv.Atoi(dstPort)
+// 					}
+// 					if rangeFlag == 1 {
+// 						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPort)}
+// 						aclEntry.GetOrCreateTransport().SetDestinationPort(setRangeValue[0])
+// 						rangeFlag = 0
+// 					} else {
+// 						aclEntry.GetOrCreateTransport().DestinationPort = oc.UnionUint16(dst)
+// 					}
 
-					aclEntryId += 10
-				}
-			}
-		}
-		if deviations.ConfigACLValueAnyOcUnsupported(dut) {
-			cliConfig := ""
-			switch dut.Vendor() {
-			case ondatra.ARISTA:
-				t.Log("Configure Acl to block BGP on port 179")
-				cliConfig = fmt.Sprintf(`
-					ip access-list %s
-					%d permit ip any any
-					%d permit tcp any eq 179 any
-					`, aclConfig.name, aclEntryId, aclEntryId+10)
-				helpers.GnmiCLIConfig(t, dut, cliConfig)
-			}
-		} else {
-			aclEntry := aclv4.GetOrCreateAclEntry(uint32(aclEntryId))
-			aclEntry.SetSequenceId(uint32(aclEntryId))
-			aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
-			a := aclEntry.GetOrCreateIpv4()
-			a.Protocol = oc.UnionUint8(ipProtoTCP)
-			aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(bgpPort)
-			a.SetSourceAddress(oc.Transport_DestinationPort_ANY.String())
-			a.SetDestinationAddress(oc.Transport_DestinationPort_ANY.String())
-		}
-	} else {
-		aclv6 := acl.GetOrCreateAclSet(aclConfig.name, oc.Acl_ACL_TYPE_ACL_IPV6)
-		aclEntryId := 10
-		for _, dstIp := range aclConfig.destIp {
-			for _, srcPort := range aclConfig.srcTCPPort {
-				subrange := strings.Split(srcPort, "-")
-				if len(subrange) > 1 {
-					srcPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-					rangeFlag = 1
-				} else {
-					src, _ = strconv.Atoi(srcPort)
-				}
-				for _, dstPort := range aclConfig.dstTCPPort {
-					aclEntry := aclv6.GetOrCreateAclEntry(uint32(aclEntryId))
-					aclEntry.SetSequenceId(uint32(aclEntryId))
-					aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
-					a := aclEntry.GetOrCreateIpv6()
-					a.Protocol = oc.UnionUint8(ipProtoTCP)
-					a.SetSourceAddress(aclConfig.srcIp)
-					a.SetDestinationAddress(dstIp)
+// 					aclEntryId += 10
+// 				}
+// 			}
+// 		}
+// 		if deviations.ConfigACLValueAnyOcUnsupported(dut) {
+// 			cliConfig := ""
+// 			switch dut.Vendor() {
+// 			case ondatra.ARISTA:
+// 				t.Log("Configure Acl to block BGP on port 179")
+// 				cliConfig = fmt.Sprintf(`
+// 					ip access-list %s
+// 					%d permit ip any any
+// 					%d permit tcp any eq 179 any
+// 					`, aclConfig.name, aclEntryId, aclEntryId+10)
+// 				helpers.GnmiCLIConfig(t, dut, cliConfig)
+// 			}
+// 		} else {
+// 			aclEntry := aclv4.GetOrCreateAclEntry(uint32(aclEntryId))
+// 			aclEntry.SetSequenceId(uint32(aclEntryId))
+// 			aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+// 			a := aclEntry.GetOrCreateIpv4()
+// 			a.Protocol = oc.UnionUint8(ipProtoTCP)
+// 			aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(bgpPort)
+// 			a.SetSourceAddress(oc.Transport_DestinationPort_ANY.String())
+// 			a.SetDestinationAddress(oc.Transport_DestinationPort_ANY.String())
+// 		}
+// 	} else {
+// 		aclv6 := acl.GetOrCreateAclSet(aclConfig.name, oc.Acl_ACL_TYPE_ACL_IPV6)
+// 		aclEntryId := 10
+// 		for _, dstIp := range aclConfig.destIp {
+// 			for _, srcPort := range aclConfig.srcTCPPort {
+// 				subrange := strings.Split(srcPort, "-")
+// 				if len(subrange) > 1 {
+// 					srcPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
+// 					rangeFlag = 1
+// 				} else {
+// 					src, _ = strconv.Atoi(srcPort)
+// 				}
+// 				for _, dstPort := range aclConfig.dstTCPPort {
+// 					aclEntry := aclv6.GetOrCreateAclEntry(uint32(aclEntryId))
+// 					aclEntry.SetSequenceId(uint32(aclEntryId))
+// 					aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
+// 					a := aclEntry.GetOrCreateIpv6()
+// 					a.Protocol = oc.UnionUint8(ipProtoTCP)
+// 					a.SetSourceAddress(aclConfig.srcIp)
+// 					a.SetDestinationAddress(dstIp)
 
-					if rangeFlag == 1 {
-						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPort)}
-						aclEntry.GetOrCreateTransport().SetSourcePort(setRangeValue[0])
-						rangeFlag = 0
-					} else {
-						aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(src)
-					}
+// 					if rangeFlag == 1 {
+// 						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPort)}
+// 						aclEntry.GetOrCreateTransport().SetSourcePort(setRangeValue[0])
+// 						rangeFlag = 0
+// 					} else {
+// 						aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(src)
+// 					}
 
-					subrange := strings.Split(dstPort, "-")
-					if len(subrange) > 1 {
-						dstPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-						rangeFlag = 1
-					} else {
-						dst, _ = strconv.Atoi(dstPort)
-					}
-					if rangeFlag == 1 {
-						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPort)}
-						aclEntry.GetOrCreateTransport().SetDestinationPort(setRangeValue[0])
-						rangeFlag = 0
-					} else {
-						aclEntry.GetOrCreateTransport().DestinationPort = oc.UnionUint16(dst)
-					}
-					aclEntryId += 10
-				}
-			}
-		}
-		t.Log("Configure Acl to block BGP on port 179")
-		cliConfig := fmt.Sprintf(`
-			ipv6 access-list %s
-			%d permit ipv6 any any
-			%d permit tcp any eq 179 any
-			%d permit icmpv6 any any
-			`, aclConfig.name, aclEntryId, aclEntryId+10, aclEntryId+20)
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-	}
+// 					subrange := strings.Split(dstPort, "-")
+// 					if len(subrange) > 1 {
+// 						dstPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
+// 						rangeFlag = 1
+// 					} else {
+// 						dst, _ = strconv.Atoi(dstPort)
+// 					}
+// 					if rangeFlag == 1 {
+// 						setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPort)}
+// 						aclEntry.GetOrCreateTransport().SetDestinationPort(setRangeValue[0])
+// 						rangeFlag = 0
+// 					} else {
+// 						aclEntry.GetOrCreateTransport().DestinationPort = oc.UnionUint16(dst)
+// 					}
+// 					aclEntryId += 10
+// 				}
+// 			}
+// 		}
+// 		t.Log("Configure Acl to block BGP on port 179")
+// 		cliConfig := fmt.Sprintf(`
+// 			ipv6 access-list %s
+// 			%d permit ipv6 any any
+// 			%d permit tcp any eq 179 any
+// 			%d permit icmpv6 any any
+// 			`, aclConfig.name, aclEntryId, aclEntryId+10, aclEntryId+20)
+// 		helpers.GnmiCLIConfig(t, dut, cliConfig)
+// 	}
 
-	t.Log("Pushing ACL configuration...")
-	gnmi.Update(t, dut, gnmi.OC().Acl().Config(), acl)
-	t.Log("ACL configuration applied.")
-}
-
-// TODO: Raised issue  416164360 for unsupport of logging
-func configHighScaleACL(t *testing.T, dut *ondatra.DUTDevice, name string, startCount int, lastCount int, srcAddr string, action string, log bool, aclType oc.E_Acl_ACL_TYPE) {
-	if deviations.ConfigACLValueAnyOcUnsupported(dut) {
-		ipType := ""
-		switch aclType {
-		case aclTypeIPv4:
-			ipType = "ip"
-		case aclTypeIPv6:
-			ipType = "ipv6"
-		}
-		cliConfig := fmt.Sprintf("%s access-list %s\n", ipType, name)
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			for i := startCount; i <= lastCount; i++ {
-				cliConfig += fmt.Sprintf("%d permit %s %s any\n", i, ipType, fmt.Sprintf(srcAddr, rand.Intn(256)))
-			}
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-		default:
-			t.Errorf("acl cli is not handled for the dut: %v", dut.Vendor())
-		}
-	} else {
-		aclRoot := &oc.Root{}
-		acl := aclRoot.GetOrCreateAcl()
-		for i := startCount; i <= lastCount; i++ {
-			aclEntry := acl.GetOrCreateAclSet(name, aclTypeIPv4).GetOrCreateAclEntry(uint32(i))
-			aclEntry.SetSequenceId(uint32(i))
-			if action == "ACCEPT" {
-				aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
-			}
-
-			if log {
-				aclEntry.GetOrCreateActions().SetLogAction(oc.Acl_LOG_ACTION_LOG_SYSLOG)
-			}
-
-			a := aclEntry.GetOrCreateIpv4()
-			a.SetSourceAddress(oc.Transport_DestinationPort_ANY.String())
-			a.SetDestinationAddress(oc.Transport_DestinationPort_ANY.String())
-		}
-		gnmi.Update(t, dut, gnmi.OC().Acl().Config(), acl)
-	}
-}
-
-func configACLInterface(t *testing.T, dut *ondatra.DUTDevice, portName string, aclName string, ingress bool, v4 bool) {
-	d := &oc.Root{}
-	ifName := dut.Port(t, portName).Name()
-
-	aclConf := gnmi.OC().Acl().Interface(ifName)
-	iFace := d.GetOrCreateAcl().GetOrCreateInterface(ifName)
-
-	if v4 {
-		if ingress {
-			iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-		} else {
-			iFace.GetOrCreateEgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
-		}
-	} else {
-		if ingress {
-			iFace.GetOrCreateIngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV6)
-		} else {
-			iFace.GetOrCreateEgressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV6)
-		}
-	}
-
-	iFace.GetOrCreateInterfaceRef().SetInterface(ifName)
-	iFace.GetOrCreateInterfaceRef().SetSubinterface(0)
-
-	gnmi.Replace(t, dut, aclConf.Config(), iFace)
-}
+// 	t.Log("Pushing ACL configuration...")
+// 	gnmi.Update(t, dut, gnmi.OC().Acl().Config(), acl)
+// 	t.Log("ACL configuration applied.")
+// }
 
 func configInterfaceDUT(p *ondatra.Port, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
 	i := a.NewOCInterface(p.Name(), dut)
@@ -687,20 +602,6 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 	return otgConfig
 }
 
-func configureTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, policyName string, protocolType string, srcAddress []string, dstAddress string, srcPort string, dstPort string, intfName string) {
-	aclTrafficPolicyConfig := cfgplugins.ACLTrafficPolicyParams{
-		PolicyName:   policyName,
-		ProtocolType: protocolType,
-		SrcPrefix:    srcAddress,
-		DstPrefix:    dstAddress,
-		SrcPort:      srcPort,
-		DstPort:      dstPort,
-		IntfName:     intfName,
-	}
-
-	cfgplugins.ConfigureTrafficPolicyACL(t, dut, aclTrafficPolicyConfig)
-}
-
 // createFlow returns a flow from atePort1 to the dstPfx
 func createFlow(flowName string, srcPort []string, dstPort []string, srcAddress []string, dstAddress []string, tcpSrcPort uint32, tcpDstPort uint32, protocolType string) gosnappi.Flow {
 	flow := gosnappi.NewFlow().SetName(flowName)
@@ -739,23 +640,6 @@ func withdrawBGPRoutes(t *testing.T, routeNames []string) {
 
 }
 
-func verifyACLOnInterface(t *testing.T, dut *ondatra.DUTDevice, expectedName string, port string, ingress bool) {
-	ifName := dut.Port(t, port).Name()
-	intfPath := gnmi.OC().Acl().Interface(ifName)
-	var aclName string
-	if ingress {
-		aclName = gnmi.GetAll(t, dut, intfPath.IngressAclSetAny().State())[0].GetSetName()
-	} else {
-		aclName = gnmi.GetAll(t, dut, intfPath.EgressAclSetAny().State())[0].GetSetName()
-	}
-
-	if aclName == expectedName {
-		t.Logf("ACL is configured correctly on %s", ifName)
-	} else {
-		t.Logf("ACL is not configured on %s. Expected: %s, got: %s", ifName, expectedName, aclName)
-	}
-}
-
 func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, flowName string) {
 	outPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().OutPkts().State()))
 	inPkts := float32(gnmi.Get(t, otgConfig, gnmi.OTG().Flow(flowName).Counters().InPkts().State()))
@@ -782,12 +666,6 @@ func validateTrafficLoss(t *testing.T, otgConfig *otg.OTG, flowName string) {
 // 	return count
 // }
 
-func removeAClOnInterface(t *testing.T, dut *ondatra.DUTDevice, portName string) {
-	ifName := dut.Port(t, portName).Name()
-	aclConf := gnmi.OC().Acl().Interface(ifName)
-	gnmi.Delete(t, dut, aclConf.Config())
-}
-
 func TestAclLargeScale(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -800,7 +678,6 @@ func TestAclLargeScale(t *testing.T) {
 	t.Logf("Configure on OTG")
 	otgConfig := ate.OTG()
 	config := configureOTG(t, ate, false)
-	otgConfig.PushConfig(t, config)
 
 	testCases := []struct {
 		desc     string
@@ -833,83 +710,127 @@ func TestAclLargeScale(t *testing.T) {
 	}
 }
 
+func generateNetworks(ipBlock string, n int) []string {
+	var out []string
+
+	_, ipNet, err := net.ParseCIDR(ipBlock)
+	if err != nil {
+		return out
+	}
+
+	maskSize, _ := ipNet.Mask.Size()
+	base := binary.BigEndian.Uint32(ipNet.IP)
+	blockSize := uint32(1 << (32 - maskSize))
+
+	for i := 0; i < n; i++ {
+		ip := make(net.IP, 4)
+		binary.BigEndian.PutUint32(ip, base+uint32(i)*blockSize)
+		out = append(out, fmt.Sprintf("%s/%d", ip.String(), maskSize))
+	}
+
+	return out
+}
+
+func generateIPv6Networks(ipBlock string, n int) []string {
+	var out []string
+
+	_, ipNet, err := net.ParseCIDR(ipBlock)
+	if err != nil {
+		return out
+	}
+
+	maskSize, _ := ipNet.Mask.Size()
+
+	base := new(big.Int).SetBytes(ipNet.IP)
+
+	blockSize := new(big.Int)
+	blockSize.Exp(big.NewInt(2), big.NewInt(int64(128-maskSize)), nil)
+
+	for i := 0; i < n; i++ {
+		// nextIP = base + (i * blockSize)
+		ipInt := new(big.Int).Mul(blockSize, big.NewInt(int64(i)))
+		ipInt.Add(ipInt, base)
+
+		// ensure 16-byte IPv6
+		ipBytes := ipInt.Bytes()
+		if len(ipBytes) < net.IPv6len {
+			padded := make([]byte, net.IPv6len)
+			copy(padded[net.IPv6len-len(ipBytes):], ipBytes)
+			ipBytes = padded
+		}
+
+		ip := net.IP(ipBytes)
+		out = append(out, fmt.Sprintf("%s/%d", ip.String(), maskSize))
+	}
+
+	return out
+}
+
 func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config) {
 	destIps_1 := []string{fmt.Sprintf("%s/%d", prefixV4Address2, prefix2), fmt.Sprintf("%s/%d", prefixV4Address3, prefix3), fmt.Sprintf("%s/%d", prefixV4Address4, prefix4)}
 	destIps_2 := []string{fmt.Sprintf("%s/%d", prefixV4Address1, prefix1), fmt.Sprintf("%s/%d", prefixV4Address2, prefix2), fmt.Sprintf("%s/%d", prefixV4Address3, prefix3)}
 
-	aclConfigs := []aclConfig{
-		{
-			name:       aclNameIPv4Len22,
-			srcIp:      fmt.Sprintf("%s/%d", prefixV4Address1, prefix1),
-			destIp:     destIps_1,
-			srcTCPPort: srcPortIPv4Len22,
-			dstTCPPort: dstPortIPv4Len22,
-			action:     "ACCEPT",
-			isV4:       true,
-		},
-		{
-			name:       aclNameIPv4Len24,
-			srcIp:      fmt.Sprintf("%s/%d", prefixV4Address4, prefix4),
-			destIp:     destIps_2,
-			srcTCPPort: srcPortIPv4Len24,
-			dstTCPPort: dstPortIPv4Len24,
-			action:     "ACCEPT",
-			isV4:       true,
-		},
+	var highScaleSrcIps []string
+	highScaleDstIps := []string{"30.12.0.0/22", "30.45.0.0/24", "30.87.0.4/30", "30.101.0.0/32"}
+
+	ranges := []struct {
+		count int
+		ip    string
+	}{
+		{100, "100.1.0.0/22"},
+		{25, "50.1.0.0/24"},
+		{25, "200.1.0.0/30"},
+		{25, "210.1.0.0/32"},
 	}
 
+	for index, r := range ranges {
+		highScaleSrcIps = append(highScaleSrcIps, generateNetworks(r.ip, r.count)...)
+		highScaleDstIps = append(highScaleDstIps, generateNetworks(highScaleDstIps[index], r.count)...)
+	}
+
+	aclConfigs := []cfgplugins.ACLTrafficPolicyParams{
+		{
+			PolicyName:   aclNameIPv4Len22,
+			ProtocolType: "ipv4",
+			SrcPrefix:    []string{fmt.Sprintf("%s/%d", prefixV4Address1, prefix1)},
+			DstPrefix:    destIps_1,
+			SrcPort:      srcPortIPv4Len22,
+			DstPort:      dstPortIPv4Len22,
+			Action:       "count",
+			IntfName:     dut.Port(t, "port1").Name(),
+			Direction:    "input",
+		},
+		{
+			PolicyName:   aclNameIPv4Len24,
+			ProtocolType: "ipv4",
+			SrcPrefix:    []string{fmt.Sprintf("%s/%d", prefixV4Address4, prefix4)},
+			DstPrefix:    destIps_2,
+			SrcPort:      srcPortIPv4Len24,
+			DstPort:      dstPortIPv4Len24,
+			Action:       "count",
+			IntfName:     dut.Port(t, "port2").Name(),
+			Direction:    "input",
+		},
+		{
+			PolicyName:   aclNameHighScale,
+			ProtocolType: "ipv4",
+			SrcPrefix:    highScaleSrcIps,
+			DstPrefix:    highScaleDstIps,
+			SrcPort:      "",
+			DstPort:      "",
+			Action:       "count",
+			IntfName:     dut.Port(t, "port3").Name(),
+			Direction:    "input",
+		},
+		{
+			PolicyName:   aclNameHighScale,
+			ProtocolType: "ipv4",
+			IntfName:     dut.Port(t, "port4").Name(),
+			Direction:    "output",
+		},
+	}
 	for _, acl := range aclConfigs {
-		configACL(t, dut, acl)
-	}
-
-	highScaleACL := []struct {
-		name       string
-		startCount int
-		lastCount  int
-		srcIp      string
-		action     string
-		log        bool
-	}{
-		{aclNameHighScale, 1, 100, "100.1.%d.0/22", "ACCEPT", false},
-		{aclNameHighScale, 126, 150, "50.1.%d.0/24", "ACCEPT", true},
-		{aclNameHighScale, 151, 175, "200.1.%d.0/30", "ACCEPT", false},
-		{aclNameHighScale, 176, 200, "210.1.%d.0/32", "ACCEPT", false},
-	}
-	for _, acl := range highScaleACL {
-		configHighScaleACL(t, dut, acl.name, acl.startCount, acl.lastCount, acl.srcIp, acl.action, acl.log, aclTypeIPv4)
-	}
-
-	cliConfig := fmt.Sprintf(`
-					ip access-list %s
-					%d permit ip any any
-					`, aclNameHighScale, 201)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-	// Apply ACL_IPV4_Match_length_22_tcp_range on DUT-port1 Ingress
-	configACLInterface(t, dut, "port1", aclNameIPv4Len22, true, true)
-
-	// Apply ACL_IPV4_Match_length_24_tcp_range on DUT-port2 Ingress
-	configACLInterface(t, dut, "port2", aclNameIPv4Len24, true, true)
-
-	// Apply ACL_IPV4_Match_high_scale_statements on DUT-port3 Ingress
-	configACLInterface(t, dut, "port3", aclNameHighScale, true, true)
-
-	// Apply ACL_IPV4_Match_high_scale_statements on DUT-port4 Egress
-	configACLInterface(t, dut, "port4", aclNameHighScale, false, true)
-
-	// Verification of ACL on interfaces as Ingress & Egress
-	var expectedACLs = []struct {
-		Name    string
-		Ingress bool
-		port    string
-	}{
-		{Name: aclNameIPv4Len22, Ingress: true, port: "port1"},
-		{Name: aclNameIPv4Len24, Ingress: true, port: "port2"},
-		{Name: aclNameHighScale, Ingress: true, port: "port3"},
-		{Name: aclNameHighScale, Ingress: false, port: "port4"},
-	}
-	for _, aclSet := range expectedACLs {
-		verifyACLOnInterface(t, dut, aclSet.Name, aclSet.port, aclSet.Ingress)
+		cfgplugins.ConfigureTrafficPolicyACL(t, dut, acl)
 	}
 
 	config.Flows().Clear()
@@ -1036,85 +957,74 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 }
 
 func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config) {
+	var highScaleSrcIps []string
+	highScaleDstIps := []string{"3000:1::0/48", "3001:1::0/96", "3002:1::0/126", "3003:1::0/128"}
 
-	aclConfigs := []aclConfig{
+	ranges := []struct {
+		count int
+		ip    string
+	}{
+		{100, "1000:1::0/48"},
+		{25, "5000:1::0/96"},
+		{25, "1500:1::0/126"},
+		{25, "2000:1::0/128"},
+	}
+
+	for index, r := range ranges {
+		highScaleSrcIps = append(highScaleSrcIps, generateIPv6Networks(r.ip, r.count)...)
+		highScaleDstIps = append(highScaleDstIps, generateIPv6Networks(highScaleDstIps[index], r.count)...)
+	}
+
+	aclConfigs := []cfgplugins.ACLTrafficPolicyParams{
 		{
-			name:  "ACL_IPV6_Match_length_48_tcp_range",
-			srcIp: fmt.Sprintf("%s/%d", prefixV6Address1, prefixV6_1),
-			destIp: []string{
+			PolicyName:   "ACL_IPV6_Match_length_48_tcp_range",
+			ProtocolType: "ipv6",
+			SrcPrefix:    []string{fmt.Sprintf("%s/%d", prefixV6Address1, prefixV6_1)},
+			DstPrefix: []string{
 				fmt.Sprintf("%s/%d", prefixV6Address2, prefixV6_2),
 				fmt.Sprintf("%s/%d", prefixV6Address3, prefixV6_3),
 				fmt.Sprintf("%s/%d", prefixV6Address4, prefixV6_4)},
-			srcTCPPort: srcPortIPv4Len22,
-			dstTCPPort: dstPortIPv4Len22,
-			action:     "ACCEPT",
-			isV4:       false,
+			SrcPort:   srcPortIPv4Len22,
+			DstPort:   dstPortIPv4Len22,
+			Action:    "count",
+			IntfName:  dut.Port(t, "port1").Name(),
+			Direction: "input",
 		},
 		{
-			name:  "ACL_IPV6_Match_length_96_tcp_range",
-			srcIp: fmt.Sprintf("%s/%d", prefixV6Address4, prefixV6_4),
-			destIp: []string{
+			PolicyName:   "ACL_IPV6_Match_length_96_tcp_range",
+			ProtocolType: "ipv6",
+			SrcPrefix:    []string{fmt.Sprintf("%s/%d", prefixV6Address4, prefixV6_4)},
+			DstPrefix: []string{
 				fmt.Sprintf("%s/%d", prefixV6Address2, prefixV6_2),
 				fmt.Sprintf("%s/%d", prefixV6Address3, prefixV6_3),
 				fmt.Sprintf("%s/%d", prefixV6Address1, prefixV6_1)},
-			srcTCPPort: srcPortIPv4Len24,
-			dstTCPPort: dstPortIPv4Len24,
-			action:     "ACCEPT",
-			isV4:       false,
+			SrcPort:   srcPortIPv4Len24,
+			DstPort:   dstPortIPv4Len24,
+			Action:    "count",
+			IntfName:  dut.Port(t, "port2").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV6_Match_high_scale_statements",
+			ProtocolType: "ipv6",
+			SrcPrefix:    highScaleSrcIps,
+			DstPrefix:    highScaleDstIps,
+			SrcPort:      "",
+			DstPort:      "",
+			Action:       "count",
+			IntfName:     dut.Port(t, "port3").Name(),
+			Direction:    "input",
+		},
+		{
+			PolicyName:   "ACL_IPV6_Match_high_scale_statements",
+			ProtocolType: "ipv6",
+			IntfName:     dut.Port(t, "port4").Name(),
+			Direction:    "output",
 		},
 	}
 
 	for _, acl := range aclConfigs {
-		configACL(t, dut, acl)
-	}
-
-	highScaleACL := []struct {
-		name       string
-		startCount int
-		lastCount  int
-		srcIp      string
-		action     string
-		log        bool
-	}{
-		{"ACL_IPV6_Match_high_scale_statements", 1, 125, "1000:1:%x::/48", "ACCEPT", false},
-		{"ACL_IPV6_Match_high_scale_statements", 126, 150, "5000:1:%x::/96", "ACCEPT", true},
-		{"ACL_IPV6_Match_high_scale_statements", 151, 175, "1500:1:%x::/126", "ACCEPT", false},
-		{"ACL_IPV6_Match_high_scale_statements", 176, 200, "2000:1:%x::/128", "ACCEPT", false},
-	}
-	for _, acl := range highScaleACL {
-		configHighScaleACL(t, dut, acl.name, acl.startCount, acl.lastCount, acl.srcIp, acl.action, acl.log, aclTypeIPv6)
-	}
-	cliConfig := fmt.Sprintf(`
-					ipv6 access-list %s
-					%d permit ipv6 any any
-					`, "ACL_IPV6_Match_high_scale_statements", 201)
-	helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-	// Apply ACL_IPV4_Match_length_22_tcp_range on DUT-port1 Ingress
-	configACLInterface(t, dut, "port1", "ACL_IPV6_Match_length_48_tcp_range", true, false)
-
-	// Apply ACL_IPV4_Match_length_24_tcp_range on DUT-port2 Ingress
-	configACLInterface(t, dut, "port2", "ACL_IPV6_Match_length_96_tcp_range", true, false)
-
-	// Apply ACL_IPV4_Match_high_scale_statements on DUT-port3 Ingress
-	configACLInterface(t, dut, "port3", "ACL_IPV6_Match_high_scale_statements", true, false)
-
-	// Apply ACL_IPV4_Match_high_scale_statements on DUT-port4 Egress
-	configACLInterface(t, dut, "port4", "ACL_IPV6_Match_high_scale_statements", false, false)
-
-	// Verify ACL is applied on the interfaces
-	var expectedACLs = []struct {
-		Name    string
-		Ingress bool
-		port    string
-	}{
-		{Name: "ACL_IPV6_Match_length_48_tcp_range", Ingress: true, port: "port1"},
-		{Name: "ACL_IPV6_Match_length_96_tcp_range", Ingress: true, port: "port2"},
-		{Name: "ACL_IPV6_Match_high_scale_statements", Ingress: true, port: "port3"},
-		{Name: "ACL_IPV6_Match_high_scale_statements", Ingress: false, port: "port4"},
-	}
-	for _, aclSet := range expectedACLs {
-		verifyACLOnInterface(t, dut, aclSet.Name, aclSet.port, aclSet.Ingress)
+		cfgplugins.ConfigureTrafficPolicyACL(t, dut, acl)
 	}
 
 	config.Flows().Clear()
@@ -1239,69 +1149,75 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 }
 
 func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config) {
-	// Remove the ACL configs from interface
-	removeAClOnInterface(t, dut, "port1")
-	removeAClOnInterface(t, dut, "port2")
-	removeAClOnInterface(t, dut, "port3")
-	removeAClOnInterface(t, dut, "port4")
-
-	// Configure DUT
-	configureDUT(t, dut, false)
-
 	// Configure OTG
 	configV4 := configureOTG(t, ate, true)
 	otgConfig.PushConfig(t, configV4)
 
-	// Configure ACL_IPV4_Match_using_prefix_list_prfxv4-1
-	ports := "100-65500"
-	srcPrefixAddress := []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[2]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
+	aclConfigs := []cfgplugins.ACLTrafficPolicyParams{
+		{
+			PolicyName:   "ACL_IPV4_Match_using_prefix_list_prfxv4-1",
+			ProtocolType: "ipv4",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[2]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv4List[0], prfxListDstSubnet)},
+			SrcPort:   "100-65500",
+			DstPort:   "100-65500",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port1").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV4_Match_using_prefix_list_prfxv4-2",
+			ProtocolType: "ipv4",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[2]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv4List[1], prfxListDstSubnet)},
+			SrcPort:   "115, 215, 980, 1090, 8000",
+			DstPort:   "30000-45000",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port2").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV4_Match_using_prefix_list_prfxv4-3",
+			ProtocolType: "ipv4",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv4List[2], prfxListDstSubnet)},
+			SrcPort:   "280, 700, 1150, 5110, 1899",
+			DstPort:   "5000-10999",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port3").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV4_Match_using_prefix_list_prfxv4-4",
+			ProtocolType: "ipv4",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv4List[3], prfxListDstSubnet)},
+			SrcPort:   "50-100, 200-5000, 800-6550",
+			DstPort:   "80",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port4").Name(),
+			Direction: "input",
+		},
 	}
-
-	dstPrefixAddress := fmt.Sprintf("%s/%d", prfxListDstIpv4List[0], prfxListDstSubnet)
-
-	configureTrafficPolicy(t, dut, "ACL_IPV4_Match_using_prefix_list_prfxv4-1", "ipv4", srcPrefixAddress, dstPrefixAddress, ports, ports, dut.Port(t, "port1").Name())
-
-	// Configure ACL_IPV4_Match_using_prefix_list_prfxv4-2
-	srcPort := "115, 215, 980, 1090, 8000"
-	dstPort := "30000-45000"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[2]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
+	for _, acl := range aclConfigs {
+		cfgplugins.ConfigureTrafficPolicyACL(t, dut, acl)
 	}
-
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv4List[1], prfxListDstSubnet)
-
-	configureTrafficPolicy(t, dut, "ACL_IPV4_Match_using_prefix_list_prfxv4-2", "ipv4", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port2").Name())
-
-	// Configure ACL_IPV4_Match_using_prefix_list_prfxv4-3
-	srcPort = "280, 700, 1150, 5110, 1899"
-	dstPort = "5000-10999"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[3], prfxListSrcSubnetList[3]),
-	}
-
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv4List[2], prfxListDstSubnet)
-
-	configureTrafficPolicy(t, dut, "ACL_IPV4_Match_using_prefix_list_prfxv4-3", "ipv4", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port3").Name())
-
-	// Configure ACL_IPV4_Match_using_prefix_list_prfxv4-4
-	srcPort = "50-100, 200-5000, 800-6550"
-	dstPort = "80"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[0], prfxListSrcSubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[1], prfxListSrcSubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv4List[2], prfxListSrcSubnetList[3]),
-	}
-
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv4List[3], prfxListDstSubnet)
-
-	configureTrafficPolicy(t, dut, "ACL_IPV4_Match_using_prefix_list_prfxv4-4", "ipv4", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port4").Name())
 
 	config.Flows().Clear()
 
@@ -1384,48 +1300,71 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	configV6 := configureOTG(t, ate, true)
 	otgConfig.PushConfig(t, configV6)
 
-	// Configure ACL_IPV6_Match_using_prefix_list_prfxv6-1
-	ports := "100-65500"
-	srcPrefixAddress := []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
+	aclConfigs := []cfgplugins.ACLTrafficPolicyParams{
+		{
+			PolicyName:   "ACL_IPV6_Match_using_prefix_list_prfxv6-1",
+			ProtocolType: "ipv6",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv6List[1], prfxListDstV6Subnet)},
+			SrcPort:   "100-65500",
+			DstPort:   "100-65500",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port1").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV6_Match_using_prefix_list_prfxv6-2",
+			ProtocolType: "ipv6",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[2], prfxListSrcV6SubnetList[2]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv6List[1], prfxListDstV6Subnet)},
+			SrcPort:   "115, 215, 980, 1090, 8000",
+			DstPort:   "30000-45000",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port2").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV6_Match_using_prefix_list_prfxv6-3",
+			ProtocolType: "ipv6",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv6List[2], prfxListDstV6Subnet)},
+			SrcPort:   "280, 700, 1150, 5110, 1899",
+			DstPort:   "5000-10999",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port3").Name(),
+			Direction: "input",
+		},
+		{
+			PolicyName:   "ACL_IPV6_Match_using_prefix_list_prfxv6-4",
+			ProtocolType: "ipv6",
+			SrcPrefix: []string{
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
+				fmt.Sprintf("%s/%d", prfxListSrcIpv6List[2], prfxListSrcV6SubnetList[2]),
+			},
+			DstPrefix: []string{fmt.Sprintf("%s/%d", prfxListDstIpv6List[3], prfxListDstV6Subnet)},
+			SrcPort:   "50-100, 200-5000, 800-6550",
+			DstPort:   "80",
+			Action:    "count",
+			IntfName:  dut.Port(t, "port4").Name(),
+			Direction: "input",
+		},
 	}
-	dstPrefixAddress := fmt.Sprintf("%s/%d", prfxListDstIpv6List[1], prfxListDstV6Subnet)
-	configureTrafficPolicy(t, dut, "ACL_IPV6_Match_using_prefix_list_prfxv6-1", "ipv6", srcPrefixAddress, dstPrefixAddress, ports, ports, dut.Port(t, "port1").Name())
-
-	// Configure ACL_IPV6_Match_using_prefix_list_prfxv6-2
-	srcPort := "115, 215, 980, 1090, 8000"
-	dstPort := "30000-45000"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[2], prfxListSrcV6SubnetList[2]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
+	for _, acl := range aclConfigs {
+		cfgplugins.ConfigureTrafficPolicyACL(t, dut, acl)
 	}
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv6List[1], prfxListDstV6Subnet)
-	configureTrafficPolicy(t, dut, "ACL_IPV6_Match_using_prefix_list_prfxv6-2", "ipv6", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port2").Name())
-
-	// Configure ACL_IPV6_Match_using_prefix_list_prfxv6-3
-	srcPort = "280, 700, 1150, 5110, 1899"
-	dstPort = "5000-10999"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[3], prfxListSrcV6SubnetList[3]),
-	}
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv6List[2], prfxListDstV6Subnet)
-	configureTrafficPolicy(t, dut, "ACL_IPV6_Match_using_prefix_list_prfxv6-3", "ipv6", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port3").Name())
-
-	// Configure ACL_IPV6_Match_using_prefix_list_prfxv6-4
-	srcPort = "50-100, 200-5000, 800-6550"
-	dstPort = "80"
-	srcPrefixAddress = []string{
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[0], prfxListSrcV6SubnetList[0]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[1], prfxListSrcV6SubnetList[1]),
-		fmt.Sprintf("%s/%d", prfxListSrcIpv6List[2], prfxListSrcV6SubnetList[2]),
-	}
-	dstPrefixAddress = fmt.Sprintf("%s/%d", prfxListDstIpv6List[3], prfxListDstV6Subnet)
-	configureTrafficPolicy(t, dut, "ACL_IPV6_Match_using_prefix_list_prfxv6-4", "ipv6", srcPrefixAddress, dstPrefixAddress, srcPort, dstPort, dut.Port(t, "port4").Name())
 
 	configV6.Flows().Clear()
 

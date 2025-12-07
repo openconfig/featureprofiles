@@ -95,10 +95,12 @@ type ACLTrafficPolicyParams struct {
 	PolicyName   string
 	ProtocolType string
 	SrcPrefix    []string
-	DstPrefix    string
+	DstPrefix    []string
 	SrcPort      string
 	DstPort      string
 	IntfName     string
+	Direction    string
+	Action       string
 }
 
 var (
@@ -1132,16 +1134,32 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cliConfig = fmt.Sprintf(`
-			traffic-policies
-			traffic-policy %s
-			match rule1 %s
-			source prefix %s
-			destination prefix %s
-			protocol tcp source port %s destination port %s
-			interface %s
-			traffic-policy input %s
-			`, params.PolicyName, params.ProtocolType, strings.Join(params.SrcPrefix, " "), params.DstPrefix, params.SrcPort, params.DstPort, params.IntfName, params.PolicyName)
+			if len(params.SrcPrefix) != 0 && len(params.DstPrefix) != 0 {
+				cliConfig += fmt.Sprintf(`
+					traffic-policies
+					traffic-policy %s
+					match rule1 %s
+					source prefix %s
+					destination prefix %s
+			`, params.PolicyName, params.ProtocolType, strings.Join(params.SrcPrefix, " "), strings.Join(params.DstPrefix, " "))
+			}
+			if params.DstPort != "" && params.SrcPort != "" {
+				cliConfig += fmt.Sprintf(`protocol tcp source port %s destination port %s`, params.SrcPort, params.DstPort)
+			}
+
+			if params.Action != "" {
+				cliConfig += fmt.Sprintf(`
+				actions
+				%s
+				`, params.Action)
+			}
+
+			if params.IntfName != "" {
+				cliConfig += fmt.Sprintf(`
+					interface %s
+					traffic-policy %s %s
+				`, params.IntfName, params.Direction, params.PolicyName)
+			}
 		default:
 			t.Errorf("traffic policy CLI is not handled for the dut: %v", dut.Vendor())
 		}
