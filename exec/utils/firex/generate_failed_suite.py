@@ -44,6 +44,17 @@ def write_failed_tests_suite(firex_id, out_file=None, failed_only=True):
 
                 if test_dir:
                     suite_file_path = f"{log_dir}/{test_dir}/testsuite_registration.yaml"
+                    
+                    # If suite_file_path doesn't exist, try reading from testsuite_metadata_dir
+                    if not os.path.exists(suite_file_path):
+                        metadata_yaml = f"{log_dir}/{test_dir}/testsuite_metadata_dir/yaml_path.yaml"
+                        if os.path.exists(metadata_yaml):
+                            with open(metadata_yaml, "r") as meta_file:
+                                for line in meta_file:
+                                    if line.strip().startswith("yaml_path:"):
+                                        suite_file_path = line.split("yaml_path:", 1)[1].strip()
+                                        break
+                    
                     if os.path.exists(suite_file_path):
                         with open(suite_file_path, "r") as suite_file:
                             lines = suite_file.readlines()
