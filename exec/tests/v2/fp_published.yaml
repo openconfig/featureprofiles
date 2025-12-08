@@ -2462,6 +2462,7 @@ tests:
       - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'
       - '-container_upgrade_tar="/auto/b4ws/container_img/cntrsrv-upgrade.tar"'    
     priority: 3
+    pr: 4825
     groups: [newfnt]
 
   - name: Container-2 (Container network connectivity tests)
