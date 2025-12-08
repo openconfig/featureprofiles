@@ -115,26 +115,6 @@ The following sets are used in the policies below.
 
 ```json
 {
-  "table-connections": {
-    "table-connection": [
-      {
-        "src-protocol": "openconfig-policy-types:GRIBI",
-        "dst-protocol": "openconfig-policy-types:BGP",
-        "address-family": "openconfig-types:IPV4",
-        "config": {
-          "import-policy": [
-            "GRIBI-TO-BGP"
-          ],
-          "default-import-policy": "REJECT_ROUTE"
-        }
-      }
-    ]
-  }
-}
-```
-
-```json
-{
   "routing-policy": {
     "policy-definitions": {
       "policy-definition": [
@@ -188,6 +168,37 @@ The following sets are used in the policies below.
   }
 }
 ```
+
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "TEST_VRF",
+        "config": {
+          "name": "TEST_VRF"
+        },
+        "table-connections": {
+          "table-connection": [
+            {
+              "src-protocol": "GRIBI",
+              "dst-protocol": "BGP",
+              "address-family": "IPV4",
+              "config": {
+                "import-policy": [
+                  "GRIBI-TO-BGP"
+                ],
+                "default-import-policy": "REJECT_ROUTE"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 
 * Step 2 - Program a gRIBI route in TEST_VRF
 
