@@ -197,7 +197,7 @@ func TestChassisReboot(t *testing.T) {
 								return false
 							})
 							if val, ok := watch.Await(t); !ok {
-								t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+								t.Fatalf("DUT did not return current datetime")
 							}
 							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 						})
