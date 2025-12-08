@@ -1201,8 +1201,8 @@ test: {
 }
 test: {
   id: "RT-7.9"
-  description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
-  readme: " "
+  description: "Support for configuring BGP ECMP with IS-IS protocol nexthop and  hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/multipath_bgp_ecmp_protocol_nexthop/README.md"
   exec: " "
 }
 test: {
