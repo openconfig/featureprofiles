@@ -21,6 +21,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
@@ -379,4 +380,25 @@ func configureSNHCommunityAndPolicy(t *testing.T, dut *ondatra.DUTDevice, rp *oc
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	rejectAllStmt(t, pdef1, "reject-all")
+}
+
+// BGPPolicyConfig defines the policy name and statement ID to be used for constructing a routing policy.
+type BGPPolicyConfig struct {
+	PolicyName  string
+	StatementID string
+}
+
+// ConfigureBGPRoutePolicy creates a simple BGP routing policy in OpenConfig that unconditionally accepts routes. It constructs a RoutingPolicy object, adds a policy definition named "ALLOW", creates a statement with sequence number, and sets its action to ACCEPT_ROUTE.
+func ConfigureBGPRoutePolicy(t *testing.T, batch *gnmi.SetBatch, cfg BGPPolicyConfig) (*oc.RoutingPolicy, error) {
+	t.Helper()
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	stmt, err := pdef.AppendNewStatement(cfg.StatementID)
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+	return rp, nil
 }
