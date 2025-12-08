@@ -15,6 +15,7 @@ devices:
     rp_type: 8800-rp2
     lcc_type: '8808'
     num_fabcards: 2
+    num_linecards: 2
     fabcard_type: 8808-FC1
     fabcard_version: p1
     fabcard_slots: 
