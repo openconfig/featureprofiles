@@ -1051,13 +1051,16 @@ message Metadata {
     // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
     
+    // Devices do not support default network instance gNMI server name.
+    // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
+    string default_ni_gnmi_server_name = 353;
 
     // Device doesnot support configuring prefix list inside ACL
-    bool config_acl_with_prefixlist_unsupported = 353;
+    bool config_acl_with_prefixlist_unsupported = 354;
 
     // Arista b/434815087
     // Device doesnot support configuring source/destination address as ANY inside ACL
-    bool config_acl_value_any_oc_unsupported = 354;
+    bool config_acl_value_any_oc_unsupported = 355;
 
 
     // Reserved field numbers and identifiers.

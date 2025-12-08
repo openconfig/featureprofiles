@@ -1775,6 +1775,14 @@ func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
 }
 
+// DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
+func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
+	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
+		return gnmiServerName
+	}
+	return "DEFAULT"
+}
+
 // ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
 func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
