@@ -36,12 +36,12 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
     * Set Key server priority: 15
-    * Set Security association key rekey interval: 30 seconds
+    * Set Security association key rekey interval: 30 seconds (test only)
     * Set MACsec confidentiality offset: 0
     * Set Replay Protection Window (out-of-sequence protection) size: 64
-    * Set ICV enabled:True
+    * Include ICV indicator:True
     * Set SCI enabled:True
-    * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable)
+    * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable and is not included in the test cases)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -90,7 +90,7 @@ Verify:
 * 100 percent packet loss after all the keys configured expires
 
 ## Definitions
-  * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used. On receive (rx), unencrypted packets that should be secure are dropped.
+  * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used or if keys have expired. On receive (rx), unencrypted packets that should be secure or encrypted with expired keys are dropped.
   * *should-secure:* Unencrypted packets are permitted. On receive (rx), it's recommended but not required to drop unencrypted packets if a macsec session is active. On transmit (tx), it's recommended but not required to send unencrypted packets if macsec session negotiation has failed.
 
 ## Canonical OC
