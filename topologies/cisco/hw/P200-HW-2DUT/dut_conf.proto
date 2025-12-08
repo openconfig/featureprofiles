@@ -11,6 +11,7 @@ replace: {
 " address-family ipv6 unicast\n"
 " !\n"
 "!\n"
+"vty-pool default 0 99 line-template vty\n"
 "username cisco\n"
 " group root-lr\n"
 " group cisco-support\n"
