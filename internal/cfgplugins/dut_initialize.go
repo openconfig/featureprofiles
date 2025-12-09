@@ -388,6 +388,8 @@ hardware tcam
    management api models
       !
       provider aft
+         ipv4-unicast
+         ipv6-unicast
          route-summary
    agent OpenConfig terminate
    `

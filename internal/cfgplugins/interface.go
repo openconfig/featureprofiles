@@ -157,10 +157,8 @@ func (om *OperationalModeList) Default(t *testing.T, dut *ondatra.DUTDevice) Ope
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			return OperationalModeList{5003}
-		case ondatra.ARISTA, ondatra.JUNIPER:
+		case ondatra.ARISTA, ondatra.JUNIPER, ondatra.NOKIA:
 			return OperationalModeList{1}
-		case ondatra.NOKIA:
-			return OperationalModeList{1083}
 		default:
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
@@ -168,8 +166,8 @@ func (om *OperationalModeList) Default(t *testing.T, dut *ondatra.DUTDevice) Ope
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			return OperationalModeList{6004}
-		case ondatra.ARISTA, ondatra.JUNIPER, ondatra.NOKIA:
-			return OperationalModeList{4}
+		case ondatra.JUNIPER, ondatra.ARISTA, ondatra.NOKIA:
+			return OperationalModeList{5}
 		default:
 			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 		}
@@ -606,23 +604,13 @@ func InterfaceInitialize(t *testing.T, dut *ondatra.DUTDevice, initialOperationa
 	once.Do(func() {
 		t.Helper()
 		if initialOperationalMode == 0 { // '0' signals to use vendor-specific default
-			switch dut.Vendor() {
-			case ondatra.CISCO:
-				opmode = 5003
-				t.Logf("cfgplugins.Initialize: Cisco DUT, setting opmode to default: %d", opmode)
-			case ondatra.ARISTA:
-				opmode = 1
-				t.Logf("cfgplugins.Initialize: Arista DUT, setting opmode to default: %d", opmode)
-			case ondatra.JUNIPER:
-				opmode = 1
-				t.Logf("cfgplugins.Initialize: Juniper DUT, setting opmode to default: %d", opmode)
-			case ondatra.NOKIA:
-				opmode = 1083
-				t.Logf("cfgplugins.Initialize: Nokia DUT, setting opmode to default: %d", opmode)
-			default:
-				opmode = 1
-				t.Logf("cfgplugins.Initialize: Using global default opmode: %d", opmode)
+			var oml OperationalModeList
+			defaultOpModes := oml.Default(t, dut)
+			if len(defaultOpModes) == 0 {
+				t.Fatalf("No default operational mode found for vendor %v and PMD %v", dut.Vendor(), dut.Ports()[0].PMD())
 			}
+			opmode = defaultOpModes[0]
+			t.Logf("cfgplugins.Initialize: Setting opmode to default: %d", opmode)
 		} else {
 			opmode = initialOperationalMode
 			t.Logf("cfgplugins.Initialize: Using provided initialOperationalMode: %d", opmode)
@@ -1285,4 +1273,21 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
 		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
 	}
+}
+
+// EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
+func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
+	t.Helper()
+	port := dut.Port(t, portAttribs.Name)
+	intPath := gnmi.OC().Interface(port.Name()).Config()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
+	}
+	gnmi.BatchUpdate(b, intPath, intf)
 }
