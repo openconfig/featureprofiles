@@ -154,6 +154,7 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 	t.Logf("[%s] Ensuring LAG %s is UP", testName, aggID)
 	flapFunc(t, true) // Set admin state to UP to ensure the interface is active.
 	gnmi.Await(t, dut, aggIntfPath.OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, aggIntfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 	// Get initial last-change values when the interface is UP.
 	initialIntfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
@@ -193,6 +194,7 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 		flapFunc(t, enabledState)
 
 		gnmi.Await(t, dut, aggIntfPath.OperStatus().State(), awaitTimeout, targetOperStatus)
+		gnmi.Await(t, dut, aggIntfPath.Subinterface(0).OperStatus().State(), awaitTimeout, targetOperStatus)
 
 		// Get last-change values after the state change.
 		currentIntfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
@@ -214,6 +216,7 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 		// Store current timestamps for comparison in the next iteration.
 		prevIntfLC = currentIntfLCVal
 		prevSubintfLC = currentSubintfLCVal
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -339,6 +342,7 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 		// Ensure the interface is UP before starting the test.
 		gnmi.Update(t, dut, intfPath.Enabled().Config(), true)
 		gnmi.Await(t, dut, intfPath.OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, intfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 		// Get initial last-change values when the interface is UP.
 		initialIntfLCVal, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
@@ -375,6 +379,7 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 			flapFunc(t, enabledState)
 
 			gnmi.Await(t, dut, intfPath.OperStatus().State(), awaitTimeout, targetOperStatus)
+			gnmi.Await(t, dut, intfPath.Subinterface(0).OperStatus().State(), awaitTimeout, targetOperStatus)
 
 			// Get last-change values after the state change.
 			currentIntfLCVal, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
@@ -405,6 +410,7 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 			// Store current timestamps for the next iteration's comparison.
 			prevIntfLC = currentIntfLCVal
 			prevSubintfLC = currentSubintfLCVal
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
