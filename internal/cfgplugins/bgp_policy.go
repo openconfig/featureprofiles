@@ -446,7 +446,7 @@ type BGPPolicyConfig struct {
 	StatementID string
 }
 
-// ConfigureBGPRoutePolicy creates a simple BGP routing policy in OpenConfig that unconditionally accepts routes. It constructs a RoutingPolicy object, adds a policy definition named "ALLOW", creates a statement with sequence number, and sets its action to ACCEPT_ROUTE.
+// ConfigureBGPRoutePolicy creates a simple BGP routing policy in OpenConfig that unconditionally accepts routes. It constructs a RoutingPolicy object, adds a policy definition with the configured name, creates a statement with the configured ID, and sets its action to ACCEPT_ROUTE.
 func ConfigureBGPRoutePolicy(t *testing.T, batch *gnmi.SetBatch, cfg BGPPolicyConfig) (*oc.RoutingPolicy, error) {
 	t.Helper()
 	d := &oc.Root{}
@@ -457,6 +457,6 @@ func ConfigureBGPRoutePolicy(t *testing.T, batch *gnmi.SetBatch, cfg BGPPolicyCo
 		return nil, err
 	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(cfg.PolicyName).Config(), pdef)
 	return rp, nil
 }
