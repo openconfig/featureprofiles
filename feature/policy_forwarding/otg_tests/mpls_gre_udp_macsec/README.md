@@ -143,7 +143,7 @@ Verify:
                                 "GCM_AES_XPN_256"
                             ],
                             "name": "must_secure_policy",
-                            "sak-rekey-interval": 30,
+                            "sak-rekey-interval": 30
                         },
                         "name": "must_secure_policy"
                     },
@@ -157,7 +157,7 @@ Verify:
                                 "GCM_AES_XPN_256"
                             ],
                             "name": "should_secure_policy",
-                            "sak-rekey-interval": 30,
+                            "sak-rekey-interval": 30
                         },
                         "name": "should_secure_policy"
                     }
