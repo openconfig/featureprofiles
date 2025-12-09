@@ -25,7 +25,7 @@
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8818"
+  hardware_model: "CISCO-8808"
   name: "8818_DUT"  # Change this to the device hostname.
   options {
     insecure: false 
