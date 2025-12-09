@@ -1429,9 +1429,9 @@ func ConfigureJuniperQos(t *testing.T, dut *ondatra.DUTDevice) {
 
 		profileName := string("ECNProfile")
 		ecnEnabled := bool(true)
-		minThresholdPercent := uint64(1)
-		maxThresholdPercent := uint64(2)
-		maxDropProbabilityPercent := uint8(25)
+		const minThresholdPercent = 1
+		const maxThresholdPercent = 2
+		const maxDropProbabilityPercent = 25
 
 		queueMgmtProfile := q.GetOrCreateQueueManagementProfile(profileName)
 		queueMgmtProfile.SetName(profileName)
