@@ -375,6 +375,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	cfgplugins.NewISISBasic(t, aggrBatch, dut, cfgISIS)
 	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, ECMPMaxPath: ecmpMaxPath}
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, aggrBatch, cfgBGP)
+	_, err := cfgplugins.ConfigureBGPRoutePolicy(t, aggrBatch, cfgplugins.BGPPolicyConfig{PolicyName: "ALLOW", StatementID: "10"})
+	if err != nil {
+		t.Fatalf("Failed to configure BGP Policy: %v", err)
+	}
 	configureDUTBGPNeighbors(t, dut, aggrBatch, dutBgpConf.Bgp)
 	aggrBatch.Set(t, dut)
 
