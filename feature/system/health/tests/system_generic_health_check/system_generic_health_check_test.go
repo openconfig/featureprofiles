@@ -226,16 +226,6 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	}
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		// Cisco reports CPU utilization on the base controller component (e.g. 0/RP0/CPU0)
-		// var relevantCPUs []string
-		// for _, cpu := range cpuCards {
-		// 	query := gnmi.OC().Component(cpu).State()
-		// 	component := gnmi.Get(t, dut, query)
-		// 	cpuParent := component.GetParent()
-		// 	if slices.Contains(controllerCards, cpuParent) {
-		// 		relevantCPUs = append(relevantCPUs, cpu)
-		// 	}
-		// }
 		for _, cpu := range controllerCards {
 			t.Run(cpu, func(t *testing.T) {
 				ts := time.Now().Round(time.Second)
@@ -299,10 +289,24 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		chassisLineCards = getCiscoLinecardCPUComponents(t, dut)
+		// Cisco reports CPU utilization on the base linecard component (e.g. 0/0/CPU0)
+		var baseLCs []string
+		for _, cpu := range cpuCards {
+			cpuState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
+			if strings.Contains(cpuState.GetParent(), "Motherboard") {
+				base := strings.Split(cpu, "-")[0]
+				// Filter non-empty components
+				if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Empty().State()).Val(); !empty && ok {
+					baseLCs = append(baseLCs, base)
+				}
+			}
+		}
+		if len(baseLCs) == 0 {
+			t.Errorf("ERROR: No Cisco linecard CPU base components found")
+		}
 		// Skip non-removable linecards
 		var removable []string
-		for _, lc := range chassisLineCards {
+		for _, lc := range baseLCs {
 			if gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
 				removable = append(removable, lc)
 			} else {
@@ -387,7 +391,6 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	// below switch logic is needed till b/460067287 is resolved for TestComponentsNoHighMemoryUtilization
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		chassisLineCards = getCiscoLinecardCPUComponents(t, dut)
 		cpuCards := components.FindComponentsByType(t, dut, cpuType)
 		cpuLinecards := make([]string, 0)
 
@@ -899,42 +902,4 @@ func TestFabricDrop(t *testing.T) {
 			t.Logf("INFO: Fabric drops: %d", drop)
 		}
 	}
-}
-
-// getCiscoLinecardCPUComponents returns base linecard CPU components for Cisco devices.
-// Cisco reports CPU utilization on base linecard components (e.g., "0/0/CPU0") whose
-// parent contains "Motherboard". This function filters CPU components to identify
-// non-empty, removable linecards.
-func getCiscoLinecardCPUComponents(t *testing.T, dut *ondatra.DUTDevice) []string {
-	t.Helper()
-
-	cpuCards := components.FindComponentsByType(t, dut, cpuType)
-	if len(cpuCards) == 0 {
-		t.Fatalf("ERROR: No CPU components found on device")
-	}
-	var cpuLinecards []string
-
-	// Filter CPU cards with "Motherboard" parent
-	for _, cpuCard := range cpuCards {
-		cpuState := gnmi.Get(t, dut, gnmi.OC().Component(cpuCard).State())
-		if strings.Contains(cpuState.GetParent(), "Motherboard") {
-			cpuLinecards = append(cpuLinecards, cpuCard)
-		}
-	}
-
-	// Filter non-empty linecards
-	var result []string
-	var base string
-	for _, cpuLinecard := range cpuLinecards {
-		parts := strings.Split(cpuLinecard, "-")
-		if len(parts) == 0 {
-			continue // skip malformed component names
-		}
-		base = parts[0] // Extract base component name
-		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Empty().State()).Val(); !empty && ok {
-			result = append(result, cpuLinecard)
-		}
-	}
-
-	return result
 }
