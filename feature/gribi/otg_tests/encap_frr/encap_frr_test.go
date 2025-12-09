@@ -662,7 +662,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	return config
 }
 
-func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string) {
+func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string, ttl uint8) {
 	t.Helper()
 
 	config.Flows().Clear()
@@ -684,6 +684,9 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	IPHeader.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(ipv4OuterSrcAddr)
 	IPHeader.Dst().SetValue(trafficDestIP)
 	IPHeader.Priority().Dscp().Phb().SetValue(dscpEncapA1)
+	if ttl > 0 {
+		IPHeader.TimeToLive().SetValue(uint32(ttl))
+	}
 	UDPHeader := flow1.Packet().Add().Udp()
 	UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -724,7 +727,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 	args.otg.SetControlState(t, cs)
 }
 
-func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
+func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
@@ -742,6 +745,7 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", encapFlow, lossPct)
 		} else {
 			t.Logf("Traffic Loss Test Passed!")
+			return
 		}
 	} else {
 		if lossPct > tolerancePct {
@@ -765,13 +769,13 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 		pcapFileName.Close()
 		pcapFileList = append(pcapFileList, pcapFileName.Name())
 	}
-	validatePackets(t, pcapFileList, checkEncap, headerDstIP)
+	validatePackets(t, pcapFileList, checkEncap, headerDstIP, checkTTL, wantInnerTTL, wantOuterTTL)
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 }
 
-func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
+func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	for index, file := range filename {
 		fileStat, err := os.Stat(file)
@@ -786,7 +790,7 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 			} else {
 				packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 				if checkEncap {
-					validateTrafficEncap(t, packetSource, headerDstIP, index)
+					validateTrafficEncap(t, packetSource, headerDstIP, index, checkTTL, wantInnerTTL, wantOuterTTL)
 				}
 			}
 			defer handle.Close()
@@ -794,7 +798,7 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 	}
 }
 
-func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int) {
+func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
@@ -815,6 +819,14 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 				ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
 				if ipInnerPacket.DstIP.String() != headerDstIP["innerIP"][index] {
 					t.Errorf("Packets are not encapsulated")
+				}
+				if checkTTL {
+					if ipPacket.TTL != wantOuterTTL {
+						t.Errorf("Outer TTL: got %d, want %d", ipPacket.TTL, wantOuterTTL)
+					}
+					if ipInnerPacket.TTL != wantInnerTTL {
+						t.Errorf("Inner TTL: got %d, want %d", ipInnerPacket.TTL, wantInnerTTL)
+					}
 				}
 				t.Logf("Traffic for encap routes passed.")
 				break
@@ -1167,12 +1179,12 @@ func TestEncapFrr(t *testing.T) {
 			}
 			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
 			configureGribiRoute(ctx, t, dut, client)
-			createFlow(t, otgConfig, otg, ipv4InnerDst)
+			createFlow(t, otgConfig, otg, ipv4InnerDst, tc.TTL)
 			captureState := startCapture(t, args, baseCapturePortList)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
-			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
+			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, tc.WantLoss, checkEncap, baseHeaderDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
 
 			if tc.TestID == "primaryBackupRoutingSingle" {
 				args.client.Modify().AddEntry(t,
@@ -1215,20 +1227,23 @@ func TestEncapFrr(t *testing.T) {
 				if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
-				createFlow(t, otgConfig, otg, noMatchEncapDest)
+				createFlow(t, otgConfig, otg, noMatchEncapDest, tc.TTL)
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
-				defer portState(t, args, tc.DownPortList, true)
+				defer func() {
+					portState(t, args, tc.DownPortList, true)
+					verifyPortStatus(t, args, tc.DownPortList, true)
+				}()
 				t.Log("Verify the port status after bringing down the ports")
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
 			sendTraffic(t, args, tc.CapturePortList, captureState)
 			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
-			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, !wantLoss, checkEncap, headerDstIP)
+			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, tc.wantLoss, checkEncap, headerDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
 		})
 	}
 }
