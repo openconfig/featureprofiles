@@ -540,6 +540,10 @@ testbeds:
     sim: true
     topology: topologies/cisco/pyvxr/8808-P200/topo.yaml
     baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf
+  8808-1DUT-P200-pxe-boot:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200/topo-pxe-boot.yaml
+    baseconf: topologies/cisco/pyvxr/8808-P200/basefp.conf
   8808-P200-ATE:
     sim: true
     topology: topologies/cisco/pyvxr/8808-P200-ATE/topo.yaml
