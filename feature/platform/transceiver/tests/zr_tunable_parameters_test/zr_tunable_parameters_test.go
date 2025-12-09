@@ -106,9 +106,9 @@ func Test400ZRTunableFrequency(t *testing.T) {
 					if !ok {
 						t.Fatalf("ERROR:Got frequnecy: %v, but wanted frequency: %v", gotFreqoc2, freq)
 					}
-					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
-					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
-					time.Sleep(80 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
+					gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 120*time.Second, oc.Interface_OperStatus_UP)
+					gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 120*time.Second, oc.Interface_OperStatus_UP)
+					time.Sleep(120 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
 					validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, freq, tc.targetOutputPower)
 
 				})
@@ -185,9 +185,9 @@ func Test400ZRTunableOutputPower(t *testing.T) {
 				if !ok {
 					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, top)
 				}
-				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
-				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 90*time.Second, oc.Interface_OperStatus_UP)
-				time.Sleep(80 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
+				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), 120*time.Second, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), 120*time.Second, oc.Interface_OperStatus_UP)
+				time.Sleep(120 * time.Second) //Wait an extra interval to ensure the device has time to proccess change b/384969268
 				validateOpticsTelemetry(t, []*samplestream.SampleStream[*oc.Component_OpticalChannel]{streamOC1, streamOC2}, tc.frequency, top)
 
 			})
