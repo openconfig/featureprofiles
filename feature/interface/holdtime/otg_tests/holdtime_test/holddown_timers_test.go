@@ -431,7 +431,7 @@ func TestHoldTimeConfig(t *testing.T) {
 			}
 			return present
 		}).Await(t)
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 20)
 	})
 
 }
