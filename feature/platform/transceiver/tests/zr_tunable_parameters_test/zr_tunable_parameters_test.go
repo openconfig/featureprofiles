@@ -380,3 +380,4 @@ func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Por
 	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 }
+
