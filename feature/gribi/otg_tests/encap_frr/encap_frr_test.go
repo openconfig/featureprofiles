@@ -1243,7 +1243,7 @@ func TestEncapFrr(t *testing.T) {
 			}
 			sendTraffic(t, args, tc.CapturePortList, captureState)
 			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
-			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, tc.wantLoss, checkEncap, headerDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
+			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, tc.WantLoss, checkEncap, headerDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
 		})
 	}
 }
