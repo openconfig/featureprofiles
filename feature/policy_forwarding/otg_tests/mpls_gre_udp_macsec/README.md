@@ -181,14 +181,14 @@ Verify:
                             "crypto-algorithm": "AES_256_CMAC",
                             "send-lifetime": {
                                 "config": {
-                                    "start-time": "my_start_time",
-                                    "end-time": "my_end_time"
+                                    "start-time": "1736298000",
+                                    "end-time": "1765242000"
                                 }
                             },
                             "receive-lifetime": {
                                 "config": {
-                                    "start-time": "my_start_time",
-                                    "end-time": "my_end_time"
+                                    "start-time": "1736298000",
+                                    "end-time": "1765242000"
                                 }
                             }
                         }
