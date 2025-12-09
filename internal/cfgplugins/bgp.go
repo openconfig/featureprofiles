@@ -953,7 +953,6 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 
 // BgpISISRedistribution configures the BGP to ISIS redistribution for a given AFI/SAFI.
 func BgpISISRedistribution(t *testing.T, dut *ondatra.DUTDevice, afisafi string, b *gnmi.SetBatch, importPolicy string) *oc.Root {
-
 	t.Helper()
 	d := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
@@ -1428,8 +1427,8 @@ func configureBGPScaleOnATE(t *testing.T, top gosnappi.Config, c *EBgpConfigScal
 
 // ConfigureEBgpPeersScale configures EBGP peers between DUT and ATE ports.
 func ConfigureEBgpPeersScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config,
-	cfg []*EBgpConfigScale) (gosnappi.Config, *oc.NetworkInstance_Protocol) {
-
+	cfg []*EBgpConfigScale,
+) (gosnappi.Config, *oc.NetworkInstance_Protocol) {
 	var nbrList []*BgpNeighborScale
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
