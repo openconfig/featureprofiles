@@ -342,6 +342,11 @@ type TestCase struct {
 	TrafficDestIP          string
 	LoadBalancePercent     []float64
 	TestID                 string
+	TTL                    uint8 // TTL for ingress traffic, if 0, use default.
+	WantLoss               bool  // Whether 100% loss is expected.
+	CheckTTL               bool  // Whether to check TTL on egress.
+	WantInnerTTL           uint8 // Expected inner TTL on egress if CheckTTL is true.
+	WantOuterTTL           uint8 // Expected outer TTL on egress if CheckTTL is true.
 }
 
 // TestCases returns a list of base test cases for FRR tests.
@@ -410,6 +415,48 @@ func TestCases(atePortNamelist []string, ipv4InnerDst string) []*TestCase {
 			TrafficDestIP:          noMatchEncapDest,
 			LoadBalancePercent:     []float64{0, 0, 0, 0, 0, 0, 1},
 			TestID:                 "encapNoMatch",
+		}, {
+			Desc:                   "Test-TTL-1: TTL=1 packet is dropped",
+			DownPortList:           []string{"port2", "port3", "port4"},
+			CapturePortList:        []string{atePortNamelist[4], atePortNamelist[5]},
+			EncapHeaderOuterIPList: []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF1112},
+			EncapHeaderInnerIPList: []string{ipv4InnerDst, ipv4InnerDst},
+			TrafficDestIP:          ipv4InnerDst,
+			LoadBalancePercent:     []float64{0, 0, 0, 0, 0, 0, 0},
+			TestID:                 "ttl1",
+			TTL:                    1,
+			WantLoss:               true,
+			CheckTTL:               false,
+		},
+		{
+			Desc:                   "Test-TTL-2: TTL=2 packet is encapsulated with innerTTL=1",
+			DownPortList:           []string{"port2", "port3", "port4"},
+			CapturePortList:        []string{atePortNamelist[4], atePortNamelist[5]},
+			EncapHeaderOuterIPList: []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF1112},
+			EncapHeaderInnerIPList: []string{ipv4InnerDst, ipv4InnerDst},
+			TrafficDestIP:          ipv4InnerDst,
+			LoadBalancePercent:     []float64{0, 0, 0, 0.25, 0.75, 0, 0},
+			TestID:                 "ttl2",
+			TTL:                    2,
+			WantLoss:               false,
+			CheckTTL:               true,
+			WantInnerTTL:           1,
+			WantOuterTTL:           64,
+		},
+		{
+			Desc:                   "Test-TTL-3: TTL=64 packet is encapsulated with innerTTL=63",
+			DownPortList:           []string{"port2", "port3", "port4"},
+			CapturePortList:        []string{atePortNamelist[4], atePortNamelist[5]},
+			EncapHeaderOuterIPList: []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF1112},
+			EncapHeaderInnerIPList: []string{ipv4InnerDst, ipv4InnerDst},
+			TrafficDestIP:          ipv4InnerDst,
+			LoadBalancePercent:     []float64{0, 0, 0, 0.25, 0.75, 0, 0},
+			TestID:                 "ttl64",
+			TTL:                    64,
+			WantLoss:               false,
+			CheckTTL:               true,
+			WantInnerTTL:           63,
+			WantOuterTTL:           64,
 		},
 	}
 
