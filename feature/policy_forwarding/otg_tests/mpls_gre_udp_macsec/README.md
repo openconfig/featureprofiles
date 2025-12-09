@@ -144,7 +144,6 @@ Verify:
                             ],
                             "name": "must_secure_policy",
                             "sak-rekey-interval": 30,
-                            "security-policy": "MUST_SECURE"
                         },
                         "name": "must_secure_policy"
                     },
@@ -159,7 +158,6 @@ Verify:
                             ],
                             "name": "should_secure_policy",
                             "sak-rekey-interval": 30,
-                            "security-policy": "SHOULD_SECURE"
                         },
                         "name": "should_secure_policy"
                     }
