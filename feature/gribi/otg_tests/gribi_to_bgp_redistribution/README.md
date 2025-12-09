@@ -167,9 +167,6 @@ The following sets are used in the policies below.
     }
   }
 }
-```
-
-```json
 {
   "network-instances": {
     "network-instance": [
