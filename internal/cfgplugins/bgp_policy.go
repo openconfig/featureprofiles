@@ -16,6 +16,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -408,57 +409,33 @@ func RoutingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, triggerPfxName string, genPfxName string, bgpAS uint) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		var cliConfig strings.Builder
 		t.Log("Executing CLI commands for local aggregate deviation")
-		t.Log("Control functions code unit")
-		bgpLocalAggConfigControlFunctions := fmt.Sprintf(`
-configure terminal
-!
-router general
-control-functions
-code unit ipv4_generate_default_conditionally
-function ipv4_generate_default_conditionally() {
-if source_protocol is BGP and prefix match prefix_list_v4 %s {
-return true;
-}
-}
-EOF
-!
-compile
-commit
-`, triggerPfxName)
-
-		runCliCommand(t, dut, bgpLocalAggConfigControlFunctions)
 
 		t.Log("Dynamic prefix list rcf match")
-
-		bgpLocalAggConfigDynamicPfxRcf := fmt.Sprintf(`
-configure terminal
-!
-dynamic prefix-list ipv4_generate_default
-match rcf ipv4_generate_default_conditionally()
-prefix-list ipv4 %s
-`, genPfxName)
-
-		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigDynamicPfxRcf)
+		cliConfig.WriteString("configure terminal\n")
+		cliConfig.WriteString(fmt.Sprintf("dynamic prefix-list ipv4_generate_default\nmatch rcf ipv4_generate_default_conditionally()\nprefix-list ipv4 %s\n", genPfxName))
 
 		t.Log("Dynamic Advertised Prefix installation (default route) with drop NH")
-		bgpLocalAggConfigPfxInstallDropNH := `
-configure terminal
-!
-router general
-vrf default
-routes dynamic prefix-list ipv4_generate_default install drop
-`
-		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxInstallDropNH)
+		cliConfig.WriteString("router general\nvrf default\nroutes dynamic prefix-list ipv4_generate_default install drop\n")
 
 		t.Log("Redistribute advertised prefix into BGP")
-		bgpLocalAggConfigPfxRedistribute := fmt.Sprintf(`
-configure terminal
-!
-router bgp %d
-redistribute dynamic
-`, bgpAS)
+		cliConfig.WriteString(fmt.Sprintf("router bgp %d\nredistribute dynamic\n", bgpAS))
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 
-		helpers.GnmiCLIConfig(t, dut, bgpLocalAggConfigPfxRedistribute)
+		cliConfig.Reset()
+		t.Log("Control functions code unit")
+		cliConfig.WriteString("configure terminal\n")
+		cliConfig.WriteString(fmt.Sprintf(`router general
+		control-functions
+	{ "cmd": "code unit ipv4_generate_default_conditionally", "input": "function ipv4_generate_default_conditionally()\n{\nif source_protocol is BGP and prefix match prefix_list_v4 %s {\nreturn true;\n}\n}\nEOF"}
+	compile
+	commit
+	exit
+	`, triggerPfxName))
+
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+	default:
+		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
 	}
 }
