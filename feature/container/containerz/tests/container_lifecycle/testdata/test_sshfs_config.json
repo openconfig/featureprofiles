@@ -64,7 +64,7 @@
         "rbind"
       ],
       "name": "state",
-      "source": "/var/lib/docker/plugins/",
+      "source": "/tmp",
       "settable": [
         "source"
       ],

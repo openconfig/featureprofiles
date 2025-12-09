@@ -13,3 +13,13 @@ platform_exceptions: {
     num_physical_channels_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    verify_expected_breakout_supported_config: true
+    fr_breakout_fix: true
+  }
+}
+

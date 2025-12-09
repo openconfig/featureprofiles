@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -37,6 +38,11 @@ type recordRequestResult struct {
 	record *acctzpb.RecordResponse
 	err    error
 }
+
+const (
+	queueSize     = 10
+	historyMemory = 10
+)
 
 func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// Perhaps other vendors will need a different payload/size/etc., for now we'll just send a
@@ -61,6 +67,12 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	startTime := time.Now()
+	t.Logf("Vendor: %s", dut.Vendor())
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+	}
 	sendOversizedPayload(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 

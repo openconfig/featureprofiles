@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -38,7 +37,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -70,20 +69,15 @@ func verifyTemperatureSensorValue(t *testing.T, pStream *samplestream.SampleStre
 }
 
 func TestZRTemperatureState(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	och1 := components.OpticalChannelComponentFromPort(t, dut1, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut1, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut1, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut1, och2, frequency, targetOutputPower, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR_PLUS.
@@ -136,20 +130,15 @@ func TestZRTemperatureState(t *testing.T) {
 }
 
 func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut1 := ondatra.DUT(t, "dut")
 	dp1 := dut1.Port(t, "port1")
 	dp2 := dut1.Port(t, "port2")
 	t.Logf("dut1: %v", dut1)
 	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	och1 := components.OpticalChannelComponentFromPort(t, dut1, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut1, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut1, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut1, och2, frequency, targetOutputPower, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut1, dp1)
+	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR_PLUS

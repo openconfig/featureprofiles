@@ -249,8 +249,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          prefix.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -283,8 +283,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          prefix.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -686,7 +686,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if deviations.MissingStaticRouteNextHopMetricTelemetry(td.dut) {
+		if deviations.TelemetryNotSupportedForLowPriorityNh(td.dut) {
 			t.Skip("Skipping Telemetry check for Metric, since deviation MissingStaticRouteNextHopMetricTelemetry is enabled.")
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
@@ -793,7 +793,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if deviations.SetMetricAsPreference(td.dut) {
+		if deviations.SetMetricAsPreference(td.dut) || deviations.TelemetryNotSupportedForLowPriorityNh(td.dut) {
 			t.Skip("Skipping Preference telemetry check since deviation SetMetricAsPreference is enabled")
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))

@@ -24,6 +24,7 @@ import (
 
 // Global test flags.
 var (
+	Fqdn                          = flag.String("arg_fqdn", "net.google.com", "The fully qualified domain name of the DUT.")
 	NumControllerCards            = flag.Int("arg_num_controller_cards", -1, "The expected number of controller cards. Some devices with a single controller report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 	NumLinecards                  = flag.Int("arg_num_linecards", -1, "The expected number of linecards. Some devices with a single linecard report 0, which is a valid expected value. Expectation is not checked for values < 0.")
 	NumFabrics                    = flag.Int("arg_num_fabrics", -1, "The expected number of fabrics. Some devices with a single fabric report 0, which is a valid expected value. Expectation is not checked for values < 0.")
