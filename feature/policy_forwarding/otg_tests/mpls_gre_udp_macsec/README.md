@@ -176,10 +176,10 @@ Verify:
               {
                 "config": {
                   "crypto-algorithm": "AES_256_CMAC",
-                  "key-id": "keyid1",
+                  "key-id": "0x0a01",
                   "secret-key": "encrypted-secret-pwd-here"
                 },
-                "key-id": "keyid1",
+                "key-id": "0x0a01",
                 "receive-lifetime": {
                   "config": {
                     "end-time": "1765242000",
