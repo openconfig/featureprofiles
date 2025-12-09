@@ -58,11 +58,13 @@ type OcPolicyForwardingParams struct {
 	DecapPolicy        DecapPolicyParams
 	GUEPort            uint32
 	IPType             string
+	DecapProtocol      string
 	Dynamic            bool
 	TunnelIP           string
 	InterfaceName      string              // InterfaceName specifies the DUT interface where the policy will be applied.
 	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
 	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
+	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
 	ChangeCli          bool
 	TTL                int
 	RwTTL              int
