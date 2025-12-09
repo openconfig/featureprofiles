@@ -1763,6 +1763,11 @@ func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
 
+// BgpLocalAggregateUnsupported returns true for devices that don't support OC configuration of BGP local aggregates
+func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
+}
+
 // SkipSamplingQosCounters returns true if device does not support sampling QoS counters
 // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
 func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {

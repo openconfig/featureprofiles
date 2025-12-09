@@ -1237,8 +1237,11 @@ type Metadata_Deviations struct {
 	// Devices do not support default network instance gNMI server name.
 	// Cisco https://partnerissuetracker.corp.google.com/issues/462745721
 	DefaultNiGnmiServerName string `protobuf:"bytes,353,opt,name=default_ni_gnmi_server_name,json=defaultNiGnmiServerName,proto3" json:"default_ni_gnmi_server_name,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Devices that do not support BGP local aggregate configuration from OC
+	// https://partnerissuetracker.corp.google.com/issues/458604959
+	BgpLocalAggregateUnsupported bool `protobuf:"varint,354,opt,name=bgp_local_aggregate_unsupported,json=bgpLocalAggregateUnsupported,proto3" json:"bgp_local_aggregate_unsupported,omitempty"`
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3504,6 +3507,13 @@ func (x *Metadata_Deviations) GetDefaultNiGnmiServerName() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetBgpLocalAggregateUnsupported() bool {
+	if x != nil {
+		return x.BgpLocalAggregateUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3560,7 +3570,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x8a\xc2\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xd2\xc2\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3572,7 +3582,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x93\xb8\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a۸\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3896,7 +3906,8 @@ const file_metadata_proto_rawDesc = "" +
 	"/bgp_graceful_restart_under_afi_safi_unsupported\x18\xde\x02 \x01(\bR)bgpGracefulRestartUnderAfiSafiUnsupported\x12K\n" +
 	"\"syslog_non_default_vrf_unsupported\x18\xdf\x02 \x01(\bR\x1esyslogNonDefaultVrfUnsupported\x12<\n" +
 	"\x1askip_sampling_qos_counters\x18\xe0\x02 \x01(\bR\x17skipSamplingQosCounters\x12=\n" +
-	"\x1bdefault_ni_gnmi_server_name\x18\xe1\x02 \x01(\tR\x17defaultNiGnmiServerNameJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bdefault_ni_gnmi_server_name\x18\xe1\x02 \x01(\tR\x17defaultNiGnmiServerName\x12F\n" +
+	"\x1fbgp_local_aggregate_unsupported\x18\xe2\x02 \x01(\bR\x1cbgpLocalAggregateUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
