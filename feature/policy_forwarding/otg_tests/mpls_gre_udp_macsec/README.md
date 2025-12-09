@@ -168,34 +168,38 @@ Verify:
         }
     },
     "keychains": {
-        "keychain": {
-            "config": {
-                "name": "my_macsec_keychain"
-            },
-            "keys": {
-                "key": [
-                    {
-                        "config": {
-                            "secret-key": "sercret password/CAK",
-                            "key-id": "key-id/CKN",
-                            "crypto-algorithm": "AES_256_CMAC",
-                            "send-lifetime": {
-                                "config": {
-                                    "start-time": "1736298000",
-                                    "end-time": "1765242000"
-                                }
-                            },
-                            "receive-lifetime": {
-                                "config": {
-                                    "start-time": "1736298000",
-                                    "end-time": "1765242000"
-                                }
-                            }
-                        }
-                    }
-                ]
-            }
+      "keychain": [
+        {
+          "config": {
+            "name": "keychain1"
+          },
+          "keys": {
+            "key": [
+              {
+                "config": {
+                  "crypto-algorithm": "AES_256_CMAC",
+                  "key-id": "keyid1",
+                  "secret-key": "encrypted-secret-pwd-here"
+                },
+                "key-id": "keyid1",
+                "receive-lifetime": {
+                  "config": {
+                    "end-time": "1765242000",
+                    "start-time": "1736298000"
+                  }
+                },
+                "send-lifetime": {
+                  "config": {
+                    "end-time": "1765242000",
+                    "start-time": "1736298000"
+                  }
+                }
+              }
+            ]
+          },
+          "name": "keychain1"
         }
+      ]
     }
 }
   ```
