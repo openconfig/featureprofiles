@@ -1234,10 +1234,7 @@ func TestEncapFrr(t *testing.T) {
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
-				defer func() {
-					portState(t, args, tc.DownPortList, true)
-					verifyPortStatus(t, args, tc.DownPortList, true)
-				}()
+				defer portState(t, args, tc.DownPortList, true)
 				t.Log("Verify the port status after bringing down the ports")
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
