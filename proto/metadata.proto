@@ -1054,6 +1054,10 @@ message Metadata {
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
+
+    // Devices that do not support BGP local aggregate configuration from OC
+    // https://partnerissuetracker.corp.google.com/issues/458604959
+    bool bgp_local_aggregate_unsupported = 354;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
