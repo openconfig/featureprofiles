@@ -169,7 +169,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	// defer os.Remove(f.Name()) // Clean up the temporary file
+	defer os.Remove(f.Name()) // Clean up the temporary file
 	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
@@ -297,12 +297,15 @@ func validateInnerIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, 
 
 	var encapPacket gopacket.Packet
 
+	innerLayer := *packetVal.InnerIPLayerIPv4
+	protocol := innerLayer.Protocol
+
 	for packet := range packetSource.Packets() {
-		if packetVal.InnerIPLayerIPv4.Protocol == packetVal.UDPLayer.DstPort {
+		if protocol == packetVal.UDPLayer.DstPort {
 			udpLayer := packet.Layer(layers.LayerTypeUDP)
 			udp, _ := udpLayer.(*layers.UDP)
 			encapPacket = gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv4, gopacket.Default)
-			packetVal.InnerIPLayerIPv4.Protocol = 0
+			innerLayer.Protocol = 0
 		} else {
 			if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
 				gre := greLayer.(*layers.GRE)
@@ -322,7 +325,7 @@ func validateInnerIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, 
 			if ip.TOS != packetVal.InnerIPLayerIPv4.Tos {
 				return fmt.Errorf("DSCP(TOS) value is altered to: %d .Expected: %d", ip.TOS, packetVal.InnerIPLayerIPv4.Tos)
 			}
-			if packetVal.InnerIPLayerIPv4.Protocol != 0 {
+			if innerLayer.Protocol != 0 {
 				if uint32(ip.Protocol) != packetVal.InnerIPLayerIPv4.Protocol {
 					return fmt.Errorf("protocol value is altered to: %d. expected: %d", ip.Protocol, packetVal.InnerIPLayerIPv4.Protocol)
 				}
