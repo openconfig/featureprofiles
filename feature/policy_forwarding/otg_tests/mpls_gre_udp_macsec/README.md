@@ -106,6 +106,9 @@ Verify:
                         "name": "Ethernet12/1",
                         "replay-protection": 64
                     },
+                    "state": {
+                        "name": "Ethernet12/1"
+                    },
                     "mka": {
                         "config": {
                             "key-chain": "keychain1",
@@ -119,6 +122,9 @@ Verify:
                         "enable": true,
                         "name": "Ethernet11/1",
                         "replay-protection": 64
+                    },
+                    "state": {
+                        "name": "Ethernet11/1"
                     },
                     "mka": {
                         "config": {
