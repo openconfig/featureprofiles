@@ -23,12 +23,25 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * DUT Port 2 <> ATE Port 2:
   * DUT AS: 65500, ATE AS: 65502
   * Import Policy (bgp-import-policy): (Same as DUT Port 1 Import)
-    * 198.51.100.0/26 & /32 & EF_ALL Community: Accept
-    * Default: Reject
+    * Condition:
+      * Community GSHUT
+    * Action: 
+      * Set LP = 50
+    * Conditions:
+      * Prefix length /32
+      * Prefix part of 198.51.100.0/26
+      * Community EF_ALL 
+    * Action
+      * Accept
   * Export Policy (bgp-export-policy):
-    * Redistributed gRIBI routes matching (198.51.100.0/26 & /32 & EF_ALL Community): Accept
-    * Default: Reject
-      
+    * Conditions:
+      * Prefix length /32
+      * Prefix part of 198.51.100.0/26
+      * Community EF_ALL
+    * Action
+      * Accep    
+  * Default: Reject
+
 * Redistribution Policy (TEST_VRF):
   * Source: gRIBI, Destination: BGP
   * Import Policy:
