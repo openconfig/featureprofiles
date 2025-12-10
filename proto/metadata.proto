@@ -405,6 +405,7 @@ message Metadata {
     bool skip_isis_set_level = 144;
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
+    // Cisco b/456075095
     bool skip_isis_set_metric_style_type = 145;    
     // Skip setting disable-metric-propagation while configuring
     // table-connection
@@ -954,7 +955,7 @@ message Metadata {
     // Devices that need explicit breakout interface config.
     // Nokia: b/435502032
     bool explicit_breakout_interface_config = 330;
- 
+
     // Devices do not support threshold container under
     // /components/component/transceiver. Translate from native ST with the
     // specified functional translator. See ciscoxr-laser-ft.
@@ -969,14 +970,93 @@ message Metadata {
     // Arista b/434583178
     bool match_as_path_set_unsupported = 333;
 
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+
     // Devices that do not support syslog OC configuration for below OC paths.
     // '/system/logging/remote-servers/remote-server/config/network-instance'
     // Cisco: b/447513282
-    bool syslog_oc_unsupported = 334;
+    bool syslog_oc_unsupported = 335;
 
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
+    
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
+    bool aft_summary_oc_unsupported = 337;
+
+    // Devices that do not support isis lsp tlvs
+    // Arista: https://issuetracker.google.com/450898200
+    bool isis_lsp_tlvs_oc_unsupported = 338;
+
+    // Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: https://issuetracker.google.com/452295044
+    bool isis_adjacency_stream_unsupported = 339;
+
+    // Device does not support sid_per_interface_counter_unsupported
+    // Cisco b/447350490
+    bool sid_per_interface_counter_unsupported = 340;
+
+    //  Juniper does not support localhost yet
+    //  b/448173472
+    bool localhost_for_containerz = 341;
+    
+    // Juniper: b/434633267
+    // Devices that do not support oc path for aggregate bandwidth policy
+    // action.
+    bool aggregate_bandwidth_policy_action_unsupported = 342;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for auto link bandwidth.
+    bool auto_link_bandwidth_unsupported = 343;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for advertised cumulative link
+    // bandwidth.
+    bool advertised_cumulative_lbw_oc_unsupported = 344;
+
+    // disable hardware nexthop proxying
+    // Arista : https://partnerissuetracker.corp.google.com/issues/422275961
+    bool disable_hardware_nexthop_proxy = 345;
+
+    // Devices does not support uRPF configuration.
+    // Arista https://partnerissuetracker.corp.google.com/issues/444942109
+    bool urpf_config_oc_unsupported = 346;
+
+    // Devices does not support NextNetworkInstance configuration.
+    // Arista https://partnerissuetracker.corp.google.com/issues/457884385
+    bool static_route_next_network_instance_oc_unsupported = 347;
+
+    // Devices that do not support configuring gnpsi through OpenConfig
+    // Arista: https://partnerissuetracker.corp.google.com/issues/433989578
+    // GNPSI support PR: https://github.com/openconfig/public/pull/1385
+    bool gnpsi_oc_unsupported = 348;
+
+    // Device does not support to disable bgp GR-HELPER.
+    // Nokia: b/455781430
+    bool bgp_gr_helper_disable_unsupported = 349;
+
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    // Cisco: b/455784294
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 350;
+
+    // Device does not support adding remote-syslog config under non-default VRF
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
+    bool syslog_non_default_vrf_unsupported = 351;
+
+    // Device does not support sampling QoS counters
+    // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+    // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
+    bool skip_sampling_qos_counters = 352;
+   
+    // Devices do not support default network instance gNMI server name.
+    // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
+    string default_ni_gnmi_server_name = 353;
+    
     // Arista https://partnerissuetracker.corp.google.com/issues/452484903
     bool bmp_oc_unsupported = 336;
-
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
