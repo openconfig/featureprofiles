@@ -153,6 +153,26 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
         "config": {
           "name": "TEST_VRF"
         },
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "GRIBI",
+              "name": "GRIBI",
+              "config": {
+                "identifier": "GRIBI",
+                "name": "GRIBI"
+              }
+            },
+            {
+              "identifier": "BGP",
+              "name": "BGP",
+              "config": {
+                "identifier": "BGP",
+                "name": "BGP"
+              }
+            }
+          ]
+        },
         "table-connections": {
           "table-connection": [
             {
@@ -224,6 +244,23 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 ```json
 {
   "routing-policy": {
+    "defined-sets": {
+      "bgp-defined-sets": {
+        "community-sets": {
+          "community-set": [
+            {
+              "community-set-name": "GSHUT-COMMUNITY",
+              "config": {
+                "community-set-name": "GSHUT-COMMUNITY",
+                "community-member": [
+                  "65535:0"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
     "policy-definitions": {
       "policy-definition": [
         {
@@ -244,7 +281,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                   },
                   "bgp-actions": {
                     "config": {
-                      "set-med": 100,
+                      "set-med": "100",
                       "set-med-action": "ADD"
                     },
                     "set-as-path-prepend": {
@@ -311,7 +348,24 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 ```json
 {
-"routing-policy": {
+  "routing-policy": {
+    "defined-sets": {
+      "bgp-defined-sets": {
+        "community-sets": {
+          "community-set": [
+            {
+              "community-set-name": "GSHUT-COMMUNITY",
+              "config": {
+                "community-set-name": "GSHUT-COMMUNITY",
+                "community-member": [
+                  "65535:0"
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
     "policy-definitions": {
       "policy-definition": [
         {
@@ -332,13 +386,12 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
                   },
                   "bgp-actions": {
                     "config": {
-                      "set-med": 100,
+                      "set-med": "100",
                       "set-med-action": "ADD"
                     },
                     "set-as-path-prepend": {
                       "config": {
-                        "repeat-n": 5,
-                        "asn": 64701
+                        "repeat-n": 5
                       }
                     },
                     "set-community": {
