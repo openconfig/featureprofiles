@@ -108,7 +108,7 @@ Verify:
                     },
                     "mka": {
                         "config": {
-                            "key-chain": "my_macsec_keychain",
+                            "key-chain": "keychain1",
                             "mka-policy": "must_secure_policy"
                         }
                     },
@@ -122,7 +122,7 @@ Verify:
                     },
                     "mka": {
                         "config": {
-                            "key-chain": "my_macsec_keychain",
+                            "key-chain": "keychain1",
                             "mka-policy": "must_secure_policy"
                         }
                     },
