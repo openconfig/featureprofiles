@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -283,7 +282,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, configBgp bool) {
 }
 
 func createACLList(aclConfig aclConfig, acl *oc.Acl, aclType oc.E_Acl_ACL_TYPE) int {
-	rangeFlag := 0
 	var src int
 	var dst int
 	aclEntryId := 10
@@ -292,14 +290,9 @@ func createACLList(aclConfig aclConfig, acl *oc.Acl, aclType oc.E_Acl_ACL_TYPE) 
 
 		for _, srcPort := range strings.Split(aclConfig.srcPort, ",") {
 			srcPort = strings.TrimSpace(srcPort)
-			subrange := strings.Split(srcPort, "-")
-			if len(subrange) > 1 {
-				srcPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-				rangeFlag = 1
-			} else {
-				src, _ = strconv.Atoi(srcPort)
-			}
+			srcPortValue, srcIsRange := parsePortRange(srcPort)
 			for _, dstPort := range strings.Split(aclConfig.dstPort, ",") {
+				dstPortValue, dstIsRange := parsePortRange(strings.TrimSpace(dstPort))
 				aclEntry := aclset.GetOrCreateAclEntry(uint32(aclEntryId))
 				aclEntry.SetSequenceId(uint32(aclEntryId))
 				aclEntry.GetOrCreateActions().ForwardingAction = oc.Acl_FORWARDING_ACTION_ACCEPT
@@ -315,25 +308,17 @@ func createACLList(aclConfig aclConfig, acl *oc.Acl, aclType oc.E_Acl_ACL_TYPE) 
 					a.SetDestinationAddress(dstIp)
 				}
 
-				if rangeFlag == 1 {
-					setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPort)}
+				if srcIsRange {
+					setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_SourcePort_Union{oc.UnionString(srcPortValue)}
 					aclEntry.GetOrCreateTransport().SetSourcePort(setRangeValue[0])
-					rangeFlag = 0
 				} else {
 					aclEntry.GetOrCreateTransport().SourcePort = oc.UnionUint16(src)
 				}
 
-				subrange := strings.Split(dstPort, "-")
-				if len(subrange) > 1 {
-					dstPort = fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1]))
-					rangeFlag = 1
-				} else {
-					dst, _ = strconv.Atoi(dstPort)
-				}
-				if rangeFlag == 1 {
-					setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPort)}
+				// Set destination port
+				if dstIsRange {
+					setRangeValue := []oc.Acl_AclSet_AclEntry_Transport_DestinationPort_Union{oc.UnionString(dstPortValue)}
 					aclEntry.GetOrCreateTransport().SetDestinationPort(setRangeValue[0])
-					rangeFlag = 0
 				} else {
 					aclEntry.GetOrCreateTransport().DestinationPort = oc.UnionUint16(dst)
 				}
@@ -343,6 +328,15 @@ func createACLList(aclConfig aclConfig, acl *oc.Acl, aclType oc.E_Acl_ACL_TYPE) 
 		}
 	}
 	return aclEntryId
+}
+
+// parsePortRange parses port values and returns the formatted value and whether it's a range
+func parsePortRange(portStr string) (string, bool) {
+	subrange := strings.Split(portStr, "-")
+	if len(subrange) > 1 {
+		return fmt.Sprintf("%s..%s", strings.TrimSpace(subrange[0]), strings.TrimSpace(subrange[1])), true
+	}
+	return portStr, false
 }
 
 func configACL(t *testing.T, dut *ondatra.DUTDevice, aclConfig aclConfig) {
@@ -1092,10 +1086,10 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * 120)
 
 		t.Logf("Verify OTG BGP sessions up")
-		cfgplugins.VerifyOTGBGPEstablished(t, ate, 15*time.Minute)
+		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
 
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
@@ -1324,10 +1318,10 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 60)
+		time.Sleep(time.Second * 120)
 
 		t.Logf("Verify OTG BGP sessions up")
-		cfgplugins.VerifyOTGBGPEstablished(t, ate, 15*time.Minute)
+		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
 
 		t.Logf("Verify DUT BGP sessions up")
 		cfgplugins.VerifyDUTBGPEstablished(t, dut)
