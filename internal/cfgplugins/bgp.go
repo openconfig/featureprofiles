@@ -992,7 +992,6 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
 	t.Helper()
 	if deviations.BMPOCUnsupported(dut) {
-		t.Log("Executing CLI commands for multipath deviation")
 
 		bmpConfig := new(strings.Builder)
 
