@@ -220,12 +220,14 @@ testbeds:
 
   P200_DE_TB_B2B:
     hw: P200_DE_TB_B2B
+    owner:
     testbed: topologies/cisco/hw/P200_DE_TB_B2B/testbed
     binding: topologies/cisco/hw/P200_DE_TB_B2B/binding
     baseconf: topologies/cisco/hw/P200_DE_TB_B2B/baseconfig.proto
 
   P200_DT_TB_B2B:
     hw: P200_DT_TB_B2B
+    owner:
     testbed: topologies/cisco/hw/P200_DT_TB_B2B/testbed
     binding: topologies/cisco/hw/P200_DT_TB_B2B/binding
     baseconf: topologies/cisco/hw/P200_DT_TB_B2B/baseconfig.proto
