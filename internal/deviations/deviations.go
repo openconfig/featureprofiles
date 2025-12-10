@@ -1774,6 +1774,11 @@ func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
 }
 
+// BgpLocalAggregateUnsupported returns true for devices that don't support OC configuration of BGP local aggregates
+func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
+}
+
 // SkipSamplingQosCounters returns true if device does not support sampling QoS counters
 // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
 func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
@@ -1807,6 +1812,14 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 // https://issuetracker.google.com/issues/461368936
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
+}
+
+// DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
+func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
+	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
+		return gnmiServerName
+	}
+	return "DEFAULT"
 }
 
 // StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
