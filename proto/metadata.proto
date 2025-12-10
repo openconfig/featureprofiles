@@ -1054,6 +1054,10 @@ message Metadata {
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
+
+    // Devices that do not support BGP local aggregate configuration from OC
+    // https://partnerissuetracker.corp.google.com/issues/458604959
+    bool bgp_local_aggregate_unsupported = 354;
     
     // Arista https://partnerissuetracker.corp.google.com/issues/452484903
     bool bmp_oc_unsupported = 354;
