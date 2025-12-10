@@ -170,7 +170,7 @@ Verify:
                 "policy-id": "retain ttl",
                 "config": {
                   "policy-id": "retain ttl",
-                  "type": "MATCH_ACTION"
+                  "type": "Policy_Type_PBR_POLICY"
                 },
                 "rules": {
                   "rule": [
