@@ -147,11 +147,11 @@ var (
 )
 
 type ateConfigParams struct {
-	atePort       gosnappi.Port
-	atePortAttrs  attrs.Attributes
-	dutPortAttrs  attrs.Attributes
-	ateAS         uint32
-	bmpName       string
+	atePort      gosnappi.Port
+	atePortAttrs attrs.Attributes
+	dutPortAttrs attrs.Attributes
+	ateAS        uint32
+	bmpName      string
 }
 
 // TestMain is the entry point for the test suite.
@@ -286,7 +286,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, bmpName string) gosnappi
 	return ateConfig
 }
 
-// configureATEDevice configures the ports along with the associated protocols.
+// configureBGPOnATEDevice configures BGP on an ATE device.
 func configureBGPOnATEDevice(t *testing.T, cfg gosnappi.Config, params ateConfigParams) {
 	t.Helper()
 	var peerTypeV4 gosnappi.BgpV4PeerAsTypeEnum
@@ -321,7 +321,7 @@ func configureBGPOnATEDevice(t *testing.T, cfg gosnappi.Config, params ateConfig
 
 }
 
-// configureATEDevice configures the ports along with the associated protocols.
+// configureBMPOnATEDevice configures BMP on an ATE device.
 func configureBMPOnATEDevice(t *testing.T, cfg gosnappi.Config, params ateConfigParams) {
 	t.Helper()
 
@@ -425,45 +425,69 @@ func verifyBMPPostPolicyRouteMonitoring(t *testing.T, ate *ondatra.ATEDevice, bm
 
 	fptest.LogQuery(t, "Route Monitoring Updates", bmpServer.State(), gnmi.Get(t, otg, bmpServer.State()))
 
-	prePolicyV4Routes := gnmi.Get(t, otg, bmpServer.Counters().PrePolicyIpv4UnicastRoutesReceived().State())
-	_, ok := gnmi.Watch(t, otg, bmpServer.Counters().PrePolicyIpv4UnicastRoutesReceived().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		receiveState, present := val.Val()
-		return present && receiveState == prePolicyV4RouteCount
-	}).Await(t)
+	// --- Pre-policy IPv4 ---
+	_, ok := gnmi.Watch(
+		t, otg, bmpServer.Counters().PrePolicyIpv4UnicastRoutesReceived().State(),
+		timeout,
+		func(val *ygnmi.Value[uint64]) bool {
+			receiveState, present := val.Val()
+			return present && receiveState == prePolicyV4RouteCount
+		},
+	).Await(t)
 	if !ok {
+		prePolicyV4Routes := gnmi.Get(t, otg, bmpServer.Counters().PrePolicyIpv4UnicastRoutesReceived().State())
 		addErr("PrePolicyIpv4UnicastRoutesReceived mismatch (got=%d, expected=%d)", prePolicyV4Routes, prePolicyV4RouteCount)
+	} else {
+		t.Logf("PrePolicyIPv4Routes: %v", prePolicyV4RouteCount)
 	}
-	t.Logf("PrePolicyIPv4Routes: %v", prePolicyV4Routes)
 
-	prePolicyV6Routes := gnmi.Get(t, otg, bmpServer.Counters().PrePolicyIpv6UnicastRoutesReceived().State())
-	_, ok = gnmi.Watch(t, otg, bmpServer.Counters().PrePolicyIpv6UnicastRoutesReceived().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		receiveState, present := val.Val()
-		return present && receiveState == prePolicyV6RouteCount
-	}).Await(t)
+	// --- Pre-policy IPv6 ---
+	_, ok = gnmi.Watch(
+		t, otg, bmpServer.Counters().PrePolicyIpv6UnicastRoutesReceived().State(),
+		timeout,
+		func(val *ygnmi.Value[uint64]) bool {
+			receiveState, present := val.Val()
+			return present && receiveState == prePolicyV6RouteCount
+		},
+	).Await(t)
 	if !ok {
+		prePolicyV6Routes := gnmi.Get(t, otg, bmpServer.Counters().PrePolicyIpv6UnicastRoutesReceived().State())
 		addErr("PrePolicyIpv6UnicastRoutesReceived mismatch (got=%d, expected=%d)", prePolicyV6Routes, prePolicyV6RouteCount)
+	} else {
+		t.Logf("PrePolicyIPv6Routes: %v", prePolicyV6RouteCount)
 	}
-	t.Logf("PrePolicyIPv6Routes: %v", prePolicyV6Routes)
 
-	postPolicyV4Routes := gnmi.Get(t, otg, bmpServer.Counters().PostPolicyIpv4UnicastRoutesReceived().State())
-	_, ok = gnmi.Watch(t, otg, bmpServer.Counters().PostPolicyIpv4UnicastRoutesReceived().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		receiveState, present := val.Val()
-		return present && receiveState == postPolicyV4RouteCount
-	}).Await(t)
+	// --- Post-policy IPv4 ---
+	_, ok = gnmi.Watch(
+		t, otg, bmpServer.Counters().PostPolicyIpv4UnicastRoutesReceived().State(),
+		timeout,
+		func(val *ygnmi.Value[uint64]) bool {
+			receiveState, present := val.Val()
+			return present && receiveState == postPolicyV4RouteCount
+		},
+	).Await(t)
 	if !ok {
+		postPolicyV4Routes := gnmi.Get(t, otg, bmpServer.Counters().PostPolicyIpv4UnicastRoutesReceived().State())
 		addErr("PostPolicyIpv4UnicastRoutesReceived mismatch (got=%d, expected=%d)", postPolicyV4Routes, postPolicyV4RouteCount)
+	} else {
+		t.Logf("PostPolicyIPv4Routes: %v", postPolicyV4RouteCount)
 	}
-	t.Logf("PostPolicyIPv4Routes: %v", postPolicyV4Routes)
 
-	postPolicyV6Routes := gnmi.Get(t, otg, bmpServer.Counters().PostPolicyIpv6UnicastRoutesReceived().State())
-	_, ok = gnmi.Watch(t, otg, bmpServer.Counters().PostPolicyIpv6UnicastRoutesReceived().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
-		receiveState, present := val.Val()
-		return present && receiveState == postPolicyV6RouteCount
-	}).Await(t)
+	// --- Post-policy IPv6 ---
+	_, ok = gnmi.Watch(
+		t, otg, bmpServer.Counters().PostPolicyIpv6UnicastRoutesReceived().State(),
+		timeout,
+		func(val *ygnmi.Value[uint64]) bool {
+			receiveState, present := val.Val()
+			return present && receiveState == postPolicyV6RouteCount
+		},
+	).Await(t)
 	if !ok {
+		postPolicyV6Routes := gnmi.Get(t, otg, bmpServer.Counters().PostPolicyIpv6UnicastRoutesReceived().State())
 		addErr("PostPolicyIpv6UnicastRoutesReceived mismatch (got=%d, expected=%d)", postPolicyV6Routes, postPolicyV6RouteCount)
+	} else {
+		t.Logf("PostPolicyIPv6Routes: %v", postPolicyV6RouteCount)
 	}
-	t.Logf("PostPolicyIPv6Routes: %v", postPolicyV6Routes)
 
 	return aggErr
 }

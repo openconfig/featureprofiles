@@ -1792,4 +1792,3 @@ func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
 func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
 }
-
