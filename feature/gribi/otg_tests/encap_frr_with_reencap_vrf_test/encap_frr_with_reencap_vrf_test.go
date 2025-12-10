@@ -597,11 +597,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	localAddressLeaf := dutlo0Attrs.IPv4
-	if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.NOKIA {
-		localAddressLeaf = loopbackIntfName
-	}
-	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
+	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -644,7 +640,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Fatal("No BGP neighbor formed")
+		t.Errorf("No BGP neighbor formed")
 	}
 	state, _ := status.Val()
 	t.Logf("BGP adjacency for %s: %v", otgIsisPort8LoopV4, state)
