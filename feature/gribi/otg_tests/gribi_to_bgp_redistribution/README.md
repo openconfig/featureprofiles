@@ -173,6 +173,26 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
             }
           ]
         },
+        "tables": {
+          "table": [
+            {
+              "protocol": "GRIBI",
+              "address-family": "IPV4",
+              "config": {
+                "protocol": "GRIBI",
+                "address-family": "IPV4"
+              }
+            },
+            {
+              "protocol": "BGP",
+              "address-family": "IPV4",
+              "config": {
+                "protocol": "BGP",
+                "address-family": "IPV4"
+              }
+            }
+          ]
+        },
         "table-connections": {
           "table-connection": [
             {
