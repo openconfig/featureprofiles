@@ -1,25 +1,16 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "bc288f94-cb04-4bb0-b1d7-621cfaa7e9f4"
-plan_id: "gNMI-1.6"
-description: "System gRPC Servers running in more than one network-instance"
+uuid: "7b2f4621-996a-4d69-b822-433f3193dca4"
+plan_id: "RT-10.1"
+description: "Default Route Generation based on 192.0.0.0/8 Presence"
 testbed: TESTBED_DUT_ATE_2LINKS
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-  }
-  deviations: {
-    interface_enabled: true
-    default_network_instance: "default"
-  }
-}
 platform_exceptions: {
   platform: {
     vendor: CISCO
   }
   deviations: {
-    default_ni_gnmi_server_name: "gnxi-default"
+    ipv4_missing_enabled: true
   }
 }
 platform_exceptions: {
@@ -33,9 +24,15 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
+    vendor: ARISTA
   }
   deviations: {
+    omit_l2_mtu: true
+    interface_config_vrf_before_address: true
     interface_enabled: true
+    default_network_instance: "default"
+    missing_value_for_defaults: true
+    bgp_default_policy_unsupported: true
+    bgp_local_aggregate_unsupported: true
   }
 }
