@@ -52,7 +52,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP & multipath with import and export policies.
+  * Configure eBGP with import and export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
 
 #### Canonical OC
@@ -234,7 +234,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "203.0.113.2" } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
@@ -257,13 +257,13 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP & multipath with import and export policies.
+  * Configure eBGP with import and export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
     
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "203.0.113.2" } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
@@ -362,13 +362,13 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP & multipath with import and export policies.
+  * Configure eBGP with import and export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
     
 * Step 2 - Program a gRIBI route in TEST_VRF
 
 ```yaml
-'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "192.0.2.2" } } } }'
+'operation: { op: ADD network_instance: "TEST_VRF" next_hop: { index: 1001 next_hop { ip_address: { value: "203.0.113.2" } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" next_hop_group: { id: 2001 next_hop_group { next_hop { index: 1001 weight: { value: 1 } } } } }'
 'operation: { op: ADD network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" ipv4_entry { next_hop_group: { value: 2001 } } } }'
 ```
