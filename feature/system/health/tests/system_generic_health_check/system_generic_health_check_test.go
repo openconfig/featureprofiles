@@ -310,7 +310,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 			if gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
 				removable = append(removable, lc)
 			} else {
-				t.Logf("INFO: Skip non-removable linecard %s", lc)
+				t.Skipf("Skip non-removable linecard %s", lc)
 			}
 		}
 		for _, removableLC := range removable {
@@ -387,40 +387,12 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	chassisLineCards := make([]string, 0)
-
-	// below switch logic is needed till b/460067287 is resolved for TestComponentsNoHighMemoryUtilization
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		cpuCards := components.FindComponentsByType(t, dut, cpuType)
-		cpuLinecards := make([]string, 0)
-
-		// Filter cpuCards whose parent contains "Motherboard" like "0/0/CPU0-Motherboard", "0/2/CPU0-Motherboard"
-		for _, cpuCard := range cpuCards {
-			query := gnmi.OC().Component(cpuCard).State()
-			component := gnmi.Get(t, dut, query)
-			cpuParent := component.GetParent()
-			if strings.Contains(cpuParent, "Motherboard") {
-				cpuLinecards = append(cpuLinecards, cpuCard)
-			}
-		}
-
-		// filter non-empty linecards
-		for _, cpuLinecard := range cpuLinecards {
-			lc := strings.Split(cpuLinecard, "-")[0] // extract linecard string
-			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-			if !compMtyVal && ok {
-				chassisLineCards = append(chassisLineCards, cpuLinecard)
-			}
-		}
-	default:
-		for _, lc := range lineCards {
-			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-			if !compMtyVal && ok {
-				chassisLineCards = append(chassisLineCards, lc)
-			}
+	for _, lc := range lineCards {
+		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compMtyVal && ok {
+			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
-
 	lineCards = chassisLineCards
 	cardList := append(controllerCards, lineCards...)
 	if len(cardList) == 0 {
