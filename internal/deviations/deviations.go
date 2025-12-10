@@ -1792,3 +1792,8 @@ func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
 func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
 }
+
+// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
+}

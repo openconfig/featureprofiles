@@ -14,5 +14,6 @@ platform_exceptions:  {
     default_network_instance:  "default"
     config_acl_with_prefixlist_unsupported:  true
     config_acl_value_any_oc_unsupported:  true
+    config_acl_oc_unsupported: true
   }
 }
