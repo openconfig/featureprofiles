@@ -35,9 +35,14 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
-### Canonical OC - Defined Sets
+### TestID-16.4.1 - gRIBI to BGP Redistribution
 
-The following sets are used in the policies below.
+* Step 1 - Generate DUT configuration
+  * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
+  * Configure eBGP & multipath with import and export policies.
+  * Configure gRIBI to BGP redistribution policy and table connection.
+
+#### Canonical OC
 
 ```json
 {
@@ -86,36 +91,11 @@ The following sets are used in the policies below.
                   "65534:20420"
                 ]
               }
-            },
-            {
-              "community-set-name": "GSHUT-COMMUNITY",
-              "config": {
-                "community-set-name": "GSHUT-COMMUNITY",
-                "community-member": [
-                  "65535:0"
-                ]
-              }
             }
           ]
         }
       }
-    }
-  }
-}
-```
-
-### TestID-16.4.1 - gRIBI to BGP Redistribution
-
-* Step 1 - Generate DUT configuration
-  * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP & multipath with import and export policies.
-  * Configure gRIBI to BGP redistribution policy and table connection.
-
-#### Canonical OC
-
-```json
-{
-  "routing-policy": {
+    },
     "policy-definitions": {
       "policy-definition": [
         {
@@ -180,6 +160,9 @@ The following sets are used in the policies below.
               "dst-protocol": "BGP",
               "address-family": "IPV4",
               "config": {
+                "src-protocol": "GRIBI",
+                "dst-protocol": "BGP",
+                "address-family": "IPV4",
                 "import-policy": [
                   "GRIBI-TO-BGP"
                 ],
