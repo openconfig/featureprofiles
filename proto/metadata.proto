@@ -1056,7 +1056,7 @@ message Metadata {
     string default_ni_gnmi_server_name = 353;
     
     // Arista https://partnerissuetracker.corp.google.com/issues/452484903
-    bool bmp_oc_unsupported = 336;
+    bool bmp_oc_unsupported = 354;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
