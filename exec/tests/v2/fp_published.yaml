@@ -405,6 +405,13 @@ tests:
       - agvarghe
     mustpass: true
     priority: 33
+   - name: gNMI-1.6 (System gRPC Servers running in more than one network-instance)
+    path: feature/gnmi/tests/gnmi_ni_test
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 4786
+    priority: 33   
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
     args:
