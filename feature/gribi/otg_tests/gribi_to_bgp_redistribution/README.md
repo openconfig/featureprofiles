@@ -17,7 +17,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
   * DUT Port 1 (192.0.2.1/30) <> (192.0.2.2/30) ATE Port 1 
   * DUT Port 2 (203.0.113.1/30) <> (203.0.113.2/30) ATE Port 2
 
-* VRFs: TEST_VRF (L3), DEFAULT
+* VRFs: TEST_VRF (L3)
 * gRIBI: Enabled
 
 * DUT Port 2 <> ATE Port 2:
