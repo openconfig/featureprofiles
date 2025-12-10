@@ -48,7 +48,6 @@ const (
 	gribiIPv4EntryVRF2222  = "203.0.113.101"
 	gribiIPv4EntryEncapVRF = "138.0.11.0"
 	noMatchEncapDest       = "20.0.0.1"
-	defaultOuterTTL        = 64
 )
 
 var (
@@ -442,7 +441,7 @@ func TestCases(atePortNamelist []string, ipv4InnerDst string) []*TestCase {
 			WantLoss:               false,
 			CheckTTL:               true,
 			WantInnerTTL:           1,
-			WantOuterTTL:           defaultOuterTTL,
+			WantOuterTTL:           1,
 		},
 		{
 			Desc:                   "Test-TTL-3: TTL=64 packet is encapsulated with innerTTL=63",
@@ -457,7 +456,7 @@ func TestCases(atePortNamelist []string, ipv4InnerDst string) []*TestCase {
 			WantLoss:               false,
 			CheckTTL:               true,
 			WantInnerTTL:           63,
-			WantOuterTTL:           defaultOuterTTL,
+			WantOuterTTL:           63,
 		},
 	}
 
