@@ -1787,3 +1787,9 @@ func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
 	}
 	return "DEFAULT"
 }
+
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
+
