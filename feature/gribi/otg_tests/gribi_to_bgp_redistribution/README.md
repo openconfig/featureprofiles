@@ -39,7 +39,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
       * Prefix part of 198.51.100.0/26
       * Community EF_ALL
     * Action
-      * Accep    
+      * Accept
   * Default: Reject
 
 * Redistribution Policy (TEST_VRF):
