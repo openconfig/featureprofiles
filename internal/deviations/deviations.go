@@ -1905,3 +1905,9 @@ func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
 }
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
+}
