@@ -1086,7 +1086,7 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 120)
+		time.Sleep(time.Second * 300)
 
 		t.Logf("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
@@ -1626,6 +1626,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgConfig.PushConfig(t, configV6)
 
 	otgConfig.StartProtocols(t)
+	time.Sleep(time.Second * 120)
 
 	t.Logf("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
