@@ -21,9 +21,6 @@
 package metadata_go_proto
 
 import (
-	reflect "reflect"
-	sync "sync"
-
 	proto "github.com/openconfig/ondatra/proto"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -185,10 +182,7 @@ func (Metadata_Tags) EnumDescriptor() ([]byte, []int) {
 
 // Metadata about a Feature Profiles test.
 type Metadata struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID of the test.
 	Uuid string `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
 	// ID of the test in the test plan.
@@ -206,15 +200,15 @@ type Metadata struct {
 	// Whether this test only checks paths for presence rather than semantic
 	// checks.
 	PathPresenceTest bool `protobuf:"varint,7,opt,name=path_presence_test,json=pathPresenceTest,proto3" json:"path_presence_test,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *Metadata) Reset() {
 	*x = Metadata{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_metadata_proto_msgTypes[0]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
+	mi := &file_metadata_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
 func (x *Metadata) String() string {
@@ -225,7 +219,7 @@ func (*Metadata) ProtoMessage() {}
 
 func (x *Metadata) ProtoReflect() protoreflect.Message {
 	mi := &file_metadata_proto_msgTypes[0]
-	if protoimpl.UnsafeEnabled && x != nil {
+	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
@@ -290,10 +284,7 @@ func (x *Metadata) GetPathPresenceTest() bool {
 }
 
 type Metadata_Platform struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// Vendor of the device.
 	Vendor proto.Device_Vendor `protobuf:"varint,1,opt,name=vendor,proto3,enum=ondatra.Device_Vendor" json:"vendor,omitempty"`
 	// Regex for hardware model of the device.
@@ -302,15 +293,15 @@ type Metadata_Platform struct {
 	// Regex for software version of the device.
 	// The empty string will match any software version.
 	SoftwareVersionRegex string `protobuf:"bytes,4,opt,name=software_version_regex,json=softwareVersionRegex,proto3" json:"software_version_regex,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *Metadata_Platform) Reset() {
 	*x = Metadata_Platform{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_metadata_proto_msgTypes[1]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
+	mi := &file_metadata_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
 func (x *Metadata_Platform) String() string {
@@ -321,7 +312,7 @@ func (*Metadata_Platform) ProtoMessage() {}
 
 func (x *Metadata_Platform) ProtoReflect() protoreflect.Message {
 	mi := &file_metadata_proto_msgTypes[1]
-	if protoimpl.UnsafeEnabled && x != nil {
+	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
@@ -358,10 +349,7 @@ func (x *Metadata_Platform) GetSoftwareVersionRegex() string {
 }
 
 type Metadata_Deviations struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
-	unknownFields protoimpl.UnknownFields
-
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// Device does not support interface/ipv4/enabled,
 	// so suppress configuring this leaf.
 	Ipv4MissingEnabled bool `protobuf:"varint,1,opt,name=ipv4_missing_enabled,json=ipv4MissingEnabled,proto3" json:"ipv4_missing_enabled,omitempty"`
@@ -1266,11 +1254,9 @@ type Metadata_Deviations struct {
 
 func (x *Metadata_Deviations) Reset() {
 	*x = Metadata_Deviations{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_metadata_proto_msgTypes[2]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
+	mi := &file_metadata_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
 func (x *Metadata_Deviations) String() string {
@@ -1281,7 +1267,7 @@ func (*Metadata_Deviations) ProtoMessage() {}
 
 func (x *Metadata_Deviations) ProtoReflect() protoreflect.Message {
 	mi := &file_metadata_proto_msgTypes[2]
-	if protoimpl.UnsafeEnabled && x != nil {
+	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
@@ -3565,21 +3551,18 @@ func (x *Metadata_Deviations) GetConfigAclOcUnsupported() bool {
 }
 
 type Metadata_PlatformExceptions struct {
-	state         protoimpl.MessageState
-	sizeCache     protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
+	Deviations    *Metadata_Deviations   `protobuf:"bytes,2,opt,name=deviations,proto3" json:"deviations,omitempty"`
 	unknownFields protoimpl.UnknownFields
-
-	Platform   *Metadata_Platform   `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
-	Deviations *Metadata_Deviations `protobuf:"bytes,2,opt,name=deviations,proto3" json:"deviations,omitempty"`
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Metadata_PlatformExceptions) Reset() {
 	*x = Metadata_PlatformExceptions{}
-	if protoimpl.UnsafeEnabled {
-		mi := &file_metadata_proto_msgTypes[3]
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		ms.StoreMessageInfo(mi)
-	}
+	mi := &file_metadata_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
 }
 
 func (x *Metadata_PlatformExceptions) String() string {
@@ -3590,7 +3573,7 @@ func (*Metadata_PlatformExceptions) ProtoMessage() {}
 
 func (x *Metadata_PlatformExceptions) ProtoReflect() protoreflect.Message {
 	mi := &file_metadata_proto_msgTypes[3]
-	if protoimpl.UnsafeEnabled && x != nil {
+	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
 			ms.StoreMessageInfo(mi)
@@ -3998,12 +3981,12 @@ const file_metadata_proto_rawDesc = "" +
 
 var (
 	file_metadata_proto_rawDescOnce sync.Once
-	file_metadata_proto_rawDescData = file_metadata_proto_rawDesc
+	file_metadata_proto_rawDescData []byte
 )
 
 func file_metadata_proto_rawDescGZIP() []byte {
 	file_metadata_proto_rawDescOnce.Do(func() {
-		file_metadata_proto_rawDescData = protoimpl.X.CompressGZIP(file_metadata_proto_rawDescData)
+		file_metadata_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_metadata_proto_rawDesc), len(file_metadata_proto_rawDesc)))
 	})
 	return file_metadata_proto_rawDescData
 }
@@ -4038,61 +4021,11 @@ func file_metadata_proto_init() {
 	if File_metadata_proto != nil {
 		return
 	}
-	if !protoimpl.UnsafeEnabled {
-		file_metadata_proto_msgTypes[0].Exporter = func(v any, i int) any {
-			switch v := v.(*Metadata); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_metadata_proto_msgTypes[1].Exporter = func(v any, i int) any {
-			switch v := v.(*Metadata_Platform); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_metadata_proto_msgTypes[2].Exporter = func(v any, i int) any {
-			switch v := v.(*Metadata_Deviations); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-		file_metadata_proto_msgTypes[3].Exporter = func(v any, i int) any {
-			switch v := v.(*Metadata_PlatformExceptions); i {
-			case 0:
-				return &v.state
-			case 1:
-				return &v.sizeCache
-			case 2:
-				return &v.unknownFields
-			default:
-				return nil
-			}
-		}
-	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: file_metadata_proto_rawDesc,
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metadata_proto_rawDesc), len(file_metadata_proto_rawDesc)),
 			NumEnums:      2,
 			NumMessages:   4,
 			NumExtensions: 0,
@@ -4104,7 +4037,6 @@ func file_metadata_proto_init() {
 		MessageInfos:      file_metadata_proto_msgTypes,
 	}.Build()
 	File_metadata_proto = out.File
-	file_metadata_proto_rawDesc = nil
 	file_metadata_proto_goTypes = nil
 	file_metadata_proto_depIdxs = nil
 }

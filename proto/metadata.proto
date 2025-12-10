@@ -1058,14 +1058,6 @@ message Metadata {
     // Devices that do not support BGP local aggregate configuration from OC
     // https://partnerissuetracker.corp.google.com/issues/458604959
     bool bgp_local_aggregate_unsupported = 354;
-    
-    // Devices do not support default network instance gNMI server name.
-    // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
-    string default_ni_gnmi_server_name = 353;
-
-    // Devices that do not support BGP local aggregate configuration from OC
-    // https://partnerissuetracker.corp.google.com/issues/458604959
-    bool bgp_local_aggregate_unsupported = 354;
 
     // Device doesnot support configuring prefix list inside ACL
     bool config_acl_with_prefixlist_unsupported = 355;
