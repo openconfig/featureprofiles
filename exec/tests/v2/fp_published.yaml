@@ -405,7 +405,7 @@ tests:
       - agvarghe
     mustpass: true
     priority: 33
-   - name: gNMI-1.6 (System gRPC Servers running in more than one network-instance)
+  - name: gNMI-1.6 (System gRPC Servers running in more than one network-instance)
     path: feature/gnmi/tests/gnmi_ni_test
     owners:
       - arvbaska
