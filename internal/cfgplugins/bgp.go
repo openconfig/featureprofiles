@@ -369,10 +369,16 @@ func (bs *BGPSession) PushAndStartATE(t testing.TB) {
 }
 
 // VerifyDUTBGPEstablished verifies on DUT BGP peer establishment
-func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
+func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice, duration ...time.Duration) {
+	var timeout time.Duration
+	if len(duration) > 0 {
+		timeout = duration[0]
+	} else {
+		timeout = 2 * time.Minute
+	}
 	dni := deviations.DefaultNetworkInstance(dut)
 	nSessionState := gnmi.OC().NetworkInstance(dni).Protocol(PTBGP, bgpName).Bgp().NeighborAny().SessionState().State()
-	watch := gnmi.WatchAll(t, dut, nSessionState, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	watch := gnmi.WatchAll(t, dut, nSessionState, timeout, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
 			return false
@@ -386,9 +392,15 @@ func VerifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // VerifyOTGBGPEstablished verifies on OTG BGP peer establishment
-func VerifyOTGBGPEstablished(t *testing.T, ate *ondatra.ATEDevice) {
+func VerifyOTGBGPEstablished(t *testing.T, ate *ondatra.ATEDevice, duration ...time.Duration) {
+	var timeout time.Duration
+	if len(duration) > 0 {
+		timeout = duration[0]
+	} else {
+		timeout = 2 * time.Minute
+	}
 	pSessionState := gnmi.OTG().BgpPeerAny().SessionState().State()
-	watch := gnmi.WatchAll(t, ate.OTG(), pSessionState, 2*time.Minute, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+	watch := gnmi.WatchAll(t, ate.OTG(), pSessionState, timeout, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != otgtelemetry.BgpPeer_SessionState_ESTABLISHED {
 			return false
