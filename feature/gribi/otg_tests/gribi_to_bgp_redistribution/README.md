@@ -353,7 +353,7 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 7 - Delete drain policy 'peer_drain'
 * Step 8 - Verify route '198.51.100.1/32' BGP attributes are reverted back to original attributes (including EF_ALL community) at ATE Port 2
 * Step 9 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF  
-* Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
+* Step 10 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
@@ -461,7 +461,8 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 9 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GHUT community at ATE Port 2
 * Step 10 - Delete drain policy 'peer_drain'
 * Step 11 - Verify route '198.51.100.1/32' BGP attributes are reverted back to original attributes (including EF_ALL community) at ATE Port 2
-* Step 12 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
+* Step 12 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF
+* Step 13 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/prefix' and route withdrawal from over eBGP on ATE Port 2
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
