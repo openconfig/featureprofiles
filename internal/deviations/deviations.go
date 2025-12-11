@@ -1787,3 +1787,8 @@ func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
 	}
 	return "DEFAULT"
 }
+
+// StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
+}
