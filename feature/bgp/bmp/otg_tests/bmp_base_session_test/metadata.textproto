@@ -5,3 +5,13 @@ uuid:  "ae321451-e937-4f99-885d-bec2bf616702"
 plan_id:  "BMP-1.1"
 description:  "BMP Session Establishment and Telemetry Test"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    bmp_oc_unsupported: true
+  }
+}

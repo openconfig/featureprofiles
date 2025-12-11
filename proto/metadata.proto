@@ -1058,6 +1058,9 @@ message Metadata {
     // Devices that do not support BGP local aggregate configuration from OC
     // https://partnerissuetracker.corp.google.com/issues/458604959
     bool bgp_local_aggregate_unsupported = 354;
+
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 355;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
