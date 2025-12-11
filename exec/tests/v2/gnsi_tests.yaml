@@ -12,36 +12,72 @@ tests:
     path: feature/security/gnsi/authz/tests/authz
     args:
       - '-test_infra_id="cafyauto"'
+      - '-logDir="($test_log_directory_path)"'
     mustpass: true
     internal: true
+    timeout: 21000
+    branch: krinata2_authz_counter
+    owners:
+      - harikri4
+  - name: AUTHZ_INTERNAL
+    path: feature/security/gnsi/authz/cisco
+    args:
+      - '-test_infra_id="cafyauto"'
+    mustpass: true
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - harikri4
   - name: CERTZ
     path: feature/security/gnsi/certz/cisco/tests
     mustpass: true
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - venthota
   - name: CREDZ
     path: feature/security/gnsi/credentialz/cisco/tests
     mustpass: true
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - anidamod
   - name: ENROLLZ_ATTESTZ
     path: feature/system/attestz/cisco/tests
     mustpass: true
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - anidamod
   - name: PATHZ
     path: feature/security/gnsi/pathz/cisco/tests
     mustpass: true
-    timeout: 6000
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - khrasool
-  - name: ACCTZ
+  - name: ACCTZ-1
     path: feature/security/gnsi/acctz/tests
     args:
-      - '-test.run="(?:TestPreAcctzGRPCPhase2|TestPreAcctz301)"'
+      - '-test.run="(?:TestPreAcctzGRPCPhase2)"'
     mustpass: true
     internal: true
+    timeout: 21000
+    branch: master
+    owners:
+      - haribal
+  - name: ACCTZ-2
+    path: feature/security/gnsi/acctz/tests
+    args:
+      - '-test.run="(?:TestPreAcctz301)"'
+    mustpass: true
+    internal: true
+    timeout: 21000
+    branch: master
     owners:
       - haribal
