@@ -213,3 +213,38 @@ func NextIPMultiSteps(ip net.IP, count int) net.IP {
 	}
 	return nextIPAddress
 }
+
+// GenerateIPv6s generates a list of consecutive IPv6 addresses starting from a given base IP.
+func GenerateIPv6s(baseIP net.IP, n int) ([]string, error) {
+	entries := make([]string, 0, n)
+
+	if baseIP == nil {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+	ip := baseIP.To16()
+	if ip == nil || baseIP.To4() != nil {
+		return nil, fmt.Errorf("not a valid IPv6 address")
+	}
+
+	baseInt := new(big.Int).SetBytes(ip)
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128) // 2^128
+
+	for i := 0; i < n; i++ {
+		nextInt := new(big.Int).Add(baseInt, big.NewInt(int64(i)))
+		nextInt.Mod(nextInt, pmax) // wrap around if overflow
+		ipBytes := nextInt.FillBytes(make([]byte, 16))
+		entries = append(entries, net.IP(ipBytes).String())
+	}
+
+	return entries, nil
+}
+
+// IncrementMAC increments the given MAC address by `i` and returns the result.
+// This is just a convenience wrapper around GenerateMACs.
+func IncrementMAC(startMAC string, i int) (string, error) {
+	macs := GenerateMACs(startMAC, i, "00:00:00:00:00:01")
+	if len(macs) == 0 {
+		return "", fmt.Errorf("failed to generate MAC address")
+	}
+	return macs[0], nil
+}
