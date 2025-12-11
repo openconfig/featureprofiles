@@ -35,6 +35,7 @@
 /feature/stp/                @alokmtri-g
 /feature/system/             @openconfig/featureprofiles-owner-system
 /feature/vrrp                @amrindrr
+/feature/afts/               @paramasivamn1
 
 # Common OTG utilities 
 /internal/otgutils/  @openconfig/featureprofiles-maintainers-otg
