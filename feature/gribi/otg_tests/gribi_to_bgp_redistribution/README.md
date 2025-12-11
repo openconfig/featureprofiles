@@ -57,6 +57,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 #### Canonical OC
 
+Note: Protocols and tables containers are not expected to be configured, but are rather expected to be exposed by the DUT because gribi and bgp are configured in 'TEST_VRF' network instance
+
 ```json
 {
   "routing-policy": {
@@ -250,7 +252,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
 ```
 
-* Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF
+* Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
 * Step 8 - Validate full traffic loss at ATE Port 1
 
 ### TestID-16.4.2 - Drain Policy Validation
@@ -350,7 +352,8 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * Step 6 - Verify route '198.51.100.1/32' is received with community EF_ALL, MED, 5 AS numbers and GSHUT community at ATE Port 2
 * Step 7 - Delete drain policy 'peer_drain'
 * Step 8 - Verify route '198.51.100.1/32' BGP attributes are reverted back to original attributes (including EF_ALL community) at ATE Port 2
-* Step 9 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF and verify route is removed from RIB and FIB
+* Step 9 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF  
+* Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
 
 ```yaml
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
@@ -482,6 +485,10 @@ rpcs:
       union_replace: true
     gNMI.Subscribe:
       on_change: true
+
+  gribi:
+    gRIBI.Get:
+    gRIBI.Modify:
 ```
 
 ## Required DUT platform
