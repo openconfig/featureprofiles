@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
-//BMPConfigParams holds BMP related configs
+// BMPConfigParams holds BMP related configs
 type BMPConfigParams struct {
 	DutAS        uint32
 	BGPObj       *oc.NetworkInstance_Protocol_Bgp
