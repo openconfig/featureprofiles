@@ -405,6 +405,7 @@ message Metadata {
     bool skip_isis_set_level = 144;
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
+    // Cisco b/456075095
     bool skip_isis_set_metric_style_type = 145;    
     // Skip setting disable-metric-propagation while configuring
     // table-connection
@@ -1044,10 +1045,23 @@ message Metadata {
     // Device does not support adding remote-syslog config under non-default VRF
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
     bool syslog_non_default_vrf_unsupported = 351;
+
+    // Device does not support sampling QoS counters
+    // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+    // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
+    bool skip_sampling_qos_counters = 352;
+   
+    // Devices do not support default network instance gNMI server name.
+    // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
+    string default_ni_gnmi_server_name = 353;
+
+    // Devices that do not support BGP local aggregate configuration from OC
+    // https://partnerissuetracker.corp.google.com/issues/458604959
+    bool bgp_local_aggregate_unsupported = 354;
     
     //Indirect next-hop using a direct interface IP is not supported.
     // Nokia b/428883444
-    bool indirect_nh_with_ip_address_unsupported = 328;
+    bool indirect_nh_with_ip_address_unsupported = 355;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
