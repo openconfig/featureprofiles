@@ -70,7 +70,7 @@ const (
 	mplsNHID2  = uint64(1002)
 	mplsNHGID2 = uint64(2002)
 	// Static ARP configuration
-	staticIP      = "192.168.1.1"
+	staticIP      = "192.168.2.129"
 	staticMac     = "02:00:00:00:00:01"
 	lossVariation = 0.01
 	fixedPktCount = 100
@@ -127,7 +127,6 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 	})
 
 	t.Run("DP-2.2.3 IPv6 flow label validiation", func(t *testing.T) {
-		// validateFlowRate(t, ate, topo,)
 		validateIPv6FlowLabel(t, ate, topo, 1000)
 	})
 }
@@ -612,16 +611,6 @@ func validateIPv6FlowLabel(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.C
 		flow.Packet().Add().Vlan().Id().SetValue(src.vlanId)
 
 		if src.isIPv6Inner {
-			//------------------------------------------------------
-			// Add real payload IPv4 after dummy IPv6
-			//------------------------------------------------------
-			inner4 := flow.Packet().Add().Ipv4()
-			inner4.Src().SetValue(src.vlan.IPv4)
-			inner4.Dst().SetValue(atePort2.IPv4)
-
-			//------------------------------------------------------
-			// Flow B → DUMMY INNER IPv6 HEADER (FOR FLOW-LABEL COPY)
-			//------------------------------------------------------
 			inner6 := flow.Packet().Add().Ipv6()
 			inner6.Src().SetValue(outerIPv6Src)
 			inner6.Dst().SetValue(outerIPv6Dst1)
@@ -630,9 +619,8 @@ func validateIPv6FlowLabel(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.C
 			// Flow A → inner IPv4
 			inner4 := flow.Packet().Add().Ipv4()
 			inner4.Src().SetValue(src.vlan.IPv4)
-			inner4.Dst().SetValue(atePort2.IPv4)
+			inner4.Dst().SetValue(atePort2.IPv4)			
 		}
-
 		// ==============================
 		//      OUTER IPv6 HEADER
 		// ==============================
@@ -722,7 +710,6 @@ func enableCapture(t *testing.T, config gosnappi.Config, port string) {
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(port))
-	time.Sleep(captureWait * time.Second)
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -747,7 +734,6 @@ func parseIPv6FlowLabelsFromPcap(t *testing.T, ate *ondatra.ATEDevice, port, flo
 	}
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-	// packetSource := gopacket.NewPacketSource(pr, pr.LinkType())
 	for pkt := range packetSource.Packets() {
 		ip6 := pkt.Layer(layers.LayerTypeIPv6)
 		if ip6 == nil {
