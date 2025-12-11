@@ -28,26 +28,26 @@ const (
 	bmpStationPort         = 7039
 	prefix1v4              = "192.0.2.0"
 	prefix1v4Subnet        = 24
-	prefix2v4              = "172.16.0.0"
+	prefix2v4              = "198.18.0.0"
 	prefix2v4Subnet        = 16
-	prefix1v6              = "2002:db8:1::"
-	prefix1v6Subnet        = 48
+	prefix1v6              = "2001:db8:1::"
+	prefix1v6Subnet        = 64
 	prefix2v6              = "2001:db8::"
-	prefix2v6Subnet        = 48
+	prefix2v6Subnet        = 64
 	routeCountV4           = 5000
 	routeCountV6           = 5000
 	bmpName                = "atebmp"
 	prefixSetIPv4Name      = "PREFIX-SET"
-	prefixSetIPv4          = "172.16.0.0/16"
+	prefixSetIPv4          = "198.18.0.0/16"
 	prefixSubnetRange      = "16..32"
 	prefixSetIPv6Name      = "PREFIX-SET-V6"
-	prefixSetIPv6          = "2001:db8::/32"
-	prefixV6SubnetRange    = "32..128"
+	prefixSetIPv6          = "2001:db8::/64"
+	prefixV6SubnetRange    = "64..128"
 	policyName             = "BMP-POLICY"
 	prePolicyV4RouteCount  = 10000
 	prePolicyV6RouteCount  = 10000
 	postPolicyV4RouteCount = 9999
-	postPolicyV6RouteCount = 5000
+	postPolicyV6RouteCount = 9999
 	timeout                = 60 * time.Second
 	peerGroupV4            = "BGP-PEER-GROUP-V4"
 	peerGroupV6            = "BGP-PEER-GROUP-V6"
@@ -61,8 +61,8 @@ type PolicyRoute struct {
 var (
 	dutP1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 1",
-		IPv4:    "193.0.2.1",
-		IPv6:    "2002:db8:2::1",
+		IPv4:    "192.0.2.1",
+		IPv6:    "2001:db8:2::1",
 		MAC:     "02:00:01:02:02:02",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
@@ -70,8 +70,8 @@ var (
 
 	ateP1 = attrs.Attributes{
 		Name:    "atePort1",
-		IPv4:    "193.0.2.2",
-		IPv6:    "2002:db8:2::2",
+		IPv4:    "192.0.2.2",
+		IPv6:    "2001:db8:2::2",
 		MAC:     "02:00:01:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
@@ -79,8 +79,8 @@ var (
 
 	dutP2 = attrs.Attributes{
 		Desc:    "DUT to ATE Port 2",
-		IPv4:    "193.0.3.1",
-		IPv6:    "2002:db8:3::1",
+		IPv4:    "192.0.2.5",
+		IPv6:    "2001:db8:3::1",
 		MAC:     "02:00:02:02:02:02",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
@@ -88,8 +88,8 @@ var (
 
 	ateP2 = attrs.Attributes{
 		Name:    "atePort2",
-		IPv4:    "193.0.3.2",
-		IPv6:    "2002:db8:3::2",
+		IPv4:    "192.0.2.6",
+		IPv6:    "2001:db8:3::2",
 		MAC:     "02:00:02:01:01:01",
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
