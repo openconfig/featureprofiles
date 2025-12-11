@@ -529,51 +529,26 @@ func gnmiOptsForSample(t *testing.T, dut *ondatra.DUTDevice, interval time.Durat
 }
 
 func VerifyDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	verifyAftEntries := func(desc string, query ygnmi.SingletonQuery[uint64]) {
+		t.Helper()
+		val, _ := gnmi.Watch(t, gnmiOptsForSample(t, dut, 1*time.Second), query, time.Minute, func(v *ygnmi.Value[uint64]) bool {
+			return v.IsPresent()
+		}).Await(t)
+		got, _ := val.Val()
+		if got == uint64(RouteCount) {
+			t.Logf("Test case Passed: %s, want: %d", desc, RouteCount)
+		} else {
+			t.Errorf("%s, got: %d, want: %d", desc, got, RouteCount)
+		}
+	}
+
 	dni := deviations.DefaultNetworkInstance(dut)
+	afts := gnmi.OC().NetworkInstance(dni).Afts().AftSummaries()
 
-	// IPv4 BGP - use sampled subscription
-	val, _ := gnmi.Watch(t, gnmiOptsForSample(t, dut, 1*time.Second), gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
-		return v.IsPresent()
-	}).Await(t)
-	got, _ := val.Val()
-	if got == uint64(RouteCount) {
-		t.Logf("Test case Passed: IPv4 BGP entries, want: %d", RouteCount)
-	} else {
-		t.Errorf("IPv4 BGP entries, got: %d, want: %d", got, RouteCount)
-	}
-
-	// IPv6 BGP - use sampled subscription
-	val, _ = gnmi.Watch(t, gnmiOptsForSample(t, dut, 1*time.Second), gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
-		return v.IsPresent()
-	}).Await(t)
-	got, _ = val.Val()
-	if got == uint64(RouteCount) {
-		t.Logf("Test case Passed: IPv6 BGP entries, want: %d", RouteCount)
-	} else {
-		t.Errorf("IPv6 BGP entries, got: %d, want: %d", got, RouteCount)
-	}
-
-	// IPv4 ISIS - use sampled subscription
-	val, _ = gnmi.Watch(t, gnmiOptsForSample(t, dut, 1*time.Second), gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
-		return v.IsPresent()
-	}).Await(t)
-	got, _ = val.Val()
-	if got == uint64(RouteCount) {
-		t.Logf("Test case Passed: IPv4 ISIS entries, want: %d", RouteCount)
-	} else {
-		t.Errorf("IPv4 ISIS entries, got: %d, want: %d", got, RouteCount)
-	}
-
-	// IPv6 ISIS - use sampled subscription
-	val, _ = gnmi.Watch(t, gnmiOptsForSample(t, dut, 1*time.Second), gnmi.OC().NetworkInstance(dni).Afts().AftSummaries().Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State(), time.Minute, func(v *ygnmi.Value[uint64]) bool {
-		return v.IsPresent()
-	}).Await(t)
-	got, _ = val.Val()
-	if got == uint64(RouteCount) {
-		t.Logf("Test case Passed: IPv6 ISIS entries, want: %d", RouteCount)
-	} else {
-		t.Errorf("IPv6 ISIS entries, got: %d, want: %d", got, RouteCount)
-	}
+	verifyAftEntries("IPv4 BGP entries", afts.Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State())
+	verifyAftEntries("IPv6 BGP entries", afts.Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP).Counters().AftEntries().State())
+	verifyAftEntries("IPv4 ISIS entries", afts.Ipv4Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State())
+	verifyAftEntries("IPv6 ISIS entries", afts.Ipv6Unicast().Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS).Counters().AftEntries().State())
 }
 
 func TestBGP(t *testing.T) {
