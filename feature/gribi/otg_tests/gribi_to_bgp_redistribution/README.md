@@ -244,7 +244,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 * Step 5 - Validate traffic is received at ATE Port 1 without any loss.
 * Step 6 - Delete gRIBI route '198.51.100.1/32' from TEST_VRF
 
-```yaml
+```json
 'operation: { op: DELETE network_instance: "TEST_VRF" ipv4: { prefix: "198.51.100.1/32" } }'
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop_group: { id: 2001 } }'
 'operation: { op: DELETE network_instance: "TEST_VRF" next_hop: { index: 1001 } }'
