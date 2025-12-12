@@ -2,6 +2,7 @@
 package otgvalidationhelpers
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -34,6 +35,20 @@ OTGValidation is a struct to hold OTG validation parameters.
 type OTGValidation struct {
 	Interface *InterfaceParams
 	Flow      *FlowParams
+}
+
+// PortWeightage represents an OTG port's expected traffic share as a percentage.
+type PortWeightage struct {
+	PortName  string
+	Weightage float64
+}
+
+// OTGECMPValidation validates ECMP traffic distribution across OTG ports.
+// TolerancePct is fractional (e.g.±10%).
+type OTGECMPValidation struct {
+	PortWeightages []PortWeightage
+	Flows          []string
+	TolerancePct   float64
 }
 
 // InterfaceParams is a struct to hold OTG interface parameters.
@@ -81,12 +96,12 @@ func (v *OTGValidation) IsIPv6Interfaceresolved(t *testing.T, ate *ondatra.ATEDe
 func (v *OTGValidation) ValidateLossOnFlows(t *testing.T, ate *ondatra.ATEDevice) error {
 	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
 	if outPkts == 0 {
-		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
+		t.Fatalf("out packets for flow %q: got %v, want nonzero", v.Flow.Name, outPkts)
 	}
 	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
 	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
 	if lossPct > v.Flow.TolerancePct {
-		return fmt.Errorf("Get(traffic loss for flow %q): got %v percent, want < %v percent", v.Flow.Name, lossPct, v.Flow.TolerancePct)
+		return fmt.Errorf("traffic loss for flow %q: got %v percent, want < %v percent", v.Flow.Name, lossPct, v.Flow.TolerancePct)
 	}
 	t.Logf("Flow %q, inPkts %d, outPkts %d, lossPct %v", v.Flow.Name, inPkts, outPkts, lossPct)
 	return nil
@@ -173,5 +188,37 @@ func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) 
 		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
 	}
 
+	return nil
+}
+
+// ValidateECMP validates if equal number of packets shared across the interfaces given
+func (ev *OTGECMPValidation) ValidateECMP(t *testing.T, ate *ondatra.ATEDevice) error {
+	t.Helper()
+	totalPkts := uint64(0)
+	for _, fName := range ev.Flows {
+		totalPkts += gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(fName).Counters().InPkts().State())
+	}
+
+	var validationErrors []error
+
+	for _, p := range ev.PortWeightages {
+		actualPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, p.PortName).ID()).Counters().InFrames().State())
+		expectedPkts := (float64(totalPkts) * p.Weightage) / 100
+
+		t.Logf("port: %s, Packets Received: %d", p.PortName, actualPkts)
+
+		lowerBound := expectedPkts * (1 - ev.TolerancePct)
+		upperBound := expectedPkts * (1 + ev.TolerancePct)
+
+		if float64(actualPkts) < lowerBound || float64(actualPkts) > upperBound {
+			validationErrors = append(validationErrors,
+				fmt.Errorf("port %s: actual packets %d out of expected range [%.0f - %.0f]", p.PortName, actualPkts, lowerBound, upperBound),
+			)
+		}
+	}
+
+	if len(validationErrors) > 0 {
+		return fmt.Errorf("ecmp validation failed:\n%v", errors.Join(validationErrors...))
+	}
 	return nil
 }
