@@ -721,7 +721,7 @@ message Metadata {
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
-    
+
     // Devices that do not support load-interval configuration
     bool load_interval_not_supported = 263;
 
@@ -844,7 +844,7 @@ message Metadata {
 
     // Skip setting send-community-type in bgp peer-group config
     bool skip_bgp_peer_group_send_community_type = 299;
-    
+
     // Devices that need explicit swap_src_dst_mac set with loopback_mode
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
@@ -855,7 +855,7 @@ message Metadata {
 
     // low_scale_aft returns true if device requires low scale AFT.
     bool low_scale_aft = 303;
-    
+
     // Devices that do not support system-description config path
     // Nokia b/431929861
     bool missing_system_description_config_path = 304;
@@ -896,7 +896,7 @@ message Metadata {
     // Devices that do not support policy forwarding encapsulate gre action
     // Arista: b/409347274
     bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
-  
+
     // policy rule based counters unsupported
     // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
     bool policy_rule_counters_oc_unsupported = 316;
@@ -904,7 +904,7 @@ message Metadata {
     // Devices that must have OTN to ETH assignment.
     // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
     bool otn_to_eth_assignment = 317;
-    
+
     // Devices that do not support import export policies configured in network instance
     bool network_instance_import_export_policy_oc_unsuppored = 318;
 
@@ -943,7 +943,7 @@ message Metadata {
     // Devices that do not support gribi records
     // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
     bool gribi_records_unsupported = 327;
-  
+
     // Devices without breakout mode support for full rate.
     // Nokia: b/435502032
     bool breakout_mode_unsupported_for_eight_hundred_gb = 328;
@@ -982,7 +982,7 @@ message Metadata {
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
     bool transceiver_config_enable_unsupported = 336;
-    
+
     // Devices that do not support aft summary oc path
     // Cisco: https://issuetracker.google.com/450898206
     bool aft_summary_oc_unsupported = 337;
@@ -1002,7 +1002,7 @@ message Metadata {
     //  Juniper does not support localhost yet
     //  b/448173472
     bool localhost_for_containerz = 341;
-    
+
     // Juniper: b/434633267
     // Devices that do not support oc path for aggregate bandwidth policy
     // action.
@@ -1050,7 +1050,7 @@ message Metadata {
     // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
     // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
-   
+
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
@@ -1068,6 +1068,9 @@ message Metadata {
 
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
+
+    // Devices that do not support BGP Graceful restart for Peer Group
+    bool bgp_graceful_restart_peer_group_unsupported = 358;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

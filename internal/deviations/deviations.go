@@ -1513,7 +1513,7 @@ func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
 
-// Devices that do not propagate IGP metric through redistribution
+// DefaultNoIgpMetricPropagation returns true if devices do not propagate IGP metric through redistribution
 func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
 }
@@ -1543,7 +1543,7 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
 }
 
-// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+// NonIntervalFecErrorCounter returns true if FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
@@ -1553,27 +1553,27 @@ func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
 }
 
-// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+// StaticMplsLspOCUnsupported returns true if static mpls lsp parameters are unsupported
 func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
 }
 
-// GreDecapsulationUnsupported returns true if decapsulation is not supported
+// GreDecapsulationOCUnsupported returns true if decapsulation is not supported
 func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
 }
 
-// SRLB and SRGB configuration does not effective with OC config
+// IsisSrgbSrlbUnsupported returns true if SRLB and SRGB configuration does not take effect via OC config
 func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
 }
 
-// Isis Prefix Segment config does not supported
+// IsisSrPrefixSegmentConfigUnsupported returns true if ISIS SR Prefix Segment config is not supported
 func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
 }
 
-// Isis Node Segment Configuration do not supported
+// IsisSrNodeSegmentConfigUnsupported returns true if ISIS SR Node Segment Configuration is not supported
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
@@ -1588,7 +1588,7 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
 }
 
-// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+// PolicyForwardingGreEncapsulationOcUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendor
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
@@ -1618,7 +1618,7 @@ func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
 
-// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+// DecapsulateGueOCUnsupported returns true if GUE Decapsualation via OC is not supported
 func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
 }
@@ -1634,7 +1634,7 @@ func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
 }
 
-// MaxEcmpPaths path on global level is unsupported
+// GlobalMaxEcmpPathsUnsupported returns true if MaxEcmpPaths path on global level is unsupported
 func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGlobalMaxEcmpPathsUnsupported()
 }
@@ -1650,7 +1650,7 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
 
-// Gribi Records Unsupported returns true if Gribi records creation is not supported through OpenConfig.
+// GribiRecordsUnsupported returns true if Gribi records creation is not supported through OpenConfig.
 func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
 }
@@ -1676,7 +1676,7 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
 
-// OC state path for the lower priority next hop not supported
+// TelemetryNotSupportedForLowPriorityNh returns true if OC state path for the lower priority next hop not supported
 func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
@@ -1686,7 +1686,7 @@ func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
 }
 
-// Same apply-policy under peer-group and peer-group/afi-safi
+// SameAfiSafiAndPeergroupPoliciesUnsupported returns true if applying the same policy under peer-group and peer-group/afi-safi is unsupported
 func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSameAfiSafiAndPeergroupPoliciesUnsupported()
 }
@@ -1723,7 +1723,8 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }
 
-// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+// LocalhostForContainerz returns true if the device uses an IPv6 address instead of localhost.
+// TODO enhancement: this should be renamed to LocalhostForContainerzUnsupported for clarity
 func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
 }
@@ -1793,7 +1794,7 @@ func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
 }
 
-// ConfigAclValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+// ConfigACLValueAnyOcUnsupported returns true if configuring parameter in ACL with value ANY is not supported via OC
 func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
 }
@@ -1801,4 +1802,10 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 // ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
 func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
+}
+
+// BgpGracefulRestartPeerGroupUnsupported returns true if BGP Graceful Restart for Peer Group is not supported
+// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
 }
