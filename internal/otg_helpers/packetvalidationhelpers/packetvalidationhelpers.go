@@ -179,7 +179,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	// defer os.Remove(f.Name()) // Clean up the temporary file
+	defer os.Remove(f.Name()) // Clean up the temporary file
 	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
