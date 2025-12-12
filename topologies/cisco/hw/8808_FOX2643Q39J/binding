@@ -100,39 +100,39 @@ duts {
   
     ports {
     id: "port1"
-    name: "HundredGigE0/0/0/30"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "TenGigE0/0/0/10/0"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port2"
-    name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "TenGigE0/0/0/10/1"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port3"
-    name: "HundredGigE0/0/0/1"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "TenGigE0/0/0/10/2"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
    id: "port4"
-   name: "HundredGigE0/0/0/10"  # Change this to the actual port name.
-   speed: S_100GB
+   name: "TenGigE0/0/0/10/3"  # Change this to the actual port name.
+   speed: S_10GB
   }
 }
 
 ates {
   id: "ate"
-  name: "10.85.84.214"  # Change this to the Ixia chassis name.
+  name: "10.85.84.155"  # Change this to the Ixia chassis name.
 
   # Options specific to the IxNetwork API.  Remove if not needed.
   ixnetwork {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-   target: "10.85.84.194"
-   skip_verify: true
-   username: "admin"
-   password: "ixia123!" 
+    target: "10.85.84.119"
+    skip_verify: true
+    username: "admin"
+    password: "Admin@123"
 
    #linux
    #target: "10.85.84.214"
@@ -150,22 +150,22 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "1/76" # Change this to the actual port name.
-    speed: S_100GB
+    name: "7/13" # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port2"
-    name: "1/73"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "7/14"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port3"
-    name: "1/74"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "7/15"  # Change this to the actual port name.
+    speed: S_10GB
   }
   ports {
     id: "port4"
-    name: "1/75"  # Change this to the actual port name.
-    speed: S_100GB
+    name: "7/16"  # Change this to the actual port name.
+    speed: S_10GB
   }
 }
