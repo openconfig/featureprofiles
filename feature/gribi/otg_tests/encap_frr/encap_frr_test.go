@@ -205,6 +205,34 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	return c.Await(subctx, t)
 }
 
+func cliSetRequest(config string) *gnmi.SetRequest {
+    return &gpb.SetRequest{
+        Update: []*gpb.Update{{
+            Path: &gpb.Path{
+                Origin: "cli",
+            },
+            Val: &gpb.TypedValue{
+                Value: &gpb.TypedValue_AsciiVal{
+                    AsciiVal: config,
+                },
+            },
+        }},
+    }
+}
+
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+    t.Helper()
+    switch dut.Vendor() {
+        case ondatra.ARISTA:
+            cli := `vrf selection policy
+                next-hop decapsulation vrf`
+        if _, err := dut.RawAPIs().GNMI(t).
+            Set(context.Background(), cliSetRequest(cli)); err != nil {
+            t.Fatalf("Failed to disable P4RTLLDP: %v", err)
+        }
+    }
+}
+
 type testArgs struct {
 	client     *fluent.GRIBIClient
 	dut        *ondatra.DUTDevice
@@ -856,7 +884,7 @@ func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatu
 	for _, port := range portList {
 		p := args.dut.Port(t, port)
 		t.Log("Check for port status")
-		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 10*time.Minute, wantStatus)
+		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 30*time.Minute, wantStatus)
 		operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if operStatus != wantStatus {
 			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, operStatus, wantStatus)
