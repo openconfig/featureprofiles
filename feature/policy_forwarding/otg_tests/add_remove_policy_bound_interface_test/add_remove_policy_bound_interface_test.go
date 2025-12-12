@@ -310,7 +310,7 @@ func createFlow(t *testing.T, top gosnappi.Config, name string, src, dst *attrs.
 		ip.Dst().SetValue(dstIP)
 	}
 	flow.Size().SetFixed(512)
-	flow.Rate().SetPercentage(5)
+	flow.Rate().SetPps(100)
 	return flow
 }
 
