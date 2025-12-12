@@ -285,7 +285,7 @@ func ValidateCFMSession(t *testing.T, dut *ondatra.DUTDevice, cfg MaintenanceDom
 			cli = fmt.Sprintf(`
 				show cfm end-point domain %v association %v end-point %v
 				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.GetGnmiCLIOutput(t, dut, cli).String()
+			output := helpers.ExecuteShowCLI(t, dut, cli).String()
 
 			if !strings.Contains(output, strconv.Itoa(cfg.Assocs[0].RemoteMEPID)) {
 				t.Fatalf("Expected remote MEP ID %v not found in output", cfg.Assocs[0].RemoteMEPID)
@@ -340,7 +340,7 @@ func ValidateAlarmDetection(t *testing.T, dut *ondatra.DUTDevice, cfg Maintenanc
 			cli = fmt.Sprintf(`
 				show cfm continuity-check end-point domain %v association %v end-point %v
 				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.GetGnmiCLIOutput(t, dut, cli).String()
+			output := helpers.ExecuteShowCLI(t, dut, cli).String()
 
 			re := regexp.MustCompile(`TX RDI state:\s*(true|false)`)
 			rdiFlag := re.FindStringSubmatch(output)
@@ -374,7 +374,7 @@ func ValidateDelayMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg Maintena
 			cli = fmt.Sprintf(`
 				show cfm measurement delay proactive domain %s association %v end-point %v
 				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.GetGnmiCLIOutput(t, dut, cli).String()
+			output := helpers.ExecuteShowCLI(t, dut, cli).String()
 
 			delayMeasurementRe := regexp.MustCompile(`Two-way delay \(usec\)\s+min/max/avg:\s+([\d.]+)/([\d.]+)/([\d.]+)`)
 			delayMeasurement := delayMeasurementRe.FindStringSubmatch(output)
@@ -410,9 +410,8 @@ func ValidateLossMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg Maintenan
 			cli = fmt.Sprintf(`
 				show cfm measurement loss synthetic proactive domain %s association %v end-point %v
 				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.GetGnmiCLIOutput(t, dut, cli).String()
+			output := helpers.ExecuteShowCLI(t, dut, cli).String()
 
-			t.Log(output)
 			farEndRe := regexp.MustCompile(`Far-end frame .*?min/max/avg: (\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)`)
 
 			farEndMeasurement := farEndRe.FindStringSubmatch(output)

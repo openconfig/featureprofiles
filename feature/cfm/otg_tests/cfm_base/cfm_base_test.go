@@ -70,9 +70,6 @@ const (
 	// CcmInterval300ms is the encoded value for a 300ms CCM interval, as per IEEE 802.1Q.
 	CcmInterval300ms CCMInterval = 3
 
-	// // CCM Interval encoding for 100ms
-	// CcmInterval100ms CCMInterval = 4
-
 	CcmInterval1S CCMInterval = 4
 )
 
@@ -91,11 +88,12 @@ type dutData struct {
 	tunnelDst        string
 	staticTunnelDst  string
 	capturePort      string
+	oam              *oc.Oam
 }
 
 var (
-	sfBatch *gnmi.SetBatch
-	oam     *oc.Oam
+	// sfBatch *gnmi.SetBatch
+	// oam *oc.Oam
 
 	activity = oc.Lacp_LacpActivityType_ACTIVE
 	period   = oc.Lacp_LacpPeriodType_FAST
@@ -210,13 +208,7 @@ var (
 
 	otgIntf2 = &otgconfighelpers.InterfaceProperties{
 		Name: "ateLag2",
-		// IPv4:        "192.168.30.1",
-		// IPv4Gateway: "192.168.30.2",
-		// IPv4Len:     plenIPv4,
-		// IPv6:        "2001:db8::192:168:30:1",
-		// IPv6Gateway: "2001:db8::192:168:30:2",
-		// IPv6Len:     plenIPv6,
-		MAC: "02:00:01:01:01:05",
+		MAC:  "02:00:01:01:01:05",
 	}
 
 	sizeWeightProfile = []otgconfighelpers.SizeWeightPair{
@@ -240,12 +232,14 @@ var (
 		Protocol: greProtocol,
 		DstIP:    tunnelDestination1,
 		TTL:      64,
+		Tos:      96,
 	}
 
 	OuterGREIPLayerIPv4DUT2 = &packetvalidationhelpers.IPv4Layer{
 		Protocol: greProtocol,
 		DstIP:    tunnelDestination2,
 		TTL:      64,
+		Tos:      96,
 	}
 
 	MPLSLayer = &packetvalidationhelpers.MPLSLayer{
@@ -352,7 +346,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 func configureDut(t *testing.T) {
 	for index, data := range dutTestData {
 		tunnelSrcIPs := []string{}
-		sfBatch = &gnmi.SetBatch{}
+		sfBatch := &gnmi.SetBatch{}
 		fptest.ConfigureDefaultNetworkInstance(t, data.dut)
 
 		data.dut.Port(t, data.capturePort)
@@ -386,6 +380,7 @@ func configureDut(t *testing.T) {
 			SrcAddr:          tunnelSrcIPs,
 			DstAddr:          []string{data.tunnelDst},
 			TTL:              0,
+			Dscp:             96,
 		}
 
 		cfgplugins.NextHopGroupConfigForMultipleIP(t, sfBatch, data.dut, greNextHopGroupCfg)
@@ -396,13 +391,13 @@ func configureDut(t *testing.T) {
 		cfgplugins.LabelRangeConfig(t, data.dut)
 
 		// Configure static route from tunnel destination to transit ports
-		configureStaticRoute(t, data.dut, data.staticTunnelDst, data.neighborPortIPv4)
+		configureStaticRoute(t, sfBatch, data.dut, data.staticTunnelDst, data.neighborPortIPv4)
 
 		// Configure Decap GRE policy
 		cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, data.dut, data.tunnelDst, "trafficPolicyName", data.lagAggID, decapGrpName)
 
 		// Configure CFM configs on customer interfaces
-		configureCFM(t, data.dut, data.lagAggID, data.cfmCfg)
+		data.oam = configureCFM(t, sfBatch, data.dut, data.lagAggID, data.cfmCfg)
 
 		// Configure monitor session to capture packets
 		monitorCapt := cfgplugins.MonitorSessionConfig{
@@ -415,7 +410,7 @@ func configureDut(t *testing.T) {
 	}
 }
 
-func configureCFM(t *testing.T, dut *ondatra.DUTDevice, intfName string, cfmCfg []cfgplugins.MaintenanceDomainConfig) {
+func configureCFM(t *testing.T, sfBatch *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, cfmCfg []cfgplugins.MaintenanceDomainConfig) *oc.Oam {
 	cfmMeasurementProfile := cfgplugins.CFMMeasurementProfile{
 		ProfileName:       "cfm_delay_Bundle",
 		BurstInterval:     100,
@@ -426,16 +421,16 @@ func configureCFM(t *testing.T, dut *ondatra.DUTDevice, intfName string, cfmCfg 
 	}
 
 	t.Log("Configure CFM configs on DUT")
-	oam = cfgplugins.ConfigureMeasurementProfile(t, sfBatch, dut, cfmMeasurementProfile)
-
+	oam := cfgplugins.ConfigureMeasurementProfile(t, sfBatch, dut, cfmMeasurementProfile)
 	cfmCfg[0].IntfName = intfName
 	cfmCfg[0].ProfileName = cfmMeasurementProfile.ProfileName
 	cfgplugins.ConfigureCFMDomain(t, oam, dut, &cfmCfg[0])
 	gnmi.BatchUpdate(sfBatch, gnmi.OC().Oam().Config(), oam)
 
+	return oam
 }
 
-func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, dstAddr string, nexthopIp string) {
+func configureStaticRoute(t *testing.T, sfBatch *gnmi.SetBatch, dut *ondatra.DUTDevice, dstAddr string, nexthopIp string) {
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          dstAddr,
@@ -451,6 +446,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, dstAddr string, 
 }
 
 func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string, subinterfaces uint32, mode string) {
+	sfBatch := &gnmi.SetBatch{}
 	// Configuring port/attachment mode
 	pseudowireCfg := cfgplugins.MplsStaticPseudowire{
 		PseudowireName:   pseudowireName,
@@ -545,7 +541,6 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	ate.OTG().StartTraffic(t)
 	time.Sleep(10 * time.Second)
 	ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
@@ -562,14 +557,14 @@ func verifyLoadBalanceAcrossGre(t *testing.T, packetSource *gopacket.PacketSourc
 	}
 
 	uniqueCount := len(srcIPs)
-	t.Logf("Found %d unique GRE source IPs in the capture.", uniqueCount)
+	t.Logf("Found %d unique GRE source IPs in the capture", uniqueCount)
 
 	if uniqueCount < tunnelCount {
 		t.Log("flows are not ECMP'd across all available tunnels as expected")
 		return
 	}
 
-	t.Errorf("error: traffic was load-balanced across %d GRE sources.", uniqueCount)
+	t.Errorf("error: traffic was load-balanced across %d GRE sources", uniqueCount)
 }
 
 func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) error {
@@ -592,12 +587,12 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 		mpls, _ := mplsLayer.(*layers.MPLS)
 		inner := gopacket.NewPacket(mpls.Payload[4:], layers.LayerTypeEthernet, gopacket.Default)
 		if inner == nil {
-			return fmt.Errorf("encapsulated layer not found")
+			return fmt.Errorf("error: encapsulated layer not found")
 		}
 
 		innerEthLayer := inner.Layer(layers.LayerTypeEthernet)
 		if innerEthLayer == nil {
-			return fmt.Errorf("encapsulated inner ethernet layer not found")
+			return fmt.Errorf("error: encapsulated inner ethernet layer not found")
 		}
 		eth, _ := innerEthLayer.(*layers.Ethernet)
 
@@ -611,38 +606,36 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 		}
 
 		cfmPacketCount++
-		// t.Logf("Processing CFM packet #%d...", cfmPacketCount)
+		// t.Logf("Processing CFM packet #%d..", cfmPacketCount)
 
 		version := cfmData[0] & 0x1F
 		if version == 0 && CfmOpCode(cfmData[1]) == CcmOpCode {
 			// Verify CCM PDU Destination is Multicast.
 			if !strings.HasPrefix(eth.DstMAC.String(), cfmMulticastPrefix) {
-				t.Errorf("destination MAC %s is not a standard CFM multicast address", eth.DstMAC)
+				t.Errorf("error: destination MAC %s is not a standard CFM multicast address", eth.DstMAC)
 			}
 			t.Logf("destination MAC %s is a valid multicast address", eth.DstMAC)
 
 			// Verify CFM OpCode as Continuity Check Message (1).
 			if CfmOpCode(cfmData[1]) != CcmOpCode {
-				t.Errorf("opCode: %d is found a CCM packet, expected: %d", cfmData[1], CcmOpCode)
+				t.Errorf("error: opCode: %d is found a CCM packet, expected: %d", cfmData[1], CcmOpCode)
 			} else {
 				t.Logf("opCode: %d is found a CCM packet", cfmData[1])
 			}
 
 			// Verify interval field in CCM packet.
-			if cfmData[2]&0x0F != byte(expectedInterval) {
-				t.Errorf("ccm interval mismatch on packet; expected: %d, got: %d", expectedInterval, cfmData[2]&0x07)
+			if cfmData[2]&0x07 != byte(expectedInterval) {
+				t.Errorf("error: ccm interval mismatch on packet; expected: %d, got: %d", expectedInterval, cfmData[2]&0x07)
 			} else {
 				t.Logf("packet has the correct CCM interval: %d", cfmData[2]&0x07)
 			}
 
 			// Optional: Verify RDI bit in CCM packet.
 			if verifyRDIBit {
-				rdiBitSet := (cfmData[2] & 0x80) == 1
-				t.Log("*******************************")
-				t.Log(rdiBitSet)
-				t.Log("*******************************")
-				if rdiBitSet {
-					t.Errorf("rdi bit verification failed on packet. Expected: %v, Got: %v", !verifyRDIBit, rdiBitSet)
+				// RDI bit is MSB of octet 2; non-zero when set.
+				rdiBitSet := (cfmData[2] & 0x80) != 0
+				if rdiBitSet != verifyRDIBit {
+					t.Errorf("error: rdi bit verification failed on packet. Expected: %v, Got: %v", !verifyRDIBit, rdiBitSet)
 				}
 				t.Logf("packet RDI bit is correctly set to %v", verifyRDIBit)
 			}
@@ -667,7 +660,7 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 	}
 
 	if cfmPacketCount == 0 {
-		return fmt.Errorf("validation failed: no CFM packets with EtherType 0x8902 were found")
+		return fmt.Errorf("error: validation failed: no CFM packets with EtherType 0x8902 were found")
 	}
 	return nil
 }
@@ -710,7 +703,7 @@ func TestCFMBase(t *testing.T) {
 				PacketsToSend:     1000,
 				PpsRate:           100,
 				SizeWeightProfile: &sizeWeightProfile,
-				FlowName:          "EthoMPLSoGREv4Entropy",
+				FlowName:          "CFMFlow",
 				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC},
 				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: dutTestData[0].subinterface},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
@@ -775,13 +768,15 @@ func TestCFMBase(t *testing.T) {
 				configureIngressVlan(t, data.dut, data.lagAggID, data.subinterface, "remove")
 				switch mode {
 				case "port":
+					controlWordMPLS.Tc = 1
 					configureIngressVlan(t, data.dut, data.lagAggID, data.subinterface, "port")
 					data.cfmCfg[0].IntfName = data.lagAggID
-					cfgplugins.ConfigureCFMDomain(t, oam, data.dut, &data.cfmCfg[0])
+					cfgplugins.ConfigureCFMDomain(t, data.oam, data.dut, &data.cfmCfg[0])
 				case "attachment":
+					controlWordMPLS.Tc = 7
 					configureIngressVlan(t, data.dut, data.lagAggID, data.subinterface, "attachment")
 					data.cfmCfg[0].IntfName = fmt.Sprintf("%s.%v", data.lagAggID, data.subinterface)
-					cfgplugins.ConfigureCFMDomain(t, oam, data.dut, &data.cfmCfg[0])
+					cfgplugins.ConfigureCFMDomain(t, data.oam, data.dut, &data.cfmCfg[0])
 				}
 			}
 
@@ -809,9 +804,10 @@ func testCFMEstablishment(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, ot
 
 	for _, v := range encapValidation {
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
 	}
+
 	verifyLoadBalanceAcrossGre(t, packetvalidationhelpers.SourceObj())
 }
 
@@ -821,13 +817,14 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 
 	for _, v := range encapValidation {
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
 	}
 
 	interval, _ := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
+	t.Log(interval)
 	if err := validateCfmPacket(t, interval, false); err != nil {
-		t.Errorf("validation of cfm packets failed: %q", err)
+		t.Errorf("error: validation of cfm packets failed: %q", err)
 	}
 
 	// Configure Wrong MD level on on endpoint
@@ -835,7 +832,7 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 	dutData.cfmCfg[0].RemoveDomain = true
 	dutData.cfmCfg[0].Level = 4
 
-	cfgplugins.ConfigureCFMDomain(t, oam, dutData.dut, &dutData.cfmCfg[0])
+	cfgplugins.ConfigureCFMDomain(t, dutData.oam, dutData.dut, &dutData.cfmCfg[0])
 	time.Sleep(20 * time.Second)
 	cfgplugins.ValidateAlarmDetection(t, dutTestData[1].dut, dutTestData[1].cfmCfg[0])
 
@@ -843,9 +840,13 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 	dutData = dutTestData[0]
 	dutData.cfmCfg[0].Assocs[0].CcmInterval = oc.MaintenanceAssociation_CcmInterval_10S
 
-	cfgplugins.ConfigureCFMDomain(t, oam, dutData.dut, &dutData.cfmCfg[0])
+	cfgplugins.ConfigureCFMDomain(t, dutData.oam, dutData.dut, &dutData.cfmCfg[0])
 	cfgplugins.ValidateAlarmDetection(t, dutTestData[1].dut, dutTestData[1].cfmCfg[0])
 
+	// Configure different CCM interval
+	dutData = dutTestData[0]
+	dutData.cfmCfg[0].Assocs[0].CcmInterval = oc.MaintenanceAssociation_CcmInterval_1S
+	cfgplugins.ConfigureCFMDomain(t, dutData.oam, dutData.dut, &dutData.cfmCfg[0])
 }
 
 // testCFM114 verifies RDI flag set on CE-PE fault.
@@ -855,9 +856,9 @@ func testCFMAlarm(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 	dutData.cfmCfg[0].Level = 5
 	dutData.cfmCfg[0].Assocs[0].CcmInterval = oc.MaintenanceAssociation_CcmInterval_1S
 
-	cfgplugins.ConfigureCFMDomain(t, oam, dutData.dut, &dutData.cfmCfg[0])
+	cfgplugins.ConfigureCFMDomain(t, dutData.oam, dutData.dut, &dutData.cfmCfg[0])
 
-	t.Log("Shutting down ATE port1 to simulate CE-PE fault.")
+	t.Log("Shutting down ATE port1 to simulate CE-PE fault")
 	portStateAction := gosnappi.NewControlState()
 	port := portStateAction.Port().Link().SetPortNames([]string{ate.Port(t, agg1.MemberPorts[0]).ID(), ate.Port(t, agg1.MemberPorts[1]).ID()})
 	port.SetState(gosnappi.StatePortLinkState.DOWN)
@@ -867,13 +868,13 @@ func testCFMAlarm(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 
 	for _, v := range encapValidation {
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
-			t.Errorf("Capture And ValidatePackets Failed (): %q", err)
+			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
 	}
 
 	interval, _ := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
 	if err := validateCfmPacket(t, interval, false); err != nil {
-		t.Errorf("validation of cfm packets failed: %q", err)
+		t.Errorf("error: validation of cfm packets failed: %q", err)
 	}
 
 	cfgplugins.ValidateAlarmDetection(t, dutTestData[1].dut, dutTestData[1].cfmCfg[0])
@@ -916,7 +917,7 @@ func testCFMLossThreshold(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, ot
 	for _, loss := range []float64{6, 10, 20, 100} {
 		t.Logf("set the loss threshold knob to: %v", loss)
 		b := &gnmi.SetBatch{}
-		cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, oam, dutTestData[0].cfmCfg[0], loss)
+		cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, dutTestData[0].oam, dutTestData[0].cfmCfg[0], loss)
 
 		dutPort := dutTestData[0].dut.Port(t, dutTestData[0].transitPort[0]).Name()
 		cfgplugins.ToggleInterface(t, dutTestData[0].dut, dutPort, false)
@@ -931,7 +932,7 @@ func testCFMLossThreshold(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, ot
 		b.Set(t, dutTestData[0].dut)
 	}
 
-	cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, oam, dutTestData[0].cfmCfg[0], 3.5)
+	cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, dutTestData[0].oam, dutTestData[0].cfmCfg[0], 3.5)
 }
 
 func testCFMDelayMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
@@ -943,8 +944,9 @@ func testCFMDelayMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG,
 	}
 
 	t.Log("Configure CFM configs on DUT")
+	sfBatch := &gnmi.SetBatch{}
 	for _, data := range dutTestData {
-		oam = cfgplugins.ConfigureMeasurementProfile(t, sfBatch, data.dut, cfmMeasurementProfile)
+		data.oam = cfgplugins.ConfigureMeasurementProfile(t, sfBatch, data.dut, cfmMeasurementProfile)
 	}
 
 	for _, data := range dutTestData {
@@ -954,6 +956,7 @@ func testCFMDelayMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG,
 }
 
 func testCFMLossMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	sfBatch := &gnmi.SetBatch{}
 	cfmMeasurementProfile := cfgplugins.CFMMeasurementProfile{
 		ProfileName:                "cfm_delay_Bundle",
 		MeasurementInterval:        10,
@@ -963,8 +966,8 @@ func testCFMLossMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, 
 
 	t.Log("Configure CFM configs on DUT")
 	for _, data := range dutTestData {
-		cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, oam, dutTestData[0].cfmCfg[0], 3.5)
-		oam = cfgplugins.ConfigureMeasurementProfile(t, sfBatch, data.dut, cfmMeasurementProfile)
+		cfgplugins.ConfigureLossThreshold(t, dutTestData[0].dut, data.oam, dutTestData[0].cfmCfg[0], 3.5)
+		data.oam = cfgplugins.ConfigureMeasurementProfile(t, sfBatch, data.dut, cfmMeasurementProfile)
 	}
 
 	sendTrafficCapture(t, ate)
@@ -978,7 +981,7 @@ func testCFMLossMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, 
 func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	cfmDomain := []string{"D1"}
 
-	sfBatch = &gnmi.SetBatch{}
+	sfBatch := &gnmi.SetBatch{}
 	for index, data := range dutTestData {
 		dutLagData := custLagData[index]
 		dutIPs, err := iputil.GenerateIPsWithStep(dutLagData.SubInterfaces[0].IPv4Address.String(), 1002, "0.0.1.0")
@@ -1020,7 +1023,7 @@ func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 			cfmDomain = append(cfmDomain, fmt.Sprintf("D.%v", i))
 			data.cfmCfg[0].IntfName = fmt.Sprintf("%s.%v", data.lagAggID, i)
 			data.cfmCfg[0].ProfileName = "cfm_delay_Bundle"
-			cfgplugins.ConfigureCFMDomain(t, oam, data.dut, &data.cfmCfg[0])
+			cfgplugins.ConfigureCFMDomain(t, data.oam, data.dut, &data.cfmCfg[0])
 		}
 	}
 
