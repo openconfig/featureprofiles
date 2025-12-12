@@ -1256,8 +1256,11 @@ type Metadata_Deviations struct {
 	// Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
 	// /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
 	AggregateSidCounterOutPktsUnsupported bool `protobuf:"varint,359,opt,name=aggregate_sid_counter_out_pkts_unsupported,json=aggregateSidCounterOutPktsUnsupported,proto3" json:"aggregate_sid_counter_out_pkts_unsupported,omitempty"`
-	unknownFields                         protoimpl.UnknownFields
-	sizeCache                             protoimpl.SizeCache
+	// Devices that require no-php flag for ISIS SR prefix and node segments
+	// Arista: b/462580165 requires no-php for receiving packet with self advertised label
+	IsisSrNoPhpRequired bool `protobuf:"varint,360,opt,name=isis_sr_no_php_required,json=isisSrNoPhpRequired,proto3" json:"isis_sr_no_php_required,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3572,6 +3575,13 @@ func (x *Metadata_Deviations) GetAggregateSidCounterOutPktsUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetIsisSrNoPhpRequired() bool {
+	if x != nil {
+		return x.IsisSrNoPhpRequired
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3628,7 +3638,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb5\xc6\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xec\xc6\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3640,7 +3650,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xbe\xbc\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf5\xbc\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3971,7 +3981,8 @@ const file_metadata_proto_rawDesc = "" +
 	"#config_acl_value_any_oc_unsupported\x18\xe4\x02 \x01(\bR\x1econfigAclValueAnyOcUnsupported\x12:\n" +
 	"\x19config_acl_oc_unsupported\x18\xe5\x02 \x01(\bR\x16configAclOcUnsupported\x12f\n" +
 	"0interface_counters_in_unknown_protos_unsupported\x18\xe6\x02 \x01(\bR+interfaceCountersInUnknownProtosUnsupported\x12Z\n" +
-	"*aggregate_sid_counter_out_pkts_unsupported\x18\xe7\x02 \x01(\bR%aggregateSidCounterOutPktsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"*aggregate_sid_counter_out_pkts_unsupported\x18\xe7\x02 \x01(\bR%aggregateSidCounterOutPktsUnsupported\x125\n" +
+	"\x17isis_sr_no_php_required\x18\xe8\x02 \x01(\bR\x13isisSrNoPhpRequiredJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
