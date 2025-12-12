@@ -190,8 +190,9 @@ func (tc *testCase) verifyLACPInterval(t *testing.T) {
 	}
 	if lacpIntervalDUT1 != tc.lacpInterval {
 		t.Errorf("LACP Interval is not same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
+	} else {
+		t.Logf("LACP Interval is same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 	}
-	t.Logf("LACP Interval is same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 }
 
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port, dut *ondatra.DUTDevice) {
