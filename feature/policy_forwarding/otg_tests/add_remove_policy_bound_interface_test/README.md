@@ -55,8 +55,8 @@ A[ATE] <-- Port3(IPv4/6) --> B[DUT];
 
 *   Configure a forwarding policy type 'VRF_SELECTION_POLICY'
     *   Rule with sequence `10` to match:
-        *   All IPv6 and IPv4 traffic
-            *   source and destination is set to`ipv6 = ::/0` and `ipv4 = 0.0.0.0/0`.
+        *   All IPv4 traffic that match source address '192.168.100.6/32' and '192.168.100.10/32' only should be allowed.
+        *   All IPv6 traffic that match source address '2001:DB2::6/128' and '2001:DB2::a' only should be allowed.
         *   Set the action to match network instance `VRF-100`
     *   Apply the policy to DUT Port 2&3
         *   NOTE: Port 2 and 3 are in `default vrf`
