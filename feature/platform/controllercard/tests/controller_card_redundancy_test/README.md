@@ -6,9 +6,9 @@
 
 ## Procedure
 
-### test 1 Contyroller Card inventory
+### Test 1: Controller Card Inventory
 
-* collect following attributes for each component of CONTROLLER_CARD type and verify corectness (mostly non-empty string)
+* collect the following attributes for each component of CONTROLLER_CARD type and verify corectness (mostly non-empty string)
   *   /components/component/state/empty
   *   /components/component/state/location
   *   /components/component/state/oper-status
@@ -32,22 +32,24 @@
 
 * store list of present components of CONTROLLER_CARD type
 
-### test 2 switchover
+### Test 2: Perform Supervisor Switchover
+
 * Verify that all controller_cards have `switchover-ready=TRUE`
 * Collect and store `redundant-role` for each controller_card as "previous-role"
 * Initiate controller-card switchover
-* Try periodicaly (60 sec interval)  get `state/redundant-role` and `state/switchover-ready` of both CONTROLLER_CARDS  untill sucesfully recived responce, but no longer then 20 min.
+* Try periodicaly (60 sec interval)  get `state/redundant-role` and `state/switchover-ready` of both CONTROLLER_CARDS  until the test has sucesfully received a response, but no longer then 20 min.
   * Collect `redundant-role` for each controller_card. Compare it with "previous-role"
     * for controller_card of **current** "PRIMARY" role, **previous** role must be "SECONDARY"
     * for controller_card of **current** "SECONDARY" role, **previous** role must be "PRIMARY"
-* Keep periodicly get `state/switchover-ready` until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
+* Periodically retrieve `state/switchover-ready` until (`switchover-ready=TRUE` on all controller_cards OR `last-switchover-time` is moret then 20min ago)
   * Wait(5min)
   * Verify that all controller_cards has `switchover-ready=TRUE`; if so test PASSED
 
-### test 3 Redundancy
+### Test 3: Switchover from Primary with Power Down
+
 * Verify that all controller_cards has `switchover-ready=TRUE`
 * Select component with `redundant-role=PRIMARY`, store name as "previous_primary"
-* Perfom Controller_Card switchover and then power down "previous_primary" component. Wait 5s.
+* Perform a Controller_Card switchover and then power down "previous_primary" component. Wait 5s.
 * Collect `redundant-role` and `oper-status` from all components of CONTROLLER_CARD type as collected in test 1;
   * verify that "previous_primary" controller `oper-status` is **not** `ACTIVE` and/or its
 `power-admin-state` is `POWER_DISABLED`; 
@@ -56,11 +58,11 @@
     This satisfy condition of this controller's `oper-status` is **not** `ACTIVE`, and it's `redundant-role`
     is not `PRIMARY`
   * if gNMI client can get this information, it is asumed controller card redundancy works. 
-    More torough tests of failover are part of forwarding tests.
+    More thorough tests of failover are part of forwarding tests.
 * Power up "previous_primary" controller card
 * Wait untill all controller_cards has `switchover-ready=TRUE` (cleanup)
  
-### test 4 last reboot time
+### Test 4: Verify Last Reboot Time
 * Select component with `redundant-role=SECONDARY`
 * store last-reboot-time for this component as "previous-reboot-time"
 * Power down this component, wait 60 sec.
@@ -71,7 +73,7 @@
 
 ## Config Parameter coverage
 
-*   /components/component/controller_card/config/power-admin-state
+*   /components/component/controller-card/config/power-admin-state
 
 ## Telemetry Parameter coverage
 
@@ -151,6 +153,31 @@ rpcs:
   gnoi:
     system.System.SwitchControlProcessor:
     system.System.Reboot:
+```
+
+## Canonical OC
+
+```json
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "config": {
+          "name": "controller-1"
+        },
+        "controller-card": {
+          "config": {
+            "openconfig-platform-controller-card:power-admin-state": "POWER_ENABLED"
+          }
+        },
+        "name": "controller-1",
+        "state": {
+          "type": "openconfig-platform-types:CONTROLLER_CARD"
+        }
+      }
+    ]
+  }
+}
 ```
 
 ## Minimum DUT platform requirement
