@@ -17,8 +17,8 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -30,6 +30,7 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// QosClassifier is a struct to hold the QoS classifier configuration parameters.
 type QosClassifier struct {
 	Desc        string
 	Name        string
@@ -40,6 +41,7 @@ type QosClassifier struct {
 	RemarkDscp  uint8
 }
 
+// SchedulerPolicy is a struct to hold the scheduler policy configuration.
 type SchedulerPolicy struct {
 	Desc        string
 	Sequence    uint32
@@ -52,6 +54,7 @@ type SchedulerPolicy struct {
 	TargetGroup string
 }
 
+// ForwardingGroup is a struct to hold the forwarding group configuration.
 type ForwardingGroup struct {
 	Desc        string
 	QueueName   string
@@ -59,12 +62,14 @@ type ForwardingGroup struct {
 	Priority    uint8
 }
 
+// QoSSchedulerInterface is a struct to hold the QoS scheduler interface configuration.
 type QoSSchedulerInterface struct {
 	Desc      string
 	QueueName string
 	Scheduler string
 }
 
+// SchedulerParams is a struct to hold parameters for configuring a QoS scheduler.
 type SchedulerParams struct {
 	SchedulerName  string
 	PolicerName    string
@@ -88,44 +93,25 @@ func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) stri
 	return output.Output()
 }
 
+// NewQosInitialize initializes the QoS on the DUT.
+// This is a temporary solution to initialize the QoS on the DUT.
+// This will be removed once the QoS initialization is supported in the Ondatra.
 func NewQosInitialize(t *testing.T, dut *ondatra.DUTDevice) {
 	if dut.Vendor() == ondatra.ARISTA {
 		queues := netutil.CommonTrafficQueues(t, dut)
-		qosQNameSet := `
-	configure terminal
-	!
-	qos tx-queue %d name %s
-	!
-	`
-		qosMapTC := `
-	configure terminal
-	!
-	qos map traffic-class %d to tx-queue %d
-	!
-	`
-
-		qosCfgTargetGroup := `
-	configure terminal
-	!
-	qos traffic-class %d name %s
-	!
-	`
-
-		runCliCommand(t, dut, "show version")
-
 		qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
+		var cliConfig strings.Builder
+		cliConfig.WriteString("configure terminal\n")
 		for index, queue := range qList {
-
-			runCliCommand(t, dut, fmt.Sprintf(qosQNameSet, index, queue))
-			time.Sleep(time.Second)
-			runCliCommand(t, dut, fmt.Sprintf(qosMapTC, index, index))
-			time.Sleep(time.Second)
-			runCliCommand(t, dut, fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue)))
-			time.Sleep(time.Second)
+			cliConfig.WriteString(fmt.Sprintf("qos tx-queue %d name %s\n!\n", index, queue))
+			cliConfig.WriteString(fmt.Sprintf("qos map traffic-class %d to tx-queue %d\n!\n", index, index))
+			cliConfig.WriteString(fmt.Sprintf("qos traffic-class %d name %s\n!\n", index, fmt.Sprintf("target-group-%s", queue)))
 		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	}
 }
 
+// NewQoSClassifierConfiguration creates a QoS classifier configuration.
 func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, classifiers []QosClassifier) *oc.Qos {
 
 	t.Logf("QoS classifiers config: %v", classifiers)
@@ -147,21 +133,25 @@ func NewQoSClassifierConfiguration(t *testing.T, dut *ondatra.DUTDevice, q *oc.Q
 		}
 		if len(class.DscpSet) > 0 {
 			condition := term.GetOrCreateConditions()
-			if class.Name == "dscp_based_classifier_ipv4" {
+			switch class.ClassType {
+			case oc.Qos_Classifier_Type_IPV4:
 				condition.GetOrCreateIpv4().SetDscpSet(class.DscpSet)
-			} else {
+			case oc.Qos_Classifier_Type_IPV6:
 				condition.GetOrCreateIpv6().SetDscpSet(class.DscpSet)
+			default:
+				t.Fatal("DSCP classification is supported only for IPv4/IPv6 classifier types")
 			}
 		}
 
 		// DSCP remark configuration is not supported. Adding external static configuration after QoS OC configuration
-		if !deviations.QosRemarkOCUnsupported(dut) {
+		if class.RemarkDscp != 0 && !deviations.QosRemarkOCUnsupported(dut) {
 			action.GetOrCreateRemark().SetDscp = ygot.Uint8(class.RemarkDscp)
 		}
 	}
 	return q
 }
 
+// NewQoSSchedulerPolicy creates a QoS scheduler policy configuration.
 func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, policies []SchedulerPolicy) *oc.Qos {
 
 	t.Logf("QoS scheduler policy config: %v", policies)
@@ -182,6 +172,7 @@ func NewQoSSchedulerPolicy(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, poli
 	return q
 }
 
+// NewQoSForwardingGroup creates a QoS forwarding group configuration.
 func NewQoSForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forwardingGroups []ForwardingGroup) {
 	t.Logf("QoS forwarding groups config: %v", forwardingGroups)
 	for _, fg := range forwardingGroups {
@@ -189,6 +180,7 @@ func NewQoSForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, forw
 	}
 }
 
+// NewQoSSchedulerInterface creates a QoS scheduler interface configuration.
 func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, schedulerIntfs []QoSSchedulerInterface, schedulerPort string) *oc.Qos {
 	t.Logf("QoS output interface config: %v", schedulerIntfs)
 	schPort := dut.Port(t, schedulerPort)
@@ -208,6 +200,7 @@ func NewQoSSchedulerInterface(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos, s
 	return q
 }
 
+// NewQoSQueue creates a QoS queue configuration.
 func NewQoSQueue(t *testing.T, dut *ondatra.DUTDevice, q *oc.Qos) {
 	queues := netutil.CommonTrafficQueues(t, dut)
 
@@ -233,6 +226,7 @@ func configureQosClassifierDscpRemarkFromCli(t *testing.T, dut *ondatra.DUTDevic
 	}
 }
 
+// ConfigureQosClassifierDscpRemark configures the QoS classifier DSCP remark through OC or CLI based on the deviation.
 func ConfigureQosClassifierDscpRemark(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, classifierName string, interfaceName string, ipv4DscpValues []uint8, ipv6DscpValues []uint8) {
 	if deviations.QosRemarkOCUnsupported(dut) {
 		t.Logf("Configuring qos dscp remark through CLI")
@@ -281,6 +275,9 @@ func enableQosRemarkDscpCliConfig(dut *ondatra.DUTDevice, classifierName string,
 		return ""
 	}
 }
+
+// CreateQueues configures the given queues within the provided oc.Qos object.
+// It handles setting the queue name and optionally the QueueId based on deviations.
 func CreateQueues(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, queues []string) {
 	for index, q := range queues {
 		queue := qos.GetOrCreateQueue(q)
@@ -328,6 +325,8 @@ func configureTwoRateThreeColorSchedulerFromCLI(t *testing.T, dut *ondatra.DUTDe
 	}
 }
 
+// NewTwoRateThreeColorScheduler configures a two-rate three-color policer/scheduler on the DUT.
+// It uses either OC or CLI based on the QosTwoRateThreeColorPolicerOCUnsupported deviation.
 func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
 		configureTwoRateThreeColorSchedulerFromCLI(t, dut, params)
@@ -336,6 +335,8 @@ func NewTwoRateThreeColorScheduler(t *testing.T, dut *ondatra.DUTDevice, batch *
 	}
 }
 
+// ApplyQosPolicyOnInterface applies a QoS policy on the specified interface.
+// The configuration is applied using either CLI or OC based on the QosSchedulerIngressPolicer deviation.
 func ApplyQosPolicyOnInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params *SchedulerParams) {
 	if deviations.QosSchedulerIngressPolicer(dut) {
 		applyQosPolicyOnInterfaceFromCLI(t, dut, params)
@@ -430,4 +431,72 @@ func aristaConfigureRemarkIpv6(t *testing.T, dut *ondatra.DUTDevice) {
    set dscp 6
 		`
 	helpers.GnmiCLIConfig(t, dut, jsonConfig)
+}
+
+// QosClassificationOCConfig builds an OpenConfig QoS classification configuration.
+func QosClassificationOCConfig(t *testing.T) {
+	t.Helper()
+	// TODO: OC commands for QOS are not in the place. Need to fix the below commented code once implemented the OC commands.
+	d := &oc.Root{}
+	qos := d.GetOrCreateQos()
+
+	// DSCP → traffic-class 0
+	classifier0 := qos.GetOrCreateClassifier("dscp-to-tc0")
+	classifier0.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier0.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term0 := classifier0.GetOrCreateTerm("tc0")
+	term0.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{0, 1, 2, 3, 4, 5, 6, 7}
+	// term0.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc0"),
+	// }
+
+	// DSCP → traffic-class 1
+	classifier1 := qos.GetOrCreateClassifier("dscp-to-tc1")
+	classifier1.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier1.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term1 := classifier1.GetOrCreateTerm("tc1")
+	term1.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{8, 9, 10, 11, 12, 13, 14, 15}
+	// term1.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc1"),
+	// }
+
+	// DSCP → traffic-class 4
+	classifier4 := qos.GetOrCreateClassifier("dscp-to-tc4")
+	classifier4.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier4.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term4 := classifier4.GetOrCreateTerm("tc4")
+	term4.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{40, 41, 42, 43, 44, 45, 46, 47}
+	// term4.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc4"),
+	// }
+
+	// DSCP → traffic-class 7
+	classifier7 := qos.GetOrCreateClassifier("dscp-to-tc7")
+	classifier7.Type = oc.Qos_Classifier_Type_IPV4
+	// classifier7.Target = []oc.E_Qos_TargetType{oc.Qos_TargetType_FORWARDING_GROUP}
+	term7 := classifier7.GetOrCreateTerm("tc7")
+	term7.GetOrCreateConditions().GetOrCreateIpv4().DscpSet = []uint8{48, 49, 50, 51, 52, 53, 54, 55}
+	// term7.GetOrCreateActions().Config = &oc.Qos_Classifier_Term_Actions{
+	// 	TargetGroup: ygot.String("forwarding-group-tc7"),
+	// }
+
+	// fg0 := qos.GetOrCreateForwardingGroup("forwarding-group-tc0")
+	// fg0.ForwardingClass = ygot.Uint8(0)
+
+	// fg1 := qos.GetOrCreateForwardingGroup("forwarding-group-tc1")
+	// fg1.ForwardingClass = ygot.Uint8(1)
+
+	// fg4 := qos.GetOrCreateForwardingGroup("forwarding-group-tc4")
+	// fg4.ForwardingClass = ygot.Uint8(4)
+
+	// fg7 := qos.GetOrCreateForwardingGroup("forwarding-group-tc7")
+	// fg7.ForwardingClass = ygot.Uint8(7)
+
+	// // Forwarding group for policy-map af3
+	// fg3 := qos.GetOrCreateForwardingGroup("forwarding-group-tc3")
+	// fg3.ForwardingClass = ygot.Uint8(3)
+
+	// policy := qos.GetOrCreatePolicy("af3")
+	// stmt := policy.GetOrCreateStatement("class-default")
+	// stmt.GetOrCreateActions().SetForwardingGroup = ygot.String("forwarding-group-tc3")
 }
