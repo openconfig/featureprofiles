@@ -477,6 +477,7 @@ message Metadata {
     // Configure tag-set using vendor native model
     bool use_vendor_native_tag_set_config = 171;
     // Skip setting send-community-type in bgp global config
+    // Cisco: b/468284934
     bool skip_bgp_send_community_type = 172;
     // Support for bgp actions set-community method
     bool bgp_actions_set_community_method_unsupported = 174;
