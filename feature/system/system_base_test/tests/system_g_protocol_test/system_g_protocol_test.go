@@ -40,6 +40,15 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func gProtocolPort(dut *ondatra.DUTDevice) uint32 {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return 10162
+	default:
+		return 9339
+	}
+}
+
 func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, wantPort uint32) *grpc.ClientConn {
 	t.Helper()
 	if svc == introspect.GNOI || svc == introspect.GNSI {
@@ -62,7 +71,7 @@ func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, want
 // TestGNMIClient validates that the DUT listens on standard gNMI Port.
 func TestGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNMI, 9339)
+	conn := dialConn(t, dut, introspect.GNMI, gProtocolPort(dut))
 	c := gpb.NewGNMIClient(conn)
 
 	var req *gpb.GetRequest
@@ -86,7 +95,7 @@ func TestGNMIClient(t *testing.T) {
 // TestGNOIClient validates that the DUT listens on standard gNOI Port.
 func TestGNOIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNOI, 9339)
+	conn := dialConn(t, dut, introspect.GNOI, gProtocolPort(dut))
 	c := spb.NewSystemClient(conn)
 	if _, err := c.Ping(context.Background(), &spb.PingRequest{}); err != nil {
 		t.Fatalf("gnoi.system.Ping failed: %v", err)
@@ -96,7 +105,7 @@ func TestGNOIClient(t *testing.T) {
 // TestGNSIClient validates that the DUT listens on standard gNSI Port.
 func TestGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialConn(t, dut, introspect.GNSI, 9339)
+	conn := dialConn(t, dut, introspect.GNSI, gProtocolPort(dut))
 	c := authzpb.NewAuthzClient(conn)
 	rsp, err := c.Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
@@ -104,7 +113,7 @@ func TestGNSIClient(t *testing.T) {
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
 		} else {
-			t.Errorf("Unexpected error during authz Get Request.")
+			t.Errorf("Unexpected error during authz Get Request: %v (Code: %s)", err, statusError.Code())
 		}
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
