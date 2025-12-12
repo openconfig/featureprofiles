@@ -870,6 +870,7 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 }
 
 // SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
 }
