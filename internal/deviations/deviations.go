@@ -1805,6 +1805,7 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // BgpGracefulRestartPeerGroupUnsupported returns true if BGP Graceful Restart for Peer Group is not supported
+// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
 func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
 }
