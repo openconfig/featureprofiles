@@ -97,116 +97,82 @@ Verify:
  
 ```json
 {
-    "macsec": {
-        "interfaces": {
-            "interface": [
-                {
-                    "config": {
-                        "enable": true,
-                        "name": "Ethernet12/1",
-                        "replay-protection": 64
-                    },
-                    "state": {
-                        "name": "Ethernet12/1"
-                    },
-                    "mka": {
-                        "config": {
-                            "key-chain": "keychain1",
-                            "mka-policy": "must_secure_policy"
-                        }
-                    },
-                    "name": "Ethernet12/1"
-                },
-                {
-                    "config": {
-                        "enable": true,
-                        "name": "Ethernet11/1",
-                        "replay-protection": 64
-                    },
-                    "state": {
-                        "name": "Ethernet11/1"
-                    },
-                    "mka": {
-                        "config": {
-                            "key-chain": "keychain1",
-                            "mka-policy": "must_secure_policy"
-                        }
-                    },
-                    "name": "Ethernet11/1"
-                }
-            ]
+  "keychains": {
+    "keychain": [
+      {
+        "config": {
+          "name": "keychain1"
         },
-        "mka": {
-            "policies": {
-                "policy": [
-                    {
-                        "config": {
-                            "confidentiality-offset": "0_BYTES",
-                            "include-icv-indicator": true,
-                            "include-sci": true,
-                            "key-server-priority": 15,
-                            "macsec-cipher-suite": [
-                                "GCM_AES_XPN_256"
-                            ],
-                            "name": "must_secure_policy",
-                            "sak-rekey-interval": 30
-                        },
-                        "name": "must_secure_policy"
-                    },
-                    {
-                        "config": {
-                            "confidentiality-offset": "0_BYTES",
-                            "include-icv-indicator": true,
-                            "include-sci": true,
-                            "key-server-priority": 15,
-                            "macsec-cipher-suite": [
-                                "GCM_AES_XPN_256"
-                            ],
-                            "name": "should_secure_policy",
-                            "sak-rekey-interval": 30
-                        },
-                        "name": "should_secure_policy"
-                    }
-                ]
+        "keys": {
+          "key": [
+            {
+              "config": {
+                "crypto-algorithm": "AES_256_CMAC",
+                "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555",
+                "secret-key": "ad4rf10kn85fc0adk5dfcsnr1or4cm08q"
+              },
+              "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555"
             }
-        }
-    },
-    "keychains": {
-      "keychain": [
+          ]
+        },
+        "name": "keychain1"
+      }
+    ]
+  },
+  "macsec": {
+    "interfaces": {
+      "interface": [
         {
           "config": {
-            "name": "keychain1"
+            "enable": true,
+            "name": "Ethernet1/1"
           },
-          "keys": {
-            "key": [
-              {
-                "config": {
-                  "crypto-algorithm": "AES_256_CMAC",
-                  "key-id": "0x0a01",
-                  "secret-key": "encrypted-secret-pwd-here"
-                },
-                "key-id": "0x0a01",
-                "receive-lifetime": {
-                  "config": {
-                    "end-time": "1765242000",
-                    "start-time": "1736298000"
-                  }
-                },
-                "send-lifetime": {
-                  "config": {
-                    "end-time": "1765242000",
-                    "start-time": "1736298000"
-                  }
-                }
-              }
-            ]
+          "mka": {
+            "config": {
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
+            }
           },
-          "name": "keychain1"
+          "name": "Ethernet1/1"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet1/2"
+          },
+          "mka": {
+            "config": {
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
+            }
+          },
+          "name": "Ethernet1/2"
         }
       ]
+    },
+    "mka": {
+      "policies": {
+        "policy": [
+          {
+            "config": {
+              "confidentiality-offset": "0_BYTES",
+              "include-icv-indicator": true,
+              "include-sci": true,
+              "key-server-priority": 15,
+              "macsec-cipher-suite": [
+                "GCM_AES_XPN_256"
+              ],
+              "name": "must_secure",
+              "sak-rekey-interval": 30
+            },
+            "name": "must_secure"
+          }
+        ]
+      }
     }
+  }
 }
-  ```
+```
 
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
