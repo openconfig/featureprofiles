@@ -66,7 +66,7 @@ const (
 	plen4 = 30
 	plen6 = 126
 
-	poisonedMAC = "12:34:56:78:7a:69" // 0xa69 = 2665
+	poisonedMAC = "12:34:56:78:02:69" // 0x269 = 667
 	noStaticMAC = ""
 )
 
@@ -244,7 +244,7 @@ func testFlow(
 	flow.Size().SetFixed(100)
 	eth := flow.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(38).SetLength(10)
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
 
