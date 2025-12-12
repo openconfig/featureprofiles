@@ -238,7 +238,7 @@ testbeds:
     testbed: topologies/cisco/hw/P200-DT-DUT-PEER/testbed
     binding: topologies/cisco/hw/P200-DT-DUT-PEER/binding
     baseconf:
-      dut: topologies/cisco/hw/P200-DT-DUT-PEER/DUT-8808-FOX2926PHNF-P200_baseconfig.proto
+      dut: topologies/cisco/hw/P200-DT-DUT-PEER/8808-FOX2926PHNF-P200_baseconfig.proto
       peer: topologies/cisco/hw/P200-DT-DUT-PEER/PEER-8202_FLM29333C23_baseconfig.proto
     otg:
       host: ott-ucs4-b4

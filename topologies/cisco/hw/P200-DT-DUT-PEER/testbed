@@ -72,7 +72,7 @@ duts {
 duts {
   id: "peer"
   vendor: CISCO
-  hardware_model: "CISCO-8202-32FH"
+  hardware_model: "CISCO-8202"
   ports {
     id: "port16"
     speed: S_100GB   
