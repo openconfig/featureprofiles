@@ -21,5 +21,7 @@ platform_exceptions:  {
     isis_metric_style_telemetry_unsupported:  true
     isis_srgb_srlb_unsupported:  true
     isis_sr_node_segment_config_unsupported:  true
+    isis_sr_no_php_required:  true
+    aggregate_sid_counter_out_pkts_unsupported:  true
   }
 }
