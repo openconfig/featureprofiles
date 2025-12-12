@@ -161,8 +161,7 @@ func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 }
 
 // GetGnmiCLIOutput sets config built with buildCliConfigRequest and returns the output.
-func GetGnmiCLIOutput(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.GetResponse {
-	GnmiCLIConfig(t, dut, config)
+func ExecuteShowCLI(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.GetResponse {
 	getReq := &gpb.GetRequest{
 		Path: []*gpb.Path{
 			{
