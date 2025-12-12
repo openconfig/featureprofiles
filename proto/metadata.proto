@@ -1050,7 +1050,7 @@ message Metadata {
     // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
     // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
-   
+
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
@@ -1073,6 +1073,10 @@ message Metadata {
     // Juniper: https://issuetracker.google.com/issues/461368936
     bool interface_counters_in_unknown_protos_unsupported = 358;
 
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

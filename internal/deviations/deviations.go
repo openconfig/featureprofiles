@@ -1808,3 +1808,9 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
 }
+
+// AggregateSIDCounterOutPktsUnsupported returns true if device does not support
+// /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts
+func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
+}
