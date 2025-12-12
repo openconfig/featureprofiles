@@ -640,6 +640,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 	gnmi.Update(t, dut, spID.Config(), &oc.NetworkInstance_Protocol{
 		Name:       ygot.String(deviations.StaticProtocolName(dut)),
 		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Static:     map[string]*oc.NetworkInstance_Protocol_Static{}, // empty container
 	})
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
