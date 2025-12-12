@@ -97,6 +97,22 @@ Verify:
  
 ```json
 {
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "Ethernet1/1"
+        },
+        "name": "Ethernet1/1"
+      },
+      {
+        "config": {
+          "name": "Ethernet1/2"
+        },
+        "name": "Ethernet1/2"
+      }
+    ]
+  },
   "keychains": {
     "keychain": [
       {
@@ -170,7 +186,7 @@ Verify:
         ]
       }
     }
-  }
+  },
 }
 ```
 
