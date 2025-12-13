@@ -23,3 +23,11 @@ platform_exceptions: {
     operational_mode_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

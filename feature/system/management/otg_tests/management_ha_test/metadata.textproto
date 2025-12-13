@@ -41,5 +41,13 @@ platform_exceptions:  {
     bgp_afi_safi_in_default_ni_before_other_ni: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags:  TAGS_TRANSIT
 tags:  TAGS_DATACENTER_EDGE

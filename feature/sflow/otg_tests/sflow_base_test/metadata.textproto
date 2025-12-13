@@ -37,3 +37,11 @@ platform_exceptions: {
     fr_breakout_fix: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

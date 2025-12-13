@@ -27,3 +27,11 @@ platform_exceptions: {
     missing_zr_optical_channel_tunable_parameters_telemetry: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

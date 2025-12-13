@@ -33,4 +33,12 @@ platform_exceptions: {
     bgp_missing_oc_max_prefixes_configuration: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_TRANSIT
