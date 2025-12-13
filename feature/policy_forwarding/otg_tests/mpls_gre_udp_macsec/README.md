@@ -89,6 +89,20 @@ Verify:
 * No packet loss when keys one through five expires as configured
 * 100 percent packet loss after all the keys configured expires
 
+## PF-1.17.5: Verify standard Security-Association timer
+* Generate bidirectional traffic as highlighted in the test environment setup section:
+    * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
+    * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
+    * IPV4 and IPV6 traffic from ATE ports 1,2
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Enable must secure policy (Policy(1)) on both interfaces ATE ports 1,2 and DUT
+* Set the security association key rekey interval to 28800 seconds
+
+Verify:
+* Verify the SAK key value is accepted by the DUT
+* Verify that MACsec sessions are up
+* No packet loss while forwarding at line rate
+
 ## Definitions
   * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used or if keys have expired. On receive (rx), unencrypted packets that should be secure or encrypted with expired keys are dropped.
   * *should-secure:* Unencrypted packets are permitted. On receive (rx), it's recommended but not required to drop unencrypted packets if a macsec session is active. On transmit (tx), it's recommended but not required to send unencrypted packets if macsec session negotiation has failed.
