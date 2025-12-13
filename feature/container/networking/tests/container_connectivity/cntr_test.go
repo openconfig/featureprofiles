@@ -30,6 +30,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
@@ -179,6 +181,25 @@ func TestDialLocal(t *testing.T) {
 		dialAddr = "[fd01::1]"
 	}
 
+	// Establish a gRIBI client to program gRIBI entries.
+	gribiClient := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+	if err := gribiClient.Start(t); err != nil {
+		t.Fatalf("gRIBI Connection can not be established")
+	}
+
+	gribiClient.BecomeLeader(t)
+	gribiClient.FlushAll(t)
+	defer gribiClient.Close(t)
+	defer gribiClient.FlushAll(t)
+
+	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
+	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+
 	tests := []struct {
 		desc     string
 		inMsg    *cpb.DialRequest
@@ -187,7 +208,7 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":10162",
+			Addr:     dialAddr + ":9339",
 			Username: username,
 			Password: password,
 			Request: &cpb.DialRequest_Srv{
