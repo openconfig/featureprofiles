@@ -204,7 +204,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	}
 	
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
