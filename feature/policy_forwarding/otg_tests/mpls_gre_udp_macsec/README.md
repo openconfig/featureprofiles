@@ -40,7 +40,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Set MACsec confidentiality offset: 0
     * Set Replay Protection Window (out-of-sequence protection) size: 64
     * Include ICV indicator:True
-    * Set SCI enabled:True
+    * Include SCI:True
     * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable and is not included in the test cases)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
