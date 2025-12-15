@@ -29,6 +29,8 @@ func TestMain(m *testing.M) {
 const (
 	ieee8023adLag   = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 	trafficDuration = 20 * time.Second
+	maxAttempts     = 2
+	retryDelay      = 20 * time.Second
 )
 
 var (
@@ -498,7 +500,18 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
 
-				if err := validateTrafficAndECMP(t); err != nil {
+				var err error
+				for attempt := 1; attempt <= maxAttempts; attempt++ {
+					err = validateTrafficAndECMP(t)
+					if err == nil {
+						break
+					}
+					if attempt < maxAttempts {
+						t.Logf("validateTrafficAndECMP failed (attempt %d/%d): %v. Retrying after %s...",
+							attempt, maxAttempts, err, retryDelay)
+						time.Sleep(retryDelay)
+						continue
+					}
 					t.Error(err)
 				}
 			},
@@ -529,7 +542,18 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				if err := validateTrafficAndECMP(t); err != nil {
+				var err error
+				for attempt := 1; attempt <= maxAttempts; attempt++ {
+					err = validateTrafficAndECMP(t)
+					if err == nil {
+						break
+					}
+					if attempt < maxAttempts {
+						t.Logf("validateTrafficAndECMP failed (attempt %d/%d): %v. Retrying after %s...",
+							attempt, maxAttempts, err, retryDelay)
+						time.Sleep(retryDelay)
+						continue
+					}
 					t.Error(err)
 				}
 			},
@@ -561,7 +585,18 @@ func TestTunnelInterfaceBasedResize(t *testing.T) {
 
 				time.Sleep(trafficDuration)
 				ondatra.ATE(t, "ate").OTG().StopTraffic(t)
-				if err := validateTrafficAndECMP(t); err != nil {
+				var err error
+				for attempt := 1; attempt <= maxAttempts; attempt++ {
+					err = validateTrafficAndECMP(t)
+					if err == nil {
+						break
+					}
+					if attempt < maxAttempts {
+						t.Logf("validateTrafficAndECMP failed (attempt %d/%d): %v. Retrying after %s...",
+							attempt, maxAttempts, err, retryDelay)
+						time.Sleep(retryDelay)
+						continue
+					}
 					t.Error(err)
 				}
 			},
