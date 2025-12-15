@@ -160,7 +160,8 @@ Verify:
           "mka": {
             "config": {
               "key-chain": "keychain1",
-              "mka-policy": "must_secure"
+              "mka-policy": "must_secure",
+              "replay-protection": 64
             }
           },
           "name": "Ethernet1/1"
