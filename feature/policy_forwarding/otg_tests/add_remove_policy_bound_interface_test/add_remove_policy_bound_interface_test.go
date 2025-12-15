@@ -15,18 +15,19 @@
 package add_remove_policy_bound_interface_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
+	"github.com/featureprofiles/internal/attrs/attrs"
+	"github.com/featureprofiles/internal/cfgplugins/cfgplugins"
+	"github.com/featureprofiles/internal/deviations/deviations"
+	"github.com/featureprofiles/internal/fptest/fptest"
+	"github.com/featureprofiles/internal/otgutils/otgutils"
+	"github.com/ondatra/gnmi/gnmi"
+	"github.com/ondatra/gnmi/oc/oc"
+	"github.com/ondatra/ondatra"
 	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -96,6 +97,30 @@ var (
 	}
 )
 
+// assignToNetworkInstance attaches a subinterface to a network instance.
+func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni string, si uint32) {
+	t.Helper()
+	if ni == "" {
+		t.Fatalf("Network instance not provided for interface assignment")
+	}
+	netInst := &oc.NetworkInstance{Name: ygot.String(ni)}
+	intf := &oc.Interface{Name: ygot.String(i)}
+	netInstIntf, err := netInst.NewInterface(intf.GetName())
+	if err != nil {
+		t.Errorf("Error fetching NewInterface for %s", intf.GetName())
+	}
+	netInstIntf.Interface = ygot.String(intf.GetName())
+	netInstIntf.Subinterface = ygot.Uint32(si)
+	id := intf.GetName() + "." + fmt.Sprint(si)
+	if si == 0 && deviations.InterfaceConfigVRFBeforeAddress(d) && !deviations.InterfaceRefInterfaceIDFormat(d) {
+		id = intf.GetName()
+	}
+	netInstIntf.Id = ygot.String(id)
+	if intf.GetOrCreateSubinterface(si) != nil {
+		gnmi.Update(t, d, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+	}
+}
+
 func configInterfaceDUT(i *oc.Interface, dutPort *attrs.Attributes, dut *ondatra.DUTDevice, applyIP bool) *oc.Interface {
 	i.Description = ygot.String(dutPort.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -133,7 +158,7 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port, att
 	applyIPInitially := !deviations.InterfaceConfigVRFBeforeAddress(dut) && !isNonDefaultVRF
 	gnmi.Update(t, dut, d.Interface(p.Name()).Config(), configInterfaceDUT(i, attrs, dut, applyIPInitially))
 	if isNonDefaultVRF || deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
+		assignToNetworkInstance(t, dut, p.Name(), niName, 0)
 	}
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) || isNonDefaultVRF {
 		configInterfaceDUT(i, attrs, dut, true)
@@ -204,8 +229,11 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	p6 := pf.GetOrCreatePolicy(vrfPolicyv6)
 	p6.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	r20 := p6.GetOrCreateRule(10)
-	r20.GetOrCreateIpv6().SetSourceAddress("::/0") //(atePort2.IPv6 + "/128")
+	r20.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
 	r20.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+	r21 := p6.GetOrCreateRule(20)
+	r21.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
+	r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfPolicyv6).Config(), p6)
 }
 
@@ -400,14 +428,21 @@ func TestPolicyBoundInterface(t *testing.T) {
 	t.Log("Reconfiguring Port2 for IPv6 tests")
 	d := gnmi.OC()
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut, true))
+	configInterfaceDUT(i2, &dutPort2, dut, true)
+	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), i2)
+	gnmi.Update(t, dut, d.Interface(p2.Name()).Subinterface(0).Config(), i2.Subinterface[0])
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		assignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
+
 	t.Run("IPv6 Policy", func(t *testing.T) {
 		t.Log("Applying IPv6 policy")
 		applyPolicy(t, dut, p2.Name(), []string{vrfPolicyv6})
 		applyPolicy(t, dut, p3.Name(), []string{vrfPolicyv6})
+
+		ate.OTG().StopProtocols(t)
+		ate.OTG().StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 		t.Run("Initial traffic check IPv6", func(t *testing.T) {
 			flows := []flow{
 				{name: "v4FlowPort2", wantLoss: true},
