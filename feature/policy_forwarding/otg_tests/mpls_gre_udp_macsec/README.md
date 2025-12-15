@@ -32,7 +32,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Define first Policy(1) to cover must-secure scenario, as defined below
     * Define second Policy(2) to cover should-secure scenario, as defined below
     * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
-    * Each pre-shared key mush have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
+    * Each pre-shared key must have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
     * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
     * Set Key server priority: 15
