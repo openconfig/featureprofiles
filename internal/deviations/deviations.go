@@ -1768,3 +1768,37 @@ func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
 func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
 }
+
+// BgpLocalAggregateUnsupported returns true for devices that don't support OC configuration of BGP local aggregates
+func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
+}
+
+// SkipSamplingQosCounters returns true if device does not support sampling QoS counters
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
+}
+
+// DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
+func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
+	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
+		return gnmiServerName
+	}
+	return "DEFAULT"
+}
+
+// ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
+func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
+}
+
+// ConfigAclValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
+}
+
+// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
+}
