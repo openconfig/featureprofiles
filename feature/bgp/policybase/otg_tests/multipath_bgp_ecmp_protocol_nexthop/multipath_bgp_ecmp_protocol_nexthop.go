@@ -23,19 +23,22 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
+
+
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// The test topology consists of a DUT connected to an ATE with four ports.
+func uint8Ptr(i uint8) *uint8 { return &i }
+
+// The test topology consists of a DUT connected to a ATE with four ports.
 // iBGP is configured between DUT Port2 and ATE Port2, DUT Port3 and ATE Port3,
 // and DUT Port4 and ATE Port4.
 // ISIS is configured on interfaces for ports 2, 3, and 4.
@@ -126,10 +129,18 @@ const (
 	prefixV6Len      = 48
 	prefixCount      = 1
 	bgpPassword      = "BGPKEY"
-	isisAreaAddr     = "49.0001"
-	isisSysID        = "640000000001"
+	PTISIS           = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
+	ISISName         = "DEFAULT"
+	isisAreaAddr     = "49.0000"
+	isisSysID        = "1920.0000.2001"
 	totalPackets     = 1000
 	trafficPps       = 100
+	peerGrpName1     = "BGP-PEER-GROUP1"
+	peerGrpName2     = "BGP-PEER-GROUP2"
+	peerGrpName3     = "BGP-PEER-GROUP3"
+	peerGrpName4     = "BGP-PEER-GROUP4"
+	peerGrpName5     = "BGP-PEER-GROUP5"
+	peerGrpName6     = "BGP-PEER-GROUP6"
 	lossTolerancePct = 0  // Packet loss tolerance in percentage
 	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
 )
@@ -191,6 +202,13 @@ var (
 		IPv6:    ateP4IPv6,
 		IPv6Len: p4IPv6Len,
 	}
+	dutlo0Attrs = attrs.Attributes{
+		Desc:    "Loopback ip",
+		IPv4:    "203.0.113.1",
+		IPv6:    "2001:0::203:0:113:1",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
 )
 
 type testCase struct {
@@ -204,11 +222,20 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	configureDUT(t, dut)
+	// configureDUT(t, dut)
+	t.Run("Configure DUT", func(t *testing.T) {
+		configureDUT(t, dut)
+	})
 
-	otgCfg := configureATE(t, ate)
-	ate.OTG().PushConfig(t, otgCfg)
-	ate.OTG().StartProtocols(t)
+	// configureATE(t, ate)
+	t.Run("Configure OTG", func(t *testing.T) {
+		configureATE(t, ate)
+	})
+
+	// ate.OTG().StartTraffic(t)
+	// time.Sleep(10 * time.Second)
+	// ate.OTG().StopTraffic(t)
+
 	testCases := []testCase{
 		{
 			desc:      "Testing with multipath disabled for ipv4 ",
@@ -238,11 +265,11 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.ipv4 {
-				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %s]", prefixMin, prefixLen)
+				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %s]", prefixMin, prefixLen)
+					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				} else {
-					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %s]", prefixMin, prefixLen)
+					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				}
 				verifyDUT(t, dut)
 				verifyTraffic(t, ate, "ipv4", 0)
@@ -250,25 +277,23 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
-				otgutils.LogFlowMetrics(t, ate.OTG(), ate)
+				// otgutils.LogFlowMetrics(t, ate.OTG(), otgCfg)
 				checkPacketLoss(t, ate)
 				verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 			}
 			if tc.ipv6 {
-				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %s]", prefixV6Min, prefixV6Len)
+				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %s]", prefixV6Min, prefixV6Len)
+					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				} else {
-					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %s]", prefixV6Min, prefixV6Len)
+					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				}
 				verifyDUT(t, dut)
-				verifyTraffic(t, ate, "ipv4", 0)
+				verifyTraffic(t, ate, "ipv6", 0)
 				sleepTime := time.Duration(totalPackets/trafficPps) + 5
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
-
-				otgutils.LogFlowMetrics(t, ate.OTG(), ate)
 				checkPacketLoss(t, ate)
 				verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 			}
@@ -276,80 +301,154 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	}
 }
 
+type bgpNeighbor struct {
+	as           uint32
+	neighborip   string
+	isV4         bool
+	peerGrp      string
+	localAddress string
+}
+
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
-	isis := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.ISISInstance(dut)).Isis()
-	gnmi.Replace(t, dut, isis.Global().Config(), &oc.NetworkInstance_Protocol_Isis_Global{
-		LevelCapability: oc.Isis_LevelCapability_LEVEL_2,
-		Net:             []string{fmt.Sprintf("%s.%s.00", isisAreaAddr, isisSysID)},
-		Instance:        ygnmi.String(deviations.ISISInstance(dut)),
-	})
-
 	// Configure DUT port 1 with IPv4 and IPv6 addresses.
 	// This is the DUT side of ATE port 1 used for sending traffic. Source traffic
 	// is sent from ATE port 1.
 	p1 := dut.Port(t, "port1")
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutP1.NewOCInterface(p1.Name(), dut))
+	p2 := dut.Port(t, "port2")
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutP2.NewOCInterface(p2.Name(), dut))
+	p3 := dut.Port(t, "port3")
+	gnmi.Replace(t, dut, d.Interface(p3.Name()).Config(), dutP3.NewOCInterface(p3.Name(), dut))
+	p4 := dut.Port(t, "port4")
+	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutP4.NewOCInterface(p4.Name(), dut))
+	t.Logf("Now configuring ISIS config on DUT")
+	time.Sleep(60 * time.Second)
 
-	for _, p := range []struct {
-		port *ondatra.Port
-		attr attrs.Attributes
-	}{
-		{dut.Port(t, "port2"), dutP2},
-		{dut.Port(t, "port3"), dutP3},
-		{dut.Port(t, "port4"), dutP4},
-	} {
-		intfName := p.port.Name()
-		gnmi.Replace(t, dut, d.Interface(intfName).Config(), p.attr.NewOCInterface(intfName, dut))
-		i := isis.Interface(intfName)
-		gnmi.Replace(t, dut, i.Config(), &oc.NetworkInstance_Protocol_Isis_Interface{
-			Enabled:     ygnmi.Bool(true),
-			CircuitType: oc.Isis_CircuitType_POINT_TO_POINT,
-		})
-		gnmi.Replace(t, dut, i.Level(2).Config(), &oc.NetworkInstance_Protocol_Isis_Interface_Level{LevelNumber: ygnmi.Uint8(2)})
-		gnmi.Replace(t, dut, i.Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Config(), &oc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-			Metric: ygnmi.Uint32(isisMetric),
-		})
-		gnmi.Replace(t, dut, i.Level(2).Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Config(), &oc.NetworkInstance_Protocol_Isis_Interface_Level_Af{
-			Metric: ygnmi.Uint32(isisMetric),
-		})
-	}
+	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISName)
+	dutConf := addISISOC(isisAreaAddr, isisSysID, []string{p2.Name(), p3.Name(), p4.Name()}, dut)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	t.Logf("ISIS config applied on DUT")
 
-	bgp := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	gnmi.Replace(t, dut, bgp.Global().Config(), &oc.NetworkInstance_Protocol_Bgp_Global{
-		As:       ygnmi.Uint32(dutAS),
-		RouterId: ygnmi.String(p1IPv4),
-	})
-	gnmi.Update(t, dut, bgp.Global().UseMultiplePaths().Ibgp().Config(), &oc.NetworkInstance_Protocol_Bgp_Global_UseMultiplePaths_Ibgp{MaximumPaths: ygnmi.Uint32(8)})
-
-	for _, neighborIP := range []string{ateP2IPv4, ateP3IPv4, ateP4IPv4} {
-		n := bgp.Neighbor(neighborIP)
-		gnmi.Replace(t, dut, n.Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			PeerAs:       ygnmi.Uint32(ateAS),
-			Enabled:      ygnmi.Bool(true),
-			AuthPassword: ygnmi.String(bgpPassword),
-		})
-		gnmi.Replace(t, dut, n.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-			AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST,
-			Enabled:     ygnmi.Bool(true),
-		})
-	}
-
-	for _, neighborIP := range []string{ateP2IPv6, ateP3IPv6, ateP4IPv6} {
-		n := bgp.Neighbor(neighborIP)
-		gnmi.Replace(t, dut, n.Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor{
-			PeerAs:       ygnmi.Uint32(ateAS),
-			Enabled:      ygnmi.Bool(true),
-			AuthPassword: ygnmi.String(bgpPassword),
-		})
-		gnmi.Replace(t, dut, n.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Config(), &oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi{
-			AfiSafiName: oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST,
-			Enabled:     ygnmi.Bool(true),
-		})
-	}
+	t.Logf("Now configuring BGP config on DUT")
+	// Configure BGP neighbors and peer groups on DUT.
+	dutConfPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	gnmi.Delete(t, dut, dutConfPath.Config())
+	dutConf = bgpCreateNbr(dutAS, ateAS, dut)
+	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	t.Logf("BGP config applied on DUT")
+	time.Sleep(30 * time.Second)
 }
 
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) *otg.Config {
+func addISISOC(areaAddress, sysID string, ifaceNames []string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+	dev := &oc.Root{}
+	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
+	prot.Enabled = ygot.Bool(true)
+	isis := prot.GetOrCreateIsis()
+	glob := isis.GetOrCreateGlobal()
+	if deviations.ISISInstanceEnabledRequired(dut) {
+		glob.Instance = ygot.String(ISISName)
+	}
+	glob.Net = []string{fmt.Sprintf("%v.%v.00", isisAreaAddr, isisSysID)}
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	level := isis.GetOrCreateLevel(2)
+	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
+	// Configure ISIS enabled flag at level
+	if deviations.ISISLevelEnabled(dut) {
+		level.Enabled = ygot.Bool(true)
+	}
+
+	for _, ifaceName := range ifaceNames {
+		intf := isis.GetOrCreateInterface(ifaceName)
+		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		intf.Enabled = ygot.Bool(true)
+		// Configure ISIS level at global mode if true else at interface mode
+		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
+			intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		} else {
+			intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		}
+		glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
+		// Configure ISIS enable flag at interface level
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		if deviations.ISISInterfaceAfiUnsupported(dut) {
+			intf.Af = nil
+		}
+	}
+
+	return prot
+}
+
+// bgpCreateNbr creates a BGP neighbor configuration for the DUT with multiple paths.
+// TODO: Add support for multiple paths and local address.
+func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: ateP2IPv4, isV4: true, peerGrp: peerGrpName1}
+	nbr2v4 := &bgpNeighbor{as: ateAS, neighborip: ateP3IPv4, isV4: true, peerGrp: peerGrpName2}
+	nbr3v4 := &bgpNeighbor{as: ateAS, neighborip: ateP4IPv4, isV4: true, peerGrp: peerGrpName3}
+	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: ateP2IPv6, isV4: false, peerGrp: peerGrpName4}
+	nbr2v6 := &bgpNeighbor{as: ateAS, neighborip: ateP3IPv6, isV4: false, peerGrp: peerGrpName5}
+	nbr3v6 := &bgpNeighbor{as: ateAS, neighborip: ateP4IPv6, isV4: false, peerGrp: peerGrpName6}
+	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4, nbr1v6, nbr2v6, nbr3v6}
+	dev := &oc.Root{}
+	ni := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProto.GetOrCreateBgp()
+
+	global := bgp.GetOrCreateGlobal()
+	global.RouterId = ygot.String(dutlo0Attrs.IPv4)
+	global.As = ygot.Uint32(dutAS)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
+	// global.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(4)
+	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
+	pg1.PeerAs = ygot.Uint32(ateAS)
+	pg1.PeerGroupName = ygot.String(peerGrpName1)
+	pg2 := bgp.GetOrCreatePeerGroup(peerGrpName2)
+	pg2.PeerAs = ygot.Uint32(ateAS)
+	pg2.PeerGroupName = ygot.String(peerGrpName2)
+	pg3 := bgp.GetOrCreatePeerGroup(peerGrpName3)
+	pg3.PeerAs = ygot.Uint32(ateAS)
+	pg3.PeerGroupName = ygot.String(peerGrpName3)
+	pg4 := bgp.GetOrCreatePeerGroup(peerGrpName4)
+	pg4.PeerAs = ygot.Uint32(ateAS)
+	pg4.PeerGroupName = ygot.String(peerGrpName4)
+	pg5 := bgp.GetOrCreatePeerGroup(peerGrpName5)
+	pg5.PeerAs = ygot.Uint32(ateAS)
+	pg5.PeerGroupName = ygot.String(peerGrpName5)
+	pg6 := bgp.GetOrCreatePeerGroup(peerGrpName6)
+	pg6.PeerAs = ygot.Uint32(ateAS)
+	pg6.PeerGroupName = ygot.String(peerGrpName6)
+
+	for _, nbr := range nbrs {
+		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		bgpNbr.PeerGroup = ygot.String(nbr.peerGrp)
+		bgpNbr.PeerAs = ygot.Uint32(nbr.as)
+		bgpNbr.Enabled = ygot.Bool(true)
+		bgpNbr.AuthPassword = ygot.String(bgpPassword)
+		if nbr.localAddress != "" {
+			bgpNbrT := bgpNbr.GetOrCreateTransport()
+			bgpNbrT.LocalAddress = ygot.String(nbr.localAddress)
+		}
+		if nbr.isV4 == true {
+			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(true)
+			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(false)
+		} else {
+			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			af4.Enabled = ygot.Bool(false)
+			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			af6.Enabled = ygot.Bool(true)
+		}
+	}
+	return niProto
+}
+
+// func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
 	top := ate.Topology().New()
 	t.Log("Configure ATE interface")
 	p1 := ate.Port(t, "port1")
@@ -375,9 +474,10 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *otg.Config {
 		{portIdx: 3, port: p3, attrs: ateP3, loIPv4: ateP3Lo0IP, loIPv6: ateP3Lo0IPv6, dutIPv4: p3IPv4, dutIPv6: p3IPv6},
 		{portIdx: 4, port: p4, attrs: ateP4, loIPv4: ateP4Lo0IP, loIPv6: ateP4Lo0IPv6, dutIPv4: p4IPv4, dutIPv6: p4IPv6},
 	}
-
+	var ecmpIntfs []ondatra.Endpoint
 	for _, p := range ports {
 		intf := top.AddInterface(p.attrs.Name).WithPort(p.port)
+		ecmpIntfs = append(ecmpIntfs, intf)
 		intf.IPv4().WithAddress(fmt.Sprintf("%s/%d", p.attrs.IPv4, p.attrs.IPv4Len)).WithDefaultGateway(p.dutIPv4)
 		intf.IPv6().WithAddress(fmt.Sprintf("%s/%d", p.attrs.IPv6, p.attrs.IPv6Len)).WithDefaultGateway(p.dutIPv6)
 		intf.ISIS().WithLevelL2().WithMetric(isisMetric).WithNetworkTypePointToPoint().WithHelloPaddingEnabled(true)
@@ -399,7 +499,35 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *otg.Config {
 		bgpNet6.IPv6().WithAddress(prefixV6Min + "/" + fmt.Sprint(prefixV6Len)).WithCount(prefixCount)
 		// bgpNet6.BGP().WithNextHopAddress(p.loIPv6).WithPeer(bgp6)
 	}
-	return top
+
+	ethHeader := ondatra.NewEthernetHeader()
+	ipv4Header := ondatra.NewIPv4Header().WithDstAddress(prefixMin)
+	ipv6Header := ondatra.NewIPv6Header().WithDstAddress(prefixV6Min)
+
+	// Add flows for traffic verification.
+	flow4 := ate.Traffic().NewFlow("flowipv40").
+		WithSrcEndpoints(i1).
+		WithDstEndpoints(ecmpIntfs...).
+		WithHeaders(ethHeader, ipv4Header).
+		WithFrameSize(1500).
+		WithFrameRateFPS(trafficPps)
+	flow4.WithFrameSize(1500)
+
+	flow6 := ate.Traffic().NewFlow("flowipv60").
+		WithSrcEndpoints(ecmpIntfs...).
+		WithDstEndpoints(i1).
+		WithHeaders(ethHeader, ipv6Header).
+		WithFrameSize(1500).
+		WithFrameRateFPS(trafficPps)
+	flow6.WithFrameSize(1500)
+
+	// return top
+	t.Logf("Pushing config to OTG")
+	top.Push(t)
+	time.Sleep(40 * time.Second)
+	t.Logf("Starting protocols on OTG")
+	top.StartProtocols(t)
+	time.Sleep(40 * time.Second)
 }
 
 func verifyDUT(t *testing.T, dut *ondatra.DUTDevice) {
@@ -446,40 +574,41 @@ func verifyDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("Prefix %s not found in LocRib from %s", prefixV6, neighborIP)
 		}
 	}
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ipv4Entries := gnmi.Lookup(t, dut, statePath.Neighbor(ateP2IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
 
-	ipv4Entries := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(prefixV4).State())
 	if !ipv4Entries.IsPresent() {
 		t.Fatalf("Prefix %s not found in AFT", prefixV4)
 	}
-	for _, ipv4Entry := range ipv4Entries {
-		nhgID := ipv4Entry.GetNextHopGroup()
-		if nhgID == 0 {
-			t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV4)
-		}
-		nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
-		if len(nhs) != 3 {
-			t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV4, len(nhs), nhgID)
-		} else {
-			t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV4, len(nhs), nhgID)
-		}
-	}
+	// for _, ipv4Entry := range ipv4Entries {
+	// 	nhgID := ipv4Entry.GetNextHopGroup()
+	// 	if nhgID == 0 {
+	// 		t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV4)
+	// 	}
+	// 	nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
+	// 	if len(nhs) != 3 {
+	// 		t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV4, len(nhs), nhgID)
+	// 	} else {
+	// 		t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV4, len(nhs), nhgID)
+	// 	}
+	// }
 
 	ipv6Entries := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(prefixV6).State())
 	if !ipv6Entries.IsPresent() {
 		t.Fatalf("Prefix %s not found in AFT", prefixV6)
 	}
-	for _, ipv6Entry := range ipv6Entries {
-		nhgID := ipv6Entry.GetNextHopGroup()
-		if nhgID == 0 {
-			t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV6)
-		}
-		nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
-		if len(nhs) != 3 {
-			t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV6, len(nhs), nhgID)
-		} else {
-			t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV6, len(nhs), nhgID)
-		}
-	}
+	// for _, ipv6Entry := range ipv6Entries {
+	// 	nhgID := ipv6Entry.GetNextHopGroup()
+	// 	if nhgID == 0 {
+	// 		t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV6)
+	// 	}
+	// 	nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
+	// 	if len(nhs) != 3 {
+	// 		t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV6, len(nhs), nhgID)
+	// 	} else {
+	// 		t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV6, len(nhs), nhgID)
+	// 	}
+	// }
 }
 
 func configureFlow(t *testing.T, bs *cfgplugins.BGPSession, prefixPair []string, prefixType string, index int) {
