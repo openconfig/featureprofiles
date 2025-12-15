@@ -1069,8 +1069,8 @@ message Metadata {
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
 
-    // Device doesnot support interface counters in unknown protos
-    // Juniper b/461368936
+    // Device does not support interface counters in unknown protos
+    // Juniper: https://issuetracker.google.com/issues/461368936
     bool interface_counters_in_unknown_protos_unsupported = 358;
 
 
