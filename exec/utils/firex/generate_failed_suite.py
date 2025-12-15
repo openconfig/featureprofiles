@@ -4,6 +4,7 @@ import sys
 import subprocess
 import xml.etree.ElementTree as ET
 import argparse
+import yaml
 
 def get_run_log_dir(firex_id):
     try:
@@ -19,20 +20,24 @@ def get_run_log_dir(firex_id):
         raise Exception(f"Error executing shell command: {e}")
 
 def write_failed_tests_suite(firex_id, out_file=None, failed_only=True):
-    new_suite = ""
+    new_suite = {}
+    suite_index=0
+
     log_dir = get_run_log_dir(firex_id)
 
     try:
         with open(f"{log_dir}/all_suites_xunit_results.xml", "r") as fp:
             root = ET.parse(fp)
-
-        suite_index = 0
         testsuite_skuids = []
         for suite in root.findall('testsuite'):
+            tests = int(suite.get('tests', 0))
             failures = int(suite.get('failures', 0))
             errors = int(suite.get('errors', 0))
-            if not failed_only or (failures + errors > 0):
+            skipped = int(suite.get('skipped', 0))
+            
+            if not failed_only or (failures + errors > 0) or (skipped == tests):
                 test_dir = None
+                test_skuid = None
 
                 properties = suite.find('properties')
                 if properties is not None:
@@ -40,6 +45,7 @@ def write_failed_tests_suite(firex_id, out_file=None, failed_only=True):
                         if prop.get('name') == 'test_log_directory':
                             test_dir = prop.get('value')
                         if prop.get('name') == 'skuid':
+                            test_skuid = prop.get('value')
                             testsuite_skuids.append(prop.get('value'))
 
                 if test_dir:
@@ -56,20 +62,26 @@ def write_failed_tests_suite(firex_id, out_file=None, failed_only=True):
                                         break
                     
                     if os.path.exists(suite_file_path):
-                        with open(suite_file_path, "r") as suite_file:
-                            lines = suite_file.readlines()
-                            for line in lines:
-                                if re.match(r'^\S+:', line):
-                                    line = re.sub(r'^(\S+):', rf'\1_{suite_index}:', line)
-                                    suite_index+=1
-                                new_suite += line
+                        # Parse the YAML file
+                        with open(suite_file_path, "r") as yaml_file:
+                            suite_data = yaml.safe_load(yaml_file)
+                        
+                        # Go over all entries and find ones with matching test_skuid
+                        if suite_data:
+                            for suite_name, suite_config in suite_data.items():
+                                for script_path_item in suite_config.get('script_paths', []):
+                                    for path_key in script_path_item:
+                                        if path_key == test_skuid:
+                                            new_suite[f'{suite_name}_{suite_index}'] = suite_config
+                                            suite_index += 1
+                    
     except Exception as e:
         raise Exception(f"Error parsing JUnit XML file: {str(e)}")
 
-    if new_suite.strip():
+    if new_suite:
         if out_file:
             with open(out_file, "w") as file:
-                file.write(new_suite)
+                yaml.dump(new_suite, file, default_flow_style=False, sort_keys=False)
         else:
             print(f"{','.join(testsuite_skuids)}")
     else:

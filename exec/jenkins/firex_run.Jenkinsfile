@@ -798,7 +798,7 @@ def generateSuiteFromRun(String firex_id, boolean failed_only = false) {
     def out_file = "${env.WORKSPACE}/${firex_id}.yaml"
     def failed_only_arg = failed_only ? "--failed_only" : ""
     try {
-        sh "python3 exec/utils/firex/generate_failed_suite.py ${firex_id} ${out_file} ${failed_only_arg}"
+        sh "/auto/tftpboot-ottawa/b4/bin/firex_gen_failed_suites ${firex_id} ${out_file} ${failed_only_arg}"
         return out_file
     } catch (Exception e) {
         return null
