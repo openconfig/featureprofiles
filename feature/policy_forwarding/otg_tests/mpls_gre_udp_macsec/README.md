@@ -209,6 +209,7 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
+ # TODO:  /macsec/mka/config/security-policy  MUST_SECURE,SHOULD_SECURE
  /macsec/interfaces/interface/state/name:
  /macsec/interfaces/interface/state/enable:
  /macsec/interfaces/interface/state/replay-protection:
