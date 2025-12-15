@@ -1804,6 +1804,7 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
+// https://issuetracker.google.com/issues/461368936
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
 }
