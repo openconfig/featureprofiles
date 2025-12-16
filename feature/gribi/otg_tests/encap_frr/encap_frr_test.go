@@ -38,6 +38,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -205,34 +206,6 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 	return c.Await(subctx, t)
 }
 
-func cliSetRequest(config string) *gnmi.SetRequest {
-    return &gpb.SetRequest{
-        Update: []*gpb.Update{{
-            Path: &gpb.Path{
-                Origin: "cli",
-            },
-            Val: &gpb.TypedValue{
-                Value: &gpb.TypedValue_AsciiVal{
-                    AsciiVal: config,
-                },
-            },
-        }},
-    }
-}
-
-func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
-    t.Helper()
-    switch dut.Vendor() {
-        case ondatra.ARISTA:
-            cli := `vrf selection policy
-                next-hop decapsulation vrf`
-        if _, err := dut.RawAPIs().GNMI(t).
-            Set(context.Background(), cliSetRequest(cli)); err != nil {
-            t.Fatalf("Failed to disable P4RTLLDP: %v", err)
-        }
-    }
-}
-
 type testArgs struct {
 	client     *fluent.GRIBIClient
 	dut        *ondatra.DUTDevice
@@ -241,6 +214,25 @@ type testArgs struct {
 	top        gosnappi.Config
 	electionID gribi.Uint128
 	otg        *otg.OTG
+}
+
+func setupBaseline(ctx context.Context, t *testing.T, args *testArgs, tc *baseScenario.TestCase) {
+	t.Helper()
+	t.Log("Setting up baseline state for test case.")
+	portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
+	verifyPortStatus(t, args, portList, true)
+	t.Cleanup(func() {
+		t.Log("Restoring port status to DOWN after test case.")
+		verifyPortStatus(t, args, portList, false)
+	})
+
+	t.Log("Flush existing gRIBI routes before test.")
+	if err := gribi.FlushAll(args.client); err != nil {
+		t.Fatal(err)
+	}
+	configureGribiRoute(ctx, t, args.dut, args.client)
+	createFlow(t, args.otgConfig, args.otg, ipv4InnerDst, tc.TTL)
+	t.Log("Baseline state setup complete.")
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
@@ -780,6 +772,7 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", encapFlow, lossPct)
 		} else {
 			t.Logf("Traffic Test Passed!")
+			return
 		}
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
@@ -878,13 +871,27 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 
 func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatus bool) {
 	wantStatus := oc.Interface_OperStatus_UP
-	if !portStatus {
+	if portStatus {
+		wantStatus = oc.Interface_OperStatus_UP
+		for _, port := range portList {
+			p := args.dut.Port(t, port)
+			setDUTInterfaceWithState(t, args.dut, p, true)
+		}
+		// Giving time for port to transition to up state.
+		time.Sleep(10 * time.Second)
+	} else {
 		wantStatus = oc.Interface_OperStatus_DOWN
+		for _, port := range portList {
+			p := args.dut.Port(t, port)
+			setDUTInterfaceWithState(t, args.dut, p, false)
+		}
+		// Giving time for port to transition to down state.
+		time.Sleep(10 * time.Second)
 	}
 	for _, port := range portList {
 		p := args.dut.Port(t, port)
 		t.Log("Check for port status")
-		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 30*time.Minute, wantStatus)
+		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 1*time.Minute, wantStatus)
 		operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
 		if operStatus != wantStatus {
 			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, operStatus, wantStatus)
@@ -1014,6 +1021,7 @@ func ChassisReboot(t *testing.T) {
 
 			t.Logf("Send reboot request: %v", tc.rebootRequest)
 			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			t.Cleanup(func() { gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{}) })
 			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 			if err != nil {
@@ -1107,6 +1115,33 @@ func ChassisReboot(t *testing.T) {
 	}
 }
 
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+}
+
+// PrepareDUTForVrfSelectionPolicy enables VRF selection policy on Arista devices.
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() == ondatra.ARISTA {
+		cli := `vrf selection policy
+  next-hop decapsulation vrf`
+		if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to enable VRF selection policy: %v", err)
+		}
+	}
+}
+
 // TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
@@ -1125,6 +1160,7 @@ func TestEncapFrr(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		PrepareDUTForVrfSelectionPolicy(t, dut)
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		pf := ni.GetOrCreatePolicyForwarding()
@@ -1169,14 +1205,14 @@ func TestEncapFrr(t *testing.T) {
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 	client.Start(ctx, t)
-	defer client.Stop(t)
+	t.Cleanup(func() { client.Stop(t) })
 
-	defer func() {
+	t.Cleanup(func() {
 		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
 			t.Error(err)
 		}
-	}()
+	})
 
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
@@ -1197,17 +1233,8 @@ func TestEncapFrr(t *testing.T) {
 	testCases := baseScenario.TestCases(atePortNamelist, ipv4InnerDst)
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
-			t.Log("Verify whether the ports are in up state")
-			portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
-			verifyPortStatus(t, args, portList, true)
-
-			t.Log("Flush existing gRIBI routes before test.")
-			if err := gribi.FlushAll(client); err != nil {
-				t.Fatal(err)
-			}
+			setupBaseline(ctx, t, args, tc)
 			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
-			configureGribiRoute(ctx, t, dut, client)
-			createFlow(t, otgConfig, otg, ipv4InnerDst, tc.TTL)
 			captureState := startCapture(t, args, baseCapturePortList)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
@@ -1262,7 +1289,7 @@ func TestEncapFrr(t *testing.T) {
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
-				defer portState(t, args, tc.DownPortList, true)
+				t.Cleanup(func() { portState(t, args, tc.DownPortList, true) })
 				t.Log("Verify the port status after bringing down the ports")
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
