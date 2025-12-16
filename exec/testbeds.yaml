@@ -204,7 +204,7 @@ testbeds:
     hw: 8808-FOX2926PHNF-P200
     owner: regression
     testbed: topologies/cisco/hw/8808-FOX2926PHNF-P200/testbed
-    binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding
+    binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding2
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
     otg:
       host: ott-ucs4-b4
