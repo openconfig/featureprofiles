@@ -2,7 +2,7 @@
 
 # Summary
 
-This  is to validate the DHCP relay functionality on a DUT.  The test validates the following actions -
+This is to validate the DHCP relay functionality on a DUT.  The test validates the following actions -
 
 * DUT receives the IPv4/IPv6 DHCP discovery message over an individual or a LAG port and it will forward the request to the DHCP helper address.
 * DUT forwards DHCP exchange messages between the DHCP Client and DHCP server.
