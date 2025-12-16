@@ -31,7 +31,6 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port2];B --Egress-->C[Port3:ATE];
 ```
 
 * Connect ports DUT:Ports[1-3] to ports ATE:Ports[1-3]
-* DUT:Port[4] IP address = IPv4-DST-B/31 / IPv6-DST-B/127
 * Simulate a scenario of having a DHCP server is behind ATE:Port[3] 
 * DUT:Port[3] IPv4 address = 10.10.10.0/31
 * DUT:Port[3] IPv6 address = 2001:f:a::0/127
