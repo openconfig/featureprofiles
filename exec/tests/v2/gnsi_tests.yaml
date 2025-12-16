@@ -26,7 +26,7 @@ tests:
     mustpass: true
     internal: true
     timeout: 21000
-    branch: master
+    branch: krinata2_authz_counter
     owners:
       - harikri4
   - name: CERTZ
