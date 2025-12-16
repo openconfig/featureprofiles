@@ -372,7 +372,7 @@ NH#201 -> {
     * Validate that flow dest_A experiences ~50% packet loss (+/- 1%)
   * Stop traffic
 
-### DP-2.2.3 IPv6 flow label validiation
+### DP-2.2.4 IPv6 flow label validiation
 
   * Send 100 packets for flow A and flow B.  (Use an OTG fixed packet count flow)
   * When the outer packet is IPv6, the flow-label should be inspected on the ATE.

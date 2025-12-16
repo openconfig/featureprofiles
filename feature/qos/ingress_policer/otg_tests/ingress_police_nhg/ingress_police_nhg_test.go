@@ -119,14 +119,14 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 
 	configureGribi(t, dut)
 
-	t.Run("Validate that flow experiences no packet loss at 0.7Gbps and 1.5Gbps", func(t *testing.T) {
+	t.Run("DP-2.2.3 Test flow policing, validate that flow experiences no packet loss at 0.7Gbps and 1.5Gbps", func(t *testing.T) {
 		validateFlowRate(t, ate, topo, 750, 0)
 	})
-	t.Run("Validate that flow experiences ~50% packet loss at 2Gbps", func(t *testing.T) {
+	t.Run("DP-2.2.3 Test flow policing, validate that flow experiences ~50% packet loss at 2Gbps", func(t *testing.T) {
 		validateFlowRate(t, ate, topo, 2000, 0.5)
 	})
 
-	t.Run("DP-2.2.3 IPv6 flow label validiation", func(t *testing.T) {
+	t.Run("DP-2.2.4 IPv6 flow label validiation", func(t *testing.T) {
 		validateIPv6FlowLabel(t, ate, topo, 1000)
 	})
 }
@@ -160,7 +160,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.CreateQueues(t, dut, qos, queues)
 	qosBatch := &gnmi.SetBatch{}
 
-	// Define forwarding groups
+	// Generate config for 2 forwarding-groups mapped to "dummy" input queues
 	forwardingGroups := []cfgplugins.ForwardingGroup{
 		{
 			Desc:        "input_dest_A",
@@ -176,6 +176,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	cfgplugins.NewQoSForwardingGroup(t, dut, qos, forwardingGroups)
 
+	// Generate config for 2 classifiers which match on next-hop-group and config for 2 scheduler-policies to police traffic
 	qosConfigs := []struct {
 		classifier    cfgplugins.QosClassifier
 		scheduler     *cfgplugins.SchedulerParams
@@ -229,10 +230,12 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Loop through both A and B configurations
 	for _, cfg := range qosConfigs {
+		// Generate config to apply classifer and scheduler to DUT subinterface
 		cfgplugins.NewQoSClassifierConfiguration(t, dut, qos, []cfgplugins.QosClassifier{cfg.classifier})
 		cfgplugins.NewOneRateTwoColorScheduler(t, dut, qosBatch, cfg.scheduler)
 		cfgplugins.ApplyQosPolicyOnInterface(t, dut, qosBatch, cfg.scheduler)
 	}
+	// Use gnmi.BatchUpdate to push the config to the DUT
 	gnmi.BatchUpdate(qosBatch, qosPath, qos)
 	qosBatch.Set(t, dut)
 }
@@ -619,7 +622,7 @@ func validateIPv6FlowLabel(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.C
 			// Flow A → inner IPv4
 			inner4 := flow.Packet().Add().Ipv4()
 			inner4.Src().SetValue(src.vlan.IPv4)
-			inner4.Dst().SetValue(atePort2.IPv4)			
+			inner4.Dst().SetValue(atePort2.IPv4)
 		}
 		// ==============================
 		//      OUTER IPv6 HEADER

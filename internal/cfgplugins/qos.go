@@ -522,18 +522,20 @@ func configureOneRateTwoColorSchedulerFromOC(batch *gnmi.SetBatch, params *Sched
 
 // configureOneRateTwoColorSchedulerFromCLI configures a One-Rate Two-Color scheduler using CLI commands.
 func configureOneRateTwoColorSchedulerFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *SchedulerParams) {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cliConfig := fmt.Sprintf(`
-        policy-map type quality-of-service %s
-        class %s
-        set traffic-class %d 
-        police cir %d bps bc %d bytes
-        !
-        `, params.SchedulerName, params.ClassName, params.QueueID, params.CirValue, params.BurstSize)
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-	default:
-		t.Errorf("Unsupported CLI command for dut %v %s", dut.Vendor(), dut.Name())
+	if deviations.QosTwoRateThreeColorPolicerOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`
+			policy-map type quality-of-service %s
+			class %s
+			set traffic-class %d 
+			police cir %d bps bc %d bytes
+			!
+			`, params.SchedulerName, params.ClassName, params.QueueID, params.CirValue, params.BurstSize)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Unsupported CLI command for dut %v %s", dut.Vendor(), dut.Name())
+		}
 	}
 }
 
