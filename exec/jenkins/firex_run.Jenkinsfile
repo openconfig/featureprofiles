@@ -115,7 +115,7 @@ pipeline {
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
 
         separator(sectionHeader: "Jenkins Job")
-        persistentString(name: 'Max Reruns', defaultValue: '0', description: 'Maximum number of times to rerun the job if there are failed tests.', trim: true)
+        persistentString(name: 'Max Reruns', defaultValue: '', description: 'Maximum number of times to rerun the job if there are failed tests.', trim: true)
 
         separator(sectionHeader: "Other")
         persistentBoolean(name: 'Cisco Insta Triage', defaultValue: true, description: 'Includes Cisco Insta Triage plugin webdt_cit.py,webdt_at.py')
