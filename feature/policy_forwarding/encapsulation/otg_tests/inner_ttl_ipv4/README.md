@@ -197,6 +197,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                       "action": {
                         "config": {
                           "next-hop-group": "NHGroup1"
+                          "ip-ttl": 1
                         }
                       },
                       "config": {
