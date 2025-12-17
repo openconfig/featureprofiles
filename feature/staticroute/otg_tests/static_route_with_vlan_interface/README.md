@@ -1,4 +1,4 @@
-# Static Route using Vlan Interface
+# RT-1.67: IPv4 and IPv6 Static Route using Vlan Interface
 
 
 # Summary
