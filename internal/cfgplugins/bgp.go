@@ -172,6 +172,10 @@ type BGPConfig struct {
 	ECMPMaxPath uint32
 	// RouterID is the router ID of the DUT. (Usually the IPv4 address.)
 	RouterID string
+	//Maximum Routes
+	EnableMaxRoutes bool
+	//Peer Groups
+	PeerGroups []string
 }
 
 // BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
@@ -182,6 +186,7 @@ type BGPNeighborConfig struct {
 	NeighborIPv6     string
 	IsLag            bool
 	MultiPathEnabled bool
+	PolicyName       *string
 }
 
 // BgpNeighborScale holds parameters for configuring BGP neighbors in a scale test.
@@ -865,10 +870,22 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	af6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 
+	if cfg.EnableMaxRoutes {
+		bgpMaxRouteCfg := new(strings.Builder)
+		fmt.Fprintf(bgpMaxRouteCfg, "router bgp %d\n", cfg.DutAS)
+
+		for _, pg := range cfg.PeerGroups {
+			fmt.Fprintf(bgpMaxRouteCfg, "neighbor %s maximum-routes 0\n", pg)
+		}
+
+		helpers.GnmiCLIConfig(t, dut, bgpMaxRouteCfg.String())
+	}
+
 	// Handle multipath deviation
-	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
-		t.Log("Executing CLI commands for multipath deviation")
-		bgpRouteConfig := fmt.Sprintf(`
+	if cfg.ECMPMaxPath > 0 {
+		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+			t.Log("Executing CLI commands for multipath deviation")
+			bgpRouteConfig := fmt.Sprintf(`
 		router bgp %d
 		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
@@ -877,23 +894,24 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
 		`, cfg.DutAS, cfg.ECMPMaxPath)
-		helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
-	} else {
-		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
-		// remove CLI fallback and rely solely on OC configuration.
-		v4Multipath := af4.GetOrCreateUseMultiplePaths()
-		v4Multipath.SetEnabled(true)
-		v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-		v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
+		} else {
+			// TODO: Once multipath is fully supported via OpenConfig across all platforms,
+			// remove CLI fallback and rely solely on OC configuration.
+			v4Multipath := af4.GetOrCreateUseMultiplePaths()
+			v4Multipath.SetEnabled(true)
+			v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
-		v6Multipath := af6.GetOrCreateUseMultiplePaths()
-		v6Multipath.SetEnabled(true)
-		v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-		v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v6Multipath := af6.GetOrCreateUseMultiplePaths()
+			v6Multipath.SetEnabled(true)
+			v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
-		if !deviations.SkipSettingAllowMultipleAS(dut) {
-			v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
-			v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			if !deviations.SkipSettingAllowMultipleAS(dut) {
+				v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+				v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			}
 		}
 	}
 	gnmi.BatchUpdate(batch, dutBgpConfPath.Config(), dutBgpConf)
@@ -911,8 +929,13 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	pgafv4.Enabled = ygot.Bool(true)
 	rpl4 := pgafv4.GetOrCreateApplyPolicy()
-	rpl4.ImportPolicy = []string{ALLOW}
-	rpl4.ExportPolicy = []string{ALLOW}
+	if cfg.PolicyName != nil {
+		rpl4.ImportPolicy = []string{*cfg.PolicyName}
+		rpl4.ExportPolicy = []string{*cfg.PolicyName}
+	} else {
+		rpl4.ImportPolicy = []string{ALLOW}
+		rpl4.ExportPolicy = []string{ALLOW}
+	}
 
 	// === Peer Group for IPv6 ===
 	pgv6Name := cfg.PortName + "BGP-PEER-GROUP-V6"
@@ -922,8 +945,13 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	pgafv6.Enabled = ygot.Bool(true)
 	rpl6 := pgafv6.GetOrCreateApplyPolicy()
-	rpl6.ImportPolicy = []string{ALLOW}
-	rpl6.ExportPolicy = []string{ALLOW}
+	if cfg.PolicyName != nil {
+		rpl6.ImportPolicy = []string{*cfg.PolicyName}
+		rpl6.ExportPolicy = []string{*cfg.PolicyName}
+	} else {
+		rpl6.ImportPolicy = []string{ALLOW}
+		rpl6.ExportPolicy = []string{ALLOW}
+	}
 
 	if cfg.MultiPathEnabled {
 		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
