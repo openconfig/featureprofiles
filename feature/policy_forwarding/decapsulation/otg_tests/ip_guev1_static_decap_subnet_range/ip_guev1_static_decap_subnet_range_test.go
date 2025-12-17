@@ -120,7 +120,6 @@ type testCase struct {
 	trafficDestIp     string
 	trafficShouldPass bool
 	verifyCounters    bool
-	txRxCountersMatch bool
 }
 
 func TestIpGueStaticDecapsulation(t *testing.T) {
@@ -151,7 +150,6 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     tunIp,
 			trafficShouldPass: true,
 			verifyCounters:    true,
-			txRxCountersMatch: true,
 		},
 		{
 			name:              "PF-1.4.2: GUE Decapsulation of inner IPv6 traffic over DECAP subnet range",
@@ -161,7 +159,6 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     tunIp,
 			trafficShouldPass: true,
 			verifyCounters:    true,
-			txRxCountersMatch: true,
 		},
 		{
 			name:              "PF-1.4.3: GUE Decapsulation of inner IPv4 traffic using non-default and unconfigured GUE UDP port (Negative).",
@@ -171,7 +168,6 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     tunIp,
 			trafficShouldPass: false,
 			verifyCounters:    true,
-			txRxCountersMatch: false,
 		},
 		{
 			name:              "PF-1.4.4: GUE Decapsulation of inner IPv6 traffic using non-default and unconfigured GUE UDP port (Negative).",
@@ -181,7 +177,6 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     tunIp,
 			trafficShouldPass: false,
 			verifyCounters:    true,
-			txRxCountersMatch: false,
 		},
 		{
 			name:              "PF-1.4.5: Inner IPV4 GUE Pass-through (Negative)",
@@ -191,7 +186,6 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     atePort2.IPv4,
 			trafficShouldPass: true,
 			verifyCounters:    false,
-			txRxCountersMatch: false,
 		},
 		{
 			name:              "PF-1.4.6: Inner IPV6 GUE Pass-through (Negative)",
@@ -201,16 +195,15 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     atePort2.IPv4,
 			trafficShouldPass: true,
 			verifyCounters:    false,
-			txRxCountersMatch: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ipType == "ipv4" {
-				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters, tc.txRxCountersMatch)
+				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
 			} else {
-				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters, tc.txRxCountersMatch)
+				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
 			}
 		})
 	}
@@ -367,7 +360,7 @@ func trafficStartStop(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	finalOutUnicastPkts := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port2").Name()).Counters().OutUnicastPkts().State())
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
 	if verifyCounters {
-		verify_policer_matched_packets(t, dut, otgConfig, flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
+		verifyPolicerMatchedPackets(t, dut, otgConfig, flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts)
 	}
 }
 
@@ -438,8 +431,8 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
-// verify_policer_matched_packets verifies that packets are matched by the configured policer or policy-forwarding rule.
-func verify_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, flow gosnappi.Flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts uint64) {
+// verifyPolicerMatchedPackets verifies that packets are matched by the configured policer or policy-forwarding rule.
+func verifyPolicerMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, otgConfig *otg.OTG, flow gosnappi.Flow, initialInUnicastPkts, initialOutUnicastPkts, finalInUnicastPkts, finalOutUnicastPkts uint64) {
 	t.Helper()
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 	// TO-DO: Curently PolicyForwarding not supported in DUT (Bug 457722520). Adding deviation to check the PF counters.
@@ -477,7 +470,7 @@ func verify_policer_matched_packets(t *testing.T, dut *ondatra.DUTDevice, otgCon
 }
 
 // gueDecapInnerIpv4Traffic configures and validates GUE decapsulation for inner IPv4 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters, countersMatch bool) {
+func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
 	flow := configureIPv4Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv4")
@@ -489,14 +482,14 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", 32, 49)
+		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
 }
 
 // gueDecapInnerIpv6Traffic configures and validates GUE decapsulation for inner IPv6 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters, countersMatch bool) {
+func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
 	flow := configureIPv6Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv6")
@@ -508,7 +501,7 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", 32, 49)
+		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -590,7 +583,6 @@ func configureIPv6Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	flow.Size().SetFixed(uint32(packetSize))
 	flow.Rate().SetPps(packetPerSecond)
 	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
-	ate.OTG().PushConfig(t, topo)
 	return flow
 }
 
