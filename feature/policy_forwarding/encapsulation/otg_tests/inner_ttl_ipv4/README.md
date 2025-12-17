@@ -276,7 +276,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                 "config": {
                   "index": "1",
                   "metric": 10,
-                  "next-hop": "192.1.1.1",
+                  "next-hop": "198.51.100.1",
                   "nh-network-instance": "DEFAULT"
                 },
                 "encap-headers": {
@@ -315,7 +315,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                 "config": {
                   "index": "2",
                   "metric": 10,
-                  "next-hop": "192.1.1.5",
+                  "next-hop": "198.51.100.5",
                   "nh-network-instance": "DEFAULT"
                 },
                 "encap-headers": {
