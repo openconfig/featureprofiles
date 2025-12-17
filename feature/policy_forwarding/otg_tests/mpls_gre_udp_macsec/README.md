@@ -155,13 +155,13 @@ Verify:
         {
           "config": {
             "enable": true,
-            "name": "Ethernet1/1"
+            "name": "Ethernet1/1",
+            "replay-protection": 64
           },
           "mka": {
             "config": {
               "key-chain": "keychain1",
-              "mka-policy": "must_secure",
-              "replay-protection": 64
+              "mka-policy": "must_secure"
             }
           },
           "name": "Ethernet1/1"
