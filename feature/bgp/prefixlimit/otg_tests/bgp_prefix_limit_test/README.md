@@ -37,6 +37,11 @@ rpcs:
     gNMI.Set:
 ```
 
+## Canonical OC
+```json
+{}
+```   
+
 ## Minimum DUT platform requirement
 
 vRX

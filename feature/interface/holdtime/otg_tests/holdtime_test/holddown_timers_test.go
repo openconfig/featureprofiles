@@ -69,16 +69,21 @@ func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*
 	t.Helper()
 	d := &oc.Root{}
 	agg := d.GetOrCreateInterface(aggID)
-	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
+	agg.SetType(oc.IETFInterfaces_InterfaceType_ieee8023adLag)
+	agg.GetOrCreateAggregation().SetLagType(oc.IfAggregate_AggregationType_STATIC)
 
 	for _, port := range aggPorts {
 		i := d.GetOrCreateInterface(port.Name())
+		if deviations.FrBreakoutFix(dut) && port.PMD() == ondatra.PMD100GBASEFR {
+			i.GetOrCreateEthernet().SetAutoNegotiate(false)
+			i.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			i.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
+			i.SetEnabled(true)
 		}
 	}
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
@@ -87,11 +92,15 @@ func setupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*
 func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.Port, aggID string) {
 	t.Helper()
 
+	b := &gnmi.SetBatch{}
 	if deviations.AggregateAtomicUpdate(dut) {
 		// Clear aggregate & ip config on ports.
 		for _, port := range aggPorts {
-			gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().Config())
+			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv4().Config())
+			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Subinterface(0).Ipv6().Config())
 		}
+		b.Set(t, dut)
 		setupAggregateAtomically(t, dut, aggPorts, aggID)
 	}
 	agg := dutDst.NewOCInterface(aggID, dut)
@@ -103,11 +112,18 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatr
 		d := &oc.Root{}
 
 		i := d.GetOrCreateInterface(port.Name())
+		if deviations.FrBreakoutFix(dut) {
+			if port.PMD() == ondatra.PMD100GBASEFR && dut.Vendor() == ondatra.ARISTA {
+				i.GetOrCreateEthernet().SetAutoNegotiate(false)
+				i.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+				i.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			}
+		}
 		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
-		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		i.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 
 		if deviations.InterfaceEnabled(dut) {
-			i.Enabled = ygot.Bool(true)
+			i.SetEnabled(true)
 		}
 		gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), i)
 	}
@@ -347,7 +363,7 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 		want = oc.Interface_OperStatus_UP
 		gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
-			time.Second*waitTime,
+			waitTime,
 			oc.Interface_OperStatus_UP)
 	} else {
 		switch dut.Vendor() {
@@ -358,7 +374,7 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 		}
 		gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
-			time.Second*waitTime,
+			waitTime,
 			want)
 	}
 
@@ -415,7 +431,7 @@ func TestHoldTimeConfig(t *testing.T) {
 			}
 			return present
 		}).Await(t)
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 20*time.Second)
 	})
 
 }
@@ -479,7 +495,7 @@ func TestTC2LongDown(t *testing.T) {
 	t.Run("Bring back UP OTG Interface", func(t *testing.T) {
 		OTGInterfaceUP(t, ate)
 		t.Logf("Verifying port status for %s", aggID)
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 	})
 
 	t.Run("Verify test results", func(t *testing.T) {
@@ -499,7 +515,7 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
-		verifyPortsStatus(t, dut, "DOWN", 2)
+		verifyPortsStatus(t, dut, "DOWN", 2*time.Second)
 		oper1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 		t.Log(oper1)
@@ -515,7 +531,7 @@ func TestTC3ShortUP(t *testing.T) {
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "DOWN", 4)
+		verifyPortsStatus(t, dut, "DOWN", 4*time.Second)
 		t.Log(oper2)
 
 		change1Time := time.Unix(0, int64(change1)).UTC()
@@ -531,7 +547,7 @@ func TestTC3ShortUP(t *testing.T) {
 		// bring OTG port back up
 		OTGInterfaceUP(t, ate)
 		// verify interface is up for next test case
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
 	})
 
@@ -553,7 +569,7 @@ func TestTC4SLongUP(t *testing.T) {
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
 		OTGInterfaceUP(t, ate)
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
 		// Collecting time stamp of interface up
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
@@ -601,7 +617,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	t.Run("Flap OTG Interfaces", func(t *testing.T) {
 
 		t.Log("Verify Interface State before TC Start")
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 10*time.Second)
 		// shutting down OTG interface to emulate the RF
 		t.Log("Shutdown OTG Interface")
 		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
@@ -655,7 +671,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	t.Run("Verify port status UP", func(t *testing.T) {
 		t.Log("re-verify that the interface state is still up")
-		verifyPortsStatus(t, dut, "UP", 30)
+		verifyPortsStatus(t, dut, "UP", 30*time.Second)
 
 	})
 }

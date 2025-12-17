@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -44,7 +45,6 @@ const (
 	lossTolerance   = 1
 	mgmtVRF         = "mvrf1"
 	sampleTolerance = 0.8
-	samplingRate    = 1000000
 )
 
 var (
@@ -61,6 +61,34 @@ var (
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"1": oc.UnionString("2001:db8::6"),
 		},
+	}
+	sflowCfgv4 = &cfgplugins.SFlowGlobalParams{
+		Ni:              mgmtVRF,
+		IntfName:        "port1",
+		SrcAddrV4:       "203.0.113.1",
+		IP:              "IPv4",
+		MinSamplingRate: 100000,
+	}
+	sflowCfgv6 = &cfgplugins.SFlowGlobalParams{
+		Ni:              mgmtVRF,
+		IntfName:        "port1",
+		SrcAddrV6:       "2001:db8::203:0:113:1",
+		IP:              "IPv6",
+		MinSamplingRate: 100000,
+	}
+	sflowCfgv4KNE = &cfgplugins.SFlowGlobalParams{
+		Ni:              mgmtVRF,
+		IntfName:        "port1",
+		SrcAddrV4:       "192.0.2.1",
+		IP:              "IPv4",
+		MinSamplingRate: 10,
+	}
+	sflowCfgv6KNE = &cfgplugins.SFlowGlobalParams{
+		Ni:              mgmtVRF,
+		IntfName:        "port1",
+		SrcAddrV6:       "2001:db8::1",
+		IP:              "IPv6",
+		MinSamplingRate: 10,
 	}
 	dutSrc = &attrs.Attributes{
 		Desc:    "DUT to ATE source",
@@ -94,44 +122,69 @@ var (
 		IPv6Len: plenIPv6,
 		MAC:     "02:00:02:01:01:01",
 	}
-
 	loopbackSubIntfNum = 1
-
-	dutlo0Attrs = attrs.Attributes{
+	dutlo0Attrs        = attrs.Attributes{
 		Desc:    "Loopback ip",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::203:0:113:1",
 		IPv4Len: 32,
 		IPv6Len: 128,
 	}
-
-	flowConfigs = []flowConfig{
+	kneDeviceModelList = []string{"ncptx", "ceos", "srlinux", "xrd"}
+	flowConfigs        = []flowConfig{
 		{
-			name:          "flowS",
-			packetsToSend: 10000000,
-			ppsRate:       300000,
-			frameSize:     64,
+			name:            "flowS",
+			packetsToSend:   10000000,
+			ppsRate:         300000,
+			frameSize:       64,
+			minSamplingRate: 100000,
 		},
 		{
-			name:          "flowM",
-			packetsToSend: 10000000,
-			ppsRate:       300000,
-			frameSize:     512,
+			name:            "flowM",
+			packetsToSend:   10000000,
+			ppsRate:         300000,
+			frameSize:       512,
+			minSamplingRate: 100000,
 		},
 		{
-			name:          "flowL",
-			packetsToSend: 10000000,
-			ppsRate:       300000,
-			frameSize:     1500,
+			name:            "flowL",
+			packetsToSend:   10000000,
+			ppsRate:         300000,
+			frameSize:       1500,
+			minSamplingRate: 100000,
+		},
+	}
+	flowConfigsKNE = []flowConfig{
+		{
+			name:            "flowS",
+			packetsToSend:   100,
+			ppsRate:         10,
+			frameSize:       64,
+			minSamplingRate: 10,
+		},
+		{
+			name:            "flowM",
+			packetsToSend:   100,
+			ppsRate:         10,
+			frameSize:       512,
+			minSamplingRate: 10,
+		},
+		{
+			name:            "flowL",
+			packetsToSend:   100,
+			ppsRate:         10,
+			frameSize:       1500,
+			minSamplingRate: 10,
 		},
 	}
 )
 
 type flowConfig struct {
-	name          string
-	packetsToSend uint32
-	ppsRate       uint64
-	frameSize     uint32
+	name            string
+	packetsToSend   uint32
+	ppsRate         uint64
+	frameSize       uint32
+	minSamplingRate uint32
 }
 
 type IPType string
@@ -149,16 +202,20 @@ func TestMain(m *testing.M) {
 func configureDUTBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := gnmi.OC()
-
 	p1 := dut.Port(t, "port1")
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutSrc.NewOCInterface(p1.Name(), dut))
-
 	p2 := dut.Port(t, "port2")
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutDst.NewOCInterface(p2.Name(), dut))
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
+	dutPortAttrs := map[*ondatra.Port]*attrs.Attributes{
+		p1: dutSrc,
+		p2: dutDst,
+	}
+	for dutPort, dutPortAttr := range dutPortAttrs {
+		dutInt := dutPortAttr.NewOCInterface(dutPort.Name(), dut)
+		if deviations.FrBreakoutFix(dut) && dutPort.PMD() == ondatra.PMD100GBASEFR {
+			dutInt.GetOrCreateEthernet().SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+			dutInt.GetOrCreateEthernet().SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			dutInt.GetOrCreateEthernet().SetAutoNegotiate(false)
+		}
+		gnmi.Replace(t, dut, d.Interface(dutPort.Name()).Config(), dutInt)
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
@@ -173,39 +230,30 @@ func TestSFlowTraffic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-
 	ate := ondatra.ATE(t, "ate")
-
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		loopbackSubIntfNum = 0
 	}
-
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackSubIntfNum)
-
 	// Configure DUT
 	if !deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUTBaseline(t, dut)
 		configureLoopbackOnDUT(t, dut)
 	}
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	addInterfacesToVRF(t, dut, mgmtVRF, []string{p1.Name(), p2.Name(), loopbackIntfName})
-
 	// For interface configuration, Arista prefers config Vrf first then the IP address
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		configureDUTBaseline(t, dut)
 		configureLoopbackOnDUT(t, dut)
 	}
-
 	config := configureATE(t, ate)
 	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
-
 	srBatch := &gnmi.SetBatch{}
 	cfgplugins.NewStaticRouteCfg(srBatch, staticRouteV4, dut)
 	cfgplugins.NewStaticRouteCfg(srBatch, staticRouteV6, dut)
 	srBatch.Set(t, dut)
-
 	/* TODO: implement this when a suitable ygot.diffBatch function exists
 		// Validate DUT sampling config matches what we set it to
 		diff, err := ygot.Diff(gotSamplingConfig, sfBatch)
@@ -217,33 +265,38 @@ func TestSFlowTraffic(t *testing.T) {
 		}
 	})
 	*/
-
 	t.Run("SFLOW-1.2_TestFlowFixed", func(t *testing.T) {
 		t.Run("SFLOW-1.2.1_IPv4", func(t *testing.T) {
 			configSflow(t, dut, loopbackIntfName, IPv4)
 			enableCapture(t, ate, config, IPv4)
-			testFlowFixed(t, ate, config, IPv4)
+			testFlowFixed(t, ate, config, IPv4, dut)
 		})
 		t.Run("SFLOW-1.2.2_IPv6", func(t *testing.T) {
 			configSflow(t, dut, loopbackIntfName, IPv6)
 			enableCapture(t, ate, config, IPv6)
-			testFlowFixed(t, ate, config, IPv6)
+			testFlowFixed(t, ate, config, IPv6, dut)
 		})
 	})
 }
 
 func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, ip IPType) {
-
 	t.Run("SFLOW-1.1_ReplaceDUTConfigSFlow", func(t *testing.T) {
 		sfBatch := &gnmi.SetBatch{}
 		switch ip {
 		case IPv4:
-			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv4)
+			if slices.Contains(kneDeviceModelList, dut.Model()) {
+				sflowCfgv4 = sflowCfgv4KNE
+			}
+			sflowCfgv4.IntfName = loopbackIntfName
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowCfgv4)
 		case IPv6:
-			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, mgmtVRF, loopbackIntfName, dutlo0Attrs.IPv4, dutlo0Attrs.IPv6, IPv6)
+			if slices.Contains(kneDeviceModelList, dut.Model()) {
+				sflowCfgv6 = sflowCfgv6KNE
+			}
+			sflowCfgv6.IntfName = loopbackIntfName
+			cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowCfgv6)
 		}
 		sfBatch.Set(t, dut)
-
 		gotSamplingConfig := gnmi.Get(t, dut, gnmi.OC().Sampling().Sflow().Config())
 		json, err := ygot.EmitJSON(gotSamplingConfig, &ygot.EmitJSONConfig{
 			Format: ygot.RFC7951,
@@ -257,32 +310,31 @@ func configSflow(t *testing.T, dut *ondatra.DUTDevice, loopbackIntfName string, 
 		}
 		t.Logf("Got sampling config: %v", json)
 	})
-
 }
 
-func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
-	for _, fc := range flowConfigs {
+func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, dut *ondatra.DUTDevice) {
+	var myFlowConfigs []flowConfig
+	if slices.Contains(kneDeviceModelList, dut.Model()) {
+		myFlowConfigs = flowConfigsKNE
+	} else {
+		myFlowConfigs = flowConfigs
+	}
+	for _, fc := range myFlowConfigs {
 		flowName := string(ip) + fc.name
 		t.Run(flowName, func(t *testing.T) {
 			createFlow(t, ate, config, fc, ip)
-
 			cs := startCapture(t, ate, config)
-
 			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 5
 			ate.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			ate.OTG().StopTraffic(t)
-
 			stopCapture(t, ate, cs)
-
 			otgutils.LogFlowMetrics(t, ate.OTG(), config)
 			otgutils.LogPortMetrics(t, ate.OTG(), config)
-
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flowName, 10*time.Second)
 			if loss > lossTolerance {
 				t.Errorf("Loss percent for IPv4 Traffic: got: %f, want %f", loss, float64(lossTolerance))
 			}
-
 			processCapture(t, ate, config, ip, fc)
 		})
 	}
@@ -290,11 +342,9 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 
 func startCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) gosnappi.ControlState {
 	t.Helper()
-
 	cs := gosnappi.NewControlState()
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	ate.OTG().SetControlState(t, cs)
-
 	return cs
 }
 
@@ -306,7 +356,6 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType, fc flowConfig) {
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[1].Name()))
-	time.Sleep(30 * time.Second)
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -324,16 +373,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p2 := ate.Port(t, "port2")
 	ateSrc.AddToOTG(config, p1, dutSrc)
 	ateDst.AddToOTG(config, p2, dutDst)
-
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
-
 	return config
 }
 
 func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ip IPType) {
 	t.Helper()
-
 	config.Captures().Clear()
 	// enable packet capture on this port
 	cap := config.Captures().Add().SetName("sFlowpacketCapture").
@@ -347,10 +393,8 @@ func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 		// filter on hex value of IPv6 - 2001:db8::203:0:113:1
 		filter.Ipv6().Src().SetValue("20010db8000000000203000001130001")
 	}
-
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
-
 	pb, _ := config.Marshal().ToProto()
 	t.Log(pb.GetCaptures())
 }
@@ -379,15 +423,14 @@ func configureLoopbackOnDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc flowConfig, ip IPType) {
 	config.Flows().Clear()
-
 	t.Log("Configuring traffic flow")
 	flow := config.Flows().Add().SetName(string(ip) + fc.name)
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(fc.frameSize)
 	flow.Rate().SetPps(fc.ppsRate)
+	flow.Duration().SetFixedPackets(gosnappi.NewFlowFixedPackets().SetPackets(fc.packetsToSend))
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValues([]string{ateSrc.MAC})
-
 	switch ip {
 	case IPv4:
 		flow.TxRx().Device().
@@ -404,7 +447,6 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, fc
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 	}
-
 	ate.OTG().PushConfig(t, config)
 	ate.OTG().StartProtocols(t)
 }
@@ -415,58 +457,37 @@ func validatePackets(t *testing.T, filename string, ip IPType, fc flowConfig) {
 		t.Fatal(err)
 	}
 	defer handle.Close()
-
 	loopbackIP := net.ParseIP(dutlo0Attrs.IPv4)
 	if ip == IPv6 {
 		loopbackIP = net.ParseIP(dutlo0Attrs.IPv6)
 	}
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-
-	found := false
 	packetCount := 0
-	sampleCount := 0
 	sflowSamples := uint32(0)
+	expectedSampleCount := float64(fc.packetsToSend / fc.minSamplingRate)
+	minAllowedSamples := expectedSampleCount * sampleTolerance
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
 			if ipv4.SrcIP.Equal(loopbackIP) {
-				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 				if ipv4.TOS == 32 {
-					found = true
-					sampleCount++
+					packetCount++
 				}
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
 			if ipv6.SrcIP.Equal(loopbackIP) {
-				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 				if ipv6.TrafficClass == 32 {
-					found = true
-					sampleCount++
+					packetCount++
 				}
 			}
 		}
-
-	}
-
-	expectedSampleCount := float64(fc.packetsToSend / samplingRate)
-	minAllowedSamples := expectedSampleCount * sampleTolerance
-	t.Logf("SFlow samples captured: %v", sampleCount)
-	if !found || sampleCount < int(minAllowedSamples) {
-		t.Errorf("sflow packets not found: got %v, want >= %v", sampleCount, minAllowedSamples)
-	}
-
-	handle, _ = pcap.OpenOffline(filename)
-	packetSource = gopacket.NewPacketSource(handle, handle.LinkType())
-	for packet := range packetSource.Packets() {
 		if sflowLayer := packet.Layer(layers.LayerTypeSFlow); sflowLayer != nil {
 			sflow := sflowLayer.(*layers.SFlowDatagram)
-			packetCount++
 			sflowSamples += sflow.SampleCount
-			t.Logf("SFlow Packet count: %v - SampleCount: %v", packetCount, sflowSamples)
 		}
 	}
-
+	t.Logf("SFlow Packet count: %v - SampleCount: %v", packetCount, sflowSamples)
 	if sflowSamples < uint32(minAllowedSamples) {
 		t.Errorf("SFlow sample count %v, want > %v", sflowSamples, expectedSampleCount)
 	}
