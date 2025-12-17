@@ -96,6 +96,7 @@ replace: {
 "hw-module profile qos qos-stats-push-collection\n"
 "hw-module profile netflow sflow-enable location 0/4/CPU0\n"
 "hw-module shutdown location 0/1/CPU0\n"
+"hw-module profile cef iptunnel scale\n"
 "ssh server v2\n"
 "ssh server vrf default\n"
 "ssh server vrf mgmt\n"
