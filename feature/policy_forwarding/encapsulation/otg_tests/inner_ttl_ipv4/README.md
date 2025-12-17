@@ -161,178 +161,184 @@ Verify:
 
 ```json
 {
-  "config": {
-    "name": "DEFAULT"
-  },
-  "name": "DEFAULT",
-  "policy-forwarding": {
-    "policies": {
-      "policy": [
-        {
-          "config": {
-            "policy-id": "set-ip-ttl-policy",
-            "type": "PBR_POLICY"
-          },
-          "policy-id": "set-ip-ttl-policy",
-          "rules": {
-            "rule": [
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
               {
-                "action": {
-                  "config": {
-                    "next-hop-group": "NHGroup1",
-                    "ip-ttl": 1
-                  }
-                },
                 "config": {
-                  "sequence-id": 10
+                  "policy-id": "set-ip-ttl-policy",
+                  "type": "PBR_POLICY"
                 },
-                "ipv4": {
-                  "config": {
-                    "destination-address": "192.0.2.0/24"
-                  }
-                },
-                "sequence-id": 10
+                "policy-id": "set-ip-ttl-policy",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "next-hop-group": "NHGroup1"
+                          "ip-ttl": 1
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 10
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "192.0.2.0/24"
+                        }
+                      },
+                      "sequence-id": 10
+                    }
+                  ]
+                }
               }
             ]
           }
-        }
-      ]
-    }
-  },
-  "protocols": {
-    "protocol": [
-      {
-        "config": {
-          "identifier": "STATIC",
-          "name": "DEFAULT"
         },
-        "identifier": "STATIC",
-        "name": "DEFAULT",
-        "static-routes": {
-          "static": [
+        "protocols": {
+          "protocol": [
             {
               "config": {
-                "prefix": "0.0.0.0/0"
+                "identifier": "STATIC",
+                "name": "DEFAULT"
               },
-              "next-hop-group": {
-                "config": {
-                  "name": "NHGroup1"
-                }
-              },
-              "prefix": "0.0.0.0/0"
+              "identifier": "STATIC",
+              "name": "DEFAULT",
+              "static-routes": {
+                "static": [
+                  {
+                    "config": {
+                      "prefix": "0.0.0.0/0"
+                    },
+                    "next-hop-group": {
+                      "config": {
+                        "name": "NHGroup1"
+                      }
+                    },
+                    "prefix": "0.0.0.0/0"
+                  }
+                ]
+              }
             }
           ]
-        }
-      }
-    ]
-  },
-  "static": {
-    "next-hop-groups": {
-      "next-hop-group": [
-        {
-          "config": {
-            "name": "NHGroup1"
+        },
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
+                "config": {
+                  "name": "NHGroup1"
+                },
+                "name": "NHGroup1",
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
+                        "index": "1"
+                      },
+                      "index": "1"
+                    },
+                    {
+                      "config": {
+                        "index": "2"
+                      },
+                      "index": "2"
+                    }
+                  ]
+                }
+              }
+            ]
           },
-          "name": "NHGroup1",
           "next-hops": {
             "next-hop": [
               {
                 "config": {
-                  "index": "1"
+                  "index": "1",
+                  "metric": 10,
+                  "next-hop": "192.1.1.1"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1,
+                        "type": "MPLS"
+                      },
+                      "index": 1,
+                      "mpls": {
+                        "config": {
+                          "label": 100
+                        }
+                      }
+                    },
+                    {
+                      "config": {
+                        "index": 2,
+                        "type": "MPLS"
+                      },
+                      "gre": {
+                        "config": {
+                          "dst-ip": "10.100.101.1",
+                          "src-ip": "10.100.100.1",
+                          "ttl": 64
+                        }
+                      },
+                      "index": 2
+                    }
+                  ]
                 },
                 "index": "1"
               },
               {
                 "config": {
-                  "index": "2"
+                  "index": "2",
+                  "metric": 10,
+                  "next-hop": "192.1.1.5"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1,
+                        "type": "MPLS"
+                      },
+                      "index": 1,
+                      "mpls": {
+                        "config": {
+                          "label": 100
+                        }
+                      }
+                    },
+                    {
+                      "config": {
+                        "index": 2,
+                        "type": "GRE"
+                      },
+                      "gre": {
+                        "config": {
+                          "dst-ip": "10.100.102.1",
+                          "src-ip": "10.100.100.1",
+                          "ttl": 64
+                        }
+                      },
+                      "index": 2
+                    }
+                  ]
                 },
                 "index": "2"
               }
             ]
           }
         }
-      ]
-    },
-    "next-hops": {
-      "next-hop": [
-        {
-          "config": {
-            "index": "1",
-            "metric": 10,
-            "next-hop": "192.1.1.1"
-          },
-          "encap-headers": {
-            "encap-header": [
-              {
-                "config": {
-                  "index": 1,
-                  "type": "MPLS"
-                },
-                "index": 1,
-                "mpls": {
-                  "config": {
-                    "label": 100
-                  }
-                }
-              },
-              {
-                "config": {
-                  "index": 2,
-                  "type": "MPLS"
-                },
-                "gre": {
-                  "config": {
-                    "dst-ip": "10.100.101.1",
-                    "src-ip": "10.100.100.1",
-                    "ttl": 64
-                  }
-                },
-                "index": 2
-              }
-            ]
-          },
-          "index": "1"
-        },
-        {
-          "config": {
-            "index": "2",
-            "metric": 10,
-            "next-hop": "192.1.1.5"
-          },
-          "encap-headers": {
-            "encap-header": [
-              {
-                "config": {
-                  "index": 1,
-                  "type": "MPLS"
-                },
-                "index": 1,
-                "mpls": {
-                  "config": {
-                    "label": 100
-                  }
-                }
-              },
-              {
-                "config": {
-                  "index": 2,
-                  "type": "GRE"
-                },
-                "gre": {
-                  "config": {
-                    "dst-ip": "10.100.102.1",
-                    "src-ip": "10.100.100.1",
-                    "ttl": 64
-                  }
-                },
-                "index": 2
-              }
-            ]
-          },
-          "index": "2"
-        }
-      ]
-    }
+      }
+    ]
   }
 }
 ```
