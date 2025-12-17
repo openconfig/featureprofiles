@@ -1,4 +1,4 @@
-# DHCP Relay functionality
+# RELAY-1: DHCP Relay functionality
 
 # Summary
 
@@ -75,178 +75,6 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port2];B --Egress-->C[Port3:ATE];
 
 ```json
 {
-  "openconfig-interfaces:interfaces": {
-    "interface": [
-      {
-        "name": "Ethernet1",
-        "config": {
-          "name": "Ethernet1",
-          "type": "iana-if-type:ethernetCsmacd",
-          "description": "ATE:Port[1]"
-        },
-        "openconfig-vlan:switched-vlan": {
-          "config": {
-            "interface-mode": "ACCESS",
-            "access-vlan": 10
-          }
-        }
-      },
-      {
-        "name": "Ethernet3",
-        "config": {
-          "name": "Ethernet3",
-          "type": "iana-if-type:ethernetCsmacd",
-          "description": "ATE:Port[3]"
-        },
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "index": 0,
-              "openconfig-if-ip:ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "10.10.10.0",
-                      "config": {
-                        "ip": "10.10.10.0",
-                        "prefix-length": 31
-                      }
-                    }
-                  ]
-                }
-              },
-              "openconfig-if-ip:ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "2001:f:a::0",
-                      "config": {
-                        "ip": "2001:f:a::0",
-                        "prefix-length": 127
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
-        }
-      },
-      {
-        "name": "Vlan10",
-        "config": {
-          "name": "Vlan10",
-          "type": "iana-if-type:l3ipvlan",
-          "mtu": 9202
-        },
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "index": 0,
-              "openconfig-if-ip:ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "10.10.11.1",
-                      "config": {
-                        "ip": "10.10.11.1",
-                        "prefix-length": 27
-                      }
-                    }
-                  ]
-                }
-              },
-              "openconfig-if-ip:ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "2001:f:b::1",
-                      "config": {
-                        "ip": "2001:f:b::1",
-                        "prefix-length": 64
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
-        }
-      }
-    ]
-  },
-  "openconfig-vlan:vlans": {
-    "vlan": [
-      {
-        "vlan-id": 10,
-        "config": {
-          "vlan-id": 10,
-          "name": "vlan10",
-          "status": "ACTIVE"
-        }
-      }
-    ]
-  },
-  "openconfig-network-instance:network-instances": {
-    "network-instance": [
-      {
-        "name": "default",
-        "config": {
-          "name": "default"
-        },
-        "protocols": {
-          "protocol": [
-            {
-              "identifier": "STATIC",
-              "name": "static",
-              "config": {
-                "identifier": "STATIC",
-                "name": "static"
-              },
-              "static-routes": {
-                "static": [
-                  {
-                    "prefix": "0.0.0.0/0",
-                    "config": {
-                      "prefix": "0.0.0.0/0"
-                    },
-                    "next-hops": {
-                      "next-hop": [
-                        {
-                          "index": "10.10.10.1",
-                          "config": {
-                            "index": "10.10.10.1",
-                            "next-hop": "10.10.10.1"
-                          }
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "prefix": "::/0",
-                    "config": {
-                      "prefix": "::/0"
-                    },
-                    "next-hops": {
-                      "next-hop": [
-                        {
-                          "index": "2001:f:a::1",
-                          "config": {
-                            "index": "2001:f:a::1",
-                            "next-hop": "2001:f:a::1"
-                          }
-                        }
-                      ]
-                    }
-                  }
-                ]
-              }
-            }
-          ]
-        }
-      }
-    ]
-  },
   "openconfig-relay-agent:relay-agent": {
     "dhcp": {
       "interfaces": {
@@ -284,14 +112,54 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port2];B --Egress-->C[Port3:ATE];
 paths:
 
   ## Config Paths ##
-   /relay-agent/dhcp/config/enable-relay-agent:
-   /relay-agent/dhcp/interfaces/interface/config/helper-address:
-   /relay-agent/dhcpv6/config/enable-relay-agent:
-   /relay-agent/dhcpv6/interfaces/interface/config/helper-address:
 
-  ## State Paths ##
-   	/relay-agent/dhcp/interfaces/interface/state/helper-address:
-   	/relay-agent/dhcpv6/interfaces/interface/state/helper-address:
+/vlans/vlan/config/name: 
+/vlans/vlan/config/status: 
+/interfaces/interface[name=Ethernet1]/config/description: 
+/interfaces/interface[name=Ethernet1]/ethernet/switched-vlan/config/interface-mode: 
+/interfaces/interface[name=Ethernet1]/ethernet/switched-vlan/config/access-vlan:
+/interfaces/interface[name=Ethernet3]/config/description:
+/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip: 
+/interfaces/interface/subinterfaces/subinterface[index=0]/ipv4/addresses/address/config/prefix-length: 
+/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip: 
+/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+/interfaces/interface[name=Vlan10]/config/type:
+/interfaces/interface[name=Vlan10]/config/mtu:
+/interfaces/interface[name=Vlan10]/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+/interfaces/interface[name=Vlan10]/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+/interfaces/interface[name=Vlan10]/subinterfaces/subinterface/ipv6/addresses/address/config/ip: 
+/interfaces/interface[name=Vlan10]/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+/relay-agent/dhcp/interfaces/interface[id=Vlan10]/config/id:
+/relay-agent/dhcp/interfaces/interface[id=Vlan10]/ipv4/config/helper-address:
+/relay-agent/dhcp/interfaces/interface[id=Vlan10]/ipv6/config/helper-address:
+/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+
+## State Paths ##
+
+/vlans/vlan/state/name:
+/vlans/vlan/state/status:
+/interfaces/interface/state/description:
+/interfaces/interface/ethernet/switched-vlan/state/interface-mode:
+/interfaces/interface/ethernet/switched-vlan/state/access-vlan:
+/interfaces/interface/subinterfaces/subinterface[index=0]/ipv4/addresses/address/state/ip:
+/interfaces/interface/subinterfaces/subinterface[index=0]/ipv4/addresses/address/state/prefix-length:
+/interfaces/interface/subinterfaces/subinterface[index=0]/ipv6/addresses/address/state/ip:
+/interfaces/interface/subinterfaces/subinterface[index=0]/ipv6/addresses/address/state/prefix-length:
+/interfaces/interface/state/type:
+/interfaces/interface/state/mtu:
+/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+/interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/prefix-length:
+/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+/interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
+/relay-agent/dhcp/interfaces/interface/ipv4/state/helper-address:
+/relay-agent/dhcp/interfaces/interface/ipv6/state/helper-address:
+/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
+/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
+/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
 
 rpcs:
   gnmi:
