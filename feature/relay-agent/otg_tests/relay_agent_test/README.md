@@ -18,7 +18,7 @@ This is to validate the DHCP relay functionality on a DUT.  The test validates t
 
 ```mermaid
 graph LR; 
-A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port2];B --Egress-->C[Port3:ATE];
+A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 ```
 
 ```
