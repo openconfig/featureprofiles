@@ -162,9 +162,9 @@ https://github.com/openconfig/public/pull/1417 is merged.
     "network-instance": [
       {
         "config": {
-          "name": "DEFAULT"
+          "name": "test_vrf"
         },
-        "name": "DEFAULT",
+        "name": "test_vrf",
         "policy-forwarding": {
           "policies": {
             "policy": [
@@ -188,10 +188,26 @@ https://github.com/openconfig/public/pull/1417 is merged.
                       },
                       "ipv4": {
                         "config": {
-                          "destination-address": "192.0.2.0/24"
+                          "hop-limit": 1
                         }
                       },
                       "sequence-id": 10
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "next-hop-group": "NHGroup1"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 20
+                      },
+                      "ipv6": {
+                        "config": {
+                          "hop-limit": 1
+                        }
+                      },
+                      "sequence-id": 20
                     }
                   ]
                 }
@@ -259,7 +275,8 @@ https://github.com/openconfig/public/pull/1417 is merged.
                 "config": {
                   "index": "1",
                   "metric": 10,
-                  "next-hop": "192.1.1.1"
+                  "next-hop": "192.1.1.1",
+                  "nh-network-instance": "DEFAULT"
                 },
                 "encap-headers": {
                   "encap-header": [
@@ -278,7 +295,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                     {
                       "config": {
                         "index": 2,
-                        "type": "MPLS"
+                        "type": "GRE"
                       },
                       "gre": {
                         "config": {
@@ -297,7 +314,8 @@ https://github.com/openconfig/public/pull/1417 is merged.
                 "config": {
                   "index": "2",
                   "metric": 10,
-                  "next-hop": "192.1.1.5"
+                  "next-hop": "192.1.1.5",
+                  "nh-network-instance": "DEFAULT"
                 },
                 "encap-headers": {
                   "encap-header": [
