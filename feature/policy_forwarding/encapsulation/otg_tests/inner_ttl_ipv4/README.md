@@ -162,6 +162,12 @@ https://github.com/openconfig/public/pull/1417 is merged.
     "network-instance": [
       {
         "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT"
+      },
+      {
+        "config": {
           "name": "test_vrf"
         },
         "name": "test_vrf",
@@ -277,7 +283,8 @@ https://github.com/openconfig/public/pull/1417 is merged.
                   "index": "1",
                   "metric": 10,
                   "next-hop": "198.51.100.1",
-                  "nh-network-instance": "DEFAULT"
+                  "nh-network-instance": "DEFAULT",
+                  "recurse": true
                 },
                 "encap-headers": {
                   "encap-header": [
