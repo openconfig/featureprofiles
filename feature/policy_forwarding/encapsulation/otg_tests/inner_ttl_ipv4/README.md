@@ -179,7 +179,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                     {
                       "action": {
                         "config": {
-                          "next-hop-group": "NHGroup1"
+                          "next-hop-group": "NHGroup1",
                           "ip-ttl": 1
                         }
                       },
@@ -196,7 +196,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                     {
                       "action": {
                         "config": {
-                          "next-hop-group": "NHGroup1"
+                          "next-hop-group": "NHGroup1",
                           "ip-ttl": 1
                         }
                       },
@@ -367,7 +367,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
-  # /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:  # See TODO
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:
 
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
