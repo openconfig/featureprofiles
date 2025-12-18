@@ -32,7 +32,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Define first Policy(1) to cover must-secure scenario, as defined below
     * Define second Policy(2) to cover should-secure scenario, as defined below
     * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
-    * Each pre-shared key mush have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
+    * Each pre-shared key must have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
     * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
     * Set Key server priority: 15
@@ -40,7 +40,7 @@ Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/o
     * Set MACsec confidentiality offset: 0
     * Set Replay Protection Window (out-of-sequence protection) size: 64
     * Include ICV indicator:True
-    * Set SCI enabled:True
+    * Include SCI:True
     * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable and is not included in the test cases)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
@@ -155,7 +155,8 @@ Verify:
         {
           "config": {
             "enable": true,
-            "name": "Ethernet1/1"
+            "name": "Ethernet1/1",
+            "replay-protection": 64
           },
           "mka": {
             "config": {
@@ -211,6 +212,7 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
+ # TODO:  /macsec/mka/config/security-policy  MUST_SECURE,SHOULD_SECURE
  /macsec/interfaces/interface/state/name:
  /macsec/interfaces/interface/state/enable:
  /macsec/interfaces/interface/state/replay-protection:
