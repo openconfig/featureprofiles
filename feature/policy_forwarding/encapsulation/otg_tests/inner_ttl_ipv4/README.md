@@ -386,11 +386,9 @@ paths:
   /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/src-ip:
   /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/ttl:
 
-  /network-instances/network-instance/protocols/protocol/identifier:
   /network-instances/network-instance/protocols/protocol/config/identifier:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
 
 
 rpcs:
@@ -400,7 +398,6 @@ rpcs:
       replace: true
     gNMI.Subscribe:
       on_change: true
-
 ```
 
 ## Required DUT platform
