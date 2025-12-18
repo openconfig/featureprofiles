@@ -104,13 +104,18 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	}
 
 	if deviations.NextHopGroupOCUnsupported(d) {
-		staticNHGCmd := fmt.Sprintf(`
-			%s route vrf %s %s nexthop-group %s
-		`, cfg.ProtocolStr, cfg.NetworkInstance, cfg.Prefix, cfg.NextHopGroup)
-		helpers.GnmiCLIConfig(t, d, staticNHGCmd)
+		switch d.Vendor() {
+		case ondatra.ARISTA:
+			staticNHGCmd := fmt.Sprintf(`
+				%s route vrf %s %s nexthop-group %s
+			`, cfg.ProtocolStr, cfg.NetworkInstance, cfg.Prefix, cfg.NextHopGroup)
+			helpers.GnmiCLIConfig(t, d, staticNHGCmd)
 
-		// Return nil since we're using CLI (no OC object created)
-		return nil, nil
+			// Return nil since we're using CLI (no OC object created)
+			return nil, nil
+		default:
+			t.Errorf("Deviation NextHopGroupOCUnsupported is not handled for the dut: %v", d.Vendor())
+		}
 	}
 
 	ni := normalizeNIName(cfg.NetworkInstance, d)

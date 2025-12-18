@@ -165,10 +165,10 @@ func TestIngressInnerPktTTL(t *testing.T) {
 			ocNHGParams := defaultStaticNextHopGroupParams()
 			ocPFParams := defaultOcPolicyForwardingParams()
 			_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
-			cfgplugins.NextHopGroupConfig(t, dut, tc.family, ni, ocNHGParams)
+			cfgplugins.NextHopGroupConfig(t, dut, "v4", ni, ocNHGParams)
 
 			// --- Matched case ---
-			ocPFParams.TTL = tc.matchTTL
+			ocPFParams.MatchTTL = tc.matchTTL
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
 			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
 
@@ -229,9 +229,9 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
 		AppliedPolicyName:   "customer1",
-		ChangeCli:           true,
+		ActionSetTTL:        true,
 		InterfaceName:       aggID1 + ".10",
-		TTL:                 matchTTL,
+		MatchTTL:            matchTTL,
 		RwTTL:               rewrittenIPTTL,
 		PolicyName:          policyForwardingName,
 		NHGName:             nexthopGroupName,

@@ -153,6 +153,7 @@ Verify:
     inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 ## Canonical OC
+**[TODO]**: Add MATCH_ACTION policy-forwarding type to OpenConfig Public data models, pending https://github.com/openconfig/public/pull/1371
 
 ```json
 {
@@ -170,7 +171,7 @@ Verify:
                 "policy-id": "retain ttl",
                 "config": {
                   "policy-id": "retain ttl",
-                  "type": "PBR_POLICY"
+                  "type": "MATCH_ACTION"
                 },
                 "rules": {
                   "rule": [

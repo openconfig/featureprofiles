@@ -65,8 +65,8 @@ type OcPolicyForwardingParams struct {
 	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
 	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
 	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
-	ChangeCli          bool
-	TTL                int
+	ActionSetTTL       bool
+	MatchTTL           int
 	RwTTL              int
 	NHGName            string
 	RemovePolicy       bool
@@ -413,44 +413,8 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 				`, params.PolicyName)
 				helpers.GnmiCLIConfig(t, dut, removeCmd)
 				return
-			} else if params.ChangeCli {
-				switch traffictype {
-				case "ipv4":
-					policyForwardingConfigv4Vrf := fmt.Sprintf(`
-					traffic-policies
-						traffic-policy %[1]s
-							match rewritettlv4 ipv4
-								ttl %[2]d
-								!
-								actions
-									count
-									redirect next-hop group %[3]s ttl %[4]d
-							!							
-							interface %[5]s
-							traffic-policy input %[1]s
-						!
-							`, params.PolicyName, params.TTL, params.NHGName, params.RwTTL, params.InterfaceName)
-					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv4Vrf)
-				case "ipv6":
-					policyForwardingConfigv6Vrf := fmt.Sprintf(`
-					traffic-policies
-						no traffic-policy %[1]s
-						traffic-policy %[1]s
-							match rewritettlv6 ipv6
-								ttl %[2]d
-								!
-								actions
-									count
-									redirect next-hop group %[3]s ttl %[4]d
-							!
-							interface %[5]s
-							traffic-policy input %[1]s
-						!
-							`, params.PolicyName, params.TTL, params.NHGName, params.RwTTL, params.InterfaceName)
-					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv6Vrf)
-				default:
-					t.Logf("Unsupported traffictype %s", traffictype)
-				}
+			} else if params.ActionSetTTL {
+				NewPolicyForwardingMatchAndSetTTL(t, dut, traffictype, params)				
 			} else {
 				switch traffictype {
 				case "v4":
@@ -470,6 +434,60 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 		}
 	} else {
 		RulesAndActions(params, pf)
+	}
+}
+
+// NewPolicyForwardingMatchAndSetTTL configures a policy-forwarding rule that matches packets based on IP TTL and rewrites the TTL before redirecting traffic to a specified next-hop group.
+func NewPolicyForwardingMatchAndSetTTL(t *testing.T, dut *ondatra.DUTDevice, traffictype string, params OcPolicyForwardingParams) {
+	t.Helper()
+	switch traffictype {
+	case "ipv4":
+		policyForwardingConfigv4Vrf := fmt.Sprintf(`
+			traffic-policies
+			traffic-policy %[1]s
+				match rewritettlv4 ipv4
+				ttl %[2]d
+				!
+				actions
+					count
+					redirect next-hop group %[3]s ttl %[4]d
+				!
+				interface %[5]s
+				traffic-policy input %[1]s
+			!`,
+			params.PolicyName,
+			params.MatchTTL,
+			params.NHGName,
+			params.RwTTL,
+			params.InterfaceName,
+		)
+		helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv4Vrf)
+
+	case "ipv6":
+		policyForwardingConfigv6Vrf := fmt.Sprintf(`
+			traffic-policies
+			no traffic-policy %[1]s
+			traffic-policy %[1]s
+				match rewritettlv6 ipv6
+				ttl %[2]d
+				!
+				actions
+					count
+					redirect next-hop group %[3]s ttl %[4]d
+				!
+				interface %[5]s
+				traffic-policy input %[1]s
+			!`,
+			params.PolicyName,
+			params.MatchTTL,
+			params.NHGName,
+			params.RwTTL,
+			params.InterfaceName,
+		)
+		helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv6Vrf)
+
+	default:
+		t.Logf("Unsupported traffictype %s for TTL policy", traffictype)
 	}
 }
 

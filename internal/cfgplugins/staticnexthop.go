@@ -137,7 +137,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "ipv4" {
+			if traffictype == "v4" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
@@ -155,7 +155,7 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "ipv6" {
+			} else if traffictype == "v6" {
 				if params.DynamicVal {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
@@ -185,9 +185,11 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 type StaticNextHopGroupParams struct {
 
 	// For the "MPLS_in_GRE_Encap" Next-Hop Group definition from JSON's "static" block
-	StaticNHGName    string
-	NHIPAddr1        string
-	NHIPAddr2        string
+	StaticNHGName string
+	NHIPAddr1     string
+	NHIPAddr2     string
+	// OuterIpv4Src*Def / OuterIpv4DstDef are used only when DynamicVal == false.
+	// When DynamicVal == true, tunnel src/dst must be provided per-entry via DynamicStructParams and these fields are ignored.
 	OuterIpv4DstDef  string
 	OuterIpv4Src1Def string
 	OuterIpv4Src2Def string
