@@ -601,6 +601,7 @@ replace: {
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile qos qos-stats-push-collection\n"
 "hw-module profile npu-compatibility P200\n"
+"hw-module profile cef iptunnel scale\n"
 "interface HundredGigE0/7/0/7/0\n"
 " description not connected interface\n"
 " no shutdown\n"
