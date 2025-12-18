@@ -161,8 +161,7 @@ Verify:
           "mka": {
             "config": {
               "key-chain": "keychain1",
-              "mka-policy": "must_secure",
-              "replay-protection": 64
+              "mka-policy": "must_secure"
             }
           },
           "name": "Ethernet1/1"
@@ -170,13 +169,13 @@ Verify:
         {
           "config": {
             "enable": true,
-            "name": "Ethernet1/2"
+            "name": "Ethernet1/2",
+            "replay-protection": 64
           },
           "mka": {
             "config": {
               "key-chain": "keychain1",
-              "mka-policy": "must_secure",
-              "replay-protection": 64
+              "mka-policy": "must_secure"
             }
           },
           "name": "Ethernet1/2"
