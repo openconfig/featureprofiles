@@ -69,6 +69,11 @@
 * get last-reboot-time and compare with "previous-reboot-time"
   * "previous-reboot-time" must be smaller (earlier) then recently collected last-reboot-time
 
+## Canonical OC
+```json
+{}
+```
+
 ## Config Parameter coverage
 
 *   /components/component/controller_card/config/power-admin-state
