@@ -1,4 +1,4 @@
-package bmppostpolicytest
+package bmp_post_policy_test
 
 import (
 	"errors"
