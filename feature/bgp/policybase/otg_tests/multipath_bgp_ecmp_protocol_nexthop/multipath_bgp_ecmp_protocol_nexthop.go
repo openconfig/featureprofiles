@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package multipath_bgp_ecmp_protocol_nexthop
+package multipath_bgp_ecmp_protocol_nexthop_test
 
 import (
 	"fmt"
@@ -19,17 +19,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
-	otg "github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	"google3/third_party/openconfig/ondatra/netutil/netutil"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	otg "google3/third_party/openconfig/ondatra/otg/otg"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -128,6 +130,7 @@ const (
 	prefixV6Min      = "100:1:1::1"
 	prefixV6Len      = 64
 	prefixCount      = 1
+	maxpaths         = 4
 	bgpPassword      = "BGPKEY"
 	PTISIS           = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	ISISName         = "DEFAULT"
@@ -278,15 +281,30 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				} else {
 					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				}
-				verifyDUT(t, dut)
+				verifyBGPSessionTelemetry(t, dut)
+				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
 				verifyTraffic(t, ate, "ipv4", 0)
 				sleepTime := time.Duration(totalPackets/trafficPps) + 5
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
-				// otgutils.LogFlowMetrics(t, ate.OTG(), otgCfg)
-				checkPacketLoss(t, ate)
-				verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				checkPacketLoss(t, ate, "ipv4")
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+					// Retrieve the current BGP configuration to modify it.
+					dni := deviations.DefaultNetworkInstance(dut)
+					bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+					bgpProto := gnmi.Get(t, dut, bgpPath.Config())
+					bgp := bgpProto.GetOrCreateBgp()
+					if deviations.EnableMultipathUnderAfiSafi(dut) {
+						bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+					} else {
+						bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+					}
+					gnmi.Replace(t, dut, bgpPath.Config(), bgpProto)
+					time.Sleep(2 * time.Minute)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
 			if tc.ipv6 {
 				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
@@ -295,14 +313,30 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				} else {
 					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				}
-				verifyDUT(t, dut)
+				verifyBGPSessionTelemetry(t, dut)
+				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
 				verifyTraffic(t, ate, "ipv6", 0)
 				sleepTime := time.Duration(totalPackets/trafficPps) + 5
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
-				checkPacketLoss(t, ate)
-				verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				checkPacketLoss(t, ate, "ipv6")
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+					// Retrieve the current BGP configuration to modify it.
+					dni := deviations.DefaultNetworkInstance(dut)
+					bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+					bgpProto := gnmi.Get(t, dut, bgpPath.Config())
+					bgp := bgpProto.GetOrCreateBgp()
+					if deviations.EnableMultipathUnderAfiSafi(dut) {
+						bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+					} else {
+						bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+					}
+					gnmi.Replace(t, dut, bgpPath.Config(), bgpProto)
+					time.Sleep(2 * time.Minute)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
 		})
 	}
@@ -459,9 +493,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	for _, nbr := range nbrs {
 		bgpNbr := bgp.GetOrCreateNeighbor(nbr.neighborip)
 		bgpNbr.PeerGroup = ygot.String(peerGrpName1)
-		// bgpNbr.PeerAs = ygot.Uint32(nbr.as)
 		bgpNbr.Enabled = ygot.Bool(true)
-		// bgpNbr.AuthPassword = ygot.String(bgpPassword)
 		if nbr.localAddress != "" {
 			bgpNbrT := bgpNbr.GetOrCreateTransport()
 			bgpNbrT.LocalAddress = ygot.String(nbr.localAddress)
@@ -579,12 +611,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		bgpNetiBgp6PeerRoutes.AddPath().SetPathId(1)
 	}
 
-	t.Logf("Pushing config to OTG and starting protocols...")
-	otg.PushConfig(t, config)
-	time.Sleep(40 * time.Second)
-	otg.StartProtocols(t)
-	time.Sleep(2 * time.Minute)
-
 	// Add traffic flows.
 	t.Logf("Adding traffic flows...")
 	config.Flows().Clear()
@@ -628,96 +654,57 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		flow.Rate().SetPps(trafficPps)
 		flow.Duration().FixedPackets().SetPackets(totalPackets)
 	}
+
+	t.Logf("Pushing config to OTG")
 	otg.PushConfig(t, config)
-	time.Sleep(40 * time.Second)
+	time.Sleep(1 * time.Minute)
+
+	otg.StartProtocols(t)
+	time.Sleep(1 * time.Minute)
 
 	otg.StartTraffic(t)
-	time.Sleep(40 * time.Second)
+	time.Sleep(30 * time.Second)
 }
 
-func verifyDUT(t *testing.T, dut *ondatra.DUTDevice) {
-	statePathV4 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
-		Bgp().Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast()
-	statePathV6 := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-		Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
-		Bgp().Rib().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast()
+func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, wantRx uint32, isV4 bool) {
+	t.Helper()
+	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbr := range nbrs {
+		t.Logf("Prefix telemetry on DUT for peer %v", nbr)
+		var prefixPath *netinstbgp.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_PrefixesPath
+		if isV4 {
+			prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+		} else {
+			prefixPath = statePath.Neighbor(nbr).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
+		}
+		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+			gotRx, ok := val.Val()
+			return ok && gotRx == wantRx
+		}).Await(t); !ok {
+			t.Errorf("Received prefixes mismatch for neighbor %s: got %v, want %v", nbr, gotRx, wantRx)
+		}
+	}
+}
+
+func verifyBGPSessionTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	t.Logf("Verifying DUT BGP sessions up for IPv4")
-	for _, neighborIP := range []string{ateP2IPv4, ateP3IPv4, ateP4IPv4} {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
-			Bgp().Neighbor(neighborIP).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	for _, neighborIP := range []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP} {
+		gnmi.Await(t, dut, bgpPath.Neighbor(neighborIP).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
 	t.Logf("Verifying DUT BGP sessions up for IPv6")
-	for _, neighborIP := range []string{ateP2IPv6, ateP3IPv6, ateP4IPv6} {
-		gnmi.Await(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").
-			Bgp().Neighbor(neighborIP).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	for _, neighborIP := range []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6} {
+		gnmi.Await(t, dut, bgpPath.Neighbor(neighborIP).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
 	}
-
-	prefixV4 := fmt.Sprintf("%s/%d", prefixMin, prefixLen)
-	for _, neighborIP := range []string{ateP2IPv4, ateP3IPv4, ateP4IPv4} {
-		routes := gnmi.Lookup(t, dut, statePathV4.Neighbor(neighborIP).AdjRibInPost().Route(prefixV4, 0).State())
-		if !routes.IsPresent() {
-			t.Errorf("Prefix %s not found in AdjRibInPost for neighbor %s", prefixV4, neighborIP)
-		}
-		locRib := gnmi.Lookup(t, dut, statePathV4.LocRib().Route(prefixV4, oc.UnionString(neighborIP), 0).State())
-		if !locRib.IsPresent() {
-			t.Errorf("Prefix %s not found in LocRib from %s", prefixV4, neighborIP)
-		}
-	}
-
-	prefixV6 := fmt.Sprintf("%s/%d", prefixV6Min, prefixV6Len)
-	for _, neighborIP := range []string{ateP2IPv6, ateP3IPv6, ateP4IPv6} {
-		routes := gnmi.Lookup(t, dut, statePathV6.Neighbor(neighborIP).AdjRibInPost().Route(prefixV6, 0).State())
-		if !routes.IsPresent() {
-			t.Errorf("Prefix %s not found in AdjRibInPost for neighbor %s", prefixV6, neighborIP)
-		}
-		locRib := gnmi.Lookup(t, dut, statePathV6.LocRib().Route(prefixV6, oc.UnionString(neighborIP), 0).State())
-		if !locRib.IsPresent() {
-			t.Errorf("Prefix %s not found in LocRib from %s", prefixV6, neighborIP)
-		}
-	}
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	ipv4Entries := gnmi.Lookup(t, dut, statePath.Neighbor(ateP2IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
-
-	if !ipv4Entries.IsPresent() {
-		t.Fatalf("Prefix %s not found in AFT", prefixV4)
-	}
-	// for _, ipv4Entry := range ipv4Entries {
-	// 	nhgID := ipv4Entry.GetNextHopGroup()
-	// 	if nhgID == 0 {
-	// 		t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV4)
-	// 	}
-	// 	nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
-	// 	if len(nhs) != 3 {
-	// 		t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV4, len(nhs), nhgID)
-	// 	} else {
-	// 		t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV4, len(nhs), nhgID)
-	// 	}
-	// }
-
-	ipv6Entries := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(prefixV6).State())
-	if !ipv6Entries.IsPresent() {
-		t.Fatalf("Prefix %s not found in AFT", prefixV6)
-	}
-	// for _, ipv6Entry := range ipv6Entries {
-	// 	nhgID := ipv6Entry.GetNextHopGroup()
-	// 	if nhgID == 0 {
-	// 		t.Fatalf("Prefix %s doesn't have a next-hop-group", prefixV6)
-	// 	}
-	// 	nhs := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().NextHopGroup(nhgID).NextHopAny().State())
-	// 	if len(nhs) != 3 {
-	// 		t.Errorf("Prefix %s has %d next-hops in NHG %d, want 3 for ECMP", prefixV6, len(nhs), nhgID)
-	// 	} else {
-	// 		t.Logf("Prefix %s has %d next-hops in NHG %d, ECMP is active.", prefixV6, len(nhs), nhgID)
-	// 	}
-	// }
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, index int) {
-	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("flow"+prefixType+strconv.Itoa(index)).State())
+	flowName := "Traffic IPv4"
+	if prefixType == "ipv6" {
+		flowName = "Traffic IPv6"
+	}
+	recvMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	framesTx := recvMetric.GetCounters().GetOutPkts()
 	framesRx := recvMetric.GetCounters().GetInPkts()
 
@@ -728,8 +715,12 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, prefixType string, inde
 	}
 }
 
-func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
-	countersPath := gnmi.OTG().Flow("flow").Counters()
+func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice, ipType string) {
+	flowName := "Traffic IPv4"
+	if ipType == "ipv6" {
+		flowName = "Traffic IPv6"
+	}
+	countersPath := gnmi.OTG().Flow(flowName).Counters()
 	rxPackets := gnmi.Get(t, ate.OTG(), countersPath.InPkts().State())
 	txPackets := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
 	lostPackets := txPackets - rxPackets
