@@ -499,183 +499,85 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	iDut1Ipv6 := iDut1Eth.Ipv6Addresses().Add().SetName(ateP1.Name + ".IPv6")
 	iDut1Ipv6.SetAddress(ateP1.IPv6).SetGateway(dutP1.IPv6).SetPrefix(uint32(ateP1.IPv6Len))
 
-	// Port2 Configuration.
-	iDut2Dev := config.Devices().Add().SetName(ateP2.Name)
-	iDut2Eth := iDut2Dev.Ethernets().Add().SetName(ateP2.Name + ".Eth").SetMac(ateP2.MAC)
-	iDut2Eth.Connection().SetPortName(port2.Name())
-	iDut2Ipv4 := iDut2Eth.Ipv4Addresses().Add().SetName(ateP2.Name + ".IPv4")
-	iDut2Ipv4.SetAddress(ateP2.IPv4).SetGateway(dutP2.IPv4).SetPrefix(uint32(ateP2.IPv4Len))
-	iDut2Ipv6 := iDut2Eth.Ipv6Addresses().Add().SetName(ateP2.Name + ".IPv6")
-	iDut2Ipv6.SetAddress(ateP2.IPv6).SetGateway(dutP2.IPv6).SetPrefix(uint32(ateP2.IPv6Len))
+	portsInfo := []struct {
+		id             int
+		p              gosnappi.Port
+		ate            attrs.Attributes
+		dut            attrs.Attributes
+		loopbackAddrV4 string
+		loopbackAddrV6 string
+		isisSystemID   string
+	}{
+		{2, port2, ateP2, dutP2, ateP2Lo0IP, ateP2Lo0IPv6, otgSysID2},
+		{3, port3, ateP3, dutP3, ateP3Lo0IP, ateP3Lo0IPv6, otgSysID3},
+		{4, port4, ateP4, dutP4, ateP4Lo0IP, ateP4Lo0IPv6, otgSysID4},
+	}
 
-	// Port2 Loopback Configuration.
-	iDut2LoopV4 := iDut2Dev.Ipv4Loopbacks().Add().SetName("Port2LoopV4").SetEthName(iDut2Eth.Name())
-	iDut2LoopV4.SetAddress(ateP2Lo0IP)
-	iDut2LoopV6 := iDut2Dev.Ipv6Loopbacks().Add().SetName("Port2LoopV6").SetEthName(iDut2Eth.Name())
-	iDut2LoopV6.SetAddress(ateP2Lo0IPv6)
+	var rxIpv4IntfNames []string
+	var rxIpv6IntfNames []string
+	for _, p := range portsInfo {
+		devName := p.ate.Name
+		iDev := config.Devices().Add().SetName(devName)
+		iEth := iDev.Ethernets().Add().SetName(devName + ".Eth").SetMac(p.ate.MAC)
+		iEth.Connection().SetPortName(p.p.Name())
+		iIpv4 := iEth.Ipv4Addresses().Add().SetName(devName + ".IPv4")
+		iIpv4.SetAddress(p.ate.IPv4).SetGateway(p.dut.IPv4).SetPrefix(uint32(p.ate.IPv4Len))
+		iIpv6 := iEth.Ipv6Addresses().Add().SetName(devName + ".IPv6")
+		iIpv6.SetAddress(p.ate.IPv6).SetGateway(p.dut.IPv6).SetPrefix(uint32(p.ate.IPv6Len))
 
-	// ISIS configuration on Port2 for iBGP session establishment.
-	isisDut2 := iDut2Dev.Isis().SetName("ISIS2").SetSystemId(otgSysID2)
-	isisDut2.Basic().SetIpv4TeRouterId(ateP2.IPv4).SetHostname(isisDut2.Name()).SetLearnedLspFilter(true)
-	isisDut2.Basic().SetEnableWideMetric(true)
-	isisDut2.Interfaces().Add().SetEthName(iDut2Dev.Ethernets().Items()[0].Name()).
-		SetName("devIsisInt2").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
+		rxIpv4IntfNames = append(rxIpv4IntfNames, iIpv4.Name())
+		rxIpv6IntfNames = append(rxIpv6IntfNames, iIpv6.Name())
 
-	// Advertise OTG Port2 loopback address via ISIS.
-	isisPort2V4 := iDut2Dev.Isis().V4Routes().Add().SetName("ISISPort2V4").SetLinkMetric(10)
-	isisPort2V4.Addresses().Add().SetAddress(ateP2Lo0IP).SetPrefix(32)
-	isisPort2V6 := iDut2Dev.Isis().V6Routes().Add().SetName("ISISPort2V6").SetLinkMetric(10)
-	isisPort2V6.Addresses().Add().SetAddress(ateP2Lo0IPv6).SetPrefix(uint32(128))
+		// Loopback Configuration.
+		iLoopV4 := iDev.Ipv4Loopbacks().Add().SetName(fmt.Sprintf("Port%dLoopV4", p.id)).SetEthName(iEth.Name())
+		iLoopV4.SetAddress(p.loopbackAddrV4)
+		iLoopV6 := iDev.Ipv6Loopbacks().Add().SetName(fmt.Sprintf("Port%dLoopV6", p.id)).SetEthName(iEth.Name())
+		iLoopV6.SetAddress(p.loopbackAddrV6)
 
-	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(ateP2Lo0IP)
-	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2LoopV4.Name()).Peers().Add().SetName(ateP2.Name + ".BGP4.peer")
-	iDut2Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-	// iBGP - v6 session on Port2.
-	iDut2Bgp6Peer := iDut2Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut2LoopV6.Name()).Peers().Add().SetName(ateP2.Name + ".BGP6.peer")
-	iDut2Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut2Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		// ISIS configuration for iBGP session establishment.
+		isis := iDev.Isis().SetName(fmt.Sprintf("ISIS%d", p.id)).SetSystemId(p.isisSystemID)
+		isis.Basic().SetIpv4TeRouterId(p.ate.IPv4).SetHostname(isis.Name()).SetLearnedLspFilter(true)
+		isis.Basic().SetEnableWideMetric(true)
+		isis.Interfaces().Add().SetEthName(iDev.Ethernets().Items()[0].Name()).
+			SetName(fmt.Sprintf("devIsisInt%d", p.id)).
+			SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
+			SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
 
-	// iBGP V4 routes from Port2.
-	bgpNeti2Bgp4PeerRoutes := iDut2Bgp4Peer.V4Routes().Add().SetName(ateP2.Name + ".BGP4.Route")
-	bgpNeti2Bgp4PeerRoutes.SetNextHopIpv4Address(ateP2Lo0IP).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	bgpNeti2Bgp4PeerRoutes.Addresses().Add().
-		SetAddress(prefixMin).SetPrefix(24)
-	bgpNeti2Bgp4PeerRoutes.AddPath().SetPathId(1)
+		// Advertise OTG loopback address via ISIS.
+		isisV4 := iDev.Isis().V4Routes().Add().SetName(fmt.Sprintf("ISISPort%dV4", p.id)).SetLinkMetric(10)
+		isisV4.Addresses().Add().SetAddress(p.loopbackAddrV4).SetPrefix(32)
+		isisV6 := iDev.Isis().V6Routes().Add().SetName(fmt.Sprintf("ISISPort%dV6", p.id)).SetLinkMetric(10)
+		isisV6.Addresses().Add().SetAddress(p.loopbackAddrV6).SetPrefix(uint32(128))
 
-	// iBGP V6 routes from Port2.
-	bgpNeti2Bgp6PeerRoutes := iDut2Bgp6Peer.V6Routes().Add().SetName(ateP2.Name + ".BGP6.Route")
-	bgpNeti2Bgp6PeerRoutes.SetNextHopIpv6Address(ateP2Lo0IPv6).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	bgpNeti2Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(prefixV6Min).SetPrefix(64)
-	bgpNeti2Bgp6PeerRoutes.AddPath().SetPathId(1)
+		iBgp := iDev.Bgp().SetRouterId(p.loopbackAddrV4)
+		iBgp4Peer := iBgp.Ipv4Interfaces().Add().SetIpv4Name(iLoopV4.Name()).Peers().Add().SetName(devName + ".BGP4.peer")
+		iBgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+		iBgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+		iBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		// iBGP - v6 session.
+		iBgp6Peer := iBgp.Ipv6Interfaces().Add().SetIpv6Name(iLoopV6.Name()).Peers().Add().SetName(devName + ".BGP6.peer")
+		iBgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
+		iBgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+		iBgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	// Port3 Configuration.
-	iDut3Dev := config.Devices().Add().SetName(ateP3.Name)
-	iDut3Eth := iDut3Dev.Ethernets().Add().SetName(ateP3.Name + ".Eth").SetMac(ateP3.MAC)
-	iDut3Eth.Connection().SetPortName(port3.Name())
-	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateP3.Name + ".IPv4")
-	iDut3Ipv4.SetAddress(ateP3.IPv4).SetGateway(dutP3.IPv4).SetPrefix(uint32(ateP3.IPv4Len))
-	iDut3Ipv6 := iDut3Eth.Ipv6Addresses().Add().SetName(ateP3.Name + ".IPv6")
-	iDut3Ipv6.SetAddress(ateP3.IPv6).SetGateway(dutP3.IPv6).SetPrefix(uint32(ateP3.IPv6Len))
+		// iBGP V4 routes.
+		bgpNetiBgp4PeerRoutes := iBgp4Peer.V4Routes().Add().SetName(devName + ".BGP4.Route")
+		bgpNetiBgp4PeerRoutes.SetNextHopIpv4Address(p.loopbackAddrV4).
+			SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
+			SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
+		bgpNetiBgp4PeerRoutes.Addresses().Add().
+			SetAddress(prefixMin).SetPrefix(24)
+		bgpNetiBgp4PeerRoutes.AddPath().SetPathId(1)
 
-	// Port3 Loopback Configuration.
-	iDut3LoopV4 := iDut3Dev.Ipv4Loopbacks().Add().SetName("Port3LoopV4").SetEthName(iDut3Eth.Name())
-	iDut3LoopV4.SetAddress(ateP3Lo0IP)
-	iDut3LoopV6 := iDut3Dev.Ipv6Loopbacks().Add().SetName("Port3LoopV6").SetEthName(iDut3Eth.Name())
-	iDut3LoopV6.SetAddress(ateP3Lo0IPv6)
-
-	// ISIS configuration on Port3 for iBGP session establishment.
-	isisDut3 := iDut3Dev.Isis().SetName("ISIS3").SetSystemId(otgSysID3)
-	isisDut3.Basic().SetIpv4TeRouterId(ateP3.IPv4).SetHostname(isisDut3.Name()).SetLearnedLspFilter(true)
-	isisDut3.Basic().SetEnableWideMetric(true)
-	isisDut3.Interfaces().Add().SetEthName(iDut3Dev.Ethernets().Items()[0].Name()).
-		SetName("devIsisInt3").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
-
-	// Advertise OTG Port3 loopback address via ISIS.
-	isisPort3V4 := iDut3Dev.Isis().V4Routes().Add().SetName("ISISPort3V4").SetLinkMetric(10)
-	isisPort3V4.Addresses().Add().SetAddress(ateP3Lo0IP).SetPrefix(32)
-	isisPort3V6 := iDut3Dev.Isis().V6Routes().Add().SetName("ISISPort3V6").SetLinkMetric(10)
-	isisPort3V6.Addresses().Add().SetAddress(ateP3Lo0IPv6).SetPrefix(uint32(128))
-
-	iDut3Bgp := iDut3Dev.Bgp().SetRouterId(ateP3Lo0IP)
-	iDut3Bgp4Peer := iDut3Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut3LoopV4.Name()).Peers().Add().SetName(ateP3.Name + ".BGP4.peer")
-	iDut3Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut3Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	// iBGP - v6 session on Port3.
-	iDut3Bgp6Peer := iDut3Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut3LoopV6.Name()).Peers().Add().SetName(ateP3.Name + ".BGP6.peer")
-	iDut3Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut3Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut3Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	// iBGP V4 routes from Port3.
-	bgpNeti3Bgp4PeerRoutes := iDut3Bgp4Peer.V4Routes().Add().SetName(ateP3.Name + ".BGP4.Route")
-	bgpNeti3Bgp4PeerRoutes.SetNextHopIpv4Address(ateP3Lo0IP).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	bgpNeti3Bgp4PeerRoutes.Addresses().Add().
-		SetAddress(prefixMin).SetPrefix(24)
-	bgpNeti3Bgp4PeerRoutes.AddPath().SetPathId(1)
-
-	// iBGP V6 routes from Port3.
-	bgpNeti3Bgp6PeerRoutes := iDut3Bgp6Peer.V6Routes().Add().SetName(ateP3.Name + ".BGP6.Route")
-	bgpNeti3Bgp6PeerRoutes.SetNextHopIpv6Address(ateP3Lo0IPv6).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	bgpNeti3Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(prefixV6Min).SetPrefix(64)
-	bgpNeti3Bgp6PeerRoutes.AddPath().SetPathId(1)
-
-	// Port4 Configuration.
-	iDut4Dev := config.Devices().Add().SetName(ateP4.Name)
-	iDut4Eth := iDut4Dev.Ethernets().Add().SetName(ateP4.Name + ".Eth").SetMac(ateP4.MAC)
-	iDut4Eth.Connection().SetPortName(port4.Name())
-	iDut4Ipv4 := iDut4Eth.Ipv4Addresses().Add().SetName(ateP4.Name + ".IPv4")
-	iDut4Ipv4.SetAddress(ateP4.IPv4).SetGateway(dutP4.IPv4).SetPrefix(uint32(ateP4.IPv4Len))
-	iDut4Ipv6 := iDut4Eth.Ipv6Addresses().Add().SetName(ateP4.Name + ".IPv6")
-	iDut4Ipv6.SetAddress(ateP4.IPv6).SetGateway(dutP4.IPv6).SetPrefix(uint32(ateP4.IPv6Len))
-
-	// Port4 Loopback Configuration.
-	iDut4LoopV4 := iDut4Dev.Ipv4Loopbacks().Add().SetName("Port4LoopV4").SetEthName(iDut4Eth.Name())
-	iDut4LoopV4.SetAddress(ateP4Lo0IP)
-	iDut4LoopV6 := iDut4Dev.Ipv6Loopbacks().Add().SetName("Port4LoopV6").SetEthName(iDut4Eth.Name())
-	iDut4LoopV6.SetAddress(ateP4Lo0IPv6)
-
-	// ISIS configuration on Port4 for iBGP session establishment.
-	isisDut4 := iDut4Dev.Isis().SetName("ISIS4").SetSystemId(otgSysID4)
-	isisDut4.Basic().SetIpv4TeRouterId(ateP4.IPv4).SetHostname(isisDut4.Name()).SetLearnedLspFilter(true)
-	isisDut4.Basic().SetEnableWideMetric(true)
-	isisDut4.Interfaces().Add().SetEthName(iDut4Dev.Ethernets().Items()[0].Name()).
-		SetName("devIsisInt4").
-		SetLevelType(gosnappi.IsisInterfaceLevelType.LEVEL_2).
-		SetNetworkType(gosnappi.IsisInterfaceNetworkType.POINT_TO_POINT)
-
-	// Advertise OTG Port4 loopback address via ISIS.
-	isisPort4V4 := iDut4Dev.Isis().V4Routes().Add().SetName("ISISPort4V4").SetLinkMetric(10)
-	isisPort4V4.Addresses().Add().SetAddress(ateP4Lo0IP).SetPrefix(32)
-	isisPort4V6 := iDut4Dev.Isis().V6Routes().Add().SetName("ISISPort4V6").SetLinkMetric(10)
-	isisPort4V6.Addresses().Add().SetAddress(ateP4Lo0IPv6).SetPrefix(uint32(128))
-
-	iDut4Bgp := iDut4Dev.Bgp().SetRouterId(ateP4Lo0IP)
-	iDut4Bgp4Peer := iDut4Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut4LoopV4.Name()).Peers().Add().SetName(ateP4.Name + ".BGP4.peer")
-	iDut4Bgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-	iDut4Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut4Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-	// iBGP - v6 session on Port4.
-	iDut4Bgp6Peer := iDut4Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut4LoopV6.Name()).Peers().Add().SetName(ateP4.Name + ".BGP6.peer")
-	iDut4Bgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-	iDut4Bgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-	iDut4Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
-
-	// iBGP V4 routes from Port4.
-	bgpNeti4Bgp4PeerRoutes := iDut4Bgp4Peer.V4Routes().Add().SetName(ateP4.Name + ".BGP4.Route")
-	bgpNeti4Bgp4PeerRoutes.SetNextHopIpv4Address(ateP4Lo0IP).
-		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
-		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
-	bgpNeti4Bgp4PeerRoutes.Addresses().Add().
-		SetAddress(prefixMin).SetPrefix(24)
-	bgpNeti4Bgp4PeerRoutes.AddPath().SetPathId(1)
-
-	// iBGP V6 routes from Port4.
-	bgpNeti4Bgp6PeerRoutes := iDut4Bgp6Peer.V6Routes().Add().SetName(ateP4.Name + ".BGP6.Route")
-	bgpNeti4Bgp6PeerRoutes.SetNextHopIpv6Address(ateP4Lo0IPv6).
-		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
-		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	bgpNeti4Bgp6PeerRoutes.Addresses().Add().
-		SetAddress(prefixV6Min).SetPrefix(64)
-	bgpNeti4Bgp6PeerRoutes.AddPath().SetPathId(1)
+		// iBGP V6 routes.
+		bgpNetiBgp6PeerRoutes := iBgp6Peer.V6Routes().Add().SetName(devName + ".BGP6.Route")
+		bgpNetiBgp6PeerRoutes.SetNextHopIpv6Address(p.loopbackAddrV6).
+			SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
+			SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+		bgpNetiBgp6PeerRoutes.Addresses().Add().
+			SetAddress(prefixV6Min).SetPrefix(64)
+		bgpNetiBgp6PeerRoutes.AddPath().SetPathId(1)
+	}
 
 	t.Logf("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
@@ -696,10 +598,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	}{{desc: "Traffic IPv4", dscpSet: []uint32{0}, ipType: "ipv4", srcIP: ateP1IPv4, dstIP: prefixMin, priority: 0},
 		{desc: "Traffic IPv6", dscpSet: []uint32{0}, ipType: "ipv6", srcIP: ateP1IPv6, dstIP: prefixV6Min, priority: 0},
 	}
-	// }{{desc: "Traffic IPv4", dscpSet: []uint32{0}, ipType: "ipv4", srcIP: ateP1IPv4, dstIP: prefixMin, priority: 0},
-	// {desc: "Traffic IPv6", dscpSet: []uint32{0}, ipType: "ipv6", srcIP: ateP1IPv6, dstIP: prefixV6Min, priority: 0},
-	// }{{desc: "Traffic IPv4", dscpSet: []uint32{0}, ipType: "ipv4", srcIP: p1IPv4, dstIP: prefixMin, priority: 0},
-	// {desc: "Traffic IPv6", dscpSet: []uint32{0}, ipType: "ipv6", srcIP: p1IPv6, dstIP: prefixV6Min, priority: 0},
 	t.Logf("Traffic config: %v", trafficFlows)
 	for _, tc := range trafficFlows {
 		trafficID := tc.desc
@@ -710,18 +608,18 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 		ethHeader.Dst().Auto()
 		switch tc.ipType {
 		case "ipv4":
-			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv4.Name()}).SetRxNames([]string{iDut2Ipv4.Name(), iDut3Ipv4.Name(), iDut4Ipv4.Name()})
+			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv4.Name()}).SetRxNames(rxIpv4IntfNames)
 			ipHeader := flow.Packet().Add().Ipv4()
 			ipHeader.Src().SetValue(tc.srcIP)
-			ipHeader.Dst().SetValue(tc.dstIP)
+			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
 			udpHeader.SrcPort().SetValue(14)
 			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
 		case "ipv6":
-			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv6.Name()}).SetRxNames([]string{iDut2Ipv6.Name(), iDut3Ipv6.Name(), iDut4Ipv6.Name()})
+			flow.TxRx().Device().SetTxNames([]string{iDut1Ipv6.Name()}).SetRxNames(rxIpv6IntfNames)
 			ipHeader := flow.Packet().Add().Ipv6()
 			ipHeader.Src().SetValue(tc.srcIP)
-			ipHeader.Dst().SetValue(tc.dstIP)
+			ipHeader.Dst().Increment().SetStart(tc.dstIP).SetCount(100)
 			udpHeader := flow.Packet().Add().Udp()
 			udpHeader.SrcPort().SetValue(14)
 			udpHeader.DstPort().Increment().SetStart(1024).SetCount(10000)
@@ -732,6 +630,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	}
 	otg.PushConfig(t, config)
 	time.Sleep(40 * time.Second)
+
 	otg.StartTraffic(t)
 	time.Sleep(40 * time.Second)
 }
