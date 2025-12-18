@@ -82,13 +82,19 @@ test: {
   id: "AFT-1.1"
   description: "AFTs Base Link Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/afts_base_test.go"
+}
+test: {
+  id: "AFT-1.2"
+  description: "AFTs slow collector"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_slowcollector/README.md"
   exec: ""
 }
 test: {
   id: "AFT-1.3"
   description: "AFTs collector Flap"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/collector_flap/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/collector_flap/collector_flap_test.go"
 }
 test: {
   id: "AFT-2.1"
@@ -100,13 +106,13 @@ test: {
   id: "AFT-3.1"
   description: "AFTs Atomic Flag Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/afts_atomic_test.go"
 }
 test: {
   id: "AFT-5.1"
   description: "AFTs DUT Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/afts_reboot_test.go"
 }
 test: {
   id: "attestz-1"
@@ -1044,13 +1050,13 @@ test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/README.md"
-  exec: " "
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/route_summary_counters_test.go"
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/README.md"
-  exec: " "
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/route_test.go"
 }
 
 test: {
