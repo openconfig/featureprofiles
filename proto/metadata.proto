@@ -813,7 +813,7 @@ message Metadata {
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
-   
+
     // Create/Replace config leaf required 
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
