@@ -583,7 +583,7 @@ replace: {
 " maximum path ipv6 140000\n"
 " vrf mgmt\n"
 "  address-family ipv4 unicast\n"
-"   0.0.0.0/0 172.27.177.1\n"
+"   0.0.0.0/0 10.81.63.1\n"
 "  !\n"
 " !\n"
 "!\n"
