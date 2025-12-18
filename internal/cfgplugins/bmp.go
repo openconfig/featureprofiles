@@ -70,7 +70,7 @@ export-policy received routes pre-policy
 		}
 
 		if cfgParams.PostPolicy {
-			t.Log("Configured BMP station with pre-policy export")
+			t.Log("Configured BMP station with post-policy export")
 			fmt.Fprintf(bmpConfig, `
 router bgp %d
 monitoring station BMP_STN
@@ -80,8 +80,8 @@ export-policy received routes post-policy
 		}
 
 	} else {
-		// TODO: BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
-		t.Log("BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
+		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
+		t.Log("BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
 		// // === BMP Configuration ===
 		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
 		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)

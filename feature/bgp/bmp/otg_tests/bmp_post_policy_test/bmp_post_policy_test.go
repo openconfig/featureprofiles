@@ -21,39 +21,40 @@ import (
 )
 
 const (
-	dutAS                           = 64520
-	ate1AS                          = 64530
-	ate2AS                          = 64531
-	ate3AS                          = 64532
-	plenIPv4                        = 30
-	plenIPv6                        = 126
-	bmpStationPort                  = 7039
-	prefix1v4                       = "198.18.0.0"
-	prefix1v4Subnet                 = 32
-	prefix2v4                       = "172.16.0.0"
-	prefix2v4Subnet                 = 32
-	prefix1v6                       = "2001:db8:1::"
-	prefix1v6Subnet                 = 126
-	prefix2v6                       = "2001:db8::"
-	prefix2v6Subnet                 = 126
-	routeCountV4                    = 2500000
-	routeCountV6                    = 750000
-	bmpName                         = "atebmp"
-	prefixSetIPv4Name               = "PREFIX-SET"
-	prefixSetIPv4                   = "172.16.0.0/16"
-	prefixSubnetRange               = "16..32"
-	prefixSetIPv6Name               = "PREFIX-SET-V6"
-	prefixSetIPv6                   = "2001:db8::/64"
-	prefixV6SubnetRange             = "64..128"
-	policyName                      = "BMP-POLICY"
-	prePolicyV4RouteCount           = 0
-	prePolicyV6RouteCount           = 0
-	postPolicyV4RouteCount          = 14803392
-	postPolicyV6RouteCount          = 2250000
-	timeout                         = 5 * time.Minute
-	peerGroupV4                     = "BGP-PEER-GROUP-V4"
-	peerGroupV6                     = "BGP-PEER-GROUP-V6"
-	postPolicyRouteCountperNeighbor = 4934464
+	dutAS                             = 64520
+	ate1AS                            = 64530
+	ate2AS                            = 64531
+	ate3AS                            = 64532
+	plenIPv4                          = 30
+	plenIPv6                          = 126
+	bmpStationPort                    = 7039
+	prefix1v4                         = "198.18.0.0"
+	prefix1v4Subnet                   = 32
+	prefix2v4                         = "172.16.0.0"
+	prefix2v4Subnet                   = 32
+	prefix1v6                         = "2001:db8:1::"
+	prefix1v6Subnet                   = 126
+	prefix2v6                         = "2001:db8::"
+	prefix2v6Subnet                   = 126
+	routeCountV4                      = 2500000
+	routeCountV6                      = 750000
+	bmpName                           = "atebmp"
+	prefixSetIPv4Name                 = "PREFIX-SET"
+	prefixSetIPv4                     = "172.16.0.0/16"
+	prefixSubnetRange                 = "16..32"
+	prefixSetIPv6Name                 = "PREFIX-SET-V6"
+	prefixSetIPv6                     = "2001:db8::/64"
+	prefixV6SubnetRange               = "64..128"
+	policyName                        = "BMP-POLICY"
+	prePolicyV4RouteCount             = 0
+	prePolicyV6RouteCount             = 0
+	postPolicyV4RouteCount            = 14803392
+	postPolicyV6RouteCount            = 2250000
+	timeout                           = 5 * time.Minute
+	peerGroupV4                       = "BGP-PEER-GROUP-V4"
+	peerGroupV6                       = "BGP-PEER-GROUP-V6"
+	postPolicyRoutev4CountperNeighbor = 4934464
+	postPolicyRoutev6CountperNeighbor = 750000
 )
 
 type PolicyRoute struct {
@@ -642,12 +643,12 @@ func verifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Log("Verifying prefix count v4 on DUT")
 	compare := func(val *ygnmi.Value[uint32]) bool {
 		c, ok := val.Val()
-		return ok && c == postPolicyRouteCountperNeighbor
+		return ok && c == postPolicyRoutev4CountperNeighbor
 	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 10*time.Minute, compare).Await(t); !ok {
-		return fmt.Errorf("received prefixes v4 mismatch: got %v, want %v", got, postPolicyRouteCountperNeighbor)
+		return fmt.Errorf("received prefixes v4 mismatch: got %v, want %v", got, postPolicyRoutev4CountperNeighbor)
 	}
 	return nil
 }
@@ -657,13 +658,13 @@ func verifyPrefixCountV6(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Log("Verifying prefix count v6 on DUT")
 	compare := func(val *ygnmi.Value[uint32]) bool {
 		c, ok := val.Val()
-		return ok && c == routeCountV6
+		return ok && c == postPolicyRoutev6CountperNeighbor
 	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
 	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 10*time.Minute, compare).Await(t); !ok {
-		return fmt.Errorf("received prefixes v6 mismatch: got %v, want %v", got, routeCountV6)
+		return fmt.Errorf("received prefixes v6 mismatch: got %v, want %v", got, postPolicyRoutev6CountperNeighbor)
 	}
 	return nil
 }
@@ -711,7 +712,7 @@ func TestBMPBaseSession(t *testing.T) {
 			},
 		},
 		{
-			name: "1.1.2_Verify_Statisitics_Reporting",
+			name: "1.1.2_Verify_Statistics_Reporting",
 			fn: func(t *testing.T) {
 				t.Log("Verify BMP session on DUT")
 				if err := verifyBMPStatisticsReporting(t, ate, bmpName); err != nil {
@@ -720,15 +721,15 @@ func TestBMPBaseSession(t *testing.T) {
 			},
 		},
 		{
-			name: "1.1.3_Verify_Route_Monitoring_Pre_Policy",
+			name: "1.1.3_Verify_Route_Monitoring_Post_Policy",
 			fn: func(t *testing.T) {
 
 				t.Log("Verify Route Monitoring Post Policy on DUT")
 				if err := verifyBMPPostPolicyRouteMonitoring(t, ate, bmpName); err != nil {
-					t.Fatalf("BMP Pre-Policy Route Monitoring validation failed: %v", err)
+					t.Fatalf("BMP Post-Policy Route Monitoring validation failed: %v", err)
 				}
 				if err := verifyBMPPostPolicyRouteMonitoringPerPrefix(t, ate, bmpName); err != nil {
-					t.Fatalf("BMP Pre-Policy Route Monitoring validation failed: %v", err)
+					t.Fatalf("BMP Post-Policy Route Monitoring validation failed: %v", err)
 				}
 			},
 		},
