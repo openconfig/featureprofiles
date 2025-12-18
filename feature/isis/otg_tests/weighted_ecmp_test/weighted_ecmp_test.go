@@ -202,7 +202,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	for _, port := range dut.Ports() {
 		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
 	}
-	
+
 	ate.OTG().StartProtocols(t)
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
