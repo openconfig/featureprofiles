@@ -1,4 +1,4 @@
-name: Static Analysis
+name: New Static Analysis
 on: [push, pull_request]
 
 jobs:
