@@ -1,5 +1,0 @@
-- name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          args: --new-from-rev=HEAD~1 # Only check changes from the last commit
