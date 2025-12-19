@@ -1373,3 +1373,28 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "mpls_label_classification_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls label range .*"
+    }
+  }
+}
