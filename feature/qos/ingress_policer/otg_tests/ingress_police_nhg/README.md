@@ -212,7 +212,7 @@ TODO: The following OC is a placeholder and should not be implemented.  It is on
             },
             "scheduler-policy": {
               "config": {
-                "name": "scheduler-policy"
+                "name": "policer"
               }
             }
           },
