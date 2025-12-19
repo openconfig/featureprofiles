@@ -285,26 +285,15 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
 				verifyTraffic(t, ate, "ipv4", 0)
 				sleepTime := time.Duration(totalPackets/trafficPps) + 5
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+					enableMultipath(t, dut, maxpaths, true)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
 				checkPacketLoss(t, ate, "ipv4")
-				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
-					// Retrieve the current BGP configuration to modify it.
-					dni := deviations.DefaultNetworkInstance(dut)
-					bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-					bgpProto := gnmi.Get(t, dut, bgpPath.Config())
-					bgp := bgpProto.GetOrCreateBgp()
-					if deviations.EnableMultipathUnderAfiSafi(dut) {
-						bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-					} else {
-						bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-					}
-					gnmi.Replace(t, dut, bgpPath.Config(), bgpProto)
-					time.Sleep(2 * time.Minute)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
-				}
 			}
 			if tc.ipv6 {
 				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
@@ -317,26 +306,15 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
 				verifyTraffic(t, ate, "ipv6", 0)
 				sleepTime := time.Duration(totalPackets/trafficPps) + 5
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+					enableMultipath(t, dut, maxpaths, false)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 				ate.OTG().StartTraffic(t)
 				time.Sleep(sleepTime * time.Second)
 				ate.OTG().StopTraffic(t)
 				checkPacketLoss(t, ate, "ipv6")
-				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
-					// Retrieve the current BGP configuration to modify it.
-					dni := deviations.DefaultNetworkInstance(dut)
-					bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-					bgpProto := gnmi.Get(t, dut, bgpPath.Config())
-					bgp := bgpProto.GetOrCreateBgp()
-					if deviations.EnableMultipathUnderAfiSafi(dut) {
-						bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-					} else {
-						bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-					}
-					gnmi.Replace(t, dut, bgpPath.Config(), bgpProto)
-					time.Sleep(2 * time.Minute)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
-				}
 			}
 		})
 	}
@@ -456,6 +434,52 @@ type bgpNeighbor struct {
 	localAddress string
 }
 
+// enableMultipath enables multipath for the given DUT device with the given maximum paths.
+func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
+	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: ateP2Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
+	nbr2v4 := &bgpNeighbor{as: ateAS, neighborip: ateP3Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
+	nbr3v4 := &bgpNeighbor{as: ateAS, neighborip: ateP4Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
+	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: ateP2Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
+	nbr2v6 := &bgpNeighbor{as: ateAS, neighborip: ateP3Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
+	nbr3v6 := &bgpNeighbor{as: ateAS, neighborip: ateP4Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
+	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4, nbr1v6, nbr2v6, nbr3v6}
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
+	bgp := bgpProto.GetOrCreateBgp()
+	cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
+	cliConfigNbr := ""
+	if !deviations.IbgpMultipathPathUnsupported(dut) {
+		if deviations.EnableMultipathUnderAfiSafi(dut) {
+			if ipv4 {
+				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+			} else {
+				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+			}
+		} else {
+			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+		}
+	} else {
+		for _, nbr := range nbrs {
+			switch dut.Vendor() {
+			case ondatra.ARISTA:
+				if ipv4 && nbr.isV4 == true {
+					cliConfigNbr = cliConfigNbr + fmt.Sprintf("address-family ipv4\nneighbor %s multi-path\n", nbr.neighborip)
+				} else if !ipv4 && nbr.isV4 == false {
+					cliConfigNbr = cliConfigNbr + fmt.Sprintf("address-family ipv6\nneighbor %s multi-path\n", nbr.neighborip)
+				}
+			default:
+				t.Logf("Vendor %v does not need CLI update support for this test", dut.Vendor())
+			}
+		}
+		cliConfig = cliConfig + cliConfigNbr
+		t.Logf("CLI config: \n%v", cliConfig)
+		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
+		time.Sleep(30 * time.Second)
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	}
+}
+
 // bgpCreateNbr creates a BGP neighbor configuration for the DUT with multiple paths.
 // TODO: Add support for multiple paths and local address.
 func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -476,7 +500,6 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	global.As = ygot.Uint32(dutAS)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-	// global.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(4)
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
 	pg1.PeerAs = ygot.Uint32(ateAS)
 	pg1.PeerGroupName = ygot.String(peerGrpName1)
@@ -742,7 +765,7 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 	max := expectedPerLinkFms + (expectedPerLinkFms * lbToleranceFms / 100)
 
 	got := 0
-	for i := 3; i <= pc; i++ {
+	for i := 2; i <= pc; i++ {
 		framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port"+strconv.Itoa(i)).ID()).Counters().InFrames().State())
 		if framesRx <= lbToleranceFms {
 			t.Logf("Skip: Traffic through port%d interface is %d", i, framesRx)
