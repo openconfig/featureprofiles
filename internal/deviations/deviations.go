@@ -1788,6 +1788,21 @@ func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
 	return "DEFAULT"
 }
 
+// ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
+func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
+}
+
+// ConfigAclValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
+}
+
+// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
+}
+
 // BMPOCUnsupported returns true if BMP configuration is not supported
 func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
