@@ -1,5 +1,7 @@
 name: New Static Analysis
 on: [push, pull_request]
+permissions:
+  contents: read
 
 jobs:
   staticcheck:
