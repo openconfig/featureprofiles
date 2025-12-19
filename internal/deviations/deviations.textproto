@@ -1420,3 +1420,22 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "mpls_exp_ingress_classifier_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls ip\n mpls static top-label .* pop payload-type ipv4\n qos map exp .* to traffic-class .*"
+    }
+  }
+}
