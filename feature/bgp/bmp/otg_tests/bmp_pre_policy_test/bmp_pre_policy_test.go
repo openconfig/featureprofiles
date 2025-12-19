@@ -50,11 +50,12 @@ const (
 	prePolicyV6RouteCount   = 4500000
 	postPolicyV4RouteCount  = 0
 	postPolicyV6RouteCount  = 0
-	timeout                 = 5 * time.Minute
+	timeout                 = 10 * time.Minute
 	peerGroupV4             = "BGP-PEER-GROUP-V4"
 	peerGroupV6             = "BGP-PEER-GROUP-V6"
 	routev4CountperNeighbor = 4934464
 	routev6CountperNeighbor = 750000
+	statisticsInterval      = 60 * time.Second
 )
 
 type PolicyRoute struct {
@@ -454,7 +455,7 @@ func verifyBMPStatisticsReporting(t *testing.T, ate *ondatra.ATEDevice, bmpName 
 	initialStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Initial BMP statistics counter: %v", initialStatCounter)
 
-	time.Sleep(60 * time.Second)
+	time.Sleep(statisticsInterval)
 
 	updatedStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Updated BMP statistics counter: %v", updatedStatCounter)
@@ -563,7 +564,7 @@ func verifyBMPPrePolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATEDe
 			path.PrePolicyInRib().
 				BmpUnicastIpv4Prefix(prePolicyRoute.Address, uint32(prePolicyRoute.PrefixLength), 1, 0).
 				State(),
-			10*time.Minute,
+			timeout,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PrePolicyInRib_BmpUnicastIpv4Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == prePolicyRoute.Address
@@ -581,7 +582,7 @@ func verifyBMPPrePolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATEDe
 			path.PrePolicyInRib().
 				BmpUnicastIpv6Prefix(prePolicyRoutev6.Address, uint32(prePolicyRoutev6.PrefixLength), 1, 0).
 				State(),
-			10*time.Minute,
+			timeout,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PrePolicyInRib_BmpUnicastIpv6Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == prePolicyRoutev6.Address
@@ -596,7 +597,7 @@ func verifyBMPPrePolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATEDe
 	return aggErr
 }
 
-func verifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
+func mustVerifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	t.Log("Verifying prefix count v4 on DUT")
 	compare := func(val *ygnmi.Value[uint32]) bool {
@@ -605,13 +606,13 @@ func verifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
 	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 10*time.Minute, compare).Await(t); !ok {
+	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), timeout, compare).Await(t); !ok {
 		return fmt.Errorf("received prefixes v4 mismatch: got %v, want %v", got, routev4CountperNeighbor)
 	}
 	return nil
 }
 
-func verifyPrefixCountV6(t *testing.T, dut *ondatra.DUTDevice) error {
+func mustVerifyPrefixCountV6(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	t.Log("Verifying prefix count v6 on DUT")
 	compare := func(val *ygnmi.Value[uint32]) bool {
@@ -644,11 +645,11 @@ func TestBMPBaseSession(t *testing.T) {
 	t.Log("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, ate)
 
-	if err := verifyPrefixCountV4(t, dut); err != nil {
-		t.Error(err)
+	if err := mustVerifyPrefixCountV4(t, dut); err != nil {
+		t.Fatal(err)
 	}
-	if err := verifyPrefixCountV6(t, dut); err != nil {
-		t.Error(err)
+	if err := mustVerifyPrefixCountV6(t, dut); err != nil {
+		t.Fatal(err)
 	}
 
 	type testCase struct {
