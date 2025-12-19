@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package multipath_bgp_ecmp_protocol_nexthop_test
+package multipath_bgp_ecmp_protocol_nexthop
 
 import (
 	"fmt"
@@ -19,19 +19,20 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/netinstbgp"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	"google3/third_party/openconfig/ondatra/netutil/netutil"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	otg "google3/third_party/openconfig/ondatra/otg/otg"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ondatra/gnmi/oc/netinstbgp"
+	"github.com/openconfig/ondatra/netutil"
+	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
