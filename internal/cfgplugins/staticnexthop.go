@@ -214,8 +214,7 @@ nexthop-group %s%d type mpls-over-gre
 				return b.String()
 			}
 
-			helpers.GnmiCLIConfig(t, dut, buildConfig("1V4_vlan_3_", encapparams.MPLSStaticLabels))
-			helpers.GnmiCLIConfig(t, dut, buildConfig("1V6_vlan_3_", encapparams.MPLSStaticLabelsForIPv6))
+			helpers.GnmiCLIConfig(t, dut, buildConfig("nh_vlan_", encapparams.MPLSStaticLabels))
 
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())

@@ -132,7 +132,7 @@ var (
 		TTL:      64,
 	}
 	mplsLayer = &packetvalidationhelpers.MPLSLayer{
-		Label: 19016,
+		Label: 206,
 		Tc:    1,
 	}
 	innerLayerIPv4 = &packetvalidationhelpers.IPv4Layer{
@@ -277,11 +277,11 @@ func mustConfigureSetup(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		ocEncapParams.Count = 250 // change the number as per scale
-		ocEncapParams.MPLSLabelCount = 250 // change the number as per scale
+		ocEncapParams.Count = 2000
+		ocEncapParams.MPLSLabelCount = 2000
 		ocEncapParams.MPLSLabelStartForIPv4 = 16
 		ocEncapParams.MPLSLabelStartForIPv6 = 524280
-		ocEncapParams.MPLSLabelStep = 1000
+		ocEncapParams.MPLSLabelStep = 10
 		ocEncapParams.GRETunnelSources = greTunnelSources
 		ocEncapParams.GRETunnelDestinationsStartIP = greTunnelDestinationsStartIPv4
 	default:
@@ -331,6 +331,14 @@ func mustConfigureSetup(t *testing.T) {
 	flowIPv4.TxNames = append(flowIPv4.TxNames, agg1.Interfaces[0].Name+".IPv4")
 	flowIPv6Validation.Interface.Names = append(flowIPv6Validation.Interface.Names, agg1.Interfaces[0].Name)
 	flowIPv6.TxNames = append(flowIPv6.TxNames, agg1.Interfaces[0].Name+".IPv6")
+
+	for i, iface := range agg1.Interfaces {
+		// Limiting it to 50 since checking ARP for 2000 interfaces takes long time
+		if i >= 50 {
+			break
+		}
+		flowResolveARP.Interface.Names = append(flowResolveARP.Interface.Names, iface.Name)
+	}
 	configureOTG(t)
 }
 
@@ -519,7 +527,7 @@ func mustConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice) {
 	b := new(gnmi.SetBatch)
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          "10.99.1.0/24",
+		Prefix:          "10.99.0.0/16",
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			"0": oc.UnionString("194.0.2.2"),
 		},

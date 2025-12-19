@@ -338,6 +338,7 @@ hardware tcam
     hardware tcam
   	profile tcam-policy-forwarding
       feature traffic-policy port ipv4
+         port qualifier size 12 bits
          sequence 45
          key size limit 160
          key field dscp dst-ip-label ip-frag ip-fragment-offset ip-length ip-protocol l4-dst-port-label l4-src-port-label src-ip-label tcp-control ttl
@@ -345,6 +346,7 @@ hardware tcam
          packet ipv4 forwarding routed
       !
       feature traffic-policy port ipv6
+         port qualifier size 12 bits
          sequence 25
          key size limit 160
          key field dst-ipv6-label hop-limit ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
