@@ -232,20 +232,11 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	// configureDUT(t, dut)
-	t.Run("Configure DUT", func(t *testing.T) {
-		configureDUT(t, dut)
-	})
-
+	// Configure DUT and ATE with ISIS and BGP.
+	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, rplName, rplType)
-
 	otg := ate.OTG()
-	t.Run("Configure OTG", func(t *testing.T) {
-		configureOTG(t, otg)
-	})
-
-	verifyTraffic(t, ate, "ipv4", 0)
-	verifyTraffic(t, ate, "ipv6", 0)
+	configureOTG(t, otg)
 
 	testCases := []testCase{
 		{
@@ -279,42 +270,34 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				if tc.multipath {
 					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+					enableMultipath(t, dut, maxpaths, true)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 				} else {
 					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
+				otg.StartTraffic(t)
+				time.Sleep(30 * time.Second)
+				otg.StopTraffic(t)
 				verifyTraffic(t, ate, "ipv4", 0)
-				sleepTime := time.Duration(totalPackets/trafficPps) + 5
-				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
-					enableMultipath(t, dut, maxpaths, true)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
-				}
-				ate.OTG().StartTraffic(t)
-				time.Sleep(sleepTime * time.Second)
-				ate.OTG().StopTraffic(t)
 				checkPacketLoss(t, ate, "ipv4")
 			}
 			if tc.ipv6 {
 				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				if tc.multipath {
 					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+					enableMultipath(t, dut, maxpaths, false)
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 				} else {
 					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
+				otg.StartTraffic(t)
+				time.Sleep(30 * time.Second)
+				otg.StopTraffic(t)
 				verifyTraffic(t, ate, "ipv6", 0)
-				sleepTime := time.Duration(totalPackets/trafficPps) + 5
-				if tc.multipath {
-					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
-					enableMultipath(t, dut, maxpaths, false)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
-				}
-				ate.OTG().StartTraffic(t)
-				time.Sleep(sleepTime * time.Second)
-				ate.OTG().StopTraffic(t)
 				checkPacketLoss(t, ate, "ipv6")
 			}
 		})
@@ -476,8 +459,8 @@ func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4
 		cliConfig = cliConfig + cliConfigNbr
 		t.Logf("CLI config: \n%v", cliConfig)
 		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
-		time.Sleep(30 * time.Second)
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(30 * time.Second)
 	}
 }
 
@@ -686,8 +669,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 	otg.StartProtocols(t)
 	time.Sleep(1 * time.Minute)
 
-	otg.StartTraffic(t)
-	time.Sleep(30 * time.Second)
+	// otg.StartTraffic(t)
+	// time.Sleep(30 * time.Second)
 }
 
 func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, wantRx uint32, isV4 bool) {
