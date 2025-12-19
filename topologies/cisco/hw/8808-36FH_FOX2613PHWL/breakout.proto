@@ -59,7 +59,7 @@ ascii_val:
     "!\n"
     "!\n"
     "controller Optics0/0/0/0\n"
-    " breakout 4x10\n"
+    " breakout 4x100\n"
     "!\n"
     "router static\n"
     " vrf mgmt\n"
