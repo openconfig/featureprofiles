@@ -48,13 +48,17 @@ const (
 	policyName                        = "BMP-POLICY"
 	prePolicyV4RouteCount             = 0
 	prePolicyV6RouteCount             = 0
+	// Calculated based on 3 neighbors, 2 prefix sets before policy is applied 25000000*3*2=15000000
+	// After policy is applied 65536*3=196608 denied, total post policy routes = 15000000 - 196608 = 14803392
 	postPolicyV4RouteCount            = 14803392
+	// Calculated based on 3 neighbors, 2 prefix sets before policy is applied 750000*3*2=4500000
+	// After policy is applied 75000*3=2250000 denied, total post policy routes = 4500000 - 2250000 = 2250000
 	postPolicyV6RouteCount            = 2250000
 	timeout                           = 10 * time.Minute
 	timeoutShort                      = 10 * time.Second
 	peerGroupV4                       = "BGP-PEER-GROUP-V4"
 	peerGroupV6                       = "BGP-PEER-GROUP-V6"
-	postPolicyRoutev4CountperNeighbor = 4934464
+	postPolicyRoutev4CountperNeighbor = 4934464 // Calculated based on 3 neighbors(15000000 - 65536*3) / 3
 	postPolicyRoutev6CountperNeighbor = 750000
 	statisticsIntervalSeconds         = 60 * time.Second
 )
@@ -187,13 +191,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
 
-	bmpConfigParams := cfgplugins.BMPConfigParams{
-		DutAS:       dutAS,
-		Source:      p4.Name(),
-		StationPort: bmpStationPort,
-		StationAddr: ateP4.IPv4,
-		PostPolicy:  true,
-	}
 
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchReplace(batch, gnmi.OC().Interface(p1.Name()).Config(), dutP1.NewOCInterface(p1.Name(), dut))
@@ -203,7 +200,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, EnableMaxRoutes: true, PeerGroups: []string{peerGroupV4, peerGroupV6}}
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, batch, cfgBGP)
 	configureDUTBGPNeighbors(t, dut, batch, dutBgpConf.Bgp)
-	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
+
 	batch.Set(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	return batch
@@ -694,6 +691,18 @@ func TestBMPBaseSession(t *testing.T) {
 	if err := verifyPrefixCountV6(t, dut); err != nil {
 		t.Error(err)
 	}
+
+	bmpConfigParams := cfgplugins.BMPConfigParams{
+		DutAS:       dutAS,
+		Source:      dut.Port(t, "port4").Name(),
+		StationPort: bmpStationPort,
+		StationAddr: ateP4.IPv4,
+		PostPolicy:  true,
+	}
+
+	batch := &gnmi.SetBatch{}
+
+	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
 
 	type testCase struct {
 		name string
