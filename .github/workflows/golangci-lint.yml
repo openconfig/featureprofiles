@@ -9,12 +9,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
+ 
+      - name: Free additional disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+   
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
           cache: true        # Speeds up subsequent runs
+      
+      # Dependency for Go module github.com/google/gopacket
+      - name: Install libpcap-dev
+        run: sudo apt-get -y install libpcap-dev
 
       - name: Run staticcheck
         uses: dominikh/staticcheck-action@v1
