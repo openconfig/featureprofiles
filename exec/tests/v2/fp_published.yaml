@@ -2477,6 +2477,8 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    args:
+      - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'    
     priority: 3
     groups: [newfnt]    
 
