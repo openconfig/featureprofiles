@@ -1,9 +1,9 @@
 replace: {
-    path: {
-    origin: "cli"
-        }
-    val: {
-    ascii_val:
+path: {
+origin: "cli"
+    }
+val: {
+ascii_val:
     "hostname DUT\n"
     "username cafyauto\n"
     " group root-lr\n"
@@ -58,6 +58,9 @@ replace: {
     "!\n"
     "!\n"
     "!\n"
+    "controller Optics0/0/0/0\n"
+    " breakout 4x10\n"
+    "!\n"
     "router static\n"
     " vrf mgmt\n"
     "  address-family ipv4 unicast\n"
@@ -71,4 +74,4 @@ replace: {
     "!\n"
     "end\n"
         }
-        } 
+        }
