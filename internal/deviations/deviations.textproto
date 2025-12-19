@@ -1398,3 +1398,25 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "network_instance_import_export_policy_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/inter-instance-policies/import-export-policy/config/import-route-target"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/inter-instance-policies/import-export-policy/config/export-route-target"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "route-map RM-ALL-ROUTES permit 10\n *router general(\n *vrf .*\n *leak routes source-vrf .* subscribe-policy RM-ALL-ROUTES)+"
+    }
+  }
+}
