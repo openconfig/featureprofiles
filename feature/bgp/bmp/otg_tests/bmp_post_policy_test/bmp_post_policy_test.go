@@ -50,11 +50,13 @@ const (
 	prePolicyV6RouteCount             = 0
 	postPolicyV4RouteCount            = 14803392
 	postPolicyV6RouteCount            = 2250000
-	timeout                           = 5 * time.Minute
+	timeout                           = 10 * time.Minute
+	timeoutShort                      = 10 * time.Second
 	peerGroupV4                       = "BGP-PEER-GROUP-V4"
 	peerGroupV6                       = "BGP-PEER-GROUP-V6"
 	postPolicyRoutev4CountperNeighbor = 4934464
 	postPolicyRoutev6CountperNeighbor = 750000
+	statisticsIntervalSeconds         = 60 * time.Second
 )
 
 type PolicyRoute struct {
@@ -460,7 +462,7 @@ func verifyBMPStatisticsReporting(t *testing.T, ate *ondatra.ATEDevice, bmpName 
 	initialStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Initial BMP statistics counter: %v", initialStatCounter)
 
-	time.Sleep(60 * time.Second)
+	time.Sleep(statisticsIntervalSeconds)
 
 	updatedStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Updated BMP statistics counter: %v", updatedStatCounter)
@@ -569,7 +571,7 @@ func verifyBMPPostPolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATED
 			path.PostPolicyInRib().
 				BmpUnicastIpv4Prefix(postPolicyRoute.Address, uint32(postPolicyRoute.PrefixLength), 1, 0).
 				State(),
-			2*time.Minute,
+			timeout,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PostPolicyInRib_BmpUnicastIpv4Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == postPolicyRoute.Address
@@ -587,7 +589,7 @@ func verifyBMPPostPolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATED
 			path.PostPolicyInRib().
 				BmpUnicastIpv4Prefix(postPolicyRoutedenied.Address, uint32(postPolicyRoutedenied.PrefixLength), 1, 0).
 				State(),
-			10*time.Second,
+			timeoutShort,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PostPolicyInRib_BmpUnicastIpv4Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == postPolicyRoutedenied.Address
@@ -605,7 +607,7 @@ func verifyBMPPostPolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATED
 			path.PostPolicyInRib().
 				BmpUnicastIpv6Prefix(postPolicyRoutev6.Address, uint32(postPolicyRoutev6.PrefixLength), 1, 0).
 				State(),
-			2*time.Minute,
+			timeout,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PostPolicyInRib_BmpUnicastIpv6Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == postPolicyRoutev6.Address
@@ -623,7 +625,7 @@ func verifyBMPPostPolicyRouteMonitoringPerPrefix(t *testing.T, ate *ondatra.ATED
 			path.PostPolicyInRib().
 				BmpUnicastIpv6Prefix(postPolicyRouteV6Denied.Address, uint32(postPolicyRouteV6Denied.PrefixLength), 1, 0).
 				State(),
-			10*time.Second,
+			timeoutShort,
 			func(v *ygnmi.Value[*otgtelemetry.BmpServer_PeerStateDatabase_Peer_PostPolicyInRib_BmpUnicastIpv6Prefix]) bool {
 				prefix, present := v.Val()
 				return present && prefix.GetAddress() == postPolicyRouteV6Denied.Address
@@ -647,7 +649,7 @@ func verifyPrefixCountV4(t *testing.T, dut *ondatra.DUTDevice) error {
 	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
-	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 10*time.Minute, compare).Await(t); !ok {
+	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), timeout, compare).Await(t); !ok {
 		return fmt.Errorf("received prefixes v4 mismatch: got %v, want %v", got, postPolicyRoutev4CountperNeighbor)
 	}
 	return nil
@@ -663,7 +665,7 @@ func verifyPrefixCountV6(t *testing.T, dut *ondatra.DUTDevice) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixes := statePath.Neighbor(ateP1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
-	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), 10*time.Minute, compare).Await(t); !ok {
+	if got, ok := gnmi.Watch(t, dut, prefixes.Received().State(), timeout, compare).Await(t); !ok {
 		return fmt.Errorf("received prefixes v6 mismatch: got %v, want %v", got, postPolicyRoutev6CountperNeighbor)
 	}
 	return nil

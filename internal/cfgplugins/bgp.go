@@ -216,6 +216,19 @@ type VrfBGPState struct {
 	NeighborIPs         []string
 }
 
+// BMPConfigParams holds BMP related configs
+type BMPConfigParams struct {
+	DutAS        uint32
+	BGPObj       *oc.NetworkInstance_Protocol_Bgp
+	Source       string
+	LocalAddr    string
+	StationAddr  string
+	StationPort  uint16
+	StatsTimeOut uint16
+	PrePolicy    bool
+	PostPolicy   bool
+}
+
 // NewBGPSession creates a new BGPSession using the default global config, and
 // configures the interfaces on the dut and the ate based in given topology port count.
 // Only supports 2 and 4 port DUT-ATE topology
@@ -1611,5 +1624,69 @@ func VerifyRoutes(t *testing.T, dut *ondatra.DUTDevice, routesToAdvertise map[st
 		} else {
 			t.Logf("Route %s successfully installed in AFT for VRF %q", route, info.VRF)
 		}
+	}
+}
+
+// ConfigureBMP applies BMP station configuration on DUT.
+func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
+	t.Helper()
+	if deviations.BMPOCUnsupported(dut) {
+
+		bmpConfig := new(strings.Builder)
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+
+			fmt.Fprintf(bmpConfig, `
+				router bgp %d
+				bgp monitoring
+				! BMP station
+				monitoring station BMP_STN
+				update-source %s
+				statistics
+				connection address %s
+				connection mode active port %d
+					`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
+
+			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+
+			if cfgParams.PrePolicy {
+				t.Log("Configured BMP station with pre-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes pre-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if cfgParams.PostPolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes post-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+		}
+	} else {
+		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
+		t.Log("BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
+		// // === BMP Configuration ===
+		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
+		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)
+		// bmp.StatisticsTimeout = ygot.Uint16(cfgParams.StatsTimeOut)
+
+		// // --- Create BMP Station ---
+		// st := bmp.GetOrCreateStation("BMP_STN")
+		// st.Address = ygot.String(cfgParams.StationAddr)
+		// st.Port = ygot.Uint16(cfgParams.StationPort)
+		// st.ConnectionMode = oc.BgpTypes_BMPStationMode_ACTIVE
+		// st.Description = ygot.String("ATE BMP station")
+		// st.PolicyType = oc.BgpTypes_BMPPolicyType_POST_POLICY
+		// st.ExcludeNoneligible = ygot.Bool(true)
+		// // Push configuration
+		// gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bmp)
 	}
 }
