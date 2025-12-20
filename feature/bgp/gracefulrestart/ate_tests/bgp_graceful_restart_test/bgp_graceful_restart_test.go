@@ -501,7 +501,12 @@ func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 func TestTrafficWithGracefulRestartSpeaker(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	testCaseBgpGracefulRestart := []string{"GRUnderNeighbor", "GRUnderPeerGroup"}
+	var testCaseBgpGracefulRestart []string
+	if deviations.BgpGracefulRestartPeerGroupUnsupported(dut) {
+		testCaseBgpGracefulRestart = []string{"GRUnderNeighbor"}
+	} else {
+		testCaseBgpGracefulRestart = []string{"GRUnderNeighbor", "GRUnderPeerGroup"}
+	}
 	for _, test := range testCaseBgpGracefulRestart {
 		t.Run(fmt.Sprintf("Test BGP Graceful Restart with Speaker under %v", test), func(t *testing.T) {
 			// Configure interface on the DUT
