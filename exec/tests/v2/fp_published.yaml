@@ -341,7 +341,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-    pr: 4371
     internal: false
     groups: [ancx,P0]
     otg_version:
