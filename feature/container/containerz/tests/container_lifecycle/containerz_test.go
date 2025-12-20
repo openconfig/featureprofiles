@@ -59,7 +59,9 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
 	}
-	return containerztest.Setup(ctx, t, dut, opts)
+	c, cleanup := containerztest.Setup(ctx, t, dut, opts)
+	time.Sleep(5 * time.Second) // Allow time for container to stabilize.
+	return c, cleanup
 }
 
 // TestDeployAndStartContainer implements CNTR-1.1 validating that it is

@@ -155,6 +155,9 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 		}
 	}
 
+	// Allow some time for the image to be fully registered.
+	time.Sleep(5 * time.Second)
+
 	// 4. Verify the image exists after push.
 	t.Logf("Verifying image %s:%s exists after push.", opts.ImageName, opts.ImageTag)
 	imgListCh, err := cli.ListImage(ctx, 0, map[string][]string{"name": {opts.ImageName}, "tag": {opts.ImageTag}})
