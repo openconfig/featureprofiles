@@ -1802,3 +1802,8 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
+
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
+}
