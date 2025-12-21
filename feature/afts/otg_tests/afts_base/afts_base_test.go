@@ -105,13 +105,15 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
-	port1Name            = "port1"
-	port2Name            = "port2"
-	prevNHGIDIPv4        = uint64(0)
-	prevNHGIDIPv6        = uint64(0)
+	wantIPv4NHs              = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs              = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv4NHsPostChurn     = map[string]bool{ateP1.IPv4: true}
+	port1Name                = "port1"
+	port2Name                = "port2"
+	prevNHGIDIPv4            = uint64(0)
+	prevNHGIDIPv6            = uint64(0)
+	advertisedRoutesV6Prefix = uint32(advertisedRoutesV6Prefix128)
+	startingBGPRouteIPv6     = startingBGPRouteIPv6128
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -648,11 +650,11 @@ func TestBGP(t *testing.T) {
 
 	// --- Test Setup ---
 	if deviations.SubnetMaskChange(dut) {
-		advertisedRoutesV6Prefix := advertisedRoutesV6Prefix64
-		startingBGPRouteIPv6 := startingBGPRouteIPv664
+		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
+		startingBGPRouteIPv6 = startingBGPRouteIPv664
 	} else {
-		advertisedRoutesV6Prefix := advertisedRoutesV6Prefix128
-		startingBGPRouteIPv6 := startingBGPRouteIPv6128
+		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix128
+		startingBGPRouteIPv6 = startingBGPRouteIPv6128
 	}
 
 	if err := tc.configureDUT(t); err != nil {
