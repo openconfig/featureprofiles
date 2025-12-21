@@ -652,9 +652,6 @@ func TestBGP(t *testing.T) {
 	if deviations.SubnetMaskChange(dut) {
 		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
 		startingBGPRouteIPv6 = startingBGPRouteIPv664
-	} else {
-		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix128
-		startingBGPRouteIPv6 = startingBGPRouteIPv6128
 	}
 
 	if err := tc.configureDUT(t); err != nil {
