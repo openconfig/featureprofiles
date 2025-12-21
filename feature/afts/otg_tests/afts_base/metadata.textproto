@@ -12,7 +12,7 @@ platform_exceptions: {
     isis_single_topology_required: true
     skip_interface_name_check: true
     link_local_instead_of_nh: true
-    low_scale_aft: true
+    subnet_mask_change: true
   }
 }
 platform_exceptions: {
