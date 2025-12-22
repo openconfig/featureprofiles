@@ -2561,6 +2561,7 @@ tests:
     mustpass: false
     priority: 3
     timeout: 21000
+    pr: 4950
 
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates
