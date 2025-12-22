@@ -165,12 +165,12 @@ Local ASN as ASN200 for following interfaces |                      | `$ATE2_Por
 
 | Src_destination of flows | From_IP --> To_IP | DSCP | Tunnel endpoint used |
 | :------------------------------------------------------------------------------------------------- | :------------------------------------------------------ | :--- | :-------------------------- |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user1.v4/24 --> $ATE2_INTERNAL6.v4/24`  | BE1  | `ATE2_INTERNAL_TE11.v6/128`  |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user1.v6/64 --> $ATE2_INTERNAL6.v6/64`  | BE1  | `ATE2_INTERNAL_TE11.v6/128`  |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user2.v4/24 --> $ATE2_INTERNAL7.v4/24`  | AF1  | `ATE2_INTERNAL_TE11.v6/128`  |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user2.v6/64 --> $ATE2_INTERNAL7.v6/64`  | AF1  | `ATE2_INTERNAL_TE11.v6/128`  |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user3.v4/24 --> $ATE2_INTERNAL8.v4/24`  | AF2  | `ATE2_INTERNAL_TE11.v6/128`  |
-| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user3.v6/64 --> $ATE2_INTERNAL8.v6/64`  | AF2  | `ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user1.v4/24 --> $ATE2_INTERNAL6.v4/24`  | BE1  | `$ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user1.v6/64 --> $ATE2_INTERNAL6.v6/64`  | BE1  | `$ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user2.v4/24 --> $ATE2_INTERNAL7.v4/24`  | AF1  | `$ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user2.v6/64 --> $ATE2_INTERNAL7.v6/64`  | AF1  | `$ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user3.v4/24 --> $ATE2_INTERNAL8.v4/24`  | AF2  | `$ATE2_INTERNAL_TE11.v6/128`  |
+| Flow-Set#1 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user3.v6/64 --> $ATE2_INTERNAL8.v6/64`  | AF2  | `$ATE2_INTERNAL_TE11.v6/128`  |
 | Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user4.v4/24 --> $ATE2_INTERNAL9.v4/24`  | AF3  | `$ATE2_INTERNAL_TE10.v6/128` |
 | Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user4.v6/64 --> $ATE2_INTERNAL9.v6/64`  | AF3  | `$ATE2_INTERNAL_TE10.v6/128` |
 | Flow-Set#2 from ATE1_Port1 --> ATE2_[Either Port1 or Port3 depending on the FIB entries of the DUT]  | `$ATE1_PORT1_user5.v4/24 --> $ATE2_INTERNAL10.v4/24` | AF4  | `$ATE2_INTERNAL_TE10.v6/128` |
