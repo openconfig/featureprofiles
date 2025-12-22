@@ -50,39 +50,49 @@ feature:
         connectedv4prefix: 100.121.1.0/24
         connectedv6prefix: 2000::100:121:1:0/126
     interface:
-    - id: $ports.port1
-      ipv4_address: 100.120.1.2
-      ipv4_prefix_length: 24
-      ipv6_address: 2000::100:120:1:2
-      ipv6_prefix_length: 126
-      ipv4_gateway: 100.120.1.1
-      ipv6_gateway: 2000::100:120:1:1
-    - id: $ports.port2
-      ipv4_address: 100.121.1.2
-      ipv4_prefix_length: 24
-      ipv6_address: 2000::100:121:1:2
-      ipv6_prefix_length: 126
-      ipv4_gateway: 100.121.1.1
-      ipv6_gateway: 2000::100:121:1:1
-    - name: loopback1
-      id: $ports.port1
-      ipv4_address: 11.11.11.1
-      ipv4_prefix_length: 32
-    - name: loopback2
-      id: $ports.port2
-      ipv4_address: 2.12.12.1
-      ipv4_prefix_length: 32
+      - id: $ports.port1
+        ipv4_address: 100.120.1.2
+        ipv4_prefix_length: 24
+        ipv6_address: 2000::100:120:1:2
+        ipv6_prefix_length: 126
+        ipv4_gateway: 100.120.1.1
+        ipv6_gateway: 2000::100:120:1:1
+      - id: $ports.port2
+        ipv4_address: 100.121.1.2
+        ipv4_prefix_length: 24
+        ipv6_address: 2000::100:121:1:2
+        ipv6_prefix_length: 126
+        ipv4_gateway: 100.121.1.1
+        ipv6_gateway: 2000::100:121:1:1
+      - name: loopback1
+        id: $ports.port1
+        ipv4_address: 11.11.11.1
+        ipv4_prefix_length: 32
+      - name: loopback2
+        id: $ports.port2
+        ipv4_address: 2.12.12.1
+        ipv4_prefix_length: 32
   dut:
+    # Define routing policies BEFORE BGP (required for eBGP on Cisco XR)
+    routepolicy:
+      - name: ALLOW_ALL_IPV4
+        policy:
+          action: accept
+
     bgp:
       - as: 65000
         router_id: 1.1.1.1
-        gracefull_restart: 
+        gracefull_restart:
           enabled: true
         vrf: default
+        networks:
+          - prefix: 100.120.1.0/24
+          - prefix: 100.121.1.0/24
         afisafi:
-          - additional_paths:
-            - send
-            - recieve
+          - type: IPV4_UNICAST
+            additional_paths:
+              - send
+              - recieve
         neighbors:
           - address: 100.120.1.2
             local_address: 100.120.1.1
@@ -91,13 +101,12 @@ feature:
             description: "BGP_TEST"
             ebgp_multihop: 255
             afisafi:
-              - policy:
-                  
+              - type: IPV4_UNICAST
+                policy:
                   importpolicy:
-                  - ALLOW
+                    - ALLOW_ALL_IPV4
                   exportpolicy:
-                  - ALLOW
-                type: IPV4_UNICAST
+                    - ALLOW_ALL_IPV4
           - address: 100.121.1.2
             local_address: 100.121.1.1
             peer_as: 64001
@@ -105,12 +114,12 @@ feature:
             description: "BGP_TEST"
             ebgp_multihop: 255
             afisafi:
-              - policy:
+              - type: IPV4_UNICAST
+                policy:
                   importpolicy:
-                  - ALLOW
+                    - ALLOW_ALL_IPV4
                   exportpolicy:
-                  - ALLOW
-                type: IPV4_UNICAST
+                    - ALLOW_ALL_IPV4
     interface:
       - name: Bundle-Ether120
         members:

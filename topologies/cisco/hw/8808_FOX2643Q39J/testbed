@@ -6,21 +6,22 @@
 duts {
   id: "dut"
   vendor: CISCO
+  hardware_model: "8808"
   ports {
     id: "port1"
-    speed: S_100GB   
+    speed: S_10GB
   }
   ports {
     id: "port2"
-    speed: S_100GB  
+    speed: S_10GB
   }
   ports {
     id: "port3"
-    speed: S_100GB  
+    speed: S_10GB
   }
   ports {
     id: "port4"
-    speed: S_100GB  
+    speed: S_10GB
   }
 }
 
@@ -28,19 +29,19 @@ ates {
   id: "ate"
   ports {
     id: "port1"
-    speed: S_100GB    
+    speed: S_10GB
   }
   ports {
     id: "port2"
-    speed: S_100GB      
+    speed: S_10GB
   }
   ports {
     id: "port3"
-    speed: S_100GB      
+    speed: S_10GB
   }
   ports {
     id: "port4"
-    speed: S_100GB      
+    speed: S_10GB
   }
 }
 

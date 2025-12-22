@@ -32,6 +32,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	s "github.com/openconfig/featureprofiles/internal/cisco/helper"
 	util "github.com/openconfig/featureprofiles/internal/cisco/util"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -140,9 +141,22 @@ const (
 	ateAS                    = 67777
 	switchovertime           = 315000.0 //msec
 	fps                      = 10000    //100000
+	samplingRate             = 262144
+	sampleTolerance          = 0.8
+	nullRouteIPv4            = "192.192.192.192/32"
+	nullRouteIPv6            = "2001:db8::192:192:192:192/128"
 )
 
 var (
+	dutLoopback1 = attrs.Attributes{
+		Name:    "Loopback1",
+		Desc:    "dutLoopback1",
+		IPv4:    "203.0.113.255",
+		IPv4Len: 32,
+		IPv6:    "2001:db8::203:0:113:255",
+		IPv6Len: 128,
+	}
+
 	dutSrc1 = attrs.Attributes{
 		Desc:    "dutSrc1",
 		MAC:     "02:01:00:00:00:01",
@@ -1955,3 +1969,142 @@ func reconnectGribi(t *testing.T, gribiClient gribis.GRIBIClient, deviceName str
 	}
 	t.Logf("%s gRIBI ready time: %.2f minutes", deviceName, time.Since(startReboot).Minutes())
 }
+
+// configureLoopback configures the Loopback0 interface with IPv4 and IPv6 addresses
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice, loopback attrs.Attributes) {
+	root := &oc.Root{}
+
+	// Configure Loopback0 interface
+	lo := root.GetOrCreateInterface(loopback.Name)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	lo.Enabled = ygot.Bool(true)
+	sub := lo.GetOrCreateSubinterface(0)
+
+	// IPv4 configuration
+	v4 := sub.GetOrCreateIpv4()
+	a4 := v4.GetOrCreateAddress(loopback.IPv4)
+	a4.PrefixLength = ygot.Uint8(32)
+
+	// IPv6 configuration
+	v6 := sub.GetOrCreateIpv6()
+	a6 := v6.GetOrCreateAddress(loopback.IPv6)
+	a6.PrefixLength = ygot.Uint8(128)
+
+	gnmi.Replace(t, dut, gnmi.OC().Interface(loopback.Name).Config(), lo)
+}
+
+// configureLoopbackAndSFlow configures Loopback0 and sFlow on the DUT.
+// call it after configuring DUT interfaces, which populates aggID1.
+func configureLoopbackAndSFlow(t *testing.T, dut *ondatra.DUTDevice) {
+	s.StaticRouteHelper().AddStaticRoutesToNull(t, dut, nullRouteIPv4, nullRouteIPv6, vrfDefault)
+	config := NewDefaultSflowAttr(aggID1)
+
+	// Configure Loopback0 interface
+	configureLoopback(t, dut, dutLoopback1)
+
+	// Configure sFlow
+	s.ConfigureSFlow(t, dut, config)
+
+	// Configure unsupported features
+	s.ConfigureUnsupportedSFlowFeatures(t, dut, config)
+}
+
+// NewDefaultSflowAttr returns a SflowAttr with default values
+func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
+	return &s.SFlowConfig{
+		SourceIPv4:          dutLoopback1.IPv4,
+		SourceIPv6:          dutLoopback1.IPv6,
+		CollectorIPv6:       strings.Split(nullRouteIPv6, "/")[0],
+		CollectorIPv4:       strings.Split(nullRouteIPv4, "/")[0],
+		IP:                  s.IPv6,
+		CollectorPort:       6343,
+		DSCP:                32,
+		SampleSize:          343,
+		IngressSamplingRate: samplingRate,
+		InterfaceName:       ingressInterface,
+		ExporterMapName:     "OC-FEM-GLOBAL",
+		PacketLength:        8968,
+		DfBitSet:            true,
+	}
+}
+
+func programP4rtClientsAndEntries(t *testing.T, dut *ondatra.DUTDevice) map[string]*s.P4RTClientManager {
+	t.Logf("Program P4RT clients and ACL entries on %s", dut.ID())
+	ctx := context.Background()
+
+	p4rtHelper := s.P4rtHelper()
+	deviceIds := p4rtHelper.ConfigureAndGetDeviceIDs(t, dut, seedDeviceID)
+
+	// Initialize election ID generator
+	electionIDGen := s.NewElectionIDGenerator(seedLowElectionID)
+
+	// Create managers for all devices
+	managers := make(map[string]*s.P4RTClientManager)
+
+	// Setup forwarding pipeline and program ACL entries for each device
+	for stream, devID := range deviceIds {
+		t.Logf("%s: Setting up P4RT client for stream %s with device ID %d", dut.ID(), stream, devID)
+
+		manager, err := s.CreateDefaultLeaderFollowerClientsWithElectionID(t, dut, devID, stream, electionIDGen)
+		if err != nil {
+			t.Fatalf("%s: CreateDefaultLeaderFollowerClientsWithElectionID failed for stream %s: %v", dut.ID(), stream, err)
+		}
+
+		managers[stream] = manager
+
+		if err := manager.SetupClientArbitration(ctx, t); err != nil {
+			t.Fatalf("%s: SetupClientArbitration failed for stream %s: %v", dut.ID(), stream, err)
+		}
+
+		// Setup forwarding pipeline
+		// Note: This requires a valid p4info file path
+		err = manager.SetupForwardingPipeline(ctx, t, s.GetP4InfoPath())
+		if err != nil {
+			t.Errorf("%s: SetupForwardingPipeline returned error for stream %s: %v", dut.ID(), stream, err)
+		} else {
+			t.Logf("%s: Successfully set up forwarding pipeline for stream %s", dut.ID(), stream)
+		}
+
+		leader := manager.GetLeader()
+
+		// Create test entries
+		entries := s.CreateDefaultACLEntries()
+
+		// Program entries after pipeline setup
+		err = leader.ProgramTableEntry(t, entries)
+		if err != nil {
+			t.Errorf("%s: ProgramTableEntry returned error for stream %s: %v", manager.DUT.ID(), stream, err)
+		} else {
+			t.Logf("%s: Successfully programmed ACL table entries for stream %s with election ID: leader=%d, follower=%d",
+				manager.DUT.ID(), stream, leader.Config.ElectionID.Low, manager.Clients["follower"].Config.ElectionID.Low)
+		}
+	}
+
+	t.Logf("Successfully programmed ACL entries on %d devices", len(managers))
+	return managers
+}
+
+// uncomment when deleteP4rtEntries is needed
+// func deleteP4rtEntries(t *testing.T, managers map[string]*s.P4RTClientManager) {
+// 	t.Log("Delete P4RT entries from all devices")
+
+// 	for stream, manager := range managers {
+// 		t.Logf("%s: Deleting entries for stream %s", manager.DUT.ID(), stream)
+// 		leader := manager.GetLeader()
+
+// 		// Create test entries to delete
+// 		entries := s.CreateDefaultACLEntries()
+
+// 		// Delete entries
+// 		err := leader.DeleteTableEntries(t, entries)
+// 		if err != nil {
+// 			t.Errorf("%s: DeleteTableEntries returned error for stream %s: %v", manager.DUT.ID(), stream, err)
+// 		} else {
+// 			t.Logf("%s: Successfully deleted ACL table entries for stream %s", manager.DUT.ID(), stream)
+// 		}
+// 		// Cleanup clients
+// 		manager.Cleanup(t)
+// 	}
+
+// 	t.Log("Successfully deleted P4RT entries from all devices")
+// }

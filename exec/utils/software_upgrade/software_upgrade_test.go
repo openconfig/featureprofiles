@@ -41,7 +41,7 @@ var (
 	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
 	reimageFlag   = flag.Bool("reimage", true, "Use install replace reimage")
 
-	installTimeout = 1800 * time.Second
+	installTimeout = 2700 * time.Second
 
 	componentTypes = map[oc.Component_Type_Union]bool{
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: true,
@@ -147,6 +147,23 @@ func TestSoftwareUpgrade(t *testing.T) {
 
 		if !success {
 			t.Fatalf("Install operation timed out")
+		}
+
+		success = false
+		for start := time.Now(); time.Since(start) < installTimeout && !success; {
+			time.Sleep(statusCheckDelay)
+
+			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			}); errMsg != nil {
+				t.Logf("Waiting for grpc connection...")
+			} else {
+				success = true
+			}
+		}
+
+		if !success {
+			t.Fatalf("Timed out waiting for device to come back up")
 		}
 
 		waitForComponents(t, dut, components)
