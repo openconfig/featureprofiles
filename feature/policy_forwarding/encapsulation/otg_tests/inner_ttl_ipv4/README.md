@@ -185,8 +185,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                     {
                       "action": {
                         "config": {
-                          "next-hop-group": "NHGroup1",
-                          "ip-ttl": 1
+                          "next-hop-group": "NHGroup1"
                         }
                       },
                       "config": {
@@ -202,8 +201,7 @@ https://github.com/openconfig/public/pull/1417 is merged.
                     {
                       "action": {
                         "config": {
-                          "next-hop-group": "NHGroup1",
-                          "ip-ttl": 1
+                          "next-hop-group": "NHGroup1"
                         }
                       },
                       "config": {
@@ -243,6 +241,17 @@ https://github.com/openconfig/public/pull/1417 is merged.
                       }
                     },
                     "prefix": "0.0.0.0/0"
+                  },
+                  {
+                    "config": {
+                      "prefix": "::/0"
+                    },
+                    "next-hop-group": {
+                      "config": {
+                        "name": "NHGroup1"
+                      }
+                    },
+                    "prefix": "::/0"
                   }
                 ]
               }
@@ -323,7 +332,8 @@ https://github.com/openconfig/public/pull/1417 is merged.
                   "index": "2",
                   "metric": 10,
                   "next-hop": "198.51.100.5",
-                  "nh-network-instance": "DEFAULT"
+                  "nh-network-instance": "DEFAULT",
+                  "recurse": true
                 },
                 "encap-headers": {
                   "encap-header": [
