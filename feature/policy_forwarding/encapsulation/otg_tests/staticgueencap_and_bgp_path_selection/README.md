@@ -673,11 +673,11 @@ Inflight
           "config": {
             "name": "dst_prefix_v6_gue"
           },
-          "name": "dst_prefix_v6_gue"
-            "prefix": [
-              "$DUT_TE11.v6/64"
-              "$DUT_TE10.v6/64"
-      		]
+          "name": "dst_prefix_v6_gue",
+          "prefix": [
+            "$DUT_TE11.v6/64",
+            "$DUT_TE10.v6/64"
+          ]
         }
       ]
     }
