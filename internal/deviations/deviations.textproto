@@ -942,6 +942,20 @@ deviations: {
       software_version_regex: "*.*"
     }
   }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
 }
 deviations: {
   name: "load_interval_not_supported"
