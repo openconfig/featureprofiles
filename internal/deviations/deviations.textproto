@@ -1334,3 +1334,28 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "config_acl_with_prefixlist_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/config/name"
+    }
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix"
+    }
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/mask-length-range"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "traffic-policies\n.traffic-policy .*\n..match rule1 .*\n...source prefix .*\n...destination prefix .*"
+    }
+  }
+}
