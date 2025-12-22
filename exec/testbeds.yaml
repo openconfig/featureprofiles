@@ -167,7 +167,7 @@ testbeds:
     binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
     baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
@@ -288,7 +288,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
@@ -303,7 +303,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
@@ -319,7 +319,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
