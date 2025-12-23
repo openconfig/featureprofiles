@@ -71,6 +71,7 @@
 ## Canonical OC
 ```json
 {}
+```
 
 ## OpenConfig Path and RPC Coverage
 
