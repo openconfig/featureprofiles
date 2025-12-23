@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -32,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -877,7 +879,7 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	}
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
@@ -900,7 +902,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
+	if deviations.IPv4MissingEnabled(dut) {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
@@ -1290,4 +1292,35 @@ func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gn
 		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
 	}
 	gnmi.BatchUpdate(b, intPath, intf)
+}
+
+// AddressFamilyParams defines parameters for IPv4/v6 interfaces.
+type AddressFamilyParams struct {
+	InterfaceNames []string
+}
+
+// IsIPv4InterfaceARPresolved validates that the IPv4 interface is resolved based on the interface configured.
+func IsIPv4InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg AddressFamilyParams) error {
+	for _, intf := range cfg.InterfaceNames {
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !ok {
+			return fmt.Errorf("IPv4 %s gateway not resolved", intf)
+		}
+	}
+	return nil
+}
+
+// IsIPv6InterfaceARPresolved validates that the IPv6 interface is resolved based on the interface configured.
+func IsIPv6InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg AddressFamilyParams) error {
+	for _, intf := range cfg.InterfaceNames {
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+			return val.IsPresent()
+		}).Await(t)
+		if !ok {
+			return fmt.Errorf("IPv6 %s gateway not resolved", intf)
+		}
+	}
+	return nil
 }
