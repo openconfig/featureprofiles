@@ -76,7 +76,7 @@
 
 ```yaml
 paths:
-  ## State paths
+  # Telemetry Parameter coverage
     /components/component/controller-card/state/power-admin-state:
       platform_type: ["CONTROLLER_CARD"]
     /components/component/state/empty:
