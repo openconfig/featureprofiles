@@ -27,7 +27,7 @@ const (
 var (
 	frequencies         = []uint64{191400000, 196100000}
 	targetOutputPowers  = []float64{-7, 0}
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 

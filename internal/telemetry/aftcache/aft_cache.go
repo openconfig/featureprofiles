@@ -213,6 +213,7 @@ func (ss *AFTStreamSession) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTDat
 	prefixFunc := func(n *gnmipb.Notification) error {
 		p, nhg, err := parsePrefix(t, n, sessionPrefix)
 		if err != nil {
+			t.Logf("%s error in parsing prefix: %v", sessionPrefix, err)
 			return err
 		}
 		a.Prefixes[p] = nhg
@@ -224,6 +225,7 @@ func (ss *AFTStreamSession) ToAFT(t *testing.T, dut *ondatra.DUTDevice) (*AFTDat
 		case errors.Is(err, ErrNotExist) || errors.Is(err, ErrUnsupported):
 			t.Logf("%s error parsing NHG: %v", sessionPrefix, err)
 		case err != nil:
+			t.Logf("%s error in parsing NHG: %v", sessionPrefix, err)
 			return err
 		default:
 			a.NextHopGroups[nhg] = data
@@ -541,6 +543,7 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 			t.Logf("%s Wrote all received notifications to %s", prefix, filename)
 		}
 	}
+	ss.notifications = nil
 }
 
 // ListenUntil updates AFT with notifications from a gNMI client in streaming mode, and stops
@@ -555,7 +558,6 @@ func (ss *AFTStreamSession) ListenUntil(ctx context.Context, t *testing.T, timeo
 func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) {
 	t.Helper()
 	ss.start = time.Now()
-	ss.notifications = nil   // Flush notifications from previous ListenUntil calls.
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
 	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
@@ -957,6 +959,7 @@ func parsePrefix(t *testing.T, n *gnmipb.Notification, sessionPrefix string) (st
 	// Normalizes paths for the "updates" in the gNMI notification.
 	updates := schema.NotificationToPoints(n)
 	if len(updates) == 0 {
+		t.Logf("no updates found in parsePrefix")
 		return "", 0, fmt.Errorf("missing updates")
 	}
 	e := updates[0].Path.GetElem()

@@ -46,6 +46,9 @@ type Port struct {
 	MemberPorts []string
 	LagID       uint32
 	IsLag       bool
+	IsLo0Needed bool
+	IsMTU       bool
+	MTU         uint32
 }
 
 // InterfaceProperties is a struct to hold interface data.
@@ -59,6 +62,8 @@ type InterfaceProperties struct {
 	IPv4Len     uint32
 	IPv6Len     uint32
 	MAC         string
+	LoopbackV4  string
+	LoopbackV6  string
 }
 
 // ConfigureNetworkInterface configures the network interface.
@@ -91,6 +96,9 @@ func ConfigureLagMemberPort(agg gosnappi.Lag, portID string, a *Port, index int)
 	lagPort := agg.Ports().Add().SetPortName(portID)
 	lagPort.Ethernet().SetMac(a.AggMAC).SetName(a.Name + "-" + portID)
 	lagPort.Lacp().SetActorActivity("active").SetActorPortNumber(uint32(index) + 1).SetActorPortPriority(1).SetLacpduTimeout(0)
+	if a.IsMTU {
+		lagPort.Ethernet().SetMtu(a.MTU)
+	}
 }
 
 // ConfigureInterface configures the Ethernet for the LAG or subinterface.
@@ -102,6 +110,10 @@ func ConfigureInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port)
 	} else {
 		eth.Connection().SetPortName(a.Name)
 	}
+	// MTU configuration
+	if a.IsMTU && !a.IsLag {
+		eth.SetMtu(a.MTU)
+	}
 	// VLAN configuration
 	if intf.Vlan != 0 {
 		eth.Vlans().Add().SetName(intf.Name + ".vlan").SetId(intf.Vlan)
@@ -112,5 +124,16 @@ func ConfigureInterface(top gosnappi.Config, intf *InterfaceProperties, a *Port)
 	}
 	if intf.IPv6 != "" {
 		eth.Ipv6Addresses().Add().SetName(intf.Name + ".IPv6").SetAddress(intf.IPv6).SetGateway(intf.IPv6Gateway).SetPrefix(intf.IPv6Len)
+	}
+	// Loopback configuration
+	if a.IsLo0Needed {
+		if intf.LoopbackV4 != "" {
+			iDut4LoopV4 := dev.Ipv4Loopbacks().Add().SetName(intf.Name + ".Loopback.IPv4").SetEthName(intf.Name + ".Eth")
+			iDut4LoopV4.SetAddress(intf.LoopbackV4)
+		}
+		if intf.LoopbackV6 != "" {
+			iDut4LoopV6 := dev.Ipv6Loopbacks().Add().SetName(intf.Name + ".Loopback.IPv6").SetEthName(intf.Name + ".Eth")
+			iDut4LoopV6.SetAddress(intf.LoopbackV6)
+		}
 	}
 }

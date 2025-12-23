@@ -37,22 +37,35 @@ import (
 )
 
 // CreateGNMIServer creates a gNMI server on the DUT on a given network-instance.
-func CreateGNMIServer(batch *gnmi.SetBatch, t testing.TB, d *ondatra.DUTDevice, nip *NetworkInstanceParams) {
-	var ni string
+func CreateGNMIServer(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, nip *NetworkInstanceParams) {
+	var niName string
+	var gnmiServerName string
+
 	if nip.Default {
-		ni = deviations.DefaultNetworkInstance(d)
+		// It is expected that network-instance name and gRPC server name are "DEFAULT" for default network instance.
+		niName = nip.Name
+		gnmiServerName = nip.Name
+		// If not aligned with OC, then use deviation flags to set network-instance name and gRPC server name.
+		// This validation to be removed when the deviation flags are removed.
+		if deviations.DefaultNetworkInstance(d) != "" {
+			niName = deviations.DefaultNetworkInstance(d)
+		}
+		if deviations.DefaultNiGnmiServerName(d) != "" {
+			gnmiServerName = deviations.DefaultNiGnmiServerName(d)
+		}
 	} else {
-		ni = nip.Name
+		niName, gnmiServerName = nip.Name, "gnxi-"+nip.Name
 	}
-	t.Logf("Creating gNMI server on network instance: %s", ni)
-	gnmiServerPath := gnmi.OC().System().GrpcServer(ni)
-	gnmi.BatchUpdate(batch, gnmiServerPath.Config(), &oc.System_GrpcServer{
-		Name:            ygot.String(ni),
+	t.Logf("Creating gNMI server %s on network instance: %s", gnmiServerName, niName)
+	gnmiServerPath := gnmi.OC().System().GrpcServer(gnmiServerName)
+	gnmiServer := &oc.System_GrpcServer{
+		Name:            ygot.String(gnmiServerName),
 		Port:            ygot.Uint16(9339),
 		Enable:          ygot.Bool(true),
-		NetworkInstance: ygot.String(ni),
-		// Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
-	})
+		NetworkInstance: ygot.String(niName),
+		Services:        []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI},
+	}
+	gnmi.BatchUpdate(batch, gnmiServerPath.Config(), gnmiServer)
 }
 
 // FindLineCardParent traverses up the component hierarchy starting from the given component name

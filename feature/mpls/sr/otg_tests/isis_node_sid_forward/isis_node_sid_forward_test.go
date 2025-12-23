@@ -142,7 +142,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{v6NetName})
 
-	v4Flow.Duration().FixedPackets().SetPackets(1000)
+	v6Flow.Duration().FixedPackets().SetPackets(1000)
 	v6Flow.Size().SetFixed(512)
 	v6Flow.Rate().SetPps(100)
 
@@ -271,6 +271,8 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	// Traffic checks
 	otg := ts.ATE.OTG()
 	t.Run("Traffic checks", func(t *testing.T) {
+		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
+		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
 		t.Logf("Starting traffic")
 		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)

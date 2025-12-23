@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1569590c-76a4-43ac-a27e-917fe381064f"
+plan_id: "enrollz-2"
+description: "enrollz test for TPM 1.2 Enrollment flow"
+testbed: TESTBED_DUT_ATE_2LINKS

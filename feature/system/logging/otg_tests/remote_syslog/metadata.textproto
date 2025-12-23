@@ -24,6 +24,7 @@ platform_exceptions: {
   }
   deviations: {
     syslog_oc_unsupported: true
+    syslog_non_default_vrf_unsupported: true
   }
 }
 
