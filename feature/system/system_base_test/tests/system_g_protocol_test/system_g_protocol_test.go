@@ -48,7 +48,7 @@ func dialConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, want
 	}
 	dialer := introspect.DUTDialer(t, dut, svc)
 	t.Logf("Dialing %s on %s (Port: %d)", svc, dialer.DialTarget, dialer.DevicePort)
-	if !deviations.NonStandardGRPCPort(dut) {
+	if !nonStandardPort {
 		if dialer.DevicePort != int(wantPort) {
 			t.Fatalf("DUT is not listening on standard port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
 		}
