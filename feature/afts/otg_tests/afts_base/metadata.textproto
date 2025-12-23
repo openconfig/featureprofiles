@@ -13,6 +13,7 @@ platform_exceptions: {
     skip_interface_name_check: true
     link_local_instead_of_nh: true
     subnet_mask_change: true
+    low_scale_aft: true
   }
 }
 platform_exceptions: {

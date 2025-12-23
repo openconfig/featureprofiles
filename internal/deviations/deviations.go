@@ -1803,7 +1803,7 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
-// SetSubnetMaskChange returns true if device requires changing subnet mask length
+// SubnetMaskChange returns true if device requires changing subnet mask length
 func SubnetMaskChange(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubnetMaskChange()
 }

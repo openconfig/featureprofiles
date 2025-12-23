@@ -1253,7 +1253,7 @@ type Metadata_Deviations struct {
 	ConfigAclValueAnyOcUnsupported bool `protobuf:"varint,356,opt,name=config_acl_value_any_oc_unsupported,json=configAclValueAnyOcUnsupported,proto3" json:"config_acl_value_any_oc_unsupported,omitempty"`
 	// Device doesnot support configuring ACL through oc
 	ConfigAclOcUnsupported bool `protobuf:"varint,357,opt,name=config_acl_oc_unsupported,json=configAclOcUnsupported,proto3" json:"config_acl_oc_unsupported,omitempty"`
-	// SetSubnetMaskChange returns true if it needs to be changed
+	// SubnetMaskChange returns true if it needs to be changed
 	SubnetMaskChange bool `protobuf:"varint,358,opt,name=subnet_mask_change,json=subnetMaskChange,proto3" json:"subnet_mask_change,omitempty"`
 }
 
