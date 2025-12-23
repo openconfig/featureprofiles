@@ -62,7 +62,7 @@ func TestInterfaceParentComponent(t *testing.T) {
 			pattern: "^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/(?:[0-9]|RP[0-9])/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
 		},
 	}
-
+	
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			dp := dut.Port(t, tc.port)
