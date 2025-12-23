@@ -44,38 +44,40 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesV4Prefix  = 32
-	advertisedRoutesV6Prefix  = 128
-	dutAS                     = 65501
-	ateAS                     = 200
-	v4PrefixLen               = 30
-	v6PrefixLen               = 126
-	mtu                       = 1500
-	isisSystemID              = "650000000001"
-	applyPolicyType           = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	applyPolicyName           = "ALLOW"
-	peerGrpNameV4P1           = "BGP-PEER-GROUP-V4-P1"
-	peerGrpNameV6P1           = "BGP-PEER-GROUP-V6-P1"
-	peerGrpNameV4P2           = "BGP-PEER-GROUP-V4-P2"
-	peerGrpNameV6P2           = "BGP-PEER-GROUP-V6-P2"
-	port1MAC                  = "00:00:02:02:02:02"
-	port2MAC                  = "00:00:03:03:03:03"
-	bgpRoute                  = "200.0.0.0"
-	bgpRoutev6                = "3001:1::0"
-	startingBGPRouteIPv4      = "200.0.0.0/32"
-	startingBGPRouteIPv6      = "3001:1::0/128"
-	isisRouteCount            = 100
-	isisRoute                 = "199.0.0.1"
-	isisRoutev6               = "2001:db8::203:0:113:1"
-	startingISISRouteIPv4     = "199.0.0.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime        = 20 * time.Minute
-	bgpTimeout                = 10 * time.Minute
-	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 1500000
-	bgpRouteCountIPv6LowScale = 512000
-	bgpRouteCountIPv4Default  = 2000000
-	bgpRouteCountIPv6Default  = 1000000
+	advertisedRoutesV4Prefix    = 32
+	advertisedRoutesV6Prefix128 = 128
+	advertisedRoutesV6Prefix64  = 64
+	dutAS                       = 65501
+	ateAS                       = 200
+	v4PrefixLen                 = 30
+	v6PrefixLen                 = 126
+	mtu                         = 1500
+	isisSystemID                = "650000000001"
+	applyPolicyType             = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	applyPolicyName             = "ALLOW"
+	peerGrpNameV4P1             = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1             = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2             = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2             = "BGP-PEER-GROUP-V6-P2"
+	port1MAC                    = "00:00:02:02:02:02"
+	port2MAC                    = "00:00:03:03:03:03"
+	bgpRoute                    = "200.0.0.0"
+	bgpRoutev6                  = "3001:1::0"
+	startingBGPRouteIPv4        = "200.0.0.0/32"
+	startingBGPRouteIPv6128     = "3001:1::0/128"
+	startingBGPRouteIPv664      = "3001:1::0/64"
+	isisRouteCount              = 100
+	isisRoute                   = "199.0.0.1"
+	isisRoutev6                 = "2001:db8::203:0:113:1"
+	startingISISRouteIPv4       = "199.0.0.1/32"
+	startingISISRouteIPv6       = "2001:db8::203:0:113:1/128"
+	aftConvergenceTime          = 30 * time.Minute
+	bgpTimeout                  = 10 * time.Minute
+	linkLocalAddress            = "fe80::200:2ff:fe02:202"
+	bgpRouteCountIPv4LowScale   = 1500000
+	bgpRouteCountIPv6LowScale   = 512000
+	bgpRouteCountIPv4Default    = 2000000
+	bgpRouteCountIPv6Default    = 1000000
 )
 
 var (
@@ -103,13 +105,15 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
-	port1Name            = "port1"
-	port2Name            = "port2"
-	prevNHGIDIPv4        = uint64(0)
-	prevNHGIDIPv6        = uint64(0)
+	wantIPv4NHs              = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs              = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv4NHsPostChurn     = map[string]bool{ateP1.IPv4: true}
+	port1Name                = "port1"
+	port2Name                = "port2"
+	prevNHGIDIPv4            = uint64(0)
+	prevNHGIDIPv6            = uint64(0)
+	advertisedRoutesV6Prefix = uint32(advertisedRoutesV6Prefix128)
+	startingBGPRouteIPv6     = startingBGPRouteIPv6128
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -645,6 +649,11 @@ func TestBGP(t *testing.T) {
 	}
 
 	// --- Test Setup ---
+	if deviations.SubnetMaskChange(dut) {
+		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
+		startingBGPRouteIPv6 = startingBGPRouteIPv664
+	}
+
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
