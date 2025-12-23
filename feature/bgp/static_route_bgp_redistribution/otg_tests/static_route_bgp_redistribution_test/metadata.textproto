@@ -32,6 +32,7 @@ platform_exceptions:  {
     default_bgp_instance_name: "BGP"
     skip_setting_disable_metric_propagation: true
     default_no_igp_metric_propagation: true
+    bgp_rib_streaming_config_required: true
   }
 }
 platform_exceptions:  {
