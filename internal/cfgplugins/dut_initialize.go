@@ -533,7 +533,7 @@ hardware tcam
    `
 
    aristaQOSTcamIn = `
-      hardware counter feature qos in
+   hardware counter feature qos in
    `
 )
 
