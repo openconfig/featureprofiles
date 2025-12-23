@@ -1802,3 +1802,8 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
+
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
