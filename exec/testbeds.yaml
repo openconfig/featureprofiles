@@ -207,7 +207,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding2
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 40068
       gnmi_port: 50068
       rest_port: 30068       
@@ -241,7 +241,7 @@ testbeds:
       dut: topologies/cisco/hw/P200-DT-DUT-PEER/8808-FOX2926PHNF-P200_baseconfig.proto
       peer: topologies/cisco/hw/P200-DT-DUT-PEER/PEER-8202_FLM29333C23_baseconfig.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 40068
       gnmi_port: 50068
       rest_port: 30068
