@@ -303,7 +303,7 @@ func configureTwoRateThreeColorSchedulerFromOC(batch *gnmi.SetBatch, params *Sch
 	trtc.Pir = ygot.Uint64(params.PirValue)
 	trtc.Bc = ygot.Uint32(params.BurstSize)
 	trtc.Be = ygot.Uint32(params.BurstSize)
-	trtc.GetOrCreateExceedAction().Drop = ygot.Bool(false)
+	trtc.GetOrCreateExceedAction().Drop = ygot.Bool(true)
 	trtc.GetOrCreateViolateAction().Drop = ygot.Bool(true)
 	qosPath := gnmi.OC().Qos().Config()
 	gnmi.BatchUpdate(batch, qosPath, qos)
