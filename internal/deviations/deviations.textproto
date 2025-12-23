@@ -1008,6 +1008,18 @@ deviations: {
       }
     }
   }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      vendor_specific_value: {
+        string_val: "+.0"
+      }
+    }
+  }
 }
 deviations: {
   name: "qos_scheduler_ingress_policer_unsupported"
