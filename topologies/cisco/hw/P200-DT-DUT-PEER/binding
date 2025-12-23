@@ -5,7 +5,10 @@
 # options to be used in conjunction with the atedut_*.testbed
 # testbeds.
 #
-## testbed Details ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5)
+
+###################################### DUT 8818-FOX2714PNYN ######################################
+### https://wwwin-github.cisco.com/B4Test/featureprofiles/tree/master/topologies/cisco/hw/8808-FOX2926PHNF-P200 ####
+### More testbed details : https://ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5)
 #router static
 # Console:
 # 172.27.177.102 2030/172.27.177.102 2031
@@ -19,24 +22,14 @@
 # Username: cafyauto
 # Password: cisco123
 
-options {
-  username: "cafyauto"
-  password: "cisco123"
-}
-
 duts {
   id: "dut"
   vendor: CISCO
   hardware_model: "CISCO-8808"
-  name: "8808-P200"  # Change this to the device hostname.
-  config:{
-    gnmi_set_file: "$BASE_CONF_PATH"
-  }
-  # Options inherited by all protocols on this device unless
-  # overridden by individual protocols.  Remove if not needed.
+  name: "8818_DUT"  # Change this to the device hostname.
   options {
-    insecure: false
-    skip_verify: false 
+    insecure: false 
+    skip_verify: false
     mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
@@ -46,28 +39,30 @@ duts {
   }
 
   # Options specific to gNMI.  Remove if not needed.
-   gnoi{
-     target: "172.27.177.68:9339"
-   }
-   gnmi {
-     target: "172.27.177.68:9339"
-   }
-   gribi{
-     target: "172.27.177.68:9340"
-   }
-   gnsi{
-     target: "172.27.177.68:9339"
-   }   
-   p4rt{
-     target: "172.27.177.68:9559"
-   }
-   ssh{
+  gnoi{
+    target: "172.27.177.68:9339"
+  }
+  gnmi {
+    target: "172.27.177.68:9339" 
+  }
+  gribi{
+    target: "172.27.177.68:9340"
+  }
+  ssh{
     target: "172.27.177.68:22"
     skip_verify: true
   }
-   # Before this binding can be used with a topology, add ports mapping
-  # from its topology ID to the actual port name on the device.
-  ports: {
+  p4rt{
+    target: "172.27.177.68:9559"
+  }
+  gnsi{
+    target: "172.27.177.68:9339"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+ ports: {
     id: "port1"
     name: "HundredGigE0/6/0/0/0"
     speed: S_100GB
@@ -143,6 +138,50 @@ duts {
     speed: S_100GB
   }
 }
+###################################### PEER 8202-32FH FLM29333C23 ########################################
+## Testbed details in https://ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5 8202-32FH)
+
+duts {
+  id: "peer"
+  name: "8202_PEER"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
+
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "172.27.177.69:9339"
+  }
+  gnmi {
+    target: "172.27.177.69:9339" 
+  }
+  gribi{
+    target: "172.27.177.69:9340"
+  }
+  ssh{
+    target: "172.27.177.69:22"
+  }
+  p4rt{
+    target: "172.27.177.69:9559"
+  }
+  gnsi{
+    target: "172.27.177.69:9339"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+   ports {
+    id: "port16"
+    name: "HundredGigE0/0/0/31/3"  # Change this to the actual port name.
+    speed: S_100GB   
+  }  
+}
 
 ates {
   id: "ate"
@@ -153,10 +192,10 @@ ates {
     # Change this to the Web UI hostname, if it differs from the Ixia
     # chassis name.
    #linux
-    target: "172.27.177.121"
-    skip_verify: true
-    username: "admin"
-    password: "admin"
+   target: "172.27.177.121"
+   skip_verify: true
+   username: "admin"
+   password: "admin"
   }
 
   # Before this binding can be used with a topology, add ports mapping
@@ -236,4 +275,9 @@ ates {
     name: "1/60" # Change this to the actual port name.
     speed: S_100GB  
   }
+  ports {
+   id: "port16"
+   name: "1/112"  # Change this to the actual port name.
+   speed: S_100GB   
+  }  
 }

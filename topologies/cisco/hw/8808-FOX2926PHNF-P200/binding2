@@ -18,6 +18,7 @@
 
 # Username: cafyauto
 # Password: cisco123
+# This Binding is with Port forwarding enabled on UCS: root@sjc-ucs-b4/SJ17labuser!
 
 options {
   username: "cafyauto"
@@ -46,24 +47,24 @@ duts {
   }
 
   # Options specific to gNMI.  Remove if not needed.
-   gnoi{
-     target: "172.27.177.68:9339"
-   }
-   gnmi {
-     target: "172.27.177.68:9339"
-   }
-   gribi{
-     target: "172.27.177.68:9340"
-   }
-   gnsi{
-     target: "172.27.177.68:9339"
-   }   
-   p4rt{
-     target: "172.27.177.68:9559"
-   }
-   ssh{
-    target: "172.27.177.68:22"
+  gnoi{
+    target: "172.27.177.111:48800"
+  }
+  gnmi {
+    target: "172.27.177.111:48800" 
+  }
+  gribi{
+    target: "172.27.177.111:48800"
+  }
+  ssh{
+    target: "172.27.177.111:48022"
     skip_verify: true
+  }
+  p4rt{
+    target: "172.27.177.111:48800"
+  }
+  gnsi{
+    target: "172.27.177.111:48800"
   }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.

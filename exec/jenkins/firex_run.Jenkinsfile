@@ -21,7 +21,7 @@ def test_revision_params = ['Test branch', 'Test PR', 'Test commit hash']
 def test_override_params = ['Test repository', 'Test args'] + test_revision_params
 
 def forbidden_params_per_chain = [
-    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs'] + testsuite_filters_params + test_override_params,
+    Nightly: ['Testbeds', 'Interactive Mode', 'Pause Run', 'Diff file', 'SMUs', 'Max Reruns'] + testsuite_filters_params + test_override_params,
     CulpritFinder: ['Image Path'],
     B4FeatureCoverageRunTests: [],
     RunTests: []
@@ -113,6 +113,9 @@ pipeline {
         separator(sectionHeader: "Reporting")
         persistentString(name: 'Email CC', defaultValue: '', description: '', trim: true)
         persistentString(name: 'Run Reason', defaultValue: '', description: '', trim: true)
+
+        separator(sectionHeader: "Jenkins Job")
+        persistentString(name: 'Max Reruns', defaultValue: '', description: 'Maximum number of times to rerun the job if there are failed tests.', trim: true)
 
         separator(sectionHeader: "Other")
         persistentBoolean(name: 'Cisco Insta Triage', defaultValue: true, description: 'Includes Cisco Insta Triage plugin webdt_cit.py,webdt_at.py')
@@ -563,6 +566,37 @@ pipeline {
     }
 
     post {
+        success {
+            script {
+                if(firex_id && params['Max Reruns']) {
+                    def reruns = 0
+                    try {
+                        reruns = params['Max Reruns'].toInteger()
+                    } catch (Exception e) {
+                        echo "Warning: Max Reruns parameter is not a valid integer. Defaulting reruns to 0."
+                    }
+                    
+                    if(reruns > 0) {
+                        build job: "${env.JOB_NAME}", 
+                            wait: false,
+                            propagate: false,
+                            parameters: [
+                                string(name: 'Testsuites', value: "failed@${firex_id}"),
+                                string(name: 'Max Reruns', value: "${reruns - 1}")
+                            ]
+                    }
+                }
+            }
+        }
+
+        aborted {
+            script {
+                if(firex_id) {
+                    sh "/auto/firex/bin/firex kill --force --uid ${firex_id} || 1"
+                }
+            }
+        }
+
         always {
             script {
                 withEnv(['JENKINS_NODE_COOKIE=dontkill']) {
@@ -585,14 +619,6 @@ pipeline {
             
             dir("${workspace}@script") {
                 deleteDir()
-            }
-        }
-
-        aborted {
-            script {
-                if(firex_id) {
-                    sh "/auto/firex/bin/firex kill --force --uid ${firex_id} || 1"
-                }
             }
         }
     }
@@ -772,7 +798,7 @@ def generateSuiteFromRun(String firex_id, boolean failed_only = false) {
     def out_file = "${env.WORKSPACE}/${firex_id}.yaml"
     def failed_only_arg = failed_only ? "--failed_only" : ""
     try {
-        sh "python3 exec/utils/firex/generate_failed_suite.py ${firex_id} ${out_file} ${failed_only_arg}"
+        sh "/auto/tftpboot-ottawa/b4/bin/firex_gen_failed_suites ${firex_id} ${out_file} ${failed_only_arg}"
         return out_file
     } catch (Exception e) {
         return null
@@ -791,7 +817,7 @@ def parseTestsuites(String testsuites_list) {
     def ts_firex = []
 
     for(f in suites){
-        if(f ==~ /(failed@)?FireX-\w+-\d{6}-\d{6}-\d{5}/) {
+        if(f ==~ /(failed@)?FireX-\w+-\d+-\d+-\d+/) {
             def failed_only = f.startsWith("failed@")
             f = f.replace("failed@", "")
             def suite = generateSuiteFromRun(f, failed_only) 

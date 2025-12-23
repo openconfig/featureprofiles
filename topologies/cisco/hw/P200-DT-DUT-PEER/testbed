@@ -6,7 +6,7 @@
 duts {
   id: "dut"
   vendor: CISCO
-  hardware_model: "CISCO-8818"
+  hardware_model: "CISCO-8808"
   ports {
     id: "port1"
     speed: S_100GB   
@@ -72,7 +72,7 @@ duts {
 duts {
   id: "peer"
   vendor: CISCO
-  hardware_model: "CISCO-8808"
+  hardware_model: "CISCO-8202"
   ports {
     id: "port16"
     speed: S_100GB   

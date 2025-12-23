@@ -169,7 +169,7 @@ duts {
   }
   ports {
     id: "port15"
-    name: "HundredGigE0/17/0/0"  # Change this to the actual port name.
+    name: "HundredGigE0/15/0/0"  # Change this to the actual port name.
     speed: S_100GB   
   }
 }
@@ -349,5 +349,5 @@ ates {
    id: "port16"
    name: "1/64"  # Change this to the actual port name.
    speed: S_100GB   
-  }  
+  }
 }

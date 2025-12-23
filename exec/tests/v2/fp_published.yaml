@@ -341,7 +341,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-    pr: 4371
     internal: false
     groups: [ancx,P0]
     otg_version:
@@ -405,6 +404,13 @@ tests:
       - agvarghe
     mustpass: true
     priority: 33
+  - name: gNMI-1.6 (System gRPC Servers running in more than one network-instance)
+    path: feature/gnmi/tests/gnmi_ni_test
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 4786
+    priority: 33   
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
     args:
@@ -632,6 +638,8 @@ tests:
       - sprem
     mustpass: true
     priority: 1002
+    internal: false
+    pr: 4627
     testbeds:
       - 8808-2DUT
   - name: RT-1.2 (BGP Policy and Route Installation)
@@ -1747,14 +1755,6 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: DP-1.12 (ECN enabled traffic test)
-    path: feature/qos/ecn/otg_tests/ecn_enabled_traffic_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [daniel]
-
   # - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
   #   path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
   #   owners:
@@ -1820,12 +1820,14 @@ tests:
     groups: [newfnt]
 
   - name: MGT-1 (Management HA test)
-    path: blob/main/feature/system/management
+    path: feature/system/management/otg_tests/management_ha_test
     owners:
       - mananpat
     mustpass: false
     priority: 3
     groups: [newfnt]
+    internal: false
+    pr: 4820
 
   - name: MTU-1.4 (Large IP Packet through GRE/GUE tunnel Transmission)
     path: feature/mtu/largeippacket/otg_tests/large_ip_packet_gre_gue_tunnel_transmission
@@ -2252,6 +2254,10 @@ tests:
     pr: 4687    
     priority: 3
     groups: [newfnt]
+    otg_version:
+      controller: 1.40.0-15
+      hw: 1.40.0-5
+      gnmi: 1.40.3  
 
   - name: RT-7.7 (BGP Link Bandwidth Community - Set Bandwidth)
     path:  
@@ -2458,7 +2464,11 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    args:
+      - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'
+      - '-container_upgrade_tar="/auto/b4ws/container_img/cntrsrv-upgrade.tar"'    
     priority: 3
+    pr: 4825
     groups: [newfnt]
 
   - name: Container-2 (Container network connectivity tests)
@@ -2466,6 +2476,8 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    args:
+      - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'    
     priority: 3
     groups: [newfnt]    
 
@@ -2549,6 +2561,7 @@ tests:
     mustpass: false
     priority: 3
     timeout: 21000
+    pr: 4950
 
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates

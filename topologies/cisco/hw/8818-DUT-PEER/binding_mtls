@@ -61,20 +61,23 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9339"
   }
   gnmi {
-    target: "10.85.104.109:8818" 
+    target: "10.85.104.109:9339" 
   }
   gribi{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9340"
   }
   ssh{
     target: "10.85.104.109:22"
     skip_verify: true
   }
   p4rt{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9559"
+  }
+  gnsi{
+    target: "10.85.104.109:9339"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -152,7 +155,7 @@ duts {
   }
   ports {
     id: "port15"
-    name: "HundredGigE0/17/0/0"  # Change this to the actual port name.
+    name: "HundredGigE0/15/0/0"  # Change this to the actual port name.
     speed: S_100GB   
   }
 }
@@ -175,14 +178,14 @@ duts {
 # no shut
 #!
 
-#telnet: RP0 -  telnet 10.85.72.15 2001
-#telnet: RP1 -  telnet 10.85.72.15 2002
+#telnet: RP0 -  telnet 10.85.83.148 2001
+#telnet: RP1 -  telnet 10.85.83.148 20xx
 
 ##Exec server:
-#ssh ott1lab-as2
+#ssh ott1lab-as2 - old
 
 ## Consoe server:
-# telnet 10.85.72.15
+# telnet 10.85.83.148
 # Pass1: lab
 # Pass2: lab
 
@@ -211,27 +214,30 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.72.49:8808"
+    target: "10.85.104.110:9339"
   }
   gnmi {
-    target: "10.85.72.49:8808"
+    target: "10.85.104.110:9339" 
   }
   gribi{
-    target: "10.85.72.49:8808"
+    target: "10.85.104.110:9340"
   }
   ssh{
-    target: "10.85.72.49:22"
+    target: "10.85.104.110:22"
     skip_verify: true
   }
   p4rt{
-    target: "10.85.72.49:8808"
+    target: "10.85.104.110:9559"
+  }
+  gnsi{
+    target: "10.85.104.110:9339"
   }
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
    ports {
     id: "port16"
-    name: "HundredGigE0/7/0/8"  # Change this to the actual port name.
+    name: "HundredGigE0/0/0/0"  # Change this to the actual port name.
     speed: S_100GB   
   }  
 }

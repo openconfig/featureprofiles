@@ -63,20 +63,23 @@ duts {
   }
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9339"
   }
   gnmi {
-    target: "10.85.104.109:8818" 
+    target: "10.85.104.109:9339" 
   }
   gribi{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9340"
   }
   ssh{
     target: "10.85.104.109:22"
     skip_verify: true
   }
   p4rt{
-    target: "10.85.104.109:8818"
+    target: "10.85.104.109:9559"
+  }
+  gnsi{
+    target: "10.85.104.109:9339"
   }
 
 # Before this binding can be used with a topology, add ports mapping
@@ -163,22 +166,22 @@ ates {
   }
   ports {
     id: "port5"
-    name: "1/53" # Change this to the actual port name.
+    name: "1/60" # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port6"
-    name: "1/54"  # Change this to the actual port name.
+    name: "1/69"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
     id: "port7"
-    name: "1/55"  # Change this to the actual port name.
+    name: "1/70"  # Change this to the actual port name.
     speed: S_100GB   
   }
   ports {
    id: "port8"
-   name: "1/56"  # Change this to the actual port name.
+   name: "1/71"  # Change this to the actual port name.
    speed: S_100GB   
   }
 }

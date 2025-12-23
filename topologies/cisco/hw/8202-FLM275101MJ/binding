@@ -33,6 +33,11 @@
 options {
   username: "cafyauto"
   password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
 }
 
 duts {
@@ -40,31 +45,35 @@ duts {
   vendor: CISCO
   hardware_model: "CISCO-8202"
   name: "8202_DUT"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
     insecure: false 
-    skip_verify: true
+    skip_verify: false
+    mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
   }
 
   # Options specific to gNMI.  Remove if not needed.
    gnoi{
-     target: "10.85.84.225:47202"
+     target: "10.85.84.159:57400"
    }
    gnmi {
-     target: "10.85.84.225:47202"
+     target: "10.85.84.159:57400"
    }
    gribi{
-     target: "10.85.84.225:47202"
+     target: "10.85.84.159:57400"
    }
    p4rt{
-     target: "10.85.84.225:47202"
+     target: "10.85.84.159:57400"
    }
    ssh{
-     target: "10.85.84.225:47022"
+     target: "10.85.84.159:22"
    }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
