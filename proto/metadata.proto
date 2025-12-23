@@ -1069,7 +1069,7 @@ message Metadata {
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
 
-    // Device doesnot support non standard grpc port
+    // Device does not  support the IANA assigned gRPC port for g* services
     bool non_standard_grpc_port = 359;
 
     // Reserved field numbers and identifiers.
