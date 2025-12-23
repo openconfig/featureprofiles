@@ -531,9 +531,9 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
    system profile ngpr
    `
-
-   aristaQOSTcamIn = `
+	aristaQOSTcamIn = `
    hardware counter feature qos in
+   !
    `
 )
 
