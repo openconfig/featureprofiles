@@ -168,9 +168,9 @@ testbeds:
     baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
     otg:
       host: ott-ucs1-b4
-      controller_port: 48818
-      gnmi_port: 58818
-      rest_port: 38818
+      controller_port: 49818
+      gnmi_port: 59818
+      rest_port: 39818
     godhcpd:
       url: http://ott-ucs1-b4:8001
       mgmt_ip: 1:1:1:1::1/64
