@@ -1472,10 +1472,8 @@ func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType s
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	features := []cfgplugins.FeatureType{
-		cfgplugins.FeatureVrfSelectionExtended,
-		cfgplugins.FeaturePolicyForwarding,
-		cfgplugins.FeatureEnableAFTSummaries,
-		cfgplugins.FeatureMplsTracking,
+		cfgplugins.FeatureNGPR,
+		cfgplugins.FeatureQOSIn,
 	}
 	for _, feature := range features {
 		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)

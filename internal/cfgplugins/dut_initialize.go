@@ -34,6 +34,7 @@ const (
 	FeatureQOSCounters
 	FeatureEnableAFTSummaries
 	FeatureNGPR
+	FeatureQOSIn
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -530,6 +531,10 @@ hardware tcam
          packet ipv4 vxlan forwarding bridged decap
    system profile ngpr
    `
+
+   aristaQOSTcamIn = `
+      hardware counter feature qos in
+   `
 )
 
 var (
@@ -540,6 +545,7 @@ var (
 		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
 		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
 		FeatureNGPR:                 aristaNGPRTcamProfile,
+		FeatureQOSIn:                aristaQOSTcamIn,
 	}
 )
 
