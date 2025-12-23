@@ -15,6 +15,7 @@ platform_exceptions: {
     fabric_drop_counter_unsupported: true
     qos_voq_drop_counter_unsupported: true
     qos_inqueue_drop_counter_unsupported: true
+    interface_counters_in_unknown_protos_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION
