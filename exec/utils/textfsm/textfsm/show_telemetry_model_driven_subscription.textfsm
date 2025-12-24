@@ -1,0 +1,115 @@
+Value Required SUBSCRIPTION_NAME (\S+)
+Value SUBSCRIPTION_ID (\d+)
+Value STATE (\S+)
+Value List SENSOR_GROUP_ID (\S+)
+Value List SAMPLE_INTERVAL (\d+)
+Value List HEARTBEAT_INTERVAL (\S+)
+Value List SENSOR_PATH (.+)
+Value List SENSOR_PATH_STATE (\S+)
+Value DEST_GROUP_ID (\S+)
+Value DEST_IP (\S+)
+Value DEST_PORT (\d+)
+Value DSCP_QOS (\S+)
+Value COMPRESSION (\S+)
+Value ENCODING ([\w-]+)
+Value TRANSPORT (\S+)
+Value DEST_STATE (\S+)
+Value TLS_MUTUAL (\S+)
+Value TOTAL_BYTES_SENT (\d+)
+Value TOTAL_PACKETS_SENT (\d+)
+Value LAST_SENT_TIME (.+)
+Value DEST_ENDPOINT (\d+)
+Value INITIAL_UPDATES (\S+)
+Value List COLLECTION_ID (\d+)
+Value List COLLECTION_SAMPLE_INTERVAL (\d+)
+Value List COLLECTION_HEARTBEAT (\S+)
+Value List NUM_COLLECTION (\d+)
+Value List COLLECTION_PATH (.+)
+
+Start
+  ^Subscription:\s+${SUBSCRIPTION_NAME}\s*$ -> SubscriptionBody
+  ^\s*$
+  ^[A-Z][a-z]{2}\s+[A-Z][a-z]{2}\s+\d+\s+\d+:\d+:\d+
+  ^. -> Ignore
+
+SubscriptionBody
+  ^Subscription:\s+\S+ -> Continue.Record
+  ^Subscription:\s+${SUBSCRIPTION_NAME}\s*$ -> SubscriptionBody
+  ^Subscription ID:\s+${SUBSCRIPTION_ID}\s*$
+  ^-+\s*$
+  ^\s+State:\s+${STATE}\s*$
+  ^\s+Sensor groups:\s*$ -> SensorGroups
+  ^\s+Destination Groups:\s*$ -> DestinationGroups
+  ^\s+Collection Groups:\s*$ -> CollectionGroups
+  ^\s*$
+  ^. -> Ignore
+  ^\s+Sensor groups:\s*$ -> SensorGroups
+  ^\s+Destination Groups:\s*$ -> DestinationGroups
+  ^\s+Collection Groups:\s*$ -> CollectionGroups
+  ^\s*$
+  ^. -> Ignore
+
+SensorGroups
+  ^\s+Id:\s+${SENSOR_GROUP_ID}\s*$
+  ^\s+Sample Interval:\s+${SAMPLE_INTERVAL}\s+ms\s*$
+  ^\s+Heartbeat Interval:\s+${HEARTBEAT_INTERVAL}\s*$
+  ^\s+Sensor Path:\s+${SENSOR_PATH}\s*$
+  ^\s+Sensor Path State:\s+${SENSOR_PATH_STATE}\s*$
+  ^\s+Destination Groups:\s*$ -> DestinationGroups
+  ^\s*$
+  ^. -> Ignore
+
+DestinationGroups
+  ^\s+Group Id:\s+${DEST_GROUP_ID}\s*$
+  ^\s+Destination IP:\s+${DEST_IP}\s*$
+  ^\s+Destination Port:\s+${DEST_PORT}\s*$
+  ^\s+DSCP/Qos setting:\s+${DSCP_QOS}\s*$
+  ^\s+Compression:\s+${COMPRESSION}\s*$
+  ^\s+Encoding:\s+${ENCODING}\s*$
+  ^\s+Transport:\s+${TRANSPORT}\s*$
+  ^\s+State:\s+${DEST_STATE}\s*$
+  ^\s+TLS-mutual:\s+${TLS_MUTUAL}\s*$
+  ^\s+Total bytes sent:\s+${TOTAL_BYTES_SENT}\s*$
+  ^\s+Total packets sent:\s+${TOTAL_PACKETS_SENT}\s*$
+  ^\s+Last Sent time:\s+${LAST_SENT_TIME}\s*$
+  ^\s+Destination endpoint:\s+${DEST_ENDPOINT}\s*$
+  ^\s+Initial updates:\s+${INITIAL_UPDATES}\s*$
+  ^\s+Collection Groups:\s*$ -> CollectionGroups
+  ^\s*$
+  ^. -> Ignore
+
+CollectionGroups
+  ^Subscription:\s+\S+ -> Continue.Record
+  ^Subscription:\s+${SUBSCRIPTION_NAME}\s*$ -> SubscriptionBody
+  ^\s+--+\s*$
+  ^\s+Id:\s+${COLLECTION_ID}\s*$
+  ^\s+Sample Interval:\s+${COLLECTION_SAMPLE_INTERVAL}\s+ms\s*$
+  ^\s+Heartbeat Interval:\s+${COLLECTION_HEARTBEAT}\s*$
+  ^\s+Heartbeat always:
+  ^\s+Encoding:
+  ^\s+Num of collection:\s+${NUM_COLLECTION}\s*$
+  ^\s+Incremental updates:
+  ^\s+Collection time:
+  ^\s+Total time:
+  ^\s+Total Deferred:
+  ^\s+Total Send Errors:
+  ^\s+Total Send Drops:
+  ^\s+Total Other Errors:
+  ^\s+No data Instances:
+  ^\s+Initial updates:
+  ^\s+Last Collection Start:
+  ^\s+Last Collection End:
+  ^\s+Collections:
+  ^\s+Collection splits:
+  ^\s+Last collection max:
+  ^\s+Sensor Path:\s+${COLLECTION_PATH}\s*$
+  ^\s+Bundle:
+  ^\s*$
+  ^RP/\d+
+  ^[A-Z][a-z]{2}\s+[A-Z][a-z]{2}
+  ^. -> Ignore
+
+Ignore
+  ^.* -> Ignore
+
+

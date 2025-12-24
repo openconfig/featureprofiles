@@ -1,0 +1,246 @@
+Tue Dec  2 07:35:16.522 EST
+Subscription:  GNMI__3014750203302233861
+Subscription ID:  1
+-------------
+  State:       ACTIVE
+  Sensor groups:
+  Id: GNMI__3014750203302233861_0
+    Sample Interval:      10000 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/available-pct
+    Sensor Path State:    Resolved
+  Id: GNMI__3014750203302233861_1
+    Sample Interval:      10000 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/consumed-capacity
+    Sensor Path State:    Resolved
+  Id: GNMI__3014750203302233861_34
+    Sample Interval:      0 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:network-instances/network-instance/protocols/protocol/isis/interfaces/interface[interface-id=*]/levels/level/afi-safi/af/state/metric
+    Sensor Path State:    Resolved
+  Id: GNMI__3014750203302233861_35
+    Sample Interval:      0 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:system/state/software-version
+    Sensor Path State:    Resolved
+
+  Destination Groups:
+  Group Id: GNMI_1001
+    Destination IP:       10.85.104.103
+    Destination Port:     47824
+    DSCP/Qos setting:     CS4
+    Compression:          gzip
+    Encoding:             gnmi-json
+    Transport:            dialin
+    State:                Active
+    TLS-mutual:           True
+    Total bytes sent:     21861323017
+    Total packets sent:   53312334
+    Last Sent time:       2025-12-02 07:35:16.1408675985 -0500
+    Destination endpoint: 2001
+    Initial updates:      28/28
+
+  Collection Groups:
+  ------------------
+    Id: 1
+    Sample Interval:      10000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    17971
+    Incremental updates:  0
+    Collection time:      Min:     9 ms Max: 19233 ms
+    Total time:           Min:    16 ms Avg:    43 ms Max: 21433 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    17971
+    Initial updates:      2001(Y)
+    Last Collection Start:2025-12-02 07:35:16.1408142985 -0500
+    Last Collection End:  2025-12-02 07:35:16.1408178985 -0500
+    Collections:          17971
+    Collection splits:    0
+    Last collection max:  2025-11-30 05:38:21.1981805417 -0500
+    Sensor Path:          openconfig:components/component{integrated-circuit/backplane-facing-capacity/state/available-pct#integrated-circuit/backplane-facing-capacity/state/consumed-capacity#integrated-circuit/backplane-facing-capacity/state/total#integrated-circuit/backplane-facing-capacity/state/total-operational-capacity}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+    Id: 2
+    Sample Interval:      10000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    17984
+    Incremental updates:  0
+    Collection time:      Min:     3 ms Max:   186 ms
+    Total time:           Min:     4 ms Avg:    17 ms Max:   193 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    0
+    Initial updates:      2001(Y)
+    Last Collection Start:2025-12-02 07:35:10.1402915985 -0500
+    Last Collection End:  2025-12-02 07:35:10.1402928985 -0500
+    Collections:          17984
+    Collection splits:    0
+    Last collection max:  2025-11-30 17:43:44.2555320457 -0500
+    Sensor Path:          openconfig:interfaces/interface/state{counters/in-broadcast-pkts#counters/in-discards#counters/in-errors#counters/in-fcs-errors#counters/in-multicast-pkts#counters/in-octets#counters/in-unicast-pkts#counters/out-broadcast-pkts#counters/out-discards#counters/out-errors#counters/out-multicast-pkts#counters/out-octets#counters/out-unicast-pkts}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+    Id: 3
+    Sample Interval:      10000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    17985
+    Incremental updates:  0
+    Collection time:      Min:     3 ms Max:   824 ms
+    Total time:           Min:     3 ms Avg:     3 ms Max:   824 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    0
+    Initial updates:      2001(Y)
+    Last Collection Start:2025-12-02 07:35:16.1408145985 -0500
+    Last Collection End:  2025-12-02 07:35:16.1408148985 -0500
+    Collections:          17985
+    Collection splits:    0
+    Last collection max:  2025-11-30 10:40:03.2904030233 -0500
+    Sensor Path:          openconfig:qos/interfaces/interface/output/queues/queue{state/dropped-pkts#state/transmit-octets#state/transmit-pkts}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+Subscription:  GNMI__7223058557811989854
+Subscription ID:  2
+-------------
+  State:       ACTIVE
+  Sensor groups:
+  Id: GNMI__7223058557811989854_0
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:components/component/controller-card/state/power-admin-state
+    Sensor Path State:    Resolved
+  Id: GNMI__7223058557811989854_1
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Sensor Path:          openconfig:components/component/cpu/utilization/state/avg
+    Sensor Path State:    Resolved
+
+  Destination Groups:
+  Group Id: GNMI_1002
+    Destination IP:       10.85.104.103
+    Destination Port:     47820
+    DSCP/Qos setting:     CS4
+    Compression:          gzip
+    Encoding:             gnmi-json
+    Transport:            dialin
+    State:                Active
+    TLS-mutual:           True
+    Total bytes sent:     130910373300
+    Total packets sent:   211581260
+    Last Sent time:       2025-12-02 07:35:02.1394768985 -0500
+    Destination endpoint: 2002
+    Initial updates:      59/59
+
+  Collection Groups:
+  ------------------
+    Id: 29
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    5994
+    Incremental updates:  0
+    Collection time:      Min:     6 ms Max:   400 ms
+    Total time:           Min:     6 ms Avg:    19 ms Max:   400 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    0
+    Initial updates:      2002(Y)
+    Last Collection Start:2025-12-02 07:34:52.1384698985 -0500
+    Last Collection End:  2025-12-02 07:34:52.1384718985 -0500
+    Collections:          5994
+    Collection splits:    0
+    Last collection max:  2025-11-30 21:20:20.2667149569 -0500
+    Sensor Path:          openconfig:components/component/controller-card{state/power-admin-state}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+    Id: 30
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    5995
+    Incremental updates:  0
+    Collection time:      Min:    10 ms Max:   990 ms
+    Total time:           Min:    10 ms Avg:    20 ms Max:   990 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    4
+    Initial updates:      2002(Y)
+    Last Collection Start:2025-12-02 07:34:58.1390485985 -0500
+    Last Collection End:  2025-12-02 07:34:58.1390498985 -0500
+    Collections:          5995
+    Collection splits:    0
+    Last collection max:  2025-12-01 22:08:59.1791133353 -0500
+    Sensor Path:          openconfig:components/component{cpu/utilization/state/avg#cpu/utilization/state/instant}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+    Id: 31
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    5995
+    Incremental updates:  0
+    Collection time:      Min:     3 ms Max:   383 ms
+    Total time:           Min:     6 ms Avg:    12 ms Max:   383 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    0
+    Initial updates:      2002(Y)
+    Last Collection Start:2025-12-02 07:34:58.1390485985 -0500
+    Last Collection End:  2025-12-02 07:34:58.1390492985 -0500
+    Collections:          5995
+    Collection splits:    0
+    Last collection max:  2025-11-30 09:22:26.2542826529 -0500
+    Sensor Path:          openconfig:components/component/fabric{state/power-admin-state}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0
+
+    Id: 32
+    Sample Interval:      30000 ms
+    Heartbeat Interval:   NA
+    Heartbeat always:     False
+    Encoding:             gnmi-json
+    Num of collection:    5995
+    Incremental updates:  0
+    Collection time:      Min:     6 ms Max:   387 ms
+    Total time:           Min:     6 ms Avg:   196 ms Max:  3220 ms
+    Total Deferred:       0
+    Total Send Errors:    0
+    Total Send Drops:     0
+    Total Other Errors:   0
+    No data Instances:    0
+    Initial updates:      2002(Y)
+    Last Collection Start:2025-12-02 07:34:58.1390515985 -0500
+    Last Collection End:  2025-12-02 07:34:58.1390525985 -0500
+    Collections:          5995
+    Collection splits:    0
+    Last collection max:  2025-11-30 09:22:27.2543166529 -0500
+    Sensor Path:          openconfig:components/component/fan{state/speed}
+
+      Bundle:   Start: 0 Pending: 0 No data: 0 End: 0

@@ -1,0 +1,145 @@
+[
+  {
+    "COLLECTION_HEARTBEAT": [
+      "NA",
+      "NA",
+      "NA"
+    ],
+    "COLLECTION_ID": [
+      "1",
+      "2",
+      "3"
+    ],
+    "COLLECTION_PATH": [
+      "openconfig:components/component{integrated-circuit/backplane-facing-capacity/state/available-pct#integrated-circuit/backplane-facing-capacity/state/consumed-capacity#integrated-circuit/backplane-facing-capacity/state/total#integrated-circuit/backplane-facing-capacity/state/total-operational-capacity}",
+      "openconfig:interfaces/interface/state{counters/in-broadcast-pkts#counters/in-discards#counters/in-errors#counters/in-fcs-errors#counters/in-multicast-pkts#counters/in-octets#counters/in-unicast-pkts#counters/out-broadcast-pkts#counters/out-discards#counters/out-errors#counters/out-multicast-pkts#counters/out-octets#counters/out-unicast-pkts}",
+      "openconfig:qos/interfaces/interface/output/queues/queue{state/dropped-pkts#state/transmit-octets#state/transmit-pkts}"
+    ],
+    "COLLECTION_SAMPLE_INTERVAL": [
+      "10000",
+      "10000",
+      "10000"
+    ],
+    "COMPRESSION": "gzip",
+    "DEST_ENDPOINT": "2001",
+    "DEST_GROUP_ID": "GNMI_1001",
+    "DEST_IP": "10.85.104.103",
+    "DEST_PORT": "47824",
+    "DEST_STATE": "Active",
+    "DSCP_QOS": "CS4",
+    "ENCODING": "gnmi-json",
+    "HEARTBEAT_INTERVAL": [
+      "NA",
+      "NA",
+      "NA",
+      "NA"
+    ],
+    "INITIAL_UPDATES": "28/28",
+    "LAST_SENT_TIME": "2025-12-02 07:35:16.1408675985 -0500",
+    "NUM_COLLECTION": [
+      "17971",
+      "17984",
+      "17985"
+    ],
+    "SAMPLE_INTERVAL": [
+      "10000",
+      "10000",
+      "0",
+      "0"
+    ],
+    "SENSOR_GROUP_ID": [
+      "GNMI__3014750203302233861_0",
+      "GNMI__3014750203302233861_1",
+      "GNMI__3014750203302233861_34",
+      "GNMI__3014750203302233861_35"
+    ],
+    "SENSOR_PATH": [
+      "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/available-pct",
+      "openconfig:components/component[name=*]/integrated-circuit/backplane-facing-capacity/state/consumed-capacity",
+      "openconfig:network-instances/network-instance/protocols/protocol/isis/interfaces/interface[interface-id=*]/levels/level/afi-safi/af/state/metric",
+      "openconfig:system/state/software-version"
+    ],
+    "SENSOR_PATH_STATE": [
+      "Resolved",
+      "Resolved",
+      "Resolved",
+      "Resolved"
+    ],
+    "STATE": "ACTIVE",
+    "SUBSCRIPTION_ID": "1",
+    "SUBSCRIPTION_NAME": "GNMI__3014750203302233861",
+    "TLS_MUTUAL": "True",
+    "TOTAL_BYTES_SENT": "21861323017",
+    "TOTAL_PACKETS_SENT": "53312334",
+    "TRANSPORT": "dialin"
+  },
+  {
+    "COLLECTION_HEARTBEAT": [
+      "NA",
+      "NA",
+      "NA",
+      "NA"
+    ],
+    "COLLECTION_ID": [
+      "29",
+      "30",
+      "31",
+      "32"
+    ],
+    "COLLECTION_PATH": [
+      "openconfig:components/component/controller-card{state/power-admin-state}",
+      "openconfig:components/component{cpu/utilization/state/avg#cpu/utilization/state/instant}",
+      "openconfig:components/component/fabric{state/power-admin-state}",
+      "openconfig:components/component/fan{state/speed}"
+    ],
+    "COLLECTION_SAMPLE_INTERVAL": [
+      "30000",
+      "30000",
+      "30000",
+      "30000"
+    ],
+    "COMPRESSION": "gzip",
+    "DEST_ENDPOINT": "2002",
+    "DEST_GROUP_ID": "GNMI_1002",
+    "DEST_IP": "10.85.104.103",
+    "DEST_PORT": "47820",
+    "DEST_STATE": "Active",
+    "DSCP_QOS": "CS4",
+    "ENCODING": "gnmi-json",
+    "HEARTBEAT_INTERVAL": [
+      "NA",
+      "NA"
+    ],
+    "INITIAL_UPDATES": "59/59",
+    "LAST_SENT_TIME": "2025-12-02 07:35:02.1394768985 -0500",
+    "NUM_COLLECTION": [
+      "5994",
+      "5995",
+      "5995",
+      "5995"
+    ],
+    "SAMPLE_INTERVAL": [
+      "30000",
+      "30000"
+    ],
+    "SENSOR_GROUP_ID": [
+      "GNMI__7223058557811989854_0",
+      "GNMI__7223058557811989854_1"
+    ],
+    "SENSOR_PATH": [
+      "openconfig:components/component/controller-card/state/power-admin-state",
+      "openconfig:components/component/cpu/utilization/state/avg"
+    ],
+    "SENSOR_PATH_STATE": [
+      "Resolved",
+      "Resolved"
+    ],
+    "STATE": "ACTIVE",
+    "SUBSCRIPTION_ID": "2",
+    "SUBSCRIPTION_NAME": "GNMI__7223058557811989854",
+    "TLS_MUTUAL": "True",
+    "TOTAL_BYTES_SENT": "130910373300",
+    "TOTAL_PACKETS_SENT": "211581260",
+    "TRANSPORT": "dialin"
+  }
+]
