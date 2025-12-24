@@ -169,15 +169,15 @@ func TestIngressInnerPktTTL(t *testing.T) {
 
 			// --- Matched case ---
 			ocPFParams.MatchTTL = tc.matchTTL
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, ocPFParams)
+			cfgplugins.NewPolicyForwardingMatchAndSetTTL(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
+			cfgplugins.NewPolicyForwardingMatchAndSetTTL(t, dut, tc.family, pf, ocPFParams)
 
 			matchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "matched-", tc.family), tc.matchSrcNet, tc.dstNet, tc.family, uint32(tc.matchTTL))
 			configPush(t, otg, otgConfig)
 			otgOperation(t, dut, ate, otg, otgConfig, matchFlow, tc.family, rewrittenIPTTL)
 
 			// --- Unmatched case ---
-			cfgplugins.PolicyForwardingConfig(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
+			cfgplugins.NewPolicyForwardingMatchAndSetTTL(t, dut, tc.family, pf, cfgplugins.OcPolicyForwardingParams{PolicyName: policyForwardingName, RemovePolicy: true})
 			configureVRFStaticRoute(t, dut, batch, vrfName, tc.vrfIPPrefix, nexthopGroupName, tc.protoStr)
 			unMatchFlow := createFlow(t, otgConfig, fmt.Sprintf("%s%s", "unMatched-", tc.family), tc.unMatchSrcNet, tc.dstNet, tc.family, uint32(tc.unMatchTTL))
 			configPush(t, otg, otgConfig)
@@ -229,12 +229,11 @@ func defaultOcPolicyForwardingParams() cfgplugins.OcPolicyForwardingParams {
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         "Agg1.10",
 		AppliedPolicyName:   "customer1",
-		ActionSetTTL:        true,
 		InterfaceName:       aggID1 + ".10",
 		MatchTTL:            matchTTL,
-		RwTTL:               rewrittenIPTTL,
+		ActionSetTTL:        rewrittenIPTTL,
 		PolicyName:          policyForwardingName,
-		NHGName:             nexthopGroupName,
+		ActionNHGName:       nexthopGroupName,
 	}
 }
 
@@ -333,15 +332,17 @@ func configureDUTLag(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 // configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	hardwareVrfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureVrfSelectionExtended)
-	hardwarePfCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
-	hardwarePFTTLCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeatureTTLPolicyForwarding)
-	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
-		return
+	features := []cfgplugins.FeatureType{
+		cfgplugins.FeatureVrfSelectionExtended,
+		cfgplugins.FeaturePolicyForwarding,
+		cfgplugins.FeatureTTLPolicyForwarding,
 	}
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
-	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwarePFTTLCfg)
+	for _, feature := range features {
+		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
+		if hardwareInitCfg != "" {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+		}
+	}
 }
 
 // updateLagInterfaceDetails updates the IPv4/IPv6 addressing details on a LAG subinterface after a VRF has been configured.

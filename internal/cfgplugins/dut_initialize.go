@@ -34,7 +34,7 @@ const (
 	FeatureQOSCounters
 	FeatureEnableAFTSummaries
 	FeatureNGPR
-   FeatureTTLPolicyForwarding
+	FeatureTTLPolicyForwarding
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -532,7 +532,7 @@ hardware tcam
    system profile ngpr
    `
 
-   aristaTcamProfilePreserveTTL = `
+	aristaTcamProfilePreserveTTL = `
       hardware tcam
       profile customProfile
          system-rule overriding-action redirect
@@ -668,7 +668,7 @@ var (
 		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
 		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
 		FeatureNGPR:                 aristaNGPRTcamProfile,
-      FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
+		FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
 	}
 )
 
