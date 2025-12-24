@@ -203,7 +203,7 @@ ATE action:
 Verify:
 
 *   All packets should have TTL decremented to 0, dropped and ICMPv6 Time
-    Exceeded (Type 11) / Time to Live exceeded in Transit (Code 0) sent back to
+    Exceeded (Type 3) / Time to Live exceeded in Transit (Code 0) sent back to
     source address (ATE:Port1).
 
 ### RT-3.53.12: IPv6 traffic that should be GUE encapsulated but Hop Limit=1
