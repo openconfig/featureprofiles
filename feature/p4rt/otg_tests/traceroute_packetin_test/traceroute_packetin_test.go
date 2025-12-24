@@ -385,6 +385,8 @@ func TestPacketIn(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	t.Run("Create P4RT clients, start traffic, and validate packetins sent to leader", func(t *testing.T) {
 		electionID := uint64(100)
