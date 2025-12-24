@@ -343,7 +343,7 @@ paths:
 
 /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
 /defined-sets/prefix-sets/prefix-set/config/name
 /defined-sets/prefix-sets/prefix-set/config/mode
 /defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
