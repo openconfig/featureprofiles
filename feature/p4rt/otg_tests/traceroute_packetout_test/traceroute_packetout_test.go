@@ -238,7 +238,7 @@ func TestPacketOut(t *testing.T) {
 	if err := client.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
 		t.Fatalf("Could not initialize p4rt client: %v", err)
 	}
-	
+
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
 	otg := ate.OTG()
