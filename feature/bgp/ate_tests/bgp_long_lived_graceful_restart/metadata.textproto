@@ -45,4 +45,12 @@ platform_exceptions: {
     bgp_llgr_oc_undefined: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_AGGREGATION

@@ -50,3 +50,11 @@ platform_exceptions:  {
     isis_instance_enabled_required: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
