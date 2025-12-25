@@ -35,7 +35,7 @@ platform_exceptions:  {
   deviations:  {
     ipv4_missing_enabled: true
     interface_ref_interface_id_format: true
-
+    interface_config_vrf_before_address: true
   }
 }
 platform_exceptions: {
