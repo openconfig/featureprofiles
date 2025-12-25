@@ -111,9 +111,9 @@ func assignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 	}
 	netInstIntf.Interface = ygot.String(intf.GetName())
 	netInstIntf.Subinterface = ygot.Uint32(si)
-	id := intf.GetName() + "." + fmt.Sprint(si)
-	if si == 0 && deviations.InterfaceConfigVRFBeforeAddress(d) {
-		id = intf.GetName()
+	id := intf.GetName()
+	if deviations.RequireRoutedSubinterface0(d) {
+		id = intf.GetName() + "." + fmt.Sprint(si)
 	}
 	netInstIntf.Id = ygot.String(id)
 	if intf.GetOrCreateSubinterface(si) != nil {
