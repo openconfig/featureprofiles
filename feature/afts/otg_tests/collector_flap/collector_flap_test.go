@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -78,6 +80,8 @@ const (
 	bgpRouteCountIPv4Default  = 2000
 	bgpRouteCountIPv6Default  = 1000
 	policyStatementID         = "id-1"
+	cpuPctThreshold           = 5.0
+	memPctThreshold           = 2.0
 )
 
 var (
@@ -105,10 +109,11 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	port1Name   = "port1"
-	port2Name   = "port2"
+	wantIPv4NHs         = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs         = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	port1Name           = "port1"
+	port2Name           = "port2"
+	ciscoProcsToMonitor = []string{"emsd", "rib_mgr", "bgp_epe", "fib_mgr"}
 )
 
 // routeCount returns the expected route count for the given dut and IP family.
@@ -529,7 +534,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			if !ok {
 				return fmt.Errorf("Next hop %d not found in AFT for next-hop group: %d for prefix: %s", nhID, nhgID, pfix)
 			}
-			if nh.IntfName == "" {
+			if !deviations.SkipInterfaceNameCheck(tc.dut) && nh.IntfName == "" {
 				return fmt.Errorf("Next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 			}
 			if nh.IP == "" {
@@ -571,31 +576,185 @@ func (tc *testCase) verifyAFTConsistency(t *testing.T, aftSession1, aftSession2 
 	return aft1
 }
 
+type usageRecord struct {
+	time      time.Time
+	process   string
+	metric    string
+	before    float64
+	after     float64
+	changePct float64
+	desc      string
+}
+
+type usageHistory struct {
+	mu      sync.Mutex
+	records []usageRecord
+}
+
+func (h *usageHistory) add(rec usageRecord) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, rec)
+}
+
+func (h *usageHistory) print(t *testing.T) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.records) == 0 {
+		return
+	}
+
+	sort.Slice(h.records, func(i, j int) bool {
+		if h.records[i].metric != h.records[j].metric {
+			return h.records[i].metric < h.records[j].metric
+		}
+		return h.records[i].time.Before(h.records[j].time)
+	})
+
+	t.Log("Usage Summary Table:")
+	t.Logf("%-25s | %-15s | %-10s | %-10s | %-10s | %-10s | %s", "Time", "Process", "Metric", "Before", "After", "Change(%)", "Description")
+	t.Log("-----------------------------------------------------------------------------------------------------------------------------")
+	for _, r := range h.records {
+		t.Logf("%-25s | %-15s | %-10s | %-10.2f | %-10.2f | %-10.2f | %s",
+			r.time.Format("15:04:05.000"), r.process, r.metric, r.before, r.after, r.changePct, r.desc)
+	}
+}
+
 // checkMemoryUsage checks for memory increase and logs an error if it's above the threshold.
 // It returns the current memory usage.
-func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, memBefore uint64, desc string) uint64 {
+func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, memBefore uint64, desc string, procName ...string) uint64 {
 	t.Helper()
-	// TODO: Add memory usage check for Cisco, Juniper and Nokia device.
-	if dut.Vendor() != ondatra.ARISTA {
-		t.Logf("Skipping memory usage check for non-ARISTA device: %v.", dut.Vendor())
+	var memAfter uint64
+	// TODO: Add memory usage check for Default case.
+	pName := "system"
+	if len(procName) > 0 && procName[0] != "" {
+		pName = procName[0]
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Checking memory usage %s.", desc)
+		memAfter = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+	case ondatra.CISCO:
+		if pName == "system" {
+			t.Fatal("Process name must be provided for Cisco memory check.")
+		}
+		pid := getProcessPid(t, dut, pName)
+		t.Logf("Checking memory usage for %s process (PID: %d) %s.", pName, pid, desc)
+		memAfter = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).MemoryUtilization().State()))
+	default:
+		t.Logf("Skipping memory usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
 		return memBefore // Return previous value to not break chaining.
 	}
 
-	t.Logf("Checking memory usage %s.", desc)
-	memAfter := gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
-
+	var increase float64
 	if memBefore == 0 {
-		t.Log("Skipping memory usage check as initial memory usage was 0.")
-		return memAfter
-	}
-
-	increase := (float64(memAfter) - float64(memBefore)) / float64(memBefore) * 100
-	if increase > 2.0 {
-		t.Errorf("Memory usage increased by %.2f%%, which is more than the 2%% threshold.", increase)
+		increase = float64(memAfter)
 	} else {
-		t.Logf("Memory usage change is %.2f%%, which is within the 2%% threshold.", math.Max(0, increase))
+		increase = (float64(memAfter) - float64(memBefore)) / float64(memBefore) * 100
+	}
+	changePct := math.Max(0, increase)
+	if increase > memPctThreshold {
+		t.Errorf("Memory usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, memPctThreshold)
+	} else {
+		t.Logf("Memory usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, memPctThreshold)
+	}
+	if history != nil {
+		history.add(usageRecord{
+			time:      time.Now(),
+			process:   pName,
+			metric:    "Memory",
+			before:    float64(memBefore),
+			after:     float64(memAfter),
+			changePct: changePct,
+			desc:      desc,
+		})
 	}
 	return memAfter
+}
+
+// getProcessPid returns the PID of the given process name.
+func getProcessPid(t *testing.T, dut *ondatra.DUTDevice, procName string) uint64 {
+	t.Helper()
+	procs := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, p := range procs {
+		if p.GetName() == procName {
+			pid := p.GetPid()
+			t.Logf("Found %q process with PID: %d", procName, pid)
+			return pid
+		}
+	}
+	t.Fatalf("No process named %q found", procName)
+	return 0
+}
+
+// getCPUComponents returns the names of CPU components.
+func getCPUComponents(t *testing.T, dut *ondatra.DUTDevice) []string {
+	t.Helper()
+	cpus := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU)
+	if len(cpus) == 0 {
+		t.Fatalf("No CPU component found")
+	}
+	sort.Strings(cpus)
+	if len(cpus) > 1 {
+		t.Logf("Found %d CPU components: %v.", len(cpus), cpus)
+	}
+	return cpus
+}
+
+// checkCPUUsage checks for CPU increase and logs an error if it's above the threshold.
+// It returns the current CPU usage.
+func checkCPUUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, cpuBefore uint64, desc string, cpuComponent string, procName ...string) uint64 {
+	t.Helper()
+	var cpuAfter uint64
+	pName := "system"
+	if len(procName) > 0 && procName[0] != "" {
+		pName = procName[0]
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if cpuComponent == "" {
+			t.Fatal("cpuComponent must be provided for Arista CPU check.")
+		}
+		t.Logf("Checking CPU usage for component %s %s.", cpuComponent, desc)
+		cpuAfter = uint64(gnmi.Get(t, dut, gnmi.OC().Component(cpuComponent).Cpu().Utilization().Avg().State()))
+	case ondatra.CISCO:
+		if pName == "system" {
+			t.Fatal("Process name must be provided for Cisco CPU check.")
+		}
+		pid := getProcessPid(t, dut, pName)
+		t.Logf("Checking CPU usage for %s process (PID: %d) %s.", pName, pid, desc)
+		cpuAfter = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).CpuUtilization().State()))
+	default:
+		t.Logf("Skipping CPU usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
+		return cpuBefore // Return previous value to not break chaining.
+	}
+
+	var increase float64
+	if cpuBefore == 0 {
+		increase = float64(cpuAfter)
+	} else {
+		increase = (float64(cpuAfter) - float64(cpuBefore)) / float64(cpuBefore) * 100
+	}
+	changePct := math.Max(0, increase)
+	if increase > cpuPctThreshold {
+		t.Errorf("CPU usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, cpuPctThreshold)
+	} else {
+		t.Logf("CPU usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, cpuPctThreshold)
+	}
+	if history != nil {
+		history.add(usageRecord{
+			time:      time.Now(),
+			process:   pName,
+			metric:    "CPU",
+			before:    float64(cpuBefore),
+			after:     float64(cpuAfter),
+			changePct: changePct,
+			desc:      desc,
+		})
+	}
+	return cpuAfter
 }
 
 type testCase struct {
@@ -609,7 +768,13 @@ type testCase struct {
 func TestCollectorFlap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var memBaseline uint64 = 0
+	var aristaMemBaseline uint64
+	var aristaCPUBaselines map[string]uint64
+	var ciscoMemBaseline map[string]uint64
+	var ciscoCpuBaseline map[string]uint64
+	var cpuComponents []string
+	var history usageHistory
+
 	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
@@ -689,9 +854,22 @@ func TestCollectorFlap(t *testing.T) {
 		t.Errorf("Failed to verify IPv6 ISIS prefixes: %v", err)
 	}
 	t.Log("ISIS verification completed.")
-	// TODO: Add memory usage check for Cisco, Juniper and Nokia device.
+	// TODO: Add memory usage check for Juniper and Nokia device.
 	if dut.Vendor() == ondatra.ARISTA {
-		memBaseline = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		aristaMemBaseline = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		cpuComponents = getCPUComponents(t, dut)
+		aristaCPUBaselines = make(map[string]uint64)
+		for _, comp := range cpuComponents {
+			aristaCPUBaselines[comp] = uint64(gnmi.Get(t, dut, gnmi.OC().Component(comp).Cpu().Utilization().Avg().State()))
+		}
+	} else if dut.Vendor() == ondatra.CISCO {
+		ciscoMemBaseline = make(map[string]uint64)
+		ciscoCpuBaseline = make(map[string]uint64)
+		for _, procName := range ciscoProcsToMonitor {
+			pid := getProcessPid(t, dut, procName)
+			ciscoMemBaseline[procName] = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).MemoryUtilization().State()))
+			ciscoCpuBaseline[procName] = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).CpuUtilization().State()))
+		}
 	}
 	t.Log("Starting collector restart test, stopping collector 2 by canceling its context...")
 	cancelSession2() // This will cause the ListenUntil to stop.
@@ -729,7 +907,10 @@ func TestCollectorFlap(t *testing.T) {
 			for {
 				select {
 				case <-ticker.C:
-					checkMemoryUsage(t, dut, memBaseline, "during collector 2 convergence")
+					checkMemoryUsage(t, dut, &history, aristaMemBaseline, "during collector 2 convergence")
+					for _, comp := range cpuComponents {
+						checkCPUUsage(t, dut, &history, aristaCPUBaselines[comp], "during collector 2 convergence", comp, comp)
+					}
 				case <-memDone:
 					return
 				}
@@ -738,7 +919,41 @@ func TestCollectorFlap(t *testing.T) {
 		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
 		close(memDone)
 		memWg.Wait()
-		memBaseline = checkMemoryUsage(t, dut, memBaseline, "after collector 2 convergence")
+		aristaMemBaseline = checkMemoryUsage(t, dut, &history, aristaMemBaseline, "after collector 2 convergence")
+		for _, comp := range cpuComponents {
+			aristaCPUBaselines[comp] = checkCPUUsage(t, dut, &history, aristaCPUBaselines[comp], "after collector 2 convergence", comp, comp)
+		}
+	} else if dut.Vendor() == ondatra.CISCO {
+		var memWg sync.WaitGroup
+		memWg.Add(1)
+		memDone := make(chan struct{})
+		go func() {
+			defer memWg.Done()
+			ticker := time.NewTicker(5 * time.Second)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					for procName, memBase := range ciscoMemBaseline {
+						checkMemoryUsage(t, dut, &history, memBase, "during collector 2 convergence", procName)
+					}
+					for procName, cpuBase := range ciscoCpuBaseline {
+						checkCPUUsage(t, dut, &history, cpuBase, "during collector 2 convergence", "", procName)
+					}
+				case <-memDone:
+					return
+				}
+			}
+		}()
+		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
+		close(memDone)
+		memWg.Wait()
+		for procName, memBase := range ciscoMemBaseline {
+			ciscoMemBaseline[procName] = checkMemoryUsage(t, dut, &history, memBase, "after collector 2 convergence", procName)
+		}
+		for procName, cpuBase := range ciscoCpuBaseline {
+			ciscoCpuBaseline[procName] = checkCPUUsage(t, dut, &history, cpuBase, "after collector 2 convergence", "", procName)
+		}
 	} else {
 		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
 	}
@@ -756,4 +971,5 @@ func TestCollectorFlap(t *testing.T) {
 	if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv6, int(routeCount(dut, IPv6)), 2); err != nil {
 		t.Errorf("Failed to verify IPv6 BGP prefixes after collector 2 flap: %v", err)
 	}
+	history.print(t)
 }
