@@ -1290,3 +1290,25 @@ func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gn
 	}
 	gnmi.BatchUpdate(b, intPath, intf)
 }
+
+// VlanParams defines the parameters for configuring a VLAN.
+type VlanParams struct {
+	VlanID uint16
+}
+
+// ConfigureVlan configures the Vlan and remove the spanning-tree with ID.
+func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
+	t.Helper()
+	if !deviations.DeprecatedVlanID(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`vlan %[1]d
+			no spanning-tree vlan-id %[1]d`, cfg.VlanID)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
+		}
+	} else {
+		t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
+	}
+}
