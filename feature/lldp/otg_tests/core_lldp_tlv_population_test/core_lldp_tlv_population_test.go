@@ -96,7 +96,7 @@ func TestLLDPEnabled(t *testing.T) {
 
 	dutPeerState := lldpNeighbors{
 		systemName:    lldpSrc.systemName,
-		chassisId:     lldpSrc.macAddress,
+		chassisId:     macColonToDot(lldpSrc.macAddress),
 		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
 		portId:        lldpSrc.portName,
 		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
@@ -140,26 +140,25 @@ func TestLLDPDisabled(t *testing.T) {
 func configureDUT(t *testing.T, name string, lldpEnabled bool) (*ondatra.DUTDevice, *oc.Lldp) {
 	node := ondatra.DUT(t, name)
 	p := node.Port(t, portName)
-	d := &oc.Root{}
-	lldp := d.GetOrCreateLldp()
-
+	lldp := gnmi.OC().Lldp()
 	if !deviations.MissingSystemDescriptionConfigPath(node) {
 		gnmi.Replace(t, node, gnmi.OC().Lldp().SystemDescription().Config(), "DUT")
 	}
-
-	llint := lldp.GetOrCreateInterface(p.Name())
-	llint.SetName(p.Name())
-
-	llint.Enabled = ygot.Bool(true)
-	// Enable lldp at interface level
-	gnmi.Replace(t, node, gnmi.OC().Lldp().Interface(p.Name()).Config(), llint)
+	gnmi.Update(t, node, gnmi.OC().Interface(p.Name()).Config(), &oc.Interface{
+		Name:    ygot.String(p.Name()),
+		Enabled: ygot.Bool(true),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+	})
 	// Configure lldp at root level
-	gnmi.Replace(t, node, gnmi.OC().Lldp().Enabled().Config(), lldpEnabled)
-
+	gnmi.Replace(t, node, lldp.Enabled().Config(), lldpEnabled)
+	// Enable LLDP at the interface level (with name in config)
+	gnmi.Replace(t, node, lldp.Interface(p.Name()).Config(), &oc.Lldp_Interface{
+		Name:    ygot.String(p.Name()),
+		Enabled: ygot.Bool(true),
+	})
 	if deviations.InterfaceEnabled(node) {
 		gnmi.Replace(t, node, gnmi.OC().Interface(p.Name()).Enabled().Config(), true)
 	}
-
 	tsState := gnmi.Lookup(t, node, gnmi.OC().Lldp().State())
 	lldpState, isPresent := tsState.Val()
 	if isPresent {
@@ -330,7 +329,8 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 }
 
 func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
-	return neighbour.GetChassisId() == expLldpNeighbor.chassisId &&
+	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId ||
+		macColonToDot(neighbour.GetChassisId()) == expLldpNeighbor.chassisId) &&
 		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
@@ -363,4 +363,16 @@ func cliSetRequest(config string) *gpb.SetRequest {
 			},
 		}},
 	}
+}
+
+func macColonToDot(mac string) string {
+	// remove colons
+	mac = strings.ReplaceAll(mac, ":", "")
+	// make sure uppercase for consistency
+	mac = strings.ToUpper(mac)
+	// split into 3 groups of 4 hex digits
+	if len(mac) != 12 {
+		return ""
+	}
+	return mac[0:4] + "." + mac[4:8] + "." + mac[8:12]
 }
