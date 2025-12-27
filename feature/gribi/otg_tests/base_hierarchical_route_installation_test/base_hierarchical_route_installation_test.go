@@ -378,7 +378,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, name 
 	}
 	eth := flow.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
-	ethTag.SetName("EgressTrackingFlow").SetOffset(36).SetLength(12)
+	ethTag.SetName("EgressTrackingFlow").SetOffset(38).SetLength(10)
 	return flow
 }
 
