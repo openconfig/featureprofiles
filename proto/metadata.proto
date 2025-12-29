@@ -1069,8 +1069,13 @@ message Metadata {
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
 
+    // Device does not support interface counters in unknown protos
+    // Juniper: https://issuetracker.google.com/issues/461368936
+    bool interface_counters_in_unknown_protos_unsupported = 358;
+
     // Device that requires explicit config to support BGP RIB streaming
-    bool bgp_rib_streaming_config_required = 358;
+    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
+    bool bgp_rib_streaming_config_required = 359;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
