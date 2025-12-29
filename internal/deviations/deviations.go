@@ -1807,6 +1807,8 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 // an explicit config to support BGP RIB streaming through YANG path:
 //
 //	/network-instances/network-instance/protocols/protocol/bgp/rib
+//
+// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
 func BgpRibStreamingConfigRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRibStreamingConfigRequired()
 }
