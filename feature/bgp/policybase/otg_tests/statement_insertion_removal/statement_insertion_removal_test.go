@@ -226,6 +226,8 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 		if !deviations.SkipBgpSendCommunityType(dut) {
 			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
+		} else {
+			pg.SetSendCommunity(oc.Bgp_CommunityType_STANDARD)
 		}
 
 		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
