@@ -2,6 +2,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -136,15 +137,31 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+			if params.StaticNHGName == "gre_encap" {
+				if traffictype == string(TrafficTypeDS) {
+					nextHopGreConfig := new(strings.Builder)
+					fmt.Fprintf(nextHopGreConfig, "nexthop-group %s type gre\n", params.StaticNHGName)
+					fmt.Fprint(nextHopGreConfig, "   ttl 64\n")
+					fmt.Fprint(nextHopGreConfig, "   fec hierarchical\n")
+
+					for i, nexthop := range params.NHIPAddrs {
+						fmt.Fprintf(nextHopGreConfig, "   entry  %[1]d tunnel-destination %[2]s tunnel-source 10.235.143.%[1]d\n", i, nexthop)
+					}
+					fmt.Fprint(nextHopGreConfig, "!\n")
+					helpers.GnmiCLIConfig(t, dut, nextHopGreConfig.String())
+				}
+			} else {
+				switch TrafficType(traffictype) {
+				case TrafficTypeV4:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				case TrafficTypeDS:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
+				case TrafficTypeV6:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				case TrafficTypeMCV4:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+				}
 			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
@@ -167,6 +184,7 @@ type StaticNextHopGroupParams struct {
 	OuterIpv4Src2Def string
 	OuterDscpDef     uint8
 	OuterTTLDef      uint8
+	NHIPAddrs        []string
 
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
 
@@ -218,6 +236,7 @@ func configureNextHopGroups(t *testing.T, ni *oc.NetworkInstance, params StaticN
 
 // NextHopGroupConfigForMulticloud configures the interface next-hop-group config for multicloud.
 func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
