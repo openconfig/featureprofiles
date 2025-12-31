@@ -539,19 +539,22 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intfName = intfName + ".0"
+	}
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-	isisIntfLevelAfi.Metric = ygot.Uint32(200)
+	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+	isisIntfLevelAfiv4.Metric = ygot.Uint32(200)
+	isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
 	if deviations.ISISInterfaceAfiUnsupported(dut) {
 		isisIntf.Af = nil
 	}
 	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-		isisIntfLevelAfi.Enabled = nil
+		isisIntfLevelAfiv4.Enabled = nil
 	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
