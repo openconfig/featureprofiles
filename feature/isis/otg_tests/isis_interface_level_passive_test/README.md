@@ -41,7 +41,6 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/csnp-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/timers/config/lsp-pacing-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/level-number:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/passive:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-interval:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/timers/config/hello-multiplier:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/hello-authentication/config/auth-mode:
@@ -54,7 +53,6 @@ paths:
 
   ## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/state/passive:
-  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/state/passive:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv6-address:
