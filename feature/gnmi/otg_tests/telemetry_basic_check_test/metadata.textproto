@@ -58,3 +58,11 @@ platform_exceptions: {
     os_component_parent_is_chassis: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

@@ -45,3 +45,11 @@ platform_exceptions: {
     gribi_mac_override_static_arp_static_route: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
