@@ -689,7 +689,7 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 	return true
 }
 
-f// handleMultipathDeviation implements the deviation logic whether multipath config
+// handleMultipathDeviation implements the deviation logic whether multipath config
 // at the afisafi level is supported or not. It updates the sb with the necessary
 // configuration.
 func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig) error {

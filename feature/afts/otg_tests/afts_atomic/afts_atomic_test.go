@@ -317,11 +317,6 @@ func TestAtomic(t *testing.T) {
 	if deviations.LinkLocalInsteadOfNh(dut) {
 		ipv6NH = ipv6LinkLocalNH
 	}
-	// oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
-	// if dut.Vendor() == ondatra.CISCO {
-	// 	ipv6OneNH = map[string]bool{"fe80::200:2ff:fe02:202": true}
-	// 	oneLinkDownBGP = aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
-	// }
 	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6NH)
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
