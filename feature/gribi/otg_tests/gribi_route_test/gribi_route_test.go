@@ -326,6 +326,7 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, top gosnappi.Config, nbr
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4InnerDst).SetPrefix(32).SetCount(1)
+	bgpNeti1Bgp4PeerRoutes.Addresses().Add().SetAddress(ipv4OuterDst222).SetPrefix(32).SetCount(1)
 }
 
 func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
@@ -506,10 +507,9 @@ func configureGribiRoute(t *testing.T, dut *ondatra.DUTDevice, tcArgs *testArgs)
 
 	tcArgs.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(5)).WithIPAddress(atePort3.IPv4),
+			WithIndex(uint64(5)).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(5)).AddNextHop(uint64(5), uint64(1)),
-
 		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix("0.0.0.0/0").WithNextHopGroup(uint64(5)))
