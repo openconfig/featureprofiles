@@ -104,6 +104,21 @@ var (
 	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
+type testCase struct {
+	name string
+	dut  *ondatra.DUTDevice
+	ate  *ondatra.ATEDevice
+
+	// churn downs one or more ports to create churn.
+	churn func()
+	// stoppingCondition provides the expected prefixes after the churn.
+	stoppingCondition aftcache.PeriodicHook
+	// additionalVerification provides additional verification after churn, if any.
+	additionalVerification func(*aftcache.AFTStreamSession)
+	// revert restores the port(s) to the original state.
+	revert func()
+}
+
 func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	d := &oc.Root{}
@@ -281,19 +296,6 @@ func setOTGInterfaceState(t *testing.T, ate *ondatra.ATEDevice, portName string,
 	ate.OTG().SetControlState(t, portStateAction)
 }
 
-type testCase struct {
-	name string
-	dut  *ondatra.DUTDevice
-	ate  *ondatra.ATEDevice
-
-	// churn downs one or more ports to create churn.
-	churn func()
-	// stoppingConditions provides the expected prefixes after the churn.
-	stoppingConditions []aftcache.PeriodicHook
-	// revert restores the port(s) to the original state.
-	revert func()
-}
-
 func TestAtomic(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
@@ -315,6 +317,11 @@ func TestAtomic(t *testing.T) {
 	if deviations.LinkLocalInsteadOfNh(dut) {
 		ipv6NH = ipv6LinkLocalNH
 	}
+	// oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
+	// if dut.Vendor() == ondatra.CISCO {
+	// 	ipv6OneNH = map[string]bool{"fe80::200:2ff:fe02:202": true}
+	// 	oneLinkDownBGP = aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6OneNH)
+	// }
 	oneLinkDownBGP := aftcache.InitialSyncStoppingCondition(t, dut, bgpPrefixes, ipv4OneNH, ipv6NH)
 	twoLinksDown := aftcache.DeletionStoppingCondition(t, dut, prefixes)
 
@@ -346,18 +353,22 @@ func TestAtomic(t *testing.T) {
 			dut:  dut,
 			ate:  ate,
 
-			churn:              setOneLinkDown,
-			stoppingConditions: []aftcache.PeriodicHook{oneLinkDownBGP, verifyISISPrefixes},
-			revert:             setOneLinkUp,
+			churn:             setOneLinkDown,
+			stoppingCondition: oneLinkDownBGP,
+			additionalVerification: func(aftSession *aftcache.AFTStreamSession) {
+				t.Helper()
+				aftSession.ListenUntilPreUpdateHook(t.Context(), t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, verifyISISPrefixes)
+			},
+			revert: setOneLinkUp,
 		},
 		{
 			name: "AFT-3.1.2: AFT Atomic Flag Check Link Down and Up scenario 2",
 			dut:  dut,
 			ate:  ate,
 
-			churn:              setTwoLinksDown,
-			stoppingConditions: []aftcache.PeriodicHook{twoLinksDown},
-			revert:             setTwoLinksUp,
+			churn:             setTwoLinksDown,
+			stoppingCondition: twoLinksDown,
+			revert:            setTwoLinksUp,
 		},
 	}
 
@@ -396,8 +407,10 @@ func TestAtomic(t *testing.T) {
 
 			t.Log("Modifying port state to create churn.")
 			tc.churn()
-			for _, stoppingCondition := range tc.stoppingConditions {
-				aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, stoppingCondition)
+			aftSession.ListenUntilPreUpdateHook(subtestCTX, t, aftConvergenceTime, []aftcache.NotificationHook{aftcache.VerifyAtomicFlagHook(t)}, tc.stoppingCondition)
+			if tc.additionalVerification != nil {
+				t.Log("Running additional verification.")
+				tc.additionalVerification(aftSession)
 			}
 			t.Log("Done listening for churn.")
 
@@ -409,3 +422,4 @@ func TestAtomic(t *testing.T) {
 		})
 	}
 }
+
