@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/gopacket"
@@ -191,6 +193,33 @@ var (
 	loopbackIntfName string
 	atePortNamelist  []string
 )
+
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `vrf selection policy
+                next-hop decapsulation vrf`
+		if _, err := dut.RawAPIs().GNMI(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to inject VRF selection policy command: %v", err)
+		}
+	}
+}
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+}
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
@@ -1000,6 +1029,7 @@ func TestEncapFrr(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
+	PrepareDUTForVrfSelectionPolicy(t, dut)
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
