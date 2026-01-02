@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/gopacket"
@@ -192,6 +194,33 @@ var (
 	loopbackIntfName string
 	atePortNamelist  []string
 )
+
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `vrf selection policy
+                next-hop decapsulation vrf`
+		if _, err := dut.RawAPIs().GNMI(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to inject VRF selection policy command: %v", err)
+		}
+	}
+}
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+}
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
@@ -526,7 +555,7 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
-func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutAreaAddress, dutSysID string) {
+func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
 	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
@@ -538,12 +567,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 	globalISIS.LevelCapability = oc.Isis_LevelType_LEVEL_2
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	if deviations.ISISSingleTopologyRequired(dut) {
-		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
-		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
-	}
 	if deviations.ISISInstanceEnabledRequired(dut) {
 		globalISIS.Instance = ygot.String(isisInstance)
 	}
@@ -552,29 +575,24 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-	for _, intfName := range intfList {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			intfName = intfName + ".0"
-		}
-		isisIntf := isis.GetOrCreateInterface(intfName)
-		isisIntf.Enabled = ygot.Bool(true)
-		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
-		isisIntfLevel.Enabled = ygot.Bool(true)
-		isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfiv4.Metric = ygot.Uint32(200)
-		isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
-		isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfiv6.Metric = ygot.Uint32(200)
-		isisIntfLevelAfiv6.Enabled = ygot.Bool(true)
-		if deviations.ISISInterfaceAfiUnsupported(dut) {
-			isisIntf.Af = nil
-		}
-		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-			isisIntfLevelAfiv4.Enabled = nil
-			isisIntfLevelAfiv6.Enabled = nil
-		}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intfName = intfName + ".0"
 	}
+	isisIntf := isis.GetOrCreateInterface(intfName)
+	isisIntf.Enabled = ygot.Bool(true)
+	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
+	isisIntfLevel.Enabled = ygot.Bool(true)
+	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+	isisIntfLevelAfiv4.Metric = ygot.Uint32(200)
+	isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
+	if deviations.ISISInterfaceAfiUnsupported(dut) {
+		isisIntf.Af = nil
+	}
+	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+		isisIntfLevelAfiv4.Enabled = nil
+	}
+
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
 
@@ -1018,6 +1036,7 @@ func TestEncapFrr(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
+	PrepareDUTForVrfSelectionPolicy(t, dut)
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
@@ -1026,7 +1045,7 @@ func TestEncapFrr(t *testing.T) {
 
 	t.Log("Install BGP route resolved by ISIS.")
 	t.Log("Configure ISIS on DUT")
-	configureISIS(t, dut, []string{dut.Port(t, "port8").Name()}, dutAreaAddress, dutSysID)
+	configureISIS(t, dut, dut.Port(t, "port8").Name(), dutAreaAddress, dutSysID)
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
