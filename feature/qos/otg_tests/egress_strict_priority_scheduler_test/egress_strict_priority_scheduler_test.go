@@ -78,7 +78,12 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv4(t *testing.T, dut *ondatra.D
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntfIPv4(t, dut)
-	ConfigureDUTQoSIPv4(t, dut)
+
+	if dut.Vendor() == ondatra.JUNIPER {
+		ConfigureJuniperDUTQoSIPv4(t, dut)
+	} else {
+		ConfigureDUTQoSIPv4(t, dut)
+	}
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -350,7 +355,11 @@ func verifyEgressStrictPrioritySchedulerTrafficIPv6(t *testing.T, dut *ondatra.D
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntfIPv6(t, dut)
-	ConfigureDUTQoSIPv6(t, dut)
+	if dut.Vendor() == ondatra.JUNIPER {
+		ConfigureJuniperDUTQoSIPv6(t, dut)
+	} else {
+		ConfigureDUTQoSIPv6(t, dut)
+	}
 
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
@@ -614,8 +623,11 @@ func verifyEgressStrictPrioritySchedulerTrafficMPLS(t *testing.T, dut *ondatra.D
 
 	// Configure DUT interfaces and QoS.
 	ConfigureDUTIntfIPv4(t, dut)
-	ConfigureDUTQoSMPLS(t, dut)
-
+	if dut.Vendor() == ondatra.JUNIPER {
+		ConfigureJuniperDUTQoSMPLS(t, dut)
+	} else {
+		ConfigureDUTQoSMPLS(t, dut)
+	}
 	// Configure ATE interfaces.
 	ate := ondatra.ATE(t, "ate")
 	ap1 := ate.Port(t, "port1")
@@ -2134,5 +2146,838 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 		t.Errorf("Traffic for flow %s did not stop within the timeout of %d", flowName, timeout)
 	} else {
 		t.Logf("Traffic for flow %s has stopped", flowName)
+	}
+}
+
+func ConfigureJuniperDUTQoSIPv4(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	dp3 := dut.Port(t, "port3")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
+
+	if deviations.QOSQueueRequiresID(dut) {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
+		for i := range queueNames {
+			q1 := q.GetOrCreateQueue(queueNames[i])
+			q1.Name = ygot.String(queueNames[i])
+			queueId, _ := strconv.Atoi(queueNames[i])
+			q1.QueueId = ygot.Uint8(uint8(queueId))
+		}
+	}
+
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+	}
+
+	t.Logf("Create qos Classifiers config")
+	classifiers := []struct {
+		desc        string
+		name        string
+		classType   oc.E_Qos_Classifier_Type
+		termID      string
+		targetGroup string
+		dscpSet     []uint8
+	}{{
+		desc:        "classifier_ipv4_be1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0},
+	}, {
+		desc:        "classifier_ipv4_af1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{1},
+	}, {
+		desc:        "classifier_ipv4_af2",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{2},
+	}, {
+		desc:        "classifier_ipv4_af3",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{3},
+	}, {
+		desc:        "classifier_ipv4_af4",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{4, 5},
+	}, {
+		desc:        "classifier_ipv4_nc1",
+		name:        "dscp_based_classifier_ipv4",
+		classType:   oc.Qos_Classifier_Type_IPV4,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{6, 7},
+	}}
+
+	t.Logf("qos Classifiers config: %v", classifiers)
+	for _, tc := range classifiers {
+		classifier := q.GetOrCreateClassifier(tc.name)
+		classifier.SetName(tc.name)
+		classifier.SetType(tc.classType)
+		term, err := classifier.NewTerm(tc.termID)
+		if err != nil {
+			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+		}
+
+		term.SetId(tc.termID)
+		action := term.GetOrCreateActions()
+		action.SetTargetGroup(tc.targetGroup)
+		condition := term.GetOrCreateConditions()
+		condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	t.Logf("Create qos input classifier config")
+	classifierIntfs := []struct {
+		desc                string
+		intf                string
+		inputClassifierType oc.E_Input_Classifier_Type
+		classifier          string
+	}{{
+		desc:                "Input Classifier Type IPV4",
+		intf:                dp1.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+	}, {
+		desc:                "Input Classifier Type IPV4",
+		intf:                dp2.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV4,
+		classifier:          "dscp_based_classifier_ipv4",
+	}}
+
+	t.Logf("qos input classifier config: %v", classifierIntfs)
+	for _, tc := range classifierIntfs {
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
+	}
+
+	t.Logf("Create qos scheduler policies config")
+	schedulerPolicies := []struct {
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		inputType   oc.E_Input_InputType
+		weight      uint64
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(99),
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(97),
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(98),
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
+	schedulerPolicy.SetName("scheduler")
+	t.Logf("qos scheduler policies config: %v", schedulerPolicies)
+	for _, tc := range schedulerPolicies {
+		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+		s.SetSequence(tc.sequence)
+		s.SetPriority(tc.priority)
+		input := s.GetOrCreateInput(tc.inputID)
+		input.SetId(tc.inputID)
+		input.SetInputType(tc.inputType)
+		input.SetQueue(tc.queueName)
+		input.SetWeight(tc.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	t.Logf("Create qos output interface config")
+	schedulerIntfs := []struct {
+		desc      string
+		queueName string
+		scheduler string
+	}{{
+		desc:      "output-interface-BE1",
+		queueName: queues.BE1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF1",
+		queueName: queues.AF1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF2",
+		queueName: queues.AF2,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF3",
+		queueName: queues.AF3,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF4",
+		queueName: queues.AF4,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-NC1",
+		queueName: queues.NC1,
+		scheduler: "scheduler",
+	}}
+
+	t.Logf("qos output interface config: %v", schedulerIntfs)
+	for _, tc := range schedulerIntfs {
+		i := q.GetOrCreateInterface(dp3.Name())
+		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
+		output := i.GetOrCreateOutput()
+		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+		schedulerPolicy.SetName(tc.scheduler)
+		queue := output.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+}
+
+func ConfigureJuniperDUTQoSIPv6(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	dp3 := dut.Port(t, "port3")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
+
+	if deviations.QOSQueueRequiresID(dut) {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
+		for i := range queueNames {
+			q1 := q.GetOrCreateQueue(queueNames[i])
+			q1.Name = ygot.String(queueNames[i])
+			queueId, _ := strconv.Atoi(queueNames[i])
+			q1.QueueId = ygot.Uint8(uint8(queueId))
+		}
+	}
+
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+	}
+
+	t.Logf("Create qos Classifiers config")
+	classifiers := []struct {
+		desc        string
+		name        string
+		classType   oc.E_Qos_Classifier_Type
+		termID      string
+		targetGroup string
+		dscpSet     []uint8
+	}{{
+		desc:        "classifier_ipv6_be1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "0",
+		targetGroup: "target-group-BE1",
+		dscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+	}, {
+		desc:        "classifier_ipv6_af1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "2",
+		targetGroup: "target-group-AF1",
+		dscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
+	}, {
+		desc:        "classifier_ipv6_af2",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "3",
+		targetGroup: "target-group-AF2",
+		dscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
+	}, {
+		desc:        "classifier_ipv6_af3",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "4",
+		targetGroup: "target-group-AF3",
+		dscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
+	}, {
+		desc:        "classifier_ipv6_af4",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "5",
+		targetGroup: "target-group-AF4",
+		dscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+	}, {
+		desc:        "classifier_ipv6_nc1",
+		name:        "dscp_based_classifier_ipv6",
+		classType:   oc.Qos_Classifier_Type_IPV6,
+		termID:      "6",
+		targetGroup: "target-group-NC1",
+		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+	}}
+
+	t.Logf("qos Classifiers config: %v", classifiers)
+	for _, tc := range classifiers {
+		classifier := q.GetOrCreateClassifier(tc.name)
+		classifier.SetName(tc.name)
+		classifier.SetType(tc.classType)
+		term, err := classifier.NewTerm(tc.termID)
+		if err != nil {
+			t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+		}
+
+		term.SetId(tc.termID)
+		action := term.GetOrCreateActions()
+		action.SetTargetGroup(tc.targetGroup)
+		condition := term.GetOrCreateConditions()
+		condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	t.Logf("Create qos input classifier config")
+	classifierIntfs := []struct {
+		desc                string
+		intf                string
+		inputClassifierType oc.E_Input_Classifier_Type
+		classifier          string
+	}{{
+		desc:                "Input Classifier Type IPV6",
+		intf:                dp1.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
+	}, {
+		desc:                "Input Classifier Type IPV6",
+		intf:                dp2.Name(),
+		inputClassifierType: oc.Input_Classifier_Type_IPV6,
+		classifier:          "dscp_based_classifier_ipv6",
+	}}
+
+	t.Logf("qos input classifier config: %v", classifierIntfs)
+	for _, tc := range classifierIntfs {
+		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
+	}
+
+	t.Logf("Create qos scheduler policies config")
+	schedulerPolicies := []struct {
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		inputType   oc.E_Input_InputType
+		weight      uint64
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(20),
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(64),
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
+	schedulerPolicy.SetName("scheduler")
+	t.Logf("qos scheduler policies config: %v", schedulerPolicies)
+	for _, tc := range schedulerPolicies {
+		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+		s.SetSequence(tc.sequence)
+		s.SetPriority(tc.priority)
+		input := s.GetOrCreateInput(tc.inputID)
+		input.SetId(tc.inputID)
+		input.SetInputType(tc.inputType)
+		input.SetQueue(tc.queueName)
+		input.SetWeight(tc.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	t.Logf("Create qos output interface config")
+	schedulerIntfs := []struct {
+		desc      string
+		queueName string
+		scheduler string
+	}{{
+		desc:      "output-interface-BE1",
+		queueName: queues.BE1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF1",
+		queueName: queues.AF1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF2",
+		queueName: queues.AF2,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF3",
+		queueName: queues.AF3,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF4",
+		queueName: queues.AF4,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-NC1",
+		queueName: queues.NC1,
+		scheduler: "scheduler",
+	}}
+
+	t.Logf("qos output interface config: %v", schedulerIntfs)
+	for _, tc := range schedulerIntfs {
+		i := q.GetOrCreateInterface(dp3.Name())
+		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
+		output := i.GetOrCreateOutput()
+		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+		schedulerPolicy.SetName(tc.scheduler)
+		queue := output.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+}
+
+func ConfigureJuniperDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	dp3 := dut.Port(t, "port3")
+	d := &oc.Root{}
+	q := d.GetOrCreateQos()
+	queues := netutil.CommonTrafficQueues(t, dut)
+
+	if deviations.QOSQueueRequiresID(dut) {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE1}
+		for i := range queueNames {
+			q1 := q.GetOrCreateQueue(queueNames[i])
+			q1.Name = ygot.String(queueNames[i])
+			queueId, _ := strconv.Atoi(queueNames[i])
+			q1.QueueId = ygot.Uint8(uint8(queueId))
+		}
+	}
+
+	t.Logf("Create qos forwarding groups config")
+	forwardingGroups := []struct {
+		desc        string
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "forwarding-group-BE1",
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "forwarding-group-AF1",
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "forwarding-group-AF2",
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "forwarding-group-AF3",
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "forwarding-group-AF4",
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "forwarding-group-NC1",
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	for _, tc := range forwardingGroups {
+		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+	}
+
+	classifiers := []struct {
+		desc         string
+		name         string
+		classType    oc.E_Qos_Classifier_Type
+		termID       string
+		targetGroup  string
+		trafficClass uint8
+	}{{
+		desc:         "classifier_mpls_be1",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "0",
+		targetGroup:  "target-group-BE1",
+		trafficClass: uint8(0),
+	}, {
+		desc:         "classifier_mpls_af1",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "2",
+		targetGroup:  "target-group-AF1",
+		trafficClass: uint8(1),
+	}, {
+		desc:         "classifier_mpls_af2",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "3",
+		targetGroup:  "target-group-AF2",
+		trafficClass: uint8(2),
+	}, {
+		desc:         "classifier_mpls_af3",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "4",
+		targetGroup:  "target-group-AF3",
+		trafficClass: uint8(3),
+	}, {
+		desc:         "classifier_mpls_af4",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "5",
+		targetGroup:  "target-group-AF4",
+		trafficClass: uint8(4),
+	}, {
+		desc:         "classifier_mpls_nc1",
+		name:         "dscp_based_classifier_mpls",
+		classType:    oc.Qos_Classifier_Type_MPLS,
+		termID:       "6",
+		targetGroup:  "target-group-NC1",
+		trafficClass: uint8(7),
+	}}
+
+	t.Logf("qos Classifiers config cases: %v", classifiers)
+	for _, tc := range classifiers {
+		t.Run(tc.desc, func(t *testing.T) {
+			classifier := q.GetOrCreateClassifier(tc.name)
+			classifier.SetName(tc.name)
+			classifier.SetType(tc.classType)
+			term, err := classifier.NewTerm(tc.termID)
+			if err != nil {
+				t.Fatalf("Failed to create classifier.NewTerm(): %v", err)
+			}
+
+			term.SetId(tc.termID)
+			action := term.GetOrCreateActions()
+			action.SetTargetGroup(tc.targetGroup)
+			condition := term.GetOrCreateConditions()
+			condition.GetOrCreateMpls().SetTrafficClass(tc.trafficClass)
+
+			gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		})
+
+		t.Logf("Create QoS input classifier config")
+		classifierIntfs := []struct {
+			desc                string
+			intf                string
+			inputClassifierType oc.E_Input_Classifier_Type
+			classifier          string
+		}{{
+			desc:                "Input Classifier Type MPLS",
+			intf:                dp1.Name(),
+			inputClassifierType: oc.Input_Classifier_Type_MPLS,
+			classifier:          "dscp_based_classifier_mpls",
+		}, {
+			desc:                "Input Classifier Type MPLS",
+			intf:                dp2.Name(),
+			inputClassifierType: oc.Input_Classifier_Type_MPLS,
+			classifier:          "dscp_based_classifier_mpls",
+		}}
+
+		t.Logf("QoS input classifier config: %v", classifierIntfs)
+		for _, tc := range classifierIntfs {
+			qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
+		}
+	}
+
+	t.Logf("Create qos scheduler policies config")
+	schedulerPolicies := []struct {
+		desc        string
+		sequence    uint32
+		priority    oc.E_Scheduler_Priority
+		inputID     string
+		inputType   oc.E_Input_InputType
+		weight      uint64
+		queueName   string
+		targetGroup string
+	}{{
+		desc:        "scheduler-policy-BE1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "BE1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.BE1,
+		targetGroup: "target-group-BE1",
+	}, {
+		desc:        "scheduler-policy-AF1",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(1),
+		queueName:   queues.AF1,
+		targetGroup: "target-group-AF1",
+	}, {
+		desc:        "scheduler-policy-AF2",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF2",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(20),
+		queueName:   queues.AF2,
+		targetGroup: "target-group-AF2",
+	}, {
+		desc:        "scheduler-policy-AF3",
+		sequence:    uint32(1),
+		priority:    oc.Scheduler_Priority_UNSET,
+		inputID:     "AF3",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(64),
+		queueName:   queues.AF3,
+		targetGroup: "target-group-AF3",
+	}, {
+		desc:        "scheduler-policy-AF4",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "AF4",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(99),
+		queueName:   queues.AF4,
+		targetGroup: "target-group-AF4",
+	}, {
+		desc:        "scheduler-policy-NC1",
+		sequence:    uint32(0),
+		priority:    oc.Scheduler_Priority_STRICT,
+		inputID:     "NC1",
+		inputType:   oc.Input_InputType_QUEUE,
+		weight:      uint64(100),
+		queueName:   queues.NC1,
+		targetGroup: "target-group-NC1",
+	}}
+
+	schedulerPolicy := q.GetOrCreateSchedulerPolicy("scheduler")
+	schedulerPolicy.SetName("scheduler")
+	t.Logf("qos scheduler policies config: %v", schedulerPolicies)
+	for _, tc := range schedulerPolicies {
+		s := schedulerPolicy.GetOrCreateScheduler(tc.sequence)
+		s.SetSequence(tc.sequence)
+		s.SetPriority(tc.priority)
+		input := s.GetOrCreateInput(tc.inputID)
+		input.SetId(tc.inputID)
+		input.SetInputType(tc.inputType)
+		input.SetQueue(tc.queueName)
+		input.SetWeight(tc.weight)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+	}
+
+	t.Logf("Create qos output interface config")
+	schedulerIntfs := []struct {
+		desc      string
+		queueName string
+		scheduler string
+	}{{
+		desc:      "output-interface-BE1",
+		queueName: queues.BE1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF1",
+		queueName: queues.AF1,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF2",
+		queueName: queues.AF2,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF3",
+		queueName: queues.AF3,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-AF4",
+		queueName: queues.AF4,
+		scheduler: "scheduler",
+	}, {
+		desc:      "output-interface-NC1",
+		queueName: queues.NC1,
+		scheduler: "scheduler",
+	}}
+
+	t.Logf("qos output interface config: %v", schedulerIntfs)
+	for _, tc := range schedulerIntfs {
+		i := q.GetOrCreateInterface(dp3.Name())
+		i.SetInterfaceId(dp3.Name())
+		i.GetOrCreateInterfaceRef().Interface = ygot.String(dp3.Name())
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			i.InterfaceRef = nil
+		}
+		output := i.GetOrCreateOutput()
+		schedulerPolicy := output.GetOrCreateSchedulerPolicy()
+		schedulerPolicy.SetName(tc.scheduler)
+		queue := output.GetOrCreateQueue(tc.queueName)
+		queue.SetName(tc.queueName)
+		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 }
