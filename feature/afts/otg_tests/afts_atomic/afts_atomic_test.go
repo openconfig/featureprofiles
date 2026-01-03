@@ -26,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
+        "github.com/openconfig/featureprofiles/internal/isissession/isissession"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -46,14 +47,14 @@ const (
 	mtu                = 1500
 	v4PrefixLen        = 30
 	v6PrefixLen        = 126
-
-	peerGrpNameV4P1 = "BGP-PEER-GROUP-V4-P1"
-	peerGrpNameV6P1 = "BGP-PEER-GROUP-V6-P1"
-	peerGrpNameV4P2 = "BGP-PEER-GROUP-V4-P2"
-	peerGrpNameV6P2 = "BGP-PEER-GROUP-V6-P2"
-
-	IPv4 = "IPv4"
-	IPv6 = "IPv6"
+	dutAS              = 65501
+	ateAS              = 200
+	isisSystemID       = "650000000001"
+	applyPolicyName    = "ALLOW"
+	peerGrpNameV4P1    = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1    = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2    = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2    = "BGP-PEER-GROUP-V6-P2"
 )
 
 var (
@@ -104,6 +105,20 @@ var (
 	ipv6TwoNHs      = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
 )
 
+type BGPNeighbor struct {
+	as         uint32
+	neighborip string
+	version    IPFamily
+}
+type IPFamily int
+
+const (
+	// UnknownIPFamily indicates an unspecified or unknown IP address family.
+	UnknownIPFamily IPFamily = iota
+	IPv4
+	IPv6
+)
+
 type testCase struct {
 	name string
 	dut  *ondatra.DUTDevice
@@ -133,61 +148,148 @@ func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
-// configureDUT configures all the interfaces, BGP, and ISIS on the DUT.
+func createBGPNeighbor(peerGrpNameV4, peerGrpNameV6 string, nbrs []*BGPNeighbor, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	niProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgp := niProtocol.GetOrCreateBgp()
+
+	global := bgp.GetOrCreateGlobal()
+	global.SetAs(dutAS)
+	global.SetRouterId(dutP1.IPv4)
+
+	// Note: we have to define the peer group even if we aren't setting any policy because it's
+	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
+	peerGroupV4 := bgp.GetOrCreatePeerGroup(peerGrpNameV4)
+	peerGroupV4.SetPeerAs(ateAS)
+	peerGroupV6 := bgp.GetOrCreatePeerGroup(peerGrpNameV6)
+	peerGroupV6.SetPeerAs(ateAS)
+
+	afiSAFI := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	afiSAFI.SetEnabled(true)
+	asisafi6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	asisafi6.SetEnabled(true)
+
+	peerGroupV4AfiSafi := peerGroupV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	peerGroupV4AfiSafi.SetEnabled(true)
+	peerGroupV6AfiSafi := peerGroupV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+	peerGroupV6AfiSafi.SetEnabled(true)
+
+	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+		peerGroupV4.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	} else {
+		afiSAFI.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		asisafi6.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(2)
+		peerGroupV4AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+		peerGroupV6AfiSafi.GetOrCreateUseMultiplePaths().SetEnabled(true)
+	}
+	for _, nbr := range nbrs {
+		neighbor := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		neighbor.SetPeerAs(nbr.as)
+		neighbor.SetEnabled(true)
+		switch nbr.version {
+		case IPv4:
+			neighbor.SetPeerGroup(peerGrpNameV4)
+			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
+			neighbourAFV4 := peerGroupV4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+			neighbourAFV4.SetEnabled(true)
+			applyPolicy := neighbourAFV4.GetOrCreateApplyPolicy()
+			applyPolicy.ImportPolicy = []string{applyPolicyName}
+			applyPolicy.ExportPolicy = []string{applyPolicyName}
+		case IPv6:
+			neighbor.SetPeerGroup(peerGrpNameV6)
+			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+			neighbourAFV6 := peerGroupV6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
+			neighbourAFV6.SetEnabled(true)
+			applyPolicy := neighbourAFV6.GetOrCreateApplyPolicy()
+			applyPolicy.ImportPolicy = []string{applyPolicyName}
+			applyPolicy.ExportPolicy = []string{applyPolicyName}
+		}
+	}
+	return niProtocol
+}
+
+func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*BGPNeighbor) {
+	for _, nbr := range neighbors {
+		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
+	}
+}
+
+// configureDUT configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDUT(t *testing.T) error {
-	t.Helper()
 	dut := tc.dut
-	dutPort1 := dut.Port(t, port1Name).Name()
-	dutIntf1 := dutP1.NewOCInterface(dutPort1, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort1).Config(), dutIntf1)
+	p1 := dut.Port(t, port1Name).Name()
+	i1 := dutP1.NewOCInterface(p1, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p1).Config(), i1)
 
-	dutPort2 := dut.Port(t, port2Name).Name()
-	dutIntf2 := dutP2.NewOCInterface(dutPort2, dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort2).Config(), dutIntf2)
+	p2 := dut.Port(t, port2Name).Name()
+	i2 := dutP2.NewOCInterface(p2, dut)
+	gnmi.Update(t, dut, gnmi.OC().Interface(p2).Config(), i2)
 
-	// Configure default network instance.
-	t.Log("Configure Default Network Instance")
+	// Configure Network instance type on DUT.
+	t.Log("Configure/update Network Instance")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dut.Port(t, port1Name))
+		fptest.SetPortSpeed(t, dut.Port(t, port2Name))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dutPort1, deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, dutPort2, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p1, deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, p2, deviations.DefaultNetworkInstance(dut), 0)
 	}
 
-	if err := configureAllowPolicy(t, dut); err != nil {
+	d := &oc.Root{}
+	routePolicy := d.GetOrCreateRoutingPolicy()
+	policyDefinition := routePolicy.GetOrCreatePolicyDefinition(applyPolicyName)
+	statement, err := policyDefinition.AppendNewStatement("id-1")
+	if err != nil {
+		return fmt.Errorf("failed to append new statement to policy definition %s: %v", applyPolicyName, err)
+	}
+	statement.GetOrCreateActions().PolicyResult = applyPolicyType
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
+
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	nbrs := []*BGPNeighbor{
+		{as: ateAS, neighborip: ateP1.IPv4, version: IPv4},
+		{as: ateAS, neighborip: ateP1.IPv6, version: IPv6},
+	}
+	dutConf := createBGPNeighbor(peerGrpNameV4P1, peerGrpNameV6P1, nbrs, dut)
+	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
+	nbrs = []*BGPNeighbor{
+		{as: ateAS, neighborip: ateP2.IPv4, version: IPv4},
+		{as: ateAS, neighborip: ateP2.IPv6, version: IPv6},
+	}
+	dutConf = createBGPNeighbor(peerGrpNameV4P2, peerGrpNameV6P2, nbrs, dut)
+	gnmi.Update(t, dut, dutConfPath.Config(), dutConf)
+	if deviations.BGPMissingOCMaxPrefixesConfiguration(dut) {
+		updateNeighborMaxPrefix(t, dut, nbrs)
+	}
+
+	ts := isissession.MustNew(t).WithISIS()
+	ts.ConfigISIS(func(isis *oc.NetworkInstance_Protocol_Isis) {
+		global := isis.GetOrCreateGlobal()
+		global.HelloPadding = oc.Isis_HelloPaddingType_DISABLE
+
+		if deviations.ISISSingleTopologyRequired(ts.DUT) {
+			afv6 := global.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+			afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+		}
+	})
+	ts.ATEIntf1.Isis().Advanced().SetEnableHelloPadding(false)
+
+	if err := ts.PushAndStart(t); err != nil {
 		return err
 	}
 
-	t.Log("Configure BGP")
-	sb := &gnmi.SetBatch{}
-	for ix, ateAttr := range ateAttrs {
-		nbrs := []*cfgplugins.BgpNeighbor{
-			{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateAttr.IPv4, IsV4: true},
-			{LocalAS: cfgplugins.DutAS, PeerAS: cfgplugins.AteAS1, Neighborip: ateAttr.IPv6, IsV4: false},
-		}
-		nbrsConfig := cfgplugins.BGPNeighborsConfig{
-			RouterID:      dutP1.IPv4,
-			PeerGrpNameV4: v4PeerGrpNames[ix],
-			PeerGrpNameV6: v6PeerGrpNames[ix],
-			Nbrs:          nbrs,
-		}
-		if err := cfgplugins.CreateBGPNeighbors(t, dut, sb, nbrsConfig); err != nil {
-			return err
-		}
+	if _, err = ts.AwaitAdjacency(); err != nil {
+		return fmt.Errorf("no IS-IS adjacency formed: %v", err)
 	}
-	sb.Set(t, dut)
-
-	t.Log("Configure ISIS")
-	b := &gnmi.SetBatch{}
-	isisData := &cfgplugins.ISISGlobalParams{
-		DUTArea:             isisDUTArea,
-		DUTSysID:            isisDUTSystemID,
-		ISISInterfaceNames:  []string{dutPort1}, // Only configure ISIS on one port.
-		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
-	}
-	cfgplugins.NewISIS(t, dut, isisData, b)
-	b.Set(t, dut)
-
 	return nil
 }
 
@@ -201,13 +303,13 @@ func (tc *testCase) configureATE(t *testing.T) {
 			StartingAddress: otgconfighelpers.StartingBGPRouteIPv4,
 			PrefixLength:    otgconfighelpers.V4PrefixLen,
 			Count:           otgconfighelpers.DefaultBGPRouteCount,
-			ATEAS:           cfgplugins.AteAS1,
+			ATEAS:           ateAS,
 		},
 		BGPV6Routes: &otgconfighelpers.AdvertisedRoutes{
 			StartingAddress: otgconfighelpers.StartingBGPRouteIPv6,
 			PrefixLength:    otgconfighelpers.V6PrefixLen,
 			Count:           otgconfighelpers.DefaultBGPRouteCount,
-			ATEAS:           cfgplugins.AteAS1,
+			ATEAS:           ateAS,
 		},
 	})
 	otg := ate.OTG()
