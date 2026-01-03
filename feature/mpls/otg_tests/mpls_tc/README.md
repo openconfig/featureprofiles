@@ -33,10 +33,11 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
 
 *   Configure ISIS between the DUTs and advertise Loopback50
 
-*   Enable MPLS and LDP on both the DUTs port-1 and port-2
-
-    *   /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled
-    *   /network-instances/network-instance/mpls/signaling-protocols/ldp/global/config/lsr-id [DUT-A and B Loopkack50]
+*   Enable MPLS and Segment Routing on both the DUTs port-1 and port-2
+    * /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled
+    * /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled
+    * /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/config/interface-id
+    * /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled
 
 ### MPLS-1.2.1 - Configure and verify classifier to match MPLS packets and mark Traffic Class
 
@@ -57,7 +58,9 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
     *   /qos/interfaces/interface/input/classifiers[mpls-class]/classifier/config/name
 
 *   Validate the configuration is applied and values are reported correctly
-
+    *   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/mpls-label
+    *   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/forwarding-classes/forwarding-class/exp
+    *   /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/sid-counter/forwarding-classes/forwarding-class/state/exp
     *   /network-instances/network-instance/mpls/global/interface-attributes/interface/state/mpls-enabled
     *   /qos/classifiers/classifier/state/name = 'mpls-class'
     *   /qos/classifiers/classifier=[mpls-class]/state/type = 'MPLS'
@@ -113,7 +116,8 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
 paths:
 
 ## Config paths:
-/network-instances/network-instance/mpls/signaling-protocols/ldp/global/config/lsr-id:
+/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled:
+/network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/config/interface-id:
 /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
 /qos/classifiers/classifier/config/name:
 /qos/classifiers/classifier/config/type:
@@ -123,6 +127,7 @@ paths:
 /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc:
 
 ## State paths:
+/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
 /network-instances/network-instance/mpls/global/interface-attributes/interface/state/mpls-enabled:
 /qos/classifiers/classifier/state/name:
 /qos/classifiers/classifier/state/type:
