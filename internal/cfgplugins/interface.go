@@ -45,6 +45,7 @@ const (
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
 type DUTSubInterfaceData struct {
 	VlanID        int
+	VlanEnable    bool
 	IPv4Address   net.IP
 	IPv6Address   net.IP
 	IPv4PrefixLen int
@@ -863,9 +864,14 @@ func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 
 // AddSubInterface adds a subinterface to an interface.
 func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	vlanFlag := true
 	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
 	sub.Enabled = ygot.Bool(true)
-	if s.VlanID != 0 {
+	if !s.VlanEnable {
+		vlanFlag = s.VlanEnable
+	}
+
+	if s.VlanID != 0 && vlanFlag {
 		if deviations.DeprecatedVlanID(dut) {
 			sub.GetOrCreateVlan().VlanId = oc.UnionUint16(int(s.VlanID))
 		} else {
@@ -875,9 +881,13 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	if s.IPv4Address == nil && s.IPv6Address == nil {
 		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
 	}
+
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
 		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+			sub.GetOrCreateIpv4().SetEnabled(true)
+		}
+		if deviations.RequireRoutedSubinterface0(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
@@ -904,6 +914,12 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
+
+	if deviations.RequireRoutedSubinterface0(dut) {
+		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	}
+
 	agg.GetOrCreateAggregation().LagType = l.AggType
 	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
