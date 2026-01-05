@@ -24,7 +24,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    explicit_port_speed: true
     interface_enabled: true
     ipv4_missing_enabled: true
     link_local_instead_of_nh: true
