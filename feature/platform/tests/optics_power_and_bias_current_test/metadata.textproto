@@ -29,5 +29,6 @@ platform_exceptions:  {
   }
   deviations:  {
     ciscoxr_laser_ft:  "ciscoxr-laser-ft"
+    ciscoxr_transceiver_ft:  "ciscoxr-transceiver-ft"
   }
 }

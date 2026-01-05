@@ -58,8 +58,33 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
+func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
+	if functionalTranslatorName == "" {
+		return nil
+	}
+	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
+	if !ok {
+		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
+	}
+	var deviceSoftwareVersion string = strings.Split(dut.Version(), "-")[0]
+	ftMetadata := ft.Metadata()
+	for _, m := range ftMetadata {
+		if m.SoftwareVersion == deviceSoftwareVersion {
+			return []ygnmi.Option{ygnmi.WithFT(ft)}
+		}
+	}
+	return nil
+}
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration, functionalTranslatorName string) *gnmi.Opts {
+	var opts []ygnmi.Option
+	opts = append(opts, ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
+	opts = append(opts, getOptsForFunctionalTranslator(t, dut, functionalTranslatorName)...)
+	return dut.GNMIOpts().WithYGNMIOpts(opts...)
+}
+
 func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
+	return gnmiOpts(t, dut, mode, interval, "");
 }
 
 type checkThresholdParams struct {
@@ -190,12 +215,12 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
 				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 			}
-			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 			if len(outputPowers) == 0 {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)

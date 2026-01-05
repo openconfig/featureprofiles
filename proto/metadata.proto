@@ -1082,6 +1082,9 @@ message Metadata {
     // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 360;
 
+    // Cisco: http://b/429231108
+    string ciscoxr_transceiver_ft = 361;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
