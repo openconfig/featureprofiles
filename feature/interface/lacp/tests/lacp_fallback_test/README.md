@@ -33,7 +33,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * After the LACP negotiation timer and fallback timer expire DUT:Port[1] and DUT:Port[2] are transitioned into fallback mode.
 
 
-# Test - 2 LACP fallback ports receives traffic
+# Test - 1 LACP fallback ports receives traffic
 
 
 
@@ -55,7 +55,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * DUT:Port[1] and DUT:Port[2] of LAG1 are still sending LACP pdu
 
 
-# Test - 3 LACP Fallback port receives LACP pdu
+# Test - 2 LACP Fallback port receives LACP pdu
 
 
 * Have ATE:Port[1],ATE:Port[2], and ATE:Port[3] as individual ports
@@ -73,7 +73,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * Verify that DUT:Ports[2] of LAG1 will change its state from fallback to LACP detached
 
 
-# Test - 4 One of the LACP ports times out
+# Test - 3 One of the LACP ports times out
 
 
 
@@ -89,7 +89,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * After 5 minutes when  DUT:Port[2] starts receiving the LACP PDU, the LACP LACP will be formed again between DUT:Ports[LAG1] ⇔ ATE:Ports[LAG1].
 
 
-# Test - 5 Both LACP ports times out
+# Test - 4 Both LACP ports times out
 
 
 
