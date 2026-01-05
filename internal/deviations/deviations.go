@@ -1819,3 +1819,9 @@ func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
 }
+
+// CiscoxrTransceiverFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
+}

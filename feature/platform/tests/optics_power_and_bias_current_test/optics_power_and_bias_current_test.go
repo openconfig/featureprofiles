@@ -66,7 +66,7 @@ func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functi
 	if !ok {
 		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
 	}
-	var deviceSoftwareVersion string = strings.Split(dut.Version(), "-")[0]
+	deviceSoftwareVersion := strings.Split(dut.Version(), "-")[0]
 	ftMetadata := ft.Metadata()
 	for _, m := range ftMetadata {
 		if m.SoftwareVersion == deviceSoftwareVersion {
@@ -76,15 +76,12 @@ func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functi
 	return nil
 }
 
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration, functionalTranslatorName string) *gnmi.Opts {
-	var opts []ygnmi.Option
-	opts = append(opts, ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
-	opts = append(opts, getOptsForFunctionalTranslator(t, dut, functionalTranslatorName)...)
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration, functionalTranslatorName ...string) *gnmi.Opts {
+	opts := []ygnmi.Option{ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval)}
+	if len(functionalTranslatorName) > 0 {
+		opts = append(opts, getOptsForFunctionalTranslator(t, dut, functionalTranslatorName[0])...)
+	}
 	return dut.GNMIOpts().WithYGNMIOpts(opts...)
-}
-
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
-	return gnmiOpts(t, dut, mode, interval, "");
 }
 
 type checkThresholdParams struct {
