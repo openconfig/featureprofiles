@@ -725,7 +725,7 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
-    gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
+	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
 }
 
