@@ -1,5 +1,5 @@
-// Package isisscalehelpers provides helper functions for the ISIS scale tests.
-package isisscalehelpers
+// Package isisscale provides helper functions for the ISIS scale tests.
+package isisscale
 
 import (
 	"fmt"
@@ -130,7 +130,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutData *DutData) {
 	}
 	// Wait for LAG interfaces to be AdminStatus UP
 	for _, l := range dutData.Lags {
-		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 30*time.Second, oc.Interface_AdminStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(l.LagName).AdminStatus().State(), 60*time.Second, oc.Interface_AdminStatus_UP)
 	}
 	dutData.IsisData.ISISInterfaceNames = createISISInterfaceNames(t, dut, dutData)
 	b := &gnmi.SetBatch{}

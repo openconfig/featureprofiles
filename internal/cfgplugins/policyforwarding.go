@@ -58,6 +58,7 @@ type OcPolicyForwardingParams struct {
 	DecapPolicy        DecapPolicyParams
 	GUEPort            uint32
 	IPType             string
+	DecapProtocol      string
 	Dynamic            bool
 	TunnelIP           string
 	InterfaceName      string              // InterfaceName specifies the DUT interface where the policy will be applied.
@@ -87,6 +88,19 @@ type GueEncapPolicyParams struct {
 	SrcAddr          []string
 	Ttl              uint8
 	Rule             uint8
+}
+
+// ACLTrafficPolicyParams holds parameters for configuring ACL forwarding configs.
+type ACLTrafficPolicyParams struct {
+	PolicyName   string
+	ProtocolType string
+	SrcPrefix    []string
+	DstPrefix    []string
+	SrcPort      string
+	DstPort      string
+	IntfName     string
+	Direction    string
+	Action       string
 }
 
 var (
@@ -266,15 +280,6 @@ ip decap-group %s
   tunnel decap-ip %s
   tunnel decap-interface %s
   tunnel overlay mpls qos map mpls-traffic-class to traffic-class
-!`
-
-	decapGroupGUEAristaMPLSTemplate = `
-ip decap-group type udp destination port %v payload ip
-ip decap-group %s
-tunnel type udp
-tunnel decap-ip %s
-tunnel decap-interface %s
-tunnel overlay mpls qos map mpls-traffic-class to traffic-class
 !`
 
 	interfaceTrafficPolicyAristaTemplate = `
@@ -594,19 +599,20 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // aristaGueDecapCLIConfig configures GUEDEcapConfig for Arista
 func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
-	var cliConfig string
-	if params.HasMPLS {
-		cliConfig = fmt.Sprintf(decapGroupGUEAristaMPLSTemplate, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
-	} else {
-		cliConfig = fmt.Sprintf(`
+
+	decapProto := params.DecapProtocol
+	if decapProto == "" {
+		decapProto = params.IPType
+	}
+
+	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
 							tunnel type %s-over-udp udp destination port %v
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
 							tunnel decap-interface %s
-							`, params.GUEPort, params.IPType, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
-	}
+							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
@@ -1119,5 +1125,51 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 		policyForward := params.NetworkInstanceObj.GetOrCreatePolicyForwarding()
 		iface := policyForward.GetOrCreateInterface(params.InterfaceID)
 		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
+	}
+}
+
+// ConfigureTrafficPolicyACL configures acl related configs
+func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLTrafficPolicyParams) {
+	if deviations.ConfigACLWithPrefixListNotSupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if len(params.SrcPrefix) != 0 && len(params.DstPrefix) != 0 {
+				cliConfig += fmt.Sprintf(`
+					traffic-policies
+					traffic-policy %s
+					match rule1 %s
+					source prefix %s
+					destination prefix %s
+			`, params.PolicyName, params.ProtocolType, strings.Join(params.SrcPrefix, " "), strings.Join(params.DstPrefix, " "))
+			}
+			if params.DstPort != "" && params.SrcPort != "" {
+				cliConfig += fmt.Sprintf(`protocol tcp source port %s destination port %s`, params.SrcPort, params.DstPort)
+			}
+
+			if params.Action != "" {
+				cliConfig += fmt.Sprintf(`
+				actions
+				%s
+				`, params.Action)
+			}
+
+			if params.IntfName != "" {
+				cliConfig += fmt.Sprintf(`
+					interface %s
+					traffic-policy %s %s
+				`, params.IntfName, params.Direction, params.PolicyName)
+			}
+		default:
+			t.Errorf("traffic policy CLI is not handled for the dut: %v", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	} else {
+		// TODO: Created issue 41616436 for unsupport of prefix list inside ACL
+		root := &oc.Root{}
+		rp := root.GetOrCreateRoutingPolicy()
+		prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(params.PolicyName)
+		prefixSet.GetOrCreatePrefix(strings.Join(params.SrcPrefix, " "), "exact")
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(params.PolicyName).Config(), prefixSet)
 	}
 }
