@@ -600,7 +600,9 @@ func TestInterfaceStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Counter InErrors: %d", root.GetCounters().GetInErrors())
 			}
-			if root.GetCounters().InUnknownProtos == nil {
+			if deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
+				t.Logf("Skipping InUnknownProtos check due to InterfaceCountersInUnknownProtosUnsupported deviation.")
+			} else if root.GetCounters().InUnknownProtos == nil {
 				t.Errorf("ERROR: Counter InUnknownProtos is not present")
 			} else {
 				t.Logf("INFO: Counter InUnknownProtos: %d", root.GetCounters().GetInUnknownProtos())
@@ -712,6 +714,9 @@ func TestInterfacesubIntfs(t *testing.T) {
 					t.Logf("Verifying counters for Interfaces: %s", interfaces)
 					for _, c := range cases {
 						t.Run(c.desc, func(t *testing.T) {
+							if c.desc == "InUnknownProtos" && deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
+								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
+							}
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 								t.Logf("INFO: %s: %d", c.counter, val)
 							} else if pVal, pPresent := gnmi.Lookup(t, dut, c.parentCounter).Val(); pPresent {
