@@ -1171,6 +1171,5 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 		prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(params.PolicyName)
 		prefixSet.GetOrCreatePrefix(strings.Join(params.SrcPrefix, " "), "exact")
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(params.PolicyName).Config(), prefixSet)
-		configurePolicyForwardingNextHopFromOC(pf, params)
 	}
 }
