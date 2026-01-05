@@ -26,7 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
-        "github.com/openconfig/featureprofiles/internal/isissession/isissession"
+    "github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
