@@ -1578,6 +1578,11 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
 
+// IsisSrNoPhpRequired returns true if the device requires the no-php flag for ISIS SR prefix and node segments
+func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
+}
+
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()

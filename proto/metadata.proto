@@ -1050,7 +1050,7 @@ message Metadata {
     // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
     // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
-   
+
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
@@ -1073,6 +1073,15 @@ message Metadata {
     // Juniper: https://issuetracker.google.com/issues/461368936
     bool interface_counters_in_unknown_protos_unsupported = 358;
 
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
+
+    // Devices that require no-php flag for ISIS SR prefix and node segments
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
+    bool isis_sr_no_php_required = 360;
+    
     // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
     // Devices that do not support oc path for static route to nexthop
     bool static_route_to_nhg_oc_unsupported = 361;
