@@ -153,169 +153,66 @@ Verify:
     inner IP TTL set to `unmatched_ip_ttl` - 1.
 
 ## Canonical OC
-**[TODO]**: Add MATCH_ACTION policy-forwarding type to OpenConfig Public data
-            models.
-
-**[TODO]**: Add ip-ttl policy-forwarding action to OpenConfig Public data
-            models, pending https://github.com/openconfig/public/pull/1313.
+**[TODO]**: Replace "type": "PBR_POLICY"  with `MATCH_ACTION` after 
+https://github.com/openconfig/public/pull/1417 is merged.
 
 ```json
 {
   "network-instances": {
     "network-instance": [
       {
-        "name": "test_vrf",
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT"
+      },
+      {
         "config": {
           "name": "test_vrf"
         },
+        "name": "test_vrf",
         "policy-forwarding": {
           "policies": {
             "policy": [
               {
-                "policy-id": "retain ttl",
                 "config": {
-                  "policy-id": "retain ttl",
-                  "type": "MATCH_ACTION"
+                  "policy-id": "set-ip-ttl-policy",
+                  "type": "PBR_POLICY"
                 },
+                "policy-id": "set-ip-ttl-policy",
                 "rules": {
                   "rule": [
                     {
-                      "sequence-id": 1,
+                      "action": {
+                        "config": {
+                          "next-hop-group": "NHGroup1"
+                        }
+                      },
                       "config": {
-                        "sequence-id": 1
+                        "sequence-id": 10
                       },
                       "ipv4": {
                         "config": {
                           "hop-limit": 1
                         }
                       },
-                      "action": {
-                        "config": {
-                          "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
-                        }
-                      }
+                      "sequence-id": 10
                     },
                     {
-                      "sequence-id": 2,
+                      "action": {
+                        "config": {
+                          "next-hop-group": "NHGroup1"
+                        }
+                      },
                       "config": {
-                        "sequence-id": 2
+                        "sequence-id": 20
                       },
                       "ipv6": {
                         "config": {
                           "hop-limit": 1
                         }
                       },
-                      "action": {
-                        "config": {
-                          "next-hop-group": "NHG-1",
-                          "ip-ttl": 1
-                        }
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          }
-        },
-        "static": {
-          "next-hop-groups": {
-            "next-hop-group": [
-              {
-                "name": "NHG-1",
-                "config": {
-                  "name": "NHG-1"
-                },
-                "next-hops": {
-                  "next-hop": [
-                    {
-                      "index": 1,
-                      "config": {
-                        "index": 1
-                      }
-                    },
-                    {
-                      "index": 2,
-                      "config": {
-                        "index": 2
-                      }
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          "next-hops": {
-            "next-hop": [
-              {
-                "index": 1,
-                "config": {
-                  "index": 1
-                },
-                "encap-headers": {
-                  "encap-header": [
-                    {
-                      "index": 1,
-                      "config": {
-                        "index": 1,
-                        "type": "MPLS"
-                      },
-                      "mpls": {
-                        "config": {
-                          "label": 100
-                        }
-                      }
-                    },
-                    {
-                      "index": 2,
-                      "config": {
-                        "index": 2,
-                        "type": "GRE"
-                      },
-                      "gre": {
-                        "config": {
-                          "src-ip": "10.100.100.1",
-                          "dst-ip": "10.100.101.1",
-                          "ttl": 64
-                        }
-                      }
-                    }
-                  ]
-                }
-              },
-              {
-                "index": 2,
-                "config": {
-                  "index": 2
-                },
-                "encap-headers": {
-                  "encap-header": [
-                    {
-                      "index": 1,
-                      "config": {
-                        "index": 1,
-                        "type": "MPLS"
-                      },
-                      "mpls": {
-                        "config": {
-                          "label": 100
-                        }
-                      }
-                    },
-                    {
-                      "index": 2,
-                      "config": {
-                        "index": 2,
-                        "type": "GRE"
-                      },
-                      "gre": {
-                        "config": {
-                          "src-ip": "10.100.100.1",
-                          "dst-ip": "10.100.102.1",
-                          "ttl": 64
-                        }
-                      }
+                      "sequence-id": 20
                     }
                   ]
                 }
@@ -326,36 +223,152 @@ Verify:
         "protocols": {
           "protocol": [
             {
-              "identifier": "STATIC",
-              "name": "STATIC",
               "config": {
                 "identifier": "STATIC",
-                "name": "STATIC"
+                "name": "DEFAULT"
               },
+              "identifier": "STATIC",
+              "name": "DEFAULT",
               "static-routes": {
                 "static": [
                   {
-                    "prefix": "0.0.0.0/0",
                     "config": {
                       "prefix": "0.0.0.0/0"
                     },
                     "next-hop-group": {
-                      "name": "NHG-1"
-                    }
+                      "config": {
+                        "name": "NHGroup1"
+                      }
+                    },
+                    "prefix": "0.0.0.0/0"
                   },
                   {
-                    "prefix": "::/0",
                     "config": {
                       "prefix": "::/0"
                     },
                     "next-hop-group": {
-                      "name": "NHG-1"
-                    }
+                      "config": {
+                        "name": "NHGroup1"
+                      }
+                    },
+                    "prefix": "::/0"
                   }
                 ]
               }
             }
           ]
+        },
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
+                "config": {
+                  "name": "NHGroup1"
+                },
+                "name": "NHGroup1",
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "config": {
+                        "index": "1"
+                      },
+                      "index": "1"
+                    },
+                    {
+                      "config": {
+                        "index": "2"
+                      },
+                      "index": "2"
+                    }
+                  ]
+                }
+              }
+            ]
+          },
+          "next-hops": {
+            "next-hop": [
+              {
+                "config": {
+                  "index": "1",
+                  "metric": 10,
+                  "next-hop": "198.51.100.1",
+                  "nh-network-instance": "DEFAULT",
+                  "recurse": true
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1,
+                        "type": "MPLS"
+                      },
+                      "index": 1,
+                      "mpls": {
+                        "config": {
+                          "label": 100
+                        }
+                      }
+                    },
+                    {
+                      "config": {
+                        "index": 2,
+                        "type": "GRE"
+                      },
+                      "gre": {
+                        "config": {
+                          "dst-ip": "10.100.101.1",
+                          "src-ip": "10.100.100.1",
+                          "ttl": 64
+                        }
+                      },
+                      "index": 2
+                    }
+                  ]
+                },
+                "index": "1"
+              },
+              {
+                "config": {
+                  "index": "2",
+                  "metric": 10,
+                  "next-hop": "198.51.100.5",
+                  "nh-network-instance": "DEFAULT",
+                  "recurse": true
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "config": {
+                        "index": 1,
+                        "type": "MPLS"
+                      },
+                      "index": 1,
+                      "mpls": {
+                        "config": {
+                          "label": 100
+                        }
+                      }
+                    },
+                    {
+                      "config": {
+                        "index": 2,
+                        "type": "GRE"
+                      },
+                      "gre": {
+                        "config": {
+                          "dst-ip": "10.100.102.1",
+                          "src-ip": "10.100.100.1",
+                          "ttl": 64
+                        }
+                      },
+                      "index": 2
+                    }
+                  ]
+                },
+                "index": "2"
+              }
+            ]
+          }
         }
       }
     ]
@@ -371,7 +384,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/hop-limit:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop-group:
-  # /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:  # See TODO
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/ip-ttl:
 
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name:
   /network-instances/network-instance/static/next-hop-groups/next-hop-group/next-hops/next-hop/config/index:
@@ -383,11 +396,9 @@ paths:
   /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/src-ip:
   /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/ttl:
 
-  /network-instances/network-instance/protocols/protocol/identifier:
   /network-instances/network-instance/protocols/protocol/config/identifier:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
 
 
 rpcs:
@@ -397,7 +408,6 @@ rpcs:
       replace: true
     gNMI.Subscribe:
       on_change: true
-
 ```
 
 ## Required DUT platform
