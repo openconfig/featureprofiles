@@ -67,7 +67,7 @@ func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functi
 		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
 	}
 	deviceSoftwareVersion := strings.Split(dut.Version(), "-")[0]
-	ftMetadata := ft.Metadata()
+	ftMetadata := ft.Metadata
 	for _, m := range ftMetadata {
 		if m.SoftwareVersion == deviceSoftwareVersion {
 			return []ygnmi.Option{ygnmi.WithFT(ft)}
