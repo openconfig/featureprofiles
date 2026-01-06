@@ -167,10 +167,10 @@ testbeds:
     binding: topologies/cisco/hw/8818-FOX2714PNYN/binding
     baseconf: topologies/cisco/hw/8818-FOX2714PNYN/baseconfig.proto
     otg:
-      host: ott-ucs4-b4
-      controller_port: 48818
-      gnmi_port: 58818
-      rest_port: 38818
+      host: ott-ucs1-b4
+      controller_port: 49818
+      gnmi_port: 59818
+      rest_port: 39818
     godhcpd:
       url: http://ott-ucs1-b4:8001
       mgmt_ip: 1:1:1:1::1/64
@@ -207,7 +207,7 @@ testbeds:
     binding: topologies/cisco/hw/8808-FOX2926PHNF-P200/binding2
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 40068
       gnmi_port: 50068
       rest_port: 30068       
@@ -241,7 +241,7 @@ testbeds:
       dut: topologies/cisco/hw/P200-DT-DUT-PEER/8808-FOX2926PHNF-P200_baseconfig.proto
       peer: topologies/cisco/hw/P200-DT-DUT-PEER/PEER-8202_FLM29333C23_baseconfig.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 40068
       gnmi_port: 50068
       rest_port: 30068
@@ -288,7 +288,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
@@ -303,7 +303,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
@@ -319,7 +319,7 @@ testbeds:
       dut: topologies/cisco/hw/8818-DUT-PEER/DUT_8818-FOX2714PNYN_baseconfig_mtls.proto
       peer: topologies/cisco/hw/8818-DUT-PEER/PEER_8808-FOX2733PDKP_baseconfig_mtls.proto
     otg:
-      host: ott-ucs4-b4
+      host: ott-ucs1-b4
       controller_port: 48818
       gnmi_port: 58818
       rest_port: 38818
