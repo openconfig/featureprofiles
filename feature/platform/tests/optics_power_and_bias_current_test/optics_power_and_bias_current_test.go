@@ -92,6 +92,7 @@ type checkThresholdParams struct {
 	upperPath   ygnmi.SingletonQuery[float64]
 	instantPath ygnmi.SingletonQuery[float64]
 	name        string
+	ftName      string
 }
 
 // checkThreshold validates a pair of lower and upper thresholds.
@@ -118,7 +119,7 @@ func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdP
 	if params.name == "module-temperature" && dut.Vendor() != ondatra.CISCO {
 		t.Logf("Skipping instant path check for module-temperature on non-Cisco vendor.")
 	} else {
-		iV := gnmi.Lookup(t, dut.GNMIOpts(), params.instantPath)
+		iV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(getOptsForFunctionalTranslator(t, dut, params.ftName)...), params.instantPath)
 		i, iOK := iV.Val()
 		if !iOK {
 			t.Errorf("Transceiver %s: instant %s is not set", params.transceiver, params.name)
@@ -168,6 +169,7 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		upperPath:   threshold.InputPowerUpper().State(),
 		instantPath: component.Transceiver().Channel(0).InputPower().Instant().State(),
 		name:        "input-power",
+		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
@@ -177,6 +179,7 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		upperPath:   threshold.OutputPowerUpper().State(),
 		instantPath: component.Transceiver().Channel(0).OutputPower().Instant().State(),
 		name:        "output-power",
+		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
 }
 func TestOpticsPowerBiasCurrent(t *testing.T) {
@@ -257,14 +260,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				return
 			}
 			// TODO(ankursaikia): Validate the values for each leaf.
-			var opts []ygnmi.Option
-			if deviations.CiscoxrLaserFt(dut) != "" {
-				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
-				if !ok {
-					t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
-				}
-				opts = append(opts, ygnmi.WithFT(ft))
-			}
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
 			var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
 			for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
 				val, ok := s.Val()
@@ -373,15 +369,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
-				var opts []ygnmi.Option
-				if deviations.CiscoxrLaserFt(dut) != "" {
-					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
-					if !ok {
-						t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
-					}
-					t.Logf("Using functional translator %s for transceiver %s", deviations.CiscoxrLaserFt(dut), transceiverName)
-					opts = append(opts, ygnmi.WithFT(ft))
-				}
+				opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
 				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
 				for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
 					val, ok := s.Val()
