@@ -1,4 +1,5 @@
 simulation:
+  sim_rel: /auto/vxr1/rm/srini/mustang//vxr2_07022_pvt_srini
   no_image_copy: false
   pyvxr_flags:
     port_file_timeout: 10000
@@ -39,7 +40,6 @@ devices:
     platform: spitfire_f
     npu_asic_versions: [A0]
     cli_commands: reload location all noprompt
-    pre_config: hw-module profile npu-compatibility P200
     pre_cli: reload location all noprompt
     xr_hostname: dut
     xr_password: cisco123
@@ -54,7 +54,6 @@ devices:
     platform: spitfire_f
     npu_asic_versions: [A0]
     cli_commands: reload location all noprompt
-    pre_config: hw-module profile npu-compatibility P200
     pre_cli: reload location all noprompt
     xr_hostname: dut
     xr_password: cisco123
