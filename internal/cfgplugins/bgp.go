@@ -786,8 +786,14 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
-		return err
+	// Configure MaximumPaths
+	if deviations.EnableMultipathUnderAfiSafi(dut) {
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+	} else {
+		if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
+			return err
+		}
 	}
 
 	for _, nbr := range cfg.Nbrs {
