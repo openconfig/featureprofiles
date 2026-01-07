@@ -188,7 +188,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	cfgBGP := cfgplugins.BGPConfig{DutAS: dutAS, RouterID: dutP1.IPv4, EnableMaxRoutes: true, PeerGroups: []string{peerGroupV4, peerGroupV6}}
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, batch, cfgBGP)
 	configureDUTBGPNeighbors(t, dut, batch, dutBgpConf.Bgp)
-	
+
 	batch.Set(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	return batch
@@ -655,6 +655,10 @@ func TestBMPBaseSession(t *testing.T) {
 	batch := &gnmi.SetBatch{}
 
 	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
+	batch.Set(t, dut)
+
+	cfgplugins.ConfigureBMPAccessList(t, dut, batch, bmpConfigParams)
+	batch.Set(t, dut)
 
 	type testCase struct {
 		name string
