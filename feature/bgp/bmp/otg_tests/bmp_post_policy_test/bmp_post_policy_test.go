@@ -21,36 +21,36 @@ import (
 )
 
 const (
-	dutAS                             = 64520
-	ate1AS                            = 64530
-	ate2AS                            = 64531
-	ate3AS                            = 64532
-	plenIPv4                          = 30
-	plenIPv6                          = 126
-	bmpStationPort                    = 7039
-	prefix1v4                         = "198.18.0.0"
-	prefix1v4Subnet                   = 32
-	prefix2v4                         = "172.16.0.0"
-	prefix2v4Subnet                   = 32
-	prefix1v6                         = "2001:db8:1::"
-	prefix1v6Subnet                   = 126
-	prefix2v6                         = "2001:db8::"
-	prefix2v6Subnet                   = 126
-	routeCountV4                      = 2500000
-	routeCountV6                      = 750000
-	bmpName                           = "atebmp"
-	prefixSetIPv4Name                 = "PREFIX-SET"
-	prefixSetIPv4                     = "172.16.0.0/16"
-	prefixSubnetRange                 = "16..32"
-	prefixSetIPv6Name                 = "PREFIX-SET-V6"
-	prefixSetIPv6                     = "2001:db8::/64"
-	prefixV6SubnetRange               = "64..128"
-	policyName                        = "BMP-POLICY"
-	prePolicyV4RouteCount             = 0
-	prePolicyV6RouteCount             = 0
+	dutAS                 = 64520
+	ate1AS                = 64530
+	ate2AS                = 64531
+	ate3AS                = 64532
+	plenIPv4              = 30
+	plenIPv6              = 126
+	bmpStationPort        = 7039
+	prefix1v4             = "198.18.0.0"
+	prefix1v4Subnet       = 32
+	prefix2v4             = "172.16.0.0"
+	prefix2v4Subnet       = 32
+	prefix1v6             = "2001:db8:1::"
+	prefix1v6Subnet       = 126
+	prefix2v6             = "2001:db8::"
+	prefix2v6Subnet       = 126
+	routeCountV4          = 2500000
+	routeCountV6          = 750000
+	bmpName               = "atebmp"
+	prefixSetIPv4Name     = "PREFIX-SET"
+	prefixSetIPv4         = "172.16.0.0/16"
+	prefixSubnetRange     = "16..32"
+	prefixSetIPv6Name     = "PREFIX-SET-V6"
+	prefixSetIPv6         = "2001:db8::/64"
+	prefixV6SubnetRange   = "64..128"
+	policyName            = "BMP-POLICY"
+	prePolicyV4RouteCount = 0
+	prePolicyV6RouteCount = 0
 	// Calculated based on 3 neighbors, 2 prefix sets before policy is applied 25000000*3*2=15000000
 	// After policy is applied 65536*3=196608 denied, total post policy routes = 15000000 - 196608 = 14803392
-	postPolicyV4RouteCount            = 14803392
+	postPolicyV4RouteCount = 14803392
 	// Calculated based on 3 neighbors, 2 prefix sets before policy is applied 750000*3*2=4500000
 	// After policy is applied 75000*3=2250000 denied, total post policy routes = 4500000 - 2250000 = 2250000
 	postPolicyV6RouteCount            = 2250000
@@ -190,7 +190,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 	p4 := dut.Port(t, "port4")
-
 
 	batch := &gnmi.SetBatch{}
 	gnmi.BatchReplace(batch, gnmi.OC().Interface(p1.Name()).Config(), dutP1.NewOCInterface(p1.Name(), dut))
@@ -703,6 +702,10 @@ func TestBMPBaseSession(t *testing.T) {
 	batch := &gnmi.SetBatch{}
 
 	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
+	batch.Set(t, dut)
+
+	cfgplugins.ConfigureBMPAccessList(t, dut, batch, bmpConfigParams)
+	batch.Set(t, dut)
 
 	type testCase struct {
 		name string

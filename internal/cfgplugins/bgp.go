@@ -1690,3 +1690,18 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 		// gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bmp)
 	}
 }
+
+// ConfigureBMPAccessList applies access-list to permit BMP port if blocked by default rules.
+func ConfigureBMPAccessList(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		bmpAclConfig := new(strings.Builder)
+		fmt.Fprintf(bmpAclConfig, `
+			ip access-list restrict-access
+			permit tcp any any eq %[1]d
+ 			permit tcp any eq %[1]d any`, cfgParams.StationPort)
+
+		helpers.GnmiCLIConfig(t, dut, bmpAclConfig.String())
+	}
+}
