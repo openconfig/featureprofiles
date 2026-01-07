@@ -17,3 +17,11 @@ platform_exceptions: {
     qos_scheduler_ingress_policer_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

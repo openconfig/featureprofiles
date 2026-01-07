@@ -53,5 +53,13 @@ platform_exceptions: {
     skip_bgp_send_community_type: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags:  TAGS_AGGREGATION
 tags:  TAGS_DATACENTER_EDGE

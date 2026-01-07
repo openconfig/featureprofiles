@@ -25,3 +25,11 @@ platform_exceptions:  {
     aggregate_sid_counter_out_pkts_unsupported:  true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

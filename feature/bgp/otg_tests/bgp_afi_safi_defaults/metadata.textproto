@@ -47,4 +47,12 @@ platform_exceptions: {
     bgp_global_extended_next_hop_encoding_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
 tags: TAGS_AGGREGATION

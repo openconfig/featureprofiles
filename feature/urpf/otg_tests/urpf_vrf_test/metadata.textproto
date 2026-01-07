@@ -20,3 +20,11 @@ platform_exceptions:  {
     static_route_next_network_instance_oc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

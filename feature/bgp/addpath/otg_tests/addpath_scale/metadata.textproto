@@ -34,3 +34,11 @@ platform_exceptions: {
     match_community_set_match_set_options_all_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}

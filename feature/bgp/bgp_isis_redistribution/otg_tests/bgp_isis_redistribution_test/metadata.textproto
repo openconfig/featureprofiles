@@ -50,3 +50,11 @@ platform_exceptions: {
   enable_table_connections: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CIENA
+  }
+  deviations: {
+    default_network_instance: "default"
+  }
+}
