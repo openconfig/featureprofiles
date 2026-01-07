@@ -693,20 +693,8 @@ func expectedMPLSinUDPMultiOpResults(t *testing.T, vrfs []string, mplsNHBase, nh
 	for vrfIdx := range vrfs {
 		nhID := mplsNHBase + uint64(vrfIdx)
 
-		adds = append(adds,
-			fluent.OperationResult().
-				WithNextHopOperation(nhID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Add).
-				AsResult(),
-		)
-		dels = append(dels,
-			fluent.OperationResult().
-				WithNextHopOperation(nhID).
-				WithProgrammingResult(fluent.InstalledInFIB).
-				WithOperationType(constants.Delete).
-				AsResult(),
-		)
+		adds = append(adds, fluent.OperationResult().WithNextHopOperation(nhID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+		dels = append(dels, fluent.OperationResult().WithNextHopOperation(nhID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 	}
 
 	// === 2) NHG + IPv6 route results ===
@@ -716,39 +704,15 @@ func expectedMPLSinUDPMultiOpResults(t *testing.T, vrfs []string, mplsNHBase, nh
 			nhgID := nhgBase + uint64(vrfIdx*numNHGs+i)
 
 			// NHG add/del
-			adds = append(adds,
-				fluent.OperationResult().
-					WithNextHopGroupOperation(nhgID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Add).
-					AsResult(),
-			)
-			dels = append(dels,
-				fluent.OperationResult().
-					WithNextHopGroupOperation(nhgID).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Delete).
-					AsResult(),
-			)
+			adds = append(adds, fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+			dels = append(dels, fluent.OperationResult().WithNextHopGroupOperation(nhgID).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 
 			// Route add/del
 			pfx := prefixIPv6s[idx]
 			prefixStr := pfx + routeV6PrfLen
 
-			adds = append(adds,
-				fluent.OperationResult().
-					WithIPv6Operation(prefixStr).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Add).
-					AsResult(),
-			)
-			dels = append(dels,
-				fluent.OperationResult().
-					WithIPv6Operation(prefixStr).
-					WithProgrammingResult(fluent.InstalledInFIB).
-					WithOperationType(constants.Delete).
-					AsResult(),
-			)
+			adds = append(adds, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Add).AsResult())
+			dels = append(dels, fluent.OperationResult().WithIPv6Operation(prefixStr).WithProgrammingResult(fluent.InstalledInFIB).WithOperationType(constants.Delete).AsResult())
 
 			idx++
 		}
@@ -957,26 +921,26 @@ func TestMPLSinUDPScale(t *testing.T) {
 			t.Errorf("configureVrfProfiles failed: %v", err)
 		}
 	})
-	// t.Run("Profile-2-Multi VRF", func(t *testing.T) {
-	// 	if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, vrfsList, profileMultiVRF, true, dstMac); err != nil {
-	// 		t.Errorf("configureVrfProfiles failed: %v", err)
-	// 	}
-	// })
-	// t.Run("Profile-3-Multi VRF with Skew", func(t *testing.T) {
-	// 	if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, vrfsList, profileMultiVRFSkew, true, dstMac); err != nil {
-	// 		t.Errorf("configureVrfProfiles failed: %v", err)
-	// 	}
-	// })
-	// t.Run("Profile-4-Single VRF", func(t *testing.T) {
-	// 	if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, []string{deviations.DefaultNetworkInstance(dut), vrfsList[1]}, profileSingleVRFECMP, false, dstMac); err != nil {
-	// 		t.Errorf("configureVrfProfiles failed: %v", err)
-	// 	}
-	// })
-	// t.Run("Profile-5-Single VRF", func(t *testing.T) {
-	// 	if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, []string{deviations.DefaultNetworkInstance(dut), vrfsList[1]}, profileSingleVRFgRIBI, false, dstMac); err != nil {
-	// 		t.Errorf("configureVrfProfiles failed: %v", err)
-	// 	}
-	// })
+	t.Run("Profile-2-Multi VRF", func(t *testing.T) {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, vrfsList, profileMultiVRF, true, dstMac); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
+	})
+	t.Run("Profile-3-Multi VRF with Skew", func(t *testing.T) {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, vrfsList, profileMultiVRFSkew, true, dstMac); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
+	})
+	t.Run("Profile-4-Single VRF", func(t *testing.T) {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, []string{deviations.DefaultNetworkInstance(dut), vrfsList[1]}, profileSingleVRFECMP, false, dstMac); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
+	})
+	t.Run("Profile-5-Single VRF", func(t *testing.T) {
+		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, c, []string{deviations.DefaultNetworkInstance(dut), vrfsList[1]}, profileSingleVRFgRIBI, false, dstMac); err != nil {
+			t.Errorf("configureVrfProfiles failed: %v", err)
+		}
+	})
 }
 
 // configureVRFProfiles implements the “Single/Multi VRF Validation” for Profile 1 (baseline) and Profile 4 (ECMP). It programs MPLS-in-UDP NHs, NHGs, and 20k prefixes (10k v4 + 10k v6), validates FIB/AFT, sends traffic, checks MPLS-over-UDP encapsulation, and deletes entries.
@@ -1110,7 +1074,8 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 	// === Delete Entries ===
 	t.Logf("Deleting MPLS-in-UDP entries for Profile %d", profile)
 	// Delete entries in reverse order (Routes -> NHGs -> NHs) to satisfy dependencies.
-	c.DeleteEntries(t, testCaseArgs.entries, testCaseArgs.wantDelResults)
+	slices.Reverse(testCaseArgs.entries)
+	c.DeleteEntries(t, testCaseArgs.entries, nil)
 	// Validate that traffic fails after deletion (expect loss)
 	t.Logf("Verifying traffic fails after MPLS-in-UDP entries deleted for Profile %d", profile)
 	if perr := validateTrafficFlows(t, ate, ateConfig, tArgs, testCaseArgs.flows, false, false); perr != nil {
