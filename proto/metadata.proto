@@ -1082,9 +1082,13 @@ message Metadata {
     // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 360;
 
-    // Cisco: http://b/429231108
-    string ciscoxr_transceiver_ft = 361;
+    // Device does not support match-set-options leaf with ALL for match-community-set
+    // Arista: b/335739231
+    bool match_community_set_match_set_options_all_unsupported = 361;
 
+    // Cisco: http://b/429231108
+    string ciscoxr_transceiver_ft = 362;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

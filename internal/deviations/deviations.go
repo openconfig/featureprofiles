@@ -1820,6 +1820,13 @@ func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
 }
 
+// MatchCommunitySetMatchSetOptionsAllUnsupported returns true if device does not support match-set-options=ALL
+// for bgp-conditions community-sets
+// Arista: b/335739231
+func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
+
 // CiscoxrTransceiverFt returns the functional translator to be used for translating
 // transceiver threshold leaves.
 func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
