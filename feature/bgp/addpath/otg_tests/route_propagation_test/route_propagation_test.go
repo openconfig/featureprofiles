@@ -321,33 +321,33 @@ type OTGBGPPrefix struct {
 }
 
 func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
-        t.Helper()
-        start := time.Now()
-        for time.Since(start) < 2*time.Minute {
-                bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State())
-                for _, bgpPrefix := range bgpPrefixes {
-                        if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-                                bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-                                return true
-                        }
-                }
-        }
-        return false
+	t.Helper()
+	start := time.Now()
+	for time.Since(start) < 2*time.Minute {
+		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
-        t.Helper()
-        start := time.Now()
-        for time.Since(start) < 2*time.Minute {
-                bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State())
-                for _, bgpPrefix := range bgpPrefixes {
-                        if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-                                bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-                                return true
-                        }
-                }
-        }
-        return false
+	t.Helper()
+	start := time.Now()
+	for time.Since(start) < 2*time.Minute {
+		bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State())
+		for _, bgpPrefix := range bgpPrefixes {
+			if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+				bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func TestBGP(t *testing.T) {
