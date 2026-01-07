@@ -507,7 +507,11 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
-		isisIntf := isis.GetOrCreateInterface(intf)
+		intfConf := intf
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intfConf = intf + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intfConf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
