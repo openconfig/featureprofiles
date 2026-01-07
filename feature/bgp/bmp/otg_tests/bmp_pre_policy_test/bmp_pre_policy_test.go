@@ -1,4 +1,4 @@
-package bmpprepolicytest
+package bmp_pre_policy_test
 
 import (
 	"errors"
