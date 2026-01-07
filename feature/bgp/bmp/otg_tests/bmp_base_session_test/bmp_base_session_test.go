@@ -179,6 +179,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	dutBgpConf := cfgplugins.ConfigureDUTBGP(t, dut, batch, cfgBGP)
 	configureDUTBGPNeighbors(t, dut, batch, dutBgpConf.Bgp)
 	cfgplugins.ConfigureBMP(t, dut, batch, bmpConfigParams)
+
+	batch.Set(t, dut)
+
+	cfgplugins.ConfigureBMPAccessList(t, dut, batch, bmpConfigParams)
+
 	batch.Set(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	return batch
