@@ -455,17 +455,23 @@ func verifyBMPStatisticsReporting(t *testing.T, ate *ondatra.ATEDevice, bmpName 
 
 	bmpServer := gnmi.OTG().BmpServer(bmpName)
 
-	initialStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
-	t.Logf("Initial BMP statistics counter: %v", initialStatCounter)
+	var statCounter uint64
+	gnmi.Watch(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State(), timeout, func(val *ygnmi.Value[uint64]) bool {
+		counter, present := val.Val()
+		return present && counter >= 1
+	}).Await(t)
+
+	statCounter = gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
+	t.Logf("BMP statistics counter: %v", statCounter)
 
 	time.Sleep(statisticsIntervalSeconds)
 
 	updatedStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Updated BMP statistics counter: %v", updatedStatCounter)
 
-	if updatedStatCounter <= initialStatCounter {
-		return fmt.Errorf("bmp statistics counter did not increment after 60 seconds. Initial: %v, Updated: %v",
-			initialStatCounter, updatedStatCounter)
+	if updatedStatCounter <= statCounter {
+		return fmt.Errorf("bmp statistics counter did not increment after 60 seconds. Previous: %v, Updated: %v",
+			statCounter, updatedStatCounter)
 	}
 	return nil
 
