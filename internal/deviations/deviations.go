@@ -1820,3 +1820,10 @@ func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
 }
+
+// MatchCommunitySetMatchSetOptionsAllUnsupported returns true if device does not support match-set-options=ALL
+// for bgp-conditions community-sets
+// Arista: b/335739231
+func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
