@@ -1086,8 +1086,11 @@ message Metadata {
     // Arista: b/335739231
     bool match_community_set_match_set_options_all_unsupported = 361;
 
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 362;
+
     // Cisco: http://b/429231108
-    string ciscoxr_transceiver_ft = 362;
+    string ciscoxr_transceiver_ft = 363;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

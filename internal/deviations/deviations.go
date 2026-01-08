@@ -1827,6 +1827,11 @@ func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool
 	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
 }
 
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
+
 // CiscoxrTransceiverFt returns the functional translator to be used for translating
 // transceiver threshold leaves.
 func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
