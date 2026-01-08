@@ -333,20 +333,20 @@ testbeds:
     binding: topologies/cisco/hw/8202-DUT-PEER/binding
     baseconf:
       dut: topologies/cisco/hw/8202-DUT-PEER/DUT-8202_FLM275101MJ_baseconfig.proto
-      peer: topologies/cisco/hw/8202-DUT-PEER/PEER-8202_FLM275203KT_baseconfig.proto
+      peer: topologies/cisco/hw/8202-DUT-PEER/PEER-8202_FLM2752053K_NON_ECC_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49202
       gnmi_port: 59202
       rest_port: 39202
 
-  8202-FLM275203KT: &8202-FLM275203KT_DEFAULTS
-    hw: 8202-FLM275203KT
+  8202_FLM2752053K_NON_ECC: &8202-FLM275203KT_DEFAULTS
+    hw: 8202_FLM2752053K_NON_ECC
     owner:
     testbed: topologies/cisco/hw/8202-FLM275203KT/testbed
     binding: topologies/cisco/hw/8202-FLM275203KT/binding
     baseconf:
-      dut: topologies/cisco/hw/8202-FLM275203KT/DUT-8202_FLM275203KT_baseconfig.proto
+      dut: topologies/cisco/hw/8202-FLM275203KT/DUT-8202_FLM2752053K_NON_ECC_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49203
