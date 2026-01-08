@@ -45,7 +45,7 @@ const (
 	lossTolerance        = 1
 	mgmtVRF              = "mvrf1"
 	sampleTolerance      = 0.8
-	ciscoMinSamplingRate = 262144
+	ciscoMinSamplingRate = 262144 // ciscoMinSamplingRate is the minimum sampling rate for sFlow on some Cisco platforms.
 )
 
 var (
@@ -466,8 +466,8 @@ func validatePackets(t *testing.T, dut *ondatra.DUTDevice, filename string, ip I
 	packetCount := 0
 	sflowSamples := uint32(0)
 	var minSamplingRate uint32
-	if dut.Vendor() == ondatra.CISCO {
-		minSamplingRate = ciscoMinSamplingRate
+	if deviatedRate := deviations.SflowIngressMinSamplingRate(dut); deviatedRate != 0 {
+		minSamplingRate = deviatedRate
 	} else {
 		minSamplingRate = fc.minSamplingRate
 	}
