@@ -900,11 +900,12 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
+	if !deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
 	agg.GetOrCreateAggregation().LagType = l.AggType
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
@@ -917,8 +918,6 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		lacpPath := gnmi.OC().Lacp().Interface(aggID)
 		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
 	}
-
-	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
@@ -1273,4 +1272,21 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
 		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
 	}
+}
+
+// EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
+func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
+	t.Helper()
+	port := dut.Port(t, portAttribs.Name)
+	intPath := gnmi.OC().Interface(port.Name()).Config()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
+	}
+	gnmi.BatchUpdate(b, intPath, intf)
 }
