@@ -226,7 +226,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 		if deviations.BgpCommunityTypeSliceInputUnsupported(dut) {
 			pg.SetSendCommunity(oc.Bgp_CommunityType_STANDARD)
-		} else {
+		} else if !deviations.SkipBgpSendCommunityType(dut) {
 			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		}
 
