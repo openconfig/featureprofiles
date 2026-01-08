@@ -31,7 +31,7 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
-    skip_bgp_send_community_type: true
+    bgp_community_type_slice_input_unsupported: true
   }
 }
 tags:  TAGS_DATACENTER_EDGE

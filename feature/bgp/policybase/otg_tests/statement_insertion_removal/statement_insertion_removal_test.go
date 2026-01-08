@@ -224,10 +224,10 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		pg.PeerAs = ygot.Uint32(nbr.as)
 		pg.PeerGroupName = ygot.String(nbr.peerGrp)
 
-		if !deviations.SkipBgpSendCommunityType(dut) {
-			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
-		} else {
+		if deviations.BgpCommunityTypeSliceInputUnsupported(dut) {
 			pg.SetSendCommunity(oc.Bgp_CommunityType_STANDARD)
+		} else {
+			pg.SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD})
 		}
 
 		as4 := pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)

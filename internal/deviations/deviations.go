@@ -870,7 +870,6 @@ func UseVendorNativeTagSetConfig(dut *ondatra.DUTDevice) bool {
 }
 
 // SkipBgpSendCommunityType return true if device needs to skip setting BGP send-community-type
-// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
 func SkipBgpSendCommunityType(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipBgpSendCommunityType()
 }
@@ -1826,4 +1825,10 @@ func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: b/335739231
 func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
+
+// BgpCommunityTypeSliceInputUnsupported returns true if device does not support slice input of BGP community type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
+func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
 }
