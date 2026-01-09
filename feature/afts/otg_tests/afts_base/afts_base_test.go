@@ -44,40 +44,43 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesV4Prefix    = 32
-	advertisedRoutesV6Prefix128 = 128
-	advertisedRoutesV6Prefix64  = 64
-	dutAS                       = 65501
-	ateAS                       = 200
-	v4PrefixLen                 = 30
-	v6PrefixLen                 = 126
-	mtu                         = 1500
-	isisSystemID                = "650000000001"
-	applyPolicyType             = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	applyPolicyName             = "ALLOW"
-	peerGrpNameV4P1             = "BGP-PEER-GROUP-V4-P1"
-	peerGrpNameV6P1             = "BGP-PEER-GROUP-V6-P1"
-	peerGrpNameV4P2             = "BGP-PEER-GROUP-V4-P2"
-	peerGrpNameV6P2             = "BGP-PEER-GROUP-V6-P2"
-	port1MAC                    = "00:00:02:02:02:02"
-	port2MAC                    = "00:00:03:03:03:03"
-	bgpRoute                    = "200.0.0.0"
-	bgpRoutev6                  = "3001:1::0"
-	startingBGPRouteIPv4        = "200.0.0.0/32"
-	startingBGPRouteIPv6128     = "3001:1::0/128"
-	startingBGPRouteIPv664      = "3001:1::0/64"
-	isisRouteCount              = 100
-	isisRoute                   = "199.0.0.1"
-	isisRoutev6                 = "2001:db8::203:0:113:1"
-	startingISISRouteIPv4       = "199.0.0.1/32"
-	startingISISRouteIPv6       = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime          = 30 * time.Minute
-	bgpTimeout                  = 10 * time.Minute
-	linkLocalAddress            = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale   = 1500000
-	bgpRouteCountIPv6LowScale   = 512000
-	bgpRouteCountIPv4Default    = 2000000
-	bgpRouteCountIPv6Default    = 1000000
+	advertisedRoutesV4Prefix     = 32
+	advertisedRoutesV6Prefix128  = 128
+	advertisedRoutesV6Prefix64   = 64
+	dutAS                        = 65501
+	ateAS                        = 200
+	v4PrefixLen                  = 30
+	v6PrefixLen                  = 126
+	mtu                          = 1500
+	isisSystemID                 = "650000000001"
+	applyPolicyType              = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	applyPolicyName              = "ALLOW"
+	peerGrpNameV4P1              = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1              = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2              = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2              = "BGP-PEER-GROUP-V6-P2"
+	port1MAC                     = "00:00:02:02:02:02"
+	port2MAC                     = "00:00:03:03:03:03"
+	bgpRoute                     = "200.0.0.0"
+	bgpRoutev664                 = "3001:1::0"
+	bgpRoutev6128                = "4001:1::0"
+	startingBGPRouteIPv4         = "200.0.0.0/32"
+	startingBGPRouteIPv6128      = "4001:1::0/128"
+	startingBGPRouteIPv664       = "3001:1::0/64"
+	isisRouteCount               = 100
+	isisRoute                    = "199.0.0.1"
+	isisRoutev6                  = "2001:db8::203:0:113:1"
+	startingISISRouteIPv4        = "199.0.0.1/32"
+	startingISISRouteIPv6        = "2001:db8::203:0:113:1/128"
+	aftConvergenceTime           = 30 * time.Minute
+	bgpTimeout                   = 10 * time.Minute
+	linkLocalAddress             = "fe80::200:2ff:fe02:202"
+	bgpRouteCountIPv4LowScale    = 1500000
+	bgpRouteCountIPv6LowScale64  = 460800
+	bgpRouteCountIPv6LowScale128 = 51200
+	bgpRouteCountIPv4Default     = 2000000
+    bgpRouteCountIPv6Default64   = 900000 
+    bgpRouteCountIPv6Default128  = 100000
 )
 
 var (
@@ -112,8 +115,6 @@ var (
 	port2Name                = "port2"
 	prevNHGIDIPv4            = uint64(0)
 	prevNHGIDIPv6            = uint64(0)
-	advertisedRoutesV6Prefix = uint32(advertisedRoutesV6Prefix128)
-	startingBGPRouteIPv6     = startingBGPRouteIPv6128
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -122,12 +123,12 @@ func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
 		if afi == IPv4 {
 			return bgpRouteCountIPv4LowScale
 		}
-		return bgpRouteCountIPv6LowScale
+		return bgpRouteCountIPv6LowScale64 + bgpRouteCountIPv6LowScale128
 	}
 	if afi == IPv4 {
 		return bgpRouteCountIPv4Default
 	}
-	return bgpRouteCountIPv6Default
+	return bgpRouteCountIPv6Default64 + bgpRouteCountIPv6Default128
 }
 
 // getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
@@ -393,7 +394,11 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d1ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).SetCount(isisRouteCount)
+        SetPrefix(advertisedRoutesV6Prefix128).SetCount(isisRouteCount)
+    d1ISISRouteV6.Addresses().
+        Add().
+        SetAddress(isisRoutev6).
+        SetPrefix(advertisedRoutesV6Prefix64).SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d1, d1IPv4, d1IPv6)
 
@@ -449,7 +454,12 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d2ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).
+        SetPrefix(advertisedRoutesV6Prefix128).
+        SetCount(isisRouteCount)
+	d2ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix64).
 		SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d2, d2IPv4, d2IPv6)
@@ -478,10 +488,14 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-	routesV6.Addresses().Add().
-		SetAddress(bgpRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(getRouteCount(tc.dut, IPv6))
+		routesV6.Addresses().Add().
+				SetAddress(bgpRoutev6128).
+				SetPrefix(advertisedRoutesV6Prefix128).
+				SetCount(bgpRouteCountIPv6Default128)
+        routesV6.Addresses().Add().
+	   			SetAddress(bgpRoutev664).
+        		SetPrefix(advertisedRoutesV6Prefix64).
+          	    SetCount(bgpRouteCountIPv6Default64)
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
@@ -489,8 +503,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6))) {
-		wantPrefixes[pfix6] = true
+       for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
+               wantPrefixes[pfix6128] = true
+       }
+       for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
+               wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
 }
@@ -623,11 +640,6 @@ func TestBGP(t *testing.T) {
 		gnmiClient2: gnmiClient2,
 	}
 
-	if deviations.SubnetMaskChange(dut) {
-		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
-		startingBGPRouteIPv6 = startingBGPRouteIPv664
-	}
-
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
@@ -647,13 +659,15 @@ func TestBGP(t *testing.T) {
 		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount, true); err != nil {
+        if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
+            t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
+        }
+        if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
 	}
 
-	// --- Test Setup ---
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
