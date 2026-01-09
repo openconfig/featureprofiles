@@ -1489,6 +1489,7 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // FrBreakoutFix returns true if the fix is needed
+// Arista: https://issuetracker.google.com/426375784
 func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
