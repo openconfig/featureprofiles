@@ -696,7 +696,14 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	t.Helper()
 	root := &oc.Root{}
 	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-
+	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
+	if deviations.EnableMultipathUnderAfiSafi(dut) && dut.Vendor() == ondatra.CISCO {
+		global := bgp.GetOrCreateGlobal()
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+		return nil
+	}
+	// Handle MultipathUnsupportedNeighborOrAfisafi deviation and Configure Multipath for Juniper
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
@@ -786,14 +793,8 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	// Configure MaximumPaths
-	if deviations.EnableMultipathUnderAfiSafi(dut) {
-		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
-		global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
-	} else {
-		if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
-			return err
-		}
+	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
+		return err
 	}
 
 	for _, nbr := range cfg.Nbrs {
