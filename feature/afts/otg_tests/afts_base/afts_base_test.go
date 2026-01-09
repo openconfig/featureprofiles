@@ -623,6 +623,11 @@ func TestBGP(t *testing.T) {
 		gnmiClient2: gnmiClient2,
 	}
 
+	if deviations.SubnetMaskChange(dut) {
+		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
+		startingBGPRouteIPv6 = startingBGPRouteIPv664
+	}
+
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
@@ -649,11 +654,6 @@ func TestBGP(t *testing.T) {
 	}
 
 	// --- Test Setup ---
-	if deviations.SubnetMaskChange(dut) {
-		advertisedRoutesV6Prefix = advertisedRoutesV6Prefix64
-		startingBGPRouteIPv6 = startingBGPRouteIPv664
-	}
-
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
