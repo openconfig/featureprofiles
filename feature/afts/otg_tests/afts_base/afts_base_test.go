@@ -108,13 +108,13 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs              = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs              = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostChurn     = map[string]bool{ateP1.IPv4: true}
-	port1Name                = "port1"
-	port2Name                = "port2"
-	prevNHGIDIPv4            = uint64(0)
-	prevNHGIDIPv6            = uint64(0)
+	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
+	port1Name            = "port1"
+	port2Name            = "port2"
+	prevNHGIDIPv4        = uint64(0)
+	prevNHGIDIPv6        = uint64(0)
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -488,14 +488,14 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
-		routesV6.Addresses().Add().
-				SetAddress(bgpRoutev6128).
-				SetPrefix(advertisedRoutesV6Prefix128).
-				SetCount(bgpRouteCountIPv6Default128)
-        routesV6.Addresses().Add().
-	   			SetAddress(bgpRoutev664).
-        		SetPrefix(advertisedRoutesV6Prefix64).
-          	    SetCount(bgpRouteCountIPv6Default64)
+	routesV6.Addresses().Add().
+		SetAddress(bgpRoutev6128).
+		SetPrefix(advertisedRoutesV6Prefix128).
+		SetCount(bgpRouteCountIPv6Default128)
+	routesV6.Addresses().Add().
+		SetAddress(bgpRoutev664).
+		SetPrefix(advertisedRoutesV6Prefix64).
+		SetCount(bgpRouteCountIPv6Default64)
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
@@ -503,11 +503,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-       for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
-               wantPrefixes[pfix6128] = true
-       }
-       for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
-               wantPrefixes[pfix664] = true
+    for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
+        wantPrefixes[pfix6128] = true
+    }
+    for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
+        wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
 }
@@ -668,6 +668,7 @@ func TestBGP(t *testing.T) {
 		return aft
 	}
 
+	// --- Test Setup ---
 	if err := tc.configureDUT(t); err != nil {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
