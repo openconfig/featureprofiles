@@ -1832,3 +1832,8 @@ func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool
 func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
 }
+
+// IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
+func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
