@@ -1838,3 +1838,8 @@ func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
 }
+
+// IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
+func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
