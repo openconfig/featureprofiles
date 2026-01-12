@@ -30,7 +30,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/testt/testt"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	spb "github.com/openconfig/gnoi/system"
