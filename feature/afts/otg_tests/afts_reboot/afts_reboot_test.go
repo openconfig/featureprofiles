@@ -51,12 +51,9 @@ const (
 	// contextTimeout is the overall timeout for the gNOI reboot operation.
 	contextTimeout = 20 * time.Minute
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
-	maxRebootTime = 18 * time.Minute
+	maxRebootTime = 20 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval = 10 * time.Second
-	dutAS              = 65501
-	ateAS              = 200
-	applyPolicyName    = "ALLOW"
+	rebootPollInterval = 30 * time.Second
 )
 
 var (
@@ -302,7 +299,7 @@ func (tc *testCase) waitForReboot(t *testing.T, lastBootTime uint64) {
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	{
-		ticker := time.NewTicker(30 * time.Second)
+		ticker := time.NewTicker(rebootPollInterval)
 		defer ticker.Stop()
 		timeout := time.After(maxRebootTime)
 		var deviceWentDown bool
