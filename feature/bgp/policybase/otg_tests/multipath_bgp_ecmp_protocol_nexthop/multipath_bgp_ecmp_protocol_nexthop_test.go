@@ -335,7 +335,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := dut.Port(t, "port4")
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutP4.NewOCInterface(p4.Name(), dut))
 	t.Logf("Now configuring ISIS config on DUT")
-	time.Sleep(60 * time.Second)
+	// time.Sleep(60 * time.Second)
+	for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 10*time.Minute, oc.Interface_OperStatus_UP)
+	}
 
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
@@ -615,7 +618,8 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	time.Sleep(1 * time.Minute)
 
 	otg.StartProtocols(t)
-	time.Sleep(1 * time.Minute)
+	otgutils.WaitForARP(t, otg, config, "IPv4")
+	otgutils.WaitForARP(t, otg, config, "IPv6")
 
 	return config
 }
