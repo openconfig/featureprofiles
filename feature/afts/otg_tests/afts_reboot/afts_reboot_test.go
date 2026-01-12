@@ -339,15 +339,6 @@ func (tc *testCase) waitForReboot(t *testing.T, lastBootTime uint64) {
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI after reboot: %v", err)
 	}
-	// // Wait for the device to become reachable again.
-	// _, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().CurrentDatetime().State(), maxRebootTime, func(val *ygnmi.Value[string]) bool {
-	// 	_, ok := val.Val()
-	// 	return ok
-	// }).Await(t)
-	// if !ok {
-	// 	t.Fatalf("Timeout exceeded: DUT did not reboot within %v", maxRebootTime)
-	// }
-	// t.Logf("Device is reachable, waiting for boot time to update.")
 	// Wait for boot time to change.
 	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
 	if !ok {
