@@ -40,8 +40,6 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func uint8Ptr(i uint8) *uint8 { return &i }
-
 // The test topology consists of a DUT connected to a ATE with four ports.
 // iBGP is configured between DUT Port2 and ATE Port2, DUT Port3 and ATE Port3,
 // and DUT Port4 and ATE Port4.
