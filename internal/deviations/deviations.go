@@ -1832,3 +1832,14 @@ func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool
 func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
 }
+
+// BgpCommunityTypeSliceInputUnsupported returns true if device does not support slice input of BGP community type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
+func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
+}
+
+// IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
+func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
