@@ -18,4 +18,13 @@ platform_exceptions: {
     interface_counters_in_unknown_protos_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    cpu_utilization_query_against_base_controller_card_component: true
+    cpu_utilization_query_against_base_linecard_component: true
+  }
+}
 tags: TAGS_AGGREGATION

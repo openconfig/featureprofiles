@@ -224,8 +224,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	if len(controllerCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
-	switch dut.Vendor() {
-	case ondatra.CISCO:
+	if deviations.CpuUtilizationQueryAgainstBaseControllerCardComponent(dut) {
 		for _, cpu := range controllerCards {
 			t.Run(cpu, func(t *testing.T) {
 				ts := time.Now().Round(time.Second)
@@ -243,7 +242,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
 		controllerCards = []string{}
-	default:
+	} else {
 		for _, cpu := range cpuCards {
 			t.Run(cpu, func(t *testing.T) {
 				query := gnmi.OC().Component(cpu).State()
@@ -269,7 +268,6 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 		}
 	}
-
 	if len(controllerCards) > 0 {
 		t.Errorf("ERROR: Didn't find cpu card for controllerCards %s", controllerCards)
 	}
@@ -287,8 +285,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	chassisLineCards := make([]string, 0)
 
-	switch dut.Vendor() {
-	case ondatra.CISCO:
+	if deviations.CpuUtilizationQueryAgainstBaseLinecardComponent(dut) {
 		// Cisco reports CPU utilization on the base linecard component (e.g. 0/0/CPU0)
 		var baseLCs []string
 		for _, cpu := range cpuCards {
@@ -329,7 +326,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		}
 		// prevent missing-CPU association check at the end of test since it's already handled above
 		lineCards = []string{}
-	default:
+	} else {
 		for _, lc := range lineCards {
 			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
 			if !compMtyVal && ok {
