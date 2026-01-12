@@ -1489,6 +1489,7 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // FrBreakoutFix returns true if the fix is needed
+// Arista: https://issuetracker.google.com/426375784
 func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
@@ -1825,4 +1826,15 @@ func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: b/335739231
 func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
+
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
+
+// BgpCommunityTypeSliceInputUnsupported returns true if device does not support slice input of BGP community type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
+func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
 }
