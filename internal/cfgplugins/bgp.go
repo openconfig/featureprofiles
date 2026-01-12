@@ -716,6 +716,7 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Roo
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			global := bgp.GetOrCreateGlobal()
+			// set the maxpaths as 2 as we can expect max of 2 paths in the test.
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
 			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
 			return nil
@@ -831,9 +832,6 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 			neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 				SetEnabled(true)
 		}
-	}
-	if err := handleMaxPrefixesDeviation(t, dut, sb, cfg); err != nil {
-		return err
 	}
 	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
