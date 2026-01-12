@@ -126,15 +126,12 @@ const (
 	ateP2Lo0IPv6     = "193:1:1::1"
 	ateP3Lo0IPv6     = "193:1:2::1"
 	ateP4Lo0IPv6     = "193:1:3::1"
-	isisMetric       = 10
 	prefixMin        = "100.1.1.1"
 	prefixLen        = 24
 	prefixV6Min      = "100:1:1::1"
 	prefixV6Len      = 64
 	prefixCount      = 1
 	maxpaths         = 4
-	bgpPassword      = "BGPKEY"
-	ISISName         = "DEFAULT"
 	isisAreaAddr     = "49.0000"
 	isisSysID        = "1920.0000.2001"
 	otgSysID2        = "640000000001"
@@ -145,7 +142,7 @@ const (
 	packetSize       = 1500
 	peerGrpName1     = "BGP-PEER-GROUP1"
 	lossTolerancePct = 0  // Packet loss tolerance in percentage
-	lbToleranceFms   = 20 // Load Balance Tolerance in percentageExpand commentComment on line R148ResolvedCode has comments. Press enter to view.
+	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
 	rplType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName          = "ALLOW"
 )
@@ -620,8 +617,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	otg.StartProtocols(t)
 	time.Sleep(1 * time.Minute)
 
-	// otg.StartTraffic(t)
-	// time.Sleep(30 * time.Second)
 	return config
 }
 
