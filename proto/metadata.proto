@@ -1069,9 +1069,29 @@ message Metadata {
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
 
+    // Device does not support interface counters in unknown protos
+    // Juniper: https://issuetracker.google.com/issues/461368936
+    bool interface_counters_in_unknown_protos_unsupported = 358;
+
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
+
+    // Devices that require no-php flag for ISIS SR prefix and node segments
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
+    bool isis_sr_no_php_required = 360;
+
+    // Device does not support match-set-options leaf with ALL for match-community-set
+    // Arista: b/335739231
+    bool match_community_set_match_set_options_all_unsupported = 361;
+
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 362;
+    
     // Device doesnot support configuring multipath path under ibgp
     // b/470225281
-    bool ibgp_multipath_path_unsupported = 358;
+    bool ibgp_multipath_path_unsupported = 363;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

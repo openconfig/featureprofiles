@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -133,7 +134,6 @@ const (
 	prefixCount      = 1
 	maxpaths         = 4
 	bgpPassword      = "BGPKEY"
-	PTISIS           = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS
 	ISISName         = "DEFAULT"
 	isisAreaAddr     = "49.0000"
 	isisSysID        = "1920.0000.2001"
@@ -145,7 +145,7 @@ const (
 	packetSize       = 1500
 	peerGrpName1     = "BGP-PEER-GROUP1"
 	lossTolerancePct = 0  // Packet loss tolerance in percentage
-	lbToleranceFms   = 20 // Load Balance Tolerance in percentage
+	lbToleranceFms   = 20 // Load Balance Tolerance in percentageExpand commentComment on line R148ResolvedCode has comments. Press enter to view.
 	rplType          = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	rplName          = "ALLOW"
 )
@@ -236,7 +236,7 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, rplName, rplType)
 	otg := ate.OTG()
-	configureOTG(t, otg)
+	top := configureOTG(t, otg)
 
 	testCases := []testCase{
 		{
@@ -271,7 +271,6 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				if tc.multipath {
 					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 					enableMultipath(t, dut, maxpaths, true)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 				} else {
 					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				}
@@ -280,15 +279,19 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
+				otgutils.LogFlowMetrics(t, otg, top)
+				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv4", 0)
 				checkPacketLoss(t, ate, "ipv4")
+				if tc.multipath {
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
 			if tc.ipv6 {
 				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				if tc.multipath {
 					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 					enableMultipath(t, dut, maxpaths, false)
-					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
 				} else {
 					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
 				}
@@ -297,8 +300,13 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				otg.StartTraffic(t)
 				time.Sleep(30 * time.Second)
 				otg.StopTraffic(t)
+				otgutils.LogFlowMetrics(t, otg, top)
+				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv6", 0)
 				checkPacketLoss(t, ate, "ipv6")
+				if tc.multipath {
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
 		})
 	}
@@ -353,61 +361,25 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
 
-	dutConfPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, ISISName)
-	dutConf := addISISOC(isisAreaAddr, isisSysID, []string{p2.Name(), p3.Name(), p4.Name()}, dut)
-	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
+	isisData := &cfgplugins.ISISGlobalParams{
+		DUTArea:             isisAreaAddr,
+		DUTSysID:            isisSysID,
+		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
+		ISISInterfaceNames:  []string{p2.Name(), p3.Name(), p4.Name()},
+	}
+	isisBatch := &gnmi.SetBatch{}
+	cfgplugins.NewISIS(t, dut, isisData, isisBatch)
+	isisBatch.Set(t, dut)
 	t.Logf("ISIS config applied on DUT")
 
 	t.Logf("Now configuring BGP config on DUT")
 	// Configure BGP neighbors and peer groups on DUT.
-	dutConfPath = gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Delete(t, dut, dutConfPath.Config())
-	dutConf = bgpCreateNbr(dutAS, ateAS, dut)
+	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Logf("BGP config applied on DUT")
 	time.Sleep(30 * time.Second)
-}
-
-func addISISOC(areaAddress, sysID string, ifaceNames []string, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
-	dev := &oc.Root{}
-	inst := dev.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-	prot := inst.GetOrCreateProtocol(PTISIS, ISISName)
-	prot.Enabled = ygot.Bool(true)
-	isis := prot.GetOrCreateIsis()
-	glob := isis.GetOrCreateGlobal()
-	if deviations.ISISInstanceEnabledRequired(dut) {
-		glob.Instance = ygot.String(ISISName)
-	}
-	glob.Net = []string{fmt.Sprintf("%v.%v.00", isisAreaAddr, isisSysID)}
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	glob.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-	level := isis.GetOrCreateLevel(2)
-	level.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-	// Configure ISIS enabled flag at level
-	if deviations.ISISLevelEnabled(dut) {
-		level.Enabled = ygot.Bool(true)
-	}
-
-	for _, ifaceName := range ifaceNames {
-		intf := isis.GetOrCreateInterface(ifaceName)
-		intf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		intf.Enabled = ygot.Bool(true)
-		// Configure ISIS level at global mode if true else at interface mode
-		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-			intf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
-		} else {
-			intf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
-		}
-		glob.LevelCapability = oc.Isis_LevelType_LEVEL_2
-		// Configure ISIS enable flag at interface level
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		intf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
-		if deviations.ISISInterfaceAfiUnsupported(dut) {
-			intf.Af = nil
-		}
-	}
-
-	return prot
 }
 
 type bgpNeighbor struct {
@@ -420,19 +392,11 @@ type bgpNeighbor struct {
 
 // enableMultipath enables multipath for the given DUT device with the given maximum paths.
 func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
-	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: ateP2Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
-	nbr2v4 := &bgpNeighbor{as: ateAS, neighborip: ateP3Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
-	nbr3v4 := &bgpNeighbor{as: ateAS, neighborip: ateP4Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
-	nbr1v6 := &bgpNeighbor{as: ateAS, neighborip: ateP2Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
-	nbr2v6 := &bgpNeighbor{as: ateAS, neighborip: ateP3Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
-	nbr3v6 := &bgpNeighbor{as: ateAS, neighborip: ateP4Lo0IPv6, isV4: false, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv6}
-	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4, nbr3v4, nbr1v6, nbr2v6, nbr3v6}
 	dni := deviations.DefaultNetworkInstance(dut)
 	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
 	bgp := bgpProto.GetOrCreateBgp()
 	cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
-	cliConfigNbr := ""
 	if !deviations.IbgpMultipathPathUnsupported(dut) {
 		if deviations.EnableMultipathUnderAfiSafi(dut) {
 			if ipv4 {
@@ -444,19 +408,6 @@ func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4
 			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
 		}
 	} else {
-		for _, nbr := range nbrs {
-			switch dut.Vendor() {
-			case ondatra.ARISTA:
-				if ipv4 && nbr.isV4 == true {
-					cliConfigNbr = cliConfigNbr + fmt.Sprintf("address-family ipv4\nneighbor %s multi-path\n", nbr.neighborip)
-				} else if !ipv4 && nbr.isV4 == false {
-					cliConfigNbr = cliConfigNbr + fmt.Sprintf("address-family ipv6\nneighbor %s multi-path\n", nbr.neighborip)
-				}
-			default:
-				t.Logf("Vendor %v does not need CLI update support for this test", dut.Vendor())
-			}
-		}
-		cliConfig = cliConfig + cliConfigNbr
 		t.Logf("CLI config: \n%v", cliConfig)
 		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
@@ -520,7 +471,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 	return niProto
 }
 
-func configureOTG(t *testing.T, otg *otg.OTG) {
+func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
@@ -671,6 +622,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) {
 
 	// otg.StartTraffic(t)
 	// time.Sleep(30 * time.Second)
+	return config
 }
 
 func verifyBGPPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, wantRx uint32, isV4 bool) {
