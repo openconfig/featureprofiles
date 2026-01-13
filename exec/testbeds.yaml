@@ -343,10 +343,10 @@ testbeds:
   8202_FLM2752053K_NON_ECC: &8202-FLM275203KT_DEFAULTS
     hw: 8202_FLM2752053K_NON_ECC
     owner:
-    testbed: topologies/cisco/hw/8202-8202_FLM2752053K_NON_ECC/testbed
-    binding: topologies/cisco/hw/8202-8202_FLM2752053K_NON_ECC/binding
+    testbed: topologies/cisco/hw/8202_FLM2752053K_NON_ECC/testbed
+    binding: topologies/cisco/hw/8202_FLM2752053K_NON_ECC/binding
     baseconf:
-      dut: topologies/cisco/hw/8202-8202_FLM2752053K_NON_ECC/DUT-8202_FLM2752053K_NON_ECC_baseconfig.proto
+      dut: topologies/cisco/hw/8202_FLM2752053K_NON_ECC/DUT-8202_FLM2752053K_NON_ECC_baseconfig.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 49203
