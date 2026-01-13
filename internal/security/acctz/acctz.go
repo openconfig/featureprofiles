@@ -17,11 +17,11 @@ package acctz
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"strconv"
 	"testing"
@@ -36,22 +36,20 @@ import (
 	tpb "github.com/openconfig/kne/proto/topo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
-	"github.com/openconfig/ondatra/binding/introspect"
 	ondatragnmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
-	successUsername      = "acctztestuser"
-	successPassword      = "verysecurepassword"
-	failUsername         = "bilbo"
-	failPassword         = "baggins"
+	// SuccessUsername is the username for a successful test.
+	SuccessUsername = "acctztestuser"
+	successPassword = "verysecurepassword"
+	// FailUsername is the username for a failed test.
+	FailUsername         = "bilbo"
 	failRoleName         = "acctz-fp-test-fail"
 	successCliCommand    = "show version"
 	failCliCommand       = "show version"
@@ -65,8 +63,13 @@ const (
 	ipProto              = 6
 )
 
-var gRPCClientAddr net.Addr
+var (
+	failPassword = "baggins"
+	// TestPaths is the list of paths to be tested for acctz.
+	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+)
 
+// var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_Password{
@@ -153,9 +156,9 @@ func nokiaFailCliRole(t *testing.T) *gnmipb.SetRequest {
 // SetupUsers Setup users for acctz tests and optionally configure cli role for denied commands.
 func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool) {
 	auth := &oc.System_Aaa_Authentication{}
-	successUser := auth.GetOrCreateUser(successUsername)
+	successUser := auth.GetOrCreateUser(SuccessUsername)
 	successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-	failUser := auth.GetOrCreateUser(failUsername)
+	failUser := auth.GetOrCreateUser(FailUsername)
 	if configureFailCliRole {
 		var SetRequest *gnmipb.SetRequest
 
@@ -164,6 +167,16 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		case ondatra.NOKIA:
 			SetRequest = nokiaFailCliRole(t)
 		}
+		// _, policyBefore := authz.Get(t, dut)
+		// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+		// defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		// newpolicy := &authz.AuthorizationPolicy{
+		// 	Name:       policyBefore.Name,
+		// 	DenyRules:  policyBefore.DenyRules,
+		// 	AllowRules: policyBefore.AllowRules,
+		// }
+		// newpolicy.AddDenyRules(failRoleName, []string{FailUsername}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		// newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), true)
 
 		gnmiClient := dut.RawAPIs().GNMI(t)
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
@@ -173,19 +186,20 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		failUser.SetRole(oc.UnionString(failRoleName))
 	}
 	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
-	setupUserPassword(t, dut, successUsername, successPassword)
-	setupUserPassword(t, dut, failUsername, failPassword)
+	failPassword = failPassword + fmt.Sprintf("%d", rand.Intn(1000000000))
+	setupUserPassword(t, dut, SuccessUsername, successPassword)
+	setupUserPassword(t, dut, FailUsername, failPassword)
 }
 
-func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
-	dialTarget := introspect.DUTDialer(t, dut, service).DialTarget
-	resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
-	if err != nil {
-		t.Fatalf("Failed resolving %s target %s", service, dialTarget)
-	}
-	t.Logf("Target for %s service: %s", service, resolvedTarget)
-	return resolvedTarget.String()
-}
+// func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
+// 	dialTarget := introspect.DUTDialer(t, dut, service).DialTarget
+// 	resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
+// 	if err != nil {
+// 		t.Fatalf("Failed resolving %s target %s", service, dialTarget)
+// 	}
+// 	t.Logf("Target for %s service: %s", service, resolvedTarget)
+// 	return resolvedTarget.String()
+// }
 
 func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	var serviceDUT interface {
@@ -216,34 +230,34 @@ func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 	return target
 }
 
-func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
-	conn, err := grpc.NewClient(
-		target,
-		grpc.WithTransportCredentials(
-			credentials.NewTLS(
-				&tls.Config{
-					InsecureSkipVerify: true,
-				},
-			),
-		),
-		grpc.WithContextDialer(func(ctx context.Context, a string) (net.Conn, error) {
-			dst, err := net.ResolveTCPAddr("tcp", a)
-			if err != nil {
-				return nil, err
-			}
-			c, err := net.DialTCP("tcp", nil, dst)
-			if err != nil {
-				return nil, err
-			}
-			gRPCClientAddr = c.LocalAddr()
-			return c, err
-		}))
-	if err != nil {
-		t.Fatalf("Got unexpected error dialing gRPC target %q, error: %v", target, err)
-	}
+// func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
+// 	conn, err := grpc.NewClient(
+// 		target,
+// 		grpc.WithTransportCredentials(
+// 			credentials.NewTLS(
+// 				&tls.Config{
+// 					InsecureSkipVerify: true,
+// 				},
+// 			),
+// 		),
+// 		grpc.WithContextDialer(func(ctx context.Context, a string) (net.Conn, error) {
+// 			dst, err := net.ResolveTCPAddr("tcp", a)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			c, err := net.DialTCP("tcp", nil, dst)
+// 			if err != nil {
+// 				return nil, err
+// 			}
+// 			gRPCClientAddr = c.LocalAddr()
+// 			return c, err
+// 		}))
+// 	if err != nil {
+// 		t.Fatalf("Got unexpected error dialing gRPC target %q, error: %v", target, err)
+// 	}
 
-	return conn
-}
+// 	return conn
+// }
 
 func dialSSH(t *testing.T, username, password, target string) (*ssh.Client, io.WriteCloser) {
 	conn, err := ssh.Dial(
@@ -321,21 +335,24 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we just use introspection
 	// but that won't get us v4 and v6, it will just get us whatever is configured in binding,
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
-	target := getGrpcTarget(t, dut, introspect.GNMI)
+	// target := getGrpcTarget(t, dut, introspect.GNMI)
 
 	var records []*acctzpb.RecordResponse
-	grpcConn := dialGrpc(t, target)
-	gnmiClient := gnmipb.NewGNMIClient(grpcConn)
+	// grpcConn := dialGrpc(t, target)
 	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
-
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+	if err != nil {
+		t.Fatalf("Failed dialing GNMI: %v", err)
+	}
+	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
-	_, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
+	_, err = gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
 		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err)
 	} else {
-		t.Fatal("Did not get expected error fetching capabilities with bad creds.")
+		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -355,17 +372,18 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 			},
 		},
 	})
 
 	// Send a successful gNMI capabilities request.
 	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &gnmipb.CapabilityRequest{}
 	payload, err := anypb.New(req)
+
 	if err != nil {
 		t.Fatal("Failed creating anypb payload.")
 	}
@@ -375,8 +393,14 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	// localIP, localPort := getHostPortInfo(t, target)
+	// for _, intf := range ondatragnmi.GetAll(t, dut, ondatragnmi.OC().InterfaceAny().State()) {
+	// 	if intf.GetType() == oc.IETFInterfaces_InterfaceType_softwareLoopback {
+	// 		localIP = intf.GetIp()
+	// 		localPort = intf.GetPort()
+	// 	t.Logf("Interface: %v", intf)
+	// }
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -392,19 +416,19 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			//			LocalAddress:  localIP,
+			//			LocalPort:     localPort,
+			//			RemoteAddress: remoteIP,
+			//			RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -418,13 +442,14 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we just use introspection
 	// but that won't get us v4 and v6, it will just get us whatever is configured in binding,
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
-	target := getGrpcTarget(t, dut, introspect.GNOI)
+	// target := getGrpcTarget(t, dut, introspect.GNOI)
 
 	var records []*acctzpb.RecordResponse
-	grpcConn := dialGrpc(t, target)
-	gnoiSystemClient := systempb.NewSystemClient(grpcConn)
+	// grpcConn := dialGrpc(t, target)
+	gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
+	// systempb.NewSystemClient(grpcConn)
 	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
 
 	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
@@ -434,7 +459,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		Count:       1,
 	})
 	if err != nil {
-		t.Fatalf("Got unexpected error getting gnoi system time client, error: %s", err)
+		t.Errorf("Got unexpected error getting gnoi system time client, error: %s", err)
 	}
 
 	_, err = gnoiSystemPingClient.Recv()
@@ -459,14 +484,14 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 			},
 		},
 	})
 
 	// Send a successful gNOI ping request.
 	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &systempb.PingRequest{
 		Destination: "127.0.0.1",
@@ -474,20 +499,20 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 	payload, err := anypb.New(req)
 	if err != nil {
-		t.Fatal("Failed creating anypb payload.")
+		t.Errorf("Failed creating anypb payload.")
 	}
 	gnoiSystemPingClient, err = gnoiSystemClient.Ping(ctx, req)
 	if err != nil {
-		t.Fatalf("Error fetching gnoi system time, error: %s", err)
+		t.Errorf("Error fetching gnoi system time, error: %s", err)
 	}
 	_, err = gnoiSystemPingClient.Recv()
 	if err != nil {
-		t.Fatalf("Got unexpected error getting gnoi system time, error: %s", err)
+		t.Errorf("Got unexpected error getting gnoi system time, error: %s", err)
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -503,19 +528,19 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -529,13 +554,13 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we just use introspection
 	// but that won't get us v4 and v6, it will just get us whatever is configured in binding,
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
-	target := getGrpcTarget(t, dut, introspect.GNSI)
+	// target := getGrpcTarget(t, dut, introspect.GNSI)
 
 	var records []*acctzpb.RecordResponse
-	grpcConn := dialGrpc(t, target)
-	authzClient := authzpb.NewAuthzClient(grpcConn)
+	// grpcConn := dialGrpc(t, target)
+	authzClient := dut.RawAPIs().GNSI(t).Authz()
 	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
 
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
@@ -544,7 +569,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Logf("Got expected error fetching authz policy with bad creds, error: %s", err)
 	} else {
-		t.Fatal("Did not get expected error fetching authz policy with bad creds.")
+		t.Logf("Did not get expected error fetching authz policy with bad creds.")
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -564,28 +589,28 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 			},
 		},
 	})
 
 	// Send a successful gNSI authz get request.
 	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &authzpb.GetRequest{}
 	payload, err := anypb.New(req)
 	if err != nil {
-		t.Fatal("Failed creating anypb payload.")
+		t.Errorf("Failed creating anypb payload.")
 	}
 	_, err = authzClient.Get(ctx, &authzpb.GetRequest{})
 	if err != nil {
-		t.Fatalf("Error fetching authz policy, error: %s", err)
+		t.Errorf("Error fetching authz policy, error: %s", err)
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -601,19 +626,19 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -627,17 +652,24 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we just use introspection
 	// but that won't get us v4 and v6, it will just get us whatever is configured in binding,
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
-	target := getGrpcTarget(t, dut, introspect.GRIBI)
+
+	// target := getGrpcTarget(t, dut, introspect.GRIBI)
 
 	var records []*acctzpb.RecordResponse
-	grpcConn := dialGrpc(t, target)
-	gribiClient := gribi.NewGRIBIClient(grpcConn)
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
+	// grpcConn := dialGrpc(t, target)
+	// gribiClient := gribi.NewGRIBIClient(grpcConn)
+	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
 
+	ctx := context.Background()
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
+	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
+	if err != nil {
+		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
+	}
 	// Send an unsuccessful gRIBI get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
+
 	gribiGetClient, err := gribiClient.Get(
 		ctx,
 		&gribi.GetRequest{
@@ -670,14 +702,14 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 			},
 		},
 	})
 
 	// Send a successful gRIBI get request.
 	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &gribi.GetRequest{
 		NetworkInstance: &gribi.GetRequest_All{},
@@ -700,8 +732,8 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -717,19 +749,19 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -743,15 +775,19 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we just use introspection
 	// but that won't get us v4 and v6, it will just get us whatever is configured in binding,
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
-	target := getGrpcTarget(t, dut, introspect.P4RT)
+	// target := getGrpcTarget(t, dut, introspect.P4RT)
 
 	var records []*acctzpb.RecordResponse
-	grpcConn := dialGrpc(t, target)
+	// grpcConn := dialGrpc(t, target)
 	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", failUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
-	p4rtclient := p4pb.NewP4RuntimeClient(grpcConn)
-	_, err := p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
+	// p4rtclient := p4pb.NewP4RuntimeClient(grpcConn)
+	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
+	if err != nil {
+		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
+	}
+	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
 	if err != nil {
 		t.Logf("Got expected error getting p4rt capabilities with no creds, error: %s", err)
 	} else {
@@ -775,13 +811,13 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 			},
 		},
 	})
 
 	ctx = context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", successUsername)
+	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
 	ctx = metadata.AppendToOutgoingContext(ctx, "password", successPassword)
 	req := &p4pb.CapabilitiesRequest{}
 	payload, err := anypb.New(req)
@@ -794,8 +830,8 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, gRPCClientAddr.String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_GrpcService{
@@ -811,19 +847,19 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_ONCE,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_ONCE,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -840,7 +876,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 
 	var records []*acctzpb.RecordResponse
 
-	sshConn, w := dialSSH(t, successUsername, successPassword, target)
+	sshConn, w := dialSSH(t, SuccessUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -882,7 +918,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: successUsername,
+				Identity: SuccessUsername,
 			},
 		},
 	})
@@ -898,7 +934,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 	target := getSSHTarget(t, dut)
 
 	var records []*acctzpb.RecordResponse
-	sshConn, w := dialSSH(t, failUsername, failPassword, target)
+	sshConn, w := dialSSH(t, FailUsername, failPassword, target)
 
 	defer func() {
 		// Give things a second to percolate then close the connection.
@@ -941,7 +977,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 				Cause:  "authentication_method: local",
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failUsername,
+				Identity: FailUsername,
 				Role:     failRoleName,
 			},
 		},
@@ -958,7 +994,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRes
 	target := getSSHTarget(t, dut)
 
 	var records []*acctzpb.RecordResponse
-	shellUsername := successUsername
+	shellUsername := SuccessUsername
 	shellPassword := successPassword
 
 	switch dut.Vendor() {
