@@ -1,4 +1,4 @@
-# 9.2 Egress Static MPLS LSP Verification
+# TE 9.2 Egress Static MPLS LSP Verification
 
 ## Summary
 
