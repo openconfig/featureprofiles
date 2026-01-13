@@ -1842,6 +1842,7 @@ func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 // IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
 
 // NonStandardGRPCPort returns true if the device does not use standard grpc port.
 // Arista b/384040563
