@@ -3,8 +3,8 @@
 ## Summary
 
 Verify that the Router (DUT) correctly processes incoming MPLS traffic, 
-matches the configured static LSP label, pops the label, and forwards the remaining payload (with the next label in the stack) 
-to the correct egress interface connected to the ATE.
+matches the configured static LSP label, pops the label, and forwards the remaining payload 
+to the correct egress interface.
 
 
 ## Testbed type:
