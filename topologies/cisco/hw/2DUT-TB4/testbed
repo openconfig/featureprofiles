@@ -5,7 +5,7 @@
 # pairwise.
 
 duts {
-  id: "dut1"
+  id: "dut"
   vendor: CISCO
   hardware_model: "CISCO-8808"
   ports {
@@ -100,12 +100,12 @@ ates {
 }
 
 links {
-  a: "dut1:port1"
+  a: "dut:port1"
   b: "ate:port1"
 }
 
 links {
-  a: "dut1:port2"
+  a: "dut:port2"
   b: "ate:port2"
 }
 
@@ -115,7 +115,7 @@ links {
 }
 
 links {
-  a: "dut1:port4"
+  a: "dut:port4"
   b: "ate:port4"
 }
 
@@ -125,23 +125,23 @@ links {
 }
 
 links {
-  a: "dut1:port6"
+  a: "dut:port6"
   b: "ate:port6"
 }
 links {
-  a: "dut1:port7"
+  a: "dut:port7"
   b: "ate:port7"
 }
 
 links {
-  a: "dut1:port8"
+  a: "dut:port8"
   b: "ate:port8"
 }
 links {
-  a: "dut1:port9"
+  a: "dut:port9"
   b: "dut2:port1"
 }
 links {
-  a: "dut1:port10"
+  a: "dut:port10"
   b: "dut2:port2"
 }
