@@ -1095,7 +1095,10 @@ message Metadata {
     // Device doesnot support configuring multipath path under ibgp
     // b/470225281
     bool ibgp_multipath_path_unsupported = 364;
-    
+
+    // SubnetMaskChange returns true if it needs to be changed
+    bool subnet_mask_change = 365;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

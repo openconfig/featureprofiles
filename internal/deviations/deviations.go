@@ -1843,3 +1843,8 @@ func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
+
+// SubnetMaskChange returns true if device requires changing subnet mask length
+func SubnetMaskChange(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubnetMaskChange()
+}
