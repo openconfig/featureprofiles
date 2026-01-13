@@ -4,27 +4,40 @@
 # This is an example static binding that demonstrates how to specify
 # options to be used in conjunction with the atedut_*.testbed
 # testbeds.
+#
+## testbed Details ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5)
+#router static
+# Console:
+# 172.27.177.102 2030/172.27.177.102 2031
+# Mgmt:
+# RP0: 172.27.177.66
+# RP1: 172.27.177.67
+# virtual: 172.27.177.68
+## Consoe server:
+# telnet 10.85.84.47
 
-# These options are inherited throughout the entire binding for both the
-# DUT and the ATE, unless overridden by a specific device or protocol.
+# Username: cafyauto
+# Password: cisco123
+# This Binding is with Port forwarding enabled on UCS: root@sjc-ucs-b4/SJ17labuser!
+
 options {
-  username: "username"
-  password: "password"
+  username: "cafyauto"
+  password: "cisco123"
 }
 
 duts {
   id: "dut"
-  name: "DUT"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
+  name: "8808-P200"  # Change this to the device hostname.
   config:{
     gnmi_set_file: "$BASE_CONF_PATH"
   }
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
   options {
-    insecure: false 
-    skip_verify: false
+    insecure: false
+    skip_verify: false 
     mutual_tls: true
     username: "cafyauto"
     password: "cisco123"
@@ -35,25 +48,24 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi{
-    target: "172.27.177.68:9339"
+    target: "172.27.177.111:48800"
   }
   gnmi {
-    target: "172.27.177.68:9339" 
+    target: "172.27.177.111:48800" 
   }
   gribi{
-    target: "172.27.177.68:9340"
+    target: "172.27.177.111:48800"
   }
   ssh{
-    target: "172.27.177.68:22"
+    target: "172.27.177.111:48022"
     skip_verify: true
   }
   p4rt{
-    target: "172.27.177.68:9559"
+    target: "172.27.177.111:48800"
   }
   gnsi{
-    target: "172.27.177.68:9339"
+    target: "172.27.177.111:48800"
   }
-
 
   # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
@@ -69,12 +81,12 @@ duts {
   }
   ports {
     id: "port3"
-    name: "HundredGigE0/7/0/7/3"  # Change this to the actual port name.
+    name: "HundredGigE0/6/0/28/0"  # Change this to the actual port name.
     speed: S_100GB  
   }
   ports {
     id: "port4"
-    name: "HundredGigE0/7/0/7/7"  # Change this to the actual port name.
+    name: "HundredGigE0/7/0/18/0"  # Change this to the actual port name.
     speed: S_100GB  
   }
 }
