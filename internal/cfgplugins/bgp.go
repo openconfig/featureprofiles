@@ -834,8 +834,8 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 		}
 	}
 	if err := handleMaxPrefixesDeviation(t, dut, sb, cfg); err != nil {
-                return err
-        }
+    	return err
+    }
 	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
 }
