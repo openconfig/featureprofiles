@@ -2557,11 +2557,11 @@ tests:
 
   - name: AFT-1.1 (AFT Streaming)
     path: feature/afts/otg_tests/afts_base
-    groups: [new_run]
     mustpass: false
     priority: 3
     timeout: 21000
     pr: 4950
+    internal: false
 
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates
