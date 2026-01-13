@@ -35,17 +35,20 @@ if from_date:
 
 pims_output = check_output(pims_cmd, encoding='utf-8')
 
+image_label = None
+image_efr = None
+
 for l in pims_output.splitlines():
     if l.startswith('EFR-'):
         parts = l.split('\t')
+        image_efr = parts[0]
         labels = parts[-1].split(',')
         for lb in labels:
             candidates.append((lb, parts[0]))
+            image_label = lb
 
 candidates = sorted(candidates,key=itemgetter(0), reverse=True)
 image_path = None
-image_label = None
-image_efr = None
 
 for c in candidates:
     label, efr = c
@@ -53,26 +56,22 @@ for c in candidates:
         '/usr/cisco/bin/pims',
         'gsr',
         '-r',
-        'nightly_build_info',
-        '-nightly_label',
+        'build_status_image_details',
+        '-build_label',
         label,
-        '-lineup',
-        lineup,
         '-format',
         'json'
     ], encoding='utf-8'))
     
     for result in js:
-        if result.get('Status') == 'Successful':
-            image_dir = result.get('Image Location')
+        if result.get('Build Status') == 'Successful' and result.get('Image Name') == '8000-x64.iso':
+            image_ws = result.get('Workspace Location')
             subpaths = image_subpaths
             if use_dev_image: subpaths = dev_image_subpaths
             for subpath in subpaths:
-                location = os.path.join(image_dir, subpath)
+                location = os.path.join(image_ws, subpath)
                 if os.path.exists(location):
                     image_path = location
-                    image_label = label
-                    image_efr = efr
                     break
             if image_path:
                 break
