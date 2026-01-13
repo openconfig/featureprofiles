@@ -1088,6 +1088,13 @@ message Metadata {
 
     // Arista https://partnerissuetracker.corp.google.com/issues/452484903
     bool bmp_oc_unsupported = 362;
+
+    // Device does not support slice input of BGP community type
+    bool bgp_community_type_slice_input_unsupported = 363;
+
+    // Device doesnot support configuring multipath path under ibgp
+    // b/470225281
+    bool ibgp_multipath_path_unsupported = 364;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
