@@ -15,11 +15,12 @@ to the correct egress interface.
 ## Procedure
 
 ### A. Router (DUT) Configuration
+
 Enable MPLS: Enable MPLS forwarding globally and on the interfaces connected to ATE1 and ATE2.
 
 * Configure a Static LSP:
 
-In-Label: 1000001 for ipv4 payload & 1000002 for ipv6 payload
+MPLS Label: 1000001 for ipv4 payload & 1000002 for ipv6 payload
 
 Action: Pop
 
@@ -33,7 +34,7 @@ Egress Interface: Interface connected to ATE2.
 
 Layer 2: Ethernet Header
 
-Layer 2.5 (Inner Label): MPLS Label 1000001 for ipv4 payload and  MPLS Label 1000002 for ipv6 payload
+Layer 2.5 (MPLS Label): MPLS Label 1000001 for ipv4 payload and  MPLS Label 1000002 for ipv6 payload
 
 Layer 3: IPv4 and IPV6 Payload
 
@@ -43,15 +44,15 @@ Layer 3: IPv4 and IPV6 Payload
 
 ### Tests:
 
-1. Send traffic from ATE1 towards ATE2 , ipv4 traffic with mpls label 1000001 
+1. Send IPv4 traffic with MPLS label 1000001 from ATE1 towards ATE2.
 
-2. Send traffic from ATE1 towards ATE2 ,  ipv6 traffic with label 1000002 
+2. Send IPv6 traffic with MPLS label 1000002 from ATE1 towards ATE2. 
 
 3. Success criteria: The traffic rate (PPS/Mbps) sent from ATE1 matches the traffic rate received at ATE2 (zero packet loss). 
 
 4. Failure criteria: Any packet loss is detected. 
 
-## OC paths in json format:
+## Canonical OC:
 ```json
 
 {
@@ -109,18 +110,16 @@ Layer 3: IPv4 and IPV6 Payload
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-paths:
-  ## Config paths
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/index:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/index:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/ip-address:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/interface:
 
-  ## State paths
+## Config paths
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label:
+
+## State paths
   /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/incoming-label:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/state/ip-address:
-  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/state/interface:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/next-hop:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/state/push-label:
 
 rpcs:
   gnmi:
