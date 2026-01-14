@@ -128,7 +128,7 @@ Note: Protocols and tables containers are not expected to be configured, but are
                 "conditions": {
                   "match-prefix-set": {
                     "config": {
-                      "prefix-set": "EF_AGG",
+                      "prefix-set": "EF_AGG_IPV4",
                       "match-set-options": "ANY"
                     }
                   }
