@@ -1844,6 +1844,11 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
+// ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}
+
 // CpuUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
 // example: against "0/RP0/CPU0" and not "0/RP00/CPU0-Broadwell-DE (D-1573N)"
 func CpuUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
