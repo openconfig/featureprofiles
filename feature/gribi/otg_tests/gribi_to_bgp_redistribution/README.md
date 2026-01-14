@@ -66,9 +66,9 @@ Note: Protocols and tables containers are not expected to be configured, but are
       "prefix-sets": {
         "prefix-set": [
           {
-            "name": "EF_AGG",
+            "name": "EF_AGG_IPV4",
             "config": {
-              "name": "EF_AGG",
+              "name": "EF_AGG_IPV4",
               "mode": "IPV4"
             },
             "prefixes": {
