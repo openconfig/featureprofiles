@@ -110,7 +110,7 @@ links {
 }
 
 links {
-  a: "dut1:port3"
+  a: "dut:port3"
   b: "ate:port3"
 }
 
@@ -120,7 +120,7 @@ links {
 }
 
 links {
-  a: "dut1:port5"
+  a: "dut:port5"
   b: "ate:port5"
 }
 
