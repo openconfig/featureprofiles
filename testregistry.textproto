@@ -1495,6 +1495,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-6.4"
+  description: "gRIBI to BGP Redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_to_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "TE-8.2"
   description: "Supervisor Failure"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/README.md"
