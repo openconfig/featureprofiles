@@ -1843,3 +1843,8 @@ func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
+
+// TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
