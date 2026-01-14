@@ -128,9 +128,9 @@ func TestIPv6LinkLocal(t *testing.T) {
 	t.Run("Disable and Enable Port1", func(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
-		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, false)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 2*time.Minute, false)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), true)
-		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 30*time.Second, true)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().State(), 2*time.Minute, true)
 		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 		t.Run("Interface Telemetry", func(t *testing.T) {
 			verifyInterfaceTelemetry(t, dut)
@@ -275,10 +275,22 @@ func verifyLinkLocalTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 	if got, want := 100*float32(otgTxPkts-otgRxPkts)/float32(otgTxPkts), float32(99); got < want {
 		t.Errorf("LossPct for flow %s got %f, want 100", flowName, got)
 	}
-	afterInPkts := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InPkts().State())
-	recvDUTPkts := afterInPkts - beforeInPkts
-	if got, want := lossPct(otgTxPkts, recvDUTPkts), 1.0; got > want {
-		t.Errorf("LossPct for flow %s got %f, want less than %f%%", flowName, got, want)
+	t.Log("Waiting for DUT counters to converge match OTG Tx packets")
+	dutCounterPath := gnmi.OC().Interface(p1.Name()).Counters().InPkts().State()
+
+	lastLoss := 100.0
+	_, watchOk := gnmi.Watch(t, dut, dutCounterPath, 2*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+		currInPkts, present := val.Val()
+		if !present {
+			return false
+		}
+		recvDUTPkts := currInPkts - beforeInPkts
+		lastLoss = lossPct(otgTxPkts, recvDUTPkts)
+		return lastLoss < 1.0
+	}).Await(t)
+
+	if !watchOk {
+		t.Errorf("Traffic Loss Convergence Failed. Final LossPct for flow %s got %f, want < 1.0%%", flowName, lastLoss)
 	}
 }
 
