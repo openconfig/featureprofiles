@@ -1853,5 +1853,4 @@ func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista b/384040563
 func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
-  
 }
