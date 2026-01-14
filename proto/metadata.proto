@@ -1095,7 +1095,11 @@ message Metadata {
     // Device doesnot support configuring multipath path under ibgp
     // b/470225281
     bool ibgp_multipath_path_unsupported = 364;
-    
+
+    // Device does not support ContainerZ Plugin RPC
+    // Arista: b/470225282
+    bool containerz_plugin_rpc_unsupported = 365;
+
     // Arista b/384040563
     // Device does not  support the IANA assigned gRPC port for g* services
     bool non_standard_grpc_port = 365;
