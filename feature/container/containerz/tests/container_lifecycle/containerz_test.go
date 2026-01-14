@@ -729,6 +729,10 @@ func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
 
+	if deviations.ContainerzPluginRPCUnsupported(dut) {
+		t.Skip("Skipping Containerz plugin tests as Containerz plugin RPCs are unsupported on this device")
+	}
+
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (
