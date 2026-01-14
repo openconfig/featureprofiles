@@ -356,7 +356,7 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 }
 
 func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
-	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId || macColonToDot(neighbour.GetChassisId()) == expLldpNeighbor.chassisId) &&
+	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId) &&
 		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
