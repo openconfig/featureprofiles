@@ -94,49 +94,33 @@ func TestLLDPEnabled(t *testing.T) {
 
 	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
 
-	dutPeerState := lldpNeighbors{}
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		dutPeerState = lldpNeighbors{
-			systemName:    lldpSrc.systemName,
-			chassisId:     macColonToDot(lldpSrc.macAddress),
-			chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
-			portId:        lldpSrc.portName,
-			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-		}
-	default:
-		dutPeerState = lldpNeighbors{
-			systemName:    lldpSrc.systemName,
-			chassisId:     lldpSrc.macAddress,
-			chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
-			portId:        lldpSrc.portName,
-			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-		}
+	chassisID := lldpSrc.macAddress
+	if dut.Vendor() == ondatra.CISCO {
+		chassisID = macColonToDot(lldpSrc.macAddress)
+	}
+
+	dutPeerState := lldpNeighbors{
+		systemName:    lldpSrc.systemName,
+		chassisId:     chassisID,
+		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
+		portId:        lldpSrc.portName,
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
 
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
-	expOtgLLDPNeighbor := lldpNeighbors{}
-	chassisId := strings.ToUpper(dutConf.GetChassisId())
-
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		expOtgLLDPNeighbor = lldpNeighbors{
-			systemName:    dutConf.GetSystemName(),
-			portId:        dutPort.Name(),
-			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-			chassisId:     macColonToDot(chassisId),
-			chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
-		}
-	default:
-		expOtgLLDPNeighbor = lldpNeighbors{
-			systemName:    dutConf.GetSystemName(),
-			portId:        dutPort.Name(),
-			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-			chassisId:     chassisId,
-			chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
-		}
+	expChassisID := strings.ToUpper(dutConf.GetChassisId())
+	if dut.Vendor() == ondatra.CISCO {
+		expChassisID = macColonToDot(expChassisID)
 	}
+	expOtgLLDPNeighbor := lldpNeighbors{
+		systemName:    dutConf.GetSystemName(),
+		portId:        dutPort.Name(),
+		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+		chassisId:     expChassisID,
+		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
+	}
+
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 
 	// disable LLDP before releasing the devices.
