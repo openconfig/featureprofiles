@@ -1097,7 +1097,7 @@ message Metadata {
     // b/470225281
     bool ibgp_multipath_path_unsupported = 364;
 
-    // Check is transceiver subcomponent should look for the temperature sensor
+// Check if transceiver subcomponent should look for the temperature sensor
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
     bool temperature_sensor_check = 365;
 
