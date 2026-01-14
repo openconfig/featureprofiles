@@ -1843,3 +1843,8 @@ func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
+
+// ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}
