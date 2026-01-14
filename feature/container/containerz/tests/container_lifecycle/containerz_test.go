@@ -728,9 +728,6 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
-	if deviations.ContainerzPluginRPCUnsupported(dut) {
-		t.Skip("Skipping TestPlugins since ContainerZ Plugin RPC is unsupported on this DUT.")
-	}
 
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
