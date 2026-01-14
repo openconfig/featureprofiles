@@ -1855,3 +1855,13 @@ func CpuUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevic
 func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseLinecardComponent()
 }
+
+// NoQueueDropUnsupported returns true if device does not support no-queue drops
+func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoQueueDropUnsupported()
+}
+
+// InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
+func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
+}

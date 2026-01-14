@@ -1104,6 +1104,14 @@ message Metadata {
     // Devices that report linecard CPU utilization against base linecard component
     bool cpu_utilization_query_against_base_linecard_component = 366;
 
+    // Device does not support no-queue drops
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+    bool no_queue_drop_unsupported = 367;
+
+    // Device does not support interface-ethernet in-block errors counters
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+    bool interface_ethernet_inblock_errors_unsupported = 368;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
