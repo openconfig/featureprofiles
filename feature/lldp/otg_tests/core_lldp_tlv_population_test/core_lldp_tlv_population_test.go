@@ -94,21 +94,48 @@ func TestLLDPEnabled(t *testing.T) {
 
 	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
 
-	dutPeerState := lldpNeighbors{
-		systemName:    lldpSrc.systemName,
-		chassisId:     macColonToDot(lldpSrc.macAddress),
-		chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
-		portId:        lldpSrc.portName,
-		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+	dutPeerState := lldpNeighbors{}
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		dutPeerState = lldpNeighbors{
+			systemName:    lldpSrc.systemName,
+			chassisId:     macColonToDot(lldpSrc.macAddress),
+			chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
+			portId:        lldpSrc.portName,
+			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+		}
+	default:
+		dutPeerState = lldpNeighbors{
+			systemName:    lldpSrc.systemName,
+			chassisId:     lldpSrc.macAddress,
+			chassisIdType: otgtelemetry.LldpNeighbor_ChassisIdType_MAC_ADDRESS,
+			portId:        lldpSrc.portName,
+			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+		}
 	}
+
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
-	expOtgLLDPNeighbor := lldpNeighbors{
-		systemName:    dutConf.GetSystemName(),
-		portId:        dutPort.Name(),
-		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
-		chassisId:     strings.ToUpper(dutConf.GetChassisId()),
-		chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
+	expOtgLLDPNeighbor := lldpNeighbors{}
+	chassisId := strings.ToUpper(dutConf.GetChassisId())
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		expOtgLLDPNeighbor = lldpNeighbors{
+			systemName:    dutConf.GetSystemName(),
+			portId:        dutPort.Name(),
+			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+			chassisId:     macColonToDot(chassisId),
+			chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
+		}
+	default:
+		expOtgLLDPNeighbor = lldpNeighbors{
+			systemName:    dutConf.GetSystemName(),
+			portId:        dutPort.Name(),
+			portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
+			chassisId:     chassisId,
+			chassisIdType: otgtelemetry.E_LldpNeighbor_ChassisIdType(dutConf.GetChassisIdType()),
+		}
 	}
 	checkOTGLLDPNeighbor(t, otg, otgConfig, expOtgLLDPNeighbor)
 
@@ -329,8 +356,7 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 }
 
 func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
-	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId ||
-		macColonToDot(neighbour.GetChassisId()) == expLldpNeighbor.chassisId) &&
+	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId || macColonToDot(neighbour.GetChassisId()) == expLldpNeighbor.chassisId) &&
 		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
@@ -365,6 +391,8 @@ func cliSetRequest(config string) *gpb.SetRequest {
 	}
 }
 
+// macColonToDot converts a MAC address from colon-separated format (aa:bb:cc:dd:ee:ff)
+// to dot-separated format (AABB.CCDD.EEFF). Returns empty string if input is not 12 hex digits.
 func macColonToDot(mac string) string {
 	// remove colons
 	mac = strings.ReplaceAll(mac, ":", "")
