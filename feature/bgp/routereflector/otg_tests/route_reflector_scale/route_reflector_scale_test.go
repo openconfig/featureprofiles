@@ -325,7 +325,11 @@ func configureISIS(t *testing.T, bs *cfgplugins.BGPSession, intfName []string) {
 	}
 
 	for _, intf := range intfName {
-		isisIntf := isis.GetOrCreateInterface(intf)
+		intfId := intf
+		if deviations.InterfaceRefInterfaceIDFormat(bs.DUT) {
+			intfId = intf + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(intfId)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
