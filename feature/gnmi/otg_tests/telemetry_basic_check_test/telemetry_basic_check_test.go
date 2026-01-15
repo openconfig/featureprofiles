@@ -151,7 +151,7 @@ func TestEthernetMacAddress(t *testing.T) {
 
 func TestLagMacAddress(t *testing.T) {
 	if !*args.LACPBaseConfigPresent {
-		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+		t.Skipf("skipping test: LACP base config not present")
 	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
