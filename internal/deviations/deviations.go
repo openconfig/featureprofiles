@@ -1849,6 +1849,7 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: b/476271160
 func RetaingNMICfgAfterReboot(dut *ondatra.DUTDevice) bool {
     return lookupDUTDeviations(dut).GetRetaingNMICfgAfterReboot()
+}
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
