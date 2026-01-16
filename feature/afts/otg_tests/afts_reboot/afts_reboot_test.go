@@ -395,7 +395,7 @@ func TestReboot(t *testing.T) {
 		ate:  ate,
 	}
 	t.Run(tc.name, func(t *testing.T) {
-		if tc.dut.Vendor() == ondatra.ARISTA {
+		if deviations.RetainGnmiCfgAfterReboot(dut) {
 			if err := tc.configureToStoreRunninggNMIConfig(t); err != nil {
 				t.Fatalf("failed to configure DUT to store running gNMI config: %v", err)
 				defer tc.unconfigureToStoreRunninggNMIConfig(t)

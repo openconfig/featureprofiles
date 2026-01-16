@@ -17,6 +17,7 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     isis_mpls_unsupported: true
     skip_setting_allow_multiple_as: true
+    retain_gnmi_cfg_after_reboot: true
   }
 }
 platform_exceptions: {

@@ -1838,8 +1838,17 @@ func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
 }
+<<<<<<< Updated upstream
 
 // IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
+=======
+// retain_gnmi_cfg_after_reboot
+// RetaingNMICfgAfterReboot returns true if device does not support configuration is not retained after reboot
+// Arista: b/476271160
+func RetaingNMICfgAfterReboot(dut *ondatra.DUTDevice) bool {
+        return lookupDUTDeviations(dut).GetRetaingNMICfgAfterReboot()
+
+>>>>>>> Stashed changes
