@@ -727,11 +727,16 @@ def releaseTestbeds(List testbeds) {
 
 // Image utils
 def getImageInfo(String imagePath) {
-    def imageInfo = sh(
-        script: "isoinfo -R -x /mdata/build-info.txt -i ${imagePath}",
+    def real_image_path = sh(
+        script: "realpath ${imagePath}",
         returnStdout: true
     ).trim()
-    
+
+    def imageInfo = sh(
+        script: "isoinfo -R -x /mdata/build-info.txt -i ${real_image_path}",
+        returnStdout: true
+    ).trim()
+
     def lineup, efr, version
     for(line in imageInfo.split('\n')) {
         if(line.startsWith("Lineup")) {
@@ -745,7 +750,7 @@ def getImageInfo(String imagePath) {
             version = v.split('-')[0].trim()
         }
     }
-    return [imagePath, lineup, efr, version]
+    return [real_image_path, lineup, efr, version]
 }
 
 def getLatestImage(Map params) {
