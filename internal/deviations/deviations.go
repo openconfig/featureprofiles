@@ -1848,3 +1848,9 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
 }
+
+// NonStandardGRPCPort returns true if the device does not use standard grpc port.
+// Arista b/384040563
+func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
+}
