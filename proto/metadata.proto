@@ -1092,16 +1092,13 @@ message Metadata {
     // Device does not support slice input of BGP community type
     bool bgp_community_type_slice_input_unsupported = 363;
 
-<<<<<<< Updated upstream
     // Device doesnot support configuring multipath path under ibgp
     // b/470225281
     bool ibgp_multipath_path_unsupported = 364;
     
-=======
     // Arista https://buganizer.corp.google.com/issues/476271160
-    bool retain_gnmi_cfg_after_reboot = 364;
+    bool retain_gnmi_cfg_after_reboot = 365;
 
->>>>>>> Stashed changes
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
