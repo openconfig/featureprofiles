@@ -11,6 +11,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
@@ -277,13 +278,16 @@ func mustConfigureSetup(t *testing.T) {
 
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		ocEncapParams.Count = 2000
-		ocEncapParams.MPLSLabelCount = 2000
+		ocEncapParams.Count = 4000
+		ocEncapParams.MPLSLabelCount = 4000
 		ocEncapParams.MPLSLabelStartForIPv4 = 16
 		ocEncapParams.MPLSLabelStartForIPv6 = 524280
 		ocEncapParams.MPLSLabelStep = 10
 		ocEncapParams.GRETunnelSources = greTunnelSources
 		ocEncapParams.GRETunnelDestinationsStartIP = greTunnelDestinationsStartIPv4
+		ocEncapParams.NextHopGroupCount = 2000
+		helpers.GnmiCLIConfig(t, dut, "vlan internal order ascending range 2 4094")
+		helpers.GnmiCLIConfig(t, dut, "platform sand mdb profile balanced-xl")
 	default:
 		t.Fatalf("Unsupported vendor %s for now, need to check the maximum interface count", dut.Vendor())
 	}

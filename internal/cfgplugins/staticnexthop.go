@@ -26,6 +26,7 @@ type OCEncapsulationParams struct {
 	MPLSLabelStep                int
 	GRETunnelSources             []string
 	GRETunnelDestinationsStartIP string
+	NextHopGroupCount            int
 }
 
 var (
@@ -186,7 +187,7 @@ func NextHopGroupConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetB
 				octet3, _ := strconv.Atoi(ipParts[2])
 				octet4 := 0 // Start from 1 in loop
 
-				for i := 1; i <= encapparams.Count; i++ {
+				for i := 1; i <= encapparams.NextHopGroupCount; i++ {
 					fmt.Fprintf(b, `
 nexthop-group %s%d type mpls-over-gre
  tos 96

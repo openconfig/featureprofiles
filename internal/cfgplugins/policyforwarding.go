@@ -542,7 +542,7 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 
 			PolicyForwardingConfig.WriteString("traffic-policies\n")
 
-			for i := 1; i <= encapparams.Count; i++ {
+			for i := 1; i <= encapparams.NextHopGroupCount; i++ {
 
 				fmt.Fprintf(PolicyForwardingConfig, `
     traffic-policy tp_cloud_id_%[1]d
@@ -577,6 +577,43 @@ func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.
 			}
 
 			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
+
+			for i := encapparams.Count - encapparams.NextHopGroupCount + 1; i <= encapparams.Count; i++ {
+
+				fmt.Fprintf(PolicyForwardingConfig, `
+    traffic-policy tp_cloud_id_%[1]d
+    match setttlv6 ipv6
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match setttlv4 ipv4
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match ipv4-all-default ipv4
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match ipv6-all-default ipv6
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !`, i, i-encapparams.NextHopGroupCount)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
+
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
