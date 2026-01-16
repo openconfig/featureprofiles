@@ -24,13 +24,13 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    explicit_port_speed: true
     interface_enabled: true
     ipv4_missing_enabled: true
     link_local_instead_of_nh: true
     missing_isis_interface_afi_safi_enable: true
     isis_single_topology_required: true
     skip_setting_allow_multiple_as: true
+    enable_multipath_under_afi_safi: true
   }
 }
 platform_exceptions: {
