@@ -12,5 +12,6 @@ platform_exceptions: {
   deviations: {
     isis_level_enabled: true
     multipath_unsupported_neighbor_or_afisafi: true
+    interface_ref_interface_id_format: true
   }
 }
