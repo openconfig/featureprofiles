@@ -3631,6 +3631,9 @@ func (x *Metadata_Deviations) GetIbgpMultipathPathUnsupported() bool {
 func (x *Metadata_Deviations) GetRetainGnmiCfgAfterReboot() bool {
 	if x != nil {
 		return x.RetainGnmiCfgAfterReboot
+		}
+	return false
+}
 func (x *Metadata_Deviations) GetContainerzPluginRpcUnsupported() bool {
 	if x != nil {
 		return x.ContainerzPluginRpcUnsupported
