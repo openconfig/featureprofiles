@@ -46,20 +46,18 @@ func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) s
 // TestInterfaceParentComponent tests that the parent component of any given interface is a Switch Chip.
 func TestInterfaceParentComponent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	parentComponentRegex := regexp.MustCompile("^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/(?:[0-9]|RP[0-9])/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9]+)$")
 	cases := []struct {
-		desc    string
-		port    string
-		pattern string
+		desc string
+		port string
 	}{
 		{
-			desc:    "Port1",
-			port:    "port1",
-			pattern: "^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
+			desc: "Port1",
+			port: "port1",
 		},
 		{
-			desc:    "Port2",
-			port:    "port2",
-			pattern: "^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9])$",
+			desc: "Port2",
+			port: "port2",
 		},
 	}
 
@@ -73,8 +71,8 @@ func TestInterfaceParentComponent(t *testing.T) {
 			}
 			parent := checkParentComponent(t, dut, hVal)
 			t.Logf("Interface %s parent is %s", dp.Name(), parent)
-			if ok, err := regexp.MatchString(tc.pattern, parent); !ok || err != nil {
-				t.Errorf("Interface %s parent did not match pattern %s: %v", dp.Name(), tc.pattern, err)
+			if !parentComponentRegex.MatchString(parent) {
+				t.Errorf("Interface %s parent %q did not match pattern %s", dp.Name(), parent, parentComponentRegex.String())
 			}
 		})
 	}
