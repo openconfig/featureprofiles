@@ -28,5 +28,6 @@ platform_exceptions: {
   }
   deviations: {
     gnmi_get_on_root_unsupported: true
+    non_standard_grpc_port: true
   }
 }
