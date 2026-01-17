@@ -395,7 +395,6 @@ func TestRemovePrivateAS(t *testing.T) {
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())
-		//configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
