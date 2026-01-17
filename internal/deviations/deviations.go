@@ -1847,6 +1847,7 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 // retain_gnmi_cfg_after_reboot
 // GetRetainGnmiCfgAfterReboot returns true if device does not support configuration is not retained after reboot
 // Arista: b/476271160
+<<<<<<< HEAD
 func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
     return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
 }
@@ -1859,4 +1860,8 @@ func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista b/384040563
 func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
+=======
+func RetaingNMICfgAfterReboot(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRetaingNMICfgAfterReboot()
+>>>>>>> 409d2ebf (fmt)
 }
