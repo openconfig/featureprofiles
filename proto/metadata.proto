@@ -1029,10 +1029,6 @@ message Metadata {
     // Arista https://partnerissuetracker.corp.google.com/issues/457884385
     bool static_route_next_network_instance_oc_unsupported = 347;
     
-    // Juniper: b/405071175
-    // Devices which needs defined set to avoid exporting direct routes with default accept all.
-    bool default_policy_requires_bgp_match = 348;
-
     // Devices that do not support configuring gnpsi through OpenConfig
     // Arista: https://partnerissuetracker.corp.google.com/issues/433989578
     // GNPSI support PR: https://github.com/openconfig/public/pull/1385
