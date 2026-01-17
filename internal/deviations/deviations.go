@@ -1845,10 +1845,10 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // retain_gnmi_cfg_after_reboot
-// RetaingNMICfgAfterReboot returns true if device does not support configuration is not retained after reboot
+// GetRetainGnmiCfgAfterReboot returns true if device does not support configuration is not retained after reboot
 // Arista: b/476271160
-func RetaingNMICfgAfterReboot(dut *ondatra.DUTDevice) bool {
-    return lookupDUTDeviations(dut).GetRetaingNMICfgAfterReboot()
+func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
+    return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
 }
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
