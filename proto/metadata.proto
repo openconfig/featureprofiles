@@ -1028,7 +1028,7 @@ message Metadata {
     // Devices does not support NextNetworkInstance configuration.
     // Arista https://partnerissuetracker.corp.google.com/issues/457884385
     bool static_route_next_network_instance_oc_unsupported = 347;
-    
+
     // Devices that do not support configuring gnpsi through OpenConfig
     // Arista: https://partnerissuetracker.corp.google.com/issues/433989578
     // GNPSI support PR: https://github.com/openconfig/public/pull/1385
