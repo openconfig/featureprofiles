@@ -215,7 +215,7 @@ type VrfBGPState struct {
 	NetworkInstanceName string
 	NeighborIPs         []string
 }
-
+// BMPConfigParams holds TBD
 type BMPConfigParams struct {
 	DutAS        uint32
 	BGPObj       *oc.NetworkInstance_Protocol_Bgp
