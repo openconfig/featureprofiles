@@ -106,6 +106,12 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	default:
+		t.Logf("Skipping statement condition for vendor %v", dut.Vendor().String())
+	}
 	stmt.GetOrCreateActions().PolicyResult = pr
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -119,6 +125,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
@@ -274,7 +285,7 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []ui
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	default:
 		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
@@ -359,9 +370,8 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, config 
 
 	var wantASSeg []uint32
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		wantASSeg = []uint32{dutAS}
-
 	default:
 		wantASSeg = []uint32{dutAS, ateAS1}
 	}
@@ -426,7 +436,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	var otgConfig gosnappi.Config
 
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		ateAS1 = dutAS
 	default:
 		ateAS1 = 100
