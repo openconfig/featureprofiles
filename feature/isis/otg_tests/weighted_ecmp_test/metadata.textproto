@@ -20,6 +20,7 @@ platform_exceptions: {
     static_protocol_name: "STATIC"
     rib_wecmp: true
     explicit_port_speed: true
+    global_max_ecmp_paths_unsupported: true
   }
 }
 platform_exceptions: {
@@ -40,6 +41,7 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    predefined_max_ecmp_paths: true
   }
 }
 platform_exceptions: {
