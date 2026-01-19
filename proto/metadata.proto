@@ -1105,7 +1105,7 @@ message Metadata {
     bool non_standard_grpc_port = 366;
     
     // Arista https://buganizer.corp.google.com/issues/476271160
-    bool retain_gnmi_cfg_after_reboot = 365;
+    bool retain_gnmi_cfg_after_reboot = 367;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
