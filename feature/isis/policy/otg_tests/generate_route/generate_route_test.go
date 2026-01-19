@@ -74,8 +74,6 @@ type testData struct {
 	ate            *ondatra.ATEDevice
 	top            gosnappi.Config
 	otgPort        gosnappi.Device
-	otgPort2       gosnappi.Device
-	otgPort3       gosnappi.Device
 	advertisedIPv4 ipAddr
 	advertisedIPv6 ipAddr
 }
