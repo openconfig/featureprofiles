@@ -275,7 +275,7 @@ func TestStaticRouteToDefaultRoute(t *testing.T) {
 	otgObj := ate.OTG()
 
 	t.Run("configureDUT Interfaces", func(t *testing.T) {
-		// Configure the DUT
+		t.Log("Configure the DUT")
 		configureDUT(t, dut)
 	})
 
