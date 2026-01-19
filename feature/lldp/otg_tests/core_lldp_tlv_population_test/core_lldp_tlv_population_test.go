@@ -94,11 +94,13 @@ func TestLLDPEnabled(t *testing.T) {
 
 	checkLLDPMetricsOTG(t, otg, otgConfig, lldpEnabled)
 
-	chassisID := lldpSrc.macAddress
-	if dut.Vendor() == ondatra.CISCO {
+	var chassisID string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
 		chassisID = macColonToDot(lldpSrc.macAddress)
+	default:
+		chassisID = lldpSrc.macAddress
 	}
-
 	dutPeerState := lldpNeighbors{
 		systemName:    lldpSrc.systemName,
 		chassisId:     chassisID,
@@ -109,9 +111,12 @@ func TestLLDPEnabled(t *testing.T) {
 
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
-	expChassisID := strings.ToUpper(dutConf.GetChassisId())
-	if dut.Vendor() == ondatra.CISCO {
-		expChassisID = macColonToDot(expChassisID)
+	var expChassisID string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		expChassisID = macColonToDot(strings.ToUpper(dutConf.GetChassisId()))
+	default:
+		expChassisID = strings.ToUpper(dutConf.GetChassisId())
 	}
 	expOtgLLDPNeighbor := lldpNeighbors{
 		systemName:    dutConf.GetSystemName(),
