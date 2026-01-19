@@ -287,7 +287,7 @@ func TestLargeSetConsistency(t *testing.T) {
 	})
 
 	// Add delay to allow the first SET request value to propagate to the datastore
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
