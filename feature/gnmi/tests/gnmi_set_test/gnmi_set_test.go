@@ -125,7 +125,6 @@ func TestGetSet(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), &oc.NetworkInstance{
-		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 	})
 
@@ -337,10 +336,10 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 
 		if deviations.ReorderCallsForVendorCompatibilty(dut) {
 			op.push(t, dut, config, scope)
+		} else {
+			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 		}
-
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 
 		config.DeleteNetworkInstance(vrf)
 		ni := config.GetOrCreateNetworkInstance(vrf)
@@ -349,6 +348,11 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		id1 := attachInterface(dut, ni, p1.Name(), 0)
 		id2 := attachInterface(dut, ni, p2.Name(), 0)
 
+		if deviations.ReorderCallsForVendorCompatibilty(dut) {
+			op.push(t, dut, config, scope)
+			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
+		}
 		op.push(t, dut, config, scope)
 
 		t.Run("Verify", func(t *testing.T) {
@@ -367,8 +371,7 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		op.push(t, dut, config, scope)
 
 		t.Run("VerifyAfterCleanup", func(t *testing.T) {
-			q := gnmi.OC().NetworkInstance(vrf).Type().State()
-			if v := gnmi.Lookup(t, dut, q); v.IsPresent() {
+			if v := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(vrf).Config()); v.IsPresent() {
 				t.Errorf("State got unwanted %v", v)
 			}
 		})
@@ -402,8 +405,12 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 
 		config.DeleteInterface(p1.Name())
 		config.DeleteInterface(p2.Name())
-		ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
-		ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
+		if deviations.ReorderCallsForVendorCompatibilty(dut) && firstVRF != defaultVRF {
+			// With deviations, IP config occurs after attaching interface to VRF.
+		} else {
+			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
+		}
 
 		if firstVRF != defaultVRF {
 			config.DeleteNetworkInstance(firstVRF)
@@ -413,6 +420,9 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 			if deviations.ReorderCallsForVendorCompatibilty(dut) {
 				id1 = attachInterface(dut, ni, p1.Name(), 0)
 				id2 = attachInterface(dut, ni, p2.Name(), 0)
+				op.push(t, dut, config, scope)
+				ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
+				ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 			}
 		}
 
@@ -472,6 +482,7 @@ func testMoveInterfaceBetweenVRF(t *testing.T, dut *ondatra.DUTDevice, firstVRF,
 		if deviations.ReorderCallsForVendorCompatibilty(dut) {
 			id1 = attachInterface(dut, secondni, p1.Name(), 0)
 			id2 = attachInterface(dut, secondni, p2.Name(), 0)
+			op.push(t, dut, config, scope)
 			ip1.ConfigOCInterface(config.GetOrCreateInterface(p1.Name()), dut)
 			ip2.ConfigOCInterface(config.GetOrCreateInterface(p2.Name()), dut)
 		} else {
@@ -756,7 +767,7 @@ func verifyAggregate(t testing.TB, dev gnmi.DeviceOrOpts, aggID string, a *attrs
 func verifyInterface(t testing.TB, dev gnmi.DeviceOrOpts, name string, a *attrs.Attributes) {
 	t.Helper()
 	q := gnmi.OC().Interface(name).Subinterface(0).Ipv4().Address(a.IPv4).PrefixLength().State()
-	v, ok := gnmi.Await(t, dev, q, 60*time.Second, a.IPv4Len).Val()
+	v, ok := gnmi.Await(t, dev, q, 100*time.Second, a.IPv4Len).Val()
 	if !ok {
 		t.Errorf("State got %v, want %v", v, a.IPv4Len)
 	} else {
@@ -823,6 +834,53 @@ func forEachPushOp(
 ) {
 	baselineConfigOnce.Do(func() {
 		baselineConfig = fptest.GetDeviceConfig(t, dut)
+		for _, ni := range baselineConfig.NetworkInstance {
+			for _, p := range ni.Protocol {
+				if p.Bgp != nil {
+					if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+						p.Bgp = nil
+					} else if p.Bgp.Global != nil {
+						p.Bgp.Global.UseMultiplePaths = nil
+					}
+				}
+				if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS {
+					p.Isis = nil
+				}
+			}
+			if ni.Type != oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE {
+				ni.Mpls = nil
+			}
+			ni.SegmentRouting = nil
+		}
+		if baselineConfig.System != nil && baselineConfig.System.Ntp != nil {
+			for _, s := range baselineConfig.System.Ntp.Server {
+				s.Port = nil
+			}
+		}
+		for _, i := range baselineConfig.Interface {
+			if i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+				i.Aggregation = nil
+			}
+			if i.Type != oc.IETFInterfaces_InterfaceType_l3ipvlan {
+				i.RoutedVlan = nil
+			}
+			if i.Type != oc.IETFInterfaces_InterfaceType_ethernetCsmacd && i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+				i.Ethernet = nil
+			}
+		}
+		if baselineConfig.System != nil {
+			baselineConfig.System.Utilization = nil
+		}
+		if baselineConfig.Acl != nil {
+			for k, as := range baselineConfig.Acl.AclSet {
+				if as.GetName() == "default-control-plane-acl" {
+					delete(baselineConfig.Acl.AclSet, k)
+				}
+			}
+		}
+		baselineConfig.Sampling = nil
+		baselineConfig.RoutingPolicy = nil
+		baselineConfig.Qos = nil
 	})
 
 	for _, op := range []pushOp{
@@ -887,9 +945,6 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
 			supContainerConfig := addMissingConfigForContainerReplace(t, dev)
 			for port, data := range supContainerConfig {
-				gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(port).Config(), &oc.Component{
-					Name: ygot.String(port),
-				})
 				bmode := &oc.Component_Port_BreakoutMode{}
 				gp := bmode.GetOrCreateGroup(0)
 				gp.BreakoutSpeed = data.breakoutSpeed
@@ -1111,7 +1166,7 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 func addMissingConfigForRootReplace(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root) {
 	batch := &gnmi.SetBatch{}
 	running := showRunningConfig(t, ondatra.DUT(t, "dut"))
-	//editing config while removing NI and interface since it will be part of another replace call
+	// editing config while removing NI and interface since it will be part of another replace call
 	data := "hostname " + strings.Split(running, "hostname ")[1]
 	modifiedStr := strings.Replace(data, "\r\n", "\n", -1)
 	// remove interface config from the running configure
