@@ -9,27 +9,17 @@ simulation:
     hours: 72
     pending_timeout: 30
 devices: 
-  ate:
-    platform: linux
-    custom:
-      type: OTG
-    vcpu: 64
-    memory: '64GB'
-    data_ports:
-    - eth1
-    - eth2
-    - eth3
-    - eth4
-    image: /auto/b4ws/images/otg/otg.qcow2
-    linux_username: vxr
-    linux_password: cisco123
-    linux_prompt: 'vxr@ubuntu22:~\$'
-    xr_port_redir:
-      - 22
-      - 443
-      - 8443
-      - 50051
-      - 40051
+  ate: 
+    data_ports: 
+      - 1/1
+      - 1/2
+      - 1/3
+      - 1/4
+    ixia_images: 
+      chassis: /auto/vxr/images/ixia/Ixia_Virtual_Chassis_9.30_KVM.qcow2
+      load: /auto/vxr/images/ixia/Ixia_Virtual_Load_Module_9.30_KVM.qcow2
+      windows: /auto/b4ws/images/ixia/IxNetworkWeb_KVM_OTG_9.30.2309.34.qcow2
+    platform: ixia
   dut: 
     cvac: $BASE_CONF_PATH
     linecard_types: 
@@ -46,13 +36,13 @@ connections:
   hubs: 
     port1: 
       - dut.FourHundredGigE0/0/0/10
-      - ate.eth1
+      - ate.1/1
     port2: 
       - dut.FourHundredGigE0/0/0/11
-      - ate.eth2
+      - ate.1/2
     port3: 
       - dut.FourHundredGigE0/0/0/12
-      - ate.eth3
+      - ate.1/3
     port4: 
       - dut.FourHundredGigE0/0/0/13
-      - ate.eth4
+      - ate.1/4
