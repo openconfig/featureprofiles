@@ -125,6 +125,7 @@ func TestGetSet(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), &oc.NetworkInstance{
+		Name: ygot.String(deviations.DefaultNetworkInstance(dut)),
 		Type: oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE,
 	})
 
@@ -945,12 +946,22 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
 			supContainerConfig := addMissingConfigForContainerReplace(t, dev)
 			for port, data := range supContainerConfig {
+				gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(port).Config(), &oc.Component{
+					Name: ygot.String(port),
+				})
 				bmode := &oc.Component_Port_BreakoutMode{}
 				gp := bmode.GetOrCreateGroup(0)
 				gp.BreakoutSpeed = data.breakoutSpeed
 				gp.NumBreakouts = ygot.Uint8(*data.numPhysicalChannels + 1)
 				bmp := gnmi.OC().Component(port).Port().BreakoutMode()
 				gnmi.BatchReplace(batch, bmp.Config(), bmode)
+				// Also set Name for each breakout child port to satisfy leafref constraints
+				for i := 0; i < int(*data.numPhysicalChannels); i++ {
+					childPortName := fmt.Sprintf("%s/%d", port, i)
+					gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(childPortName).Config(), &oc.Component{
+						Name: ygot.String(childPortName),
+					})
+				}
 			}
 		}
 	}
