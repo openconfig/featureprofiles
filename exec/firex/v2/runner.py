@@ -844,10 +844,7 @@ def BringupTestbed(self, ws, testbed_logs_dir, testbeds, test_path,
 
         if is_otg:
             try:
-                if reserved_testbed.get('sim', False):
-                    c |= DeployOTGTopology.s()
-                else:
-                    c |= BringupIxiaController.s()
+                c |= BringupIxiaController.s()
             except Exception as e:
                 _release_testbed(ws, testbed_logs_dir, internal_fp_repo_dir, reserved_testbed)
                 raise Exception("Could not bringup IXIA Controller") from e
@@ -890,7 +887,7 @@ def max_testbed_requests():
     return int(os.getenv("B4_FIREX_TESTBEDS_COUNT", '10'))
 
 def decommission_testbed_after_tests():
-    return 1
+    return os.getenv("B4_FIREX_DECOMMISSION_TESTBED", '1') == '1'
 
 @register_test_framework_provider('b4')
 def b4_chain_provider(ws, testsuite_id,
@@ -980,8 +977,10 @@ def b4_chain_provider(ws, testsuite_id,
     # if test_requires_bootz:
     #     chain |= ConfigDhcpForBootz.s()
 
-    if is_otg and reserved_testbed.get('sim', False):
-        chain |= PatchTestRepoForSimOTG.s(internal_test=internal_test)
+    if is_tgen and not decommission_testbed_after_tests():
+        chain |= ReleaseIxiaPorts.s()
+        if is_otg:
+            chain |= BringupIxiaController.s()
 
     if fp_pre_tests:
         for pt in fp_pre_tests:
@@ -999,11 +998,8 @@ def b4_chain_provider(ws, testsuite_id,
                 chain |= RunGoTest.s(test_repo_dir=internal_fp_repo_dir, test_path = v['test_path'], test_args = v.get('test_args'))
 
     if is_otg:
-        if reserved_testbed.get('sim', False):
-            chain |= TeardownOTGTopology.s()
-        else:
-            chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
-            chain |= TeardownIxiaController.s()
+        chain |= CollectIxiaLogs.s(out_dir=os.path.join(test_log_directory_path, "debug_files", "otg"))
+        chain |= TeardownIxiaController.s()
 
     # if test_requires_bootz:
     #     chain |= ConfigDhcpForBootz.s(unconfig=True)
@@ -1024,20 +1020,6 @@ def b4_chain_provider(ws, testsuite_id,
         else: chain |= CollectCoverageData.s(pyats_testbed=_resolve_path_if_needed(internal_fp_repo_dir, testbed))
 
     return chain
-
-# noinspection PyPep8Naming
-@app.task(bind=True)
-def PatchTestRepoForSimOTG(self, test_repo_dir, internal_test):
-    repo = git.Repo(test_repo_dir)
-    remote = repo.remote()
-    if not internal_test:
-        try:
-            remote = repo.remote("b4test")
-        except:
-            remote = repo.create_remote("b4test", url=INTERNAL_FP_REPO_URL)
-            remote.fetch()
-    # patch adds delay before start traffic (pending keysight fix)
-    remote.repo.git.checkout(f'{remote.name}/otg_patch', 'internal/fptest/otg_patch.go')
 
 # noinspection PyPep8Naming
 @app.task(bind=True, base=FireXRunnerBase)
@@ -1143,9 +1125,6 @@ def RunGoTest(self: FireXTask, ws, uid, skuid, testsuite_id, test_log_directory_
 
     if not collect_dut_info:
         test_args += f' -collect_dut_info=false'
-
-    if reserved_testbed.get('sim', False):
-        test_args += f' -deviation_ate_port_link_state_operations_unsupported'
 
     # Set timeouts for test execution
     inactivity_timeout = 1800
@@ -1369,7 +1348,7 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
         outFile = of.name
         cmd = f'{GO_BIN} run ' \
             f'./exec/utils/proto/binding/tojson ' \
-            f'-binding {reserved_testbed["binding_file"]} ' \
+            f'-binding {reserved_testbed["ate_binding_file"]} ' \
             f'-out {outFile}'
 
         env = dict(os.environ)
@@ -1386,15 +1365,9 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
 
         #TODO: support multiple ates
         for ate in j.get('ates', []):
-            ate_ports = ate.get('ports', [])
-            reserved_testbed['otg']['num_ports'] = len(ate_ports)
-
-            for i, p in enumerate(ate_ports):
-                if reserved_testbed.get('sim', False):
-                    p['name'] = 'eth' + str(i + 1)
-                else:
-                    parts = p['name'].split('/')
-                    p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1])
+            for p in ate.get('ports', []):
+                parts = p['name'].split('/')
+                p['name'] = '{chassis};{card};{port}'.format(chassis=ate['name'], card=parts[0], port=parts[1])
 
             ate['name'] = '{host}:{controller_port}'.format(host=otg_info['host'], controller_port=controller_port)
             ate['options'] = {
@@ -1419,20 +1392,17 @@ def _write_binding_files(ws, internal_fp_repo_dir, reserved_testbed):
             break
 
         # convert binding to prototext
-        if not reserved_testbed.get('sim', False):
-            with tempfile.NamedTemporaryFile() as f:
-                tmp_binding_file = f.name
-                with open(tmp_binding_file, "w") as outfile:
-                    outfile.write(json.dumps(j))
+        with tempfile.NamedTemporaryFile() as f:
+            tmp_binding_file = f.name
+            with open(tmp_binding_file, "w") as outfile:
+                outfile.write(json.dumps(j))
 
-                cmd = f'{GO_BIN} run ' \
-                    f'./exec/utils/proto/binding/fromjson ' \
-                    f'-binding {tmp_binding_file} ' \
-                    f'-out {reserved_testbed["otg_binding_file"]}'
+            cmd = f'{GO_BIN} run ' \
+                f'./exec/utils/proto/binding/fromjson ' \
+                f'-binding {tmp_binding_file} ' \
+                f'-out {reserved_testbed["otg_binding_file"]}'
 
-                check_output(cmd, env=env, cwd=internal_fp_repo_dir)
-        else:
-            shutil.copyfile(reserved_testbed['binding_file'], reserved_testbed["otg_binding_file"])
+            check_output(cmd, env=env, cwd=internal_fp_repo_dir)
 
     j.pop('ates', None)
 
@@ -1472,19 +1442,18 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
         check_output(f'{python_bin} {pyvxr_generator} {sim_out_dir} {ondatra_testbed_path} {ondatra_binding_path}')
 
         sim_port_redir = _sim_get_port_redir(testbed_logs_dir)
-        if 'ate' in sim_port_redir:
-            e = sim_port_redir['ate']
+        if 'ate_gui' in sim_port_redir:
+            e = sim_port_redir['ate_gui']
             reserved_testbed['otg'] = {
                 'host': e['host'],
                 'port': e['ports'][22],
-                'username': 'vxr',
-                'password': 'cisco123',
-                'controller_port': 40051,
-                'controller_port_redir': e['ports'][40051],
-                'gnmi_port': 50051,
-                'gnmi_port_redir': e['ports'][50051],
+                'username': 'admin',
+                'password': 'admin',
+                'controller_port': 3389,
+                'controller_port_redir': e['ports'][3389],
+                'gnmi_port': 11009,
+                'gnmi_port_redir': e['ports'][11009],
                 'rest_port': 8443,
-                'rest_port_redir': e['ports'][8443],
             }
 
         data_ports = _sim_get_data_ports(testbed_logs_dir)
@@ -1568,10 +1537,10 @@ def GenerateOndatraTestbedFiles(self, ws, testbed_logs_dir, internal_fp_repo_dir
     reserved_testbed['noate_testbed_file'] = ondatra_noate_testbed_path
     reserved_testbed['testbed_file'] = reserved_testbed['noate_testbed_file']
 
-    reserved_testbed['binding_file'] = ondatra_binding_path
     reserved_testbed['ate_binding_file'] = ondatra_binding_path
     reserved_testbed['otg_binding_file'] = ondatra_otg_binding_path
     reserved_testbed['noate_binding_file'] = ondatra_noate_binding_path
+    reserved_testbed['binding_file'] = reserved_testbed['noate_binding_file']
 
     reserved_testbed['testbed_info_file'] = testbed_info_path
     reserved_testbed['install_lock_file'] = install_lock_file
@@ -2056,34 +2025,6 @@ def ReleaseIxiaPorts(self, ws, internal_fp_repo_dir, reserved_testbed):
 
 # noinspection PyPep8Naming
 @app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def DeployOTGTopology(self, reserved_testbed, otg_release='v1.41.0-8'):
-    otg_info = reserved_testbed.get('otg', {})
-    otg_host = reserved_testbed['otg']['host']
-    otg_port = otg_info.get('port', 22)
-    conn_args = {
-        'username': reserved_testbed['otg']['username'],
-        'password': reserved_testbed['otg']['password'],
-        'port': otg_port
-    }
-    
-    remote_exec(f'/usr/local/bin/otg_deploy {reserved_testbed["otg"]["num_ports"]} topo new --version "{otg_release}"', otg_host, shell=True, **conn_args)
-
-# noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
-def TeardownOTGTopology(self, reserved_testbed):
-    otg_info = reserved_testbed.get('otg', {})
-    otg_host = reserved_testbed['otg']['host']
-    otg_port = otg_info.get('port', 22)
-    conn_args = {
-        'username': reserved_testbed['otg']['username'],
-        'password': reserved_testbed['otg']['password'],
-        'port': otg_port
-    }
-    
-    remote_exec(f'/usr/local/bin/otg_deploy {reserved_testbed["otg"]["num_ports"]} topo rm', otg_host, shell=True, **conn_args)
-
-# noinspection PyPep8Naming
-@app.task(bind=True, max_retries=3, autoretry_for=[AssertionError])
 def BringupIxiaController(self, test_log_directory_path, reserved_testbed,
                         otg_keng_controller='1.3.0-2',
                         otg_keng_layer23_hw_server='1.3.0-4',
@@ -2134,6 +2075,12 @@ def BringupIxiaController(self, test_log_directory_path, reserved_testbed,
     if 'port' in reserved_testbed['otg']:
         conn_args['port'] = reserved_testbed['otg']['port']
 
+    # sim has no access to /auto/
+    if reserved_testbed.get('sim', False):
+        docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+        scp_to_remote(reserved_testbed['otg']['host'], docker_file, docker_file_on_remote, **conn_args)
+        docker_file = docker_file_on_remote
+
     cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} up -d --force-recreate'
     remote_exec(f'cat {docker_file}', reserved_testbed['otg']['host'], shell=True, **conn_args)
     remote_exec(cmd, reserved_testbed['otg']['host'], shell=True, **conn_args)
@@ -2147,8 +2094,27 @@ def CollectIxiaLogs(self, reserved_testbed, out_dir):
     pname = reserved_testbed["id"].lower()
 
     try:
-        cmd = f'{otg_log_collector_bin} {pname} {out_dir}'
-        remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
+        # sim has no access to /auto/
+        if reserved_testbed.get('sim', False):
+            conn_args = {}
+            if 'username' in reserved_testbed['otg']:
+                conn_args['username'] = reserved_testbed['otg']['username']
+                conn_args['password'] = reserved_testbed['otg']['password']
+            if 'port' in reserved_testbed['otg']:
+                conn_args['port'] = reserved_testbed['otg']['port']
+
+            collect_script_on_remote = f'/tmp/{os.path.basename(otg_log_collector_bin)}'
+            out_dir_on_remote = f'/tmp/otg_logs'
+            scp_to_remote(reserved_testbed['otg']['host'], otg_log_collector_bin, collect_script_on_remote, **conn_args)
+
+            cmd = f'{collect_script_on_remote} {pname} {out_dir_on_remote}'
+            remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
+
+            scp_from_remote(reserved_testbed['otg']['host'], out_dir_on_remote, out_dir, recursive=True, **conn_args)
+
+        else:
+            cmd = f'{otg_log_collector_bin} {pname} {out_dir}'
+            remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True)
     except:
         logger.warning(f'Failed to collect OTG logs. Ignoring...')
 
@@ -2165,7 +2131,13 @@ def TeardownIxiaController(self, test_log_directory_path, reserved_testbed):
     docker_file = os.path.join(test_log_directory_path, f'otg-docker-compose.yml')
     if os.path.exists(docker_file):
         pname = reserved_testbed["id"].lower()
-        cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
+
+        # sim has no access to /auto/
+        if reserved_testbed.get('sim', False):
+            docker_file_on_remote = f'/tmp/{os.path.basename(docker_file)}'
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file_on_remote} down'
+        else:
+            cmd = f'/usr/local/bin/docker-compose -p {pname} --file {docker_file} down'
         remote_exec(cmd, hostname=reserved_testbed['otg']['host'], shell=True, **conn_args)
         os.remove(docker_file)
 
