@@ -285,7 +285,7 @@ func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []ui
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
 	default:
 		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
@@ -370,9 +370,8 @@ func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, config 
 
 	var wantASSeg []uint32
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		wantASSeg = []uint32{dutAS}
-
 	default:
 		wantASSeg = []uint32{dutAS, ateAS1}
 	}
@@ -437,7 +436,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	var otgConfig gosnappi.Config
 
 	switch dut.Vendor() {
-	case ondatra.ARISTA:
+	case ondatra.ARISTA, ondatra.CISCO:
 		ateAS1 = dutAS
 	default:
 		ateAS1 = 100
