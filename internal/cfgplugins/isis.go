@@ -190,3 +190,59 @@ func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 		t.Fatalf("Single ISIS topology deviation not supported for vendor: %s", dut.Vendor())
 	}
 }
+
+// GenerateDynamicRouteWithISIS configures the DUT to generate dynamic routes using ISIS as the trigger protocol.
+func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		generateConfig := `conf t
+		router general
+		control-functions
+			code unit ipv4_generate_route_conditionally
+					function ipv4_generate_route_conditionally() {
+							if source_protocol is ISIS and
+										prefix match prefix_list_v4 TRIGGER_ROUTE {
+										return true;
+									}
+							}
+			EOF
+			code unit ipv6_generate_route_conditionally
+					function ipv6_generate_route_conditionally() {
+							if source_protocol is ISIS and
+										prefix match prefix_list_v6 TRIGGER_ROUTE_IPV6 {
+										return true;
+									}
+							}
+			EOF
+		!
+		compile
+		commit
+
+		dynamic prefix-list ipv4_generate_route
+		match vrf default source-protocol any rcf ipv4_generate_route_conditionally()
+		prefix-list ipv4 GENERATED_ROUTE
+		!
+
+		dynamic prefix-list ipv6_generate_route
+		match vrf default source-protocol any rcf ipv6_generate_route_conditionally()
+		prefix-list ipv6 GENERATED_ROUTE_IPV6
+		!
+
+		router general
+		vrf default
+			routes dynamic prefix-list ipv4_generate_route install drop
+			routes dynamic prefix-list ipv6_generate_route install drop
+		!
+		router isis DEFAULT
+		redistribute dynamic
+		!
+		router bgp 1
+		redistribute dynamic
+		!`
+
+		runCliCommand(t, dut, generateConfig)
+	default:
+		t.Fatalf("Generate dynamic route with ISIS not supported for vendor: %s", dut.Vendor())
+	}
+}

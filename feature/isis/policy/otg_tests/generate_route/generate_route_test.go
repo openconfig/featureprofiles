@@ -1,7 +1,6 @@
 package generate_route_test
 
 import (
-	"context"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -19,19 +19,25 @@ import (
 )
 
 const (
-	ipv4PrefixLen            = 30
-	ipv6PrefixLen            = 126
-	isisName                 = "DEFAULT"
-	dutAreaAddr              = "49.0001"
-	ateAreaAddr              = "49.0002"
-	dutSysID                 = "1920.0000.2001"
-	ateSysID                 = "640000000001"
-	triggerRoute             = "192.168.2.0/30"
-	defaultRoute             = "0.0.0.0/0"
-	generatedRoutePolicyName = "GENERATED_ROUTE"
-	triggerRoutePolicyName   = "TRIGGER_ROUTE"
-	ateRoutePrefix           = "192.168.2.0"
-	isisRouteName            = "v4-isisNet-dev"
+	ipv4PrefixLen                = 30
+	ipv6PrefixLen                = 126
+	isisName                     = "DEFAULT"
+	dutAreaAddr                  = "49.0001"
+	ateAreaAddr                  = "49.0002"
+	dutSysID                     = "1920.0000.2001"
+	ateSysID                     = "640000000001"
+	triggerRoute                 = "192.0.2.2"
+	triggerRoutePrefixLen        = 32
+	triggerRouteIPv6             = "fc00::2"
+	triggerRouteIPv6PRefixLen    = 128
+	generateRoute                = "192.0.2.0/30"
+	generateIPv6Route            = "fc00::/126"
+	generatedRoutePolicyName     = "GENERATED_ROUTE"
+	triggerRoutePolicyName       = "TRIGGER_ROUTE"
+	generatedRoutePolicyIPv6Name = "GENERATED_ROUTE_IPV6"
+	triggerRoutePolicyIPv6Name   = "TRIGGER_ROUTE_IPV6"
+	isisRouteName                = "v4-isisNet-dev"
+	isisIPv6RouteName            = "v6-isisNet-dev"
 )
 
 var (
@@ -185,9 +191,11 @@ func (td *testData) configureISIS(t *testing.T) {
 
 	netv4 := td.otgPort.Isis().V4Routes().Add().SetName(isisRouteName).SetLinkMetric(10)
 	netv4.Addresses().Add().SetAddress(td.advertisedIPv4.address).SetPrefix(td.advertisedIPv4.prefix)
+
+	netv6 := td.otgPort.Isis().V6Routes().Add().SetName(isisIPv6RouteName).SetLinkMetric(10)
+	netv6.Addresses().Add().SetAddress(td.advertisedIPv6.address).SetPrefix(td.advertisedIPv6.prefix)
 }
 
-// TODO: Move to cfgplugins once feature is available
 func (td *testData) createPolicyToAdvertiseAggregate(t *testing.T) {
 	t.Helper()
 	t.Log("Configuring routing policy...")
@@ -195,13 +203,22 @@ func (td *testData) createPolicyToAdvertiseAggregate(t *testing.T) {
 	routingPolicy := root.GetOrCreateRoutingPolicy()
 
 	definedSet := routingPolicy.GetOrCreateDefinedSets()
+
 	triggerPS := definedSet.GetOrCreatePrefixSet(triggerRoutePolicyName)
 	triggerPS.SetMode(oc.PrefixSet_Mode_IPV4)
-	triggerPS.GetOrCreatePrefix(triggerRoute, "exact")
+	triggerPS.GetOrCreatePrefix(fmt.Sprintf("%s/%d", triggerRoute, triggerRoutePrefixLen), "exact")
 
 	generatedPS := definedSet.GetOrCreatePrefixSet(generatedRoutePolicyName)
 	generatedPS.SetMode(oc.PrefixSet_Mode_IPV4)
-	generatedPS.GetOrCreatePrefix(defaultRoute, "exact")
+	generatedPS.GetOrCreatePrefix(generateRoute, "exact")
+
+	triggerPSV6 := definedSet.GetOrCreatePrefixSet(triggerRoutePolicyIPv6Name)
+	triggerPSV6.SetMode(oc.PrefixSet_Mode_IPV6)
+	triggerPSV6.GetOrCreatePrefix(fmt.Sprintf("%s/%d", triggerRouteIPv6, triggerRouteIPv6PRefixLen), "exact")
+
+	generatedPSV6 := definedSet.GetOrCreatePrefixSet(generatedRoutePolicyIPv6Name)
+	generatedPSV6.SetMode(oc.PrefixSet_Mode_IPV6)
+	generatedPSV6.GetOrCreatePrefix(generateIPv6Route, "exact")
 
 	pdImport := routingPolicy.GetOrCreatePolicyDefinition(triggerRoutePolicyName)
 	stImport, err := pdImport.AppendNewStatement("10")
@@ -213,45 +230,7 @@ func (td *testData) createPolicyToAdvertiseAggregate(t *testing.T) {
 
 	gnmi.Replace(t, td.dut, gnmi.OC().RoutingPolicy().Config(), routingPolicy)
 
-	generateConfig := `conf t
-	router general
-   control-functions
-      code unit ipv4_generate_default_conditionally
-               function ipv4_generate_default_conditionally() {
-                      if source_protocol is ISIS and
-                                 prefix match prefix_list_v4 TRIGGER_ROUTE {
-                                 return true;
-                              }
-                     }
-      EOF
-   !
-compile
-commit
-
-dynamic prefix-list ipv4_generate_default
-   match rcf ipv4_generate_default_conditionally()
-   prefix-list ipv4 GENERATED_ROUTE
-!
-
-router general
- vrf default
-    routes dynamic prefix-list ipv4_generate_default install drop
-!
-router isis DEFAULT
-  redistribute dynamic
-!`
-
-	runCliCommand(t, td.dut, generateConfig)
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
+	cfgplugins.GenerateDynamicRouteWithISIS(t, td.dut, &gnmi.SetBatch{})
 }
 
 // verifyRIBRoute verifies whether a given prefix exists or not in the DUT's AFT.
@@ -272,6 +251,33 @@ func verifyRIBRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, shouldE
 	} else {
 		t.Logf("Verifying route %s is absent from RIB...", prefix)
 		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			return !v.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("Route %s was not withdrawn from the RIB, but it should have been.", prefix)
+		}
+		t.Logf("Route %s is not present in the RIB as expected.", prefix)
+	}
+}
+
+// verifyRIBIPv6Route verifies whether a given prefix exists or not in the DUT's AFT.
+func verifyRIBIPv6Route(t *testing.T, dut *ondatra.DUTDevice, prefix string, shouldExist bool) {
+	t.Helper()
+	dni := deviations.DefaultNetworkInstance(dut)
+	ribQuery := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(prefix)
+
+	if shouldExist {
+		t.Logf("Verifying route %s is present in RIB...", prefix)
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			return v.IsPresent()
+		}).Await(t)
+		if !ok {
+			t.Fatalf("Route %s was not installed in the RIB, but it should be.", prefix)
+		}
+		t.Logf("Route %s is present in the RIB as expected.", prefix)
+	} else {
+		t.Logf("Verifying route %s is absent from RIB...", prefix)
+		_, ok := gnmi.Watch(t, dut, ribQuery.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
 			return !v.IsPresent()
 		}).Await(t)
 		if !ok {
@@ -314,9 +320,11 @@ func TestGenerateRoute(t *testing.T) {
 		ate:            ate,
 		top:            top,
 		otgPort:        devs[0],
-		advertisedIPv4: ipAddr{address: ateRoutePrefix, prefix: 30},
+		advertisedIPv4: ipAddr{address: triggerRoute, prefix: triggerRoutePrefixLen},
+		advertisedIPv6: ipAddr{address: triggerRouteIPv6, prefix: triggerRouteIPv6PRefixLen},
 	}
 	td.configureISIS(t)
+	td.createPolicyToAdvertiseAggregate(t)
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
@@ -328,30 +336,39 @@ func TestGenerateRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	withdrawISISRoutes(t, []string{isisRouteName})
+	withdrawISISRoutes(t, []string{isisRouteName, isisIPv6RouteName})
 
 	t.Run("precheck", func(t *testing.T) {
-		t.Log("Precheck - ensure default route and 192.168.2.0/30 prefix are not present in the DUT routing table")
-		verifyRIBRoute(t, dut, triggerRoute, false)
-		verifyRIBRoute(t, dut, defaultRoute, false)
+		t.Logf("Precheck - ensure trigger route and %s prefix are not present in the DUT routing table", generateRoute)
+		verifyRIBRoute(t, dut, fmt.Sprintf("%s/%d", triggerRoute, triggerRoutePrefixLen), false)
+		verifyRIBRoute(t, dut, generateRoute, false)
+
+		t.Logf("Precheck - ensure trigger route and %s prefix are not present in the DUT routing table", generateIPv6Route)
+		verifyRIBIPv6Route(t, dut, fmt.Sprintf("%s/%d", triggerRouteIPv6, triggerRouteIPv6PRefixLen), false)
+		verifyRIBIPv6Route(t, dut, generateIPv6Route, false)
 	})
 
 	t.Run("advertise_trigger_route_check_generation", func(t *testing.T) {
-		t.Logf("Advertising route %s from ATE", triggerRoute)
+		t.Log("Advertising routes from ATE")
 		td.createPolicyToAdvertiseAggregate(t)
-		advertiseISISRoutes(t, []string{isisRouteName})
+		advertiseISISRoutes(t, []string{isisRouteName, isisIPv6RouteName})
 
-		verifyRIBRoute(t, dut, triggerRoute, true)
-		// verifyRIBRoute(t, dut, defaultRoute, true)
+		verifyRIBRoute(t, dut, fmt.Sprintf("%s/%d", triggerRoute, triggerRoutePrefixLen), true)
+		verifyRIBRoute(t, dut, generateRoute, true)
+
+		verifyRIBIPv6Route(t, dut, fmt.Sprintf("%s/%d", triggerRouteIPv6, triggerRouteIPv6PRefixLen), true)
+		verifyRIBIPv6Route(t, dut, generateIPv6Route, true)
 	})
 
 	t.Run("withdraw_trigger_route_check_route_deletion", func(t *testing.T) {
-		t.Logf("Advertising route %s from ATE", triggerRoute)
+		t.Logf("Withdraw route %s from ATE", triggerRoute)
 
-		withdrawISISRoutes(t, []string{isisRouteName})
+		withdrawISISRoutes(t, []string{isisRouteName, isisIPv6RouteName})
 
-		verifyRIBRoute(t, dut, triggerRoute, false)
-		verifyRIBRoute(t, dut, defaultRoute, false)
+		verifyRIBRoute(t, dut, fmt.Sprintf("%s/%d", triggerRoute, triggerRoutePrefixLen), false)
+		verifyRIBRoute(t, dut, generateRoute, false)
+
+		verifyRIBIPv6Route(t, dut, fmt.Sprintf("%s/%d", triggerRouteIPv6, triggerRouteIPv6PRefixLen), false)
+		verifyRIBIPv6Route(t, dut, generateIPv6Route, false)
 	})
-
 }
