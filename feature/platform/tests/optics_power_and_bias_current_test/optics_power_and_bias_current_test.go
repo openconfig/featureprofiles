@@ -67,7 +67,7 @@ func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functi
 		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
 	}
 	deviceSoftwareVersion := strings.Split(dut.Version(), "-")[0]
-	ftMetadata := ft.Metadata
+	ftMetadata := ft.Metadata()
 	for _, m := range ftMetadata {
 		if m.SoftwareVersion == deviceSoftwareVersion {
 			return []ygnmi.Option{ygnmi.WithFT(ft)}
@@ -226,7 +226,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 			}
 
-			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
+			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
@@ -341,8 +341,9 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
-			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+			inputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.InputPower().Instant().State())
+			outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
 			for _, inputPower := range inputPowers {
 				inPower, ok := inputPower.Val()
 				if !ok {
@@ -409,6 +410,19 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			populatedTvs[tv] = cp
 			if cp.GetTransceiver() == nil || cp.GetTransceiver().GetFormFactor() == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
 				t.Errorf("transceiver/form-factor unset for Transceiver: %q", tv)
+			}
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+			vendor := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().Vendor().State())
+			if vendor == "" {
+				t.Errorf("Transceiver %s: Vendor name is empty", tv)
+			}
+			vendorPart := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorPart().State())
+			if vendorPart == "" {
+				t.Errorf("Transceiver %s: VendorPart is empty", tv)
+			}
+			vendorRev := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorRev().State())
+			if vendorRev == "" {
+				t.Errorf("Transceiver %s: VendorRev is empty", tv)
 			}
 		})
 	}

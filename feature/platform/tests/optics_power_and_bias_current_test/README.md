@@ -107,6 +107,12 @@ paths:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/state/form-factor:
     platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-part:
+    platform_type: ["TRANSCEIVER"]
+  /components/component/transceiver/state/vendor-rev:
+    platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-lower:
     platform_type: ["TRANSCEIVER"]
   /components/component/transceiver/thresholds/threshold/state/input-power-upper:
