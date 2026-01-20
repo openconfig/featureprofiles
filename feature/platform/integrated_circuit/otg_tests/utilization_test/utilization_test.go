@@ -47,6 +47,7 @@ var (
 	fibResource = map[ondatra.Vendor]string{
 		ondatra.ARISTA: "Routing/Resource6",
 		ondatra.NOKIA:  "ip-lpm-routes",
+		ondatra.CISCO:  "central_em_0",
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
