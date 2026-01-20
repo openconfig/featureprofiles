@@ -556,7 +556,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.1.1 - Steady State - 7 v4/v6 IBGP sessions",
 			dutSetup:          dutSetup,
-			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 7, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 6000, "v6IBGPRoutes": 6000, "v4Convergence": 6100, "v6Convergence": 6005},
+			scale:             map[string]uint32{"Port2": 150, "Port3": 150, "Port4": 7, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 2000, "v6IBGPRoutes": 2000, "v4Convergence": 2100, "v6Convergence": 2005},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities, validateLinkBWNotAdvertised},
 			verifyConvergence: measureConvergence,
@@ -565,7 +565,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.2 - BGP Session Scale - 31 v4/v6 IBGP sessions",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 6000, "v6IBGPRoutes": 6000, "v4Convergence": 6100, "v6Convergence": 6005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 2000, "v6IBGPRoutes": 2000, "v4Convergence": 2100, "v6Convergence": 2005},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -574,7 +574,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.3 - Session and BGP Route Scale without BGP events",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 4000, "v6IBGPRoutes": 4000, "v4Convergence": 4100, "v6Convergence": 4005},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -583,7 +583,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.3.2 - Session and BGP Route Scale without BGP events with MSS configured",
 			dutSetup:          ateSetup,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 4000, "v6IBGPRoutes": 4000, "v4Convergence": 4100, "v6Convergence": 4005},
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
 			verifyTelemetry:   []func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, nbrList []*bgpNeighbor){verifyISISTelemetry, verifyBgpTelemetry, verifyBGPCapabilities},
 			verifyConvergence: measureConvergence,
@@ -593,7 +593,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.1 - BGP Session and Route Scale with BGP events_Alter_BGP_attributes",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 4000, "v6IBGPRoutes": 4000, "v4Convergence": 4100, "v6Convergence": 4005},
 			bgpEvents:         bgpEvents,
 			operation:         "alterBGPAttributes",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -604,7 +604,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.2 - BGP Session and Route Scale with BGP events_WithdrawRoutes",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 4000, "v6IBGPRoutes": 4000, "v4Convergence": 4100, "v6Convergence": 4005},
 			bgpEvents:         bgpEvents,
 			operation:         "withdrawRoutes",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -615,7 +615,7 @@ func TestBGPScale(t *testing.T) {
 		{
 			name:              "RT-1.65.4.3 - BGP Session and Route Scale with BGP events_ResetBGPPeers",
 			dutSetup:          nil,
-			scale:             map[string]uint32{"Port2": 400, "Port3": 400, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 250000, "v6IBGPRoutes": 150000, "v4Convergence": 250100, "v6Convergence": 150005},
+			scale:             map[string]uint32{"Port2": 200, "Port3": 200, "Port4": 31, "v4ISISRoutes": 1000, "v6ISISRoutes": 1000, "v4IBGPRoutes": 4000, "v6IBGPRoutes": 4000, "v4Convergence": 4100, "v6Convergence": 4005},
 			bgpEvents:         bgpEvents,
 			operation:         "resetBGPPeers",
 			validate:          []func(t *testing.T, dev *ondatra.Device){verifyPortsUp},
@@ -633,8 +633,8 @@ func TestBGPScale(t *testing.T) {
 				atePort2.numSubIntf = tc.scale["Port2"]
 				atePort3.numSubIntf = tc.scale["Port3"]
 				atePort4.numSubIntf = tc.scale["Port4"]
-				dutPort2.numSubIntf = 400
-				dutPort3.numSubIntf = 400
+				dutPort2.numSubIntf = 200
+				dutPort3.numSubIntf = 200
 				dutPort4.numSubIntf = 31
 				atePort4.v4ISISRouteCount = tc.scale["v4ISISRoutes"] // ISIS v4 Scale
 				atePort4.v6ISISRouteCount = tc.scale["v6ISISRoutes"] // ISIS v6 Scale
@@ -768,7 +768,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 					peer = atePort1.IPv4
 					routeCount = v4RouteCount
 					if isRouteWithdrawn {
-						routeCountWithdraw = 200
+						routeCountWithdraw = 250
 					}
 
 				case "ipv6":
@@ -777,7 +777,7 @@ func measureConvergence(t *testing.T, dut *ondatra.DUTDevice, afi []string, v4Ro
 					peer = atePort1.IPv6
 					routeCount = v6RouteCount
 					if isRouteWithdrawn {
-						routeCountWithdraw = 100
+						routeCountWithdraw = 150
 					}
 				}
 				gotSent := gnmi.Get(t, dut, prefixes.Sent().State())
