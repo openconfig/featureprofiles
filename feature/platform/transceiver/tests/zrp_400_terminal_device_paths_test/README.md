@@ -1,4 +1,4 @@
-# TRANSCEIVER-104: Telemetry: ZR Plus terminal-device OC paths streaming.
+# TRANSCEIVER-108: Telemetry: ZR Plus terminal-device OC paths streaming.
 
 ## Summary
 

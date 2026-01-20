@@ -1,4 +1,4 @@
-# TRANSCEIVER-102: Telemetry: ZR terminal-device OC paths streaming.
+# TRANSCEIVER-106: Telemetry: ZR terminal-device OC paths streaming.
 
 ## Summary
 

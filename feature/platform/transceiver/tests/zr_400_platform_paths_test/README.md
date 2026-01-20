@@ -1,4 +1,4 @@
-# TRANSCEIVER-101: Telemetry: ZR platform OC paths streaming.
+# TRANSCEIVER-105: Telemetry: ZR platform OC paths streaming.
 
 ## Summary
 
