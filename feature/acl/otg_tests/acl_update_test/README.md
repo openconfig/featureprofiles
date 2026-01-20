@@ -55,11 +55,6 @@ affect the traffic (make before break).
 
 * Repeat the same test by moving ACLs to the DUT egress interface.
 
-### Sub Test 4
-
-* Repeat sub tests 1 through 4 using a port where [/interfaces/interface/state/management](https://github.com/openconfig/public/blob/daf73c37e9062b458bb9eab645840e5d3835c74d/release/models/interfaces/openconfig-interfaces.yang#L719-L727)
-  is true and in the case of a modular form factor device (MFF), provided by a `CONTROLLER_CARD` component.  
-
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -100,8 +95,7 @@ paths:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-tcp-flags:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/builtin-detail:
 
-  # state paths for management port and ACL counters
-  /interfaces/interface/state/management:
+  # state paths for ACL counters
   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets:
   /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets:
 
