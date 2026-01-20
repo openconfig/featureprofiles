@@ -33,6 +33,7 @@ platform_exceptions:  {
   deviations:  {
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
+    missing_isis_interface_afi_safi_enable: true
   }
 }
 platform_exceptions:  {
