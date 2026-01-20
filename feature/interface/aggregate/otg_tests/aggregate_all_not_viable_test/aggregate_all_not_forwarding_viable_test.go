@@ -319,8 +319,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 
 		// Ensure LAG2 is UP when all member are Forwarding unviable
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
-		// Wait 30 seconds to allow the node to receive the OTG packet.
-		time.Sleep(30 * time.Second)
 		startTraffic(t, dut, ate, top)
 		if len(dut.Ports()) > 4 {
 			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
@@ -442,8 +440,6 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		}
 		// Ensure LAG2 is UP when all member are Forwarding unviable
 		gnmi.Await(t, dut, gnmi.OC().Interface(aggIDs[1]).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
-		// Wait 30 seconds to allow the node to receive the OTG packet.
-		time.Sleep(30 * time.Second)
 		startTraffic(t, dut, ate, top)
 		if len(dut.Ports()) > 4 {
 			if err := confirmNonViableForwardingTraffic(t, dut, ate, atePortList[1:agg2.ateLagCount+1], dutPortList[3:agg2.ateLagCount+1]); err != nil {
@@ -1110,29 +1106,23 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	)
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
+	var nh fluent.GRIBIEntry
 	if deviations.IndirectNhWithIPAddressUnsupported(dut) {
-		tcArgs.client.Modify().AddEntry(t,
-			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-				WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf),
-			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-				WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
-
-			fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-				WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
-				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
-		)
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf)
 	} else {
-		tcArgs.client.Modify().AddEntry(t,
-			fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-				WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
-			fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-				WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
-
-			fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
-				WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
-				WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
-		)
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4)
 	}
+	tcArgs.client.Modify().AddEntry(t,
+		nh,
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
+
+		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
+			WithPrefix(gribiIPv4EntryVRF111+"/32").WithNextHopGroup(101).
+			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)),
+	)
 
 	if err := awaitTimeout(tcArgs.ctx, t, tcArgs.client, 5*time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
@@ -1160,7 +1150,7 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	capturePktsBeforeTraffic(t, dut, dutPortList)
-	time.Sleep(10 * time.Second)
+	time.Sleep(40 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)

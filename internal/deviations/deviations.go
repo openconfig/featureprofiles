@@ -1489,6 +1489,7 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // FrBreakoutFix returns true if the fix is needed
+// Arista: https://issuetracker.google.com/426375784
 func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
@@ -1576,6 +1577,11 @@ func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // Isis Node Segment Configuration do not supported
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
+}
+
+// IsisSrNoPhpRequired returns true if the device requires the no-php flag for ISIS SR prefix and node segments
+func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
@@ -1803,7 +1809,54 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
+// InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
+// https://issuetracker.google.com/issues/461368936
+func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
+}
+
+// AggregateSIDCounterOutPktsUnsupported returns true if device does not support
+// /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts
+func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
+}
+
+// MatchCommunitySetMatchSetOptionsAllUnsupported returns true if device does not support match-set-options=ALL
+// for bgp-conditions community-sets
+// Arista: b/335739231
+func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
+
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
+
+// BgpCommunityTypeSliceInputUnsupported returns true if device does not support slice input of BGP community type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
+func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
+}
+
+// IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
+func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
+
+// ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}
+
+// NonStandardGRPCPort returns true if the device does not use standard grpc port.
+// Arista b/384040563
+func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
+}
+
 // WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+// Nokia b/428883444
 func IndirectNhWithIPAddressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIndirectNhWithIpAddressUnsupported()
 }
