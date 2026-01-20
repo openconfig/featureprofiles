@@ -5,3 +5,16 @@ uuid:  "3ec00c37-d32b-471a-bbf6-4845703fcb47"
 plan_id:  "RT-10.2"
 description:  "Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
