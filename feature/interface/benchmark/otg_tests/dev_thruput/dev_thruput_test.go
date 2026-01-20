@@ -56,6 +56,10 @@ type sizeWeight struct {
 	Weight float32
 }
 
+type portCounters struct {
+	inPkts, outPkts uint64
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -91,6 +95,19 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []*ondatra.Port {
 	batch.Set(t, dut)
 
 	return dutPorts
+}
+
+// getCounters collects unicast packet counters for a list of DUT interfaces.
+func getCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) map[string]portCounters {
+	t.Helper()
+	counters := make(map[string]portCounters)
+	for _, port := range dutPortList {
+		counters[port.Name()] = portCounters{
+			inPkts:  gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().InUnicastPkts().State()),
+			outPkts: gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Counters().OutUnicastPkts().State()),
+		}
+	}
+	return counters
 }
 
 // configureATE configures the ATE ports with IPv4/v6 addresses.
@@ -164,7 +181,7 @@ func createTrafficFlow(t *testing.T, name, addrFamily, dstMac string, frameSize 
 }
 
 // verifyDUTPortCounters validate the DUT ports counters.
-func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port) {
+func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.Port, baselineCounts map[string]portCounters) {
 	t.Helper()
 	if len(dutPortList)%2 != 0 {
 		t.Fatalf("Port list must contain an even number of ports, got %d", len(dutPortList))
@@ -173,22 +190,26 @@ func verifyDUTPortCounters(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*
 		inPort := dutPortList[dutIndx]
 		outPort := dutPortList[dutIndx+1]
 		// Fetch IN and OUT counters
-		inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(inPort.Name()).Counters().InUnicastPkts().State())
-		outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(outPort.Name()).Counters().OutUnicastPkts().State())
+		inPkts := gnmi.Get(t, dut, gnmi.OC().Interface(inPort.Name()).Counters().InUnicastPkts().State()) - baselineCounts[inPort.Name()].inPkts
+		outPkts := gnmi.Get(t, dut, gnmi.OC().Interface(outPort.Name()).Counters().OutUnicastPkts().State()) - baselineCounts[outPort.Name()].outPkts
 		t.Logf("Pair [%d-%d]: IN(%s)=%d  →  OUT(%s)=%d", dutIndx, dutIndx+1, inPort.Name(), inPkts, outPort.Name(), outPkts)
 		if inPkts == 0 {
 			t.Fatalf("Test flow sent %d packets", inPkts)
 		}
-		lostPackets := inPkts - outPkts
-		if got := (lostPackets * 100 / inPkts); got >= lossTolerance {
-			t.Errorf("packets mismatch between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+		if inPkts >= outPkts {
+			lostPackets := inPkts - outPkts
+			if got := (lostPackets * 100 / inPkts); got >= lossTolerance {
+				t.Errorf("packets mismatch between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+			} else {
+				t.Logf("packets matched between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+			}
 		} else {
-			t.Logf("packets matched between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, lostPackets)
+			t.Logf("packets matched between %s (IN=%d) and %s (OUT=%d): diff=%d", inPort.Name(), inPkts, outPort.Name(), outPkts, int64(inPkts)-int64(outPkts))
 		}
 	}
 }
 
-// verifyTraffic checks that the flows sent and received the expected number of packets.
+// verifyTrafficFlow checks that the flows sent and received the expected number of packets.
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) {
 	t.Helper()
 	flowCounters := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
@@ -282,14 +303,14 @@ func TestInterfacePerformance(t *testing.T) {
 			ate.OTG().PushConfig(t, currentConfig)
 
 			t.Logf("Starting traffic for %s", flowName)
+			baselineCounts := getCounters(t, dut, dutPortList)
 			ate.OTG().StartTraffic(t)
 			time.Sleep(trafficRunTime)
 			t.Log("Verifying DUT system health...")
 			verifySystemHealth(t, dut)
 			ate.OTG().StopTraffic(t)
-
 			t.Log("Verifying Counters on DUT Ports...")
-			verifyDUTPortCounters(t, dut, dutPortList)
+			verifyDUTPortCounters(t, dut, dutPortList, baselineCounts)
 
 			t.Log("Verifying traffic flow statistics...")
 			verifyTrafficFlow(t, ate, flowName)
