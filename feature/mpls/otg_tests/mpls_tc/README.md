@@ -70,7 +70,7 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
     *   /qos/classifiers/classifier=[mpls-class]/terms/term=[mpls-class-term]/actions/remark/state/set-mpls-tc = 5
 
 
-## Canonical OC Configuration
+## Canonical OC
 
 ```json
 {
