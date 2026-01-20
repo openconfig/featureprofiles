@@ -199,7 +199,7 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
 	case ondatra.ARISTA:
 		var cliConfig strings.Builder
 
-		cliConfig.WriteString(fmt.Sprintf(`
+		cliConfig.WriteString(`
     configure terminal
     router general
     control-functions
@@ -226,7 +226,7 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
     !
     router bgp 1
     redistribute dynamic
-    !`))
+    !`)
 		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	default:
 		t.Fatalf("Generate dynamic route with ISIS not supported for vendor: %s", dut.Vendor())
