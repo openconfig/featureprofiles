@@ -31,6 +31,12 @@ const (
 	binPath                             = "/auto/ng_ott_auto/tools/stress/stress"
 	binDestination                      = "/disk0:/stress"
 	binCopyTimeout                      = 1800 * time.Second
+
+	// diskStressMultiplier defines what percentage of max disk capacity to fill during stress tests.
+	// IMPORTANT: This value assumes all disk thresholds in tests are configured BELOW 80%.
+	// If you configure a threshold >= 80%, you MUST increase this value accordingly
+	// (e.g., for a 90% threshold, set this to 0.95).
+	diskStressMultiplier = 0.80
 )
 
 func TestMain(m *testing.M) {
@@ -59,19 +65,35 @@ func prettyPrintObj(obj interface{}) string {
 	return spew.Sprintf("%#v", obj)
 }
 
-func stressTestSystem(t testing.TB, dut *ondatra.DUTDevice, resource string) {
+// stressTestSystem stresses the specified resource on the DUT.
+// For disk0 and harddisk, we dynamically calculate diskStressMultiplier (80%) of the max-limit
+// to ensure the stress exceeds the configured threshold. This approach works across different
+// hardware models with varying disk capacities.
+//
+// NOTE: The diskStressMultiplier constant assumes thresholds are < 80%. See its definition
+// for details on adjusting if higher thresholds are needed.
+func stressTestSystem(t testing.TB, dut *ondatra.DUTDevice, resource string, rpActive string) {
 	t.Helper()
 	switch resource {
 	case "cpu":
 		stress.StressCPU(t, dut, 200, time.Second*40)
 	case "memory":
 		stress.StressMem(t, dut, 20, time.Second*20)
-	case "disk0":
-		// for 8808-1DUT disk0 is 3.6 GB, so 2700 MB will be about 75%
-		stress.StressDisk0(t, dut, 2700, time.Second*80)
-	case "harddisk":
-		// for 8808-1DUT harddisk is 41 GB, so 30000 MB will be about 75%
-		stress.StressHardDisk(t, dut, 30000, time.Second*80)
+	case "disk0", "harddisk":
+		// Dynamically calculate diskStressMultiplier of max-limit to exceed the threshold.
+		// This ensures the test works across different hardware with varying disk sizes.
+		maxLimit := gnmi.Get(t, dut, gnmi.OC().Component(rpActive).Linecard().Utilization().Resource(resource).MaxLimit().State())
+		if maxLimit == 0 {
+			t.Fatalf("MaxLimit for resource %s is 0 or unavailable", resource)
+		}
+		stressMB := int(float64(maxLimit) * diskStressMultiplier)
+		t.Logf("%s: max-limit=%d MB, stressing to %d MB (%.0f%% - assumes threshold < %.0f%%)",
+			resource, maxLimit, stressMB, diskStressMultiplier*100, diskStressMultiplier*100)
+		if resource == "disk0" {
+			stress.StressDisk0(t, dut, stressMB, time.Second*80)
+		} else {
+			stress.StressHardDisk(t, dut, stressMB, time.Second*80)
+		}
 	case "power":
 		stress.StressPower(t, dut, 6000, time.Second*15)
 	default:
@@ -993,7 +1015,7 @@ func TestReceiveSystemThresholdNotification(t *testing.T) {
 
 			t.Logf("Stressing system %s", tt.resource)
 
-			stressTestSystem(t, dut, tt.resource)
+			stressTestSystem(t, dut, tt.resource, rpActive)
 
 			v, passed := watcher.Await(t)
 			val, _ := v.Val()

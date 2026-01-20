@@ -342,9 +342,7 @@ func advertiseDUTLoopbackToATE(t *testing.T, dut *ondatra.DUTDevice, bs *cfgplug
 	}
 	prefixSet.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps")
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -401,9 +399,7 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 	prefixSet1.GetOrCreatePrefix(defaultRoute+"/0", "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
-		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps1")
 
 	pdef2 := rp.GetOrCreatePolicyDefinition("exportRoutePolicy")
@@ -419,9 +415,7 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 	prefixSet2.GetOrCreatePrefix(dutlo0Attrs.IPv6CIDR(), "exact")
 
-	if !deviations.SkipSetRpMatchSetOptions(bs.DUT) {
-		stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt2.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet("ps2")
 
 	gnmi.BatchUpdate(batchSet, gnmi.OC().RoutingPolicy().Config(), rp)
@@ -445,6 +439,7 @@ func getCiscoCLIRedisConfig(instanceName string, as uint32, vrf string) string {
 	cfg := fmt.Sprintf("router bgp %d instance %s\n", as, instanceName)
 	cfg = cfg + fmt.Sprintf(" vrf %s\n", vrf)
 	cfg = cfg + "  address-family ipv6 unicast\n"
+	cfg = cfg + "   label mode per-vrf\n"
 	cfg = cfg + "   redistribute connected\n"
 	return cfg
 }

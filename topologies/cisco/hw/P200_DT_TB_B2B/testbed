@@ -1,0 +1,46 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, B2B connected links
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  ports {
+    id: "port1"
+    speed: S_400GB
+  }
+  ports {
+    id: "port2"
+    speed: S_400GB
+  }
+  ports {
+    id: "port3"
+    speed: S_100GB 
+  }
+  ports {
+    id: "port4"
+    speed: S_100GB 
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}
+
+links {
+  a: "dut:port2"
+  b: "dut:port1"
+}
+
+links {
+  a: "dut:port3"
+  b: "dut:port4"
+}
+
+links {
+  a: "dut:port4"
+  b: "dut:port3"
+}

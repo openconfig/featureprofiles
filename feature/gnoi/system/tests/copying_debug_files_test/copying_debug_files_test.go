@@ -112,7 +112,6 @@ func TestCopyingDebugFiles(t *testing.T) {
 
 	req := &hpb.GetRequest{
 		Path: &tpb.Path{
-			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -123,6 +122,9 @@ func TestCopyingDebugFiles(t *testing.T) {
 				},
 			},
 		},
+	}
+	if !deviations.SkipOrigin(dut) {
+		req.Path.Origin = "openconfig"
 	}
 	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
 	t.Logf("Error: %v", err)
@@ -144,7 +146,6 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	// Execute Healthz Check RPC for the chassis component.
 	chkReq := &hpb.CheckRequest{
 		Path: &tpb.Path{
-			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -155,6 +156,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 				},
 			},
 		},
+	}
+	if !deviations.SkipOrigin(dut) {
+		chkReq.Path.Origin = "openconfig"
 	}
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)

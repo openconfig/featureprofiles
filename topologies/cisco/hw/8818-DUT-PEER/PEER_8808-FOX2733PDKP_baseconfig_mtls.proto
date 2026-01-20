@@ -933,7 +933,7 @@ replace: {
       "!\n"
       "interface HundredGigE0/0/0/0\n"
       " description not connected interface\n"
-      " shutdown\n"
+      " no shutdown\n"
       "!\n"
       "interface HundredGigE0/0/0/10\n"
       " description not connected interface\n"

@@ -49,8 +49,8 @@ type UsersMap map[string]authz.Spiffe
 var (
 	testInfraID = flag.String("test_infra_id", "cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
 	// reuse the pem files form authz test
-	caCertPem = flag.String("ca_cert_pem", "../tests/authz/testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
-	caKeyPem  = flag.String("ca_key_pem", "../tests/authz/testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
+	caCertPem = flag.String("ca_cert_pem", "../../../../gnsi/authz/tests/authz/testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	caKeyPem  = flag.String("ca_key_pem", "../../../../gnsi/authz/tests/authz/testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
 	policyMap map[string]authz.AuthorizationPolicy
 
 	usersMap = UsersMap{
@@ -147,7 +147,7 @@ func TestMain(m *testing.M) {
 
 func setUpBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 	// reuse the policy from authz test
-	policyMap = authz.LoadPolicyFromJSONFile(t, "../tests/authz/testdata/policy.json")
+	policyMap = authz.LoadPolicyFromJSONFile(t, "../../../../gnsi/authz/tests/authz/testdata/policy.json")
 
 	caKey, trustBundle, err := svid.LoadKeyPair(*caKeyPem, *caCertPem)
 	if err != nil {

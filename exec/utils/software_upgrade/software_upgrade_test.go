@@ -41,7 +41,7 @@ var (
 	gnoiFlag      = flag.Bool("gnoi", false, "Use gNOI to copy image instead of SCP")
 	reimageFlag   = flag.Bool("reimage", true, "Use install replace reimage")
 
-	installTimeout = 1800 * time.Second
+	installTimeout = 2700 * time.Second
 
 	componentTypes = map[oc.Component_Type_Union]bool{
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: true,

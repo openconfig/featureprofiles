@@ -255,9 +255,7 @@ func configureImportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice, operatio
 	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv41.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4LPPolicy)
@@ -483,9 +481,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice, operat
 	}
 	prefixSet.GetOrCreatePrefix(advertisedIPv61.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt1.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v6LPPolicy)

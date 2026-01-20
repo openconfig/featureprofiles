@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -66,11 +66,6 @@ func validateFecUncorrectableBlocks(t *testing.T, stream *samplestream.SampleStr
 }
 
 func TestZrUncorrectableFrames(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 
 	var (
@@ -81,13 +76,15 @@ func TestZrUncorrectableFrames(t *testing.T) {
 	)
 
 	ports := []string{"port1", "port2"}
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 
 	for i, port := range ports {
 		p := dut.Port(t, port)
+		cfgplugins.InterfaceConfig(t, dut, p)
 		och := components.OpticalChannelComponentFromPort(t, dut, p)
 		otnIndexes[p.Name()] = otnIndexBase + uint32(i)
 		ethIndexes[p.Name()] = ethIndexBase + uint32(i)
-		cfgplugins.ConfigOpticalChannel(t, dut, och, frequency, targetOutputPower, operationalMode)
 		cfgplugins.ConfigOTNChannel(t, dut, och, otnIndexes[p.Name()], ethIndexes[p.Name()])
 		cfgplugins.ConfigETHChannel(t, dut, p.Name(), och, otnIndexes[p.Name()], ethIndexes[p.Name()])
 	}

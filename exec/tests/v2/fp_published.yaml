@@ -341,7 +341,6 @@ tests:
       - agvarghe
     mustpass: true
     priority: 38
-    pr: 4371
     internal: false
     groups: [ancx,P0]
     otg_version:
@@ -405,6 +404,13 @@ tests:
       - agvarghe
     mustpass: true
     priority: 33
+  - name: gNMI-1.6 (System gRPC Servers running in more than one network-instance)
+    path: feature/gnmi/tests/gnmi_ni_test
+    owners:
+      - arvbaska
+    mustpass: true
+    pr: 4786
+    priority: 33   
   - name: gNMI-1.10 (Telemetry Basic Check)
     path: feature/gnmi/otg_tests/telemetry_basic_check_test
     args:
@@ -1749,14 +1755,6 @@ tests:
     priority: 3
     groups: [newfnt]
 
-  - name: DP-1.12 (ECN enabled traffic test)
-    path: feature/qos/ecn/otg_tests/ecn_enabled_traffic_test
-    owners:
-      - mananpat
-    mustpass: false
-    priority: 3
-    groups: [daniel]
-
   # - name: DP-1.13 (DSCP and ECN bits are copied over during IPinIP encap and decap)
   #   path: feature/qos/ecn/ate_tests/dscp_ecn_encap_decap_test
   #   owners:
@@ -2466,7 +2464,11 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    args:
+      - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'
+      - '-container_upgrade_tar="/auto/b4ws/container_img/cntrsrv-upgrade.tar"'    
     priority: 3
+    pr: 4825
     groups: [newfnt]
 
   - name: Container-2 (Container network connectivity tests)
@@ -2474,6 +2476,8 @@ tests:
     owners:
       - mananpat
     mustpass: false
+    args:
+      - '-container_tar="/auto/b4ws/container_img/cntrsrv.tar"'    
     priority: 3
     groups: [newfnt]    
 
@@ -2553,10 +2557,11 @@ tests:
 
   - name: AFT-1.1 (AFT Streaming)
     path: feature/afts/otg_tests/afts_base
-    groups: [new_run]
     mustpass: false
     priority: 3
     timeout: 21000
+    pr: 4950
+    internal: false
 
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates
@@ -2902,8 +2907,8 @@ tests:
     mustpass: false
     priority: 3
 
-  - name: OC-1.1 (System Configuration)
-    path: feature/system/tests/system_base_test
+  - name: System-1.1 (System banner test)
+    path: feature/system/tests/system_base_test/tests/system_banner_test
     groups: [new_run]
     mustpass: false
     priority: 3
