@@ -72,40 +72,52 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
 
 ## Canonical OC Configuration
 
-### QOS Classifier amd Marking MPLS packet
-
 ```json
 {
-    "qos": {
-        "classifers": {
-            "classifier": {
-                "config": {
-                    "name": "mpls-class",
-                    "type": "MPLS"
-                },
-                "terms": {
-                    "term": {
-                        "config": {
-                            "id": "mpls-class-term"
-                        },
-                        "conditions": {
-                            "mpls": {
-                                "config": {
-                                    "start-label-value": 16,
-                                    "end-label-value": 1048575
-                                }
-                            }
-                        },
-                        "actions": {
-                            "config": {
-                                "set-mpls-tc": 5
-                            }
-                        }
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "config": {
+                    "name": "lspv4"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 10004,
+                      "next-hop": "203.0.200.1",
+                      "push-label": "IMPLICIT_NULL"
                     }
+                  },
+                  "name": "lspv4"
+                },
+                {
+                  "config": {
+                    "name": "lspv6"
+                  },
+                  "egress": {
+                    "config": {
+                      "incoming-label": 10006,
+                      "next-hop": "2001:db8:128:200::1",
+                      "push-label": "IMPLICIT_NULL"
+                    }
+                  },
+                  "name": "lspv6"
                 }
+              ]
             }
-        }
-    }
+          }
+        },
+        "name": "DEFAULT"
+      }
+    ]
+  }
 }
 ```
 
