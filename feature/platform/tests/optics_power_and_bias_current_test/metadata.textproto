@@ -29,5 +29,7 @@ platform_exceptions:  {
   }
   deviations:  {
     ciscoxr_laser_ft:  "ciscoxr-laser-ft"
+    transceiver_thresholds_unsupported:  true
+    temperature_sensor_check: true
   }
 }
