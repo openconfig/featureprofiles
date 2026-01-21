@@ -546,8 +546,8 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		intfName += ".0"
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName = intfName + ".0"
 	}
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
@@ -628,7 +628,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Errorf("No BGP neighbor formed")
+		t.Fatal("No BGP neighbor formed")
 	}
 	state, _ := status.Val()
 	t.Logf("BGP adjacency for %s: %v", otgIsisPort8LoopV4, state)
