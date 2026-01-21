@@ -57,6 +57,7 @@ const (
 	Metadata_TESTBED_DUT_800ZR             Metadata_Testbed = 13
 	Metadata_TESTBED_DUT_800ZR_PLUS        Metadata_Testbed = 14
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
+	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -78,6 +79,7 @@ var (
 		13: "TESTBED_DUT_800ZR",
 		14: "TESTBED_DUT_800ZR_PLUS",
 		15: "TESTBED_DUT_2LINKS",
+		16: "TESTBED_DUT_ATE_34LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -96,6 +98,7 @@ var (
 		"TESTBED_DUT_800ZR":             13,
 		"TESTBED_DUT_800ZR_PLUS":        14,
 		"TESTBED_DUT_2LINKS":            15,
+		"TESTBED_DUT_ATE_34LINKS":       16,
 	}
 )
 
@@ -600,6 +603,7 @@ type Metadata_Deviations struct {
 	IsisCounterPartChangesUnsupported bool `protobuf:"varint,107,opt,name=isis_counter_part_changes_unsupported,json=isisCounterPartChangesUnsupported,proto3" json:"isis_counter_part_changes_unsupported,omitempty"`
 	// Devices do not support threshold container under
 	// /components/component/transceiver.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475716370
 	TransceiverThresholdsUnsupported bool `protobuf:"varint,108,opt,name=transceiver_thresholds_unsupported,json=transceiverThresholdsUnsupported,proto3" json:"transceiver_thresholds_unsupported,omitempty"`
 	// Update interface loopback mode using raw gnmi API due to server version.
 	InterfaceLoopbackModeRawGnmi bool `protobuf:"varint,109,opt,name=interface_loopback_mode_raw_gnmi,json=interfaceLoopbackModeRawGnmi,proto3" json:"interface_loopback_mode_raw_gnmi,omitempty"`
@@ -1275,8 +1279,11 @@ type Metadata_Deviations struct {
 	// Arista b/384040563
 	// Device does not  support the IANA assigned gRPC port for g* services
 	NonStandardGrpcPort bool `protobuf:"varint,366,opt,name=non_standard_grpc_port,json=nonStandardGrpcPort,proto3" json:"non_standard_grpc_port,omitempty"`
+	// Check if transceiver subcomponent should look for the temperature sensor
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+	TemperatureSensorCheck bool `protobuf:"varint,367,opt,name=temperature_sensor_check,json=temperatureSensorCheck,proto3" json:"temperature_sensor_check,omitempty"`
 	// Cisco: http://b/429231108
-	CiscoxrTransceiverFt string `protobuf:"bytes,367,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
+	CiscoxrTransceiverFt string `protobuf:"bytes,368,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -3642,6 +3649,13 @@ func (x *Metadata_Deviations) GetNonStandardGrpcPort() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetTemperatureSensorCheck() bool {
+	if x != nil {
+		return x.TemperatureSensorCheck
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetCiscoxrTransceiverFt() string {
 	if x != nil {
 		return x.CiscoxrTransceiverFt
@@ -3705,7 +3719,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe8\xca\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xc0\xcb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3717,7 +3731,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf1\xc0\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xac\xc1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4055,14 +4069,15 @@ const file_metadata_proto_rawDesc = "" +
 	"*bgp_community_type_slice_input_unsupported\x18\xeb\x02 \x01(\bR%bgpCommunityTypeSliceInputUnsupported\x12F\n" +
 	"\x1fibgp_multipath_path_unsupported\x18\xec\x02 \x01(\bR\x1cibgpMultipathPathUnsupported\x12J\n" +
 	"!containerz_plugin_rpc_unsupported\x18\xed\x02 \x01(\bR\x1econtainerzPluginRpcUnsupported\x124\n" +
-	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x125\n" +
-	"\x16ciscoxr_transceiver_ft\x18\xef\x02 \x01(\tR\x14ciscoxrTransceiverFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x129\n" +
+	"\x18temperature_sensor_check\x18\xef\x02 \x01(\bR\x16temperatureSensorCheck\x125\n" +
+	"\x16ciscoxr_transceiver_ft\x18\xf0\x02 \x01(\tR\x14ciscoxrTransceiverFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xc3\x03\n" +
+	"deviations\"\xe0\x03\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -4080,7 +4095,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\x12\x15\n" +
 	"\x11TESTBED_DUT_800ZR\x10\r\x12\x1a\n" +
 	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
-	"\x12TESTBED_DUT_2LINKS\x10\x0f\"m\n" +
+	"\x12TESTBED_DUT_2LINKS\x10\x0f\x12\x1b\n" +
+	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
