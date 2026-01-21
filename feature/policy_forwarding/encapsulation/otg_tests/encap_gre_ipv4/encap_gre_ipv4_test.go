@@ -1,9 +1,11 @@
 package encap_gre_ipv4_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,6 +45,10 @@ const (
 	port1             = "port1"
 	port2             = "port2"
 	port3             = "port3"
+	ruleIPv4Pass      = "rule_ipv4_pass"
+	ruleIPv6Pass      = "rule_ipv6_pass"
+	ruleIPv4Encap     = "rule_ipv4_encap"
+	ruleIPv6Encap     = "rule_ipv6_encap"
 )
 
 var (
@@ -55,17 +61,17 @@ var (
 	dutLoopbackAttrs attrs.Attributes
 
 	ruleSequenceMap = map[string]uint8{
-		"rule-src1-v4": 1,
-		"rule-src1-v6": 2,
-		"rule-src2-v4": 3,
-		"rule-src2-v6": 4,
+		ruleIPv4Pass:  1,
+		ruleIPv6Pass:  2,
+		ruleIPv4Encap: 3,
+		ruleIPv6Encap: 4,
 	}
 
 	ruleMatchedPackets = map[string]uint64{
-		"rule-src1-v4": 0,
-		"rule-src1-v6": 0,
-		"rule-src2-v4": 0,
-		"rule-src2-v6": 0,
+		ruleIPv4Pass:  0,
+		ruleIPv6Pass:  0,
+		ruleIPv4Encap: 0,
+		ruleIPv6Encap: 0,
 	}
 
 	dutPort1 = attrs.Attributes{Desc: "Dut port 1", IPv4: "192.0.2.1", IPv4Len: 30, IPv6: "2001:DB8:0::1", IPv6Len: 126}
@@ -143,7 +149,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: true,
-			policyRule:             "rule-src1-v4",
+			policyRule:             ruleIPv4Encap,
 			flowName:               "FlowTC1",
 		},
 		{
@@ -164,7 +170,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: true,
-			policyRule:             "rule-src1-v6",
+			policyRule:             ruleIPv6Encap,
 			flowName:               "FlowTC2",
 		},
 		{
@@ -178,7 +184,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: false,
-			policyRule:             "rule-src2-v4",
+			policyRule:             ruleIPv4Pass,
 			flowName:               "FlowTC3",
 		},
 		{
@@ -192,7 +198,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         false,
 			checkEncapLoadBalanced: false,
-			policyRule:             "rule-src2-v6",
+			policyRule:             ruleIPv6Pass,
 			flowName:               "FlowTC4",
 		},
 		{
@@ -218,7 +224,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         true,
 			checkEncapLoadBalanced: false,
-			policyRule:             "rule-src1-v4",
+			policyRule:             ruleIPv4Encap,
 			flowName:               "FlowTC5",
 		},
 		{
@@ -244,7 +250,7 @@ func TestEncapGREIPv4(t *testing.T) {
 			},
 			checkEncapDscp:         true,
 			checkEncapLoadBalanced: false,
-			policyRule:             "rule-src1-v6",
+			policyRule:             ruleIPv6Encap,
 			flowName:               "FlowTC6",
 		},
 	}
@@ -511,11 +517,50 @@ func pushQosClassifierToDUT(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, i
 
 }
 
+func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Errorf("Failed to execute CLI command '%s': %v", cliCommand, err)
+	}
+	t.Logf("Received from cli: %s", output.Output())
+	return output.Output()
+}
+
 func checkPolicyStatistics(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	if deviations.PolicyForwardingGreEncapsulationOcUnsupported(dut) {
-		t.Fatalf("Dut %s %s %s does not support checking policy statistics through OC", dut.Vendor(), dut.Model(), dut.Version())
+	if deviations.PolicyForwardingCountersUnsupported(dut) {
+		checkPolicyStatisticsFromCLI(t, dut, tc)
 	} else {
 		checkPolicyStatisticsFromOC(t, dut, tc)
+	}
+}
+
+func checkPolicyStatisticsFromCLI(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
+	t.Logf("Checking policy statistics for flow %s", tc.flowName)
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		//extract text from CLI output between rule name and packets
+		policyCountersCommand := fmt.Sprintf(`show traffic-policy %s interface counters | grep %s | sed -e 's/.*%s:\(.*\)packets.*/\1/'`, trafficPolicyName, tc.policyRule, tc.policyRule)
+		cliOutput := runCliCommand(t, dut, policyCountersCommand)
+		cliOutput = strings.TrimSpace(cliOutput)
+		if cliOutput == "" {
+			t.Errorf("No output for CLI command '%s'", policyCountersCommand)
+			return
+		}
+		totalMatched, err := strconv.ParseUint(cliOutput, 10, 64)
+		if err != nil {
+			t.Errorf("Invalid response for CLI command '%s': %v", cliOutput, err)
+			return
+		}
+		previouslyMatched := ruleMatchedPackets[tc.policyRule]
+		if totalMatched != previouslyMatched+noOfPackets {
+			t.Errorf("Expected %d packets matched by policy %s rule %s for flow %s, but got %d", noOfPackets, trafficPolicyName, tc.policyRule, tc.flowName, totalMatched-previouslyMatched)
+		} else {
+			t.Logf("%d packets matched by policy %s rule %s for flow %s", totalMatched-previouslyMatched, trafficPolicyName, tc.policyRule, tc.flowName)
+		}
+		ruleMatchedPackets[tc.policyRule] = totalMatched
+	default:
+		t.Errorf("Vendor %s is not supported for policy statistics check through CLI", dut.Vendor())
 	}
 }
 
