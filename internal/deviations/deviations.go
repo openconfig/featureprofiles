@@ -1844,9 +1844,9 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
-// retain_gnmi_cfg_after_reboot
-// GetRetainGnmiCfgAfterReboot returns true if device does not support configuration is not retained after reboot
-// Arista: b/476271160
+// GetRetainGnmiCfgAfterReboot returns true if the device requires additional configuration to retain gNMI config across reboots.
+//
+// Arista: https://buganizer.corp.google.com/issues/476271160
 func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
 }
