@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/google/gopacket"
@@ -191,6 +193,33 @@ var (
 	loopbackIntfName string
 	atePortNamelist  []string
 )
+
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := `vrf selection policy
+                next-hop decapsulation vrf`
+		if _, err := dut.RawAPIs().GNMI(t).
+			Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to inject VRF selection policy command: %v", err)
+		}
+	}
+}
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+}
 
 // awaitTimeout calls a fluent client Await, adding a timeout to the context.
 func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, timeout time.Duration) error {
@@ -539,19 +568,22 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intfName = intfName + ".0"
+	}
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 	isisIntfLevel.Enabled = ygot.Bool(true)
-	isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-	isisIntfLevelAfi.Metric = ygot.Uint32(200)
+	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+	isisIntfLevelAfiv4.Metric = ygot.Uint32(200)
+	isisIntfLevelAfiv4.Enabled = ygot.Bool(true)
 	if deviations.ISISInterfaceAfiUnsupported(dut) {
 		isisIntf.Af = nil
 	}
 	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
-		isisIntfLevelAfi.Enabled = nil
+		isisIntfLevelAfiv4.Enabled = nil
 	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
@@ -619,7 +651,7 @@ func verifyBgpTelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	}).Await(t)
 	if !ok {
 		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
-		t.Fatal("No BGP neighbor formed")
+		t.Errorf("No BGP neighbor formed")
 	}
 	state, _ := status.Val()
 	t.Logf("BGP adjacency for %s: %v", otgIsisPort8LoopV4, state)
@@ -997,6 +1029,7 @@ func TestEncapFrr(t *testing.T) {
 	configureDUT(t, dut, dutPorts)
 
 	t.Log("Apply vrf selection policy to DUT port-1")
+	PrepareDUTForVrfSelectionPolicy(t, dut)
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyC)
 
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
