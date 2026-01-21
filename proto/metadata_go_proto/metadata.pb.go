@@ -57,6 +57,7 @@ const (
 	Metadata_TESTBED_DUT_800ZR             Metadata_Testbed = 13
 	Metadata_TESTBED_DUT_800ZR_PLUS        Metadata_Testbed = 14
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
+	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -78,6 +79,7 @@ var (
 		13: "TESTBED_DUT_800ZR",
 		14: "TESTBED_DUT_800ZR_PLUS",
 		15: "TESTBED_DUT_2LINKS",
+		16: "TESTBED_DUT_ATE_34LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -96,6 +98,7 @@ var (
 		"TESTBED_DUT_800ZR":             13,
 		"TESTBED_DUT_800ZR_PLUS":        14,
 		"TESTBED_DUT_2LINKS":            15,
+		"TESTBED_DUT_ATE_34LINKS":       16,
 	}
 )
 
@@ -600,6 +603,7 @@ type Metadata_Deviations struct {
 	IsisCounterPartChangesUnsupported bool `protobuf:"varint,107,opt,name=isis_counter_part_changes_unsupported,json=isisCounterPartChangesUnsupported,proto3" json:"isis_counter_part_changes_unsupported,omitempty"`
 	// Devices do not support threshold container under
 	// /components/component/transceiver.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475716370
 	TransceiverThresholdsUnsupported bool `protobuf:"varint,108,opt,name=transceiver_thresholds_unsupported,json=transceiverThresholdsUnsupported,proto3" json:"transceiver_thresholds_unsupported,omitempty"`
 	// Update interface loopback mode using raw gnmi API due to server version.
 	InterfaceLoopbackModeRawGnmi bool `protobuf:"varint,109,opt,name=interface_loopback_mode_raw_gnmi,json=interfaceLoopbackModeRawGnmi,proto3" json:"interface_loopback_mode_raw_gnmi,omitempty"`
@@ -4073,7 +4077,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xc3\x03\n" +
+	"deviations\"\xe0\x03\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -4091,7 +4095,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16TESTBED_DUT_ATE_5LINKS\x10\f\x12\x15\n" +
 	"\x11TESTBED_DUT_800ZR\x10\r\x12\x1a\n" +
 	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
-	"\x12TESTBED_DUT_2LINKS\x10\x0f\"m\n" +
+	"\x12TESTBED_DUT_2LINKS\x10\x0f\x12\x1b\n" +
+	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
