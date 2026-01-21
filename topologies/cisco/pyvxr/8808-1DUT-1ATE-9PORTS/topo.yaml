@@ -40,6 +40,7 @@ devices:
   dut: 
     cvac: $BASE_CONF_PATH
     dual_rp: true
+    rp_type: 8800-rp2
     num_linecards: 1
     linecard_types: 
       - 88-LC0-36FH-M
@@ -51,6 +52,11 @@ devices:
       - 23
       - 57777
     xr_username: cisco
+    pre_config: |
+      hw-module profile netflow sflow-enable location 0/0/CPU0
+      hw-module profile qos qos-stats-push-collection
+      hw-module profile npu-compatibility Q200
+      hw-module profile cef iptunnel scale
     cli_commands: reload location all noprompt
 
 connections:
