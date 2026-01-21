@@ -1854,3 +1854,9 @@ func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
+
+// ClassifierCountersOCUnsupported returns true if the device does not support classifiers counters.
+// Arista b/419618177
+func ClassifierCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetClassifierCountersOcUnsupported()
+}
