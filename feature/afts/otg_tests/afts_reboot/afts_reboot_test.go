@@ -53,8 +53,8 @@ const (
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 20 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval = 30 * time.Second
-	aristaPersistConfig    = "management api gnmi\ntransport grpc default\noperation set persistence"
+	rebootPollInterval    = 30 * time.Second
+	aristaPersistConfig   = "management api gnmi\ntransport grpc default\noperation set persistence"
 	aristaNoPersistConfig = "management api gnmi\ntransport grpc default\nno operation set persistence"
 )
 
