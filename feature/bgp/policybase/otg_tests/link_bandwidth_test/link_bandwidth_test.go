@@ -37,7 +37,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 const (
 	ipv4PrefixLen     = 30
 	ipv6PrefixLen     = 126
@@ -469,7 +468,7 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 				case "none":
 					t.Logf("Prefix community :%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
 					if len(bgpPrefix.Community) != 0 {
-						t.Errorf("ERROR: community and ext communituy are not empty it should be none")
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -545,7 +544,7 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				case "none":
 					t.Logf("Prefix community AS:%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
 					if len(bgpPrefix.Community) != 0 {
-						t.Errorf("ERROR: community and ext community are not empty it should be none")
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -1188,4 +1187,3 @@ func verifyExtCommunityIndexV6(t *testing.T, td testData, v6Address string) {
 		}
 	}
 }
-
