@@ -1277,8 +1277,12 @@ type Metadata_Deviations struct {
 	// Arista b/384040563
 	// Device does not  support the IANA assigned gRPC port for g* services
 	NonStandardGrpcPort bool `protobuf:"varint,366,opt,name=non_standard_grpc_port,json=nonStandardGrpcPort,proto3" json:"non_standard_grpc_port,omitempty"`
+	// Check if transceiver subcomponent should look for the temperature sensor
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+	TemperatureSensorCheck bool `protobuf:"varint,367,opt,name=temperature_sensor_check,json=temperatureSensorCheck,proto3" json:"temperature_sensor_check,omitempty"`
+	// Arista b/419618177
 	// Device does not  support the classifiers counters.
-	ClassifierCountersOcUnsupported bool `protobuf:"varint,367,opt,name=classifier_counters_oc_unsupported,json=classifierCountersOcUnsupported,proto3" json:"classifier_counters_oc_unsupported,omitempty"`
+	ClassifierCountersOcUnsupported bool `protobuf:"varint,368,opt,name=classifier_counters_oc_unsupported,json=classifierCountersOcUnsupported,proto3" json:"classifier_counters_oc_unsupported,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -3644,6 +3648,13 @@ func (x *Metadata_Deviations) GetNonStandardGrpcPort() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetTemperatureSensorCheck() bool {
+	if x != nil {
+		return x.TemperatureSensorCheck
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetClassifierCountersOcUnsupported() bool {
 	if x != nil {
 		return x.ClassifierCountersOcUnsupported
@@ -3707,7 +3718,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x9c\xcb\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xd7\xcb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3719,7 +3730,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x88\xc1\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xc3\xc1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4057,8 +4068,9 @@ const file_metadata_proto_rawDesc = "" +
 	"*bgp_community_type_slice_input_unsupported\x18\xeb\x02 \x01(\bR%bgpCommunityTypeSliceInputUnsupported\x12F\n" +
 	"\x1fibgp_multipath_path_unsupported\x18\xec\x02 \x01(\bR\x1cibgpMultipathPathUnsupported\x12J\n" +
 	"!containerz_plugin_rpc_unsupported\x18\xed\x02 \x01(\bR\x1econtainerzPluginRpcUnsupported\x124\n" +
-	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x12L\n" +
-	"\"classifier_counters_oc_unsupported\x18\xef\x02 \x01(\bR\x1fclassifierCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x129\n" +
+	"\x18temperature_sensor_check\x18\xef\x02 \x01(\bR\x16temperatureSensorCheck\x12L\n" +
+	"\"classifier_counters_oc_unsupported\x18\xf0\x02 \x01(\bR\x1fclassifierCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

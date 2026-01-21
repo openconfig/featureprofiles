@@ -1855,6 +1855,11 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
+// TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
+
 // ClassifierCountersOCUnsupported returns true if the device does not support classifiers counters.
 // Arista b/419618177
 func ClassifierCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
