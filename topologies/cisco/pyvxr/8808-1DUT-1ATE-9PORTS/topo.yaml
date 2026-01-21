@@ -51,6 +51,11 @@ devices:
       - 23
       - 57777
     xr_username: cisco
+    pre_cli: |
+      hw-module profile netflow sflow-enable location 0/0/CPU0
+      hw-module profile qos qos-stats-push-collection
+      hw-module profile npu-compatibility Q200
+      hw-module profile cef iptunnel scale
     cli_commands: reload location all noprompt
 
 connections:
