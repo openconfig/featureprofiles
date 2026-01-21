@@ -429,7 +429,7 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 }
 
 // NewPolicyForwardingMatchAndSetTTL configures a policy-forwarding rule that matches packets based on IP TTL and rewrites the TTL before redirecting traffic to a specified next-hop group.
-func NewPolicyForwardingMatchAndSetTTL(t *testing.T, dut *ondatra.DUTDevice, traffictype string, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
+func NewPolicyForwardingMatchAndSetTTL(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) {
 	t.Helper()
 	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
 	if deviations.PolicyForwardingOCUnsupported(dut) {
@@ -443,7 +443,7 @@ func NewPolicyForwardingMatchAndSetTTL(t *testing.T, dut *ondatra.DUTDevice, tra
 				helpers.GnmiCLIConfig(t, dut, removeCmd)
 				return
 			} else {
-				switch traffictype {
+				switch params.IPType {
 				case "ipv4":
 					policyForwardingConfigv4Vrf := fmt.Sprintf(`
 						traffic-policies
@@ -490,7 +490,7 @@ func NewPolicyForwardingMatchAndSetTTL(t *testing.T, dut *ondatra.DUTDevice, tra
 					helpers.GnmiCLIConfig(t, dut, policyForwardingConfigv6Vrf)
 
 				default:
-					t.Logf("Unsupported traffictype %s for TTL policy", traffictype)
+					t.Logf("Unsupported traffictype %s for TTL policy", params.IPType)
 				}
 			}
 		default:
