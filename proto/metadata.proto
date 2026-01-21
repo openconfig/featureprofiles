@@ -45,6 +45,7 @@ message Metadata {
     TESTBED_DUT_800ZR = 13;
     TESTBED_DUT_800ZR_PLUS = 14;
     TESTBED_DUT_2LINKS = 15;
+    TESTBED_DUT_ATE_34LINKS = 16;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -1100,21 +1101,25 @@ message Metadata {
     // Arista: b/470225282
     bool containerz_plugin_rpc_unsupported = 365;
 
+    // Arista b/384040563
+    // Device does not  support the IANA assigned gRPC port for g* services
+    bool non_standard_grpc_port = 366;
+
     // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
     // Devices that report controller CPU utilization against base controller card component
-    bool cpu_utilization_query_against_base_controller_card_component = 366;
+    bool cpu_utilization_query_against_base_controller_card_component = 367;
 
     // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
     // Devices that report linecard CPU utilization against base linecard component
-    bool cpu_utilization_query_against_base_linecard_component = 367;
+    bool cpu_utilization_query_against_base_linecard_component = 368;
 
     // Device does not support no-queue drops
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
-    bool no_queue_drop_unsupported = 368;
+    bool no_queue_drop_unsupported = 369;
 
     // Device does not support interface-ethernet in-block errors counters
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
-    bool interface_ethernet_inblock_errors_unsupported = 369;
+    bool interface_ethernet_inblock_errors_unsupported = 370;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
