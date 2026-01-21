@@ -55,6 +55,136 @@ affect the traffic (make before break).
 
 * Repeat the same test by moving ACLs to the DUT egress interface.
 
+## Canonical OC
+
+```json
+{
+  "acl": {
+    "acl-sets": {
+      "acl-set": [
+        {
+          "config": {
+            "name": "ACL-1.2-IPV4",
+            "type": "openconfig-acl:ACL_IPV4"
+          },
+          "name": "ACL-1.2-IPV4",
+          "type": "openconfig-acl:ACL_IPV4",
+          "acl-entries": {
+            "acl-entry": [
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 10
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 10
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 20
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 6,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 20,
+                "transport": {
+                  "config": {
+                    "destination-port": 2345,
+                    "source-port": 1234
+                  }
+                }
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 30
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 17,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 30,
+                "transport": {
+                  "config": {
+                    "destination-port": 2345,
+                    "source-port": 1234
+                  }
+                }
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 40
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 1,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 40
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:ACCEPT",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 990
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "0.0.0.0/0",
+                    "source-address": "0.0.0.0/0"
+                  }
+                },
+                "sequence-id": 990
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
