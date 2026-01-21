@@ -467,7 +467,7 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 func TestNoQueueDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if deviations.NoQueueDropUnsupported(dut) {
-		t.Skip("Skip test when no-queue drop counters are unsupported")
+		t.Skipf("Skip test when no-queue drop counters are unsupported")
 	}
 	type testCase struct {
 		desc     string
@@ -833,7 +833,7 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
 					if c.desc == "InBlockErrors" && deviations.InterfaceEthernetInblockErrorsUnsupported(dut) {
-						t.Skip("skip testcase as in-block errors counters are not supported")
+						t.Skipf("skip testcase as in-block errors counters are not supported")
 					}
 					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 						t.Logf("INFO: %s: %d", c.counter, val)
