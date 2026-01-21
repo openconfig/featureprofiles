@@ -27,6 +27,7 @@ platform_exceptions: {
     cpu_utilization_query_against_base_linecard_component: true
     no_queue_drop_unsupported: true
     interface_ethernet_inblock_errors_unsupported: true
+    fabric_drop_counter_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION
