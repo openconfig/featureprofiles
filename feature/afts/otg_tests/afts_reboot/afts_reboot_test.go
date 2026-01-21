@@ -54,6 +54,8 @@ const (
 	maxRebootTime = 20 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
 	rebootPollInterval = 30 * time.Second
+	aristaPersistConfig    = "management api gnmi\ntransport grpc default\noperation set persistence"
+	aristaNoPersistConfig = "management api gnmi\ntransport grpc default\nno operation set persistence"
 )
 
 var (
@@ -115,25 +117,19 @@ func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 	return nil
 }
 
-func (tc *testCase) configureToStoreRunninggNMIConfig(t *testing.T) error {
-	hwProfileConfig := map[ondatra.Vendor]string{
-		tc.dut.Vendor(): "management api gnmi \n transport grpc default \n operation set persistence \n",
+func (tc *testCase) configureToStoreRunningGNMIConfig(t *testing.T) error {
+	if tc.dut.Vendor() == ondatra.ARISTA {
+		tc.dut.Config().New().WithAristaText(aristaPersistConfig).Append(t)
+		t.Logf("Applied Arista config to persist gNMI running config: %q", aristaPersistConfig)
 	}
-	tc.dut.Config().New().
-		WithAristaText(hwProfileConfig[ondatra.ARISTA]).
-		Append(t)
-	t.Logf("hwProfileConfig: %v added \n", hwProfileConfig[tc.dut.Vendor()])
 	return nil
 }
 
-func (tc *testCase) unconfigureToStoreRunninggNMIConfig(t *testing.T) error {
-	hwProfileConfig := map[ondatra.Vendor]string{
-		tc.dut.Vendor(): "management api gnmi \n transport grpc default \n no operation set persistence \n",
+func (tc *testCase) unconfigureToStoreRunningGNMIConfig(t *testing.T) error {
+	if tc.dut.Vendor() == ondatra.ARISTA {
+		tc.dut.Config().New().WithAristaText(aristaNoPersistConfig).Append(t)
+		t.Logf("Applied Arista config to remove gNMI running config persistence: %q", aristaNoPersistConfig)
 	}
-	tc.dut.Config().New().
-		WithAristaText(hwProfileConfig[ondatra.ARISTA]).
-		Append(t)
-	t.Logf("hwProfileConfig: %v added \n", hwProfileConfig[tc.dut.Vendor()])
 	return nil
 }
 
@@ -307,7 +303,7 @@ func (tc *testCase) waitForReboot(t *testing.T, lastBootTime uint64) {
 		for {
 			select {
 			case <-timeout:
-				t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
+				t.Fatalf("Timeout exceeded: DUT did not reboot within maximum boot time(%v).", maxRebootTime)
 			case <-ticker.C:
 				var currentTime string
 				errMsg := testt.CaptureFatal(t, func(t testing.TB) {
@@ -396,10 +392,10 @@ func TestReboot(t *testing.T) {
 	}
 	t.Run(tc.name, func(t *testing.T) {
 		if deviations.GetRetainGnmiCfgAfterReboot(dut) {
-			if err := tc.configureToStoreRunninggNMIConfig(t); err != nil {
+			if err := tc.configureToStoreRunningGNMIConfig(t); err != nil {
 				t.Fatalf("failed to configure DUT to store running gNMI config: %v", err)
 			}
-			defer tc.unconfigureToStoreRunninggNMIConfig(t)
+			defer tc.unconfigureToStoreRunningGNMIConfig(t)
 		}
 		gnmiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 		if err != nil {
