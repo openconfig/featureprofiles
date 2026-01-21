@@ -12,6 +12,8 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    skip_prefix_set_mode: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions: {

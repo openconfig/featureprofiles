@@ -1,5 +1,4 @@
 // Copyright 2024 Google LLC
-//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -234,7 +233,8 @@ func bgpCreateNbr(t *testing.T, bgpParams *bgpTestParams, dut *ondatra.DUTDevice
 // bgpClearConfig removes all BGP configuration from the DUT.
 func bgpClearConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	resetBatch := &gnmi.SetBatch{}
-	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config())
+	gnmi.BatchDelete(resetBatch, gnmi.OC().RoutingPolicy().Config())
+	gnmi.BatchDelete(resetBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Config())
 
 	if deviations.NetworkInstanceTableDeletionRequired(dut) {
 		tablePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).TableAny()
@@ -421,13 +421,13 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 	pset := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSet)
 	for _, pref := range ipPrefixSet {
 		pset.GetOrCreatePrefix(pref+"/"+maskLen, prefixSubnetRange)
-		mode := oc.PrefixSet_Mode_IPV4
-		if maskLen == "128" {
-			mode = oc.PrefixSet_Mode_IPV6
-		}
-		if !deviations.SkipPrefixSetMode(dut) {
-			pset.SetMode(mode)
-		}
+	}
+	mode := oc.PrefixSet_Mode_IPV4
+	if maskLen == "128" {
+		mode = oc.PrefixSet_Mode_IPV6
+	}
+	if !deviations.SkipPrefixSetMode(dut) {
+		pset.SetMode(mode)
 	}
 
 	pdef := rp.GetOrCreatePolicyDefinition(prefixSet)
@@ -443,9 +443,24 @@ func configurePrefixMatchPolicy(t *testing.T, dut *ondatra.DUTDevice, prefixSet,
 func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice, policyType string) {
 	t.Helper()
 	if policyType == "allow-all" {
+		d := &oc.Root{}
+		rp := d.GetOrCreateRoutingPolicy()
+		pdef := rp.GetOrCreatePolicyDefinition(rplPermitAll)
+		stmt, err := pdef.AppendNewStatement("10")
+		if err != nil {
+			t.Fatalf("Failed to append statement: %v", err)
+		}
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
+		neighborPolicy := bgpPath.Neighbor(ateAttrs.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+		gnmi.Replace(t, dut, neighborPolicy.ImportPolicy().Config(), []string{rplPermitAll})
+		gnmi.Replace(t, dut, neighborPolicy.ExportPolicy().Config(), []string{rplPermitAll})
+		return
 	}
 	if policyType == "pfx-based-allow" {
-		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+		bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
 		batchConfig := &gnmi.SetBatch{}
 
 		gnmi.BatchUpdate(batchConfig, gnmi.OC().RoutingPolicy().Config(), configurePrefixMatchPolicy(t, dut, "EBGP-IMPORT-IPV4", "exact", "32", []string{otgAdvertisedRoutesv4Net[0], otgAdvertisedRoutesv4Net[1]}))
@@ -474,7 +489,16 @@ func configureRoutePolicies(t *testing.T, dut *ondatra.DUTDevice, policyType str
 			stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(regexAsSet)
 			stmt70.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)
 
+			stmt80, err := pdefAs.AppendNewStatement("30")
+			if err != nil {
+				t.Errorf("Error while creating new statement %v", err)
+			}
+			stmt80.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 			gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+
+			bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, deviations.DefaultBgpInstanceName(dut)).Bgp()
+			neighborPolicy := bgpPath.Neighbor(ateAttrs.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+			gnmi.Replace(t, dut, neighborPolicy.ImportPolicy().Config(), []string{rejectAspath})
 		}
 
 	}
