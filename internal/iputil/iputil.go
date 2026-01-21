@@ -213,3 +213,13 @@ func NextIPMultiSteps(ip net.IP, count int) net.IP {
 	}
 	return nextIPAddress
 }
+
+// IncrementMAC increments the given MAC address by `i` and returns the result.
+// This is just a convenience wrapper around GenerateMACs.
+func IncrementMAC(startMAC string, i int) (string, error) {
+	macs := GenerateMACs(startMAC, i, "00:00:00:00:00:01")
+	if len(macs) == 0 {
+		return "", fmt.Errorf("failed to generate MAC address")
+	}
+	return macs[0], nil
+}
