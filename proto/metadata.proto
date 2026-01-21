@@ -1103,9 +1103,13 @@ message Metadata {
     // Arista b/384040563
     // Device does not  support the IANA assigned gRPC port for g* services
     bool non_standard_grpc_port = 366;
-    
+
+    // Check if transceiver subcomponent should look for the temperature sensor
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+    bool temperature_sensor_check = 367;
+ 
     // Arista https://buganizer.corp.google.com/issues/476271160
-    bool retain_gnmi_cfg_after_reboot = 367;
+    bool retain_gnmi_cfg_after_reboot = 368;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
