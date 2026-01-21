@@ -26,6 +26,7 @@ platform_exceptions: {
     policy_forwarding_to_next_hop_oc_unsupported: true
     qos_remark_oc_unsupported: true
     policy_forwarding_gre_encapsulation_oc_unsupported: true
+    policy_forwarding_counters_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION

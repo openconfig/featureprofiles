@@ -1859,3 +1859,9 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
 }
+
+// Arista b/459507184
+// Device does not support policy forwarding counters through OC
+func PolicyForwardingCountersUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPolicyForwardingCountersUnsupported()
+}
