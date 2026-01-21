@@ -398,8 +398,8 @@ func TestReboot(t *testing.T) {
 		if deviations.GetRetainGnmiCfgAfterReboot(dut) {
 			if err := tc.configureToStoreRunninggNMIConfig(t); err != nil {
 				t.Fatalf("failed to configure DUT to store running gNMI config: %v", err)
-				defer tc.unconfigureToStoreRunninggNMIConfig(t)
 			}
+			defer tc.unconfigureToStoreRunninggNMIConfig(t)
 		}
 		gnmiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 		if err != nil {
