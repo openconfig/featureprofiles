@@ -65,6 +65,9 @@ duts {
     target: "172.27.177.68:22"
     skip_verify: true
   }
+  gnpsi{
+     target: "172.27.177.68:9339"
+   } 
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports: {
