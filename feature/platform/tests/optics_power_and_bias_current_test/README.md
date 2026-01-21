@@ -77,6 +77,161 @@ to Automatic Test Equipment (ATE).
     *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
+## Canonical OC
+
+```json
+{
+  "openconfig-platform:components": {
+    "component": [
+      {
+        "name": "HundredGigE0/0/0/12",
+        "config": {
+          "name": "HundredGigE0/0/0/12"
+        },
+        "state": {
+          "mfg-name": "CISCO-FINISAR",
+          "serial-no": "FNS23111AB",
+          "part-no": "FTLC1157RGPL2-G1",
+          "firmware-version": "1A",
+          "type": "TRANSCEIVER"
+        },
+        "transceiver": {
+          "config": {
+            "enabled": true
+          },
+          "state": {
+            "enabled": true,
+            "form-factor": "openconfig-platform-types:QSFP28",
+            "vendor": "CISCO-FINISAR",
+            "vendor-part": "FTLC1157RGPL2-G1",
+            "vendor-rev": "B1"
+          },
+          "thresholds": {
+            "threshold": [
+              {
+                "severity": "WARNING",
+                "state": {
+                  "input-power-lower": -10.5,
+                  "input-power-upper": 4.5,
+                  "output-power-lower": -4.3,
+                  "output-power-upper": 4.5,
+                  "laser-bias-current-lower": 20.0,
+                  "laser-bias-current-upper": 80.0,
+                  "module-temperature-lower": 0,
+                  "module-temperature-upper": 70
+                }
+              },
+              {
+                "severity": "CRITICAL",
+                "state": {
+                  "input-power-lower": -14.5,
+                  "input-power-upper": 7.4,
+                  "output-power-lower": -8.3,
+                  "output-power-upper": 7.4,
+                  "laser-bias-current-lower": 15.0,
+                  "laser-bias-current-upper": 85.0,
+                  "module-temperature-lower": -5,
+                  "module-temperature-upper": 75
+                }
+              }
+            ]
+          },
+          "physical-channels": {
+            "channel": [
+              {
+                "index": 0,
+                "state": {
+                  "index": 0,
+                  "output-power": {
+                    "instant": 1.76
+                  },
+                  "input-power": {
+                    "instant": 0.93
+                  },
+                  "laser-bias-current": {
+                    "instant": 39.99
+                  }
+                }
+              },
+              {
+                "index": 1,
+                "state": {
+                  "index": 1,
+                  "output-power": {
+                    "instant": 2.36
+                  },
+                  "input-power": {
+                    "instant": 0.48
+                  },
+                  "laser-bias-current": {
+                    "instant": 40.14
+                  }
+                }
+              },
+              {
+                "index": 2,
+                "state": {
+                  "index": 2,
+                  "output-power": {
+                    "instant": 2.22
+                  },
+                  "input-power": {
+                    "instant": 0.33
+                  },
+                  "laser-bias-current": {
+                    "instant": 41.98
+                  }
+                }
+              },
+              {
+                "index": 3,
+                "state": {
+                  "index": 3,
+                  "output-power": {
+                    "instant": 2.74
+                  },
+                  "input-power": {
+                    "instant": 0.89
+                  },
+                  "laser-bias-current": {
+                    "instant": 40.00
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "HundredGigE0/0/0/12",
+        "config": {
+          "name": "HundredGigE0/0/0/12",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": true
+        },
+        "state": {
+          "name": "HundredGigE0/0/0/12",
+          "type": "iana-if-type:ethernetCsmacd",
+          "enabled": true,
+          "oper-status": "UP",
+          "transceiver": "HundredGigE0/0/0/12",
+          "physical-channel": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
