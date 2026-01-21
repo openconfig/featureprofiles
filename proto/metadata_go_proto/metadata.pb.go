@@ -581,8 +581,7 @@ type Metadata_Deviations struct {
 	// /components/component/cpu/utilization/state/avg for controller cards'
 	// CPU card.
 	ControllerCardCpuUtilizationUnsupported bool `protobuf:"varint,100,opt,name=controller_card_cpu_utilization_unsupported,json=controllerCardCpuUtilizationUnsupported,proto3" json:"controller_card_cpu_utilization_unsupported,omitempty"`
-	// Device does not support counter for fabric block drop packets.
-	// Cisco: https://partnerissuetracker.corp.google.com/issues/477492526
+	// Device does not support counter for fabric block lost packets.
 	FabricDropCounterUnsupported bool `protobuf:"varint,101,opt,name=fabric_drop_counter_unsupported,json=fabricDropCounterUnsupported,proto3" json:"fabric_drop_counter_unsupported,omitempty"`
 	// Device does not support memory utilization related leaves for linecard
 	// components.
@@ -604,6 +603,7 @@ type Metadata_Deviations struct {
 	IsisCounterPartChangesUnsupported bool `protobuf:"varint,107,opt,name=isis_counter_part_changes_unsupported,json=isisCounterPartChangesUnsupported,proto3" json:"isis_counter_part_changes_unsupported,omitempty"`
 	// Devices do not support threshold container under
 	// /components/component/transceiver.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475716370
 	TransceiverThresholdsUnsupported bool `protobuf:"varint,108,opt,name=transceiver_thresholds_unsupported,json=transceiverThresholdsUnsupported,proto3" json:"transceiver_thresholds_unsupported,omitempty"`
 	// Update interface loopback mode using raw gnmi API due to server version.
 	InterfaceLoopbackModeRawGnmi bool `protobuf:"varint,109,opt,name=interface_loopback_mode_raw_gnmi,json=interfaceLoopbackModeRawGnmi,proto3" json:"interface_loopback_mode_raw_gnmi,omitempty"`
@@ -1279,20 +1279,11 @@ type Metadata_Deviations struct {
 	// Arista b/384040563
 	// Device does not  support the IANA assigned gRPC port for g* services
 	NonStandardGrpcPort bool `protobuf:"varint,366,opt,name=non_standard_grpc_port,json=nonStandardGrpcPort,proto3" json:"non_standard_grpc_port,omitempty"`
-	// Cisco https://partnerissuetracker.corp.google.com/issues/475101800
-	// Devices that report controller CPU utilization against base controller card component
-	CpuUtilizationQueryAgainstBaseControllerCardComponent bool `protobuf:"varint,367,opt,name=cpu_utilization_query_against_base_controller_card_component,json=cpuUtilizationQueryAgainstBaseControllerCardComponent,proto3" json:"cpu_utilization_query_against_base_controller_card_component,omitempty"`
-	// Cisco https://partnerissuetracker.corp.google.com/issues/475101800
-	// Devices that report linecard CPU utilization against base linecard component
-	CpuUtilizationQueryAgainstBaseLinecardComponent bool `protobuf:"varint,368,opt,name=cpu_utilization_query_against_base_linecard_component,json=cpuUtilizationQueryAgainstBaseLinecardComponent,proto3" json:"cpu_utilization_query_against_base_linecard_component,omitempty"`
-	// Device does not support no-queue drops
-	// Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
-	NoQueueDropUnsupported bool `protobuf:"varint,369,opt,name=no_queue_drop_unsupported,json=noQueueDropUnsupported,proto3" json:"no_queue_drop_unsupported,omitempty"`
-	// Device does not support interface-ethernet in-block errors counters
-	// Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
-	InterfaceEthernetInblockErrorsUnsupported bool `protobuf:"varint,370,opt,name=interface_ethernet_inblock_errors_unsupported,json=interfaceEthernetInblockErrorsUnsupported,proto3" json:"interface_ethernet_inblock_errors_unsupported,omitempty"`
-	unknownFields                             protoimpl.UnknownFields
-	sizeCache                                 protoimpl.SizeCache
+	// Check if transceiver subcomponent should look for the temperature sensor
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+	TemperatureSensorCheck bool `protobuf:"varint,367,opt,name=temperature_sensor_check,json=temperatureSensorCheck,proto3" json:"temperature_sensor_check,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3656,30 +3647,9 @@ func (x *Metadata_Deviations) GetNonStandardGrpcPort() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetCpuUtilizationQueryAgainstBaseControllerCardComponent() bool {
+func (x *Metadata_Deviations) GetTemperatureSensorCheck() bool {
 	if x != nil {
-		return x.CpuUtilizationQueryAgainstBaseControllerCardComponent
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetCpuUtilizationQueryAgainstBaseLinecardComponent() bool {
-	if x != nil {
-		return x.CpuUtilizationQueryAgainstBaseLinecardComponent
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetNoQueueDropUnsupported() bool {
-	if x != nil {
-		return x.NoQueueDropUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetInterfaceEthernetInblockErrorsUnsupported() bool {
-	if x != nil {
-		return x.InterfaceEthernetInblockErrorsUnsupported
+		return x.TemperatureSensorCheck
 	}
 	return false
 }
@@ -3740,7 +3710,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xdc\xcd\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x89\xcb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3752,7 +3722,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xc8\xc3\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf5\xc0\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4090,11 +4060,8 @@ const file_metadata_proto_rawDesc = "" +
 	"*bgp_community_type_slice_input_unsupported\x18\xeb\x02 \x01(\bR%bgpCommunityTypeSliceInputUnsupported\x12F\n" +
 	"\x1fibgp_multipath_path_unsupported\x18\xec\x02 \x01(\bR\x1cibgpMultipathPathUnsupported\x12J\n" +
 	"!containerz_plugin_rpc_unsupported\x18\xed\x02 \x01(\bR\x1econtainerzPluginRpcUnsupported\x124\n" +
-	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x12|\n" +
-	"<cpu_utilization_query_against_base_controller_card_component\x18\xef\x02 \x01(\bR5cpuUtilizationQueryAgainstBaseControllerCardComponent\x12o\n" +
-	"5cpu_utilization_query_against_base_linecard_component\x18\xf0\x02 \x01(\bR/cpuUtilizationQueryAgainstBaseLinecardComponent\x12:\n" +
-	"\x19no_queue_drop_unsupported\x18\xf1\x02 \x01(\bR\x16noQueueDropUnsupported\x12a\n" +
-	"-interface_ethernet_inblock_errors_unsupported\x18\xf2\x02 \x01(\bR)interfaceEthernetInblockErrorsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x129\n" +
+	"\x18temperature_sensor_check\x18\xef\x02 \x01(\bR\x16temperatureSensorCheckJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
