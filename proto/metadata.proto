@@ -45,6 +45,7 @@ message Metadata {
     TESTBED_DUT_800ZR = 13;
     TESTBED_DUT_800ZR_PLUS = 14;
     TESTBED_DUT_2LINKS = 15;
+    TESTBED_DUT_ATE_34LINKS = 16;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -1097,9 +1098,18 @@ message Metadata {
     // b/470225281
     bool ibgp_multipath_path_unsupported = 364;
 
-// Check if transceiver subcomponent should look for the temperature sensor
+    // Device does not support ContainerZ Plugin RPC
+    // Arista: b/470225282
+    bool containerz_plugin_rpc_unsupported = 365;
+
+    // Arista b/384040563
+    // Device does not  support the IANA assigned gRPC port for g* services
+    bool non_standard_grpc_port = 366;
+
+
+    // Check if transceiver subcomponent should look for the temperature sensor
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
-    bool temperature_sensor_check = 365;
+    bool temperature_sensor_check = 367;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

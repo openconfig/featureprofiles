@@ -1844,6 +1844,17 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
+// ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}
+
+// NonStandardGRPCPort returns true if the device does not use standard grpc port.
+// Arista b/384040563
+func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
