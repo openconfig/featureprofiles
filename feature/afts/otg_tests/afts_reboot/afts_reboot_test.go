@@ -373,7 +373,7 @@ func (tc *testCase) rebootDUT(t *testing.T) {
 	if _, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest); err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
-	t.Log("\n Reboot request sent to DUT, waiting for DUT to reboot")
+	t.Log("Reboot request sent to DUT, waiting for DUT to reboot")
 }
 
 type testCase struct {
