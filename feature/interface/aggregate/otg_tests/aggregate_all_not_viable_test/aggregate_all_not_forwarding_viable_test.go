@@ -1107,7 +1107,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
 	var nh fluent.GRIBIEntry
-	if deviations.IndirectNhWithIPAddressUnsupported(dut) {
+	if deviations.ForwardingViableFailoverWithIndirectNHUnsupported(dut) {
 		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf)
 	} else {
