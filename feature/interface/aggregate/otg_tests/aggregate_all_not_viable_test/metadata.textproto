@@ -59,5 +59,6 @@ platform_exceptions: {
   deviations: {
     max_ecmp_paths: true
     isis_level_enabled:true
+    interface_ref_interface_id_format: true
   }
 }
