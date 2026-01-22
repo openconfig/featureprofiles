@@ -152,6 +152,16 @@ func ISISRestartSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisRestartSuppressUnsupported()
 }
 
+// BgpGrHelperDisableUnsupported returns whether the device does not support to disable BGP GR Helper.
+func BgpGrHelperDisableUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGrHelperDisableUnsupported()
+}
+
+// BgpGracefulRestartUnderAfiSafiUnsupported returns whether the device does not support bgp GR-RESTART under AFI/SAFI.
+func BgpGracefulRestartUnderAfiSafiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartUnderAfiSafiUnsupported()
+}
+
 // MissingBgpLastNotificationErrorCode returns whether the last-notification-error-code leaf is missing in bgp.
 func MissingBgpLastNotificationErrorCode(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingBgpLastNotificationErrorCode()
@@ -1479,6 +1489,7 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // FrBreakoutFix returns true if the fix is needed
+// Arista: https://issuetracker.google.com/426375784
 func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
@@ -1503,7 +1514,7 @@ func MplsExpIngressClassifierOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMplsExpIngressClassifierOcUnsupported()
 }
 
-// Devices that do not propagate IGP metric through redistribution
+// DefaultNoIgpMetricPropagation returns true for devices that do not propagate IGP metric through redistribution
 func DefaultNoIgpMetricPropagation(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultNoIgpMetricPropagation()
 }
@@ -1533,7 +1544,7 @@ func MissingSystemDescriptionConfigPath(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSystemDescriptionConfigPath()
 }
 
-// FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+// NonIntervalFecErrorCounter returns true if FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
 func NonIntervalFecErrorCounter(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonIntervalFecErrorCounter()
 }
@@ -1543,29 +1554,34 @@ func NtpSourceAddressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNtpSourceAddressUnsupported()
 }
 
-// StaticMplsLspUnsupported returns true if static mpls lsp parameters are unsupported
+// StaticMplsLspOCUnsupported returns true if static mpls lsp parameters are unsupported
 func StaticMplsLspOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticMplsLspOcUnsupported()
 }
 
-// GreDecapsulationUnsupported returns true if decapsulation is not supported
+// GreDecapsulationOCUnsupported returns true if decapsulation is not supported
 func GreDecapsulationOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGreDecapsulationOcUnsupported()
 }
 
-// SRLB and SRGB configuration does not effective with OC config
+// IsisSrgbSrlbUnsupported returns true if SRLB and SRGB configuration is not effective with OC config
 func IsisSrgbSrlbUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrgbSrlbUnsupported()
 }
 
-// Isis Prefix Segment config does not supported
+// IsisSrPrefixSegmentConfigUnsupported returns true if Isis Prefix Segment is not supported
 func IsisSrPrefixSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrPrefixSegmentConfigUnsupported()
 }
 
-// Isis Node Segment Configuration do not supported
+// IsisSrNodeSegmentConfigUnsupported returns true if ISIS SR node segment config is unsupported
 func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
+}
+
+// IsisSrNoPhpRequired returns true if the device requires the no-php flag for ISIS SR prefix and node segments
+func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
 }
 
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
@@ -1578,7 +1594,7 @@ func QosRemarkOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosRemarkOcUnsupported()
 }
 
-// PolicyForwardingGREEncapsulationOCUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
+// PolicyForwardingGreEncapsulationOcUnsupported returns true if policy forwarding GRE encapsulation is not supported on vendors
 func PolicyForwardingGreEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPolicyForwardingGreEncapsulationOcUnsupported()
 }
@@ -1608,7 +1624,7 @@ func PredefinedMaxEcmpPaths(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPredefinedMaxEcmpPaths()
 }
 
-// DecapGroupOCUnsupported returns true if decapsulation group is not supported
+// DecapsulateGueOCUnsupported returns true if decapsulation group is not supported
 func DecapsulateGueOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapsulateGueOcUnsupported()
 }
@@ -1624,7 +1640,7 @@ func UseBgpSetCommunityOptionTypeReplace(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseBgpSetCommunityOptionTypeReplace()
 }
 
-// MaxEcmpPaths path on global level is unsupported
+// GlobalMaxEcmpPathsUnsupported returns true if Max ECMP path on global level is unsupported
 func GlobalMaxEcmpPathsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGlobalMaxEcmpPathsUnsupported()
 }
@@ -1640,7 +1656,7 @@ func LoadBalancePolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLoadBalancePolicyOcUnsupported()
 }
 
-// Gribi Records Unsupported returns true if Gribi records creation is not supported through OpenConfig.
+// GribiRecordsUnsupported returns true if Gribi records creation is not supported through OpenConfig.
 func GribiRecordsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGribiRecordsUnsupported()
 }
@@ -1666,7 +1682,7 @@ func ExplicitBreakoutInterfaceConfig(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitBreakoutInterfaceConfig()
 }
 
-// OC state path for the lower priority next hop not supported
+// TelemetryNotSupportedForLowPriorityNh returns true if OC state path for the lower priority next hop not supported
 func TelemetryNotSupportedForLowPriorityNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTelemetryNotSupportedForLowPriorityNh()
 }
@@ -1676,7 +1692,7 @@ func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
 }
 
-// Same apply-policy under peer-group and peer-group/afi-safi
+// SameAfiSafiAndPeergroupPoliciesUnsupported returns true if configuring same apply-policy under peer-group and peer-group/afi-safi is unsupported
 func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSameAfiSafiAndPeergroupPoliciesUnsupported()
 }
@@ -1713,7 +1729,7 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisAdjacencyStreamUnsupported()
 }
 
-// localhost_for_containerz returns if the device uses an IPv6 address instead of localhost.
+// LocalhostForContainerz returns true if the device uses an IPv6 address instead of localhost.
 func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
 }
@@ -1731,4 +1747,115 @@ func AutoLinkBandwidthUnsupported(dut *ondatra.DUTDevice) bool {
 // AdvertisedCumulativeLBwOCUnsupported returns true if device does not support oc state path for advertised cumulative link bandwidth.
 func AdvertisedCumulativeLBwOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAdvertisedCumulativeLbwOcUnsupported()
+}
+
+// DisableHardwareNexthopProxy returns true if the device requires disabling hardware nexthop proxying
+func DisableHardwareNexthopProxy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDisableHardwareNexthopProxy()
+}
+
+// URPFConfigOCUnsupported returns true if OC does not support configuring uRPF.
+func URPFConfigOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfacePolicyForwardingUnsupported()
+}
+
+// StaticRouteNextNetworkInstanceOCUnsupported returns true for devices that don't support NextNetworkInstance of static route next hop.
+func StaticRouteNextNetworkInstanceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNextNetworkInstanceOcUnsupported()
+}
+
+// GnpsiOcUnsupported returns true if there's no OC support for configuring gNPSI
+func GnpsiOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnpsiOcUnsupported()
+}
+
+// SyslogNonDefaultVrfUnsupported returns true if device does not support adding remote-syslog config under
+// non-default VRF
+func SyslogNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSyslogNonDefaultVrfUnsupported()
+}
+
+// BgpLocalAggregateUnsupported returns true for devices that don't support OC configuration of BGP local aggregates
+func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
+}
+
+// SkipSamplingQosCounters returns true if device does not support sampling QoS counters
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
+}
+
+// DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
+func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
+	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
+		return gnmiServerName
+	}
+	return "DEFAULT"
+}
+
+// ConfigACLWithPrefixListNotSupported returns true if configuring prefixlist in ACL not supported
+func ConfigACLWithPrefixListNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclWithPrefixlistUnsupported()
+}
+
+// ConfigACLValueAnyOcUnsupported returns true if OC for configuring parameter in ACL with value ANY not supported
+func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
+}
+
+// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
+}
+
+// InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
+// https://issuetracker.google.com/issues/461368936
+func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
+}
+
+// AggregateSIDCounterOutPktsUnsupported returns true if device does not support
+// /network-instances/network-instance/mpls/signaling-protocols/segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts
+func AggregateSIDCounterOutPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAggregateSidCounterOutPktsUnsupported()
+}
+
+// MatchCommunitySetMatchSetOptionsAllUnsupported returns true if device does not support match-set-options=ALL
+// for bgp-conditions community-sets
+// Arista: b/335739231
+func MatchCommunitySetMatchSetOptionsAllUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMatchCommunitySetMatchSetOptionsAllUnsupported()
+}
+
+// BMPOCUnsupported returns true if BMP configuration is not supported
+func BMPOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBmpOcUnsupported()
+}
+
+// BgpCommunityTypeSliceInputUnsupported returns true if device does not support slice input of BGP community type
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/468284934
+func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpCommunityTypeSliceInputUnsupported()
+}
+
+// IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
+func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
+
+// ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
+func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
+}
+
+// NonStandardGRPCPort returns true if the device does not use standard grpc port.
+// Arista b/384040563
+func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
+}
+
+// TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
+func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
 }

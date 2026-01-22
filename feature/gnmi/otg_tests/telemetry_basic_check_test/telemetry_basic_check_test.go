@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -45,6 +46,8 @@ const (
 	operStatusUp    = oc.Interface_OperStatus_UP
 	operStatusDown  = oc.Interface_OperStatus_DOWN
 	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
+	aristaMACFT     = "arista-interface-mac-ft"
+	ciscoMACFT      = "ciscoxr-lagmac-ft"
 )
 
 var (
@@ -55,6 +58,28 @@ var (
 		ondatra.NOKIA:   {16, 8},
 	}
 )
+
+// getMacAddress is a helper function to retrieve the MAC address, potentially using functional translators.
+func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (string, bool) {
+	t.Helper()
+	var opts []ygnmi.Option
+	if dut.Vendor() == ondatra.ARISTA {
+		ft, ok := registrar.FunctionalTranslatorRegistry[aristaMACFT]
+		if !ok {
+			t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
+		}
+		opts = append(opts, ygnmi.WithFT(ft))
+		t.Logf("Using functional translator %q for MAC address on %s", aristaMACFT, intfName)
+	} else if dut.Vendor() == ondatra.CISCO {
+		ft, ok := registrar.FunctionalTranslatorRegistry[ciscoMACFT]
+		if !ok {
+			t.Fatalf("Functional translator %s is not registered", ciscoMACFT)
+		}
+		opts = append(opts, ygnmi.WithFT(ft))
+		t.Logf("Using functional translator %q for MAC address on %s", ciscoMACFT, intfName)
+	}
+	return gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(intfName).Ethernet().MacAddress().State()).Val()
+}
 
 const (
 	chassisType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
@@ -121,6 +146,34 @@ func TestEthernetMacAddress(t *testing.T) {
 	t.Logf("Got %s MacAddress from telmetry: %v", dp.Name(), macAddress)
 	if len(r.FindString(macAddress)) == 0 {
 		t.Errorf("Get(DUT port1 MacAddress): got %v, want matching regexp %v", macAddress, macRegexp)
+	}
+}
+
+func TestLagMacAddress(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
+	if len(lacpIntfs) == 0 {
+		t.Fatalf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
+	}
+
+	macRegexp := "^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$"
+	r, err := regexp.Compile(macRegexp)
+	if err != nil {
+		t.Fatalf("Cannot compile regular expression: %v", err)
+	}
+
+	for _, intfName := range lacpIntfs {
+		t.Run(intfName, func(t *testing.T) {
+			t.Logf("Checking MAC address for LACP interface: %s", intfName)
+			macAddress, present := getMacAddress(t, dut, intfName)
+			if !present {
+				t.Fatalf("MacAddress not present for LACP interface %s at /interfaces/interface[name=%s]/ethernet/state/mac-address", intfName, intfName)
+			}
+			t.Logf("Got %s MacAddress from telemetry: %v", intfName, macAddress)
+			if len(r.FindString(macAddress)) == 0 {
+				t.Errorf("Get(DUT LACP interface %s MacAddress): got %v, want matching regexp %v", intfName, macAddress, macRegexp)
+			}
+		})
 	}
 }
 
@@ -479,7 +532,7 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+			if len(compList[tc.desc]) == 0 && (dut.Model() == "DCS-7280CR3K-32D4" || dut.Model() == "CISCO-8202-32FH-M") {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
 			}
 
