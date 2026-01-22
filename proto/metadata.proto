@@ -1127,6 +1127,11 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
     bool interface_ethernet_inblock_errors_unsupported = 371;
 
+    //Indirect next-hop not supported with forwarding viable.
+    // Nokia b/428883444
+    bool forwarding_viable_failover_with_indirect_nh_unsupported = 372;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

@@ -85,6 +85,7 @@ const (
 	gribiIPv4EntryVRF111 = "203.0.113.1"
 	ipv4OuterSrc222Addr  = "198.51.100.222"
 	gribiIPv4EntryVRF222 = "203.0.113.100"
+	magicMAC             = "02:00:00:00:00:01"
 )
 
 type aggPortData struct {
@@ -185,7 +186,7 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 	changeMetric(t, dut, aggIDs[2], 30)
 	top := configureATE(t, ate)
 
-	installGRIBIRoutes(t, dut, ate, top)
+	installGRIBIRoutes(t, dut, ate, top, aggIDs[1])
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	for _, aggID := range aggIDs {
@@ -499,9 +500,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		agg2.ateLagCount = uint32(len(dut.Ports()) - 3)
 		agg3.ateLagCount = 2
 		trafficDistributionWeights = []uint64{50, 50}
-		if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.JUNIPER {
-			trafficDistributionWeights = []uint64{33, 67}
-		}
 	}
 	var aggIDs []string
 	for _, a := range []*aggPortData{agg1, agg2, agg3} {
@@ -1022,7 +1020,7 @@ func configureFlows(t *testing.T, top gosnappi.Config, srcV4 *ipAddr, dstV4 *ipA
 }
 
 // installGRIBIRoutes configure route using gRIBI client
-func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
+func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, intf string) {
 	t.Helper()
 	ctx := context.Background()
 	gribic := dut.RawAPIs().GRIBI(t)
@@ -1108,9 +1106,16 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	)
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
+	var nh fluent.GRIBIEntry
+	if deviations.ForwardingViableFailoverWithIndirectNHUnsupported(dut) {
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf)
+	} else {
+		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
+			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4)
+	}
 	tcArgs.client.Modify().AddEntry(t,
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
-			WithIndex(uint64(101)).WithIPAddress(agg2.ateIPv4),
+		nh,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithID(uint64(101)).AddNextHop(uint64(101), uint64(1)).WithBackupNHG(3000),
 
@@ -1145,7 +1150,7 @@ func awaitTimeout(ctx context.Context, t testing.TB, c *fluent.GRIBIClient, time
 func startTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
 	t.Helper()
 	capturePktsBeforeTraffic(t, dut, dutPortList)
-	time.Sleep(10 * time.Second)
+	time.Sleep(40 * time.Second)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Minute)
 	ate.OTG().StopTraffic(t)
@@ -1174,9 +1179,13 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
+				t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+				t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 				return false
 			}
 		} else if got := (lostPkt * 100 / txPkts); got > 0 {
+			t.Logf("%s loss packet count is: %v", flows[0].Name(), lostPkt)
+			t.Logf("%s loss packet percent is: %v%%", flows[0].Name(), got)
 			return false
 		}
 	} else {
@@ -1186,6 +1195,8 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 			lostPkt := txPkts - rxPkts
 
 			if got := (lostPkt * 100 / txPkts); got > 0 {
+				t.Logf("%s loss packet count is: %v", flow.Name(), lostPkt)
+				t.Logf("%s stream loss packet percent is: %v%%", flow.Name(), got)
 				return false
 			}
 		}
@@ -1194,20 +1205,30 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 }
 
 // awaitAdjacency wait for adjacency to be up/down
-func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
+func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, states []oc.E_Isis_IsisInterfaceAdjState) bool {
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	intf := isisPath.Interface(intfName)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		v, ok := val.Val()
-		for _, s := range state {
-			if (v == s) && ok {
-				return true
+	for i := 1; i <= 5; i++ {
+		_, ok := gnmi.WatchAll(t, dut, query, 30*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
+			v, present := val.Val()
+			if !present {
+				return false
 			}
+			t.Logf("Observed adjacency state: %v", v)
+			for _, s := range states {
+				if v == s {
+					return true
+				}
+			}
+			return false
+		}).Await(t)
+
+		if ok {
+			return true
 		}
-		return false
-	}).Await(t)
-	return ok
+	}
+	return false
 }
 
 // checkBidirectionalTraffic verify the bidirectional traffic on DUT ports.
