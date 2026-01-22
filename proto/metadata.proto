@@ -1110,7 +1110,7 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
     bool temperature_sensor_check = 367;
  
-    // Arista https://buganizer.corp.google.com/issues/476271160
+    // Arista https://partnerissuetracker.corp.google.com/476271160
     bool retain_gnmi_cfg_after_reboot = 368;
 
     // Reserved field numbers and identifiers.
