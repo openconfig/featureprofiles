@@ -3674,6 +3674,9 @@ func (x *Metadata_Deviations) GetTemperatureSensorCheck() bool {
 func (x *Metadata_Deviations) GetRetainGnmiCfgAfterReboot() bool {
 	if x != nil {
 		return x.RetainGnmiCfgAfterReboot
+	}
+	return false
+}
 func (x *Metadata_Deviations) GetCpuUtilizationQueryAgainstBaseControllerCardComponent() bool {
 	if x != nil {
 		return x.CpuUtilizationQueryAgainstBaseControllerCardComponent
