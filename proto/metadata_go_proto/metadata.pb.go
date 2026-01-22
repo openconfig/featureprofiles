@@ -1284,8 +1284,10 @@ type Metadata_Deviations struct {
 	TemperatureSensorCheck bool `protobuf:"varint,367,opt,name=temperature_sensor_check,json=temperatureSensorCheck,proto3" json:"temperature_sensor_check,omitempty"`
 	// Cisco: http://b/429231108
 	CiscoxrTransceiverFt string `protobuf:"bytes,368,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Device does not support transceiver state leaf.
+	TransceiverStateUnsupported bool `protobuf:"varint,369,opt,name=transceiver_state_unsupported,json=transceiverStateUnsupported,proto3" json:"transceiver_state_unsupported,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3663,6 +3665,13 @@ func (x *Metadata_Deviations) GetCiscoxrTransceiverFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetTransceiverStateUnsupported() bool {
+	if x != nil {
+		return x.TransceiverStateUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3719,7 +3728,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xc0\xcb\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x85\xcc\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3731,7 +3740,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xac\xc1\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf1\xc1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4071,7 +4080,8 @@ const file_metadata_proto_rawDesc = "" +
 	"!containerz_plugin_rpc_unsupported\x18\xed\x02 \x01(\bR\x1econtainerzPluginRpcUnsupported\x124\n" +
 	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x129\n" +
 	"\x18temperature_sensor_check\x18\xef\x02 \x01(\bR\x16temperatureSensorCheck\x125\n" +
-	"\x16ciscoxr_transceiver_ft\x18\xf0\x02 \x01(\tR\x14ciscoxrTransceiverFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x16ciscoxr_transceiver_ft\x18\xf0\x02 \x01(\tR\x14ciscoxrTransceiverFt\x12C\n" +
+	"\x1dtransceiver_state_unsupported\x18\xf1\x02 \x01(\bR\x1btransceiverStateUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
