@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     transceiver_thresholds_unsupported:  true
+    transceiver_state_unsupported: true
   }
 }
 

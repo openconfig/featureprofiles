@@ -413,18 +413,22 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			if cp.GetTransceiver() == nil || cp.GetTransceiver().GetFormFactor() == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
 				t.Errorf("transceiver/form-factor unset for Transceiver: %q", tv)
 			}
-			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
-			vendor := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().Vendor().State())
-			if vendor == "" {
-				t.Errorf("Transceiver %s: Vendor name is empty", tv)
-			}
-			vendorPart := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorPart().State())
-			if vendorPart == "" {
-				t.Errorf("Transceiver %s: VendorPart is empty", tv)
-			}
-			vendorRev := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorRev().State())
-			if vendorRev == "" {
-				t.Errorf("Transceiver %s: VendorRev is empty", tv)
+			if deviations.TransceiverStateUnsupported(dut) {
+				t.Logf("Skipping verification of transceiver vendor details due to deviation")
+			} else {
+				opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+				vendor := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().Vendor().State())
+				if vendor == "" {
+					t.Errorf("Transceiver %s: Vendor name is empty", tv)
+				}
+				vendorPart := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorPart().State())
+				if vendorPart == "" {
+					t.Errorf("Transceiver %s: VendorPart is empty", tv)
+				}
+				vendorRev := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorRev().State())
+				if vendorRev == "" {
+					t.Errorf("Transceiver %s: VendorRev is empty", tv)
+				}
 			}
 		})
 	}

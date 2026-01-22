@@ -1865,3 +1865,8 @@ func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
 }
+
+// TransceiverStateUnsupported returns true if device does not support transceiver state leaf.
+func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
+}
