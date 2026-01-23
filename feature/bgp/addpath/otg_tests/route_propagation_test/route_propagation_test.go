@@ -325,27 +325,15 @@ func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State(),
-		time.Minute,
+		2*time.Minute,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-
-	found := false
-	if ok {
-		start := time.Now()
-		for time.Since(start) < 2*time.Minute {
-			bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv4PrefixAny().State())
-			for _, bgpPrefix := range bgpPrefixes {
-				if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-					bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-					found = true
-					break
-				}
+			if prefix, present := v.Val(); present {
+				return prefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+					prefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength
 			}
-		}
-	}
-	return found
+			return false
+		}).Await(t)
+	return ok
 }
 
 func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expectedOTGBGPPrefix OTGBGPPrefix) bool {
@@ -353,27 +341,15 @@ func checkOTGBGP6Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State(),
-		time.Minute,
+		2*time.Minute,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-
-	found := false
-	if ok {
-		start := time.Now()
-		for time.Since(start) < 2*time.Minute {
-			bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(expectedOTGBGPPrefix.PeerName).UnicastIpv6PrefixAny().State())
-			for _, bgpPrefix := range bgpPrefixes {
-				if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == expectedOTGBGPPrefix.Address &&
-					bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength {
-					found = true
-					break
-				}
+			if prefix, present := v.Val(); present {
+				return prefix.GetAddress() == expectedOTGBGPPrefix.Address &&
+					prefix.GetPrefixLength() == expectedOTGBGPPrefix.PrefixLength
 			}
-		}
-	}
-	return found
+			return false
+		}).Await(t)
+	return ok
 }
 
 func TestBGP(t *testing.T) {
