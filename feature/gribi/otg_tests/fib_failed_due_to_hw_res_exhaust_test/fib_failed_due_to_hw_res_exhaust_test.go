@@ -107,10 +107,9 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	fibPassedDstRoute         string
-	fibFailedDstRoute         string
-	fibFailedDstRouteInHex    string
-	advertisedRoutesv6MaskLen = uint32(128)
+	fibPassedDstRoute      string
+	fibFailedDstRoute      string
+	fibFailedDstRouteInHex string
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -235,15 +234,16 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 type testArgs struct {
-	ctx           context.Context
-	dut           *ondatra.DUTDevice
-	ate           *ondatra.ATEDevice
-	otgBgpPeer    gosnappi.BgpV6Peer
-	otgIPv6Device gosnappi.DeviceIpv6
-	otgConfig     gosnappi.Config
-	client        *fluent.GRIBIClient
-	electionID    gribi.Uint128
-	otg           *otg.OTG
+	ctx                       context.Context
+	dut                       *ondatra.DUTDevice
+	ate                       *ondatra.ATEDevice
+	otgBgpPeer                gosnappi.BgpV6Peer
+	otgIPv6Device             gosnappi.DeviceIpv6
+	otgConfig                 gosnappi.Config
+	client                    *fluent.GRIBIClient
+	electionID                gribi.Uint128
+	otg                       *otg.OTG
+	advertisedRoutesv6MaskLen uint32
 }
 
 // TestFibFailDueToHwResExhaust is to test gRIBI FIB_FAILED functionality
@@ -251,8 +251,11 @@ type testArgs struct {
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	var advertisedV6MaskLen uint32
 	if deviations.SubnetMaskChangeRequired(dut) {
-		advertisedRoutesv6MaskLen = uint32(120)
+		advertisedV6MaskLen = uint32(120)
+	} else {
+		advertisedV6MaskLen = uint32(128)
 	}
 	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
 	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
@@ -326,15 +329,16 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	}
 
 	args := &testArgs{
-		ctx:           ctx,
-		client:        client,
-		dut:           dut,
-		ate:           ate,
-		otgBgpPeer:    otgBgpPeer,
-		otgIPv6Device: otgIPv6Device,
-		otgConfig:     otgConfig,
-		electionID:    eID,
-		otg:           otg,
+		ctx:                       ctx,
+		client:                    client,
+		dut:                       dut,
+		ate:                       ate,
+		otgBgpPeer:                otgBgpPeer,
+		otgIPv6Device:             otgIPv6Device,
+		otgConfig:                 otgConfig,
+		electionID:                eID,
+		otg:                       otg,
+		advertisedRoutesv6MaskLen: advertisedV6MaskLen,
 	}
 	start := time.Now()
 	// cleanup fib table
@@ -467,7 +471,7 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv6).
-		SetPrefix(advertisedRoutesv6MaskLen).
+		SetPrefix(args.advertisedRoutesv6MaskLen).
 		SetCount(vendorSpecRoutecount[args.dut.Vendor()]).SetStep(2)
 	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
 
