@@ -292,7 +292,8 @@ message Metadata {
     // /components/component/cpu/utilization/state/avg for controller cards'
     // CPU card.
     bool controller_card_cpu_utilization_unsupported = 100;
-    // Device does not support counter for fabric block lost packets.
+    // Device does not support counter for fabric block drop packets.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/477492526
     bool fabric_drop_counter_unsupported = 101;
     // Device does not support memory utilization related leaves for linecard
     // components.
@@ -1109,12 +1110,31 @@ message Metadata {
     // Check if transceiver subcomponent should look for the temperature sensor
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
     bool temperature_sensor_check = 367;
+ 
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report controller CPU utilization against base controller card component
+    bool cpu_utilization_query_against_base_controller_card_component = 368;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report linecard CPU utilization against base linecard component
+    bool cpu_utilization_query_against_base_linecard_component = 369;
+
+    // Device does not support no-queue drops
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+    bool no_queue_drop_unsupported = 370;
+
+    // Device does not support interface-ethernet in-block errors counters
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+    bool interface_ethernet_inblock_errors_unsupported = 371;
+
+    // Arista https://partnerissuetracker.corp.google.com/476271160
+    bool retain_gnmi_cfg_after_reboot = 372;
 
     // Cisco: http://b/429231108
-    string ciscoxr_transceiver_ft = 368;
+    string ciscoxr_transceiver_ft = 373;
 
     // Device does not support transceiver state leaf.
-    bool transceiver_state_unsupported = 369;
+    bool transceiver_state_unsupported = 374;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
