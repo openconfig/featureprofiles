@@ -535,7 +535,7 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 			t.Logf("%s Wrote failing NH prefixes to %s", prefix, filename)
 		}
 	}
-	if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
+	if len(ss.notifications) > 0 {
 		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
 		if err != nil {
 			t.Errorf("%s error writing notifications: %v", prefix, err)

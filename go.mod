@@ -18,7 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.42.0
 	github.com/openconfig/containerz v0.0.0-20251127123343-8882cbca4a2d
 	github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1
-	github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0
+	github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
@@ -32,7 +32,7 @@ require (
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.14.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
-	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
+	github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452
 	github.com/openconfig/ygnmi v0.14.0
 	github.com/openconfig/ygot v0.34.0
 	github.com/p4lang/p4runtime v1.4.1
