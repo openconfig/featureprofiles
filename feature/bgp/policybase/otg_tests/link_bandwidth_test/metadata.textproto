@@ -32,6 +32,7 @@ platform_exceptions:  {
     bgp_extended_community_index_unsupported: true
     bgp_conditions_match_community_set_unsupported: true
     bgp_explicit_extended_community_enable: true
+    default_import_policy_unsupported: true
   }
 }
 platform_exceptions: {

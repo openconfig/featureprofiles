@@ -1899,3 +1899,8 @@ func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
 func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
 }
+
+// DefaultImportPolicyNotSupported returns true if device does not support default import policy.
+func DefaultImportPolicyNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultImportPolicyUnsupported()
+}
