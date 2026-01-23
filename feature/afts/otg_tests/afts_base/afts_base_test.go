@@ -776,7 +776,7 @@ func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
 		no hw-module profile netflow sflow-enable location 0/0/CPU0
 		no hw-module profile stats acl-permit
 		no hw-module profile cef iptunnel scale
-		no hw-module profile cef iptunnel scale`
+		no hw-module profile pbr vrf-redirect`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
 	tc.rebootDUT(t)
 	return nil
