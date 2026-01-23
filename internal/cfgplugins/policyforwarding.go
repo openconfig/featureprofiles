@@ -65,6 +65,9 @@ type OcPolicyForwardingParams struct {
 	PolicyName         string              // PolicyName refers to the traffic policy that is bound to the given interface in CLI-based configuration.
 	NetworkInstanceObj *oc.NetworkInstance // NetworkInstanceObj represents the OpenConfig network instance (default/non-default VRF).
 	HasMPLS            bool                // HasMPLS indicates whether the policy forwarding configuration involves an MPLS overlay.
+
+	AggID      string
+	Attributes []*attrs.Attributes
 }
 
 type PolicyForwardingRule struct {
@@ -308,6 +311,106 @@ func InterfacelocalProxyConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.At
 
 }
 
+// InterfaceLocalProxyConfigScale configures local-proxy-arp on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied.
+func InterfaceLocalProxyConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
+	if deviations.LocalProxyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			interfacelocalproxy := new(strings.Builder)
+			for _, a := range params.Attributes {
+				if a.IPv4 != "" {
+					fmt.Fprintf(interfacelocalproxy, `
+					interface %s.%d
+					 ip local-proxy-arp 
+					!`, params.AggID, a.Subinterface)
+				}
+			}
+			helpers.GnmiCLIConfig(t, dut, interfacelocalproxy.String())
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'local-proxy-arp'", dut.Vendor())
+		}
+		return nil
+	} else {
+		ocInterface := &oc.Interface{}
+		for i, a := range params.Attributes {
+			s := ocInterface.GetOrCreateSubinterface(a.Subinterface)
+			b4 := s.GetOrCreateIpv4()
+			parp := b4.GetOrCreateProxyArp()
+			parp.SetMode(oc.E_ProxyArp_Mode(3))
+			gnmi.BatchUpdate(sb, gnmi.OC().Interface(a.Name).Subinterface(uint32(i)).Config(), s)
+		}
+		return sb
+	}
+}
+
+// InterfaceQosClassificationConfigScale configures qos-classification on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied.
+func InterfaceQosClassificationConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, params OcPolicyForwardingParams) *gnmi.SetBatch {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			interfaceqosconfig := new(strings.Builder)
+			for _, a := range params.Attributes {
+				fmt.Fprintf(interfaceqosconfig, `
+				interface %s.%d
+				 service-policy type qos input af3 
+				!`, params.AggID, a.Subinterface)
+			}
+			helpers.GnmiCLIConfig(t, dut, interfaceqosconfig.String())
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+		return nil
+	} else {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		ni.GetOrCreatePolicyForwarding()
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+		return sb
+	}
+}
+
+// InterfacePolicyForwardingConfigScale configures policy forwarding on multiple subinterfaces.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied.
+func InterfacePolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) *gnmi.SetBatch {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
+			// Format and apply the CLI command for traffic policy input.
+			trafficpolicyconfig := new(strings.Builder)
+			for _, a := range params.Attributes {
+				fmt.Fprintf(trafficpolicyconfig, `
+				interface %[1]s.%[2]d  
+				 traffic-policy input tp_cloud_id_%[2]d
+				!`, params.AggID, a.Subinterface)
+			}
+			helpers.GnmiCLIConfig(t, dut, trafficpolicyconfig.String())
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+		return nil
+	} else {
+		d := &oc.Root{}
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		pf := ni.GetOrCreatePolicyForwarding()
+		iface := pf.GetOrCreateInterface(params.InterfaceID)
+		iface.ApplyForwardingPolicy = ygot.String(params.AppliedPolicyName)
+		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+		return sb
+	}
+}
+
 // InterfaceQosClassificationConfig configures the interface qos classification.
 func InterfaceQosClassificationConfig(t *testing.T, dut *ondatra.DUTDevice, a *attrs.Attributes, aggID string) {
 	if deviations.QosClassificationOCUnsupported(dut) {
@@ -421,6 +524,115 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 
 		RulesAndActions(params, pf)
 
+	}
+}
+
+// PolicyForwardingConfigScale configures policy forwarding using multiple traffic-policies.
+// When the device does not support the OpenConfig path, vendor-specific CLI commands
+// are applied.
+func PolicyForwardingConfigScale(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, encapparams OCEncapsulationParams, pf *oc.NetworkInstance_PolicyForwarding, params OcPolicyForwardingParams) *gnmi.SetBatch {
+	t.Helper()
+
+	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
+	if deviations.PolicyForwardingOCUnsupported(dut) {
+		// If deviations exist, apply configuration using vendor-specific CLI commands.
+		switch dut.Vendor() {
+		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
+			PolicyForwardingConfig := new(strings.Builder)
+
+			PolicyForwardingConfig.WriteString("traffic-policies\n")
+
+			for i := 1; i <= encapparams.NextHopGroupCount; i++ {
+
+				fmt.Fprintf(PolicyForwardingConfig, `
+    traffic-policy tp_cloud_id_%[1]d
+    match setttlv6 ipv6
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[1]d
+          set traffic class 3
+    !
+    match setttlv4 ipv4
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[1]d
+          set traffic class 3
+    !
+    match ipv4-all-default ipv4
+       actions
+          count
+          redirect next-hop group nh_vlan_%[1]d
+          set traffic class 3
+    !
+    match ipv6-all-default ipv6
+       actions
+          count
+          redirect next-hop group nh_vlan_%[1]d
+          set traffic class 3
+    !`, i)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
+
+			for i := encapparams.Count - encapparams.NextHopGroupCount + 1; i <= encapparams.Count; i++ {
+
+				fmt.Fprintf(PolicyForwardingConfig, `
+    traffic-policy tp_cloud_id_%[1]d
+    match setttlv6 ipv6
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match setttlv4 ipv4
+       ttl 1
+       !
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match ipv4-all-default ipv4
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !
+    match ipv6-all-default ipv6
+       actions
+          count
+          redirect next-hop group nh_vlan_%[2]d
+          set traffic class 3
+    !`, i, i-encapparams.NextHopGroupCount)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfig.String())
+
+		default:
+			// Log a message if the vendor is not supported for this specific CLI deviation.
+			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+		}
+		return nil
+	} else {
+		ruleSeq := uint32(1)
+		for i := 1; i <= encapparams.Count; i++ {
+			// https://partnerissuetracker.corp.google.com/issues/417988636
+			//  pols := pf.GetOrCreatePolicy(fmt.Sprintf("tp_cloud_id_3_%d", i))
+			// rule := pols.GetOrCreateRule(ruleSeq)
+			// rule.GetOrCreateAction().Count = ygot.Bool(true)
+			// groupName := fmt.Sprintf("V4_vlan_3_%d", i)
+			// rule.GetOrCreateAction().SetNextHopGroup(groupName)
+			// rule.GetOrCreateAction().SetTtl(1)
+		}
+		ruleSeq++
+		gnmi.BatchReplace(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
+		return sb
 	}
 }
 
