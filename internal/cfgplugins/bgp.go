@@ -216,6 +216,7 @@ type VrfBGPState struct {
 	NeighborIPs         []string
 }
 
+// BMPConfigParams holds the parameters to bgp BMP collector
 type BMPConfigParams struct {
 	DutAS        uint32
 	BGPObj       *oc.NetworkInstance_Protocol_Bgp
@@ -712,7 +713,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Roo
 	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
 	if deviations.EnableMultipathUnderAfiSafi(dut) {
-		bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 		switch dut.Vendor() {
 		case ondatra.CISCO:
 			global := bgp.GetOrCreateGlobal()
