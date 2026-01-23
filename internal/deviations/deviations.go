@@ -323,6 +323,7 @@ func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
+// Nokia https://b.corp.google.com/issues/4778051566
 func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
@@ -1844,6 +1845,12 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
+// GetRetainGnmiCfgAfterReboot returns true if the device requires additional configuration to retain gNMI config across reboots.
+// Arista: https://partnerissuetracker.corp.google.com/476271160
+func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
+}
+
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
@@ -1858,4 +1865,26 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
+}
+
+// CpuUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
+// example: against "0/RP0/CPU0" and not "0/RP00/CPU0-Broadwell-DE (D-1573N)"
+func CpuUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseControllerCardComponent()
+}
+
+// CpuUtilizationQueryAgainstBaseLinecardComponent returns true if the device reports linecard CPU utilization against the base linecard component
+// example: against "0/0/CPU0" and not "0/0/CPU0-Broadwell-DE (D-1573N)"
+func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseLinecardComponent()
+}
+
+// NoQueueDropUnsupported returns true if device does not support no-queue drops
+func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNoQueueDropUnsupported()
+}
+
+// InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
+func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
