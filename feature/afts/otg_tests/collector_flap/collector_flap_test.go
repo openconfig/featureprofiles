@@ -75,13 +75,13 @@ const (
 	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 10 * time.Minute
-	bgpRouteCountIPv4LowScale = 1500
-	bgpRouteCountIPv6LowScale = 5000
-	bgpRouteCountIPv4Default  = 2000
-	bgpRouteCountIPv6Default  = 1000
+	bgpRouteCountIPv4LowScale = 2000000
+	bgpRouteCountIPv6LowScale = 1000000
+	bgpRouteCountIPv4Default  = 2000000
+	bgpRouteCountIPv6Default  = 1000000
 	policyStatementID         = "id-1"
-	cpuPctThreshold           = 5.0
-	memPctThreshold           = 2.0
+	cpuPctThreshold           = 80.0
+	memPctThreshold           = 80.0
 	usagePollingInterval      = 5 * time.Second
 )
 
@@ -661,6 +661,7 @@ func (h *usageHistory) print(t *testing.T) {
 func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, memBefore uint64, desc string, procName ...string) uint64 {
 	t.Helper()
 	var memAfter uint64
+	var totalMem uint64
 	// TODO: Add memory usage check for Default case.
 	pName := "system"
 	if len(procName) > 0 && procName[0] != "" {
@@ -671,6 +672,7 @@ func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistor
 	case ondatra.ARISTA:
 		t.Logf("Checking memory usage %s.", desc)
 		memAfter = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		totalMem = gnmi.Get(t, dut, gnmi.OC().System().Memory().Physical().State())
 	case ondatra.CISCO:
 		if pName == "system" {
 			t.Fatal("Process name must be provided for Cisco memory check.")
@@ -690,11 +692,13 @@ func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistor
 		increase = (float64(memAfter) - float64(memBefore)) / float64(memBefore) * 100
 	}
 	changePct := math.Max(0, increase)
-	if increase > memPctThreshold {
-		t.Errorf("Memory usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, memPctThreshold)
+	usedPct := (float64(memAfter) / float64(totalMem)) * 100
+	if usedPct > memPctThreshold {
+		t.Errorf("Memory usage for process %s is %.2f%% of total memory, which is more than the %.f%% threshold.", pName, usedPct, memPctThreshold)
 	} else {
-		t.Logf("Memory usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, memPctThreshold)
+		t.Logf("Memory usage for process %s is %.2f%% of total memory, which is within the %.f%% threshold.", pName, usedPct, memPctThreshold)
 	}
+
 	if history != nil {
 		history.add(usageRecord{
 			time:      time.Now(),
@@ -773,7 +777,7 @@ func checkCPUUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, 
 		increase = (float64(cpuAfter) - float64(cpuBefore)) / float64(cpuBefore) * 100
 	}
 	changePct := math.Max(0, increase)
-	if increase > cpuPctThreshold {
+	if cpuAfter > cpuPctThreshold {
 		t.Errorf("CPU usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, cpuPctThreshold)
 	} else {
 		t.Logf("CPU usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, cpuPctThreshold)
