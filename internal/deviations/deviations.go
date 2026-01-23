@@ -1806,7 +1806,7 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
-func ConfigACLOcUnsupported(dut *ondatra.DUTDevice) bool {
+func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
