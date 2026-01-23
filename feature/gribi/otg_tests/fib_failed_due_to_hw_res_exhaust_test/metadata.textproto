@@ -10,7 +10,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
+    subnet_mask_change_required: true
   }
 }
 platform_exceptions: {

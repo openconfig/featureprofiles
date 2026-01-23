@@ -1888,3 +1888,8 @@ func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
+
+// SubnetMaskChangeRequired returns true if the device requires changing the subnet mask length.
+func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
+}

@@ -54,21 +54,20 @@ func TestMain(m *testing.M) {
 //   * ate:port2 -> dut:port2 subnet 192.0.2.5/30
 
 const (
-	dstIPBlock                = "203.0.113.0"
-	vipBlock                  = "198.51.100.0"
-	wantLoss                  = true
-	dutAS                     = 64500
-	ateAS                     = 64501
-	advertisedRoutesv6        = "2001:DB8:2::1"
-	advertisedRoutesv6MaskLen = 128
-	tolerancePct              = 2
-	tolerance                 = 50
-	plenIPv4                  = 30
-	plenIPv6                  = 126
-	fibPassedTraffic          = "fibPassedTraffic"
-	fibFailedTraffic          = "fibFailedTraffic"
-	dstTrackingf1             = "dstTrackingf1"
-	dstTrackingf2             = "dstTrackingf2"
+	dstIPBlock         = "203.0.113.0"
+	vipBlock           = "198.51.100.0"
+	wantLoss           = true
+	dutAS              = 64500
+	ateAS              = 64501
+	advertisedRoutesv6 = "2001:DB8:2::1"
+	tolerancePct       = 2
+	tolerance          = 50
+	plenIPv4           = 30
+	plenIPv6           = 126
+	fibPassedTraffic   = "fibPassedTraffic"
+	fibFailedTraffic   = "fibFailedTraffic"
+	dstTrackingf1      = "dstTrackingf1"
+	dstTrackingf2      = "dstTrackingf2"
 )
 
 var (
@@ -108,9 +107,10 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
-	fibPassedDstRoute      string
-	fibFailedDstRoute      string
-	fibFailedDstRouteInHex string
+	fibPassedDstRoute         string
+	fibFailedDstRoute         string
+	fibFailedDstRouteInHex    string
+	advertisedRoutesv6MaskLen = uint32(128)
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -251,6 +251,9 @@ type testArgs struct {
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	if deviations.SubnetMaskChangeRequired(dut) {
+		advertisedRoutesv6MaskLen = uint32(120)
+	}
 	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
 	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
 	configureDUT(t, dut)
