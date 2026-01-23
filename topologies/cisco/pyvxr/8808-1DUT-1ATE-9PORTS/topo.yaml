@@ -40,10 +40,10 @@ devices:
   dut: 
     cvac: $BASE_CONF_PATH
     dual_rp: true
-    rp_type: 8800-rp2
+    #rp_type: 8800-rp2
     num_linecards: 1
-    lcc_type: '8808'
-    fabcard_type: 8808-FC0
+    #lcc_type: '8808'
+    #fabcard_type: 8808-FC0
     linecard_types: 
       - 88-LC0-36FH-M
     platform: spitfire_d
