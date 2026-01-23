@@ -750,16 +750,8 @@ func TestBGP(t *testing.T) {
 
 // configureHwProfile configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureHwProfile(t *testing.T) error {
-	ciscoConfig := `no hw-module profile cef cbf forward-class-list 0 5
-		no hw-module profile cef dark-bw enable
-		no hw-module profile cef te-tunnel highscale-no-ldp-over-te
-		hw-module profile cef sropt enable
-		hw-module profile route scale lpm tcam-banks
-		hw-module profile route scale ipv6-unicast connected-prefix high
-		hw-module profile netflow sflow-enable location 0/0/CPU0
-		hw-module profile stats acl-permit
-		hw-module profile cef iptunnel scale
-		hw-module profile pbr vrf-redirect`
+	ciscoConfig := `hw-module profile route scale lpm tcam-banks
+		hw-module profile cef iptunnel scale`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
 	tc.rebootDUT(t)
 	return nil
@@ -767,16 +759,8 @@ func (tc *testCase) configureHwProfile(t *testing.T) error {
 
 // configureDefaultHwProfile configures all the interfaces and BGP on the DUT.
 func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
-	ciscoConfig := `hw-module profile cef cbf forward-class-list 0 5
-		hw-module profile cef dark-bw enable
-		hw-module profile cef te-tunnel highscale-no-ldp-over-te
-		no hw-module profile cef sropt enable
-		no hw-module profile route scale lpm tcam-banks
-		no hw-module profile route scale ipv6-unicast connected-prefix high
-		no hw-module profile netflow sflow-enable location 0/0/CPU0
-		no hw-module profile stats acl-permit
-		no hw-module profile cef iptunnel scale
-		no hw-module profile pbr vrf-redirect`
+	ciscoConfig := `no hw-module profile route scale lpm tcam-banks
+		no hw-module profile cef iptunnel scale`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
 	tc.rebootDUT(t)
 	return nil
