@@ -1845,6 +1845,12 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
+// GetRetainGnmiCfgAfterReboot returns true if the device requires additional configuration to retain gNMI config across reboots.
+// Arista: https://partnerissuetracker.corp.google.com/476271160
+func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
+}
+
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
@@ -1881,4 +1887,15 @@ func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 // InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
+}
+
+// CiscoxrTransceiverFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
+}
+
+// TransceiverStateUnsupported returns true if device does not support transceiver state leaf.
+func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
 }
