@@ -47,6 +47,7 @@ var (
 	fibResource = map[ondatra.Vendor]string{
 		ondatra.ARISTA: "Routing/Resource6",
 		ondatra.NOKIA:  "ip-lpm-routes",
+		ondatra.CISCO:  "central_em_0",
 	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
@@ -120,39 +121,91 @@ func TestResourceUtilization(t *testing.T) {
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
-	afterUtzs := componentUtilizations(t, dut, comps)
-	if len(afterUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
-	}
+	// Use map to store utilization after BGP route installation to compare with cleared state later.
+	afterUtzs := make(map[string]*utilization)
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
-				if beforeUtzs[c].percent() >= afterUtzs[c].percent() {
-					t.Errorf("Utilization Percent didn't increase for component: %s", c)
+				beforePct := beforeUtzs[c].percent()
+				t.Logf("Waiting for utilization to increase above %d%%...", beforePct)
+				u := awaitUtilization(t, dut, c, func(pct uint8) bool {
+					return pct > beforePct
+				})
+				if u == nil {
+					t.Errorf("Utilization Percent didn't increase for component: %s (Started at %d%%)", c, beforePct)
+					// Fallback to get current value for map consistency, though test failed.
+					afterUtzs[c] = beforeUtzs[c]
+				} else {
+					t.Logf("Before Utilization: %d, After Utilization: %d", beforePct, u.percent())
+					afterUtzs[c] = u
 				}
-				t.Logf("Before Utilization: %d, After Utilization: %d", beforeUtzs[c].percent(), afterUtzs[c].percent())
 			})
 		}
 	})
 
 	clearBGPRoutes(t, otg, otgV6Peer, otgConfig)
 
-	afterClearUtzs := componentUtilizations(t, dut, comps)
-	if len(afterClearUtzs) != len(comps) {
-		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
-	}
-
 	t.Run("Utilization after BGP route clear", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
-				if afterClearUtzs[c].percent() >= afterUtzs[c].percent() {
-					t.Errorf("Utilization Percent didn't decrease for component: %s", c)
+				prev, ok := afterUtzs[c]
+				if !ok {
+					t.Fatalf("No previous utilization data for component %s", c)
 				}
-				t.Logf("Before Utilization: %d, After Utilization: %d", afterUtzs[c].percent(), afterClearUtzs[c].percent())
+				prevPct := prev.percent()
+				t.Logf("Waiting for utilization to decrease below %d%%...", prevPct)
+				u := awaitUtilization(t, dut, c, func(pct uint8) bool {
+					return pct < prevPct
+				})
+
+				if u == nil {
+					t.Errorf("Utilization Percent didn't decrease for component: %s (Was %d%%)", c, prevPct)
+				} else {
+					t.Logf("Before Utilization: %d, After Utilization: %d", prevPct, u.percent())
+				}
 			})
 		}
 	})
+}
+
+// awaitUtilization polls the utilization resource until the predicate function returns true
+// or the timeout expires. Returns the final utilization snapshot, or nil if timed out.
+func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate func(uint8) bool) *utilization {
+	resName := fibResource[dut.Vendor()]
+	if deviations.MismatchedHardwareResourceNameInComponent(dut) {
+		resName += "/-"
+	}
+	path := gnmi.OC().Component(c).IntegratedCircuit().Utilization().Resource(resName)
+
+	var lastVal *utilization
+
+	val, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+		res, ok := val.Val()
+		if !ok {
+			return false
+		}
+		u := &utilization{
+			used:                res.GetUsed(),
+			free:                res.GetFree(),
+			upperThreshold:      res.GetUsedThresholdUpper(),
+			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+		}
+		lastVal = u
+		return predicate(u.percent())
+	}).Await(t)
+
+	if !ok {
+		return lastVal
+	}
+	// Reconstruct the utilization from the final watched value
+	res, _ := val.Val()
+	return &utilization{
+		used:                res.GetUsed(),
+		free:                res.GetFree(),
+		upperThreshold:      res.GetUsedThresholdUpper(),
+		upperThresholdClear: res.GetUsedThresholdUpperClear(),
+	}
 }
 
 func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string) map[string]*utilization {

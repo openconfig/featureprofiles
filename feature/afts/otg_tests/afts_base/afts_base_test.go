@@ -15,6 +15,7 @@
 package afts_base_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -28,15 +29,18 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -79,8 +83,9 @@ const (
 	bgpRouteCountIPv6LowScale64  = 460800
 	bgpRouteCountIPv6LowScale128 = 51200
 	bgpRouteCountIPv4Default     = 2000000
-    bgpRouteCountIPv6Default64   = 900000 
-    bgpRouteCountIPv6Default128  = 100000
+	bgpRouteCountIPv6Default64   = 900000
+	bgpRouteCountIPv6Default128  = 100000
+	maxRebootTime                = 20
 )
 
 var (
@@ -394,11 +399,11 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d1ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-        SetPrefix(advertisedRoutesV6Prefix128).SetCount(isisRouteCount)
-    d1ISISRouteV6.Addresses().
-        Add().
-        SetAddress(isisRoutev6).
-        SetPrefix(advertisedRoutesV6Prefix64).SetCount(isisRouteCount)
+		SetPrefix(advertisedRoutesV6Prefix128).SetCount(isisRouteCount)
+	d1ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix64).SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d1, d1IPv4, d1IPv6)
 
@@ -454,8 +459,8 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d2ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-        SetPrefix(advertisedRoutesV6Prefix128).
-        SetCount(isisRouteCount)
+		SetPrefix(advertisedRoutesV6Prefix128).
+		SetCount(isisRouteCount)
 	d2ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
@@ -503,11 +508,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-    for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
-        wantPrefixes[pfix6128] = true
-    }
-    for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
-        wantPrefixes[pfix664] = true
+	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
+		wantPrefixes[pfix6128] = true
+	}
+	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
+		wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
 }
@@ -640,6 +645,24 @@ func TestBGP(t *testing.T) {
 		gnmiClient2: gnmiClient2,
 	}
 
+	// TODO: - Add  deviation if any HW profile change is required
+	if tc.dut.Vendor() == ondatra.CISCO {
+		t.Log("Configuring DUT HW profile for Cisco and rebooting DUT")
+		if err := tc.configureHwProfile(t); err != nil {
+			t.Fatalf("failed to configure DUT HW profile: %v", err)
+		}
+	}
+
+	// Defer cleanup to ensure it runs at the end of the test
+	defer func() {
+		if tc.dut.Vendor() == ondatra.CISCO {
+			t.Log("Restoring DUT HW profile for Cisco and rebooting DUT")
+			if err := tc.configureDefaultHwProfile(t); err != nil {
+				t.Fatalf("failed to restore DUT HW profile: %v", err)
+			}
+		}
+	}()
+
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
@@ -659,10 +682,10 @@ func TestBGP(t *testing.T) {
 		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-        if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
-            t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
-        }
-        if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
+			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
+		}
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
@@ -723,4 +746,95 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
+}
+
+// configureHwProfile configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureHwProfile(t *testing.T) error {
+	ciscoConfig := `no hw-module profile cef cbf forward-class-list 0 5
+		no hw-module profile cef dark-bw enable
+		no hw-module profile cef te-tunnel highscale-no-ldp-over-te
+		hw-module profile cef sropt enable
+		hw-module profile route scale lpm tcam-banks
+		hw-module profile route scale ipv6-unicast connected-prefix high
+		hw-module profile netflow sflow-enable location 0/0/CPU0
+		hw-module profile stats acl-permit
+		hw-module profile cef iptunnel scale
+		hw-module profile pbr vrf-redirect`
+	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
+	tc.rebootDUT(t)
+	return nil
+}
+
+// configureDefaultHwProfile configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
+	ciscoConfig := `hw-module profile cef cbf forward-class-list 0 5
+		hw-module profile cef dark-bw enable
+		hw-module profile cef te-tunnel highscale-no-ldp-over-te
+		no hw-module profile cef sropt enable
+		no hw-module profile route scale lpm tcam-banks
+		no hw-module profile route scale ipv6-unicast connected-prefix high
+		no hw-module profile netflow sflow-enable location 0/0/CPU0
+		no hw-module profile stats acl-permit
+		no hw-module profile cef iptunnel scale
+		no hw-module profile cef iptunnel scale`
+	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
+	tc.rebootDUT(t)
+	return nil
+}
+
+func (tc *testCase) rebootDUT(t *testing.T) {
+	t.Helper()
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	}
+	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v %v", bootTimeBeforeReboot, time.Now())
+	t.Log("Sending reboot request to DUT")
+
+	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
+	defer cancel()
+	_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
+	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	// Wait for the device to become reachable again.
+	dut := ondatra.DUT(t, "dut")
+	deviceBootStatus(t, dut)
+	t.Logf("Device is reachable, waiting for boot time to update.")
+
+	bootTimeAfterReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+}
+
+func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
