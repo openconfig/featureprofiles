@@ -339,6 +339,8 @@ github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFH
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
 github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
+github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452 h1:KI67JEIYGMXx9aZjGOwfO2aUsCGih9199v+zhJNHB9Y=
+github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452/go.mod h1:wOB0bus1N8a90H58cmlxE15dKN4bTvdqqlh7bEQkQFc=
 github.com/openconfig/ygnmi v0.14.0 h1:WXkZU8NcMVJzZBn1mDm7GMdJ+WyU2ab/4ls1kMKPN5c=
 github.com/openconfig/ygnmi v0.14.0/go.mod h1:c5ThNBAhrg5o3ZP5V9xagjlJZaKLPFMcJ2Mc3mcNJ8g=
 github.com/openconfig/ygot v0.34.0 h1:9OkVjy3SGi4mbvAZc4HTQBU9u4MT6k4j5DdX+hgRiC4=
