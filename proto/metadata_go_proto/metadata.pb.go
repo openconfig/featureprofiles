@@ -1296,9 +1296,13 @@ type Metadata_Deviations struct {
 	InterfaceEthernetInblockErrorsUnsupported bool `protobuf:"varint,371,opt,name=interface_ethernet_inblock_errors_unsupported,json=interfaceEthernetInblockErrorsUnsupported,proto3" json:"interface_ethernet_inblock_errors_unsupported,omitempty"`
 	// Arista https://partnerissuetracker.corp.google.com/476271160
 	RetainGnmiCfgAfterReboot bool `protobuf:"varint,372,opt,name=retain_gnmi_cfg_after_reboot,json=retainGnmiCfgAfterReboot,proto3" json:"retain_gnmi_cfg_after_reboot,omitempty"`
+	// Cisco: http://b/429231108
+	CiscoxrTransceiverFt string `protobuf:"bytes,373,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
+	// Device does not support transceiver state leaf.
+	TransceiverStateUnsupported bool `protobuf:"varint,374,opt,name=transceiver_state_unsupported,json=transceiverStateUnsupported,proto3" json:"transceiver_state_unsupported,omitempty"`
 	// Arista b/419618177
 	// Device does not  support the classifiers counters.
-	ClassifierCountersOcUnsupported bool `protobuf:"varint,373,opt,name=classifier_counters_oc_unsupported,json=classifierCountersOcUnsupported,proto3" json:"classifier_counters_oc_unsupported,omitempty"`
+	ClassifierCountersOcUnsupported bool `protobuf:"varint,375,opt,name=classifier_counters_oc_unsupported,json=classifierCountersOcUnsupported,proto3" json:"classifier_counters_oc_unsupported,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
 }
@@ -3706,6 +3710,20 @@ func (x *Metadata_Deviations) GetRetainGnmiCfgAfterReboot() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetCiscoxrTransceiverFt() string {
+	if x != nil {
+		return x.CiscoxrTransceiverFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetTransceiverStateUnsupported() bool {
+	if x != nil {
+		return x.TransceiverStateUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetClassifierCountersOcUnsupported() bool {
 	if x != nil {
 		return x.ClassifierCountersOcUnsupported
@@ -3769,7 +3787,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa6\xcf\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa2\xd0\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3781,7 +3799,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x92\xc5\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8e\xc6\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4125,8 +4143,10 @@ const file_metadata_proto_rawDesc = "" +
 	"5cpu_utilization_query_against_base_linecard_component\x18\xf1\x02 \x01(\bR/cpuUtilizationQueryAgainstBaseLinecardComponent\x12:\n" +
 	"\x19no_queue_drop_unsupported\x18\xf2\x02 \x01(\bR\x16noQueueDropUnsupported\x12a\n" +
 	"-interface_ethernet_inblock_errors_unsupported\x18\xf3\x02 \x01(\bR)interfaceEthernetInblockErrorsUnsupported\x12?\n" +
-	"\x1cretain_gnmi_cfg_after_reboot\x18\xf4\x02 \x01(\bR\x18retainGnmiCfgAfterReboot\x12L\n" +
-	"\"classifier_counters_oc_unsupported\x18\xf5\x02 \x01(\bR\x1fclassifierCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1cretain_gnmi_cfg_after_reboot\x18\xf4\x02 \x01(\bR\x18retainGnmiCfgAfterReboot\x125\n" +
+	"\x16ciscoxr_transceiver_ft\x18\xf5\x02 \x01(\tR\x14ciscoxrTransceiverFt\x12C\n" +
+	"\x1dtransceiver_state_unsupported\x18\xf6\x02 \x01(\bR\x1btransceiverStateUnsupported\x12L\n" +
+	"\"classifier_counters_oc_unsupported\x18\xf7\x02 \x01(\bR\x1fclassifierCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

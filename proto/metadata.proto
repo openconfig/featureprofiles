@@ -1130,9 +1130,15 @@ message Metadata {
     // Arista https://partnerissuetracker.corp.google.com/476271160
     bool retain_gnmi_cfg_after_reboot = 372;
 
+    // Cisco: http://b/429231108
+    string ciscoxr_transceiver_ft = 373;
+
+    // Device does not support transceiver state leaf.
+    bool transceiver_state_unsupported = 374;
+
     // Arista b/419618177
     // Device does not  support the classifiers counters.
-    bool classifier_counters_oc_unsupported = 373;
+    bool classifier_counters_oc_unsupported = 375;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
