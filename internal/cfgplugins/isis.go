@@ -80,7 +80,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	isisV6Afi.Enabled = ygot.Bool(true)
 
 	for _, in := range ISISData.ISISInterfaceNames {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && !strings.Contains(in, ".") {
+		if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(in, ".") {
 			in += ".0"
 		}
 		fmt.Println("Adding ISIS interface: ", in)
