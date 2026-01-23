@@ -336,7 +336,9 @@ func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
 	removeImportAndExportPolicy(t, dut)
-	applyImportPolicyDut(t, dut, "allow-all")
+	if deviations.DefaultImportPolicyNotSupported(dut) {
+		applyImportPolicyDut(t, dut, "allow-all")
+	}
 
 	// Apply ipv4 policy to bgp neighbour.
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
