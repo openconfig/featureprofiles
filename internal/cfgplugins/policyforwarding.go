@@ -26,6 +26,19 @@ const (
 	seqIDBase     = uint32(10)
 )
 
+type TrafficType string
+
+const (
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure IPV4 policy.
+	TrafficTypeV4 TrafficType = "v4"
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure IPV6 policy.
+	TrafficTypeV6 TrafficType = "v6"
+	// TrafficTypeV4 as an argument for PolicyForwardingConfig to configure both IPV4 and IPV6 policy.
+	TrafficTypeDS TrafficType = "dualstack"
+	// TrafficTypeMCV4 as an argument for PolicyForwardingConfig to configure multicloud IPV4 policy.
+	TrafficTypeMCV4 TrafficType = "multicloudv4"
+)
+
 // DecapPolicyParams defines parameters for the Decap MPLS in GRE policy and related MPLS configs.
 type DecapPolicyParams struct {
 	PolicyID                  string
@@ -105,8 +118,8 @@ type ACLTrafficPolicyParams struct {
 
 var (
 
-	// PolicyForwardingConfigv4Arista configuration for policy-forwarding for ipv4.
-	PolicyForwardingConfigv4Arista = `
+	// PolicyForwardingConfigV4Arista configuration for policy-forwarding for ipv4.
+	PolicyForwardingConfigV4Arista = `
 Traffic-policies
    traffic-policy tp_cloud_id_3_20
       match bgpsetttlv4 ipv4
@@ -124,8 +137,8 @@ Traffic-policies
       match ipv6-all-default ipv6
    !
      `
-	// PolicyForwardingConfigv6Arista configuration for policy-forwarding for ipv6.
-	PolicyForwardingConfigv6Arista = `
+	// PolicyForwardingConfigV6Arista configuration for policy-forwarding for ipv6.
+	PolicyForwardingConfigV6Arista = `
 Traffic-policies
     traffic-policy tp_cloud_id_3_21
     match bgpsetttlv6 ipv6
@@ -197,8 +210,8 @@ Traffic-policies
           redirect next-hop group 1V6_vlan_3_22
           set traffic class 3
  !`
-	// PolicyForwardingConfigMulticloudAristav4 configuration for policy-forwarding for multicloud ipv4.
-	PolicyForwardingConfigMulticloudAristav4 = `
+	// PolicyForwardingConfigMultiCloudV4Arista configuration for policy-forwarding for multicloud ipv4.
+	PolicyForwardingConfigMultiCloudV4Arista = `
  Traffic-policies
  counter interface per-interface ingress
  !
@@ -402,16 +415,44 @@ func PolicyForwardingConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype st
 	if deviations.PolicyForwardingOCUnsupported(dut) {
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
-		case ondatra.ARISTA: // Currently supports Arista devices for CLI deviations.
-			// Select and apply the appropriate CLI snippet based on 'traffictype'.
-			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv4Arista)
-			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigv6Arista)
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMulticloudAristav4)
+		case ondatra.ARISTA:
+			if params.AppliedPolicyName == "gre_encap" {
+				if traffictype == string(TrafficTypeDS) {
+					policyForwardingGREConfigTemplate := `  
+                    traffic-policies  
+                      traffic-policy tp_gre_encap  
+                          match ipv4-all-default ipv4  
+                              actions  
+                                  count  
+                                  redirect next-hop group %[1]s  
+                                  set traffic class 3  
+                          !  
+                          match ipv6-all-default ipv6  
+                              actions  
+                                  count  
+                                  redirect next-hop group %[1]s  
+                                  set traffic class 3  
+                          !  
+                      !  
+                    !  
+                    interface %[2]s  
+                      traffic-policy input tp_gre_encap  
+                    !  
+`
+					policyForwardingGREConfig := fmt.Sprintf(policyForwardingGREConfigTemplate, params.AppliedPolicyName, params.InterfaceID)
+					helpers.GnmiCLIConfig(t, dut, policyForwardingGREConfig)
+				}
+			} else {
+				switch TrafficType(traffictype) {
+				case TrafficTypeV4:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV4Arista)
+				case TrafficTypeV6:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigV6Arista)
+				case TrafficTypeDS:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigDualStackArista)
+				case TrafficTypeMCV4:
+					helpers.GnmiCLIConfig(t, dut, PolicyForwardingConfigMultiCloudV4Arista)
+				}
 			}
 		default:
 			// Log a message if the vendor is not supported for this specific CLI deviation.
