@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	spb "github.com/openconfig/gnoi/system"
@@ -50,9 +51,11 @@ const (
 	// contextTimeout is the overall timeout for the gNOI reboot operation.
 	contextTimeout = 20 * time.Minute
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
-	maxRebootTime = 15 * time.Minute
-	IPv4          = "IPv4"
-	IPv6          = "IPv6"
+	maxRebootTime = 20 * time.Minute
+	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
+	rebootPollInterval    = 30 * time.Second
+	aristaPersistConfig   = "management api gnmi\ntransport grpc default\noperation set persistence"
+	aristaNoPersistConfig = "management api gnmi\ntransport grpc default\nno operation set persistence"
 )
 
 var (
@@ -111,6 +114,22 @@ func configureAllowPolicy(t *testing.T, dut *ondatra.DUTDevice) error {
 	}
 	statement.GetOrCreateActions().PolicyResult = applyPolicyType
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), routePolicy)
+	return nil
+}
+
+func (tc *testCase) configureToStoreRunningGNMIConfig(t *testing.T) error {
+	if tc.dut.Vendor() == ondatra.ARISTA {
+		tc.dut.Config().New().WithAristaText(aristaPersistConfig).Append(t)
+		t.Logf("Applied Arista config to persist gNMI running config: %q", aristaPersistConfig)
+	}
+	return nil
+}
+
+func (tc *testCase) unconfigureToStoreRunningGNMIConfig(t *testing.T) error {
+	if tc.dut.Vendor() == ondatra.ARISTA {
+		tc.dut.Config().New().WithAristaText(aristaNoPersistConfig).Append(t)
+		t.Logf("Applied Arista config to remove gNMI running config persistence: %q", aristaNoPersistConfig)
+	}
 	return nil
 }
 
@@ -275,17 +294,45 @@ func (tc *testCase) waitForReboot(t *testing.T, lastBootTime uint64) {
 	t.Helper()
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	// Wait for the device to become reachable again.
-	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().CurrentDatetime().State(), maxRebootTime, func(val *ygnmi.Value[string]) bool {
-		_, ok := val.Val()
-		return ok
-	}).Await(t)
-	if !ok {
-		t.Fatalf("Timeout exceeded: DUT did not reboot within %v", maxRebootTime)
+	{
+		ticker := time.NewTicker(rebootPollInterval)
+		defer ticker.Stop()
+		timeout := time.After(maxRebootTime)
+		var deviceWentDown bool
+	rebootLoop:
+		for {
+			select {
+			case <-timeout:
+				t.Fatalf("Timeout exceeded: DUT did not reboot within maximum boot time(%v).", maxRebootTime)
+			case <-ticker.C:
+				var currentTime string
+				errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+					currentTime = gnmi.Get(t, tc.dut, gnmi.OC().System().CurrentDatetime().State())
+				})
+				if errMsg != nil {
+					if !deviceWentDown {
+						t.Logf("Device is now unreachable. Waiting for it to come back up.")
+						deviceWentDown = true
+					}
+					t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %s.", time.Since(startReboot).Seconds(), *errMsg)
+				} else {
+					if deviceWentDown {
+						t.Logf("Device rebooted successfully with received time: %v.", currentTime)
+						break rebootLoop
+					}
+					t.Logf("Device is still reachable; reboot hasn't started yet.")
+				}
+			}
+		}
 	}
-	t.Logf("Device is reachable, waiting for boot time to update.")
+	t.Logf("Device boot time: %.2f seconds.", time.Since(startReboot).Seconds())
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	_, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI after reboot: %v", err)
+	}
 	// Wait for boot time to change.
-	_, ok = gnmi.Watch(t, tc.dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
+	_, ok := gnmi.Watch(t, tc.dut, gnmi.OC().System().BootTime().State(), maxRebootTime, bootTimePredicate(lastBootTime)).Await(t)
 	if !ok {
 		currentBootTime, _ := tc.bootTime(t)
 		t.Fatalf("Boot time did not update after reboot. Current: %d, Last: %d", currentBootTime, lastBootTime)
@@ -319,14 +366,10 @@ func (tc *testCase) rebootDUT(t *testing.T) {
 	t.Log("Sending reboot request to DUT")
 	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), contextTimeout)
 	defer cancel()
-	defer func() {
-		if _, err := gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{}); err != nil {
-			t.Logf("Error returned from cancel reboot command: %v", err)
-		}
-	}()
 	if _, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest); err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
+	t.Log("Reboot request sent to DUT, waiting for DUT to reboot")
 }
 
 type testCase struct {
@@ -348,6 +391,12 @@ func TestReboot(t *testing.T) {
 		ate:  ate,
 	}
 	t.Run(tc.name, func(t *testing.T) {
+		if deviations.GetRetainGnmiCfgAfterReboot(dut) {
+			if err := tc.configureToStoreRunningGNMIConfig(t); err != nil {
+				t.Fatalf("failed to configure DUT to store running gNMI config: %v", err)
+			}
+			defer tc.unconfigureToStoreRunningGNMIConfig(t)
+		}
 		gnmiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 		if err != nil {
 			t.Fatalf("Failed to dial GNMI: %v", err)
