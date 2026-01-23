@@ -323,6 +323,7 @@ func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
+// Nokia https://b.corp.google.com/issues/4778051566
 func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
@@ -1842,6 +1843,12 @@ func BgpCommunityTypeSliceInputUnsupported(dut *ondatra.DUTDevice) bool {
 // IbgpMultipathPathUnsupported returns true if device does not support configuring multipath path under ibgp
 func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
+}
+
+// GetRetainGnmiCfgAfterReboot returns true if the device requires additional configuration to retain gNMI config across reboots.
+// Arista: https://partnerissuetracker.corp.google.com/476271160
+func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
 }
 
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
