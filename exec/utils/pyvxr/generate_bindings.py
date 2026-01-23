@@ -104,7 +104,7 @@ class DUT(Device):
     def to_binding_entry(self):
         e = super().to_binding_entry()  
         e.update({
-            'name': self.hostname,
+            'name': self.get_host_agent(),
             'vendor': DUT.Vendor.CISCO,
             'hardware_model': self.get_model(),
             'options': {
