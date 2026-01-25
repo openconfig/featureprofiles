@@ -55,10 +55,135 @@ affect the traffic (make before break).
 
 * Repeat the same test by moving ACLs to the DUT egress interface.
 
-### Sub Test 4
+## Canonical OC
 
-* Repeat sub tests 1 through 4 using a port where [/interfaces/interface/state/management](https://github.com/openconfig/public/blob/daf73c37e9062b458bb9eab645840e5d3835c74d/release/models/interfaces/openconfig-interfaces.yang#L719-L727)
-  is true and in the case of a modular form factor device (MFF), provided by a `CONTROLLER_CARD` component.  
+```json
+{
+  "acl": {
+    "acl-sets": {
+      "acl-set": [
+        {
+          "config": {
+            "name": "ACL-1.2-IPV4",
+            "type": "openconfig-acl:ACL_IPV4"
+          },
+          "name": "ACL-1.2-IPV4",
+          "type": "openconfig-acl:ACL_IPV4",
+          "acl-entries": {
+            "acl-entry": [
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 10
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 10
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 20
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 6,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 20,
+                "transport": {
+                  "config": {
+                    "destination-port": 2345,
+                    "source-port": 1234
+                  }
+                }
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 30
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 17,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 30,
+                "transport": {
+                  "config": {
+                    "destination-port": 2345,
+                    "source-port": 1234
+                  }
+                }
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:DROP",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 40
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "192.168.200.2/32",
+                    "protocol": 1,
+                    "source-address": "192.168.100.1/32"
+                  }
+                },
+                "sequence-id": 40
+              },
+              {
+                "actions": {
+                  "config": {
+                    "forwarding-action": "openconfig-acl:ACCEPT",
+                    "log-action": "openconfig-acl:LOG_SYSLOG"
+                  }
+                },
+                "config": {
+                  "sequence-id": 990
+                },
+                "ipv4": {
+                  "config": {
+                    "destination-address": "0.0.0.0/0",
+                    "source-address": "0.0.0.0/0"
+                  }
+                },
+                "sequence-id": 990
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -100,8 +225,7 @@ paths:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-tcp-flags:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/builtin-detail:
 
-  # state paths for management port and ACL counters
-  /interfaces/interface/state/management:
+  # state paths for ACL counters
   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets:
   /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets:
 
