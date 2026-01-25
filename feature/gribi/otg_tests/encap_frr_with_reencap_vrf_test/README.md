@@ -343,7 +343,8 @@ IPv4Entry {203.0.113.2/32 (REPAIR)} -> NHG#1001 (DEFAULT VRF) -> {
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 NHG#1001 (DEFAULT VRF) {
-  {NH#1001, DEFAULT VRF}
+  {NH#1001, DEFAULT VRF},
+  {NH#1003, DEFAULT VRF}
 }
 NH#1001 -> {
   decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -354,8 +355,21 @@ NH#1001 -> {
   }
   network_instance: "TE_VRF_222"
 }
+NH#1003 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.102"
+    src_ip: "ipv4_outer_src_222"
+  }
+  network_instance: "TE_VRF_222"
+}
 
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
+  {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
+  backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
+}
+IPv4Entry {203.0.113.102/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
   {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
@@ -622,3 +636,8 @@ rpcs:
 ## Required DUT platform
 
 -   vRX
+
+## Canonical OC
+```json
+{}
+```   
