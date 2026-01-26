@@ -215,25 +215,25 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 	// * Each NH has one entry for decap and encap
 	// * All NHG has a backup for decap then goto default VRF.
 	reEncapNHGRatio := param.V4TunnelCount / param.V4ReEncapNHGCount
-	nhgID = idPool.NextNHGID()
-	nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
-	for idx, ip := range v4TunnelIPAddrs.AllIPs() {
-		nhID = idPool.NextNHID()
-		vrfDefault.NHs = append(vrfDefault.NHs,
-			fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-				WithNetworkInstance(defaultVRF).WithIPinIP(tunnelSrcIP, v4TunnelIPAddrs.AllIPs()[(idx+1)%len(v4TunnelIPAddrs.AllIPs())]),
-		)
-		if idx != 0 && idx%reEncapNHGRatio == 0 {
-			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
+	allTunnelIPs := v4TunnelIPAddrs.AllIPs()
+	for idx, ip := range allTunnelIPs {
+		if idx%reEncapNHGRatio == 0 {
 			nhgID = idPool.NextNHGID()
-			nhgEntry = fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
+			nhgEntry := fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
+			nhID = idPool.NextNHID()
+			// Use same NHG and DecapEncap tunnel for "reEncapNHGRatio" prefixes
+			destinationTunnelIP := allTunnelIPs[(idx/reEncapNHGRatio)%len(allTunnelIPs)]
+			vrfDefault.NHs = append(vrfDefault.NHs,
+				fluent.NextHopEntry().WithIndex(nhID).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+					WithNetworkInstance(defaultVRF).WithIPinIP(tunnelSrcIP, destinationTunnelIP),
+			)
+			nhgEntry = nhgEntry.AddNextHop(nhID, 1)
+			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 		}
-		nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 		vrfRConf.V4Entries = append(vrfRConf.V4Entries,
 			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFR).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
 	}
-	vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 
 	v4VIPAddrs = NewIPPool(iputil.GenerateIPs(V4VIPIPBlock, (param.V4TunnelNHGCount*param.V4TunnelNHGSplitCount)+2))
 
