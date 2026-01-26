@@ -11,7 +11,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    network_instance_import_export_policy_oc_unsuppored: true
+    network_instance_import_export_policy_oc_unsupported: true
   }
 }
 tags: TAGS_AGGREGATION
