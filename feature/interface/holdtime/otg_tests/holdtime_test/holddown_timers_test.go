@@ -154,8 +154,6 @@ func configureOTG(t *testing.T,
 	t.Log(top.String())
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-
-	OTGInterfaceUP(t, ate)
 }
 
 func getDutCurrentTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
@@ -171,19 +169,29 @@ func getDutCurrentTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
 }
 
 func OTGInterfaceUP(t *testing.T,
-	ate *ondatra.ATEDevice) {
+	ate *ondatra.ATEDevice,
+	dut *ondatra.DUTDevice) {
 
-	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
-	portStateAction := gosnappi.NewControlState()
+	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), true)
+	} else {
+		p1 := ondatra.ATE(t, "ate").Port(t, "port1")
+		portStateAction := gosnappi.NewControlState()
 
-	// make sure interface is not down
-	portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.UP)
-	ate.OTG().SetControlState(t, portStateAction)
+		// make sure interface is not down
+		portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.UP)
+		ate.OTG().SetControlState(t, portStateAction)
+	}
 }
 
 func OTGInterfaceDOWN(t *testing.T,
 	ate *ondatra.ATEDevice,
 	dut *ondatra.DUTDevice) time.Time {
+
+	if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), false)
+		return getDutCurrentTime(t, dut)
+	}
 
 	p1 := ondatra.ATE(t, "ate").Port(t, "port1")
 	portStateAction := gosnappi.NewControlState()
@@ -192,7 +200,6 @@ func OTGInterfaceDOWN(t *testing.T,
 	// make sure interface is not down
 	portStateAction.Port().Link().SetPortNames([]string{p1.ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
 	ate.OTG().SetControlState(t, portStateAction)
-
 	return timeObj
 }
 
@@ -493,7 +500,7 @@ func TestTC2LongDown(t *testing.T) {
 	})
 
 	t.Run("Bring back UP OTG Interface", func(t *testing.T) {
-		OTGInterfaceUP(t, ate)
+		OTGInterfaceUP(t, ate, dut)
 		t.Logf("Verifying port status for %s", aggID)
 		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 	})
@@ -522,7 +529,7 @@ func TestTC3ShortUP(t *testing.T) {
 		t.Log(change1)
 
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
-		OTGInterfaceUP(t, ate)
+		OTGInterfaceUP(t, ate, dut)
 		// Wait for 4000 ms less than hold up timer < 5000ms
 		time.Sleep(4000 * time.Millisecond)
 		// shut the OTG interface back to down state
@@ -545,7 +552,7 @@ func TestTC3ShortUP(t *testing.T) {
 		}
 
 		// bring OTG port back up
-		OTGInterfaceUP(t, ate)
+		OTGInterfaceUP(t, ate, dut)
 		// verify interface is up for next test case
 		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
@@ -567,7 +574,7 @@ func TestTC4SLongUP(t *testing.T) {
 		t.Log(change1)
 
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
-		OTGInterfaceUP(t, ate)
+		OTGInterfaceUP(t, ate, dut)
 		// ensure the LAG interface is still down
 		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
@@ -626,7 +633,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 		time1 = OTGInterfaceDOWN(t, ate, dut)
 		time.Sleep(200 * time.Millisecond)
 		t.Log("Bring OTG Interface Back UP")
-		OTGInterfaceUP(t, ate)
+		OTGInterfaceUP(t, ate, dut)
 
 	})
 
