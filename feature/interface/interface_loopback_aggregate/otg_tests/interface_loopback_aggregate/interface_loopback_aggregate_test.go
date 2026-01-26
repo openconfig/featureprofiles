@@ -185,12 +185,8 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 
 	cs := gosnappi.NewControlState()
 	t.Run("Admin down OTG port1", func(t *testing.T) {
-		if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort1.Name()).Enabled().Config(), false)
-		} else {
-			cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
-			otg.SetControlState(t, cs)
-		}
+		cs.Port().Link().SetPortNames([]string{ate.Port(t, "port1").ID()}).SetState(gosnappi.StatePortLinkState.DOWN)
+		otg.SetControlState(t, cs)
 	})
 
 	t.Run("Verify DUT port-1 is down on DUT", func(t *testing.T) {
@@ -257,13 +253,8 @@ func TestInterfaceLoopbackMode(t *testing.T) {
 	})
 
 	t.Run("Admin up OTG port1", func(t *testing.T) {
-		if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-			gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort1.Name()).Enabled().Config(), true)
-		} else {
-			cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
-			otg.SetControlState(t, cs)
-		}
-
+		cs.Port().Link().SetState(gosnappi.StatePortLinkState.UP)
+		otg.SetControlState(t, cs)
 		if deviations.MemberLinkLoopbackUnsupported(dut) {
 			gnmi.Update(t, dut, gnmi.OC().Interface(aggID).LoopbackMode().Config(), oc.Interfaces_LoopbackModeType_NONE)
 		} else {
