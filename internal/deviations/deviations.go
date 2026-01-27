@@ -1889,6 +1889,17 @@ func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
 
+// CiscoxrTransceiverFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
+}
+
+// TransceiverStateUnsupported returns true if device does not support transceiver state leaf.
+func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
+}
+
 // SubnetMaskChangeRequired returns true if the device requires changing the subnet mask length.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
 func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
