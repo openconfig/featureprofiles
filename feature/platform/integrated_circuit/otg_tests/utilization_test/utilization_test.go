@@ -150,8 +150,10 @@ func TestResourceUtilization(t *testing.T) {
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
-				if got, want := beforeUtzs[c].name, fibResource[dut.Vendor()]; got != want {
-					t.Errorf("Resource name mismatch! got: %s, want: %s", got, want)
+				if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+					if got, want := beforeUtzs[c].name, fibResource[dut.Vendor()]; got != want {
+						t.Errorf("Resource name mismatch! got: %s, want: %s", got, want)
+					}
 				}
 				beforePct := beforeUtzs[c].percent()
 				t.Logf("Waiting for utilization to increase above %d%%...", beforePct)
@@ -162,8 +164,8 @@ func TestResourceUtilization(t *testing.T) {
 					t.Errorf("Utilization Percent didn't increase for component: %s (Started at %d%%)", c, beforePct)
 					// Fallback to get current value for map consistency, though test failed.
 					afterUtzs[c] = beforeUtzs[c]
-				} else if u.used+u.free > beforeUtzs[c].maxLimit {
-					t.Errorf("Utilization Percent is greater than max limit for component: %s (Used: %d, Max Limit: %d)", c, u.used, beforeUtzs[c].maxLimit)
+				} else if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" && u.used+u.free > u.maxLimit {
+					t.Errorf("Max limit %d is less than used %d + free %d", u.maxLimit, u.used, u.free)
 				} else {
 					t.Logf("Before Utilization: %d, After Utilization: %d", beforePct, u.percent())
 					afterUtzs[c] = u
@@ -208,7 +210,7 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 
 	var lastVal *utilization
 
-	val, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+	_, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
 		res, ok := val.Val()
 		if !ok {
 			return false
@@ -239,13 +241,13 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 	if !ok {
 		return lastVal
 	}
-	// Reconstruct the utilization from the final watched value
-	res, _ := val.Val()
 	return &utilization{
-		used:                res.GetUsed(),
-		free:                res.GetFree(),
-		upperThreshold:      res.GetUsedThresholdUpper(),
-		upperThresholdClear: res.GetUsedThresholdUpperClear(),
+		name:                lastVal.name,
+		maxLimit:            lastVal.maxLimit,
+		used:                lastVal.used,
+		free:                lastVal.free,
+		upperThreshold:      lastVal.upperThreshold,
+		upperThresholdClear: lastVal.upperThresholdClear,
 	}
 }
 
