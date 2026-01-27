@@ -382,16 +382,21 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 		t.Fatalf("invalid import policy")
 	}
 	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
+	receivedPrefixes := map[string]bool{}
+	var bgpPrefixes []*otgtelemetry.BgpPeer_UnicastIpv4Prefix
 	_, pok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-		_, present := v.Val()
-		return present
+		prefix, present := v.Val()
+		if !present {
+			return false
+		}
+		receivedPrefixes[prefix.GetAddress()] = true
+		bgpPrefixes = append(bgpPrefixes, prefix)
+		return len(receivedPrefixes) == 3
 	}).Await(t)
 	if !pok {
-		t.Fatalf("Prefixes not installed on OTG port 2")
+		t.Fatalf("Prefixes not installed on OTG port 2, got: %v", receivedPrefixes)
 	}
 	found := 0
-	time.Sleep(30 * time.Second)
-	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
 	for _, bgpPrefix := range bgpPrefixes {
 		_, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State(), 10*time.Second, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			if !v.IsPresent() {
@@ -460,7 +465,6 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			return present
 		}).Await(t)
 	if ok {
-		time.Sleep(30 * time.Second)
 		bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v4Prefix {
@@ -544,7 +548,6 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 			return present
 		}).Await(t)
 	if ok {
-		time.Sleep(30 * time.Second)
 		bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP6.peer").UnicastIpv6PrefixAny().State())
 		for _, bgpPrefix := range bgpPrefixes {
 			if bgpPrefix.GetAddress() == v6Prefix {
