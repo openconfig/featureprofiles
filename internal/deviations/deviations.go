@@ -1899,9 +1899,3 @@ func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
 func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
 }
-
-// ClassifierCountersOCUnsupported returns true if the device does not support classifiers counters.
-// Arista b/419618177
-func ClassifierCountersOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetClassifierCountersOcUnsupported()
-}

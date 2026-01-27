@@ -605,12 +605,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
 	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
-	compare_counters(t, dut, intialpacket1, finalpacket1)
-	compare_counters(t, dut, intialpacket2, finalpacket2)
-	compare_counters(t, dut, intialpacket3, finalpacket3)
-	compare_counters(t, dut, intialpacket4, finalpacket4)
-	compare_counters(t, dut, intialpacket5, finalpacket5)
-	compare_counters(t, dut, intialpacket6, finalpacket6)
+	compare_counters(t, intialpacket1, finalpacket1)
+	compare_counters(t, intialpacket2, finalpacket2)
+	compare_counters(t, intialpacket3, finalpacket3)
+	compare_counters(t, intialpacket4, finalpacket4)
+	compare_counters(t, intialpacket5, finalpacket5)
+	compare_counters(t, intialpacket6, finalpacket6)
 }
 
 func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, greTest bool, gueTest bool) {
@@ -740,12 +740,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
 	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
-	compare_counters(t, dut, intialpacket1, finalpacket1)
-	compare_counters(t, dut, intialpacket2, finalpacket2)
-	compare_counters(t, dut, intialpacket3, finalpacket3)
-	compare_counters(t, dut, intialpacket4, finalpacket4)
-	compare_counters(t, dut, intialpacket5, finalpacket5)
-	compare_counters(t, dut, intialpacket6, finalpacket6)
+	compare_counters(t, intialpacket1, finalpacket1)
+	compare_counters(t, intialpacket2, finalpacket2)
+	compare_counters(t, intialpacket3, finalpacket3)
+	compare_counters(t, intialpacket4, finalpacket4)
+	compare_counters(t, intialpacket5, finalpacket5)
+	compare_counters(t, intialpacket6, finalpacket6)
 
 }
 
@@ -1145,20 +1145,13 @@ func verify_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier 
 	return matchpackets
 }
 
-func compare_counters(t *testing.T, dut *ondatra.DUTDevice, intialpacket uint64, finalpacket uint64) {
+func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
 	t.Logf("Classifier counters Before Traffic %v", intialpacket)
 	t.Logf("Classifier counters After Traffic %v", finalpacket)
-	// Deviation: classifier counters not supported
-	if deviations.ClassifierCountersOCUnsupported(dut) {
-		if dut.Vendor() == ondatra.ARISTA {
-			t.Logf("Deviation: classifier matched-packets counters not supported on %s", dut.Vendor())
-		}
+	if finalpacket > intialpacket {
+		t.Logf("Pass : Classifier counters got incremented after start and stop traffic")
 	} else {
-		if finalpacket > intialpacket {
-			t.Logf("Pass : Classifier counters got incremented after start and stop traffic")
-		} else {
-			t.Errorf("Fail : Classifier counters not incremented after start and stop traffic. Refer BUG ID 419618177")
-		}
+		t.Errorf("Fail : Classifier counters not incremented after start and stop traffic. Refer BUG ID 419618177")
 	}
 }
 
