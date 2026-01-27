@@ -84,7 +84,7 @@ func configureISIS(t *testing.T, ts *isissession.TestSession) {
 
 	// Interface configs.
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	intf := isis.GetOrCreateInterface(intfName)
@@ -196,7 +196,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 
 	statePath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {
