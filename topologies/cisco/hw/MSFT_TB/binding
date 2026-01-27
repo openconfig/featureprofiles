@@ -1,0 +1,50 @@
+options {
+  username: "cafyauto"
+  password: "cisco123"
+  insecure: false 
+  skip_verify: false
+  trust_bundle_file: "$TRUST_BUNDLE_FILE"
+  cert_file: "$CERT_FILE"
+  key_file:  "$KEY_FILE"
+}
+
+duts {
+  id: "dut"
+  name: "MSFT-DUT"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  options {
+    insecure: false 
+    skip_verify: false
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "172.21.178.179:58808"
+  }
+  gnmi {
+    target: "172.21.178.179:58808"
+  }
+  gribi{
+    target: "172.21.178.179:58808"
+  }
+  ssh{
+    target: "172.21.178.179:50022"
+    skip_verify: true
+  }
+  p4rt{
+    target: "172.21.178.179:58808"
+  }
+  gnsi{
+    target: "172.21.178.179:58808"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+}
