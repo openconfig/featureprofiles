@@ -85,8 +85,8 @@ var (
 )
 
 type utilization struct {
-	name				string
-	maxLimit			uint64
+	name                string
+	maxLimit            uint64
 	used                uint64
 	free                uint64
 	upperThreshold      uint8
