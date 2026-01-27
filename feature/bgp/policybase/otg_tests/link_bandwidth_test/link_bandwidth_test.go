@@ -336,7 +336,7 @@ func applyExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, policyName strin
 	root := &oc.Root{}
 	dni := deviations.DefaultNetworkInstance(dut)
 	removeImportAndExportPolicy(t, dut)
-	if deviations.DefaultImportPolicyNotSupported(dut) {
+	if deviations.ExplicitlyApplyAllowAllImportPolicy(dut) {
 		applyImportPolicyDut(t, dut, "allow-all")
 	}
 
