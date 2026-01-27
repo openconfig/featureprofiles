@@ -571,6 +571,14 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 	t.Helper()
 	t.Log("Starting CFM packet integrity validation")
 
+	// cfmData will hold the CFM PDU extracted from the captured ethernet packet
+	// CFM packet fields to validate:
+	// Version: 0
+	// OpCode: 1 (CCM)
+	// RDI bit: 0 or 1 based on the config
+	// Sequence: 12345
+	// Interval: CCM interval configured on DUT
+
 	var cfmData []byte
 	packetSource := packetvalidationhelpers.SourceObj()
 
@@ -600,6 +608,7 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 		case CfmEtherType:
 			cfmData = eth.Payload
 		case 0x8100:
+			// VLAN tagged frame; CFM PDU starts after 4 bytes of VLAN header
 			cfmData = eth.Payload[4:]
 		default:
 			continue
