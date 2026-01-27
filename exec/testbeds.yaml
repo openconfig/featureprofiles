@@ -408,6 +408,13 @@ testbeds:
       controller_port: 40063
       gnmi_port: 50063
       rest_port: 30063
+
+  MSFT_TB:
+    hw: MSFT_TB
+    owner:
+    testbed: topologies/cisco/hw/MSFT_TB/testbed
+    binding: topologies/cisco/hw/MSFT_TB/binding
+    baseconf: topologies/cisco/hw/MSFT_TB/baseconfig.proto
   
   8201-32FH-FLM254506DQ:
     hw: 8201-32FH-FLM254506DQ
