@@ -138,25 +138,28 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
 		}
 	}
+
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 	var currentTime string
 	currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 	t.Logf("Time Before Reboot : %v", currentTime)
 	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &gnps.CancelRebootRequest{})
 	t.Logf("Got Reboot response: %v, err: %v", rebootResponse, err)
 	if err != nil {
 		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 	}
 	for {
+		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
-			t.Log("Reboot is started")
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		}else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
 			break
 		}
-		t.Log("Wait for reboot to be started")
-		time.Sleep(30 * time.Second)
 	}
 	startReboot := time.Now()
 	t.Logf("Waiting for DUT to boot up by polling the telemetry output.")
@@ -171,6 +174,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
+
 	startComp := time.Now()
 	for {
 		postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
