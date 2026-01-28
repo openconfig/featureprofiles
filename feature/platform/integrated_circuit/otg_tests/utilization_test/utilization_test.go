@@ -112,6 +112,7 @@ func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functi
 	return []ygnmi.Option{ygnmi.WithFT(ft)}
 }
 
+// Helper function to get translator friendly resource name and component name for Ciscoxr8000IntegratedCircuitResourceFt
 func getFTCompatibleResourceNameAndComponentName(resourceName string, componentName string) (string, string) {
 	ftResourceName := strings.ReplaceAll(resourceName, "_", "-")
 	re := regexp.MustCompile(`(NPU)(\d+)$`)
