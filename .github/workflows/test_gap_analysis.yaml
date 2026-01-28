@@ -1,0 +1,23 @@
+# .github/workflows/test_gap_analysis.yaml
+name: Simple FNT Trigger Test - Any PR Change
+
+on:
+  # Trigger 1: For PRs - Trigger on ANY file change in the PR.
+  pull_request:
+    # Removed 'paths:' filter to allow testing with changes outside featureprofiles/.
+
+  # Trigger 2: For Schedule
+  schedule:
+    - cron: '0 0 * * 0' # Every Sunday at 00:00 UTC
+
+  # Trigger 3: For Manual Testing
+  workflow_dispatch:
+
+jobs:
+  verify_trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print Success Message
+        run: |
+          echo "Workflow successfully triggered by event: ${{ github.event_name }}"
+          echo "Job successful."
