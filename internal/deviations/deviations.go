@@ -1899,3 +1899,9 @@ func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
 func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
 }
+
+// ExplicitlyApplyAllowAllImportPolicy returns true if device does not support default import policy so we need to explicitly apply "allow-all" import policy
+// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitlyApplyAllowAllImportPolicy()
+}
