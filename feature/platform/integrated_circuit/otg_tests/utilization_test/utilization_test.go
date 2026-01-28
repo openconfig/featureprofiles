@@ -85,12 +85,13 @@ var (
 )
 
 type utilization struct {
-	name                string
-	maxLimit            uint64
-	used                uint64
-	free                uint64
-	upperThreshold      uint8
-	upperThresholdClear uint8
+	name                   string
+	maxLimit               uint64
+	used                   uint64
+	free                   uint64
+	upperThreshold         uint8
+	upperThresholdClear    uint8
+	upperThresholdExceeded bool
 }
 
 func (u *utilization) percent() uint8 {
@@ -118,6 +119,17 @@ func getFTCompatibleResourceNameAndComponentName(resourceName string, componentN
 	return ftResourceName, ftComponent
 }
 
+func validateUtilizationExceeded(t *testing.T, utzs map[string]*utilization) {
+	for c, u := range utzs {
+		if u.upperThresholdExceeded && u.percent() < u.upperThresholdClear {
+			t.Errorf("upperThresholdExceeded is true for component: %s when it should be false", c)
+		}
+		if !u.upperThresholdExceeded && u.percent() > u.upperThreshold {
+			t.Errorf("upperThresholdExceeded is false for component: %s when it should be true", c)
+		}
+	}
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -141,11 +153,17 @@ func TestResourceUtilization(t *testing.T) {
 	if len(beforeUtzs) != len(comps) {
 		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, beforeUtzs)
+	}
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
 	// Use map to store utilization after BGP route installation to compare with cleared state later.
 	afterUtzs := make(map[string]*utilization)
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, afterUtzs)
+	}
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
 		for _, c := range comps {
@@ -216,12 +234,13 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 			return false
 		}
 		u := &utilization{
-			name:                res.GetName(),
-			maxLimit:            res.GetMaxLimit(),
-			used:                res.GetUsed(),
-			free:                res.GetFree(),
-			upperThreshold:      res.GetUsedThresholdUpper(),
-			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
 		}
 		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
 		if len(opts) > 0 {
@@ -242,12 +261,13 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 		return lastVal
 	}
 	return &utilization{
-		name:                lastVal.name,
-		maxLimit:            lastVal.maxLimit,
-		used:                lastVal.used,
-		free:                lastVal.free,
-		upperThreshold:      lastVal.upperThreshold,
-		upperThresholdClear: lastVal.upperThresholdClear,
+		name:                   lastVal.name,
+		maxLimit:               lastVal.maxLimit,
+		used:                   lastVal.used,
+		free:                   lastVal.free,
+		upperThreshold:         lastVal.upperThreshold,
+		upperThresholdClear:    lastVal.upperThresholdClear,
+		upperThresholdExceeded: lastVal.upperThresholdExceeded,
 	}
 }
 
@@ -262,12 +282,13 @@ func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string)
 		comp := gnmi.Get(t, dut, gnmi.OC().Component(c).State())
 		res := comp.GetIntegratedCircuit().GetUtilization().GetResource(resName)
 		utzs[c] = &utilization{
-			name:                res.GetName(),
-			maxLimit:            res.GetMaxLimit(),
-			used:                res.GetUsed(),
-			free:                res.GetFree(),
-			upperThreshold:      res.GetUsedThresholdUpper(),
-			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
 		}
 		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
 		if len(opts) > 0 {
