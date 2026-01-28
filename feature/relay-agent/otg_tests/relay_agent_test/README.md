@@ -48,7 +48,7 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 * Configure IPv6 default route on the  DUT pointing to ATE:Port[3] IPv6 address.
 
 
-# Test - 1 DHCP request on an individual port
+# RELAY-1.1 DHCP request on an individual port
 
 * Have ATE:Port[1] as an individual port and act as a DHCP client.
 * Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
