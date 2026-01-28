@@ -38,6 +38,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -213,6 +214,25 @@ type testArgs struct {
 	top        gosnappi.Config
 	electionID gribi.Uint128
 	otg        *otg.OTG
+}
+
+func setupBaseline(ctx context.Context, t *testing.T, args *testArgs, tc *baseScenario.TestCase) {
+	t.Helper()
+	t.Log("Setting up baseline state for test case.")
+	portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
+	verifyPortStatus(t, args, portList, true)
+	t.Cleanup(func() {
+		t.Log("Restoring port status to DOWN after test case.")
+		verifyPortStatus(t, args, portList, false)
+	})
+
+	t.Log("Flush existing gRIBI routes before test.")
+	if err := gribi.FlushAll(args.client); err != nil {
+		t.Fatal(err)
+	}
+	configureGribiRoute(ctx, t, args.dut, args.client)
+	createFlow(t, args.otgConfig, args.otg, ipv4InnerDst, tc.TTL)
+	t.Log("Baseline state setup complete.")
 }
 
 // incrementMAC increments the MAC by i. Returns error if the mac cannot be parsed or overflows the mac address space
@@ -664,7 +684,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	return config
 }
 
-func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string) {
+func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestIP string, ttl uint8) {
 	t.Helper()
 
 	config.Flows().Clear()
@@ -686,6 +706,9 @@ func createFlow(t *testing.T, config gosnappi.Config, otg *otg.OTG, trafficDestI
 	IPHeader.Src().Increment().SetCount(1000).SetStep("0.0.0.1").SetStart(ipv4OuterSrcAddr)
 	IPHeader.Dst().SetValue(trafficDestIP)
 	IPHeader.Priority().Dscp().Phb().SetValue(dscpEncapA1)
+	if ttl > 0 {
+		IPHeader.TimeToLive().SetValue(uint32(ttl))
+	}
 	UDPHeader := flow1.Packet().Add().Udp()
 	UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 	UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
@@ -726,7 +749,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 	args.otg.SetControlState(t, cs)
 }
 
-func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
+func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
@@ -744,12 +767,14 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 			t.Errorf("Traffic is expected to fail %s\n got %v, want 100%% failure", encapFlow, lossPct)
 		} else {
 			t.Logf("Traffic Loss Test Passed!")
+			return
 		}
 	} else {
 		if lossPct > tolerancePct {
 			t.Errorf("Traffic Loss Pct for Flow: %s\n got %v, want 0", encapFlow, lossPct)
 		} else {
 			t.Logf("Traffic Test Passed!")
+			return
 		}
 	}
 	t.Log("Verify packet load balancing as per the programmed weight")
@@ -767,13 +792,13 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 		pcapFileName.Close()
 		pcapFileList = append(pcapFileList, pcapFileName.Name())
 	}
-	validatePackets(t, pcapFileList, checkEncap, headerDstIP)
+	validatePackets(t, pcapFileList, checkEncap, headerDstIP, checkTTL, wantInnerTTL, wantOuterTTL)
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
 }
 
-func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
+func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	for index, file := range filename {
 		fileStat, err := os.Stat(file)
@@ -788,7 +813,7 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 			} else {
 				packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 				if checkEncap {
-					validateTrafficEncap(t, packetSource, headerDstIP, index)
+					validateTrafficEncap(t, packetSource, headerDstIP, index, checkTTL, wantInnerTTL, wantOuterTTL)
 				}
 			}
 			defer handle.Close()
@@ -796,7 +821,7 @@ func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDst
 	}
 }
 
-func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int) {
+func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, headerDstIP map[string][]string, index int, checkTTL bool, wantInnerTTL, wantOuterTTL uint8) {
 	t.Helper()
 	for packet := range packetSource.Packets() {
 		ipLayer := packet.Layer(layers.LayerTypeIPv4)
@@ -817,6 +842,14 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 				ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
 				if ipInnerPacket.DstIP.String() != headerDstIP["innerIP"][index] {
 					t.Errorf("Packets are not encapsulated")
+				}
+				if checkTTL {
+					if ipPacket.TTL != wantOuterTTL {
+						t.Errorf("Outer TTL: got %d, want %d", ipPacket.TTL, wantOuterTTL)
+					}
+					if ipInnerPacket.TTL != wantInnerTTL {
+						t.Errorf("Inner TTL: got %d, want %d", ipInnerPacket.TTL, wantInnerTTL)
+					}
 				}
 				t.Logf("Traffic for encap routes passed.")
 				break
@@ -840,8 +873,22 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 
 func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatus bool) {
 	wantStatus := oc.Interface_OperStatus_UP
-	if !portStatus {
+	if portStatus {
+		wantStatus = oc.Interface_OperStatus_UP
+		for _, port := range portList {
+			p := args.dut.Port(t, port)
+			setDUTInterfaceWithState(t, args.dut, p, true)
+		}
+		// Giving time for port to transition to up state.
+		time.Sleep(10 * time.Second)
+	} else {
 		wantStatus = oc.Interface_OperStatus_DOWN
+		for _, port := range portList {
+			p := args.dut.Port(t, port)
+			setDUTInterfaceWithState(t, args.dut, p, false)
+		}
+		// Giving time for port to transition to down state.
+		time.Sleep(10 * time.Second)
 	}
 	for _, port := range portList {
 		p := args.dut.Port(t, port)
@@ -976,6 +1023,7 @@ func ChassisReboot(t *testing.T) {
 
 			t.Logf("Send reboot request: %v", tc.rebootRequest)
 			rebootResponse, err := gnoiClient.System().Reboot(context.Background(), tc.rebootRequest)
+			t.Cleanup(func() { gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{}) })
 			defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
 			t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
 			if err != nil {
@@ -1069,6 +1117,33 @@ func ChassisReboot(t *testing.T) {
 	}
 }
 
+func cliSetRequest(config string) *gpb.SetRequest {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+}
+
+// PrepareDUTForVrfSelectionPolicy enables VRF selection policy on Arista devices.
+func PrepareDUTForVrfSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() == ondatra.ARISTA {
+		cli := `vrf selection policy
+  next-hop decapsulation vrf`
+		if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), cliSetRequest(cli)); err != nil {
+			t.Fatalf("Failed to enable VRF selection policy: %v", err)
+		}
+	}
+}
+
 // TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
@@ -1087,6 +1162,7 @@ func TestEncapFrr(t *testing.T) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
+		PrepareDUTForVrfSelectionPolicy(t, dut)
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		pf := ni.GetOrCreatePolicyForwarding()
@@ -1131,14 +1207,14 @@ func TestEncapFrr(t *testing.T) {
 	client.Connection().WithStub(gribic).WithPersistence().WithInitialElectionID(1, 0).
 		WithFIBACK().WithRedundancyMode(fluent.ElectedPrimaryClient)
 	client.Start(ctx, t)
-	defer client.Stop(t)
+	t.Cleanup(func() { client.Stop(t) })
 
-	defer func() {
+	t.Cleanup(func() {
 		// Flush all entries after test.
 		if err := gribi.FlushAll(client); err != nil {
 			t.Error(err)
 		}
-	}()
+	})
 
 	client.StartSending(ctx, t)
 	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
@@ -1159,22 +1235,13 @@ func TestEncapFrr(t *testing.T) {
 	testCases := baseScenario.TestCases(atePortNamelist, ipv4InnerDst)
 	for _, tc := range testCases {
 		t.Run(tc.Desc, func(t *testing.T) {
-			t.Log("Verify whether the ports are in up state")
-			portList := []string{"port2", "port3", "port4", "port5", "port6", "port7", "port8"}
-			verifyPortStatus(t, args, portList, true)
-
-			t.Log("Flush existing gRIBI routes before test.")
-			if err := gribi.FlushAll(client); err != nil {
-				t.Fatal(err)
-			}
+			setupBaseline(ctx, t, args, tc)
 			baseCapturePortList := []string{atePortNamelist[1], atePortNamelist[5]}
-			configureGribiRoute(ctx, t, dut, client)
-			createFlow(t, otgConfig, otg, ipv4InnerDst)
 			captureState := startCapture(t, args, baseCapturePortList)
 			sendTraffic(t, args, baseCapturePortList, captureState)
 			baseHeaderDstIP := map[string][]string{"outerIP": {gribiIPv4EntryVRF1111, gribiIPv4EntryVRF1112}, "innerIP": {ipv4InnerDst, ipv4InnerDst}}
 			baseLoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
-			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, !wantLoss, checkEncap, baseHeaderDstIP)
+			verifyTraffic(t, args, baseCapturePortList, baseLoadBalancePercent, tc.WantLoss, checkEncap, baseHeaderDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
 
 			if tc.TestID == "primaryBackupRoutingSingle" {
 				args.client.Modify().AddEntry(t,
@@ -1217,20 +1284,20 @@ func TestEncapFrr(t *testing.T) {
 				if err := awaitTimeout(ctx, t, args.client, time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
-				createFlow(t, otgConfig, otg, noMatchEncapDest)
+				createFlow(t, otgConfig, otg, noMatchEncapDest, tc.TTL)
 			}
 
 			captureState = startCapture(t, args, tc.CapturePortList)
 			if len(tc.DownPortList) > 0 {
 				t.Logf("Bring down ports %s", tc.DownPortList)
 				portState(t, args, tc.DownPortList, false)
-				defer portState(t, args, tc.DownPortList, true)
+				t.Cleanup(func() { portState(t, args, tc.DownPortList, true) })
 				t.Log("Verify the port status after bringing down the ports")
 				verifyPortStatus(t, args, tc.DownPortList, false)
 			}
 			sendTraffic(t, args, tc.CapturePortList, captureState)
 			headerDstIP := map[string][]string{"outerIP": tc.EncapHeaderOuterIPList, "innerIP": tc.EncapHeaderInnerIPList}
-			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, !wantLoss, checkEncap, headerDstIP)
+			verifyTraffic(t, args, tc.CapturePortList, tc.LoadBalancePercent, tc.WantLoss, checkEncap, headerDstIP, tc.CheckTTL, tc.WantInnerTTL, tc.WantOuterTTL)
 		})
 	}
 }
