@@ -1,23 +1,42 @@
-# .github/workflows/test_gap_analysis.yaml
-name: Simple FNT Trigger Test - Any PR Change
+# .github/workflows/test_fail_scenario.yaml
+name: FNT Gap Analysis Fail Scenario Test
 
 on:
-  # Trigger 1: For PRs - Trigger on ANY file change in the PR.
   pull_request:
-    # Removed 'paths:' filter to allow testing with changes outside featureprofiles/.
+    # No paths filter for testing triggers.
 
-  # Trigger 2: For Schedule
   schedule:
     - cron: '0 0 * * 0' # Every Sunday at 00:00 UTC
 
-  # Trigger 3: For Manual Testing
-  workflow_dispatch:
+  workflow_dispatch: # Allows manual trigger
 
 jobs:
-  verify_trigger:
+  gap_analysis_test:
     runs-on: ubuntu-latest
     steps:
-      - name: Print Success Message
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run Gap Analysis Script (PR Trigger - Induced Failure)
+        if: github.event_name == 'pull_request'
+        working-directory: ./tools/gap_analyzer
         run: |
-          echo "Workflow successfully triggered by event: ${{ github.event_name }}"
-          echo "Job successful."
+          echo "--- Running PR Trigger Scenario (Induced Failure) ---"
+          go run read_fnttests.go --fail_scenario=true
+
+      - name: Run Gap Analysis Script (Manual/Schedule Trigger - Induced Success)
+        if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+        working-directory: ./tools/gap_analyzer
+        run: |
+          echo "--- Running Manual/Schedule Scenario (Induced Success) ---"
+          go run read_fnttests.go --fail_scenario=false
+
+      - name: Show Results (Always Run)
+        if: always()
+        run: |
+          echo "Execution completed for event: ${{ github.event_name }}"
