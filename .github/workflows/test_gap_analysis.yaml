@@ -24,14 +24,14 @@ jobs:
 
       - name: Run Gap Analysis Script (PR Trigger - Induced Failure)
         if: github.event_name == 'pull_request'
-        working-directory: ./tools/gap_analyzer
+        working-directory: ./tools/gap-analyzer
         run: |
           echo "--- Running PR Trigger Scenario (Induced Failure) ---"
           go run read_fnttests.go --fail_scenario=true
 
       - name: Run Gap Analysis Script (Manual/Schedule Trigger - Induced Success)
         if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
-        working-directory: ./tools/gap_analyzer
+        working-directory: ./tools/gap-analyzer
         run: |
           echo "--- Running Manual/Schedule Scenario (Induced Success) ---"
           go run read_fnttests.go --fail_scenario=false
