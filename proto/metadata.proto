@@ -691,6 +691,7 @@ message Metadata {
 
     // Device does not support fragment total drops.
     // Nokia: b/395553772
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/395567844
     bool fragment_total_drops_unsupported = 253;
 
     // Juniper: b/383145521
