@@ -5,3 +5,37 @@ uuid: "4192bff0-e1e0-43ce-a4db-912808c32493"
 plan_id: "AFT-1.2"
 description: "AFTs slow collector"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_single_topology_required: true
+    skip_interface_name_check: true
+    link_local_instead_of_nh: true
+    low_scale_aft: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    interface_enabled: true
+    bgp_missing_oc_max_prefixes_configuration: true
+    low_scale_aft: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    multipath_unsupported_neighbor_or_afisafi: true
+    low_scale_aft: true
+  }
+}
