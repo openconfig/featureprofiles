@@ -517,7 +517,7 @@ func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
 		// update previousFragmentTotalDropsCount
 		previousFragmentTotalDropsCount = fragmentTotalDropsCount
 	} else {
-		t.Errorf("FAIL: fragment-total-drops is not supported on %v", td.dut.Vendor())
+		t.Logf("Telemetry path for fragment-total-drops is not supported due to deviation FragmentTotalDropsUnsupported.")
 	}
 }
 
