@@ -16,6 +16,8 @@ syntax = "proto3";
 
 package openconfig.testing;
 
+option go_package = "github.com/openconfig/featureprofiles/proto/metadata_go_proto";
+
 import "github.com/openconfig/ondatra/proto/testbed.proto";
 
 // Metadata about a Feature Profiles test.
