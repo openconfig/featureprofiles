@@ -399,7 +399,6 @@ func createCommunitySet(t *testing.T, dut *ondatra.DUTDevice, cs communitySet, r
 			}
 		}
 		communitySet.SetCommunityMember(cm)
-		communitySet.SetMatchSetOptions(cs.matchSetOptions)
 	}
 	var communitySetCLIConfig string
 	if deviations.CommunityMemberRegexUnsupported(dut) && cs.name == communitySetNameRegex {
