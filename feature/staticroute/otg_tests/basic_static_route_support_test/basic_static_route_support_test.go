@@ -1264,8 +1264,8 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	v4FIp.Dst().Increment().SetStart(v4TrafficStart).SetCount(254)
 
 	udp := v4F.Packet().Add().Udp()
-	udp.DstPort().Increment().SetStart(1).SetCount(500).SetStep(1)
-	udp.SrcPort().Increment().SetStart(1).SetCount(500).SetStep(1)
+	udp.DstPort().Increment().SetStart(4001).SetCount(500).SetStep(1)
+	udp.SrcPort().Increment().SetStart(4001).SetCount(500).SetStep(1)
 
 	eth := v4F.EgressPacket().Add().Ethernet()
 	ethTag := eth.Dst().MetricTags().Add()
@@ -1283,8 +1283,8 @@ func (td *testData) configureOTGFlows(t *testing.T) {
 	v6FIP.Dst().Increment().SetStart(v6TrafficStart).SetCount(254)
 
 	udp = v6F.Packet().Add().Udp()
-	udp.DstPort().Increment().SetStart(1).SetCount(500).SetStep(1)
-	udp.SrcPort().Increment().SetStart(1).SetCount(500).SetStep(1)
+	udp.DstPort().Increment().SetStart(4001).SetCount(500).SetStep(1)
+	udp.SrcPort().Increment().SetStart(4001).SetCount(500).SetStep(1)
 
 	eth = v6F.EgressPacket().Add().Ethernet()
 	ethTag = eth.Dst().MetricTags().Add()
