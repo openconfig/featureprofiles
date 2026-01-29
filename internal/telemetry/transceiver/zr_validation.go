@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	samplingInterval = 1 * time.Second
+	samplingInterval = 10 * time.Second
 	errorTolerance   = 0.05
 	timeout          = 10 * time.Minute
 )
