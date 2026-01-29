@@ -554,9 +554,14 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
+
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
 	}
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
+	}
+
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -1224,7 +1229,7 @@ func TestEncapFrr(t *testing.T) {
 				)
 			}
 
-			if deviations.NoEcmpWithEncapDecapNhMix(dut) {
+			if deviations.ReducedEcmpSetOnMixedEncapDecapNh(dut) {
 				if tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
 					tc.CapturePortList = []string{atePortNamelist[5]}
 					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}

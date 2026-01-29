@@ -5,3 +5,41 @@ uuid: "ed774b43-ba3e-4ba9-84b7-e7bdf4d6298d"
 plan_id: "AFT-5.1"
 description: "AFTs DUT Reboot"
 testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    bgp_missing_oc_max_prefixes_configuration: true
+    default_network_instance: "default"
+    interface_enabled: true
+    isis_instance_enabled_required: true
+    isis_interface_afi_unsupported: true
+    isis_mpls_unsupported: true
+    skip_setting_allow_multiple_as: true
+    retain_gnmi_cfg_after_reboot: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    interface_enabled: true
+    ipv4_missing_enabled: true
+    link_local_instead_of_nh: true
+    missing_isis_interface_afi_safi_enable: true
+    isis_single_topology_required: true
+    enable_multipath_under_afi_safi: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    multipath_unsupported_neighbor_or_afisafi: true
+    explicit_interface_in_default_vrf: true
+  }
+}

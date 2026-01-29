@@ -31,6 +31,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     require_routed_subinterface_0: true
-    # deprecated_vlan_id: true
+    match_community_set_match_set_options_all_unsupported: true
   }
 }
