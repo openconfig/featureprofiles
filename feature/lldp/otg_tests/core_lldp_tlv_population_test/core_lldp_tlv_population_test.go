@@ -110,8 +110,7 @@ func TestLLDPEnabled(t *testing.T) {
 	}
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
-	var expChassisID string
-	expChassisID = (strings.ToUpper(*dutConf.ChassisId))
+	expChassisID := strings.ToUpper(*dutConf.ChassisId)
 	expOtgLLDPNeighbor := lldpNeighbors{
 		systemName:    dutConf.GetSystemName(),
 		portId:        dutPort.Name(),
