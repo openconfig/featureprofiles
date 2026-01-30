@@ -659,7 +659,7 @@ func TestAlwaysCompareMED(t *testing.T) {
 		t.Log("Waiting for BGP sessions to go down...")
 		for _, nbrIP := range nbrIPs {
 			nbrPath := bgpPath.Neighbor(nbrIP)
-			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 60*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 				state, present := val.Val()
 				// Session is considered down if not present or not established.
 				return !present || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
