@@ -133,7 +133,11 @@ func TestGetSet(t *testing.T) {
 
 	forEachPushOp(t, dut, func(t *testing.T, op pushOp, config *oc.Root) {
 		op.push(t, dut, config, scope)
-		// TODO: after push, do a get again to check the config diff.
+		// Wait after RootOp for device to finish processing the large config
+		// before the next test starts.
+		if op.string() == "RootOp" {
+			time.Sleep(5 * time.Second)
+		}
 	})
 }
 
