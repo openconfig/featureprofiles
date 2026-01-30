@@ -202,9 +202,7 @@ func TestComponentStatus(t *testing.T) {
 					},
 				},
 			}
-			if !deviations.SkipOrigin(dut) {
-				healthPath.Origin = "openconfig"
-			}
+			healthPath.Origin = "openconfig"
 
 			checkReq := &hpb.CheckRequest{
 				Path: healthPath,
