@@ -299,7 +299,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	iDut3Ipv4 := iDut3Eth.Ipv4Addresses().Add().SetName(ateDst2.Name + ".IPv4")
 	iDut3Ipv4.SetAddress(ateDst2.IPv4).SetGateway(dutDst2.IPv4).SetPrefix(uint32(ateDst2.IPv4Len))
 
-	// BGP seesion
+	// BGP session
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
 	iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
@@ -484,7 +484,7 @@ func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDVal
 		t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	} else {
 		t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-		// compare Med val with expected for each of the recieved routes.
+		// compare MED val with expected for each of the received routes.
 		for _, prefix := range bgpPrefixes {
 			_, ok := gnmi.Watch(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4Prefix(prefix.GetAddress(), prefix.GetPrefixLength(), prefix.GetOrigin(), prefix.GetPathId()).MultiExitDiscriminator().State(),
 				time.Minute, func(v *ygnmi.Value[uint32]) bool {
@@ -657,24 +657,18 @@ func TestAlwaysCompareMED(t *testing.T) {
 
 		// Wait for sessions to go down completely
 		t.Log("Waiting for BGP sessions to go down...")
-		time.Sleep(3 * time.Second)
-
-		// Verify sessions are down
 		for _, nbrIP := range nbrIPs {
-			awaitTimeout := 30 * time.Second
-			isConnected := func() bool {
-				nbrPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbrIP)
-				state := gnmi.Get(t, dut, nbrPath.SessionState().State())
-				return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			nbrPath := bgpPath.Neighbor(nbrIP)
+			_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+				state, present := val.Val()
+				// Session is considered down if not present or not established.
+				return !present || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
+			}).Await(t)
+			if !ok {
+				fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, dut, nbrPath.State()))
+				t.Fatalf("BGP session with %s did not go down within timeout", nbrIP)
 			}
-
-			// Wait for session to go down
-			if isConnected() {
-				t.Logf("Waiting for BGP session with %s to go down...", nbrIP)
-				for start := time.Now(); time.Since(start) < awaitTimeout && isConnected(); {
-					time.Sleep(1 * time.Second)
-				}
-			}
+			t.Logf("BGP session with %s is down.", nbrIP)
 		}
 
 		// Re-enable neighbor
@@ -689,10 +683,19 @@ func TestAlwaysCompareMED(t *testing.T) {
 		verifyBgpTelemetry(t, dut)
 		verifyOTGBGPTelemetry(t, otg, otgConfig, "ESTABLISHED")
 
-		// Additional wait for route processing
+		// Wait for route processing to complete by verifying MED on a sample prefix 203.0.113.1/32 (advertisedRoutesv4CIDR)
 		t.Log("Waiting for route processing to complete...")
-		time.Sleep(10 * time.Second)
+		awaitTimeout := 60 * time.Second
+		peerName := ateSrc.Name + ".BGP4.peer"
+		prefixPath := gnmi.OTG().BgpPeer(peerName).UnicastIpv4Prefix("203.0.113.1", 32, otgtelemetry.UnicastIpv4Prefix_Origin_IGP, 0)
 
+		_, ok := gnmi.Watch(t, otg, prefixPath.State(), awaitTimeout, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+			prefix, ok := v.Val()
+			return ok && prefix.GetMultiExitDiscriminator() == 0
+		}).Await(t)
+		if !ok {
+			t.Fatalf("Route with updated MED 0 for prefix %s was not received on ATE in time.", advertisedRoutesv4CIDR)
+		}
 		t.Log("BGP policy change and route refresh completed")
 	})
 	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
