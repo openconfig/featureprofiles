@@ -723,6 +723,7 @@ replace: {
 "  !\n"
 " !\n"
 "!\n"
+"appmgr docker vrf mgmt\n"
 "cef proactive-arp-nd enable\n"
 "hw-module profile pbr vrf-redirect\n"
 "hw-module profile qos qos-stats-push-collection\n"
