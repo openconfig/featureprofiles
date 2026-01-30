@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
 	"sort"
 	"sync"
 	"testing"
@@ -75,13 +74,13 @@ const (
 	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 10 * time.Minute
-	bgpRouteCountIPv4LowScale = 1500
-	bgpRouteCountIPv6LowScale = 5000
-	bgpRouteCountIPv4Default  = 2000
-	bgpRouteCountIPv6Default  = 1000
+	bgpRouteCountIPv4LowScale = 2000000
+	bgpRouteCountIPv6LowScale = 1000000
+	bgpRouteCountIPv4Default  = 2000000
+	bgpRouteCountIPv6Default  = 1000000
 	policyStatementID         = "id-1"
-	cpuPctThreshold           = 5.0
-	memPctThreshold           = 2.0
+	cpuPctThreshold           = 80.0
+	memPctThreshold           = 80.0
 	usagePollingInterval      = 5 * time.Second
 )
 
@@ -613,13 +612,13 @@ func (tc *testCase) verifyInitialAFT(t *testing.T, ctx1 context.Context, aftSess
 }
 
 type usageRecord struct {
-	time      time.Time
-	process   string
-	metric    string
-	before    float64
-	after     float64
-	changePct float64
-	desc      string
+	time    time.Time
+	process string
+	metric  string
+	before  float64
+	after   float64
+	usedPct float64
+	desc    string
 }
 
 type usageHistory struct {
@@ -648,11 +647,11 @@ func (h *usageHistory) print(t *testing.T) {
 	})
 
 	t.Log("Usage Summary Table:")
-	t.Logf("%-25s | %-15s | %-10s | %-10s | %-10s | %-10s | %s", "Time", "Process", "Metric", "Before", "After", "Change(%)", "Description")
-	t.Log("-----------------------------------------------------------------------------------------------------------------------------")
+	t.Logf("%-25s | %-15s | %-10s | %-10s | %-10s | %-10s | %s", "Time", "Process", "Metric", "Before", "After", "Used(%)", "Description")
+	t.Log("-------------------------------------------------------------------------------------------------------------------------------------------------")
 	for _, r := range h.records {
 		t.Logf("%-25s | %-15s | %-10s | %-10.2f | %-10.2f | %-10.2f | %s",
-			r.time.Format("15:04:05.000"), r.process, r.metric, r.before, r.after, r.changePct, r.desc)
+			r.time.Format("15:04:05.000"), r.process, r.metric, r.before, r.after, r.usedPct, r.desc)
 	}
 }
 
@@ -661,6 +660,8 @@ func (h *usageHistory) print(t *testing.T) {
 func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, memBefore uint64, desc string, procName ...string) uint64 {
 	t.Helper()
 	var memAfter uint64
+	var totalMem uint64
+	var usedMemPct float64
 	// TODO: Add memory usage check for Default case.
 	pName := "system"
 	if len(procName) > 0 && procName[0] != "" {
@@ -671,6 +672,8 @@ func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistor
 	case ondatra.ARISTA:
 		t.Logf("Checking memory usage %s.", desc)
 		memAfter = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		totalMem = gnmi.Get(t, dut, gnmi.OC().System().Memory().Physical().State())
+		usedMemPct = (float64(memAfter) / float64(totalMem)) * 100
 	case ondatra.CISCO:
 		if pName == "system" {
 			t.Fatal("Process name must be provided for Cisco memory check.")
@@ -678,32 +681,27 @@ func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistor
 		pid := getProcessPid(t, dut, pName)
 		t.Logf("Checking memory usage for %s process (PID: %d) %s.", pName, pid, desc)
 		memAfter = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).MemoryUtilization().State()))
+		usedMemPct = float64(memAfter) // Cisco returns percentage directly
 	default:
 		t.Logf("Skipping memory usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
 		return memBefore // Return previous value to not break chaining.
 	}
 
-	var increase float64
-	if memBefore == 0 {
-		increase = float64(memAfter)
+	if usedMemPct > memPctThreshold {
+		t.Errorf("Memory usage for process %s is %.2f%% of total memory, which is more than the %.f%% threshold.", pName, usedMemPct, memPctThreshold)
 	} else {
-		increase = (float64(memAfter) - float64(memBefore)) / float64(memBefore) * 100
+		t.Logf("Memory usage for process %s is %.2f%% of total memory, which is within the %.f%% threshold.", pName, usedMemPct, memPctThreshold)
 	}
-	changePct := math.Max(0, increase)
-	if increase > memPctThreshold {
-		t.Errorf("Memory usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, memPctThreshold)
-	} else {
-		t.Logf("Memory usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, memPctThreshold)
-	}
+
 	if history != nil {
 		history.add(usageRecord{
-			time:      time.Now(),
-			process:   pName,
-			metric:    "Memory",
-			before:    float64(memBefore),
-			after:     float64(memAfter),
-			changePct: changePct,
-			desc:      desc,
+			time:    time.Now(),
+			process: pName,
+			metric:  "Memory",
+			before:  float64(memBefore),
+			after:   float64(memAfter),
+			usedPct: usedMemPct,
+			desc:    desc,
 		})
 	}
 	return memAfter
@@ -743,6 +741,7 @@ func getCPUComponents(t *testing.T, dut *ondatra.DUTDevice) []string {
 func checkCPUUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, cpuBefore uint64, desc string, cpuComponent string, procName ...string) uint64 {
 	t.Helper()
 	var cpuAfter uint64
+	var usedCPUPct float64
 	var pName string // Identifier for logging: component name for Arista, process name for Cisco.
 
 	switch dut.Vendor() {
@@ -765,28 +764,21 @@ func checkCPUUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, 
 		t.Logf("Skipping CPU usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
 		return cpuBefore // Return previous value to not break chaining.
 	}
-
-	var increase float64
-	if cpuBefore == 0 {
-		increase = float64(cpuAfter)
+	usedCPUPct = float64(cpuAfter)
+	if usedCPUPct > cpuPctThreshold {
+		t.Errorf("CPU usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, usedCPUPct, cpuPctThreshold)
 	} else {
-		increase = (float64(cpuAfter) - float64(cpuBefore)) / float64(cpuBefore) * 100
-	}
-	changePct := math.Max(0, increase)
-	if increase > cpuPctThreshold {
-		t.Errorf("CPU usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, increase, cpuPctThreshold)
-	} else {
-		t.Logf("CPU usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, changePct, cpuPctThreshold)
+		t.Logf("CPU usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, usedCPUPct, cpuPctThreshold)
 	}
 	if history != nil {
 		history.add(usageRecord{
-			time:      time.Now(),
-			process:   pName,
-			metric:    "CPU",
-			before:    float64(cpuBefore),
-			after:     float64(cpuAfter),
-			changePct: changePct,
-			desc:      desc,
+			time:    time.Now(),
+			process: pName,
+			metric:  "CPU",
+			before:  float64(cpuBefore),
+			after:   float64(cpuAfter),
+			usedPct: float64(usedCPUPct),
+			desc:    desc,
 		})
 	}
 	return cpuAfter
