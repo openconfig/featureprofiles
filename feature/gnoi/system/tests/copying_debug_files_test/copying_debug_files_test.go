@@ -124,9 +124,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 			},
 		},
 	}
-	if !deviations.SkipOrigin(dut) {
-		req.Path.Origin = "openconfig"
-	}
+	req.Path.Origin = "openconfig"
 	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
@@ -158,9 +156,7 @@ func TestChassisComponentArtifacts(t *testing.T) {
 			},
 		},
 	}
-	if !deviations.SkipOrigin(dut) {
-		chkReq.Path.Origin = "openconfig"
-	}
+	chkReq.Path.Origin = "openconfig"
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)
 	if err != nil {
