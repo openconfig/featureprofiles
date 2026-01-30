@@ -720,7 +720,17 @@ func PolicyForwardingGreDecapsulation(t *testing.T, batch *gnmi.SetBatch, dut *o
 			 tunnel decap-ip %s
 			`, decapGrpName, strings.Split(decapIP, "/")[0])
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
-
+		case ondatra.CISCO:
+			cliConfig := fmt.Sprintf(`
+			class-map type traffic match-all %s 
+                 match protocol gre 
+                 match destination-address ipv4 %s
+                 end-class-map
+			policy-map type pbr %s
+                 class type traffic %s decapsulate gre 
+			vrf-policy vrf default address-family ipv4 policy type pbr input %s
+			`, decapGrpName, decapIP, policyName, decapGrpName, policyName)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("deviation GreDecapsulationUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
