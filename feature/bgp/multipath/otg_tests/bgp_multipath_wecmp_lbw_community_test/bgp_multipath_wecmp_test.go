@@ -129,7 +129,6 @@ func checkPacketLoss(t *testing.T, ate *ondatra.ATEDevice) {
 	if txPackets < 1 {
 		t.Fatalf("Tx packets should be higher than 0")
 	}
-
 	if got := lostPackets * 100 / txPackets; got != lossTolerancePct {
 		t.Errorf("Packet loss percentage for flow: got %v, want %v", got, lossTolerancePct)
 	}
@@ -199,24 +198,32 @@ func TestBGPSetup(t *testing.T) {
 		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 		gEBGPMP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 		gEBGPMP.MaximumPaths = ygot.Uint32(maxPaths)
+
 		gEBGP.AllowMultipleAs = ygot.Bool(true)
 		switch bs.DUT.Vendor() {
 		case ondatra.CISCO:
 			communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
-			helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", bs.DUT.Vendor())
 		}
+		helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
 		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 			gEBGP.AllowMultipleAs = ygot.Bool(false)
 		}
-
+	} else if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
+		bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(maxPaths)
+		bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
+		switch bs.DUT.Vendor() {
+		case ondatra.ARISTA:
+			helpers.GnmiCLIConfig(t, bs.DUT, "router bgp 65501\n ucmp mode 1\n")
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'SkipSettingAllowMultipleAS'", bs.DUT.Vendor())
+		}
 	} else {
 		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
-		if !deviations.SkipSettingAllowMultipleAS(bs.DUT) {
-			gEBGP.AllowMultipleAs = ygot.Bool(true)
-		}
-		gEBGP.MaximumPaths = ygot.Uint32(maxPaths)
-		gEBGP.GetOrCreateLinkBandwidthExtCommunity().Enabled = ygot.Bool(true)
-
+		gEBGP.SetAllowMultipleAs(true)
+		gEBGP.SetMaximumPaths(maxPaths)
+		gEBGP.GetOrCreateLinkBandwidthExtCommunity().SetEnabled(true)
 	}
 
 	configureOTG(t, bs)
