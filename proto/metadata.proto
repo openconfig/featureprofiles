@@ -1130,7 +1130,7 @@ message Metadata {
     // Arista https://partnerissuetracker.corp.google.com/476271160
     bool retain_gnmi_cfg_after_reboot = 372;
 
-    // Cisco: http://b/429231108
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
     string ciscoxr_transceiver_ft = 373;
 
     // Device does not support transceiver state leaf.
@@ -1139,7 +1139,7 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
-    // Cisco: b/429228826
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
     string ciscoxr8000_integrated_circuit_resource_ft = 376;
 
     // Reserved field numbers and identifiers.

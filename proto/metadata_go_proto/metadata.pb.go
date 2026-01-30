@@ -1297,13 +1297,13 @@ type Metadata_Deviations struct {
 	InterfaceEthernetInblockErrorsUnsupported bool `protobuf:"varint,371,opt,name=interface_ethernet_inblock_errors_unsupported,json=interfaceEthernetInblockErrorsUnsupported,proto3" json:"interface_ethernet_inblock_errors_unsupported,omitempty"`
 	// Arista https://partnerissuetracker.corp.google.com/476271160
 	RetainGnmiCfgAfterReboot bool `protobuf:"varint,372,opt,name=retain_gnmi_cfg_after_reboot,json=retainGnmiCfgAfterReboot,proto3" json:"retain_gnmi_cfg_after_reboot,omitempty"`
-	// Cisco: http://b/429231108
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
 	CiscoxrTransceiverFt string `protobuf:"bytes,373,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
 	// Device does not support transceiver state leaf.
 	TransceiverStateUnsupported bool `protobuf:"varint,374,opt,name=transceiver_state_unsupported,json=transceiverStateUnsupported,proto3" json:"transceiver_state_unsupported,omitempty"`
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
 	SubnetMaskChangeRequired bool `protobuf:"varint,375,opt,name=subnet_mask_change_required,json=subnetMaskChangeRequired,proto3" json:"subnet_mask_change_required,omitempty"`
-	// Cisco: b/429228826
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
 	Ciscoxr8000IntegratedCircuitResourceFt string `protobuf:"bytes,376,opt,name=ciscoxr8000_integrated_circuit_resource_ft,json=ciscoxr8000IntegratedCircuitResourceFt,proto3" json:"ciscoxr8000_integrated_circuit_resource_ft,omitempty"`
 	unknownFields                          protoimpl.UnknownFields
 	sizeCache                              protoimpl.SizeCache
