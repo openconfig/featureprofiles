@@ -339,6 +339,8 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
+	// set gnmi client MaxRecvMsgSize to 100MB to get large data in scale tests
+	bopts.MaxRecvMsgSize = 100 * 1024 * 1024 // 100 MB
 	return makeDialer(params, bopts)
 }
 
