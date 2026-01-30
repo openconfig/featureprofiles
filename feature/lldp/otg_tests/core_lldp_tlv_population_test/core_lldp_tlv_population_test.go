@@ -108,16 +108,10 @@ func TestLLDPEnabled(t *testing.T) {
 		portId:        lldpSrc.portName,
 		portIdType:    otgtelemetry.LldpNeighbor_PortIdType_INTERFACE_NAME,
 	}
-
 	verifyDUTTelemetry(t, dut, dutPort, dutConf, dutPeerState)
 
 	var expChassisID string
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		expChassisID = macColonToDot(strings.ToUpper(dutConf.GetChassisId()))
-	default:
-		expChassisID = strings.ToUpper(dutConf.GetChassisId())
-	}
+	expChassisID = (strings.ToUpper(*dutConf.ChassisId))
 	expOtgLLDPNeighbor := lldpNeighbors{
 		systemName:    dutConf.GetSystemName(),
 		portId:        dutPort.Name(),
@@ -281,12 +275,19 @@ func checkLLDPMetricsOTG(t *testing.T, otg *otg.OTG, c gosnappi.Config, lldpEnab
 func checkOTGLLDPNeighbor(t *testing.T, otg *otg.OTG, c gosnappi.Config, expLldpNeighbor lldpNeighbors) {
 	otgutils.LogLLDPNeighborStates(t, otg, c)
 
+	dut := ondatra.DUT(t, "dut")
 	lldpState := gnmi.Lookup(t, otg, gnmi.OTG().LldpInterface(lldpSrc.otgName).LldpNeighborDatabase().State())
 	v, isPresent := lldpState.Val()
 	if isPresent {
 		neighbors := v.LldpNeighbor
 		neighborFound := false
 		for _, neighbor := range neighbors {
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				*neighbor.ChassisId = macColonToDot(*neighbor.ChassisId)
+			default:
+				*neighbor.ChassisId = strings.ToUpper(*neighbor.ChassisId)
+			}
 			if expLldpNeighbor.Equal(neighbor) {
 				neighborFound = true
 				break
@@ -345,7 +346,7 @@ func verifyDUTTelemetry(t *testing.T, dut *ondatra.DUTDevice, nodePort *ondatra.
 }
 
 func (expLldpNeighbor *lldpNeighbors) Equal(neighbour *otgtelemetry.LldpInterface_LldpNeighborDatabase_LldpNeighbor) bool {
-	return (neighbour.GetChassisId() == expLldpNeighbor.chassisId) &&
+	return neighbour.GetChassisId() == expLldpNeighbor.chassisId &&
 		neighbour.GetChassisIdType() == expLldpNeighbor.chassisIdType &&
 		neighbour.GetPortId() == expLldpNeighbor.portId &&
 		neighbour.GetPortIdType() == expLldpNeighbor.portIdType &&
