@@ -43,6 +43,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
+	go.mozilla.org/pkcs7 v0.9.0
 	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
 	golang.org/x/oauth2 v0.32.0
