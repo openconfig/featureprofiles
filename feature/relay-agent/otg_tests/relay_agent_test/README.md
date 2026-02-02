@@ -60,7 +60,7 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 * The ATE:Port[1] can successfully obtain an IPv6 address that is a part of the subnet 2001:db8:a:1::/64 with the default gateway set to 2001:db8:a:1::1.
 
 
-# Test - 2 DHCP request on a lag port
+# RELAY-1.2 DHCP request on a lag port
 
 * DUT:Port[1] and DUT:Port[2] are configured as a LACP LAG (LAG1) port to ATE:Port[1] and ATE:Port[2] respectively.
 * Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
