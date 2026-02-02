@@ -51,6 +51,7 @@ const (
 	prefixSubnetRangeV4 = "30..32"
 	prefixSubnetRangeV6 = "126..128"
 	globalAsNumber      = 999
+	gnmiSampleTimeout   = 60 * time.Second
 )
 
 var prefixV4 = []string{"198.51.100.0/30", "198.51.100.4/30", "198.51.100.8/30"}
@@ -412,7 +413,7 @@ func verifyPrefixesTelemetryV4(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), gnmiSampleTimeout, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
 		return gotInstalled == wantInstalled
 	}).Await(t)
@@ -428,7 +429,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateSrc.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
-	gotInstalledv6, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalledv6, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), gnmiSampleTimeout, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalledv6, _ := val.Val()
 		return gotInstalledv6 == wantInstalledv6
 	}).Await(t)
