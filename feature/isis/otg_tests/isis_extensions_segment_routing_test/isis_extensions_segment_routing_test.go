@@ -184,6 +184,8 @@ func TestISISSegmentRouting(t *testing.T) {
 
 	t.Logf("Starting capture")
 	startCapture(t, ate)
+	t.Log("Waiting for IS-IS and SR labels to converge in hardware")
+	time.Sleep(30 * time.Second)
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 15)
