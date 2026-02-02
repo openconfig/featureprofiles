@@ -1,4 +1,4 @@
-# gNMI-3: union_replace 
+# gNMI-3: union_replace
 
 ## Summary
 
@@ -24,23 +24,23 @@ to a missing or incompatible transceiver module) must be accepted by a device.
 The interface with a configuration which doesn't match the hardware is expected
 to be in a down operational state as the result of such a configuration commit.
 
-Steps
+Generic test steps
 
 * Generate a configuration baseline_cfg + D.1 where D1. contains a port-speed in
-  OC which does not match the DUT hardware.
-* Push the configuration to the DUT Verify the gnmi.Set is accepted 
+  which does not match the DUT hardware.
+* Push the configuration to the DUT
+* Verify the gnmi.Set is accepted
 * Get configuration D.2
 * Verify  D.1 == D.2.  That is, verify only the interface speed is changed
 between baseline_cfg and D.3.  The remaining CLI and all OC must be unchanged.
 
-gnmi3.6.1  verify configuration with OC with warning is accepted Generate a
-configuration D.2 with a port-speed mismatch in the OC which should be accepted
-and applied by the DUT.
+#### gnmi3.6.1  verify configuration with OC with warning is accepted
 
-gnmi3.6.2  verify configuration with CLI with warning is accepted
+Perform the steps where the with a port-speed mismatch is in OC.
 
-Generate a configuration D.2 with a port-speed mismatch in the CLI which should
-be accepted and applied by the DUT.
+#### gnmi3.6.2  verify configuration with CLI with warning is accepted
+
+Perform the steps where the with a port-speed mismatch is in CLI.
 
 ## Canonical OC
 
@@ -106,3 +106,7 @@ rpcs:
     gNMI.Get:
     gNMI.Subscribe:
 ```
+
+## Required DUT platform
+
+vRX
