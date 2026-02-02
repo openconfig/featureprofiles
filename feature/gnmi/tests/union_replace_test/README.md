@@ -9,7 +9,7 @@ tested.
 
 ## Testbed type
 
-* Single DUT testbed
+* [Single DUT testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
 
 ## Procedure
 
