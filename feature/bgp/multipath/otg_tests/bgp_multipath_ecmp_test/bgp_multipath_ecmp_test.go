@@ -265,7 +265,7 @@ func TestBGPSetup(t *testing.T) {
 					}
 				}
 			}
-			sleepTime := time.Duration(totalPackets/trafficPps) + 5
+			sleepTime := time.Duration(totalPackets/trafficPps) + 10
 			bs.ATE.OTG().StartTraffic(t)
 			time.Sleep(sleepTime * time.Second)
 			bs.ATE.OTG().StopTraffic(t)
