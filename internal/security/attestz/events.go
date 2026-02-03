@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnoi"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
@@ -49,8 +48,8 @@ func SwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, activeCard, standbyCa
 	if !ok {
 		activeCardPath := gnmi.OC().Component(activeCard).State()
 		standbyCardPath := gnmi.OC().Component(standbyCard).State()
-		fptest.LogQuery(t, "Active card reported state", activeCardPath, gnmi.Get[*oc.Component](t, dut, activeCardPath))
-		fptest.LogQuery(t, "Standby card reported state", standbyCardPath, gnmi.Get[*oc.Component](t, dut, standbyCardPath))
+		fptest.LogQuery(t, "Active card reported state", activeCardPath, gnmi.Get(t, dut, activeCardPath))
+		fptest.LogQuery(t, "Standby card reported state", standbyCardPath, gnmi.Get(t, dut, standbyCardPath))
 		t.Fatal("Cards are not synchronized.")
 	}
 }
@@ -59,7 +58,7 @@ func waitForBootup(t *testing.T, dut *ondatra.DUTDevice, maxBootTime uint64) {
 	startTime := time.Now()
 	for {
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			gnmi.Get[string](t, dut, gnmi.OC().System().CurrentDatetime().State())
+			gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Log("Reboot is started ...")
 			break
@@ -72,7 +71,7 @@ func waitForBootup(t *testing.T, dut *ondatra.DUTDevice, maxBootTime uint64) {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startTime).Minutes())
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get[string](t, dut, gnmi.OC().System().CurrentDatetime().State())
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
@@ -97,9 +96,9 @@ func RebootDut(t *testing.T, dut *ondatra.DUTDevice) {
 		Method: gnps.RebootMethod_COLD,
 		Force:  true,
 	}
-	bootTimeBeforeReboot := gnmi.Get[uint64](t, dut, gnmi.OC().System().BootTime().State())
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", time.Unix(0, int64(bootTimeBeforeReboot)))
-	currentTime := gnmi.Get[string](t, dut, gnmi.OC().System().CurrentDatetime().State())
+	currentTime := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 	t.Logf("DUT system time before reboot : %s", currentTime)
 	res, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
 	if err != nil {
@@ -136,7 +135,7 @@ func SwitchoverCards(t *testing.T, dut *ondatra.DUTDevice, activeCard, standbyCa
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
 		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get[string](t, dut, gnmi.OC().System().CurrentDatetime().State())
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
 			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
 		} else {
