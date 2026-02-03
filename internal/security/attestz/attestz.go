@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ package attestz
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
@@ -31,6 +32,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
@@ -73,22 +75,9 @@ type Session struct {
 }
 
 var (
-	chassisName     string
-	activeCard      *ControlCard
-	standbyCard     *ControlCard
-	pcrBankHashAlgo = []cdpb.Tpm20HashAlgo{
-		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1,
-		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
-		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA384,
-		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA512,
-	}
-	// PcrBankHashAlgoMap vendor supported hash algorithms for pcr bank.
-	PcrBankHashAlgoMap = map[ondatra.Vendor][]cdpb.Tpm20HashAlgo{
-		ondatra.NOKIA:   {cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1, cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256},
-		ondatra.ARISTA:  pcrBankHashAlgo,
-		ondatra.JUNIPER: pcrBankHashAlgo,
-		ondatra.CISCO:   pcrBankHashAlgo,
-	}
+	chassisName string
+	activeCard  *ControlCard
+	standbyCard *ControlCard
 	// PcrIndices pcr indices to be attested.
 	PcrIndices = []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 23}
 )
@@ -97,6 +86,30 @@ var (
 func PrettyPrint(i interface{}) string {
 	s, _ := json.MarshalIndent(i, "", "\t")
 	return string(s)
+}
+
+// getPcrBankHashAlgosForPlatform returns hash algorithms for pcr bank based on each vendor platform.
+func getPcrBankHashAlgosForPlatform(t *testing.T, dut *ondatra.DUTDevice) []cdpb.Tpm20HashAlgo {
+	chassisName = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)[0]
+	model := gnmi.Get(t, dut, gnmi.OC().Component(chassisName).ModelName().State())
+	switch {
+	case strings.HasPrefix(model, "7250 IXR-10e"):
+		return []cdpb.Tpm20HashAlgo{
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1,
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
+		}
+	case strings.HasPrefix(model, "7250 IXR-18e"):
+		return []cdpb.Tpm20HashAlgo{
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
+		}
+	default:
+		return []cdpb.Tpm20HashAlgo{
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1,
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA384,
+			cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA512,
+		}
+	}
 }
 
 // EnrollzWorkflow performs enrollment workflow for a given control card.
@@ -171,7 +184,7 @@ func (cc *ControlCard) AttestzWorkflow(t *testing.T, dut *ondatra.DUTDevice, tc 
 	as := tc.NewSession(t)
 	defer as.Conn.Close()
 
-	for _, hashAlgo := range PcrBankHashAlgoMap[dut.Vendor()] {
+	for _, hashAlgo := range getPcrBankHashAlgosForPlatform(t, dut) {
 		nonce := GenNonce(t)
 		attestResponse := as.RequestAttestation(t, cc.Role, nonce, hashAlgo, PcrIndices)
 
@@ -296,7 +309,7 @@ func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, ve
 	}
 
 	// Verify cert matches the serial number of the card queried.
-	serialNo := gnmi.Get[string](t, dut, gnmi.OC().Component(cc.Name).SerialNo().State())
+	serialNo := gnmi.Get(t, dut, gnmi.OC().Component(cc.Name).SerialNo().State())
 	if vendorCert.Subject.SerialNumber != serialNo {
 		t.Errorf("Got wrong serial number, got: %v, want: %v", vendorCert.Subject.SerialNumber, serialNo)
 	}
@@ -312,10 +325,18 @@ func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, ve
 		certHash := generateHash(vendorCert.RawTBSCertificate, crypto.SHA384)
 		// Retrieve CA Public Key
 		vendorCaPubKey := vendorCa.PublicKey.(*rsa.PublicKey)
-		// Verify digital signature with oIAK cert.
-		err = rsa.VerifyPKCS1v15(vendorCaPubKey, crypto.SHA384, certHash, vendorCert.Signature)
-		if err != nil {
+		// Verify digital signature
+		if err = rsa.VerifyPKCS1v15(vendorCaPubKey, crypto.SHA384, certHash, vendorCert.Signature); err != nil {
 			t.Errorf("Failed verifying vendor cert's signature: %v", err)
+		}
+	case x509.ECDSAWithSHA512:
+		// Generate Hash from Raw Certificate
+		certHash := generateHash(vendorCert.RawTBSCertificate, crypto.SHA512)
+		// Retrieve CA Public Key
+		vendorCaPubKey := vendorCa.PublicKey.(*ecdsa.PublicKey)
+		// Verify digital signature
+		if isValid := ecdsa.VerifyASN1(vendorCaPubKey, certHash, vendorCert.Signature); !isValid {
+			t.Errorf("Failed verifying vendor cert's ECDSA signature")
 		}
 	default:
 		t.Errorf("Cannot verify signature for %v for cert: %s", vendorCert.SignatureAlgorithm, PrettyPrint(vendorCert))
@@ -323,11 +344,11 @@ func (cc *ControlCard) verifyVendorCert(t *testing.T, dut *ondatra.DUTDevice, ve
 }
 
 func (cc *ControlCard) verifyControlCardInfo(t *testing.T, dut *ondatra.DUTDevice, gotCardDetails *cdpb.ControlCardVendorId) {
-	controller := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(cc.Name).State())
+	controller := gnmi.Get(t, dut, gnmi.OC().Component(cc.Name).State())
 	if chassisName == "" {
 		chassisName = components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS)[0]
 	}
-	chassis := gnmi.Get[*oc.Component](t, dut, gnmi.OC().Component(chassisName).State())
+	chassis := gnmi.Get(t, dut, gnmi.OC().Component(chassisName).State())
 	wantCardDetails := &cdpb.ControlCardVendorId{
 		ControlCardRole:     cc.Role,
 		ControlCardSerial:   controller.GetSerialNo(),
@@ -362,7 +383,7 @@ func generateHash(quote []byte, hashAlgo crypto.Hash) []byte {
 
 // Verify Nokia pcr with expected values. Ensure secure-boot is enabled for pcr values to match.
 func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashAlgo cdpb.Tpm20HashAlgo, gotPcrValues map[int32][]byte) error {
-	ver := gnmi.Get[string](t, dut, gnmi.OC().System().SoftwareVersion().State())
+	ver := gnmi.Get(t, dut, gnmi.OC().System().SoftwareVersion().State())
 	t.Logf("Found software version: %v", ver)
 
 	// Expected pcr values for Nokia present in /mnt/nokiaos/<build binary.bin>/known_good_pcr_values.json.
@@ -408,7 +429,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 
 	// Verify pcr_values match expectations.
 	pcrIndices := []int32{0, 2, 4, 6, 9, 14}
-	cardDesc := gnmi.Get[string](t, dut, gnmi.OC().Component(cardName).Description().State())
+	cardDesc := gnmi.Get(t, dut, gnmi.OC().Component(cardName).Description().State())
 	idx := slices.IndexFunc(nokiaPcrData.Cards, func(c CardData) bool {
 		return c.Card == cardDesc
 	})
@@ -492,9 +513,28 @@ func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, a
 		// Retrieve oIAK public key.
 		oIAKPubKey := oIakCert.PublicKey.(*rsa.PublicKey)
 		// Verify quote signature with oIAK cert.
-		err = rsa.VerifyPKCS1v15(oIAKPubKey, hashAlgo, quoteHash, quoteTpmsSignature.Sig.Buffer)
+		if err = rsa.VerifyPKCS1v15(oIAKPubKey, hashAlgo, quoteHash, quoteTpmsSignature.Sig.Buffer); err != nil {
+			t.Errorf("Failed verifying RSA quote signature. error: %v", err)
+		}
+	case tpm2.TPMAlgECDSA:
+		quoteTpmsSignature, err := quoteTpmtSignature.Signature.ECDSA()
 		if err != nil {
-			t.Errorf("Failed verifying quote signature. error: %v", err)
+			t.Fatalf("Error retrieving TPMS signature. error: %v", err)
+		}
+		// Retrieve signature's hash algorithm.
+		hashAlgo, err = quoteTpmsSignature.Hash.Hash()
+		if err != nil {
+			t.Fatalf("Error retrieving signature hash algorithm. error: %v", err)
+		}
+		// Generate hash from original quote
+		quoteHash := generateHash(attestResponse.Quoted, hashAlgo)
+		// Retrieve oIAK public key.
+		oIAKPubKey := oIakCert.PublicKey.(*ecdsa.PublicKey)
+		// Verify quote signature with oIAK cert.
+		r := new(big.Int).SetBytes(quoteTpmsSignature.SignatureR.Buffer)
+		s := new(big.Int).SetBytes(quoteTpmsSignature.SignatureS.Buffer)
+		if isValid := ecdsa.Verify(oIAKPubKey, quoteHash, r, s); !isValid {
+			t.Errorf("Failed verifying ECDSA quote signature")
 		}
 	default:
 		t.Errorf("Cannot verify signature for %v. quote signature: %s", quoteTpmtSignature.SigAlg, PrettyPrint(quoteTpmtSignature))

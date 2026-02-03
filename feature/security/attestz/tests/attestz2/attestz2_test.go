@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@ package attestz2_test
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 	"testing"
 
 	enrollzpb "github.com/openconfig/attestz/proto/tpm_enrollz"
@@ -32,8 +30,8 @@ import (
 
 var (
 	vendorCaCertPem = flag.String("switch_vendor_ca_cert", "", "a pem file for vendor ca cert used for verifying iDevID/IAK Certs")
-	ownerCaCertPem  = flag.String("switch_owner_ca_cert", "../testdata/owner-ca.cert.pem", "a pem file for ca cert that will be used to sign oDevID/oIAK/mTLS Certs")
-	ownerCaKeyPem   = flag.String("switch_owner_ca_key", "../testdata/owner-ca.key.pem", "a pem file for ca key that will be used to sign oDevID/oIAK/mTLS Certs")
+	ownerCaCertPem  = flag.String("switch_owner_ca_cert", "../testdata/owner-ca-rsa-cert.pem", "a pem file for ca cert that will be used to sign oDevID/oIAK/mTLS Certs")
+	ownerCaKeyPem   = flag.String("switch_owner_ca_key", "../testdata/owner-ca-rsa-key.pem", "a pem file for ca key that will be used to sign oDevID/oIAK/mTLS Certs")
 )
 
 func TestMain(m *testing.M) {
@@ -42,9 +40,8 @@ func TestMain(m *testing.M) {
 
 func TestAttestz2(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	// Retrieve vendor ca certificate from testdata if not provided in test args.
 	if *vendorCaCertPem == "" {
-		*vendorCaCertPem = fmt.Sprintf("../testdata/%s-ca.cert.pem", strings.ToLower(dut.Vendor().String()))
+		t.Fatalf("Switch vendor CA certificate path missing in test args.")
 	}
 
 	attestzTarget, attestzServer := attestz.SetupBaseline(t, dut)
