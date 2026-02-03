@@ -1145,7 +1145,7 @@ message Metadata {
 
     // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
     // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
-    bool explicitly_apply_allow_all_import_policy = 375;
+    bool explicitly_apply_allow_all_import_policy = 377;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
