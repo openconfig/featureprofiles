@@ -1,6 +1,6 @@
-# RELAY-1: DHCP Relay functionality
+# RELAY-1.1: DHCP Relay functionality
 
-# Summary
+## Summary
 
 This is to validate the DHCP relay functionality on a DUT.  The test validates the following actions -
 
@@ -8,13 +8,13 @@ This is to validate the DHCP relay functionality on a DUT.  The test validates t
 * DUT forwards DHCP exchange messages between the DHCP Client and DHCP server.
 * The DHCP client receives a DHCP address.
 
-# Testbed Type
+## Testbed Type
 
 * [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
   
-# Procedure
+## Procedure
 
-# Test environment setup
+### Test environment setup
 
 ```mermaid
 graph LR; 
@@ -35,7 +35,7 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 * DUT:Port[3] IPv4 address = 192.0.2.0/31
 * DUT:Port[3] IPv6 address = 2001:db8:a::0/127
   
-# Configuration
+### Configuration
 
 * Configure VLAN 10 on DUT.
     * Have DUT:Port[1] and DUT:Port[2] be a part of vlan 10
@@ -48,10 +48,10 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 * Configure IPv6 default route on the  DUT pointing to ATE:Port[3] IPv6 address.
 
 
-# RELAY-1.1 DHCP request on an individual port
+### RELAY-1.1.1 DHCP request on an individual port
 
-* Have ATE:Port[1] as an individual port and act as a DHCP client.
-* Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
+* Step 1 - Have ATE:Port[1] as an individual port and act as a DHCP client.
+* Step 2 - Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
 
 **Verify that:**
 
@@ -60,10 +60,10 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 * The ATE:Port[1] can successfully obtain an IPv6 address that is a part of the subnet 2001:db8:a:1::/64 with the default gateway set to 2001:db8:a:1::1.
 
 
-# RELAY-1.2 DHCP request on a lag port
+### RELAY-1.1.2 DHCP request on a lag port
 
-* DUT:Port[1] and DUT:Port[2] are configured as a LACP LAG (LAG1) port to ATE:Port[1] and ATE:Port[2] respectively.
-* Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
+* Step 1 - DUT:Port[1] and DUT:Port[2] are configured as a LACP LAG (LAG1) port to ATE:Port[1] and ATE:Port[2] respectively.
+* Step 2 - Send IPv4 and IPv6 DHCP request (Discover message) from ATE:Port[1].
 
 **Verify that:**
 
