@@ -507,6 +507,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -837,7 +840,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 		}
 	}
 
-	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, ok := val.Val()
 		return ok && gotInstalled == nbr.wantInstalled
 	}).Await(t); !ok {

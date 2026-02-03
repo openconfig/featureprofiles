@@ -662,6 +662,8 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 	conf := configureATE(t, ate)
 
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), conf, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), conf, "IPv6")
 
 	withdrawBGPRoutes(t, conf, []string{r4UnderLimit,
 		r6UnderLimit,
