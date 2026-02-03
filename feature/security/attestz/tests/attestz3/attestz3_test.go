@@ -96,7 +96,7 @@ func TestAttestz3(t *testing.T) {
 		defer as.Conn.Close()
 
 		// Collect attest response before reboot.
-		attestRespMap := make(map[attestzpb.Tpm20HashAlgo]*attestResponse)
+		attestRespMap := make(map[cdpb.Tpm20HashAlgo]*attestResponse)
 		for _, hashAlgo := range attestz.PcrBankHashAlgoMap[dut.Vendor()] {
 			attestRespMap[hashAlgo] = new(attestResponse)
 			attestRespMap[hashAlgo].activeCard = as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)

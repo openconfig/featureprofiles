@@ -2,7 +2,7 @@
 
 ## Summary
 
-***NOTE:*** \
+***NOTE:*** 
 
 We will not configure any CoPP policies or thresholds on the DUT. We will solely rely on the vendor default and pre-applied CoPP policies and thresholds \
 [TODO] Utilize standardized OC models as they become available
@@ -173,4 +173,3 @@ rpcs:
 ## Minimum DUT platform requirement
 
 *   FFF
-

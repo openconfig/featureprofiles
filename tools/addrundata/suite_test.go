@@ -39,6 +39,10 @@ func prepareSuite(featuredir string, ts testsuite) (testsuite, error) {
 		if _, err := os.Create(testFilename); err != nil {
 			return nil, fmt.Errorf("could not create %s: %w", testFilename, err)
 		}
+		testPackage := "package foo_test"
+		if err := os.WriteFile(testFilename, []byte(testPackage), 0600); err != nil {
+			return nil, fmt.Errorf("could not write %s: %w", testFilename, err)
+		}
 		newts[testdir] = &testcase{
 			markdown: &mpb.Metadata{
 				PlanId:      tc.fixed.PlanId,
@@ -213,6 +217,61 @@ func TestSuite_Check(t *testing.T) {
 			gotok := want.ts.check("")
 			if gotok != want.ok {
 				t.Errorf("Check got ok %v, want %v", gotok, want.ok)
+			}
+		})
+	}
+}
+
+func TestCheckGoTestFilePackageName(t *testing.T) {
+	tests := []struct {
+		desc        string
+		filename    string
+		content     string
+		wantSuccess bool
+	}{
+		{
+			desc:        "valid package name",
+			filename:    "foo_test.go",
+			content:     "package foo_test",
+			wantSuccess: true,
+		},
+		{
+			desc:        "package name with extra characters",
+			filename:    "foo_test.go",
+			content:     "package foo_test_extra",
+			wantSuccess: false,
+		},
+		{
+			desc:        "package name with numbers",
+			filename:    "foo123_test.go",
+			content:     "package foo123_test",
+			wantSuccess: true,
+		},
+		{
+			desc:        "package name without _test suffix",
+			filename:    "foo_test.go",
+			content:     "package foo",
+			wantSuccess: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.desc, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			testDir := filepath.Join(tmpDir, "/path/to/")
+			if err := os.MkdirAll(testDir, 0755); err != nil {
+				t.Fatalf("failed to create directory: %v", err)
+			}
+			fp := filepath.Join(testDir, tc.filename)
+			if _, err := os.Create(fp); err != nil {
+				t.Fatalf("failed to create file: %v", err)
+			}
+			if err := os.WriteFile(fp, []byte(tc.content), 0644); err != nil {
+				t.Fatalf("failed to write file: %v", err)
+			}
+			gotSuccess := checkGoTestFilePackageName(testDir) == nil
+			if gotSuccess != tc.wantSuccess {
+				t.Errorf("checkGoTestFilePackageName(%v) = %v, want: %v", testDir, gotSuccess, tc.wantSuccess)
 			}
 		})
 	}
