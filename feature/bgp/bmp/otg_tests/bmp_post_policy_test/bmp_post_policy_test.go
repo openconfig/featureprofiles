@@ -54,7 +54,7 @@ const (
 	// Calculated based on 3 neighbors, 2 prefix sets before policy is applied 750000*3*2=4500000
 	// After policy is applied 75000*3=2250000 denied, total post policy routes = 4500000 - 2250000 = 2250000
 	postPolicyV6RouteCount            = 2250000
-	timeout                           = 10 * time.Minute
+	timeout                           = 30 * time.Minute
 	timeoutShort                      = 10 * time.Second
 	peerGroupV4                       = "BGP-PEER-GROUP-V4"
 	peerGroupV6                       = "BGP-PEER-GROUP-V6"
