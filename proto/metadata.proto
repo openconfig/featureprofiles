@@ -1143,6 +1143,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
     string ciscoxr8000_integrated_circuit_resource_ft = 376;
 
+    // The BGP routes are accepted by default when no policy or default policy is configured.
+    // b/479957749
+    bool bgp_default_policy_behavior_accept_route = 377;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
