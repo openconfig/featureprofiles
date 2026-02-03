@@ -591,6 +591,12 @@ testbeds:
     baseconf:
       dut: topologies/cisco/pyvxr/8808-P200-OC/basefp.conf
       peer: topologies/cisco/pyvxr/8808-P200-OC/basefp_peer.conf
+  8808-P200-OTG:
+    sim: true
+    topology: topologies/cisco/pyvxr/8808-P200-OTG/topo.yaml
+    baseconf:
+      dut: topologies/cisco/pyvxr/8808-P200-OTG/basefp.conf
+      peer: topologies/cisco/pyvxr/8808-P200-OTG/basefp_peer.conf
   8223-P200-OC:
     sim: true
     topology: topologies/cisco/pyvxr/8223-P200-OC/topo.yaml
