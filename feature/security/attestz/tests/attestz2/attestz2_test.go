@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package attestz2
+package attestz2_test
 
 import (
 	"context"
