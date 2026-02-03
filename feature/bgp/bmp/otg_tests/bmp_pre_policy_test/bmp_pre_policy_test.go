@@ -50,7 +50,7 @@ const (
 	prePolicyV6RouteCount   = 4500000
 	postPolicyV4RouteCount  = 0
 	postPolicyV6RouteCount  = 0
-	timeout                 = 10 * time.Minute
+	timeout                 = 30 * time.Minute
 	peerGroupV4             = "BGP-PEER-GROUP-V4"
 	peerGroupV6             = "BGP-PEER-GROUP-V6"
 	routev4CountperNeighbor = 4934464 // Calculated based on 3 neighbors(15000000 - 65536*3) / 3
