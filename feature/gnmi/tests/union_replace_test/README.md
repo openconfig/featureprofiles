@@ -50,24 +50,39 @@ Perform the steps where the with a port-speed mismatch is in CLI.
     "component": [
       {
         "config": {
-          "name": "Port0/1"
+          "name": "Port0"
         },
-        "name": "eth0",
+        "name": "Port0",
         "port": {
           "breakout-mode": {
             "groups": {
               "group": [
                 {
                   "config": {
-                    "breakout-speed": "SPEED_100GB",
+                    "breakout-speed": "SPEED_50GB",
                     "index": 1,
-                    "num-breakouts": 4,
-                    "num-physical-channels": 1
+                    "num-breakouts": 2,
+                    "num-physical-channels": 2
                   },
                   "index": 1
                 }
               ]
             }
+          }
+        }
+      },
+      {
+        "config": {
+          "name": "Port0-Transceiver"
+        },
+        "name": "Port0-Transceiver",
+        "state": {
+          "parent": "Port0",
+          "type": "TRANSCEIVER"
+        },
+        "transceiver": {
+          "state": {
+            "form-factor": "QSFP28"
           }
         }
       }
@@ -77,16 +92,27 @@ Perform the steps where the with a port-speed mismatch is in CLI.
     "interface": [
       {
         "config": {
-          "description": "Customer A",
-          "mtu": 1500,
+          "description": "First 50G breakout",
           "name": "eth0/0"
+        },
+        "ethernet": {
+          "config": {
+            "port-speed": "SPEED_50GB"
+          }
+        },
+        "name": "eth0/0"
+      },
+      {
+        "config": {
+          "description": "Second 50G breakout with wrong port-speed",
+          "name": "eth0/1"
         },
         "ethernet": {
           "config": {
             "port-speed": "SPEED_100GB"
           }
         },
-        "name": "eth0/0"
+        "name": "eth0/1"
       }
     ]
   }
