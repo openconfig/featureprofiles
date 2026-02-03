@@ -202,7 +202,7 @@ func TestAttestz1(t *testing.T) {
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
 			ControlCardSelection: attestz.ParseRoleSelection(cdpbActive),
 			Nonce:                attestz.GenNonce(t),
-			HashAlgo:             attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256,
+			HashAlgo:             cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
 			PcrIndices:           attestz.PcrIndices,
 		})
 		if err != nil {
@@ -219,7 +219,7 @@ func TestAttestz1(t *testing.T) {
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
 			ControlCardSelection: attestz.ParseRoleSelection(activeCard.Role),
 			Nonce:                attestz.GenNonce(t),
-			HashAlgo:             attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256,
+			HashAlgo:             cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
 			PcrIndices:           []int32{25, -25},
 		})
 		if err != nil {
@@ -240,7 +240,7 @@ func TestAttestz1(t *testing.T) {
 		_, err := as.AttestzClient.Attest(context.Background(), &attestzpb.AttestRequest{
 			ControlCardSelection: attestz.ParseRoleSelection(cdpbStandby),
 			Nonce:                attestz.GenNonce(t),
-			HashAlgo:             attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256,
+			HashAlgo:             cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
 			PcrIndices:           attestz.PcrIndices,
 		})
 		if err != nil {

@@ -280,11 +280,13 @@ type transitKey struct{}
 // testBaseHierarchialNHGwithVrfPolW verifies recursive IPv4 Entry for
 // 198.51.100.0/24 (a) with vrf selection w
 func testBaseHierarchialNHGwithVrfPolW(ctx context.Context, t *testing.T, args *testArgs) {
-
+	configureDUT(t, args.dut)
 	// Remove interface from VRF-1.
 	gnmi.Delete(t, args.dut, gnmi.OC().NetworkInstance(vrfName).Config())
 	p1 := args.dut.Port(t, "port1")
-	gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+	if !deviations.GRIBIMACOverrideWithStaticARP(args.dut) {
+		gnmi.Update(t, args.dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), args.dut))
+	}
 	if deviations.ExplicitInterfaceInDefaultVRF(args.dut) {
 		fptest.AssignToNetworkInstance(t, args.dut, p1.Name(), deviations.DefaultNetworkInstance(args.dut), 0)
 	}
@@ -854,6 +856,8 @@ func testImplementDrain(ctx context.Context, t *testing.T, args *testArgs) {
 
 	t.Log("Validate traffic switching from  ate port4 back to ate port2 and ate port3")
 	validateTrafficFlows(t, args.ate, nil, []gosnappi.Flow{p4Flow}, []gosnappi.Flow{p2Flow, p3Flow}, switchTrafficToPort2AndPort3FromPort4, args.client, true)
+	t.Log("Unconfig interfaces after Drain test")
+	defer deleteDrainConfig(t, args.dut)
 
 }
 
@@ -874,6 +878,30 @@ func deleteinterfaceconfig(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Delete(t, dut, d.Interface(p3.Name()).Subinterface(0).Config())
 		gnmi.Delete(t, dut, d.Interface(p4.Name()).Subinterface(0).Config())
 	}
+}
+
+// deleteDrainConfig unconfigs interfaces after drain test
+func deleteDrainConfig(t *testing.T, dut *ondatra.DUTDevice) {
+
+	p2 := dut.Port(t, "port2")
+	p3 := dut.Port(t, "port3")
+	p4 := dut.Port(t, "port4")
+
+	i2 := &oc.Interface{Name: ygot.String(btrunk2)}
+	i3 := &oc.Interface{Name: ygot.String(btrunk3)}
+	i4 := &oc.Interface{Name: ygot.String(btrunk4)}
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk2).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk3).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(btrunk4).Config())
+
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p3.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(p4.Name()).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i2.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i3.Name).Config())
+	gnmi.Delete(t, dut, gnmi.OC().Interface(*i4.Name).Config())
+
 }
 
 // configDUTDrain configures ports for drain test.

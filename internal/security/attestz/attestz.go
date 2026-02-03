@@ -76,15 +76,15 @@ var (
 	chassisName     string
 	activeCard      *ControlCard
 	standbyCard     *ControlCard
-	pcrBankHashAlgo = []attestzpb.Tpm20HashAlgo{
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA1,
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256,
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA384,
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA512,
+	pcrBankHashAlgo = []cdpb.Tpm20HashAlgo{
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1,
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256,
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA384,
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA512,
 	}
 	// PcrBankHashAlgoMap vendor supported hash algorithms for pcr bank.
-	PcrBankHashAlgoMap = map[ondatra.Vendor][]attestzpb.Tpm20HashAlgo{
-		ondatra.NOKIA:   {attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA1, attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256},
+	PcrBankHashAlgoMap = map[ondatra.Vendor][]cdpb.Tpm20HashAlgo{
+		ondatra.NOKIA:   {cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1, cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256},
 		ondatra.ARISTA:  pcrBankHashAlgo,
 		ondatra.JUNIPER: pcrBankHashAlgo,
 		ondatra.CISCO:   pcrBankHashAlgo,
@@ -248,7 +248,7 @@ func (as *Session) RotateOwnerCerts(t *testing.T, cardRole cdpb.ControlCardRole,
 }
 
 // RequestAttestation requests attestation from the dut for a given card, hash algo & pcr indices.
-func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo attestzpb.Tpm20HashAlgo, pcrIndices []int32) *attestzpb.AttestResponse {
+func (as *Session) RequestAttestation(t *testing.T, cardRole cdpb.ControlCardRole, nonce []byte, hashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) *attestzpb.AttestResponse {
 	attestzRequest := &attestzpb.AttestRequest{
 		ControlCardSelection: ParseRoleSelection(cardRole),
 		Nonce:                nonce,
@@ -361,7 +361,7 @@ func generateHash(quote []byte, hashAlgo crypto.Hash) []byte {
 }
 
 // Verify Nokia pcr with expected values. Ensure secure-boot is enabled for pcr values to match.
-func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashAlgo attestzpb.Tpm20HashAlgo, gotPcrValues map[int32][]byte) error {
+func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashAlgo cdpb.Tpm20HashAlgo, gotPcrValues map[int32][]byte) error {
 	ver := gnmi.Get[string](t, dut, gnmi.OC().System().SoftwareVersion().State())
 	t.Logf("Found software version: %v", ver)
 
@@ -401,9 +401,9 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 		t.Fatalf("Could not parse json. error: %v", err)
 	}
 
-	hashAlgoMap := map[attestzpb.Tpm20HashAlgo]string{
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA1:   "sha1",
-		attestzpb.Tpm20HashAlgo_TPM20HASH_ALGO_SHA256: "sha256",
+	hashAlgoMap := map[cdpb.Tpm20HashAlgo]string{
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA1:   "sha1",
+		cdpb.Tpm20HashAlgo_TPM_2_0_HASH_ALGO_SHA256: "sha256",
 	}
 
 	// Verify pcr_values match expectations.
@@ -445,7 +445,7 @@ func nokiaPCRVerify(t *testing.T, dut *ondatra.DUTDevice, cardName string, hashA
 	return nil
 }
 
-func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, attestResponse *attestzpb.AttestResponse, wantNonce []byte, pcrHashAlgo attestzpb.Tpm20HashAlgo, pcrIndices []int32) {
+func (cc *ControlCard) verifyAttestation(t *testing.T, dut *ondatra.DUTDevice, attestResponse *attestzpb.AttestResponse, wantNonce []byte, pcrHashAlgo cdpb.Tpm20HashAlgo, pcrIndices []int32) {
 	// Verify oIAK cert is the same as the one installed earlier.
 	if !cmp.Equal(attestResponse.OiakCert, cc.OIAKCert) {
 		t.Errorf("Got incorrect oIAK cert, got: %v, want: %v", attestResponse.OiakCert, cc.OIAKCert)
