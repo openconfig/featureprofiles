@@ -46,25 +46,25 @@ duts {
     id: "port1"
     name: "HundredGigE0/0/0/30/0"  # Change this to the actual port name.
     speed: S_100GB
-    pmd: PMD_400GBASE_DR4
+    pmd: PMD_100GBASE_FR
   }
   ports {
     id: "port2"
     name: "HundredGigE0/0/0/30/1"  # Change this to the actual port name.
     speed: S_100GB
-    pmd: PMD_400GBASE_DR4
+    pmd: PMD_100GBASE_FR
   }
   ports {
     id: "port3"
     name: "HundredGigE0/0/0/30/2"  # Change this to the actual port name.
     speed: S_100GB
-    pmd: PMD_400GBASE_DR4
+    pmd: PMD_100GBASE_FR
   }
   ports {
     id: "port4"
     name: "HundredGigE0/0/0/30/3"  # Change this to the actual port name.
     speed: S_100GB
-    pmd: PMD_400GBASE_DR4
+    pmd: PMD_100GBASE_FR
   }
 
    ports {
