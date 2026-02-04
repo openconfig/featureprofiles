@@ -1,4 +1,4 @@
-# System Mount Points State Verification
+# System-Mount-Points-1.0: System Mount Points State Verification
 
 
 ## Summary
@@ -62,3 +62,9 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Get:
 ```
+
+## Required DUT platform
+
+* MFF
+* FFF
+* vRX
