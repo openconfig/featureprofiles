@@ -254,6 +254,16 @@ network-instances {
     behavior.
 
 ```
+IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#1003 (DEFAULT VRF) -> {
+  {NH#1003, DEFAULT VRF},
+} // fallback route to redirect to DEFAULT VRF
+NHG#1003 (DEFAULT VRF) {
+  {NH#1003, DEFAULT VRF}
+}
+NH#1003 -> {
+  network_instance: "DEFAULT"
+}
+
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
   {NH#101, DEFAULT VRF, weight:1},
   {NH#102, DEFAULT VRF, weight:3},
@@ -495,11 +505,9 @@ NH#1001 -> {
 Test that if there is no lookup match in the encap VRF, then the traffic should
 be routed to the DEFAULT VRF for further lookup.
 
-1.  In `ENCAP_TE_VRF_A`, Add an 0/0 static route pointing to the DEFAULT VRF
-    using gNMI.
-2.  Send traffic with destination address 20.0.0.1, which should produce no
+1.  Send traffic with destination address 20.0.0.1, which should produce no
     match in `ENCAP_TE_VRF_A`.
-3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
+2.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-8.
 
 #### Test-8, no match in TE_VRF_222
@@ -576,6 +584,10 @@ NH#102 -> {
 1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
+#### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
