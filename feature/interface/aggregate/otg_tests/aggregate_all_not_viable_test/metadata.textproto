@@ -16,6 +16,7 @@ platform_exceptions:  {
     interface_enabled: true
     missing_value_for_defaults: true
     missing_isis_interface_afi_safi_enable: true
+    forwarding_viable_failover_with_indirect_nh_unsupported: true
   }
 }
 

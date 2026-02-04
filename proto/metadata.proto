@@ -1147,6 +1147,10 @@ message Metadata {
     // b/479957749
     bool bgp_default_policy_behavior_accept_route = 377;
 
+    //Indirect next-hop not supported with forwarding viable.
+    // Nokia: b/428883444
+    bool forwarding_viable_failover_with_indirect_nh_unsupported = 378;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

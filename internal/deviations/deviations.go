@@ -1889,6 +1889,12 @@ func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
 
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+// Nokia b/428883444
+func ForwardingViableFailoverWithIndirectNHUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetForwardingViableFailoverWithIndirectNhUnsupported()
+}
+
 // CiscoxrTransceiverFt returns the functional translator to be used for translating
 // transceiver threshold leaves.
 func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
