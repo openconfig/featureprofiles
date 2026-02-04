@@ -1845,6 +1845,12 @@ func IbgpMultipathPathUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIbgpMultipathPathUnsupported()
 }
 
+// GetRetainGnmiCfgAfterReboot returns true if the device requires additional configuration to retain gNMI config across reboots.
+// Arista: https://partnerissuetracker.corp.google.com/476271160
+func GetRetainGnmiCfgAfterReboot(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRetainGnmiCfgAfterReboot()
+}
+
 // ContainerzPluginRPCUnsupported returns true if ContainerZ plugin RPCs are unsupported.
 func ContainerzPluginRPCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzPluginRpcUnsupported()
@@ -1887,4 +1893,33 @@ func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 // Nokia b/428883444
 func ForwardingViableFailoverWithIndirectNHUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetForwardingViableFailoverWithIndirectNhUnsupported()
+}
+
+// CiscoxrTransceiverFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
+}
+
+// TransceiverStateUnsupported returns true if device does not support transceiver state leaf.
+func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
+}
+
+// SubnetMaskChangeRequired returns true if the device requires changing the subnet mask length.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
+}
+
+// Ciscoxr8000IntegratedCircuitResourceFt returns the functional translator to be used for translating
+// integrated circuit resource leaves.
+func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
+}
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
 }
