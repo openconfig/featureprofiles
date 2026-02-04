@@ -24,6 +24,8 @@ import (
 const (
 	ipv4PLen          = 30
 	ipv6PLen          = 126
+	ipv4RoutePLen     = 24
+	ipv6RoutePLen     = 64
 	isisInstance      = "DEFAULT"
 	dutAreaAddress    = "49.0001"
 	ateAreaAddress    = "49"
@@ -621,29 +623,25 @@ func waitForRoutes(t *testing.T, dut *ondatra.DUTDevice, aggs []*aggPortData) {
 	t.Helper()
 	t.Log("Waiting for ISIS routes to be programmed in the DUT's FIB")
 
-	// Wait for IPv4 route
 	for _, agg := range aggs {
-		// Parse and mask the IPv4 address to get the network prefix
-		_, ipNet, err := net.ParseCIDR(agg.v4Route + "/24")
+		// Wait for IPv4 route
+		_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v4Route, ipv4RoutePLen))
 		if err != nil {
 			t.Fatalf("Failed to parse IPv4 route %s: %v", agg.v4Route, err)
 		}
-		v4Prefix := ipNet.String() // This gives us the properly masked network address
+		v4Prefix := ipNet.String()
 		t.Logf("Waiting for IPv4 route %s to be present in FIB", v4Prefix)
 		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
 			entry, present := val.Val()
 			return present && entry != nil
 		}).Await(t)
-	}
 
-	// Wait for IPv6 route
-	for _, agg := range aggs {
-		// Parse and mask the IPv6 address to get the network prefix
-		_, ipNet, err := net.ParseCIDR(agg.v6Route + "/64")
+		// Wait for IPv6 route
+		_, ipNet, err = net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v6Route, ipv6RoutePLen))
 		if err != nil {
 			t.Fatalf("Failed to parse IPv6 route %s: %v", agg.v6Route, err)
 		}
-		v6Prefix := ipNet.String() // This gives us the properly masked network address
+		v6Prefix := ipNet.String()
 		t.Logf("Waiting for IPv6 route %s to be present in FIB", v6Prefix)
 		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
 			entry, present := val.Val()
