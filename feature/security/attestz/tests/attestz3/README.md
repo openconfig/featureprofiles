@@ -2,13 +2,12 @@
 
 ## Summary
 
-In TPM enrollment workflow the switch owner verifies device's Initial Attestation Key (IAK) and Initial DevID (IDevID) certificates (signed by the switch vendor CA) and installs/rotates owner IAK (oIAK) and owner IDevID (oIDevID) certificates (signed by switch owner CA). In TPM attestation workflow switch owner verifies that the device's end-to-end boot state (bootloader, OS, secure boot policy, etc.) matches owner's expectations.
+In TPM enrollment workflow the switch owner verifies device's Initial Attestation Key (IAK) and Initial DevID (IDevID) certificates (signed by the switch vendor CA) and installs/rotates owner IAK (oIAK) and owner IDevID (oIDevID) certificates (signed by switch owner CA). In TPM attestation workflow switch owner verifies that the device's end-to-end boot state (initial instruction, BIOS code, bootloader, OS, secure boot policy, etc.) matches owner's expectations.
 
 ## Procedure
 
 Test should verify all success and failure/corner-case scenarios for TPM enrollment and attestation workflows that are specified in [attestz Readme](https://github.com/openconfig/attestz/blob/main/README.md).
 
-TPM enrollment workflow consists of two APIs defined in openconfig/attestz/blob/main/proto/tpm_enrollz.proto: `GetIakCert` and `RotateOIakCert`.
 TPM attestation workflow consists of a single API defined in openconfig/attestz/blob/main/proto/tpm_attestz.proto: `Attest`.
 The tests should comprehensively cover the behavior for all three APIs when used both separately and sequentially.
 Finally, the tests should cover both initial install/bootstrapping, oIAK/oIDevID rotation and post-install re-attestation workflows.
@@ -21,7 +20,7 @@ Finally, the tests should cover both initial install/bootstrapping, oIAK/oIDevID
 
 ### attestz-3: Validate post-install re-attestation
 
-The test validates that the device completes TPM attestation after initial bootstrapping when the device is already handling production traffic and has already been provisioned with oIAK cert and owner-issued mTLS credentials/certs to communicate with owner infrastructure.
+The test validates that the device completes TPM attestation after initial installation when the device is already handling production traffic and has already been provisioned with oIAK cert and owner-issued mTLS credentials/certs to communicate with owner infrastructure.
 
 | ID          | Case            | Result |
 | ----------- | ----------------| ------ |
@@ -41,11 +40,13 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 
 ```yaml
 rpcs:
-   gnsi:
-      certz.v1.Certz.Rotate:
-   gnoi:
-     system.System.Reboot:
-     system.System.SwitchControlProcessor:
+  attestz:
+    TpmAttestzService.Attest:
+  gnsi:
+    certz.v1.Certz.Rotate:
+  gnoi:
+    system.System.Reboot:
+    system.System.SwitchControlProcessor:
 ```
 
 ## Canonical OC
