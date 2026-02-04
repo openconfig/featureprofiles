@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: "5131d5f6-892a-4965-989f-c76d7311e13f"
-plan_id: "System-Mount-Points-1.1"
+plan_id: "SYS-4.1"
 description: "System Mount Points State Verification"
 testbed: TESTBED_DUT

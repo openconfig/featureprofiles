@@ -1,4 +1,4 @@
-# System-Mount-Points-1.1: System Mount Points State Verification
+# SYS-4.1: System Mount Points State Verification
 
 
 ## Summary
@@ -65,6 +65,4 @@ rpcs:
 
 ## Required DUT platform
 
-* MFF
 * FFF
-* vRX
