@@ -37,9 +37,9 @@ Verify system mount points state parameters including name, size, utilized, and 
           "name": "/",
           "state": {
             "name": "/",
-            "size": 100000,
-            "utilized": 50000,
-            "available": 50000
+            "size": "100000",
+            "utilized": "50000",
+            "available": "50000"
           }
         }
       ]
