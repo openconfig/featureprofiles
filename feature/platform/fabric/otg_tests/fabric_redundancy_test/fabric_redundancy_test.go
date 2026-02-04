@@ -364,7 +364,7 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	lastRebootTimeAfter := gnmi.Get(t, dut, lastRebootTime.State())
 
 	if lastRebootTimeBefore >= lastRebootTimeAfter {
-		t.Errorf("Component %s, last-reboot-time did not increase after power cycle, got before: %v, after: %v'", fabric, lastRebootTimeBefore, lastRebootTimeAfter)
+		t.Errorf("Component %s, last-reboot-time did not increase after power cycle, got before: %v, after: %v", fabric, lastRebootTimeBefore, lastRebootTimeAfter)
 	}
 }
 
