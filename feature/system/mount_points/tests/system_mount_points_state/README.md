@@ -1,4 +1,4 @@
-# System-Mount-Points-1.0: System Mount Points State Verification
+# System-Mount-Points-1.1: System Mount Points State Verification
 
 
 ## Summary
@@ -15,7 +15,7 @@ Verify system mount points state parameters including name, size, utilized, and 
 
 * No special setup required. Ensure the DUT is operational.
 
-### System-Mount-Points-1.1: Verify Mount Points State
+### System-Mount-Points-1.1.1: Verify Mount Points State
 
 1.  Subscribe/Get `/system/mount-points/mount-point` list.
 2.  Verify that the list of mount points is not empty (expecting at least one mount point).
@@ -26,7 +26,7 @@ Verify system mount points state parameters including name, size, utilized, and 
 
 *Note*: `mount-points` in OpenConfig are `config false` (operational state only), so we cannot configure them via OC. We verify the state reported by the system.
 
-## Canonical OpenConfig
+#### Canonical OC
 
 ```json
 {
