@@ -1918,12 +1918,6 @@ func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
 }
 
-// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
-// Nokia: b/459893133
-func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
-}
-
 // BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
 // there is no routing policy or default policy configured.
 func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
