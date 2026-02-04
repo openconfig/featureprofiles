@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/gnmi/metadata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/proto"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -535,7 +536,7 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 			t.Logf("%s Wrote failing NH prefixes to %s", prefix, filename)
 		}
 	}
-	if len(ss.notifications) > 0 {
+	if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
 		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
 		if err != nil {
 			t.Errorf("%s error writing notifications: %v", prefix, err)
@@ -568,6 +569,15 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	periodicTicker := time.NewTicker(periodicInterval)
+
+	// Variables for tracking message size and rate
+	var messageCount int64
+	var totalBytes int64
+	startTime := time.Now()
+	lastLogTime := startTime
+	var lastMessageCount int64
+	var lastTotalBytes int64
+
 	for {
 		select {
 		case resp := <-ss.buffer:
@@ -576,6 +586,42 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				t.Fatalf("error from gNMI stream: %v", resp.err)
 			}
 			ss.notifications = append(ss.notifications, resp.notification)
+
+			// Calculate message size
+			messageSize := proto.Size(resp.notification)
+			messageCount++
+			totalBytes += int64(messageSize)
+
+			// Log size and rate every 10,000 messages or 60 seconds
+			currentTime := time.Now()
+			timeSinceLastLog := currentTime.Sub(lastLogTime)
+			if messageCount%10000 == 0 || timeSinceLastLog >= 60*time.Second {
+				elapsedTotal := currentTime.Sub(startTime)
+				elapsedSinceLog := timeSinceLastLog
+
+				// Calculate overall stats
+				overallMsgRate := float64(messageCount) / elapsedTotal.Seconds()
+				overallByteRate := float64(totalBytes) / elapsedTotal.Seconds()
+
+				// Calculate interval stats
+				intervalMessages := messageCount - lastMessageCount
+				intervalBytes := totalBytes - lastTotalBytes
+				intervalMsgRate := float64(intervalMessages) / elapsedSinceLog.Seconds()
+				intervalByteRate := float64(intervalBytes) / elapsedSinceLog.Seconds()
+
+				t.Logf("gNMI Stream Stats - Messages: %d, Total Size: %.2f MB, Avg Msg Size: %d bytes, Overall Rate: %.2f msg/s, %.2f KB/s, Interval Rate: %.2f msg/s, %.2f KB/s",
+					messageCount,
+					float64(totalBytes)/(1024*1024),
+					totalBytes/messageCount,
+					overallMsgRate,
+					overallByteRate/1024,
+					intervalMsgRate,
+					intervalByteRate/1024)
+
+				lastLogTime = currentTime
+				lastMessageCount = messageCount
+				lastTotalBytes = totalBytes
+			}
 
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
@@ -917,6 +963,8 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
 	}
+	nhidSeen := make(map[uint64]struct{})
+
 	for _, u := range updates {
 		p, err = ygot.PathToSchemaPath(u.Path)
 		if strings.HasPrefix(p, nextHopGroupConditionPath) {
@@ -933,7 +981,11 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		// Match for the path of the form:
 		// /network-instances/network-instance/DEFAULT/afts/next-hop-groups/next-hop-group[id=<id>]/state/index
 		case strings.HasSuffix(p, "state/index"):
-			nhg.NHIDs = append(nhg.NHIDs, u.Val.GetUintVal())
+			id := u.Val.GetUintVal()
+			if _, exists := nhidSeen[id]; !exists {
+				nhidSeen[id] = struct{}{}
+				nhg.NHIDs = append(nhg.NHIDs, id)
+			}
 		case p == nextHopWeightPath:
 			nhID, err := strconv.ParseUint(u.Path.GetElem()[6].GetKey()["index"], 10, 64)
 			if err != nil {
