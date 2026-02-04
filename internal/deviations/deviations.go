@@ -1905,3 +1905,15 @@ func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
 }
+
+// Ciscoxr8000IntegratedCircuitResourceFt returns the functional translator to be used for translating
+// integrated circuit resource leaves.
+func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
+}
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
+}
