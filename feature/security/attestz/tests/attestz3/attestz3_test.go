@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +17,6 @@ package attestz3_test
 import (
 	"context"
 	"flag"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -45,8 +43,8 @@ type attestResponse struct {
 
 var (
 	vendorCaCertPem = flag.String("switch_vendor_ca_cert", "", "a pem file for vendor ca cert used for verifying iDevID/IAK Certs")
-	ownerCaCertPem  = flag.String("switch_owner_ca_cert", "../testdata/owner-ca.cert.pem", "a pem file for ca cert that will be used to sign oDevID/oIAK/mTLS Certs")
-	ownerCaKeyPem   = flag.String("switch_owner_ca_key", "../testdata/owner-ca.key.pem", "a pem file for ca key that will be used to sign oDevID/oIAK/mTLS Certs")
+	ownerCaCertPem  = flag.String("switch_owner_ca_cert", "../testdata/owner-ca-rsa-cert.pem", "a pem file for ca cert that will be used to sign oDevID/oIAK/mTLS Certs")
+	ownerCaKeyPem   = flag.String("switch_owner_ca_key", "../testdata/owner-ca-rsa-key.pem", "a pem file for ca key that will be used to sign oDevID/oIAK/mTLS Certs")
 )
 
 func TestMain(m *testing.M) {
@@ -55,9 +53,8 @@ func TestMain(m *testing.M) {
 
 func TestAttestz3(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	// Retrieve vendor ca certificate from testdata if not provided in test args.
 	if *vendorCaCertPem == "" {
-		*vendorCaCertPem = fmt.Sprintf("../testdata/%s-ca.cert.pem", strings.ToLower(dut.Vendor().String()))
+		t.Fatalf("Switch vendor CA certificate path missing in test args.")
 	}
 
 	attestzTarget, attestzServer := attestz.SetupBaseline(t, dut)
@@ -97,7 +94,7 @@ func TestAttestz3(t *testing.T) {
 
 		// Collect attest response before reboot.
 		attestRespMap := make(map[cdpb.Tpm20HashAlgo]*attestResponse)
-		for _, hashAlgo := range attestz.PcrBankHashAlgoMap[dut.Vendor()] {
+		for _, hashAlgo := range attestz.GetPcrBankHashAlgosForPlatform(t, dut) {
 			attestRespMap[hashAlgo] = new(attestResponse)
 			attestRespMap[hashAlgo].activeCard = as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
 			attestRespMap[hashAlgo].standbyCard = as.RequestAttestation(t, standbyCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
@@ -122,7 +119,7 @@ func TestAttestz3(t *testing.T) {
 		defer as.Conn.Close()
 
 		// Verify quote after reboot is different.
-		for _, hashAlgo := range attestz.PcrBankHashAlgoMap[dut.Vendor()] {
+		for _, hashAlgo := range attestz.GetPcrBankHashAlgosForPlatform(t, dut) {
 			resp := as.RequestAttestation(t, activeCard.Role, attestz.GenNonce(t), hashAlgo, attestz.PcrIndices)
 			if cmp.Equal(attestRespMap[hashAlgo].activeCard.Quoted, resp.Quoted) {
 				t.Logf("Attest response for active card %s before reboot: \n%s", activeCard.Name, attestz.PrettyPrint(attestRespMap[hashAlgo].activeCard))

@@ -1,4 +1,4 @@
-// Copyright 2024 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -164,14 +164,14 @@ func createTestGrpcServer(t *testing.T, dut *ondatra.DUTDevice) *oc.System_GrpcS
 	gs.SetMetadataAuthentication(false)
 	gs.SetNetworkInstance(mgmtVrf)
 	gnmi.Update(t, dut, gnmi.OC().System().Config(), s)
-	return gnmi.Get[*oc.System_GrpcServer](t, dut, gnmi.OC().System().GrpcServer(attestzServerName).State())
+	return gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(attestzServerName).State())
 }
 
 // Ensure that we can call both controllers.
 func findControllers(t *testing.T, dut *ondatra.DUTDevice, controllers []string) (string, string) {
 	var primary, secondary string
 	for _, controller := range controllers {
-		role := gnmi.Get[oc.E_Platform_ComponentRedundantRole](t, dut, gnmi.OC().Component(controller).RedundantRole().State())
+		role := gnmi.Get(t, dut, gnmi.OC().Component(controller).RedundantRole().State())
 		t.Logf("Component(controller).RedundantRole().Get(t): %v, Role: %v", controller, role)
 		if role == secondaryController {
 			secondary = controller
