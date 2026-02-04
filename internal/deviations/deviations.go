@@ -1474,6 +1474,12 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
@@ -1910,4 +1916,16 @@ func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
 // integrated circuit resource leaves.
 func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
+}
+
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
 }
