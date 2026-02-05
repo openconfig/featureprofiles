@@ -271,8 +271,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
-  ? /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
-  :
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
