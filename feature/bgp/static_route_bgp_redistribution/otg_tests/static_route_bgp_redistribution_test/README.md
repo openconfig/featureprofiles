@@ -675,10 +675,8 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
-  ? /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n
-  :
-  ? /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref
-  :
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
