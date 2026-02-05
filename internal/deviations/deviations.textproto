@@ -1939,6 +1939,7 @@ deviations: {
       vendor: ARISTA
       software_version_regex: "*.*"
     }
+  }
 }
 deviations: {
   name: "telemetry_not_supported_for_low_priority_nh"
