@@ -27,6 +27,7 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
 ```yaml
 paths:
   /components/component/integrated-circuit/config/node-id:
+    platform_type: [INTEGRATED_CIRCUIT]
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/id:
