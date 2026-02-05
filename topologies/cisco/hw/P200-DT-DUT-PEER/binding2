@@ -21,7 +21,7 @@
 
 # Username: cafyauto
 # Password: cisco123
-
+# This Binding is with Port forwarding enabled on UCS: root@sjc-ucs-b4/SJ17labuser!
 duts {
   id: "dut"
   vendor: CISCO
