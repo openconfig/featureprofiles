@@ -1703,12 +1703,12 @@ deviations: {
     }
   additional_paths: {
     ocpaths: {
-        name: "/interfaces/interface/state/counters/in-unicast-pkts"
-      }
-      ocpaths: {
-        name: "/interfaces/interface/state/counters/out-unicast-pkts"
-      }
+      name: "/interfaces/interface/state/counters/in-unicast-pkts"
     }
+    ocpaths: {
+      name: "/interfaces/interface/state/counters/out-unicast-pkts"
+    }
+  }
   }
 }
 deviations: {
