@@ -19,7 +19,6 @@ import (
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -564,7 +563,7 @@ func verifyLoadBalanceAcrossGre(t *testing.T, packetSource *gopacket.PacketSourc
 		return
 	}
 
-	t.Errorf("error: traffic was load-balanced across %d GRE sources", uniqueCount)
+	t.Errorf("error: traffic was not load-balanced across %d GRE sources", uniqueCount)
 }
 
 func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) error {
@@ -802,9 +801,6 @@ func testCFMEstablishment(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, ot
 	ate.OTG().PushConfig(t, otgConfig)
 	sendTrafficCapture(t, ate)
 
-	otgutils.LogFlowMetrics(t, otg, otgConfig)
-	otgutils.LogPortMetrics(t, otg, otgConfig)
-
 	for _, data := range dutTestData {
 		data.cfmCfg[0].Status = oc.OamCfm_OperationalStateType_ENABLED
 		cfgplugins.ValidateCFMSession(t, data.dut, data.cfmCfg[0])
@@ -831,7 +827,6 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 	}
 
 	interval, _ := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
-	t.Log(interval)
 	if err := validateCfmPacket(t, interval, false); err != nil {
 		t.Errorf("error: validation of cfm packets failed: %q", err)
 	}
@@ -982,9 +977,7 @@ func testCFMLossMeasurement(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, 
 	sendTrafficCapture(t, ate)
 	time.Sleep(20 * time.Second)
 
-	for _, data := range dutTestData {
-		cfgplugins.ValidateLossMeasurement(t, data.dut, data.cfmCfg[0])
-	}
+	cfgplugins.ValidateLossMeasurement(t, []*ondatra.DUTDevice{dutTestData[0].dut, dutTestData[1].dut}, []cfgplugins.MaintenanceDomainConfig{dutTestData[0].cfmCfg[0], dutTestData[1].cfmCfg[0]})
 }
 
 func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
