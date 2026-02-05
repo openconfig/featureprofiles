@@ -96,6 +96,7 @@ paths:
   /components/component/config/name:
     platform_type: [PORT, TRANSCEIVER]
   /components/component/state/description:
+    platform_type: [TRANSCEIVER]
   /components/component/state/firmware-version:
     platform_type: [TRANSCEIVER]
   /components/component/state/hardware-version:
