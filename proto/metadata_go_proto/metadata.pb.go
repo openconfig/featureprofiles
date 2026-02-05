@@ -21,12 +21,13 @@
 package metadata_go_proto
 
 import (
-	proto "github.com/openconfig/ondatra/proto"
-	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
-	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
+
+	proto "github.com/openconfig/ondatra/proto"
+	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
+	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 )
 
 const (
@@ -1131,7 +1132,7 @@ type Metadata_Deviations struct {
 	// Arista : https://partnerissuetracker.corp.google.com/issues/434922681
 	OtnToEthAssignment bool `protobuf:"varint,317,opt,name=otn_to_eth_assignment,json=otnToEthAssignment,proto3" json:"otn_to_eth_assignment,omitempty"`
 	// Devices that do not support import export policies configured in network instance
-	NetworkInstanceImportExportPolicyOcUnsuppored bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsuppored,json=networkInstanceImportExportPolicyOcUnsuppored,proto3" json:"network_instance_import_export_policy_oc_unsuppored,omitempty"`
+	NetworkInstanceImportExportPolicyOcUnsupported bool `protobuf:"varint,318,opt,name=network_instance_import_export_policy_oc_unsupported,json=networkInstanceImportExportPolicyOcUnsupported,proto3" json:"network_instance_import_export_policy_oc_unsupported,omitempty"`
 	// Device does not support 'origin' field in gNMI/gNOI RPC paths.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/439656904
 	SkipOrigin bool `protobuf:"varint,319,opt,name=skip_origin,json=skipOrigin,proto3" json:"skip_origin,omitempty"`
@@ -3337,9 +3338,9 @@ func (x *Metadata_Deviations) GetOtnToEthAssignment() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsuppored() bool {
+func (x *Metadata_Deviations) GetNetworkInstanceImportExportPolicyOcUnsupported() bool {
 	if x != nil {
-		return x.NetworkInstanceImportExportPolicyOcUnsuppored
+		return x.NetworkInstanceImportExportPolicyOcUnsupported
 	}
 	return false
 }

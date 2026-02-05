@@ -910,7 +910,7 @@ message Metadata {
     bool otn_to_eth_assignment = 317;
     
     // Devices that do not support import export policies configured in network instance
-    bool network_instance_import_export_policy_oc_unsuppored = 318;
+    bool network_instance_import_export_policy_oc_unsupported = 318;
 
     // Device does not support 'origin' field in gNMI/gNOI RPC paths.
     // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
