@@ -45,6 +45,7 @@ const (
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
+	vendorFallback            = ondatra.Vendor(0) // Fallback vendor key for unknown vendors
 )
 
 var (
@@ -99,8 +100,17 @@ var (
 	// adjustedFrameSizeMap contains the actual size that the SFlow packet is reporting for a specific frame size
 	// This size depends on the ip type of the packet
 	// If a value is not contained in the map it is expected that the SFlow packet reported size is equal to the sent frame size
-	adjustedFrameSizeMap = map[uint32]map[string]uint32{
-		64: {cfgplugins.IPv4: 66, cfgplugins.IPv6: 86},
+	adjustedFrameSizeMap = map[ondatra.Vendor]map[uint32]map[string]uint32{
+		ondatra.JUNIPER: {
+			64:   {cfgplugins.IPv4: 62, cfgplugins.IPv6: 82},
+			512:  {cfgplugins.IPv4: 508, cfgplugins.IPv6: 508},
+			1500: {cfgplugins.IPv4: 1496, cfgplugins.IPv6: 1496},
+		},
+		// Default/fallback for other vendors - uses common expected values
+		vendorFallback: {
+			64: {cfgplugins.IPv4: 66, cfgplugins.IPv6: 86},
+			// This serves as a fallback for vendors not explicitly listed
+		},
 	}
 
 	// ifIndexMap maps interface names to their ifIndex values
@@ -515,12 +525,25 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 	egressIntf := ifIndexMap[dp2.Name()]
 
 	adjustedSize := flowConfig.frameSize
-	if adjustedValues, found := adjustedFrameSizeMap[flowConfig.frameSize]; found {
-		adjustedSize = adjustedValues[flowConfig.ipType]
+	vendor := dut.Vendor()
+	
+	// Try vendor-specific lookup first
+	if vendorMap, found := adjustedFrameSizeMap[vendor]; found {
+		if adjustedValues, found := vendorMap[flowConfig.frameSize]; found {
+			if size, found := adjustedValues[flowConfig.ipType]; found {
+				adjustedSize = size
+			}
+		}
+	} else if fallbackMap, found := adjustedFrameSizeMap[vendorFallback]; found {
+		if adjustedValues, found := fallbackMap[flowConfig.frameSize]; found {
+			if size, found := adjustedValues[flowConfig.ipType]; found {
+				adjustedSize = size
+			}
+		}
 	}
 
 	if sFlowPkt.size != adjustedSize {
-		t.Errorf("SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, flowConfig.frameSize)
+		t.Errorf("SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, adjustedSize)
 	}
 	if sFlowPkt.samplingRate != samplingRate {
 		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, samplingRate)
