@@ -348,9 +348,9 @@ func ValidateAlarmDetection(t *testing.T, dut *ondatra.DUTDevice, cfg Maintenanc
 				rdiStatus := strings.TrimSpace(rdiFlag[1])
 				t.Logf("Type: %T, Value: %q", rdiStatus, rdiStatus)
 				if rdiStatus != "true" {
-					t.Errorf("wrong MD level” alarm is not detected on the endpoints")
+					t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: %s", rdiStatus)
 				} else {
-					t.Log("wrong MD level” alarm detected on the endpoints")
+					t.Log("no defect or fault condition has been detected, as expected RDI state: true")
 				}
 			} else {
 				t.Errorf("rdi state not found")
@@ -359,9 +359,9 @@ func ValidateAlarmDetection(t *testing.T, dut *ondatra.DUTDevice, cfg Maintenanc
 	} else {
 		localmepState := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().MaintenanceDomain(cfg.DomainName).MaintenanceAssociation(cfg.MdID).MepEndpoint(uint16(cfg.Assocs[0].LocalMEPID)).State())
 		if localmepState.GetRdi().GetTransmitOnDefect() {
-			t.Log("wrong MD level” alarm detected on the endpoints")
+			t.Log("no defect or fault condition has been detected, as expected RDI state: true")
 		} else {
-			t.Errorf("wrong MD level” alarm is not detected on the endpoints")
+			t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: false")
 		}
 	}
 }
@@ -393,69 +393,130 @@ func ValidateDelayMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg Maintena
 		max := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayMax().State())
 		min := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayMin().State())
 		avg := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().FrameDelayTwoWayAverage().State())
+		dmmCounters := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).DelayMeasurementState().Counters().DmmReceived().State())
 
-		if max == 0 || min == 0 || avg == 0 {
+		if max == 0 || min == 0 || avg == 0 || dmmCounters == 0 {
 			t.Fatal("Could not retrieve one or more delay measurement values")
 		}
 
-		t.Logf("Two-way Frame Delay (ms) - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
+		t.Logf("Two-way Frame Delay (ms) - Min: %d, Max: %d, Avg: %d\n, dmm: %d", min, max, avg, dmmCounters)
 	}
 }
 
-func ValidateLossMeasurement(t *testing.T, dut *ondatra.DUTDevice, cfg MaintenanceDomainConfig) {
-	if deviations.CfmOCUnsupported(dut) {
+func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []MaintenanceDomainConfig) {
+	var lastMeasurement1, lastMeasurement2 int
+	end := time.Now().Add(10 * time.Second)
+	if deviations.CfmOCUnsupported(dutData[0]) {
 		cli := ""
-		switch dut.Vendor() {
+		switch dutData[0].Vendor() {
 		case ondatra.ARISTA:
-			cli = fmt.Sprintf(`
-				show cfm measurement loss synthetic proactive domain %s association %v end-point %v
-				`, cfg.DomainName, cfg.MdID, cfg.Assocs[0].LocalMEPID)
-			output := helpers.ExecuteShowCLI(t, dut, cli).String()
+			var output1, output2 string
+			measurementCountRe := regexp.MustCompile(`Number of measurements:\s+(\d+)`)
+			for time.Now().Before(end) {
+				cli = fmt.Sprintf(`show cfm measurement loss synthetic proactive domain %s association %v end-point %v`, cfg[0].DomainName, cfg[0].MdID, cfg[0].Assocs[0].LocalMEPID)
+				output1 := helpers.ExecuteShowCLI(t, dutData[0], cli).String()
+
+				cli = fmt.Sprintf(`show cfm measurement loss synthetic proactive domain %s association %v end-point %v`, cfg[1].DomainName, cfg[1].MdID, cfg[1].Assocs[0].LocalMEPID)
+				output2 := helpers.ExecuteShowCLI(t, dutData[1], cli).String()
+
+				measurementCount1 := measurementCountRe.FindStringSubmatch(output1)
+				measurementCount2 := measurementCountRe.FindStringSubmatch(output2)
+				if len(measurementCount1) > 1 && len(measurementCount2) > 1 {
+					measurementVal1, _ := strconv.Atoi(measurementCount1[1])
+					measurementVal2, _ := strconv.Atoi(measurementCount2[1])
+					if measurementVal1 > lastMeasurement1 {
+						lastMeasurement1 = measurementVal1
+					} else {
+						t.Errorf("DUT1: measurement count is not increasing, previous: %d, new: %d", lastMeasurement1, measurementVal1)
+					}
+					if measurementVal2 > lastMeasurement2 {
+						lastMeasurement2 = measurementVal2
+					} else {
+						t.Errorf("DUT2: measurement count is not increasing, previous: %d, new: %d", lastMeasurement2, measurementVal2)
+					}
+				} else {
+					t.Errorf("not able to fetch number of measurements")
+				}
+			}
 
 			farEndRe := regexp.MustCompile(`Far-end frame .*?min/max/avg: (\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)`)
 
-			farEndMeasurement := farEndRe.FindStringSubmatch(output)
-			if len(farEndMeasurement) > 1 {
-				farMin, _ := strconv.ParseFloat(farEndMeasurement[1], 64)
-				farMax, _ := strconv.ParseFloat(farEndMeasurement[2], 64)
-				farAvg, _ := strconv.ParseFloat(farEndMeasurement[3], 64)
+			for i := range dutData {
+				var output string
+				switch i {
+				case 0:
+					output = output1
+				case 1:
+					output = output2
+				}
 
-				t.Logf("Farend loss ratio - Min: %.3f, Max: %.3f, Avg: %.3f\n", farMin, farMax, farAvg)
-			} else {
-				t.Errorf("farend loss measurements not found")
+				farEndMeasurement := farEndRe.FindStringSubmatch(output)
+				if len(farEndMeasurement) > 1 {
+					farMin, _ := strconv.ParseFloat(farEndMeasurement[1], 64)
+					farMax, _ := strconv.ParseFloat(farEndMeasurement[2], 64)
+					farAvg, _ := strconv.ParseFloat(farEndMeasurement[3], 64)
+
+					t.Logf("Farend loss ratio - Min: %.3f, Max: %.3f, Avg: %.3f\n", farMin, farMax, farAvg)
+				} else {
+					t.Errorf("farend loss measurements not found")
+				}
+
+				nearEndRe := regexp.MustCompile(`Near-end frame .*?min/max/avg: (\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)`)
+				nearEndMeasurement := nearEndRe.FindStringSubmatch(output)
+				if len(nearEndMeasurement) > 1 {
+					nearMin, _ := strconv.ParseFloat(nearEndMeasurement[1], 64)
+					nearMax, _ := strconv.ParseFloat(nearEndMeasurement[2], 64)
+					nearAvg, _ := strconv.ParseFloat(nearEndMeasurement[3], 64)
+
+					t.Logf("Near-end frame ratio - Min: %.3f, Max: %.3f, Avg: %.3f\n", nearMin, nearMax, nearAvg)
+				} else {
+					t.Errorf("Near-end frame ratio measurements not found")
+				}
 			}
 
-			nearEndRe := regexp.MustCompile(`Near-end frame .*?min/max/avg: (\d+\.\d+)/(\d+\.\d+)/(\d+\.\d+)`)
-			nearEndMeasurement := nearEndRe.FindStringSubmatch(output)
-			if len(nearEndMeasurement) > 1 {
-				nearMin, _ := strconv.ParseFloat(nearEndMeasurement[1], 64)
-				nearMax, _ := strconv.ParseFloat(nearEndMeasurement[2], 64)
-				nearAvg, _ := strconv.ParseFloat(nearEndMeasurement[3], 64)
-
-				t.Logf("Near-end frame ratio - Min: %.3f, Max: %.3f, Avg: %.3f\n", nearMin, nearMax, nearAvg)
-			} else {
-				t.Errorf("Near-end frame ratio measurements not found")
-			}
 		}
 	} else {
-		max := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().FarEndMaxFrameLossRatio().State())
-		min := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().FarEndMinFrameLossRatio().State())
-		avg := gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().FarEndAverageFrameLossRatio().State())
+		for time.Now().Before(end) {
+			slmReceived1 := gnmi.Get(t, dutData[0], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[0].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
+			slmReceived2 := gnmi.Get(t, dutData[1], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[1].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
+			if slmReceived1 > 0 && slmReceived2 > 0 {
+				lastMeasurement1 = int(slmReceived1)
+				lastMeasurement2 = int(slmReceived2)
 
-		if max == 0 || min == 0 || avg == 0 {
-			t.Fatal("Could not retrieve one or more farend loss measurement values")
+				if slmReceived1 > uint64(lastMeasurement1) {
+					lastMeasurement1 = int(slmReceived1)
+				} else {
+					t.Errorf("DUT1: measurement count is not increasing, previous: %d, new: %d", lastMeasurement1, slmReceived1)
+				}
+				if slmReceived2 > uint64(lastMeasurement2) {
+					lastMeasurement2 = int(slmReceived2)
+				} else {
+					t.Errorf("DUT2: measurement count is not increasing, previous: %d, new: %d", lastMeasurement2, slmReceived2)
+				}
+			} else {
+				t.Errorf("slm measurement not found, got: %d, %d, expected > 1", slmReceived1, slmReceived2)
+			}
 		}
+		for i := range dutData {
+			max := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMaxFrameLossRatio().State())
+			min := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMinFrameLossRatio().State())
+			avg := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndAverageFrameLossRatio().State())
 
-		t.Logf("Farend loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
+			if max == 0 || min == 0 || avg == 0 {
+				t.Fatal("Could not retrieve one or more farend loss measurement values")
+			}
 
-		max = gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().NearEndMaxFrameLossRatio().State())
-		min = gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().NearEndMinFrameLossRatio().State())
-		avg = gnmi.Get(t, dut, gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg.ProfileName).LossMeasurementState().NearEndAverageFrameLossRatio().State())
+			t.Logf("Farend loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 
-		if max == 0 || min == 0 || avg == 0 {
-			t.Fatal("Could not retrieve one or more near-end loss measurement values")
+			max = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMaxFrameLossRatio().State())
+			min = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMinFrameLossRatio().State())
+			avg = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndAverageFrameLossRatio().State())
+
+			if max == 0 || min == 0 || avg == 0 {
+				t.Fatal("Could not retrieve one or more near-end loss measurement values")
+			}
+
+			t.Logf("near end loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 		}
-
-		t.Logf("near end loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 	}
 }
