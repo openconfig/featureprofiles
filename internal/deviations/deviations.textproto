@@ -1546,7 +1546,7 @@ deviations: {
       software_version_regex: "*.*"
     }
     clis: {
-      commands: "configure terminal\ndynamic prefix-list .*\n.match rcf .*\n.prefix-list ipv4 .*\nrouter general\n.vrf default\n..routes dynamic prefix-list .* install drop\nrouter bgp [0-9]+\n.redistribute dynamic\nconfigure terminal\nrouter general\n.control-functions\n..\{.*"cmd": "code unit .*".*\}\n.compile\n.commit\nexit"
+      commands: "configure terminal\ndynamic prefix-list .*\n.match rcf .*\n.prefix-list ipv4 .*\nrouter general\n.vrf default\n..routes dynamic prefix-list .* install drop\nrouter bgp [0-9]+\n.redistribute dynamic\nconfigure terminal\nrouter general\n.control-functions\n..code unit .*".*\\n.compile\n.commit\nexit"
     }
   }
 }
