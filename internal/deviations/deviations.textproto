@@ -1451,3 +1451,46 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "otn_to_eth_assignment"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type"
+      }
+    }
+  }
+}
