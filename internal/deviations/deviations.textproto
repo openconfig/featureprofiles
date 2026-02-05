@@ -942,6 +942,20 @@ deviations: {
       software_version_regex: "*.*"
     }
   }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
 }
 deviations: {
   name: "load_interval_not_supported"
@@ -986,6 +1000,18 @@ deviations: {
     issue_url: ""
     platform: {
       vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      vendor_specific_value: {
+        string_val: "+.0"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
       software_version_regex: "*.*"
     }
     deviation_values: {
@@ -1331,6 +1357,140 @@ deviations: {
     }
     clis: {
       commands: "router.isis.*\n.interface.*\n..address-family.(ipv4|ipv6).unicast\n...weight.[0-9]+\n..address-family.(ipv4|ipv6).unicast\n...weight [0-9]+"
+    }
+  }
+}
+deviations: {
+  name: "config_acl_with_prefixlist_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/config/name"
+    }
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix"
+    }
+    ocpaths: {
+      name: "/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/mask-length-range"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "traffic-policies\n.traffic-policy .*\n..match rule1 .*\n...source prefix .*\n...destination prefix .*"
+    }
+  }
+}
+deviations: {
+  name: "mpls_label_classification_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/local-id"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/lower-bound"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/global/reserved-label-blocks/reserved-label-block/config/upper-bound"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls label range .*"
+    }
+  }
+}
+deviations: {
+  name: "network_instance_import_export_policy_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/inter-instance-policies/import-export-policy/config/import-route-target"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/inter-instance-policies/import-export-policy/config/export-route-target"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "route-map RM-ALL-ROUTES permit 10\n *router general(\n *vrf .*\n *leak routes source-vrf .* subscribe-policy RM-ALL-ROUTES)+"
+    }
+  }
+}
+deviations: {
+  name: "mpls_exp_ingress_classifier_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/classifiers/classifier/terms/term/conditions/mpls/config/traffic-class"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls ip\n mpls static top-label .* pop payload-type ipv4\n qos map exp .* to traffic-class .*"
+    }
+  }
+}
+deviations: {
+  name: "otn_to_eth_assignment"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/description"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/allocation"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type"
+      }
+      ocpaths: {
+        name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type"
+      }
     }
   }
 }
