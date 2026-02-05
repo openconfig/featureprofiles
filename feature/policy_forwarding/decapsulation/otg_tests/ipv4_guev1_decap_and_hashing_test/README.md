@@ -311,7 +311,9 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 ```yaml
 paths:
   /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
   /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
   /interfaces/interface/aggregation/config/lag-type:
   /interfaces/interface/config/name:
   /interfaces/interface/config/type:
