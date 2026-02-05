@@ -42,8 +42,6 @@ paths:
     platform_type: [PORT]
   /components/component/port/breakout-mode/groups/group/config/num-breakouts:
     platform_type: [PORT]
-  /components/component/state/name:
-  /components/component/state/oper-status:
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/type:
   /interfaces/interface/ethernet/config/port-speed:
@@ -55,7 +53,6 @@ rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
-      /components/component/port/breakout-mode/groups/group/index:
     gNMI.Subscribe:
 ```
 
