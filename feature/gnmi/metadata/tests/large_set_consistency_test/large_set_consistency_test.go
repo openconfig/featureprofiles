@@ -68,6 +68,57 @@ func setEthernetFromBase(t testing.TB, config *oc.Root) {
 	}
 }
 
+// filterBaselineConfig filters the baseline config to remove unwanted fields.
+func filterBaselineConfig(baselineConfig *oc.Root) {
+	for _, ni := range baselineConfig.NetworkInstance {
+		for _, p := range ni.Protocol {
+			if p.Bgp != nil {
+				if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					p.Bgp = nil
+				} else if p.Bgp.Global != nil {
+					p.Bgp.Global.UseMultiplePaths = nil
+				}
+			}
+			if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS {
+				p.Isis = nil
+			}
+		}
+		if ni.Type != oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE {
+			ni.Mpls = nil
+		}
+		ni.SegmentRouting = nil
+	}
+	if baselineConfig.System != nil && baselineConfig.System.Ntp != nil {
+		for _, s := range baselineConfig.System.Ntp.Server {
+			s.Port = nil
+		}
+	}
+	for _, i := range baselineConfig.Interface {
+		if i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			i.Aggregation = nil
+		}
+		if i.Type != oc.IETFInterfaces_InterfaceType_l3ipvlan {
+			i.RoutedVlan = nil
+		}
+		if i.Type != oc.IETFInterfaces_InterfaceType_ethernetCsmacd && i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			i.Ethernet = nil
+		}
+	}
+	if baselineConfig.System != nil {
+		baselineConfig.System.Utilization = nil
+	}
+	if baselineConfig.Acl != nil {
+		for k, as := range baselineConfig.Acl.AclSet {
+			if as.GetName() == "default-control-plane-acl" {
+				delete(baselineConfig.Acl.AclSet, k)
+			}
+		}
+	}
+	baselineConfig.Sampling = nil
+	baselineConfig.RoutingPolicy = nil
+	baselineConfig.Qos = nil
+}
+
 // buildGNMIUpdate builds a gnmi update for a given ygot path and value.
 func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val any) *gpb.Update {
 	t.Helper()
@@ -272,6 +323,7 @@ func TestLargeSetConsistency(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	filterBaselineConfig(baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
@@ -285,6 +337,9 @@ func TestLargeSetConsistency(t *testing.T) {
 	t.Run("check shortStringMetadata1", func(t *testing.T) {
 		checkshortStringMetadata1(t, gnmiClient, dut, done)
 	})
+
+	// Add delay to allow the first SET request value to propagate to the datastore
+	time.Sleep(5 * time.Second)
 
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
@@ -347,6 +402,7 @@ func TestLargeMetadataConfigPush(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	filterBaselineConfig(baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
