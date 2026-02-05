@@ -19,13 +19,12 @@ TODO(OCRPC): Record may not be complete
 
 ```yaml
 paths:
-    ### Prefix:
-    # Accounting does not currently support any telemetry; see https://github.com/openconfig/gnsi/issues/97 where it might become /system/aaa/acctz/XXX
+  /system/state/boot-time:
 rpcs:
   gnsi:
     acctz.v1.Acctz.RecordSubscribe:
-      "RecordRequest.timestamp!=0": true
-      "RecordResponse.service_request = CommandService": true
+      RecordRequest.timestamp!=0: true
+      RecordResponse.service_request = CommandService: true
 ```
 
 ## Minimum DUT

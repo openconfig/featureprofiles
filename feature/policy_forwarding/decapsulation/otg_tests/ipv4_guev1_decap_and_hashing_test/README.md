@@ -310,24 +310,37 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-
-/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
-
-# telemetry
-/interfaces/interface/state/counters/out-pkts:
-/interfaces/interface/state/counters/out-unicast-pkts:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
-
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/config/allow-multiple-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       replace: true
+      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```

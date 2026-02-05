@@ -51,6 +51,22 @@ Validate gRIBI Get RPC.
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 rpcs:
   gnmi:
     gNMI.Get:

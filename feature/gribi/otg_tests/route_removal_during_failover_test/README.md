@@ -32,15 +32,35 @@ Validate gRIBI route flush during SSO
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/state/last-switchover-reason/details:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/last-switchover-reason/trigger:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/last-switchover-time:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/redundant-role:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/switchover-ready:
+    platform_type: [CONTROLLER_CARD]
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/last-change:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id:
+  /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /system/state/current-datetime:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Canonical OC

@@ -236,10 +236,23 @@ changes.
 
 ```yaml
 paths:
-/interfaces/interface/state/oper-status:
-/interfaces/interface/state/last-change:
-/interfaces/interface/subinterfaces/subinterface/state/last-change:
-
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/config/auto-negotiate:
+  /interfaces/interface/ethernet/config/duplex-mode:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/state/last-change:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/state/last-change:
 rpcs:
   gnmi:
     gNMI.Subscribe:

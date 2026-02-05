@@ -76,6 +76,12 @@ Validate Interface based Ipv4 GRE Tunnel Config.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 rpcs:
   gnmi:
     gNMI.Get:

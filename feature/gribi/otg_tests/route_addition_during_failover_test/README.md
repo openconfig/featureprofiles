@@ -38,15 +38,24 @@ Validate gRIBI route persistence during SSO
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/state/last-switchover-time:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/redundant-role:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/switchover-ready:
+    platform_type: [CONTROLLER_CARD]
+  /interfaces/interface/state/last-change:
+  /system/state/current-datetime:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Canonical OC

@@ -433,15 +433,20 @@ network-instances {
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform

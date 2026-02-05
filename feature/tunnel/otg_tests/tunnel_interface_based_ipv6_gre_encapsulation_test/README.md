@@ -75,6 +75,21 @@ Validate Interface based Ipv6 GRE Tunnel Config.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/mac-address:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 rpcs:
   gnmi:
     gNMI.Get:

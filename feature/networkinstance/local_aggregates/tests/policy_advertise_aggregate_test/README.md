@@ -191,6 +191,35 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
 
 ### OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 rpcs:
   gnmi:
     gNMI.Get:
