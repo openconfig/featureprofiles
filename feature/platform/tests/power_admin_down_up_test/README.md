@@ -37,10 +37,19 @@ The below yaml defines the OC paths and RPC intended to be covered by this test.
 
 ```yaml
 paths:
-
-/components/component/name:
-/components/component/state/name:
-
+  /components/component/controller-card/state/power-admin-state:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/fabric/state/power-admin-state:
+    platform_type: [FABRIC]
+  /components/component/linecard/state/power-admin-state:
+    platform_type: [LINECARD]
+  /components/component/state/empty:
+  /components/component/state/oper-status:
+  /components/component/state/redundant-role:
+  /components/component/state/removable:
+  /components/component/state/switchover-ready:
+  /components/component/name:
+  /components/component/state/name:
 rpcs:
   gnmi:
     gNMI.Set:

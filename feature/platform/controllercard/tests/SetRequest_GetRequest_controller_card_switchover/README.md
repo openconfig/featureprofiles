@@ -58,6 +58,13 @@ N/A
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /components/component/state/redundant-role:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/switchover-ready:
+    platform_type: [CONTROLLER_CARD]
+  /components/component/state/type:
+    platform_type: [CONTROLLER_CARD]
 rpcs:
   gnmi:
     gNMI.Set:

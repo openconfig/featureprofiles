@@ -236,10 +236,9 @@ changes.
 
 ```yaml
 paths:
-/interfaces/interface/state/oper-status:
-/interfaces/interface/state/last-change:
-/interfaces/interface/subinterfaces/subinterface/state/last-change:
-
+  /interfaces/interface/state/last-change:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/state/last-change:
 rpcs:
   gnmi:
     gNMI.Subscribe:

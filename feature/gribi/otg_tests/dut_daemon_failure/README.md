@@ -31,11 +31,13 @@ Ensure that gRIBI entries are persisted over daemon failure.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
 rpcs:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Telemetry Parameter Coverage

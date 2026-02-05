@@ -259,11 +259,12 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
-
 ```
 
 ## Required DUT platform

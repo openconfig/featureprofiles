@@ -48,6 +48,11 @@ Configure an IPv6 address which is in link local scope. Verify the link local IP
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
 rpcs:
   gnmi:
     gNMI.Get:

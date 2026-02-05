@@ -44,6 +44,9 @@ ICMP, which is default.
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
 rpcs:
   gnoi:
     system.System.Ping:

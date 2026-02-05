@@ -94,6 +94,9 @@ service on `tcp/[::]60062`.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
 rpcs:
   gnmi:
     gNMI.Get:

@@ -54,6 +54,12 @@ None
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnmi:
     gNMI.Set:

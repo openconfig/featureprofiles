@@ -194,17 +194,22 @@ DUT-PORT33 & DUT-PORT34 & ATE-PORT2 ---> VLAN17
 
 ## OpenConfig Path and RPC Coverage
 
-The below YAML defines the OC paths intended to be covered by this test. 
+The below YAML defines the OC paths intended to be covered by this test.
 OC paths used for test setup are not listed here.
 
 ```yaml
-openconfig_paths:
-  ## Config paths
+paths:
+  /components/component/power-supply/state/capacity:
+    platform_type: [POWER_SUPPLY]
+  /components/component/power-supply/state/output-power:
+    platform_type: [POWER_SUPPLY]
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /system/cpus/cpu/state/total/avg:
   /interfaces/interface/config/name:
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
-
-  ## Telemetry paths
   /interfaces/interface/state/loopback-mode:
   /interfaces/interface/state/counters/in-discards:
   /interfaces/interface/state/counters/in-errors:

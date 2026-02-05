@@ -70,6 +70,8 @@ Ensure that ACKs are received in the presence of other routes.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
 rpcs:
   gnmi:
     gNMI.Set:

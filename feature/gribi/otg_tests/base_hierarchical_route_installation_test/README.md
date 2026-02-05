@@ -126,13 +126,20 @@ vRX if the vendor implementation supports FIB-ACK simulation, otherwise FFF.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/origin-protocol:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/mac-address:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```

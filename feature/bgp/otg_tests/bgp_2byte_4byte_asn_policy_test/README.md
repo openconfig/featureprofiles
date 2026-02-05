@@ -36,9 +36,15 @@ BGP 2-Byte and 4-Byte ASN support with policy
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/global/state/as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/local-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
-    gNMI.Set:
     gNMI.Get:
+    gNMI.Set:
     gNMI.Subscribe:
 ```

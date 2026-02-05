@@ -25,11 +25,13 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/name:
 rpcs:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Telemetry Parameter Coverage

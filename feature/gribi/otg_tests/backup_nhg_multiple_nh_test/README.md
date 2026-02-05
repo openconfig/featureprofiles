@@ -52,6 +52,8 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnmi:
     gNMI.Get:

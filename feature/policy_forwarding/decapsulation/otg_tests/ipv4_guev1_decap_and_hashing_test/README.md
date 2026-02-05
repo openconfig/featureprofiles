@@ -310,24 +310,25 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-
-/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
-
-# telemetry
-/interfaces/interface/state/counters/out-pkts:
-/interfaces/interface/state/counters/out-unicast-pkts:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
-
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       replace: true
+      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```

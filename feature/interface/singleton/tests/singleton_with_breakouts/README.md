@@ -37,17 +37,19 @@ This test requires a DUT with the following setup
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
-openconfig_paths:
+paths:
+  /components/component/state/name:
+  /components/component/state/oper-status:
+  /interfaces/interface/state/hardware-port:
+  /system/state/boot-time:
+  /system/state/current-datetime:
   /components/component/port/breakout-mode/groups/group/index:
   /components/component/port/breakout-mode/groups/group/config:
   /components/component/port/breakout-mode/groups/group/config/index:
   /components/component/port/breakout-mode/groups/group/config/num-breakouts:
   /components/component/port/breakout-mode/groups/group/config/breakout-speed:
   /components/component/port/breakout-mode/groups/group/config/num-physical-channels:
-
   /interfaces/interface/:
-  /interfaces/interface/state/hardware-port:
-
 rpcs:
   gnmi:
     gNMI.Get:

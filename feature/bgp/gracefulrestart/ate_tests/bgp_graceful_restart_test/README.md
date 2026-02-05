@@ -197,10 +197,14 @@ BGP conifguration:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
-    gNMI.Set:
     gNMI.Get:
+    gNMI.Set:
     gNMI.Subscribe:
   gnoi:
     system.System.KillProcess:

@@ -79,10 +79,14 @@ BGP Long-Lived Graceful Restart
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/supported-capabilities:
 rpcs:
   gnmi:
-    gNMI.Set:
     gNMI.Get:
+    gNMI.Set:
     gNMI.Subscribe:
 ```
 

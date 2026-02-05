@@ -174,6 +174,8 @@ Once the ZR link is estabished proceed to configure the following entities:
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnmi:
     gNMI.Get:

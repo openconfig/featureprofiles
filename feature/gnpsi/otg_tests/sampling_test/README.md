@@ -56,6 +56,9 @@ The goal is to validate that packet sampling is working as expected, clients can
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/state/ifindex:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
 rpcs:
   gnpsi:
     gNPSI.Subscribe:

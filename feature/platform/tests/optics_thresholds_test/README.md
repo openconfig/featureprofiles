@@ -36,10 +36,13 @@ The below yaml defines the OC paths intended to be covered by this test. OC
 paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  /components/component/state/mfg-name:
+    platform_type: [TRANSCEIVER]
 rpcs:
   gnmi:
-    gNMI.Subscribe:
     gNMI.Set:
+    gNMI.Subscribe:
 ```
 
 ## Notes:

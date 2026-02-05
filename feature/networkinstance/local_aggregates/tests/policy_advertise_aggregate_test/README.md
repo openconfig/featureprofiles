@@ -191,6 +191,8 @@ TODO ([openconfig/public#1368](https://github.com/openconfig/public/issues/1368)
 
 ### OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
     gNMI.Get:

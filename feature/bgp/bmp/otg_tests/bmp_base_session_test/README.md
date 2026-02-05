@@ -116,7 +116,9 @@ B --EBGP--> C[Port2:ATE];
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-  ## Config paths
+paths:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/connection-mode:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/config/local-address:
@@ -126,8 +128,6 @@ B --EBGP--> C[Port2:ATE];
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/port:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/policy-type:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/config/exclude-non-eligible:
-  
-  ## state paths
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/connection-mode:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/state/local-address:
@@ -144,13 +144,12 @@ B --EBGP--> C[Port2:ATE];
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/exclude-non-eligible:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/total:
   /network-instances/network-instance/protocols/protocol/bgp/global/bmp/stations/station/state/message-counters/statistics:
-  
-  rpcs:
-   gnmi:
-     gNMI.Set:
-       union_replace: true
-       replace: true
-     gNMI.Subscribe:
+rpcs:
+  gnmi:
+    gNMI.Set:
+      replace: true
+      union_replace: true
+    gNMI.Subscribe:
 ```
 
 ## Required DUT platform

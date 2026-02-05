@@ -56,6 +56,20 @@ Validate link operational status of Static LAG and LACP.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/type:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/oper-key:
+  /lacp/interfaces/interface/members/member/state/partner-id:
+  /lacp/interfaces/interface/members/member/state/partner-key:
+  /lacp/interfaces/interface/members/member/state/partner-port-num:
+  /lacp/interfaces/interface/members/member/state/port-num:
+  /lacp/interfaces/interface/members/member/state/system-id:
 rpcs:
   gnmi:
     gNMI.Set:

@@ -20,10 +20,12 @@ Ensure that IS-IS metric change can drain traffic from a DUT trunk interface
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
-    gNMI.Subscribe:
     gNMI.Set:
+    gNMI.Subscribe:
 ```
 
 ## Minimum DUT Platform Requirement
