@@ -47,8 +47,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/interface:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/subinterface:
-  ? /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
-  :
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
