@@ -507,9 +507,6 @@ be routed to the DEFAULT VRF for further lookup.
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-  /components/component/state/name:
-  /components/component/state/oper-status:
-  /components/component/state/software-version:
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/name:
