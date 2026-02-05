@@ -1845,9 +1845,9 @@ deviations: {
       vendor: ARISTA
       software_version_regex: "*.*"
     }
-}
-  clis: {
-    commands: "interface [a-zA-Z0-9/.]+\n.node-segment (ipv4|ipv6) label [0-9]+( no-php)?"
+    clis: {
+      commands: "interface [a-zA-Z0-9/.]+\n.node-segment (ipv4|ipv6) label [0-9]+( no-php)?"
+    }
   }
 }
 deviations: {
