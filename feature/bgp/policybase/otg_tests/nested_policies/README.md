@@ -300,10 +300,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
   /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
-  ? /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
-  :
-  ? /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-  :
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
