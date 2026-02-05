@@ -1725,9 +1725,9 @@ deviations: {
       vendor: ARISTA
       software_version_regex: ".*"
     }
-  }
-  clis: {
-    commands: "(ip|ipv6) route vrf [a-zA-Z0-9_-]+ [0-9./a-fA-F:]+ egress-vrf default [0-9./a-fA-F:]+"
+    clis: {
+      commands: "(ip|ipv6) route vrf [a-zA-Z0-9_-]+ [0-9./a-fA-F:]+ egress-vrf default [0-9./a-fA-F:]+"
+    }
   }
 }
 deviations: {
