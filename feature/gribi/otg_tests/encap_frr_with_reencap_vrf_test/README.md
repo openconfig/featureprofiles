@@ -615,8 +615,7 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  ? /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state
-  :
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
