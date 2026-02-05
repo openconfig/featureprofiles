@@ -1670,7 +1670,7 @@ deviations: {
       name: "/acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id"
     }
     ocpaths: {
-      name: "   /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action"
+      name: "/acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action"
     }
   }
   platforms: {
