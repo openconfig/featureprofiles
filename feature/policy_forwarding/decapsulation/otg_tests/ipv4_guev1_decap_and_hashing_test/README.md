@@ -262,7 +262,6 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 
 ```json
 {
-  {
   "defined-sets": {
     "ipv6-prefix-sets": {
       "ipv6-prefix-set": [
