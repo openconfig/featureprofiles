@@ -276,26 +276,25 @@ Verify:
                 "config": {
                   "index": "0"
                 },
-                "encap-headers": {
-                  "encap-header": [
-                    {
-                      "index": 0,
-                      "config": {
-                        "index": 0,
-                        "type": "UDPV6"
-                      },
-                      "udp-v6": {
+                "encap-headers": {"encap-header": [
+                      {
                         "config": {
-                          "dst-ip": "2001:DB8:C0FE:AFFE::1",
-                          "src-ip": "2001:DB8:50FC:E000::1",
-                          "dst-udp-port": 6080,
-                          "src-udp-port": 49152,
-                          "dscp": 32,
-                          "ip-ttl": 20
+                          "index": 0,
+                          "type": "UDPV4"
+                        },
+                        "index": 0,
+                        "udp-v4": {
+                          "config": {
+                            "dscp": 32,
+                            "dst-ip": "10.50.50.1",
+                            "dst-udp-port": 6080,
+                            "ip-ttl": 20,
+                            "src-ip": "10.5.5.5",
+                            "src-udp-port": 49152
+                          }
                         }
                       }
-                    }
-                  ]
+                    ]
                 }
               }
             ]
