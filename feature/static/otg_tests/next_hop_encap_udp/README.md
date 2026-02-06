@@ -47,19 +47,19 @@ The following behavioral properties are called out for awareness:
 
 1.  DUT:Port1 is configured as singleton interface towards ATE:Port1.
 
-    -   DUT:Port1:IPv6 is 2001:DB8::192:168:10:2/126
-    -   ATE:Port1:IPv6 is 2001:DB8::192:168:10:1/126
+    -   DUT:Port1:IPv6 is 2001:DB8::192:168:10:0/127
+    -   ATE:Port1:IPv6 is 2001:DB8::192:168:10:1/127
 
 2.  DUT:Port2 and DUT:Port3 are configured as LAG1 interface towards
     ATE:Port2 and ATE:Port3 respectively.
 
-    -   DUT:LAG1:IPv6 is 2001:DB8:20::2/126
-    -   ATE:LAG1:IPv6 is 2001:DB8:20::1/126
+    -   DUT:LAG1:IPv6 is 2001:DB8:20::/127
+    -   ATE:LAG1:IPv6 is 2001:DB8:20::1/127
 
 3.  DUT:Port4 and DUT:Port5 are configured as LAG2 interface towards
     ATE:Port4 and ATE:Port5 respectively.
-    -   DUT:LAG2:IPv6 is 2001:DB8:30::2/126
-    -   ATE:LAG2:IPv6 is 2001:DB8:30::1/126
+    -   DUT:LAG2:IPv6 is 2001:DB8:30::/127
+    -   ATE:LAG2:IPv6 is 2001:DB8:30::1/127
 
 4.  DUT:Port1 is configured to form iBGP session with ATE:Port1 using
     [RFC5549](https://datatracker.ietf.org/doc/html/rfc5549).
