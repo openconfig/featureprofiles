@@ -316,13 +316,13 @@ paths:
     /network-instances/network-instance/static/next-hops/next-hop/config/index:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/dscp:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/dst-ip:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/dst-udp-port:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/ip-ttl:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/src-ip:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/udp-v6/config/src-udp-port:
-    /network-instances/network-instance/next-hop-groups/next-hop-group/next-hops/next-hop/encap-headers/encap-header/config/type:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/ip-ttl:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-ip:
+    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/src-udp-port:
     /network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name:
 
     # telemetry
