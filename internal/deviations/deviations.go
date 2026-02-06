@@ -1474,6 +1474,12 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
@@ -1612,7 +1618,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
