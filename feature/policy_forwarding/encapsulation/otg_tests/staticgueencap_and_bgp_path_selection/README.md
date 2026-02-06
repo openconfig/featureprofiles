@@ -670,14 +670,14 @@ Inflight
     "ipv6-prefix-sets": {
       "ipv6-prefix-set": [
         {
-          "config": {
-            "name": "dst_prefix_v6_gue"
-          },
           "name": "dst_prefix_v6_gue",
-          "prefix": [
-            "$DUT_TE11.v6/64",
-            "$DUT_TE10.v6/64"
-          ]
+          "config": {
+            "name": "dst_prefix_v6_gue",
+            "prefix": [
+              "2001:db8:1::/64",
+              "2001:db8:2::/64"
+            ]
+          }
         }
       ]
     }
@@ -685,36 +685,36 @@ Inflight
   "network-instances": {
     "network-instance": [
       {
+        "name": "DEFAULT",
         "config": {
-          "name": "default"
+          "name": "DEFAULT"
         },
-        "name": "default",
         "policy-forwarding": {
           "policies": {
             "policy": [
               {
+                "policy-id": "decap-policy",
                 "config": {
                   "policy-id": "decap-policy"
                 },
-                "policy-id": "decap-policy",
                 "rules": {
                   "rule": [
                     {
-                      "action": {
-                        "config": {
-                          "decapsulate-gre": true
-                        }
-                      },
+                      "sequence-id": 1,
                       "config": {
                         "sequence-id": 1
                       },
-                      "ipv4": {
+                      "action": {
+                        "config": {
+                          "decapsulate-gue": true
+                        }
+                      },
+                      "ipv6": {
                         "config": {
                           "destination-address-prefix-set": "dst_prefix_v6_gue",
                           "protocol": "IP_UDP"
                         }
                       },
-                      "sequence-id": 1,
                       "transport": {
                         "config": {
                           "destination-port": 6080
