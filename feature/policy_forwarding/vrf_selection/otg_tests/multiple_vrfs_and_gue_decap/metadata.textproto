@@ -14,6 +14,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     gue_gre_decap_unsupported: true
-    network_instance_import_export_policy_oc_unsuppored: true
+    network_instance_import_export_policy_oc_unsupported: true
   }
 }

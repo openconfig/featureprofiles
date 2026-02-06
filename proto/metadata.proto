@@ -45,6 +45,7 @@ message Metadata {
     TESTBED_DUT_800ZR = 13;
     TESTBED_DUT_800ZR_PLUS = 14;
     TESTBED_DUT_2LINKS = 15;
+    TESTBED_DUT_ATE_34LINKS = 16;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -291,7 +292,8 @@ message Metadata {
     // /components/component/cpu/utilization/state/avg for controller cards'
     // CPU card.
     bool controller_card_cpu_utilization_unsupported = 100;
-    // Device does not support counter for fabric block lost packets.
+    // Device does not support counter for fabric block drop packets.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/477492526
     bool fabric_drop_counter_unsupported = 101;
     // Device does not support memory utilization related leaves for linecard
     // components.
@@ -313,6 +315,7 @@ message Metadata {
     bool isis_counter_part_changes_unsupported = 107;
     // Devices do not support threshold container under
     // /components/component/transceiver.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475716370
     bool transceiver_thresholds_unsupported = 108;
     // Update interface loopback mode using raw gnmi API due to server version.
     bool interface_loopback_mode_raw_gnmi = 109;
@@ -688,6 +691,7 @@ message Metadata {
 
     // Device does not support fragment total drops.
     // Nokia: b/395553772
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/395567844
     bool fragment_total_drops_unsupported = 253;
 
     // Juniper: b/383145521
@@ -809,7 +813,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-
+    
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -906,7 +910,7 @@ message Metadata {
     bool otn_to_eth_assignment = 317;
     
     // Devices that do not support import export policies configured in network instance
-    bool network_instance_import_export_policy_oc_unsuppored = 318;
+    bool network_instance_import_export_policy_oc_unsupported = 318;
 
     // Device does not support 'origin' field in gNMI/gNOI RPC paths.
     // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
@@ -1050,7 +1054,7 @@ message Metadata {
     // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
     // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
     bool skip_sampling_qos_counters = 352;
-   
+
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
@@ -1073,6 +1077,79 @@ message Metadata {
     // Juniper: https://issuetracker.google.com/issues/461368936
     bool interface_counters_in_unknown_protos_unsupported = 358;
 
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
+
+    // Devices that require no-php flag for ISIS SR prefix and node segments
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
+    bool isis_sr_no_php_required = 360;
+
+    // Device does not support match-set-options leaf with ALL for match-community-set
+    // Arista: b/335739231
+    bool match_community_set_match_set_options_all_unsupported = 361;
+
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 362;
+
+    // Device does not support slice input of BGP community type
+    bool bgp_community_type_slice_input_unsupported = 363;
+
+    // Device doesnot support configuring multipath path under ibgp
+    // b/470225281
+    bool ibgp_multipath_path_unsupported = 364;
+
+    // Device does not support ContainerZ Plugin RPC
+    // Arista: b/470225282
+    bool containerz_plugin_rpc_unsupported = 365;
+
+    // Arista b/384040563
+    // Device does not  support the IANA assigned gRPC port for g* services
+    bool non_standard_grpc_port = 366;
+
+    // Check if transceiver subcomponent should look for the temperature sensor
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+    bool temperature_sensor_check = 367;
+ 
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report controller CPU utilization against base controller card component
+    bool cpu_utilization_query_against_base_controller_card_component = 368;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report linecard CPU utilization against base linecard component
+    bool cpu_utilization_query_against_base_linecard_component = 369;
+
+    // Device does not support no-queue drops
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+    bool no_queue_drop_unsupported = 370;
+
+    // Device does not support interface-ethernet in-block errors counters
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+    bool interface_ethernet_inblock_errors_unsupported = 371;
+
+    // Arista https://partnerissuetracker.corp.google.com/476271160
+    bool retain_gnmi_cfg_after_reboot = 372;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
+    string ciscoxr_transceiver_ft = 373;
+
+    // Device does not support transceiver state leaf.
+    bool transceiver_state_unsupported = 374;
+    
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+    bool subnet_mask_change_required = 375;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
+    string ciscoxr8000_integrated_circuit_resource_ft = 376;
+
+    // The BGP routes are accepted by default when no policy or default policy is configured.
+    // b/479957749
+    bool bgp_default_policy_behavior_accept_route = 377;
+
+    // Nokia: b/459893133
+    // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+    bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
