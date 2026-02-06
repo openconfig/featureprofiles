@@ -398,7 +398,9 @@ paths:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-unicast-pkts:
   /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
   /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
 rpcs:
   gnmi:
     gNMI.Set:
