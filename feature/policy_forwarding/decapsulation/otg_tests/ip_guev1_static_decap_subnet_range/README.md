@@ -187,20 +187,12 @@ Traffic:
       "ipv6-prefix-set": [
         {
           "config": {
-            "name": "dst_prefix_v6_gue"
-          },
-          "name": "dst_prefix_v6_gue",
-          "prefixes": {
+            "name": "dst_prefix_v6_gue",
             "prefix": [
-              {
-                "config": {
-                  "ip-prefix": "2001:db8::/64",
-                  "masklength-range": "64..128"
-                },
-                "ip-prefix": "2001:db8::/64"
-              }
+              "2001:db8::/64"
             ]
-          }
+          },
+          "name": "dst_prefix_v6_gue"
         }
       ]
     }
@@ -254,6 +246,7 @@ Traffic:
     ]
   }
 }
+
 ```
 
 ## OpenConfig Path and RPC Coverage
