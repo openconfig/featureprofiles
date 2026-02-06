@@ -257,7 +257,7 @@ B7 <-- EBGP --> N4;
     - Port traffic counters will be leveraged to verify this behavior.
     - Failure Condition: If traffic distribution is observed across multiple paths, the test fails.
 
-## Canonical OpenConfig for GUEv1 Decapsulation configuration
+## Canonical OC
 TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
 
 ```json
@@ -340,16 +340,14 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-
 /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
-/defined-sets/prefix-sets/prefix-set/config/name
-/defined-sets/prefix-sets/prefix-set/config/mode
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol
+/defined-sets/prefix-sets/prefix-set/config/name:
+/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
 
 # telemetry
 /interfaces/interface/state/counters/out-pkts:
