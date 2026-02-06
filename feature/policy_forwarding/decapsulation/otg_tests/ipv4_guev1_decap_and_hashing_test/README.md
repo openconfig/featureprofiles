@@ -262,26 +262,18 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 
 ```json
 {
+  {
   "defined-sets": {
-    "prefix-sets": {
-      "prefix-set": [
+    "ipv6-prefix-sets": {
+      "ipv6-prefix-set": [
         {
           "config": {
-            "mode": "IPV6",
-            "name": "dst_prefix_v6_gue"
-          },
-          "name": "dst_prefix_v6_gue",
-          "prefixes": {
+            "name": "dst_prefix_v6_gue",
             "prefix": [
-              {
-                "config": {
-                  "ip-prefix": "DUT-DECAP-Address-V6/128",
-                  "masklength-range": "exact"
-                },
-                "ip-prefix": "DUT-DECAP-Address-V6/128"
-              }
+              "DUT-DECAP-Address-V6/128"
             ]
-          }
+          },
+          "name": "dst_prefix_v6_gue"
         }
       ]
     }
@@ -340,20 +332,19 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
-/defined-sets/prefix-sets/prefix-set/config/name:
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/name:
+  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
 
 # telemetry
-/interfaces/interface/state/counters/out-pkts:
-/interfaces/interface/state/counters/out-unicast-pkts:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
 
 rpcs:
   gnmi:
