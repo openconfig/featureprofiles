@@ -258,8 +258,6 @@ B7 <-- EBGP --> N4;
     - Failure Condition: If traffic distribution is observed across multiple paths, the test fails.
 
 ## Canonical OC
-TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
-
 ```json
 {
   "defined-sets": {
@@ -269,7 +267,7 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
           "config": {
             "name": "dst_prefix_v6_gue",
             "prefix": [
-              "DUT-DECAP-Address-V6/128"
+              "2001:db8::1/128"
             ]
           },
           "name": "dst_prefix_v6_gue"
