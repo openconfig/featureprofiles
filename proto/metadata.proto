@@ -813,7 +813,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-
+    
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -910,7 +910,7 @@ message Metadata {
     bool otn_to_eth_assignment = 317;
     
     // Devices that do not support import export policies configured in network instance
-    bool network_instance_import_export_policy_oc_unsuppored = 318;
+    bool network_instance_import_export_policy_oc_unsupported = 318;
 
     // Device does not support 'origin' field in gNMI/gNOI RPC paths.
     // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
@@ -1136,7 +1136,7 @@ message Metadata {
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
-
+    
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
@@ -1146,6 +1146,10 @@ message Metadata {
     // The BGP routes are accepted by default when no policy or default policy is configured.
     // b/479957749
     bool bgp_default_policy_behavior_accept_route = 377;
+
+    // Nokia: b/459893133
+    // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+    bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
