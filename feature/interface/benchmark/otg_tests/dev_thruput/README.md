@@ -208,6 +208,17 @@ paths:
   /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/loopback-mode:
+  /interfaces/interface/state/counters/in-discards:
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-pkts:
   /system/cpus/cpu/state/total/avg:
 rpcs:
   gnmi:

@@ -239,6 +239,9 @@ paths:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /interfaces/interface/state/counters/out-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
 rpcs:
   gnmi:
     gNMI.Set:
