@@ -272,10 +272,10 @@ paths:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
-/defined-sets/prefix-sets/prefix-set/config/name
-/defined-sets/prefix-sets/prefix-set/config/mode
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range
+/defined-sets/prefix-sets/prefix-set/config/name:
+/defined-sets/prefix-sets/prefix-set/config/mode:
+/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
 
 # telemetry
 openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
