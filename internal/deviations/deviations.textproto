@@ -800,6 +800,13 @@ deviations: {
       software_version_regex: "*.*"
     }
   }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
 }
 deviations: {
   name: "qos_voq_drop_counter_unsupported"
@@ -1491,6 +1498,476 @@ deviations: {
       ocpaths: {
         name: "/terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/assignment-type"
       }
+    }
+  }
+}
+deviations: {
+  name: "otn_channel_trib_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/config/trib-protocol"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/config/admin-state"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "same_afi_safi_and_peergroup_policies_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "bgp_local_aggregate_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/local-aggregates/aggregate/config/prefix"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "configure terminal\ndynamic prefix-list .*\n.match rcf .*\n.prefix-list ipv4 .*\nrouter general\n.vrf default\n..routes dynamic prefix-list .* install drop\nrouter bgp [0-9]+\n.redistribute dynamic\nconfigure terminal\nrouter general\n.control-functions\ncode unit .*\"\".*\ncompile\ncommit\nexit"      
+    }
+  }
+}
+deviations: {
+  name: "isis_srgb_srlb_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/srgb"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/srlb"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "policy_forwarding_gre_encapsulation_oc_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "policy_forwarding_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+        commands: "traffic-policy tp_cloud_id_[0-9_]+\n..match [a-zA-Z0-9-]+ (ipv4|ipv6)\n...ttl [0-9]+\n...destination prefix .*\n...protocol (icmp|icmpv6) type .* code all\n..actions\n...count\n...redirect next-hop group .*( ttl [0-9]+)?\n...set traffic class [0-9]+\n..match ipv(4|6)-all-default ipv(4|6)\n! "
+    }
+  }
+}
+deviations: {
+  name: "default_no_igp_metric_propagation"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "ISISLSPTlvsOCUnsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/state/remaining-lifetime"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/total-lsps"
+      }
+    }
+  }
+}
+deviations: {
+  name: "p4rt_unsetelectionid_primary_allowed"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: ""
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "config_acl_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/acl/acl-sets/acl-set/config/name"
+    }
+    ocpaths: {
+      name: "/acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id"
+    }
+    ocpaths: {
+      name: "/acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "traffic-policies\n.traffic-policy [a-zA-Z0-9_-]+\n..match rule1 (ipv4|ipv6)\n...source prefix .*\n...destination prefix .*\n...protocol tcp source port .* destination port .*\n..actions\n...[a-z-]+\ninterface [a-zA-Z0-9/]+\n.traffic-policy (input|output) [a-zA-Z0-9_-]+"
+    }
+  }
+}
+deviations: {
+  name: "policy_rule_counters_oc_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+  additional_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/state/counters/in-unicast-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/state/counters/out-unicast-pkts"
+    }
+  }
+  }
+}
+deviations: {
+  name: "static_route_next_network_instance_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-network-instance"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "(ip|ipv6) route vrf [a-zA-Z0-9_-]+ [0-9./a-fA-F:]+ egress-vrf default [0-9./a-fA-F:]+"
+    }
+  }
+}
+deviations: {
+  name: "gre_decapsulation_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gre"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+  clis: {
+    commands: "ip decap-group [a-zA-Z0-9_-]+\n.tunnel type gre\n.tunnel decap-ip [0-9.]+"
+  }
+  }
+}
+deviations: {
+  name: "policy_forwarding_to_next_hop_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/next-hop"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "traffic-policies\n.traffic-policy [a-zA-Z0-9_-]+\n..match [a-zA-Z0-9_-]+ (ipv4|ipv6)\n...source prefix [0-9./a-fA-F:]+\n...destination prefix [0-9./a-fA-F:]+\n...dscp [0-9]+\n..actions\n...redirect next-hop [0-9.a-fA-F:]+"
+    }
+  }
+}
+deviations: {
+  name: "ipv6_static_route_with_ipv4_nh_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+  }
+}
+deviations: {
+  name: "local_proxy_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "interface [a-zA-Z0-9/.]+\n.ip local-proxy-arp"
+    }
+  }
+}
+deviations: {
+  name: "decapsulate_gue_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "ip decap-group type udp destination port [0-9]+ payload (ip|ipv6)\n.tunnel type (ip|ipv6)-over-udp udp destination port [0-9]+\nip decap-group [a-zA-Z0-9_-]+\n.tunnel type UDP\n.tunnel decap-ip [0-9.]+\n.tunnel decap-interface [a-zA-Z0-9/]+"
+    }
+  }
+}
+deviations: {
+  name: "interface_policy_forwarding_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "interface [a-zA-Z0-9/.]+\n.traffic-policy [a-zA-Z0-9_-]+"
+    }
+  }
+}
+deviations: {
+  name: "isis_sr_node_segment_config_unsupported"
+  type: DEVIATION_TYPE_CLI
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "interface [a-zA-Z0-9/.]+\n.node-segment (ipv4|ipv6) label [0-9]+( no-php)?"
+    }
+  }
+}
+deviations: {
+  name: "gnpsi_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "management api gnpsi\n.transport grpc [a-zA-Z0-9_-]+\n..ssl profile [a-zA-Z0-9_-]+\n..port [0-9]+\n..source (sFlow|NetFlow)\n..no disabled"
+    }
+  }
+}
+deviations: {
+  name: "routing_policy_chaining_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+  }
+}
+deviations: {
+  name: "qos_classification_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/classifiers/classifier/config/name"
+    }
+    ocpaths: {
+      name: "/qos/classifiers/classifier/config/type"
+    }
+    ocpaths: {
+      name: "/qos/classifiers/classifier/terms/term/config/id"
+    }
+    ocpaths: {
+      name: "/qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set"
+    }
+    ocpaths: {
+      name: "/qos/forwarding-groups/forwarding-group/config/forwarding-class"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "qos map dscp [0-9 ]+ to traffic-class [0-9]\n! \npolicy-map type quality-of-service [a-zA-Z0-9_-]+\n.class class-default\n..set traffic-class [0-9]"
+    }
+  }
+}
+deviations: {
+  name: "skip_tcp_negotiated_mss_check"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/state/tcp-mss"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: ".*"
+    }
+  }
+}
+deviations: {
+  name: "gnoi_switchover_reason_missing_user_initiated"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "telemetry_not_supported_for_low_priority_nh"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/metric"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+  }
+}
+deviations: {
+  name: "containerz_oc_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    clis: {
+      commands: "management api gnoi\n.service containerz\n..transport gnmi default\n..container runtime\n...vrf [a-zA-Z0-9_-]+"
     }
   }
 }
