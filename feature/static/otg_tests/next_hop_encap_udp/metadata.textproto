@@ -3,5 +3,5 @@
 
 uuid:  "1c0cc46d-4b13-4bd3-bfd5-cf0fc1c074ad"
 plan_id:  "RT-3.53"
-description:  "Static route based GUE Encapsulation to IPv4 tunnel"
+description:  "Static route based GUE Encapsulation to IPv6 tunnel"
 testbed:  TESTBED_DUT_ATE_2LINKS

@@ -1,9 +1,9 @@
-# RT-3.53: Static route based GUE Encapsulation to IPv4 tunnel
+# RT-3.53: Static route based GUE Encapsulation to IPv6 tunnel
 
 ## Summary
 
 This test verifies using static route to encapsulate packets in an
-IPv4 GUE tunnel. The encapsulation is based on a statically configured GUE
+IPv6 GUE tunnel. The encapsulation is based on a statically configured GUE
 tunnel.
 
 The GUE header ((UDPoIP)) used in this test refers to GUE Variant 1 as specified
@@ -38,7 +38,7 @@ The following behavioral properties are called out for awareness:
 *   Traffic is generated from ATE:Port1
 *   ATE:Port2, ATE:Port3, ATE:Port4 and ATE:Port5 are used as the destination port for GUE encapsulated traffic
 *   PNH-IPv6 is fc00:10::1
-*   IPv4-DST-GUE is 10.50.50.1
+*   IPv6-DST-GUE is 2001:DB8:C0FE:AFFE::1
 *   IPv4-DST-NET is 10.1.1.1
 *   IPv4-DST-NET is 2001:DB8::10:1:1::1
 
@@ -47,21 +47,21 @@ The following behavioral properties are called out for awareness:
 
 1.  DUT:Port1 is configured as singleton interface towards ATE:Port1.
 
-    -   DUT:Port1:IPv6 is 2001:DB8::192:168:10:2/126
-    -   ATE:Port1:IPv6 is 2001:DB8::192:168:10:1/126
+    -   DUT:Port1:IPv6 is 2001:DB8::192:168:10:0/127
+    -   ATE:Port1:IPv6 is 2001:DB8::192:168:10:1/127
 
 2.  DUT:Port2 and DUT:Port3 are configured as LAG1 interface towards
     ATE:Port2 and ATE:Port3 respectively.
 
-    -   DUT:LAG1:IPv4 is 192.168.20.2/30
-    -   ATE:LAG1:IPv4 is 192.168.20.2/30
+    -   DUT:LAG1:IPv6 is 2001:DB8:20::/127
+    -   ATE:LAG1:IPv6 is 2001:DB8:20::1/127
 
 3.  DUT:Port4 and DUT:Port5 are configured as LAG2 interface towards
     ATE:Port4 and ATE:Port5 respectively.
-    -   DUT:LAG1:IPv4 is 192.168.30.2/30
-    -   ATE:LAG1:IPv4 is 192.168.30.2/30
+    -   DUT:LAG2:IPv6 is 2001:DB8:30::/127
+    -   ATE:LAG2:IPv6 is 2001:DB8:30::1/127
 
-4.  DUT:Port1 is configured to form one iBGP session with ATE:Port1 using
+4.  DUT:Port1 is configured to form an iBGP session with ATE:Port1 using
     [RFC5549](https://datatracker.ietf.org/doc/html/rfc5549).
     Peering is done with the directly connected interface IP.
 
@@ -69,16 +69,16 @@ The following behavioral properties are called out for awareness:
     IPv4-DST-NET/32 and IPv6-DST-NET/128 via BGP to DUT. The protocol
     next hop of both the IPv4 and IPv6 networks should be PNH-IPv6.
 
-6.  DUT is configured with an IPv4 GUE tunnel with destination
-    IPv4-DST-GUE without any explicit tunnel Type of Service (ToS) or
+6.  DUT is configured with an IPv6 GUE tunnel with destination
+    IPv6-DST-GUE without any explicit tunnel Type of Service (ToS) or
     Time to Live (TTL) values. The next hop group will be used for
     GUE encapsulation.
 
 7.  DUT is configured with the following static routes:
 
-    -   To PNH-IPv6, next hop is the statically configured IPv4 GUE tunnel.
-    -   To IPv4-DST-GUE, next hop is ATE:LAG1:IPv4.
-    -   To IPv4-DST-GUE, next hop is ATE:LAG2:IPv4.
+    -   To PNH-IPv6, next hop is the statically configured IPv6 GUE tunnel.
+    -   To IPv6-DST-GUE, next hop is ATE:LAG1:IPv6.
+    -   To IPv6-DST-GUE, next hop is ATE:LAG2:IPv6.
 
 
 ### RT-3.53.1: IPv4 traffic GUE encapsulation without explicit ToS/TTL configuration on tunnel
@@ -100,9 +100,9 @@ Verify:
     *   Received on ATE:Port2, ATE:Port3, ATE:Port4 and ATE:Port5.
 *   All packets received on ATE:Port2, ATE:Port3, ATE:Port4 and ATE:Port5 are
     GUE encapsulated.
-*   ECMP hashing works over the two LAG interfaces with a tolerance of 6%.
+*   ECMP hashing works over the two LAG interfaces with a tolerance of <6%.
 *   LAG hashing works over the two singleton ports within LAG1 and LAG2 with a
-    tolerance of 6%.
+    tolerance of <6%.
 *   ToS for all GUE encapsulated packets received at ATE ports:
     *   GUE header ToS is **0x80**.
     *   Inner header ToS is **0x80**.
@@ -119,7 +119,7 @@ Verify:
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
+*   Re-configure the IPv6 GUE tunnel on the DUT with ToS value *0x60*.
 *   Generate the same flows in `RT-3.53.1`.
 
 Verify:
@@ -137,8 +137,8 @@ Verify:
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT without an explicit ToS value.
-*   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
+*   Re-configure the IPv6 GUE tunnel on the DUT without an explicit ToS value.
+*   Re-configure the IPv6 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate the same flows in `RT-3.53.1`.
 
 Verify:
@@ -156,8 +156,8 @@ Verify:
 
 DUT and ATE actions:
 
-*   Re-configure the IPv4 GUE tunnel on the DUT with ToS value *0x60*.
-*   Re-configure the IPv4 GUE tunnel on the DUT with TTL value of *20*.
+*   Re-configure the IPv6 GUE tunnel on the DUT with ToS value *0x60*.
+*   Re-configure the IPv6 GUE tunnel on the DUT with TTL value of *20*.
 *   Generate the same flows in `RT-3.53.1`.
 
 Verify:
@@ -202,8 +202,8 @@ ATE action:
 
 Verify:
 
-*   All packets should have TTL decremented to 0, dropped and ICMP Time
-    Exceeded (Type 11) / Time to Live exceeded in Transit (Code 0) sent back to
+*   All packets should have TTL decremented to 0, dropped and ICMPv6 Time
+    Exceeded (Type 3) / Time to Live exceeded in Transit (Code 0) sent back to
     source address (ATE:Port1).
 
 ### RT-3.53.12: IPv6 traffic that should be GUE encapsulated but Hop Limit=1
@@ -217,22 +217,23 @@ Verify:
   "network-instances": {
     "network-instance": [
       {
+        "name": "DEFAULT",
         "config": {
           "name": "DEFAULT"
         },
-        "name": "DEFAULT",
         "protocols": {
           "protocol": [
             {
+              "identifier": "STATIC",
+              "name": "STATIC",
               "config": {
                 "identifier": "STATIC",
                 "name": "STATIC"
               },
-              "identifier": "STATIC",
-              "name": "STATIC",
               "static-routes": {
                 "static": [
                   {
+                    "prefix": "fc00:10::1/128",
                     "config": {
                       "prefix": "fc00:10::1/128"
                     },
@@ -240,8 +241,7 @@ Verify:
                       "config": {
                         "name": "ENCAP-NHG-1"
                       }
-                    },
-                    "prefix": "fc00:10::1/128"
+                    }
                   }
                 ]
               }
@@ -252,17 +252,17 @@ Verify:
           "next-hop-groups": {
             "next-hop-group": [
               {
+                "name": "ENCAP-NHG-1",
                 "config": {
                   "name": "ENCAP-NHG-1"
                 },
-                "name": "ENCAP-NHG-1",
                 "next-hops": {
                   "next-hop": [
                     {
+                      "index": "0",
                       "config": {
                         "index": "0"
-                      },
-                      "index": "0"
+                      }
                     }
                   ]
                 }
@@ -272,31 +272,30 @@ Verify:
           "next-hops": {
             "next-hop": [
               {
+                "index": "0",
                 "config": {
                   "index": "0"
                 },
-                "encap-headers": {
-                  "encap-header": [
-                    {
-                      "config": {
-                        "index": 0,
-                        "type": "UDPV4"
-                      },
-                      "index": 0,
-                      "udp-v4": {
+                "encap-headers": {"encap-header": [
+                      {
                         "config": {
-                          "dscp": 32,
-                          "dst-ip": "10.50.50.1",
-                          "dst-udp-port": 6080,
-                          "ip-ttl": 20,
-                          "src-ip": "10.5.5.5",
-                          "src-udp-port": 49152
+                          "index": 0,
+                          "type": "UDPV4"
+                        },
+                        "index": 0,
+                        "udp-v4": {
+                          "config": {
+                            "dscp": 32,
+                            "dst-ip": "10.50.50.1",
+                            "dst-udp-port": 6080,
+                            "ip-ttl": 20,
+                            "src-ip": "10.5.5.5",
+                            "src-udp-port": 49152
+                          }
                         }
                       }
-                    }
-                  ]
-                },
-                "index": "0"
+                    ]
+                }
               }
             ]
           }
