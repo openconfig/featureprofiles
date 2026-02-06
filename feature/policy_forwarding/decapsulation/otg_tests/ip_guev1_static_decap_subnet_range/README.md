@@ -178,8 +178,7 @@ Traffic:
     -  ATE Port 2 receives 1000 packets structured as RX-Flow-type#8 (original GUE encapsulated packets, outer TTL  decremented by DUT)
     -  No packet loss should be observed
 
-  ## Canonical OpenConfig for GUEv1 Decapsulation configuration
-TODO: decap policy to be updated by https://github.com/openconfig/public/pull/1288
+## Canonical OC
 
 ```json
 {
