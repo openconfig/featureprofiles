@@ -570,19 +570,19 @@ Inflight
   "network-instances": {
     "network-instance": [
       {
+        "name": "DEFAULT",
         "config": {
-          "name": "default"
+          "name": "DEFAULT"
         },
-        "name": "default",
         "protocols": {
           "protocol": [
             {
+              "identifier": "STATIC",
+              "name": "STATIC",
               "config": {
                 "identifier": "STATIC",
                 "name": "STATIC"
               },
-              "identifier": "STATIC",
-              "name": "STATIC",
               "static-routes": {
                 "static": [
                   {
@@ -605,17 +605,17 @@ Inflight
           "next-hop-groups": {
             "next-hop-group": [
               {
+                "name": "ENCAP-NHG-1",
                 "config": {
                   "name": "ENCAP-NHG-1"
                 },
-                "name": "ENCAP-NHG-1",
                 "next-hops": {
                   "next-hop": [
                     {
+                      "index": "0",
                       "config": {
                         "index": "0"
-                      },
-                      "index": "0"
+                      }
                     }
                   ]
                 }
@@ -625,31 +625,31 @@ Inflight
           "next-hops": {
             "next-hop": [
               {
+                "index": "0",
                 "config": {
                   "index": "0"
                 },
                 "encap-headers": {
                   "encap-header": [
                     {
+                      "index": 0,
                       "config": {
                         "index": 0,
-                        "type": "UDPV6"
+                        "type": "UDPV4"
                       },
-                      "index": 0,
-                      "udp-v6": {
+                      "udp-v4": {
                         "config": {
                           "dscp": 32,
-                          "dst-ip": "$ATE2_INTERNAL_TE11.v6",
+                          "dst-ip": "10.50.50.1",
                           "dst-udp-port": 6080,
                           "ip-ttl": 64,
-                          "src-ip": "$DUT_lo0.v6",
+                          "src-ip": "10.5.5.5",
                           "src-udp-port": 49152
                         }
                       }
                     }
                   ]
-                },
-                "index": "0"
+                }
               }
             ]
           }
