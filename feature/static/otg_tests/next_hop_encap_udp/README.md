@@ -316,7 +316,6 @@ paths:
     /network-instances/network-instance/static/next-hops/next-hop/config/index:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/index:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type:
-    /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/config/type:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dscp:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-ip:
     /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/udp-v4/config/dst-udp-port:
