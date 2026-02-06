@@ -248,46 +248,58 @@ Verify:
             }
           ]
         },
-        "next-hop-groups": {
-          "next-hop-group": [
-            {
-              "name": "ENCAP-NHG-1",
-              "config": {
-                "name": "ENCAP-NHG-1"
-              },
-              "next-hops": {
-                "next-hop": [
-                  {
-                    "index": "0",
-                    "config": {
-                      "index": "0"
-                    },
-                    "encap-headers": {
-                      "encap-header": [
-                        {
-                          "index": 0,
-                          "config": {
-                            "index": 0,
-                            "type": "UDPV6"
-                          },
-                          "udp-v6": {
-                            "config": {
-                              "dst-ip": "2001:DB8:C0FE:AFFE::1",
-                              "src-ip": "2001:DB8:50FC:E000::1",
-                              "dst-udp-port": 6080,
-                              "src-udp-port": 49152,
-                              "dscp": 32,
-                              "ip-ttl": 20
-                            }
-                          }
-                        }
-                      ]
+        "static": {
+          "next-hop-groups": {
+            "next-hop-group": [
+              {
+                "name": "ENCAP-NHG-1",
+                "config": {
+                  "name": "ENCAP-NHG-1"
+                },
+                "next-hops": {
+                  "next-hop": [
+                    {
+                      "index": "0",
+                      "config": {
+                        "index": "0"
+                      }
                     }
-                  }
-                ]
+                  ]
+                }
               }
-            }
-          ]
+            ]
+          },
+          "next-hops": {
+            "next-hop": [
+              {
+                "index": "0",
+                "config": {
+                  "index": "0"
+                },
+                "encap-headers": {
+                  "encap-header": [
+                    {
+                      "index": 0,
+                      "config": {
+                        "index": 0,
+                        "type": "UDPV6"
+                      },
+                      "udp-v6": {
+                        "config": {
+                          "dst-ip": "2001:DB8:C0FE:AFFE::1",
+                          "src-ip": "2001:DB8:50FC:E000::1",
+                          "dst-udp-port": 6080,
+                          "src-udp-port": 49152,
+                          "dscp": 32,
+                          "ip-ttl": 20
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         }
       }
     ]
