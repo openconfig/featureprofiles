@@ -1,8 +1,8 @@
-# TRANSCEIVER-103: Telemetry: ZR Plus platform OC paths streaming.
+# TRANSCEIVER-105: Telemetry: ZR platform OC paths streaming.
 
 ## Summary
 
-Validate ZR Plus optics module reports telemetry data for all leaves in
+Validate ZR optics module reports telemetry data for all leaves in
 
 ```yaml
     /components/component/:
@@ -15,10 +15,10 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
 
 ## Procedure
 
-*   Connect two ZR Plus interfaces using a duplex LC fiber jumper such that TX
+*   Connect two ZR interfaces using a duplex LC fiber jumper such that TX
     output power of one is the RX input power of the other module.
 
-*   To establish a point to point ZR Plus link ensure the following:
+*   To establish a point to point ZR link ensure the following:
       * Both transceivers state is enabled
       * Both transceivers are set to a valid operational mode
         example 1.      
@@ -27,13 +27,13 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
       * Both transceivers are tuned to a valid centre frequency
         example 196.1 THz.
 
-*   With the ZR Plus link established as explained above, wait until
+*   With the ZR link established as explained above, wait until
     both interfaces oper-status are UP and all the min/avg/max values are 
-    populated. Then verify that the following ZR Plus transceiver telemetry paths 
-    exist and are streamed valid values for both ZR Plus optics.
+    populated. Then verify that the following ZR transceiver telemetry paths 
+    exist and are streamed valid values for both ZR optics.
 
 *   Emulate flaps with the following procedure:
-    *   Enable a pair of ZR Plus interfaces on the DUT as explained above.
+    *   Enable a pair of ZR interfaces on the DUT as explained above.
     *   Disable interface and wait at least one sample interval.
     *   Enable interface.
 
@@ -106,7 +106,7 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
                 "openconfig-if-ethernet:ethernet": {
                     "config": {
                         "duplex-mode": "FULL",
-                        "port-speed": "SPEED_800GB"
+                        "port-speed": "SPEED_400GB"
                     }
                 }
             }
@@ -114,29 +114,6 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
     },
     "openconfig-platform:components": {
         "component": [
-            {
-                "config": {
-                    "name": "Ethernet4/1-Port"
-                },
-                "name": "Ethernet4/1-Port",
-                "openconfig-platform-port:port": {
-                    "breakout-mode": {
-                        "groups": {
-                            "group": [
-                                {
-                                    "config": {
-                                        "breakout-speed": "openconfig-if-ethernet:SPEED_800GB",
-                                        "index": 1,
-                                        "num-breakouts": 1,
-                                        "num-physical-channels": 8
-                                    },
-                                    "index": 1
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
             {
                 "config": {
                     "name": "Ethernet4/1"
@@ -166,7 +143,7 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": "400",
                                     "assignment-type": "OPTICAL_CHANNEL",
                                     "description": "OTN to optical channel assignment",
                                     "index": 1,
@@ -178,7 +155,7 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
                     "config": {
                         "admin-state": "ENABLED",
                         "description": "OTN Logical Channel",
-                        "index": 8000,
+                        "index": 4000,
                         "logical-channel-type": "openconfig-transport-types:PROT_OTN"
                     }
                 },
@@ -193,11 +170,11 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": "400",
                                     "assignment-type": "LOGICAL_CHANNEL",
                                     "description": "ETH to OTN assignment",
                                     "index": 1,
-                                    "logical-channel": 8000
+                                    "logical-channel": 4000
                                 }
                             }
                         ]
@@ -205,10 +182,10 @@ Validate ZR Plus optics module reports telemetry data for all leaves in
                     "config": {
                         "admin-state": "ENABLED",
                         "description": "ETH Logical Channel",
-                        "index": 80000,
+                        "index": 40000,
                         "logical-channel-type": "openconfig-transport-types:PROT_ETHERNET",
-                        "rate-class": "openconfig-transport-types:TRIB_RATE_800G",
-                        "trib-protocol": "openconfig-transport-types:PROT_800GE"
+                        "rate-class": "openconfig-transport-types:TRIB_RATE_400G",
+                        "trib-protocol": "openconfig-transport-types:PROT_400GE"
                     }
                 }
             ]
