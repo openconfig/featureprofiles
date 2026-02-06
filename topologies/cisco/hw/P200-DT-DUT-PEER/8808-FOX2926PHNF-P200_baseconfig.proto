@@ -5,6 +5,10 @@ replace: {
     val: {
       ascii_val:
 "hostname 8808-AA46\n"
+"ztp bootz vrf mgmt\n"
+"aaa accounting commands default start-stop local\n"
+"aaa map-to username cafyauto spiffe-id any\n"
+"aaa authorization exec default local\n"
 "group BGP\n"
 " router bgp '.*' instance '.*'\n"
 "  nsr disable\n"
