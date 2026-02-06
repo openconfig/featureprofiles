@@ -61,7 +61,7 @@ The following behavioral properties are called out for awareness:
     -   DUT:LAG2:IPv6 is 2001:DB8:30::/127
     -   ATE:LAG2:IPv6 is 2001:DB8:30::1/127
 
-4.  DUT:Port1 is configured to form iBGP session with ATE:Port1 using
+4.  DUT:Port1 is configured to form an iBGP session with ATE:Port1 using
     [RFC5549](https://datatracker.ietf.org/doc/html/rfc5549).
     Peering is done with the directly connected interface IP.
 
