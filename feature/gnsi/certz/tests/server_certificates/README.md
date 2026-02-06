@@ -1,4 +1,4 @@
-# Certz-2: Server Certificate
+# CERTZ-2: Server Certificate
 
 ## Summary
 
@@ -26,6 +26,10 @@ up and require using mTLS for authentication:
 Be prepared to load the relevant trust_bundle.pem file for each test
 Certificate Authority(CA) under test on the DUT. Each CA has an RSA and ECDSA
 form, both must be tested.
+
+## TODO:Perform this for the permutations of 20000 CA 
+## TODO:trust_bundle configurations: ( 20000 CA testdata)
+## impacts runtime of the tests for certificate generation
 
 ## Tests
 
@@ -104,8 +108,18 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.GetProfileList:
+    certz.v1.Certz.AddProfile:
+    certz.v1.Certz.Rotate:
+```
+## Canonical OC
+
+```json
+{
+
+}
 ```
 
 ## Minimum DUT Platform Requirement
 
 vRX
+
