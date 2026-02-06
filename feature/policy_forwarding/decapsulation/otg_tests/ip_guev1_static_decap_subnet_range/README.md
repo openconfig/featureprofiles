@@ -182,28 +182,30 @@ Traffic:
 
 ```json
 {
-  "defined-sets": {
-    "prefix-sets": {
-      "prefix-set": [
-        {
-          "config": {
-            "mode": "IPV6",
-            "name": "dst_prefix_v6_gue"
-          },
-          "name": "dst_prefix_v6_gue",
-          "prefixes": {
-            "prefix": [
-              {
-                "config": {
-                  "ip-prefix": "DECAP-DST-SUBNET-V6/64",
-                  "masklength-range": "64..128"
-                },
-                "ip-prefix": "DECAP-DST-SUBNET-V6/64"
-              }
-            ]
+  "routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "config": {
+              "mode": "IPV6",
+              "name": "dst_prefix_v6_gue"
+            },
+            "name": "dst_prefix_v6_gue",
+            "prefixes": {
+              "prefix": [
+                {
+                  "config": {
+                    "ip-prefix": "DECAP-DST-SUBNET-V6/64",
+                    "masklength-range": "64..128"
+                  },
+                  "ip-prefix": "DECAP-DST-SUBNET-V6/64"
+                }
+              ]
+            }
           }
-        }
-      ]
+        ]
+      }
     }
   },
   "network-instances": {
