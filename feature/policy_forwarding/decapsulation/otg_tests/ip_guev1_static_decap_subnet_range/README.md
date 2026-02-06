@@ -143,7 +143,7 @@ Traffic:
 - Verification: 
     -  The outer header destination IP of the traffic falls within the DECAP-DST-SUBNET-V6/64 range
     -  The outer header destination UDP port (6085) of the traffic is not configured for decapsulation, therefore it does not match the decapsulation criteria.
-    -  The DUT should not decapsulate these packets. Packets with `DECAP-DST_3-V6/128` will be sent to the device controller/CPU while the packets with DECAP-DST_1/32, DECAP-DST_2/32 and DECAP-DST_4/32 will be dropped due to specific no-route to the destination present in local FIB
+    -  The DUT should not decapsulate these packets. Packets with `DECAP-DST_3-V6/128` will be sent to the device controller/CPU while the packets with `DECAP-DST_1-V6/128`, `DECAP-DST_2-V6/128` and `DECAP-DST_4-V6/128` will be dropped due to specific no-route to the destination present in local FIB
     -  The DUT decapsulation counters should not increment for this flow
     -  100% packet loss should be observed on ATE Port 2
 
