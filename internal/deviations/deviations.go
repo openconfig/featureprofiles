@@ -1474,6 +1474,12 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
@@ -1612,7 +1618,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
@@ -1887,4 +1893,33 @@ func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 // InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
+}
+
+// CiscoxrTransceiverFt returns the functional translator to be used for translating
+// transceiver threshold leaves.
+func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrTransceiverFt()
+}
+
+// TransceiverStateUnsupported returns true if device does not support transceiver state leaf.
+func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTransceiverStateUnsupported()
+}
+
+// SubnetMaskChangeRequired returns true if the device requires changing the subnet mask length.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
+}
+
+// Ciscoxr8000IntegratedCircuitResourceFt returns the functional translator to be used for translating
+// integrated circuit resource leaves.
+func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
+}
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
 }
