@@ -174,6 +174,31 @@ Once the ZR link is estabished proceed to configure the following entities:
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/optical-channel/config/frequency:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/line-port:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/operational-mode:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/optical-channel/config/target-output-power:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /components/component/transceiver/config/enabled:
+    platform_type: [OPTICAL_CHANNEL, TRANSCEIVER]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/oper-status:
+  /terminal-device/logical-channels/channel/config/admin-state:
+  /terminal-device/logical-channels/channel/config/description:
+  /terminal-device/logical-channels/channel/config/index:
+  /terminal-device/logical-channels/channel/config/logical-channel-type:
+  /terminal-device/logical-channels/channel/config/rate-class:
+  /terminal-device/logical-channels/channel/config/trib-protocol:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/allocation:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/assignment-type:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/description:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/index:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/logical-channel:
+  /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/config/optical-channel:
 rpcs:
   gnmi:
     gNMI.Get:

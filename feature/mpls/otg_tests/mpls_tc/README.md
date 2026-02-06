@@ -124,30 +124,26 @@ A[DUT] <-- Port1/2(IPv4/6) --> B[DUT];
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-
 paths:
-
-## Config paths:
-/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled:
-/network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/config/interface-id:
-/network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
-/qos/classifiers/classifier/config/name:
-/qos/classifiers/classifier/config/type:
-/qos/classifiers/classifier/terms/term/config/id:
-/qos/classifiers/classifier/terms/term/conditions/mpls/config/start-label-value:
-/qos/classifiers/classifier/terms/term/conditions/mpls/config/end-label-value:
-/qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc:
-
-## State paths:
-/network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
-/network-instances/network-instance/mpls/global/interface-attributes/interface/state/mpls-enabled:
-/qos/classifiers/classifier/state/name:
-/qos/classifiers/classifier/state/type:
-/qos/classifiers/classifier/terms/term/state/id:
-/qos/classifiers/classifier/terms/term/conditions/mpls/state/start-label-value:
-/qos/classifiers/classifier/terms/term/conditions/mpls/state/end-label-value:
-/qos/classifiers/classifier/terms/term/actions/remark/state/set-mpls-tc:
-
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/state/name:
+  /qos/classifiers/classifier/state/type:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/classifiers/classifier/terms/term/state/id:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/state/name:
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/config/enabled:
+  /network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/mpls/global/interface-attributes/interface/config/mpls-enabled:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/config/start-label-value:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/config/end-label-value:
+  /qos/classifiers/classifier/terms/term/actions/remark/config/set-mpls-tc:
+  /network-instances/network-instance/protocols/protocol/isis/global/segment-routing/state/enabled:
+  /network-instances/network-instance/mpls/global/interface-attributes/interface/state/mpls-enabled:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/state/start-label-value:
+  /qos/classifiers/classifier/terms/term/conditions/mpls/state/end-label-value:
+  /qos/classifiers/classifier/terms/term/actions/remark/state/set-mpls-tc:
 rpcs:
   gnmi:
     gNMI.Set:

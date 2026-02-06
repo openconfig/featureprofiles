@@ -43,6 +43,9 @@ the emergency case that is covered by this requirement.
 TODO: Update the Paths and RPCs used.
 
 ```yaml
+paths:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnmi:
     gNMI.Subscribe:

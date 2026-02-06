@@ -36,6 +36,12 @@ Validate 400ZR_PLUS optics module reports correct firmware version.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/state/firmware-version:
+    platform_type: [TRANSCEIVER]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/transceiver:
 rpcs:
   gnmi:
     gNMI.Get:
