@@ -29,7 +29,7 @@ testbeds:
 
   8808-36FH_FOX2613PHWL: 
     hw: 8808-36FH_FOX2613PHWL
-    owner: regression
+    owner:
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
@@ -97,7 +97,7 @@ testbeds:
 
   8808_FOX2625PLW8_MGMT_GRPC: &8808_FOX2625PLW8_MGMT_GRPC_DEFAULTS
     hw: 8808_FOX2625PLW8_MGMT_GRPC
-    owner:
+    owner: regression
     testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig.proto
@@ -109,7 +109,7 @@ testbeds:
   
   8808_FOX2625PLW8_MGMT_GRPC_BREAKOUT:
     << : *8808_FOX2625PLW8_MGMT_GRPC_DEFAULTS
-   owner:
+   owner: regression
     testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakout.testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakoutbinding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakout.proto
