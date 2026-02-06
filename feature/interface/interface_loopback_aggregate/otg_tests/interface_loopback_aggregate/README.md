@@ -24,6 +24,13 @@ The below YAML defines the OC paths intended to be covered by this test. OC path
 paths:
   /interfaces/interface/ethernet/state/aggregate-id:
   /interfaces/interface/state/oper-status:
+  /interfaces/interface/config/loopback-mode:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/ethernet/config/duplex-mode:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/state/loopback-mode:
 rpcs:
   gnmi:
     gNMI.Set:
