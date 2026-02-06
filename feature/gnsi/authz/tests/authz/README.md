@@ -446,10 +446,8 @@ paths:
   /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name:
   /system/state/boot-time:
   /system/state/current-datetime:
-  /system/aaa/authentication/users/user/config:
   /system/aaa/authentication/users/user/config/username:
   /system/aaa/authentication/users/user/config/password:
-  /system/aaa/authentication/users/user/state:
   /system/aaa/authentication/users/user/state/username:
   /system/aaa/authentication/users/user/state/password:
   /system/aaa/authentication/users/user/state/authorized-principals-list-version:
