@@ -225,6 +225,8 @@ type BMPConfigParams struct {
 	StationAddr  string
 	StationPort  uint16
 	StatsTimeOut uint16
+	PrePolicy    bool
+	PostPolicy   bool
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
@@ -1640,9 +1642,11 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 	t.Helper()
 	if deviations.BMPOCUnsupported(dut) {
 
+		bmpConfig := new(strings.Builder)
+
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			bmpConfig := new(strings.Builder)
+
 			fmt.Fprintf(bmpConfig, `
 				router bgp %d
 				bgp monitoring
@@ -1652,13 +1656,33 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 				statistics
 				connection address %s
 				connection mode active port %d
-				`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
+					`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
 
 			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+
+			if cfgParams.PrePolicy {
+				t.Log("Configured BMP station with pre-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes pre-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if cfgParams.PostPolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes post-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
 		}
 	} else {
-		// TODO: BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
-		t.Log("BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
+		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
+		t.Log("BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
 		// // === BMP Configuration ===
 		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
 		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)
