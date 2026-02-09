@@ -13,7 +13,7 @@ featureprofiles_internal_core_decode:
     smart_sanity_exclude: true
     restrict_known_break_to_owners: true
     internal_test: true
-    internal_fp_repo_rev: krinata2_core_decode
+    internal_fp_repo_rev: master
     collect_debug_files: true
     script_paths:
         - featureprofiles_internal/core_decode:
@@ -22,4 +22,4 @@ featureprofiles_internal_core_decode:
             test_name: core_decode
             test_path: tools/cisco/dump_core
             test_timeout: 7200
-            test_branch: krinata2_core_decode
+            test_branch: master
