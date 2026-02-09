@@ -429,5 +429,6 @@ ascii_val:
     "interface TenGigE0/6/0/2/3\n"
     " description not connected interface\n"
     " no shutdown\n"
+    "!\n"
     }
     }
