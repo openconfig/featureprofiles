@@ -63,13 +63,13 @@ func main() {
 		log.Fatalf("failed to generate client certificate: %v", err)
 	}
 
-	certPath := filepath.Join(*outDir, "ems.pem")
-	keyPath := filepath.Join(*outDir, "ems.key")
+	certPath := filepath.Join(*outDir, "certificate.pem")
+	keyPath := filepath.Join(*outDir, "key.pem")
 	if err := certUtil.SaveTLSCertInPems(tlsCert, keyPath, certPath, x509.RSA); err != nil {
 		log.Fatalf("failed to save client key/cert: %v", err)
 	}
 
-	caCertPath := filepath.Join(*outDir, "ca.cert")
+	caCertPath := filepath.Join(*outDir, "CABundle.pem")
 	if err := writeCertificate(caCertPath, caCert.Raw); err != nil {
 		log.Fatalf("failed to write CA certificate: %v", err)
 	}
@@ -78,7 +78,12 @@ func main() {
 		log.Fatalf("failed to write CA key: %v", err)
 	}
 
-	fmt.Printf("Generated files:\n  %s\n  %s\n  %s\n  %s\n", certPath, keyPath, caCertPath, filepath.Join(*outDir, "ca.key"))
+	combinedPath := filepath.Join(*outDir, "tls_bundle.pem")
+	if err := writeCombinedPEM(combinedPath, tlsCert.Leaf, tlsCert.PrivateKey, caCert); err != nil {
+		log.Fatalf("failed to write combined PEM file: %v", err)
+	}
+
+	fmt.Printf("Generated files:\n  %s\n  %s\n  %s\n  %s\n  %s\n", certPath, keyPath, caCertPath, filepath.Join(*outDir, "ca.key"), combinedPath)
 }
 
 func parseIPs(raw string) ([]net.IP, error) {
@@ -144,4 +149,26 @@ func writeCAPrivateKey(path string, key crypto.PrivateKey) error {
 		return errors.New("failed to encode key to PEM")
 	}
 	return os.WriteFile(path, encoded, 0o600)
+}
+
+func writeCombinedPEM(path string, clientCert *x509.Certificate, clientKey crypto.PrivateKey, caCert *x509.Certificate) error {
+	var pemData []byte
+
+	// Add client certificate
+	certBlock := &pem.Block{Type: "CERTIFICATE", Bytes: clientCert.Raw}
+	pemData = append(pemData, pem.EncodeToMemory(certBlock)...)
+
+	// Add private key (PKCS#8 format for "PRIVATE KEY" header)
+	privKeyBytes, err := x509.MarshalPKCS8PrivateKey(clientKey)
+	if err != nil {
+		return fmt.Errorf("failed to marshal private key: %w", err)
+	}
+	keyBlock := &pem.Block{Type: "PRIVATE KEY", Bytes: privKeyBytes}
+	pemData = append(pemData, pem.EncodeToMemory(keyBlock)...)
+
+	// Add root CA certificate
+	caBlock := &pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw}
+	pemData = append(pemData, pem.EncodeToMemory(caBlock)...)
+
+	return os.WriteFile(path, pemData, 0o644)
 }
