@@ -11,7 +11,7 @@
 
 duts {
   id: "dut1"
-  name: "SF-D_DUT1"  # Change this to the device hostname.
+  name: "10.85.84.233"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
   # config:{
@@ -202,7 +202,7 @@ options {
 
 duts {
   id: "dut2"
-  name: "SF-D_DUT2"  # Change this to the device hostname.
+  name: "10.85.84.236"  # Change this to the device hostname.
   vendor: CISCO
   hardware_model: "CISCO-8808"
   # config:{

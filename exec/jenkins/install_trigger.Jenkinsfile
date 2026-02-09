@@ -67,7 +67,8 @@ pipeline {
                     }
 
                     build job: params['Jenkins job path'], parameters: [
-                        string(name: 'Test env', value: test_env.join('\n'))
+                        string(name: 'Test env', value: test_env.join('\n')),
+                        string(name: 'Run Reason', value: "Install sanities on ${params['Boot Image']} -> ${image_path}")
                     ] + global_parameters, wait: true
                 }
             }

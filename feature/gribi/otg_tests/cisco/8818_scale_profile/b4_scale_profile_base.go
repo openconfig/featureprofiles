@@ -2027,3 +2027,84 @@ func NewDefaultSflowAttr(ingressInterface string) *s.SFlowConfig {
 		DfBitSet:            true,
 	}
 }
+
+func programP4rtClientsAndEntries(t *testing.T, dut *ondatra.DUTDevice) map[string]*s.P4RTClientManager {
+	t.Logf("Program P4RT clients and ACL entries on %s", dut.ID())
+	ctx := context.Background()
+
+	p4rtHelper := s.P4rtHelper()
+	deviceIds := p4rtHelper.ConfigureAndGetDeviceIDs(t, dut, seedDeviceID)
+
+	// Initialize election ID generator
+	electionIDGen := s.NewElectionIDGenerator(seedLowElectionID)
+
+	// Create managers for all devices
+	managers := make(map[string]*s.P4RTClientManager)
+
+	// Setup forwarding pipeline and program ACL entries for each device
+	for stream, devID := range deviceIds {
+		t.Logf("%s: Setting up P4RT client for stream %s with device ID %d", dut.ID(), stream, devID)
+
+		manager, err := s.CreateDefaultLeaderFollowerClientsWithElectionID(t, dut, devID, stream, electionIDGen)
+		if err != nil {
+			t.Fatalf("%s: CreateDefaultLeaderFollowerClientsWithElectionID failed for stream %s: %v", dut.ID(), stream, err)
+		}
+
+		managers[stream] = manager
+
+		if err := manager.SetupClientArbitration(ctx, t); err != nil {
+			t.Fatalf("%s: SetupClientArbitration failed for stream %s: %v", dut.ID(), stream, err)
+		}
+
+		// Setup forwarding pipeline
+		// Note: This requires a valid p4info file path
+		err = manager.SetupForwardingPipeline(ctx, t, s.GetP4InfoPath())
+		if err != nil {
+			t.Errorf("%s: SetupForwardingPipeline returned error for stream %s: %v", dut.ID(), stream, err)
+		} else {
+			t.Logf("%s: Successfully set up forwarding pipeline for stream %s", dut.ID(), stream)
+		}
+
+		leader := manager.GetLeader()
+
+		// Create test entries
+		entries := s.CreateDefaultACLEntries()
+
+		// Program entries after pipeline setup
+		err = leader.ProgramTableEntry(t, entries)
+		if err != nil {
+			t.Errorf("%s: ProgramTableEntry returned error for stream %s: %v", manager.DUT.ID(), stream, err)
+		} else {
+			t.Logf("%s: Successfully programmed ACL table entries for stream %s with election ID: leader=%d, follower=%d",
+				manager.DUT.ID(), stream, leader.Config.ElectionID.Low, manager.Clients["follower"].Config.ElectionID.Low)
+		}
+	}
+
+	t.Logf("Successfully programmed ACL entries on %d devices", len(managers))
+	return managers
+}
+
+// uncomment when deleteP4rtEntries is needed
+// func deleteP4rtEntries(t *testing.T, managers map[string]*s.P4RTClientManager) {
+// 	t.Log("Delete P4RT entries from all devices")
+
+// 	for stream, manager := range managers {
+// 		t.Logf("%s: Deleting entries for stream %s", manager.DUT.ID(), stream)
+// 		leader := manager.GetLeader()
+
+// 		// Create test entries to delete
+// 		entries := s.CreateDefaultACLEntries()
+
+// 		// Delete entries
+// 		err := leader.DeleteTableEntries(t, entries)
+// 		if err != nil {
+// 			t.Errorf("%s: DeleteTableEntries returned error for stream %s: %v", manager.DUT.ID(), stream, err)
+// 		} else {
+// 			t.Logf("%s: Successfully deleted ACL table entries for stream %s", manager.DUT.ID(), stream)
+// 		}
+// 		// Cleanup clients
+// 		manager.Cleanup(t)
+// 	}
+
+// 	t.Log("Successfully deleted P4RT entries from all devices")
+// }

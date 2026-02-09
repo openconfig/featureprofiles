@@ -44,6 +44,29 @@ const (
 	maxSwitchoverTime   = 1200
 )
 
+// Function for verifying the stability of SUP cards after switchover
+func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
+	startSwitchover := time.Now()
+	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
+			break
+		}
+		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
+		}
+	}
+	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+}
+
 func testControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controllerCards []string) {
 	// Collect active and standby controller cards before the switchover
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
@@ -86,26 +109,8 @@ func testControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controll
 	if got := switchoverResponse.GetUptime(); got == 0 {
 		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
 	}
-
-	startSwitchover := time.Now()
-	t.Logf("Wait for new active RP to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("RP switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if got, want := uint64(time.Since(startSwitchover).Seconds()), uint64(maxSwitchoverTime); got >= want {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
-		}
-	}
-	t.Logf("RP switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+	// Waiting for device to be stable after the switchover.
+	waitForSwitchover(t, dut)
 
 	// RP roles after the switchover
 	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
@@ -118,11 +123,33 @@ func testControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controll
 		t.Errorf("Get rpStandbyAfterSwitch: got %v, want %v", got, want)
 	}
 
+	// Validate controller card last switchover time
+	lastSwitchoverTime := gnmi.OC().Component(rpActiveAfterSwitch).LastSwitchoverTime()
+	lastSwitchoverTimeCard := gnmi.Get(t, dut, lastSwitchoverTime.State())
+	if !(gnmi.Lookup(t, dut, lastSwitchoverTime.State()).IsPresent()) {
+		t.Errorf("Controller card last switchover time is not returning a valid value for %s", lastSwitchoverTime.State())
+	}
+	t.Logf("The value of last switchover time is %v", lastSwitchoverTimeCard)
+	// Validate controller card last switchover reason trigger
+	lastSwitchoverReasonTrigger := gnmi.OC().Component(rpActiveAfterSwitch).LastSwitchoverReason().Trigger()
+	lastSwitchoverReasonTriggerCard := gnmi.Get(t, dut, lastSwitchoverReasonTrigger.State())
+	if !(gnmi.Lookup(t, dut, lastSwitchoverReasonTrigger.State()).IsPresent()) {
+		t.Errorf("Controller card last switchover reason trigger is not returning a valid value for %s", lastSwitchoverReasonTrigger.State())
+	}
+	t.Logf("The value of last switchover reason trigger is %v", lastSwitchoverReasonTriggerCard)
+	// Validate controller card last switchover reason details
+	lastSwitchoverReasonDetails := gnmi.OC().Component(rpActiveAfterSwitch).LastSwitchoverReason().Details()
+	lastSwitchoverReasonDetailsCard := gnmi.Get(t, dut, lastSwitchoverReasonDetails.State())
+	if !(gnmi.Lookup(t, dut, lastSwitchoverReasonDetails.State()).IsPresent()) {
+		t.Errorf("Controller card last switchover reason details is not returning a valid value for %s", lastSwitchoverReasonDetails.State())
+	}
+	t.Logf("The value of last switchover reason details is %v", lastSwitchoverReasonDetailsCard)
+
 	// Verify that all controller_cards has switchover-ready=TRUE
 	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
-	switchoverReadyStandbyrp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
-	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
+	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReadyActiverp.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
@@ -170,27 +197,6 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 			t.Errorf("Controller card redundant role is not returning a valid value for %s", redundantRole.State())
 		}
 		t.Logf("The value of redundant role is %v", redundantRoleCard)
-		// Validate controller card last switchover time
-		lastSwitchoverTime := gnmi.OC().Component(controllerCard).LastSwitchoverTime()
-		lastSwitchoverTimeCard := gnmi.Get(t, dut, lastSwitchoverTime.State())
-		if !(gnmi.Lookup(t, dut, lastSwitchoverTime.State()).IsPresent()) {
-			t.Errorf("Controller card last switchover time is not returning a valid value for %s", lastSwitchoverTime.State())
-		}
-		t.Logf("The value of last switchover time is %v", lastSwitchoverTimeCard)
-		// Validate controller card last switchover reason trigger
-		lastSwitchoverReasonTrigger := gnmi.OC().Component(controllerCard).LastSwitchoverReason().Trigger()
-		lastSwitchoverReasonTriggerCard := gnmi.Get(t, dut, lastSwitchoverReasonTrigger.State())
-		if !(gnmi.Lookup(t, dut, lastSwitchoverReasonTrigger.State()).IsPresent()) {
-			t.Errorf("Controller card last switchover reason trigger is not returning a valid value for %s", lastSwitchoverReasonTrigger.State())
-		}
-		t.Logf("The value of last switchover reason trigger is %v", lastSwitchoverReasonTriggerCard)
-		// Validate controller card last switchover reason details
-		lastSwitchoverReasonDetails := gnmi.OC().Component(controllerCard).LastSwitchoverReason().Details()
-		lastSwitchoverReasonDetailsCard := gnmi.Get(t, dut, lastSwitchoverReasonDetails.State())
-		if !(gnmi.Lookup(t, dut, lastSwitchoverReasonDetails.State()).IsPresent()) {
-			t.Errorf("Controller card last switchover reason details is not returning a valid value for %s", lastSwitchoverReasonDetails.State())
-		}
-		t.Logf("The value of last switchover reason details is %v", lastSwitchoverReasonDetailsCard)
 		// Validate controller card last reboot time
 		lastRebootTime := gnmi.OC().Component(controllerCard).LastRebootTime()
 		lastRebootTimeCard := gnmi.Get(t, dut, lastRebootTime.State())
@@ -296,6 +302,14 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
 	}
 	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
+	// Polling the device to verify the stability of the device.
+	waitForSwitchover(t, dut)
+	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
+	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady for active RP: %v, standby RP: %v", gnmi.Get(t, dut, switchoverReadyActiverp.State()), gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
 
 	want := rpStandbyBeforeSwitch
 	got := ""
@@ -362,6 +376,8 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 			t.Logf("Controller card %s is in the expected state %s after standby RP reboot", controllerCard, operStatusCard)
 		}
 	}
+	t.Logf("Wait for 5 seconds before powerup the standby RP")
+	time.Sleep(5 * time.Second)
 	// PowerUp the standby RP
 	powerUpControllerCardRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_POWERUP,
@@ -380,11 +396,11 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	time.Sleep(5 * time.Second)
 
 	// Verify that all controller_cards has switchover-ready=TRUE
-	switchoverReadyActiverp := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	switchoverReadyStandbyrp := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
-	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
-	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	switchoverReadyActiverp = gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady()
+	switchoverReadyStandbyrp = gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
+	t.Logf("SwitchoverReady for active RP (%s): %v, standby RP (%s): %v", rpStandbyBeforeSwitch, gnmi.Get(t, dut, switchoverReadyActiverp.State()), rpActiveBeforeSwitch, gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReadyActiverp.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
@@ -419,11 +435,11 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
 	time.Sleep(1 * time.Minute)
 
-	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 20*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 30*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 20*time.Minute, val)
+		t.Fatalf("DUT did not reach target state within %v: got %v", 30*time.Minute, val)
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 

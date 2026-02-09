@@ -31,6 +31,7 @@ def _lockfile(filename, user, reason=""):
         fp = os.open(filename, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
         os.write(fp, str.encode(f"{user},{reason}"))
         os.close(fp)
+        os.chmod(filename, 0o666)
     except OSError as e:
         if e.errno == errno.EEXIST:
             return False
@@ -100,15 +101,13 @@ def _get_testbed(id, json_output=False):
 def _trylock_helper(tb, user, reason=""):
     if tb.get('sim', False):
         return True
-    if not getpass.getuser() in allowed_users:
-        return False
     lock_file = os.path.join(ldir, tb['hw'])
     if _lockfile(lock_file, user, reason):
         return True
     return False
 
 def _release_helper(tb):
-    if not tb.get('sim', False) and getpass.getuser() in allowed_users:
+    if not tb.get('sim', False):
         lock_file = os.path.join(ldir, tb['hw'])
         if os.path.exists(lock_file):
             os.remove(lock_file)
@@ -214,10 +213,6 @@ args = main_parser.parse_args()
 
 __location__ = os.path.realpath(
     os.path.join(os.getcwd(), os.path.dirname(__file__)))
-
-allowed_users = []
-with open(os.path.join(__location__, 'users.txt')) as fp:
-    allowed_users = [line.rstrip() for line in fp]
 
 ldir = args.locks_dir
 if not os.path.exists(ldir):

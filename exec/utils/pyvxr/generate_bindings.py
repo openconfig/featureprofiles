@@ -104,7 +104,7 @@ class DUT(Device):
     def to_binding_entry(self):
         e = super().to_binding_entry()  
         e.update({
-            'name': self.hostname,
+            'name': self.get_host_agent(),
             'vendor': DUT.Vendor.CISCO,
             'hardware_model': self.get_model(),
             'options': {
@@ -166,20 +166,20 @@ class IxiaOTG(ATE):
     def to_binding_entry(self):
         e = super().to_binding_entry()
         e.update({
-            'name': self.id,
+            'name': self.get_host_agent() + ':' + str(self.get_port_redir(40051)),
             'options': {
-                'username': self.username,
-                'password': self.password,
+                'username': 'admin',
+                'password': 'admin',
             },
             'gnmi': {
-                'target': self.get_host_agent() + ':' + str(self.get_port_redir(31003)),
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(50051)),
                 'skip_verify': True,
-                'timeout': 60
+                'timeout': 150
             },
             'otg': {
-                'target': self.get_host_agent() + ':' + str(self.get_port_redir(31002)),
+                'target': self.get_host_agent() + ':' + str(self.get_port_redir(40051)),
                 'insecure': True,
-                'timeout': 100
+                'timeout': 300
             }
         })
         return e
@@ -261,10 +261,7 @@ def parse_connection_end(devices, c):
     return ConnectionEnd(devices[parts[0]], ''.join(parts[1:]))
 
 def is_otg(e):
-    d = e.get('disks', [])
-    if len(d) == 1 and isinstance(d[0], dict):
-        return d[0].get('hda_ref', {}).get('file', '') == '/ws/kjahed-ott/public/images/otg/ixia-c.qcow2'
-    return False
+    return e.get('custom', {}).get('type', '') == 'OTG'
 
 def get_speed(intf_name):
     speeds = {

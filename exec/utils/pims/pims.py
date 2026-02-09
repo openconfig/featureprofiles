@@ -8,17 +8,19 @@ from operator import itemgetter
 parser = argparse.ArgumentParser(description='Find latest pims image')
 parser.add_argument('--lineup', default='xr-dev', help="image lineup")
 parser.add_argument('--label', default='*NIGHTLY*', help="image label")
+parser.add_argument('--from_date', default='', help="image from date, defaults to 1 week")
 parser.add_argument('--dev', dest='dev', action='store_true')
 args = parser.parse_args()
 
 lineup = args.lineup
 nightly_label = args.label
+from_date = args.from_date
 use_dev_image = args.dev
 image_subpaths = ['8000/8000-x64.iso', 'img-8000/8000-x64.iso']
 dev_image_subpaths = ['8000/8000-dev-x64.iso', 'img-8000/8000-dev-x64.iso']
 
 candidates = []
-pims_output = check_output([
+pims_cmd = [
     '/usr/cisco/bin/pims',
     'lu',
     'released_efrs',
@@ -26,19 +28,27 @@ pims_output = check_output([
     lineup,
     '-label',
     nightly_label
-], encoding='utf-8')
+]
+
+if from_date:
+    pims_cmd.extend(['-from_date', from_date])
+
+pims_output = check_output(pims_cmd, encoding='utf-8')
+
+image_label = None
+image_efr = None
 
 for l in pims_output.splitlines():
     if l.startswith('EFR-'):
         parts = l.split('\t')
+        image_efr = parts[0]
         labels = parts[-1].split(',')
         for lb in labels:
             candidates.append((lb, parts[0]))
+            image_label = lb
 
 candidates = sorted(candidates,key=itemgetter(0), reverse=True)
 image_path = None
-image_label = None
-image_efr = None
 
 for c in candidates:
     label, efr = c
@@ -46,26 +56,22 @@ for c in candidates:
         '/usr/cisco/bin/pims',
         'gsr',
         '-r',
-        'nightly_build_info',
-        '-nightly_label',
+        'build_status_image_details',
+        '-build_label',
         label,
-        '-lineup',
-        lineup,
         '-format',
         'json'
     ], encoding='utf-8'))
     
     for result in js:
-        if result.get('Status') == 'Successful':
-            image_dir = result.get('Image Location')
+        if result.get('Build Status') == 'Successful' and result.get('Image Name') == '8000-x64.iso':
+            image_ws = result.get('Workspace Location')
             subpaths = image_subpaths
             if use_dev_image: subpaths = dev_image_subpaths
             for subpath in subpaths:
-                location = os.path.join(image_dir, subpath)
+                location = os.path.join(image_ws, subpath)
                 if os.path.exists(location):
                     image_path = location
-                    image_label = label
-                    image_efr = efr
                     break
             if image_path:
                 break

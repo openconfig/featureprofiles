@@ -120,6 +120,7 @@ type MPLSFlowParams struct {
 	MPLSExp        uint32
 	MPLSLabelCount uint32
 	MPLSExpCount   uint32
+	MPLSLabelStep  uint32
 }
 
 // SizeWeightPair represents a custom Size profile for a traffic flow.
@@ -204,14 +205,27 @@ func (f *Flow) AddVLANHeader() {
 // AddMPLSHeader adds an MPLS header to the flow.
 func (f *Flow) AddMPLSHeader() {
 	mplsHdr := f.flow.Packet().Add().Mpls()
-	if f.MPLSFlow.MPLSLabelCount != 0 {
-		mplsHdr.Label().Increment().SetStart(f.MPLSFlow.MPLSLabel).SetCount(f.MPLSFlow.MPLSLabelCount)
-	} else {
+
+	switch {
+	case f.MPLSFlow.MPLSLabelCount != 0 && f.MPLSFlow.MPLSLabelStep != 0:
+		mplsHdr.Label().Increment().
+			SetStart(f.MPLSFlow.MPLSLabel).
+			SetCount(f.MPLSFlow.MPLSLabelCount).
+			SetStep(f.MPLSFlow.MPLSLabelStep)
+	case f.MPLSFlow.MPLSLabelCount != 0:
+		mplsHdr.Label().Increment().
+			SetStart(f.MPLSFlow.MPLSLabel).
+			SetCount(f.MPLSFlow.MPLSLabelCount)
+	default:
 		mplsHdr.Label().SetValue(f.MPLSFlow.MPLSLabel)
 	}
-	if f.MPLSFlow.MPLSExpCount != 0 {
-		mplsHdr.TrafficClass().Increment().SetStart(f.MPLSFlow.MPLSExp).SetCount(f.MPLSFlow.MPLSExpCount)
-	} else {
+
+	switch {
+	case f.MPLSFlow.MPLSExpCount != 0:
+		mplsHdr.TrafficClass().Increment().
+			SetStart(f.MPLSFlow.MPLSExp).
+			SetCount(f.MPLSFlow.MPLSExpCount)
+	default:
 		mplsHdr.TrafficClass().SetValue(f.MPLSFlow.MPLSExp)
 	}
 }

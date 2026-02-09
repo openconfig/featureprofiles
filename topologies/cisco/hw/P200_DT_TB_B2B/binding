@@ -1,0 +1,92 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+## testbed Details ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5)
+#router static
+# Console:
+# 172.27.177.102 2030/172.27.177.102 2031
+# Mgmt:
+# RP0: 172.27.177.66
+# RP1: 172.27.177.67
+# virtual: 172.27.177.68
+## Consoe server:
+# telnet 10.85.84.47
+
+# Username: cafyauto
+# Password: cisco123
+# This Binding is with Port forwarding enabled on UCS: root@sjc-ucs-b4/SJ17labuser!
+
+options {
+  username: "cafyauto"
+  password: "cisco123"
+}
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  name: "8808-P200"  # Change this to the device hostname.
+  config:{
+    gnmi_set_file: "$BASE_CONF_PATH"
+  }
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: false
+    skip_verify: false 
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "172.27.177.111:48800"
+  }
+  gnmi {
+    target: "172.27.177.111:48800" 
+  }
+  gribi{
+    target: "172.27.177.111:48800"
+  }
+  ssh{
+    target: "172.27.177.111:48022"
+    skip_verify: true
+  }
+  p4rt{
+    target: "172.27.177.111:48800"
+  }
+  gnsi{
+    target: "172.27.177.111:48800"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "FourHundredGigE0/7/0/2/0"  # Change this to the actual port name.
+    speed: S_400GB  
+  }
+  ports {
+    id: "port2"
+    name: "FourHundredGigE0/7/0/12/0"  # Change this to the actual port name.
+    speed: S_400GB  
+  }
+  ports {
+    id: "port3"
+    name: "HundredGigE0/6/0/28/0"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    name: "HundredGigE0/7/0/18/0"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+}
