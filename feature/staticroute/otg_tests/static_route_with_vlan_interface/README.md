@@ -1,7 +1,7 @@
 # RT-1.67: IPv4 and IPv6 Static Route using Vlan Interface
 
 
-# Summary
+## Summary
 
 This  is to validate the Static Routes with next-hop using Vlan interface functionality on a DUT.  The test validates the following actions -
 
@@ -10,14 +10,14 @@ This  is to validate the Static Routes with next-hop using Vlan interface functi
 * The next-hop of the route is pointing to a vlan interface recursively. 
 * DUT forwards the IPv4/IPv6  traffic over the vlan interface.
 
-# Testbed Type
+## Testbed Type
 
 * [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-# Procedure
+## Procedure
 
 
-# Test environment setup
+### Test environment setup
 
 ```mermaid
 graph LR; 
@@ -29,7 +29,7 @@ A[ATE:Port1-3] --(Vlan 10)-->B[Port1-3:DUT:Port4];B --Egress-->C[Port4:ATE];
 * DUT:Port[4] IPv6 address = 2001:f:a::0/127
 
 
-# Configuration
+#### Configuration
 
 
 * Configure VLAN 10 on DUT.
@@ -43,17 +43,17 @@ A[ATE:Port1-3] --(Vlan 10)-->B[Port1-3:DUT:Port4];B --Egress-->C[Port4:ATE];
     * Configure IPv4 and IPv6 static routes recursively pointing to the VLAN10 interface
 
 
-# Test - 1 Validate Layer 3 Forwarding over VLAN interface
+### RT-1.67.1 Validate Layer 3 Forwarding over VLAN interface
 
-* Send IPv4 / IPv6 traffic flows from ATE:Port[1] to destination 10.10.10.1 and 2001:f:a::1
-* Send IPv4 / IPv6 traffic flows from ATE:Port[2] to destination 10.10.10.1 and 2001:f:a::1
-* Send IPv4 / IPv6 traffic flows from ATE:Port[3] to destination 10.10.10.1 and 2001:f:a::1
+* Step 1 - Send IPv4 / IPv6 traffic flows from ATE:Port[1] to destination 10.10.10.1 and 2001:f:a::1
+* Step 2 - Send IPv4 / IPv6 traffic flows from ATE:Port[2] to destination 10.10.10.1 and 2001:f:a::1
+* Step 3 - Send IPv4 / IPv6 traffic flows from ATE:Port[3] to destination 10.10.10.1 and 2001:f:a::1
 
 **Verify that:**
 
 * The DUT:Port[1], DUT:Port[1], and DUT:Port[3] receive the traffic for the flows and forward traffic out over DUT:Port[4]
 
-# Test - 2 Validate IP forwarding over static route 
+### RT-1.67.2 Validate IP forwarding over static route 
 
 * Send three different IPv4 traffic flows from ATE:Port[3] to destinations 
     * 10.11.1.0/24
