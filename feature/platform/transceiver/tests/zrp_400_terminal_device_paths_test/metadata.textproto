@@ -1,10 +1,10 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "ed6b4f14-d5bb-4ee1-bff8-cc9f84aeb955"
-plan_id: "TRANSCEIVER-102"
-description: "Telemetry: ZR terminal-device OC paths streaming."
-testbed: TESTBED_DUT_800ZR
+uuid: "99d4a319-0f6b-45f2-a4a4-2d3ae8bc9b24"
+plan_id: "TRANSCEIVER-108"
+description: "Telemetry: ZR Plus terminal-device OC paths streaming."
+testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
   platform: {
     vendor: ARISTA

@@ -1568,6 +1568,22 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test/README.md"
 }
 test: {
+  id: "TRANSCEIVER-105"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-106"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-107"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-108"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
+}
+test: {
   id: "TRANSCEIVER-11.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_logical_channels_test/README.md"
 }
