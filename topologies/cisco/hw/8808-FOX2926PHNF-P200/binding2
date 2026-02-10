@@ -66,6 +66,9 @@ duts {
   gnsi{
     target: "172.27.177.111:48800"
   }
+  gnpsi{
+    target: "172.27.177.111:48800"
+  }
    # Before this binding can be used with a topology, add ports mapping
   # from its topology ID to the actual port name on the device.
   ports: {

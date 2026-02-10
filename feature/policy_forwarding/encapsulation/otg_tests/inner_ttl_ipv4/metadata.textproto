@@ -4,4 +4,18 @@
 uuid:  "171f2571-d775-4f9b-b9bf-3584e52f78a6"
 plan_id:  "PF-1.11"
 description:  "Rewrite the ingress innner packet TTL"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    omit_l2_mtu: true
+    default_network_instance: "default"    
+    policy_forwarding_unsupported: true
+    policy_forwarding_gre_encapsulation_oc_unsupported: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
+    next_hop_group_config_unsupported: true
+  }
+}

@@ -218,7 +218,7 @@ tables above, the DUT requires the following configurations:
         *   Define UDP ports to be used for IPv4oUDP and IPv6oUDP which is 6080.
         *   Define the Tunnel NHG configuration with these parameters:
 
-            *   `ttl = 128`
+            *   `ttl = 64`
             *   `tunnel-source = $DUT_lo0.v4`
             *   `tunnel-destination1 = $ATE2_INTERNAL_TE11.v4/32`.
             *   `tunnel-destination2 = $ATE2_INTERNAL_TE10.v4/32`.
@@ -302,11 +302,11 @@ ATE2_Port1 path to DUT_Port4 --> ATE2_Port3 path
         from each flow and then decode the packet to validate headers. Remaining
         packets can be trusted to also be encapsulated.). Verify that traffic is
         unencapsulated before the migration and encapsulated after the migration. 
-    *   The outer header TTL should be 127 upon arrival at `ATE2_Port1` (before
+    *   The outer header TTL should be 63 upon arrival at `ATE2_Port1` (before
         decapsulation). Please check this on the ATE2.
-    *   The outer header DSCP bits should be the same as the inner header DSCP
-        bits when received at `ATE2_Port1` (before decapsulation). Please verify
-        this on the ATE2.
+    *   Post decapsulation at `ATE2_Port1`, ensure that the DSCP bits on the
+        payload is the same as the DSCP bits set by ATE1:Port1 before sending
+        it to the DUT for encap.
     *   Verify on ATEs that the amount of packets sent is the same as the amount
         of encaped packets received per tunnel endpoint. Also check the
         interface counters using OC.
@@ -641,7 +641,7 @@ Inflight
                           "dscp": 32,
                           "dst-ip": "10.50.50.1",
                           "dst-udp-port": 6080,
-                          "ip-ttl": 255,
+                          "ip-ttl": 64,
                           "src-ip": "10.5.5.5",
                           "src-udp-port": 49152
                         }

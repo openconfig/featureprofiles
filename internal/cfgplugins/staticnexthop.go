@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -132,16 +133,43 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				}
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
 			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				}
 			} else if traffictype == "multicloudv4" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 			}
@@ -151,24 +179,49 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
-
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
 type StaticNextHopGroupParams struct {
 
 	// For the "MPLS_in_GRE_Encap" Next-Hop Group definition from JSON's "static" block
-	StaticNHGName    string
-	NHIPAddr1        string
-	NHIPAddr2        string
+	StaticNHGName string
+	NHIPAddr1     string
+	NHIPAddr2     string
+	// OuterIpv4Src*Def / OuterIpv4DstDef are used only when DynamicVal == false.
+	// When DynamicVal == true, tunnel src/dst must be provided per-entry via DynamicStructParams and these fields are ignored.
 	OuterIpv4DstDef  string
 	OuterIpv4Src1Def string
 	OuterIpv4Src2Def string
 	OuterDscpDef     uint8
 	OuterTTLDef      uint8
-
+	DynamicValues    []DynamicStructParams
+	DynamicVal       bool
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
 
+}
+
+type DynamicStructParams struct {
+	NexthopGrpName string
+	NexthopType    string
+	TTL            int
+	TunnelSrc      string
+	TunnelDst      string
+	MplsLabel      int
+	EntryValue     int
+}
+
+// NexthopGroupUDPParams defines the parameters used to create or configure a Next Hop Group that performs UDP encapsulation for traffic forwarding.
+type NexthopGroupUDPParams struct {
+	IPFamily           string // IPFamily specifies the IP address family for encapsulation. For example, "V4Udp" for IPv4-over-UDP or "V6Udp" for IPv6-over-UDP.
+	NexthopGrpName     string
+	DstIp              []string
+	SrcIp              string
+	DstUdpPort         uint16
+	SrcUdpPort         uint16
+	TTL                uint8
+	DSCP               uint8
+	NetworkInstanceObj *oc.NetworkInstance
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -215,5 +268,78 @@ func NextHopGroupConfigForMulticloud(t *testing.T, dut *ondatra.DUTDevice, traff
 		}
 	} else {
 		configureNextHopGroups(t, ni, params)
+	}
+}
+
+// NextHopGroupConfigForIpOverUdp configures the interface next-hop-group config for ip over udp.
+func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params NexthopGroupUDPParams) {
+	t.Helper()
+	if deviations.NextHopGroupOCUnsupported(dut) {
+		var cli string
+		var groupType string
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			switch params.IPFamily {
+			case "V4Udp":
+				groupType = "ipv4-over-udp"
+			case "V6Udp":
+				groupType = "ipv6-over-udp"
+			default:
+				t.Fatalf("Unsupported address family type %q", params.IPFamily)
+			}
+			if len(params.DstIp) > 0 {
+				var tunnelDst string
+				for i, addr := range params.DstIp {
+					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
+				}
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					tunnel-source %s
+					fec hierarchical
+   					%s
+					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+			if params.TTL != 0 {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if params.DSCP != 0 {
+				cli = fmt.Sprintf(`
+					nexthop-group %s type %s
+					tos %v
+					`, params.NexthopGrpName, groupType, params.DSCP)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+			if params.DstUdpPort != 0 {
+				// Select and apply the appropriate CLI snippet based on 'traffictype'.
+				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
+		}
+	} else {
+		t.Helper()
+		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
+		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
+
+		// Set the encap header for each next-hop
+		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		for _, addr := range params.DstIp {
+			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
+		}
+		if params.TTL != 0 {
+			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(params.TTL)
+		}
+		ueh1.GetOrCreateUdpV4().SetSrcIp(params.SrcIp)
+		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
+		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
+		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
 	}
 }

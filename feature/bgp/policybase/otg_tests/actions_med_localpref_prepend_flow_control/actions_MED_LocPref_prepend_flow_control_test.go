@@ -495,7 +495,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 // validateOTGBgpPrefixV4AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
 func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
-	// t.Helper()
+	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
@@ -686,7 +686,7 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		metricValue:     150,
+		metricValue:     expectedMED(t, dut, 150, 100),
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
@@ -812,4 +812,15 @@ func TestBGPPolicy(t *testing.T) {
 			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, atePort2.Name+".BGP6.peer", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
 		})
 	}
+}
+
+// expectedMED returns the MED that should be verified considering device deviations.
+func expectedMED(t *testing.T, dut *ondatra.DUTDevice, requestedValue, deviatedValue uint32) uint32 {
+	t.Helper()
+	// If device cannot perform set-med or med-add actions, return base MED value.
+	if deviations.BGPSetMedActionUnsupported(dut) {
+		return deviatedValue
+	}
+	// return requested policy-derived value.
+	return requestedValue
 }

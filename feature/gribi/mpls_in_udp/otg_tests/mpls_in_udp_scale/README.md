@@ -64,10 +64,10 @@ entries, parameterized by key scaling dimensions.
 3.  **VRF Configuration:**
 
     - Create required VRFs based on test profile:
-      - Profile 1: DEFAULT network instance only
+      - Profile 1: DEFAULT network instance plus 1 non-default VRF
       - Profiles 2-3: 1024 VRFs (VRF_001 through VRF_1024) plus DEFAULT
-      - Profile 4: DEFAULT network instance only
-      - Profile 5: DEFAULT network instance only
+      - Profile 4: DEFAULT network instance plus 1 non-default VRF
+      - Profile 5: DEFAULT network instance plus 1 non-default VRF
     - Use device-specific default network instance naming conventions
     - Apply policy-based forwarding rules for VRF selection using
       DSCP/source IP criteria
@@ -256,12 +256,16 @@ these dimensions.
   prefixes are distributed across the different VRFs as specified in
   each profile.
 
+**Important Note on AFT Entry Placement**
+
+A key requirement for all test profiles is the separation of gRIBI-programmed AFT entries. All **Next Hop** (NH) and **Next Hop Group** (NHG) entries must be programmed in the DEFAULT network instance. The corresponding **IPv4/IPv6 prefix entries** must be programmed in their respective, non-default network instances. This implies that even for profiles specified as testing a "Single VRF" scale (Profiles 1, 4, 5), the prefixes will reside in one or more non-default VRFs.
+
 ### TE-18.3: Scale Profiles
 
 #### Profile 1 (Single VRF)
 
 - **Goal:** Baseline single VRF scale (Exact Label Match scenario).
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 - **Total NHGs:** 20,000.
 - **NHs per NHG:** 1.
 - **MPLS Labels:** 1 (consistent with \#VRFs = 1). Same label used for
@@ -313,7 +317,7 @@ these dimensions.
 #### Profile 4 (Single VRF)
 
 - **Goal:** Test ECMP scale within a single VRF.
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 - **Total NHGs:** 2,500.
 - **NHs per NHG:** 8 (each NH having a different destination IP).
 - **Total NHs:** 20,000 (2,500 NHGs × 8 NHs/NHG = 20,000 total NHs,
@@ -332,7 +336,7 @@ these dimensions.
 - **Goal:** Test gRIBI control plane QPS scaling and impact on
   dataplane. Uses Profile 1 as the base state.
 
-- **Network Instances (VRFs):** 1 (DEFAULT).
+- **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
 
 - **Total NHGs:** 20,000.
 
@@ -364,9 +368,7 @@ these dimensions.
   forwarded using either the old or the new state, without being
   dropped.
 
-### TE-18.3.3 Validation Procedures
-
-#### Procedure - Single VRF Validation (Profiles 1, 4)
+#### TE-18.3.1 - Single VRF Validation (Profiles 1, 4)
 
 - Program all gRIBI entries (NHs, NHGs, Prefixes) according to the
   profile using baseline rate/batch.
@@ -382,7 +384,7 @@ these dimensions.
 - Verify AFT state shows entries removed.
 - Verify traffic loss is 100%.
 
-#### Procedure - Multi-VRF Validation (Profiles 2, 3)
+#### TE-18.3.2 - Multi-VRF Validation (Profiles 2, 3)
 
 - Program all gRIBI entries across all specified VRFs according to the
   profile using baseline rate/batch.
@@ -398,7 +400,7 @@ these dimensions.
 - Verify AFT state shows entries removed across VRFs.
 - Verify traffic loss is 100%.
 
-#### Procedure - ECMP Validation (Profile 4)
+#### TE-18.3.3 - ECMP Validation (Profile 4)
 
 - Perform Single VRF Validation steps.
 - Additionally, verify that traffic sent towards prefixes mapped to the
@@ -406,7 +408,7 @@ these dimensions.
   (requires ATE support for flow analysis or DUT counter validation for
   NH packet/octet counters).
 
-#### Procedure - gRIBI Rate Validation (Profile 5)
+#### TE-18.3.4 - gRIBI Rate Validation (Profile 5)
 
 - Establish the baseline state (e.g., program 20k entries as per Profile
   1).
@@ -436,12 +438,10 @@ these dimensions.
 
 - Stop high-rate programming and measure steady-state loss again.
 
-#### Investigation - VRF Impact on QPS
-
-- As an extension, investigate if the number of VRFs impacts gRIBI QPS
-  or dataplane stability during high-rate updates. This could involve
-  running a variation of Profile 5 using the multi-VRF setup from
-  Profile 2 or 3 as the baseline state.
+## Canonical OC
+```json
+{}
+```
 
 #### OpenConfig Path and RPC Coverage
 

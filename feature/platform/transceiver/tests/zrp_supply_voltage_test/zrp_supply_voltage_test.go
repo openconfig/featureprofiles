@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -38,7 +37,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -64,18 +63,11 @@ func verifyVoltageValue(t *testing.T, pStream *samplestream.SampleStream[float64
 }
 
 func TestZrSupplyVoltage(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {

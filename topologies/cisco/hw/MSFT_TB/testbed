@@ -1,0 +1,10 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# This testbed provides 8 links between a DUT and an ATE connected pairwise.
+
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+}

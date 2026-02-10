@@ -6,10 +6,13 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
 const featurePrefix = "feature/"
+
+var packageRegexp = regexp.MustCompile(`^package (\w+)`)
 
 func errorf(format string, args ...any) {
 	var buf strings.Builder
@@ -115,6 +118,9 @@ func (ts testsuite) read(featuredir string) (ok bool) {
 				reldir = testdir
 			}
 			errorf("Error reading testdir: %s: %v", reldir, err)
+			ok = false
+		} else if err := checkGoTestFilePackageName(testdir); err != nil {
+			errorf("error checking test.go package name for dir: %s: %v", testdir, err)
 			ok = false
 		}
 	}
@@ -320,6 +326,47 @@ func (ts testsuite) write(featuredir string) error {
 
 	if !updated {
 		return errNoop
+	}
+	return nil
+}
+
+// checkGoTestFilePackageName iterates through _test.go files in a directory.
+func checkGoTestFilePackageName(testdir string) error {
+	files, err := os.ReadDir(testdir)
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		if file.IsDir() || !strings.HasSuffix(file.Name(), "_test.go") {
+			continue
+		}
+		filePath := filepath.Join(testdir, file.Name())
+		if err := checkPackageNameInFile(filePath); err != nil {
+			return fmt.Errorf("check failed for %s: %w", file.Name(), err)
+		}
+	}
+	return nil
+}
+
+// checkPackageNameInFile handles a single file, allowing defer to work as expected.
+func checkPackageNameInFile(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	packageName := ""
+	for scanner.Scan() {
+		match := packageRegexp.FindSubmatch(scanner.Bytes())
+		if match != nil {
+			packageName = string(match[1])
+			break
+		}
+	}
+	if !strings.HasSuffix(packageName, "_test") {
+		return fmt.Errorf("test file %s has package name %s, it should end with _test", filePath, packageName)
 	}
 	return nil
 }

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "0db82082-bf63-4511-a7ff-a98046ead23a"
+plan_id:  "BMP-2.8"
+description:  "BMP Post Policy Test"
+testbed:  TESTBED_DUT_ATE_2LINKS

@@ -106,6 +106,8 @@ following features:
 
     *   Check the bundle interface member path and LACP counters and status.
         *   /lacp/interfaces/interface/members/member
+    *   Check mac-address exists for LAG interface.
+        *   /interfaces/interface[name=<bundle-interface>]/ethernet/state/mac-address
 
 *   AFT
 
@@ -132,23 +134,6 @@ paths:
   # None
 
   ## State Paths ##
-  /interfaces/interface/state/admin-status:
-  /interfaces/interface/state/oper-status:
-  /interfaces/interface/state/last-change:
-  /lacp/interfaces/interface/members/member/state/interface:
-  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
-  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
-  /lacp/interfaces/interface/members/member/state/aggregatable:
-  /lacp/interfaces/interface/members/member/state/collecting:
-  /lacp/interfaces/interface/members/member/state/distributing:
-  /lacp/interfaces/interface/members/member/state/partner-id:
-  /lacp/interfaces/interface/members/member/state/partner-key:
-  /lacp/interfaces/interface/members/member/state/partner-port-num:
-  /interfaces/interface/ethernet/state/mac-address:
-  /interfaces/interface/ethernet/state/port-speed:
-  /interfaces/interface/state/hardware-port:
-  /interfaces/interface/state/id:
-  /interfaces/interface/state/physical-channel:
   /components/component/integrated-circuit/state/node-id:
     platform_type: [ "INTEGRATED_CIRCUIT" ]
   /components/component/state/parent:
@@ -161,27 +146,44 @@ paths:
     ]
   /components/component/transceiver/state/form-factor:
     platform_type: [ "TRANSCEIVER" ]
-  /components/component/transceiver/state/serial-no:
-    platform_type: [ "TRANSCEIVER" ]
   /components/component/transceiver/state/present:
     platform_type: [ "TRANSCEIVER" ]
-  /interfaces/interface/state/counters/in-octets:
-  /interfaces/interface/state/counters/in-unicast-pkts:
+  /components/component/transceiver/state/serial-no:
+    platform_type: [ "TRANSCEIVER" ]
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/state/admin-status:
   /interfaces/interface/state/counters/in-broadcast-pkts:
-  /interfaces/interface/state/counters/in-multicast-pkts:
   /interfaces/interface/state/counters/in-discards:
   /interfaces/interface/state/counters/in-errors:
   /interfaces/interface/state/counters/in-fcs-errors:
-  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
   /interfaces/interface/state/counters/out-broadcast-pkts:
-  /interfaces/interface/state/counters/out-multicast-pkts:
-  /interfaces/interface/state/counters/out-octets:
   /interfaces/interface/state/counters/out-discards:
   /interfaces/interface/state/counters/out-errors:
-  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
-  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
-  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/hardware-port:
+  /interfaces/interface/state/id:
+  /interfaces/interface/state/last-change:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/physical-channel:
+  /lacp/interfaces/interface/members/member/state/aggregatable:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-in-pkts:
+  /lacp/interfaces/interface/members/member/state/counters/lacp-out-pkts:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/partner-id:
+  /lacp/interfaces/interface/members/member/state/partner-key:
+  /lacp/interfaces/interface/members/member/state/partner-port-num:
   /qos/interfaces/interface/output/queues/queue/state/dropped-octets:
+  /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-octets:
+  /qos/interfaces/interface/output/queues/queue/state/transmit-pkts:
 
 rpcs:
   gnmi:
@@ -189,6 +191,12 @@ rpcs:
 ```
 
 
+## Canonical OC
+```json
+{}
+```
+
 ## Minimum DUT platform requirement
 
 N/A
+

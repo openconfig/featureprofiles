@@ -21,6 +21,7 @@ replace: {
   "!\n"
   "aaa accounting commands default start-stop local\n"
   "vty-pool default 0 99 line-template vty\n"
+  "appmgr docker vrf mgmt\n"
   "grpc\n"
   " vrf mgmt\n"
   " port 57777\n"

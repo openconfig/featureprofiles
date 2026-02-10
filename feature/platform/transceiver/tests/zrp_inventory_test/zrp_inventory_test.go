@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
@@ -26,7 +25,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -67,22 +66,16 @@ func verifyAllInventoryValues(t *testing.T, pStreamsStr []*samplestream.SampleSt
 }
 
 func TestInventoryInterfaceFlap(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dp1)
+	cfgplugins.InterfaceConfig(t, dut, dp2)
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
-
 	// Uncomment once the Ondatra OC release version is fixed.
 	// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
 	// 	t.Fatalf("Transceivers types (%v, %v): (%v, %v) are not 400ZR_PLUS, expected %v", tr1, tr2, dp1.PMD(), dp2.PMD(), ondatra.PMD400GBASEZRP)
@@ -137,75 +130,74 @@ func TestInventoryInterfaceFlap(t *testing.T) {
 }
 
 func TestInventoryTransceiverOnOff(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
+	if !deviations.TransceiverConfigEnableUnsupported(dut) {
+		dp1 := dut.Port(t, "port1")
+		dp2 := dut.Port(t, "port2")
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		operationalMode = uint16(*operationalModeFlag)
+		cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+		cfgplugins.InterfaceConfig(t, dut, dp1)
+		cfgplugins.InterfaceConfig(t, dut, dp2)
+		tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
+		//tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
 
-	// Uncomment once the Ondatra OC release version is fixed.
-	// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
-	// 	t.Fatalf("Transceivers types (%v, %v): (%v, %v) are not 400ZR_PLUS, expected %v", tr1, tr2, dp1.PMD(), dp2.PMD(), ondatra.PMD400GBASEZRP)
-	// }
-	component1 := gnmi.OC().Component(tr1)
+		// Uncomment once the Ondatra OC release version is fixed.
+		// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
+		// 	t.Fatalf("Transceivers types (%v, %v): (%v, %v) are not 400ZR_PLUS, expected %v", tr1, tr2, dp1.PMD(), dp2.PMD(), ondatra.PMD400GBASEZRP)
+		// }
+		component1 := gnmi.OC().Component(tr1)
 
-	// Wait for channels to be up.
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+		// Wait for channels to be up.
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 
-	var p1StreamsStr []*samplestream.SampleStream[string]
-	var p1StreamsUnion []*samplestream.SampleStream[oc.Component_Type_Union]
+		var p1StreamsStr []*samplestream.SampleStream[string]
+		var p1StreamsUnion []*samplestream.SampleStream[oc.Component_Type_Union]
 
-	// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
-	p1StreamsStr = append(p1StreamsStr,
-		samplestream.New(t, dut, component1.SerialNo().State(), samplingInterval),
-		samplestream.New(t, dut, component1.PartNo().State(), samplingInterval),
-		samplestream.New(t, dut, component1.MfgName().State(), samplingInterval),
-		samplestream.New(t, dut, component1.HardwareVersion().State(), samplingInterval),
-		samplestream.New(t, dut, component1.FirmwareVersion().State(), samplingInterval),
-		// samplestream.New(t, dut, component1.Description().State(), samplingInterval),
-	)
-	if !deviations.ComponentMfgDateUnsupported(dut) {
-		p1StreamsStr = append(p1StreamsStr, samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval))
+		// TODO: b/333021032 - Uncomment the description check from the test once the bug is fixed.
+		p1StreamsStr = append(p1StreamsStr,
+			samplestream.New(t, dut, component1.SerialNo().State(), samplingInterval),
+			samplestream.New(t, dut, component1.PartNo().State(), samplingInterval),
+			samplestream.New(t, dut, component1.MfgName().State(), samplingInterval),
+			samplestream.New(t, dut, component1.HardwareVersion().State(), samplingInterval),
+			samplestream.New(t, dut, component1.FirmwareVersion().State(), samplingInterval),
+			// samplestream.New(t, dut, component1.Description().State(), samplingInterval),
+		)
+		if !deviations.ComponentMfgDateUnsupported(dut) {
+			p1StreamsStr = append(p1StreamsStr, samplestream.New(t, dut, component1.MfgDate().State(), samplingInterval))
+		}
+		p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut, component1.Type().State(), samplingInterval))
+
+		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
+
+		//  power off interface transceiver.
+		for _, p := range dut.Ports() {
+			// for transceiver disable, the input needs to be the transceiver name instead of the interface name
+			tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
+			gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
+			setConfigLeaf := gnmi.OC().Component(tr)
+			gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
+				Name: ygot.String(tr),
+			})
+			gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), false)
+		}
+		t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
+		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
+
+		time.Sleep(3 * waitInterval)
+		//  power on interface transceiver.
+		gnmi.Update(t, dut, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
+		gnmi.Update(t, dut, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
+		gnmi.Update(t, dut, gnmi.OC().Component(dp2.Name()).Name().Config(), dp2.Name())
+		//gnmi.Update(t, dut, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+		// Wait for channels to be up.
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
+
+		t.Logf("Interfaces are up: %v, %v", dp1.Name(), dp2.Name())
+		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
+	} else {
+		t.Log("Skipping sub-test as transceiver Enable/Disable leaf not supported")
 	}
-	p1StreamsUnion = append(p1StreamsUnion, samplestream.New(t, dut, component1.Type().State(), samplingInterval))
-
-	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
-
-	//  power off interface transceiver.
-	for _, p := range dut.Ports() {
-		// for transceiver disable, the input needs to be the transceiver name instead of the interface name
-		tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-		gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
-		setConfigLeaf := gnmi.OC().Component(tr)
-		gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
-			Name: ygot.String(tr),
-		})
-		gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), false)
-	}
-	t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
-	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
-
-	time.Sleep(3 * waitInterval)
-	//  power on interface transceiver.
-	gnmi.Update(t, dut, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
-	gnmi.Update(t, dut, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-	gnmi.Update(t, dut, gnmi.OC().Component(dp2.Name()).Name().Config(), dp2.Name())
-	gnmi.Update(t, dut, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
-	// Wait for channels to be up.
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
-
-	t.Logf("Interfaces are up: %v, %v", dp1.Name(), dp2.Name())
-	verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 }

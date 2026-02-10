@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "e75c20d2-2f9a-407f-adf8-8d506f74f571"
-plan_id: "TRANSCEIVER-8 (400ZR_PLUS)"
+plan_id: "TRANSCEIVER-8.2"
 description: "Telemetry: 400ZR_PLUS Optics module temperature streaming."
 testbed: TESTBED_DUT_400ZR_PLUS
 platform_exceptions: {
@@ -22,5 +22,15 @@ platform_exceptions: {
   }
   deviations: {
     use_parent_component_for_temperature_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+    explicit_dco_config: true
   }
 }

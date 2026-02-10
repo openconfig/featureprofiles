@@ -376,6 +376,13 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 		t.Fatalf("invalid import policy")
 	}
 	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
+	_, pok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if !pok {
+		t.Fatalf("Prefixes not installed on OTG port 2")
+	}
 	found := 0
 	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
 	for _, bgpPrefix := range bgpPrefixes {
@@ -451,13 +458,17 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			if bgpPrefix.GetAddress() == v4Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
 				for _, ec := range bgpPrefix.ExtendedCommunity {
+					if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+						continue
+					}
 					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 				}
 				switch community {
 				case "none":
-					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("ERROR: community and ext communituy are not empty it should be none")
+					t.Logf("Prefix community :%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
+					if len(bgpPrefix.Community) != 0 {
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -472,6 +483,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
+						if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+							continue
+						}
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
@@ -528,8 +542,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
 				switch community {
 				case "none":
-					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("ERROR: community and ext community are not empty it should be none")
+					t.Logf("Prefix community AS:%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
+					if len(bgpPrefix.Community) != 0 {
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -544,6 +559,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
+						if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+							continue
+						}
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
@@ -738,60 +756,48 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure routing Policy not_match_100_set_linkbw_1M.
 	rpNotMatch := root.GetOrCreateRoutingPolicy()
 	pdef2 := rpNotMatch.GetOrCreatePolicyDefinition("not_match_100_set_linkbw_1M")
-	pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_rm_lbw")
-	if err != nil {
-		t.Fatalf("AppendNewStatement regex_match_comm100_rm_lbw failed: %v", err)
-	}
-	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
-		ref := pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
-		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_any"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
-		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
-	}
-	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			name1, community1 := "regex_match_comm100_deviation1", "^100:.*$"
-			rpDev1 := root.GetOrCreateRoutingPolicy()
-			pdefDev1 := rpDev1.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
-			stmtDev1, err := pdefDev1.NewCommunitySet(name1)
-			if err != nil {
-				t.Fatalf("NewCommunitySet failed: %v", err)
-			}
-			cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-			cs = append(cs, oc.UnionString(community1))
-			stmtDev1.SetCommunityMember(cs)
-			stmtDev1.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_INVERT)
-			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDev1)
-			ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions()
-			ref1.SetCommunitySet("regex_match_comm100_deviation1")
+
+	if !deviations.UseBgpSetCommunityOptionTypeReplace(dut) {
+		pdef2Stmt1, err := pdef2.AppendNewStatement("regex_match_comm100_rm_lbw")
+		if err != nil {
+			t.Fatalf("AppendNewStatement regex_match_comm100_rm_lbw failed: %v", err)
 		}
-	} else {
-		ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-		ref1.SetCommunitySet("regex_match_comm100")
-		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
-	}
-	if !deviations.SkipSettingStatementForPolicy(dut) {
-		pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
+			ref := pdef2Stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
+			ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_any"})
+			ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REMOVE)
+			ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
+		}
+		if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			ref1 := pdef2Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+			ref1.SetCommunitySet("regex_match_comm100")
+			ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
+		}
+		if !deviations.SkipSettingStatementForPolicy(dut) {
+			pdef2Stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+		}
 	}
 
-	pdef2Stmt2, err := pdef2.AppendNewStatement("regex_match_comm100_add_lbw")
+	statement2Name := "regex_match_comm100_add_lbw"
+	if deviations.UseBgpSetCommunityOptionTypeReplace(dut) {
+		statement2Name = "regex_match_comm100_replace_lbw"
+	}
+
+	pdef2Stmt2, err := pdef2.AppendNewStatement(statement2Name)
 	if err != nil {
-		t.Fatalf("AppendNewStatement regex_match_comm100_add_lbw failed: %v", err)
+		t.Fatalf("AppendNewStatement %s failed: %v", statement2Name, err)
 	}
 	if !deviations.BgpSetExtCommunitySetRefsUnsupported(dut) {
 		ref := pdef2Stmt2.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetExtCommunity()
 		ref.GetOrCreateReference().SetExtCommunitySetRefs([]string{"linkbw_1M"})
-		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		if deviations.UseBgpSetCommunityOptionTypeReplace(dut) {
+			ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_REPLACE)
+		} else {
+			ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		}
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
-	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions()
-			ref1.SetCommunitySet("regex_match_comm100_deviation1")
-		}
-	} else {
+	if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		ref1 := pdef2Stmt2.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 		ref1.SetCommunitySet("regex_match_comm100")
 		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_INVERT)
@@ -834,25 +840,7 @@ func configureExtCommunityRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		ref.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
 		ref.SetMethod(oc.SetCommunity_Method_REFERENCE)
 	}
-	if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			name2, community2 := "regex_match_comm100_deviation2", "^100:.*$"
-			rpDev2 := root.GetOrCreateRoutingPolicy()
-			pdefDev2 := rpDev2.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets()
-			stmtDev2, err := pdefDev2.NewCommunitySet(name2)
-			if err != nil {
-				t.Fatalf("NewCommunitySet failed: %v", err)
-			}
-			cs := []oc.RoutingPolicy_DefinedSets_BgpDefinedSets_CommunitySet_CommunityMember_Union{}
-			cs = append(cs, oc.UnionString(community2))
-			stmtDev2.SetCommunityMember(cs)
-			stmtDev2.SetMatchSetOptions(oc.BgpPolicy_MatchSetOptionsType_ANY)
-			gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpDev2)
-			ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions()
-			ref1.SetCommunitySet("regex_match_comm100_deviation2")
-		}
-	} else {
+	if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
 		ref1 := pdef3Stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
 		ref1.SetCommunitySet("regex_match_comm100")
 		ref1.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsType_ANY)

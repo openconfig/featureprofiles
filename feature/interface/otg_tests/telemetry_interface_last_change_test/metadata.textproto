@@ -1,0 +1,24 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "4191c384-be5e-4dd5-a73e-6c535b84bb4e"
+plan_id: "gNMI-1.25"
+description: "Telemetry: Interface Last Change Timestamp"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ipv4_missing_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    fr_breakout_fix: true
+  }
+}

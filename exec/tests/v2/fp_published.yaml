@@ -1883,7 +1883,7 @@ tests:
       - mananpat
     mustpass: false
     priority: 3
-    groups: [newfnt]
+    groups: [newfnt, GIRO]
 
   - name: PF-1.5 (Interface based MPLSoGUE Decapsulation to IPv4 tunnel)
     path:  
@@ -2003,7 +2003,7 @@ tests:
       - mananpat
     mustpass: false
     priority: 3
-    groups: [newfnt]
+    groups: [newfnt, GIRO]
 
   - name: PLT-1.2 (Interface parent component Test)
     path: feature/platform/tests/parent_component_validation
@@ -2179,7 +2179,7 @@ tests:
       - mananpat
     mustpass: false
     priority: 3
-    groups: [newfnt]    
+    groups: [newfnt, GIRO]    
 
   - name: URPF-1.1 (uRPF validation from non-default network-instance)
     path: feature/urpf/otg_tests/urpf_vrf_test
@@ -2187,7 +2187,7 @@ tests:
       - mananpat
     mustpass: false
     priority: 3
-    groups: [newfnt]    
+    groups: [newfnt, GIRO]    
 
   - name: RT-4.11 ( Scale AFTs Route Summary)
     path: feature/afts/summary/otg_tests/scale_aft_summary
@@ -2557,11 +2557,11 @@ tests:
 
   - name: AFT-1.1 (AFT Streaming)
     path: feature/afts/otg_tests/afts_base
-    groups: [new_run]
     mustpass: false
     priority: 3
     timeout: 21000
     pr: 4950
+    internal: false
 
   - name: Certz-1
     path: feature/security/gnsi/certz/client_certificates

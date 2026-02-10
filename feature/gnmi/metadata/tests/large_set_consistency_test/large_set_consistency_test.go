@@ -68,6 +68,57 @@ func setEthernetFromBase(t testing.TB, config *oc.Root) {
 	}
 }
 
+// filterBaselineConfig filters the baseline config to remove unwanted fields.
+func filterBaselineConfig(baselineConfig *oc.Root) {
+	for _, ni := range baselineConfig.NetworkInstance {
+		for _, p := range ni.Protocol {
+			if p.Bgp != nil {
+				if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP {
+					p.Bgp = nil
+				} else if p.Bgp.Global != nil {
+					p.Bgp.Global.UseMultiplePaths = nil
+				}
+			}
+			if p.Identifier != oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS {
+				p.Isis = nil
+			}
+		}
+		if ni.Type != oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE {
+			ni.Mpls = nil
+		}
+		ni.SegmentRouting = nil
+	}
+	if baselineConfig.System != nil && baselineConfig.System.Ntp != nil {
+		for _, s := range baselineConfig.System.Ntp.Server {
+			s.Port = nil
+		}
+	}
+	for _, i := range baselineConfig.Interface {
+		if i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			i.Aggregation = nil
+		}
+		if i.Type != oc.IETFInterfaces_InterfaceType_l3ipvlan {
+			i.RoutedVlan = nil
+		}
+		if i.Type != oc.IETFInterfaces_InterfaceType_ethernetCsmacd && i.Type != oc.IETFInterfaces_InterfaceType_ieee8023adLag {
+			i.Ethernet = nil
+		}
+	}
+	if baselineConfig.System != nil {
+		baselineConfig.System.Utilization = nil
+	}
+	if baselineConfig.Acl != nil {
+		for k, as := range baselineConfig.Acl.AclSet {
+			if as.GetName() == "default-control-plane-acl" {
+				delete(baselineConfig.Acl.AclSet, k)
+			}
+		}
+	}
+	baselineConfig.Sampling = nil
+	baselineConfig.RoutingPolicy = nil
+	baselineConfig.Qos = nil
+}
+
 // buildGNMIUpdate builds a gnmi update for a given ygot path and value.
 func buildGNMIUpdate(t *testing.T, yPath ygnmi.PathStruct, val any) *gpb.Update {
 	t.Helper()
@@ -142,13 +193,30 @@ func extractMetadataAnnotation(t *testing.T, gnmiClient gpb.GNMIClient, dut *ond
 }
 
 // buildGNMISetRequest builds gnmi set request with protobuf-metadata
-func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root) *gpb.SetRequest {
+func buildGNMISetRequest(t *testing.T, metadataText string, baselineConfig *oc.Root, size int) *gpb.SetRequest {
+	var trimSize float64
+
+	// For 100KB and 1M cases trim the data according to proto and base64encoding overheads
+	if size >= 100000 {
+		randomBytes := make([]byte, size)
+		_, err := io.ReadFull(rand.Reader, randomBytes)
+		t.Logf("Length of randomBytes: %d\n", len(randomBytes))
+		if err != nil {
+			t.Fatalf("failed to generate random bytes: %v", err)
+		}
+		// Encode the bytes to a base64 string.
+		// account for 4 byte proto message overhead and 25% for subsequent base64encoding overhead
+		trimSize = 0.75*float64(size) - 4
+		largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
+		metadataText = largeMetadata[:int(trimSize)]
+	}
 	msg := &gpb.ModelData{Name: metadataText}
 	b, err := proto.Marshal(msg)
 	if err != nil {
 		t.Fatalf("cannot marshal proto msg - error: %v", err)
 	}
 	metadataEncoded := base64.StdEncoding.EncodeToString(b)
+
 	j := map[string]any{
 		"@": map[string]any{
 			"openconfig-metadata:protobuf-metadata": metadataEncoded,
@@ -229,7 +297,7 @@ func testLargeMetadata(t *testing.T, gnmiClient gpb.GNMIClient, dut *ondatra.DUT
 	largeMetadata := base64.StdEncoding.EncodeToString(randomBytes)
 	largeMetadata = largeMetadata[:size]
 	// send large metadata update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig)
+	gpbSetRequest := buildGNMISetRequest(t, largeMetadata, baselineConfig, size)
 	t.Log("gnmiClient Set large metadataconfig request")
 	_, err = gnmiClient.Set(context.Background(), gpbSetRequest)
 	if err != nil {
@@ -255,11 +323,13 @@ func TestLargeSetConsistency(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	filterBaselineConfig(baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 
 	// send 1st update request in one goroutine
-	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig)
+	sizeMetadata1 := len(shortStringMetadata1)
+	gpbSetRequest := buildGNMISetRequest(t, shortStringMetadata1, baselineConfig, sizeMetadata1)
 	t.Log("gnmiClient Set 1st large config")
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
 		t.Fatalf("gnmi.Set unexpected error: %v", err)
@@ -268,11 +338,15 @@ func TestLargeSetConsistency(t *testing.T) {
 		checkshortStringMetadata1(t, gnmiClient, dut, done)
 	})
 
+	// Add delay to allow the first SET request value to propagate to the datastore
+	time.Sleep(5 * time.Second)
+
 	var wg sync.WaitGroup
 	ch := make(chan struct{}, 1)
 
 	// sending 2nd update request in one goroutine
-	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig)
+	sizeMetadata2 := len(shortStringMetadata2)
+	gpbSetRequest = buildGNMISetRequest(t, shortStringMetadata2, baselineConfig, sizeMetadata2)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -328,6 +402,7 @@ func TestLargeMetadataConfigPush(t *testing.T) {
 		oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 
 	baselineConfig := fptest.GetDeviceConfig(t, dut)
+	filterBaselineConfig(baselineConfig)
 	setEthernetFromBase(t, baselineConfig)
 	gnmiClient := dut.RawAPIs().GNMI(t)
 

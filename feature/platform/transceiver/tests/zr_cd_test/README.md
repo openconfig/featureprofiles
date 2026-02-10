@@ -1,4 +1,4 @@
-# TRANSCEIVER-1: Telemetry: 400ZR Chromatic Dispersion(CD) telemetry values streaming
+# TRANSCEIVER-1.1: Telemetry: 400ZR Chromatic Dispersion(CD) telemetry values streaming
 
 ## Summary
 
@@ -78,6 +78,11 @@ The test must be repeated for each supported operational-mode or as agreed betwe
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/avg
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/min
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/max
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml

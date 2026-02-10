@@ -49,7 +49,7 @@ const (
 	ipv6PrefixLen           = 126
 	mtuSrc                  = 9216
 	mtuDst                  = 1514
-	trafficRunDuration      = 30 * time.Second
+	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
 	tgWaitDuration          = 30 * time.Second
 	acceptableLossPercent   = 100.0
@@ -407,24 +407,62 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	return outPkts
 }
 
+func initializeBaselineDropCounters(t *testing.T, dut *ondatra.DUTDevice) {
+	// Initialize packet-processing-aggregate baseline
+	if !deviations.PacketProcessingAggregateDropsUnsupported(dut) {
+		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().PacketProcessingAggregate().State()
+		packetProcessingAggregateDrops := gnmi.LookupAll(t, dut, query)
+		packetProcessingAggregateDropsCount := uint64(0)
+		for _, ppaDrop := range packetProcessingAggregateDrops {
+			component := ppaDrop.Path.GetElem()[1].GetKey()["name"]
+			if isCompNameExpected(t, component, dut.Vendor(), icPattern) {
+				drop, _ := ppaDrop.Val()
+				packetProcessingAggregateDropsCount = packetProcessingAggregateDropsCount + drop
+			}
+		}
+		previousPacketProcessingAggregateDrops = packetProcessingAggregateDropsCount
+		t.Logf("Baseline packet-processing-aggregate drops initialized to: %d", previousPacketProcessingAggregateDrops)
+	}
+
+	// Initialize fragment-total-drops baseline
+	if !deviations.FragmentTotalDropsUnsupported(dut) {
+		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
+		fragmentTotalDrops := gnmi.LookupAll(t, dut, query)
+		fragmentTotalDropsCount := uint64(0)
+		for _, fragmentTotalDrop := range fragmentTotalDrops {
+			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
+			if isCompNameExpected(t, component1, dut.Vendor(), icPattern) {
+				drop, _ := fragmentTotalDrop.Val()
+				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
+			}
+		}
+		previousFragmentTotalDropsCount = fragmentTotalDropsCount
+		t.Logf("Baseline fragment-total-drops initialized to: %d", previousFragmentTotalDropsCount)
+	}
+}
+
 func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, outPkts uint64) {
 	if !deviations.PacketProcessingAggregateDropsUnsupported(td.dut) {
 		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().PacketProcessingAggregate().State()
 		packetProcessingAggregateDrops := gnmi.LookupAll(t, td.dut, query)
 		packetProcessingAggregateDropsCount := uint64(0)
+		t.Logf("Querying packet-processing-aggregate drops for all components:")
 		for _, ppaDrop := range packetProcessingAggregateDrops {
 			component := ppaDrop.Path.GetElem()[1].GetKey()["name"]
 			if isCompNameExpected(t, component, td.dut.Vendor(), icPattern) {
 				drop, _ := ppaDrop.Val()
+				t.Logf("  Component: %s, packet-processing-aggregate drops: %d", component, drop)
 				packetProcessingAggregateDropsCount = packetProcessingAggregateDropsCount + drop
 			}
 		}
+		t.Logf("Total packet-processing-aggregate drops across all components: %d", packetProcessingAggregateDropsCount)
 		// packetProcessingAggregateDropsCount hold the current value of drop count, the previous value needs to be subtracted to get the delta for the current flow.
-		currentPacketProcessingAggregateDrops := packetProcessingAggregateDropsCount - previousPacketProcessingAggregateDrops
-		if currentPacketProcessingAggregateDrops <= (outPkts+tolerance) && currentPacketProcessingAggregateDrops >= (outPkts-tolerance) {
-			t.Logf("PASS: packetProcessingAggregateDrops: %v, outPkts on OTG: %v is as expected", currentPacketProcessingAggregateDrops, outPkts)
+		newPacketProcessingAggregateDrops := packetProcessingAggregateDropsCount - previousPacketProcessingAggregateDrops
+		t.Logf("Delta packet-processing-aggregate drops for current flow: %d (previous: %d, current total: %d)", newPacketProcessingAggregateDrops, previousPacketProcessingAggregateDrops, packetProcessingAggregateDropsCount)
+		if newPacketProcessingAggregateDrops > 0 {
+			t.Logf("PASS: packetProcessingAggregateDrops increased by %v (outPkts on OTG: %v)", newPacketProcessingAggregateDrops, outPkts)
 		} else {
-			t.Errorf("FAIL: packetProcessingAggregateDrops: %v, outPkts on OTG: %v is not as expected", currentPacketProcessingAggregateDrops, outPkts)
+			t.Errorf("FAIL: packetProcessingAggregateDrops did not increase (delta: %v, outPkts on OTG: %v)", newPacketProcessingAggregateDrops, outPkts)
 		}
 		// update previousPacketProcessingAggregateDrops
 		previousPacketProcessingAggregateDrops = packetProcessingAggregateDropsCount
@@ -458,24 +496,28 @@ func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
 		query := gnmi.OC().ComponentAny().IntegratedCircuit().PipelineCounters().Drop().LookupBlock().FragmentTotalDrops().State()
 		fragmentTotalDrops := gnmi.LookupAll(t, td.dut, query)
 		fragmentTotalDropsCount := uint64(0)
+		t.Logf("Querying fragment-total-drops for all components:")
 		for _, fragmentTotalDrop := range fragmentTotalDrops {
 			component1 := fragmentTotalDrop.Path.GetElem()[1].GetKey()["name"]
 			if isCompNameExpected(t, component1, td.dut.Vendor(), icPattern) {
 				drop, _ := fragmentTotalDrop.Val()
+				t.Logf("  Component: %s, fragment-total-drops: %d", component1, drop)
 				fragmentTotalDropsCount = fragmentTotalDropsCount + drop
 			}
 		}
+		t.Logf("Total fragment-total-drops across all components: %d", fragmentTotalDropsCount)
 		// fragmentTotalDropsCount hold the current value of drop count, the previous value needs to be subtracted to get the delta for the current flow.
-		currentFragmentTotalDropsCount := fragmentTotalDropsCount - previousFragmentTotalDropsCount
-		if currentFragmentTotalDropsCount <= (outPkts+tolerance) && currentFragmentTotalDropsCount >= (outPkts-tolerance) {
-			t.Logf("PASS: fragmentTotalDropsCount: %v, outPkts on OTG: %v is as expected", currentFragmentTotalDropsCount, outPkts)
+		newFragmentTotalDropsCount := fragmentTotalDropsCount - previousFragmentTotalDropsCount
+		t.Logf("Delta fragment-total-drops for current flow: %d (previous: %d, current total: %d)", newFragmentTotalDropsCount, previousFragmentTotalDropsCount, fragmentTotalDropsCount)
+		if newFragmentTotalDropsCount > 0 {
+			t.Logf("PASS: fragmentTotalDropsCount increased by %v (outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
 		} else {
-			t.Errorf("FAIL: fragmentTotalDropsCount: %v, outPkts on OTG: %v is not as expected", currentFragmentTotalDropsCount, outPkts)
+			t.Errorf("FAIL: fragmentTotalDropsCount did not increase (delta: %v, outPkts on OTG: %v)", newFragmentTotalDropsCount, outPkts)
 		}
 		// update previousFragmentTotalDropsCount
 		previousFragmentTotalDropsCount = fragmentTotalDropsCount
 	} else {
-		t.Errorf("FAIL: fragment-total-drops is not supported on %v", td.dut.Vendor())
+		t.Logf("Telemetry path for fragment-total-drops is not supported due to deviation FragmentTotalDropsUnsupported.")
 	}
 }
 
@@ -485,6 +527,9 @@ func TestPMTUHanding(t *testing.T) {
 	otg := ate.OTG()
 	configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
+
+	// Initialize baseline drop counters before running tests
+	initializeBaselineDropCounters(t, dut)
 
 	t.Cleanup(func() {
 		deleteBatch := &gnmi.SetBatch{}

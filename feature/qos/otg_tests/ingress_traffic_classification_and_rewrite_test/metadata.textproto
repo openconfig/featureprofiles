@@ -5,3 +5,16 @@ uuid:  "78f324b0-d069-45a7-ba7d-a76817783a27"
 plan_id:  "DP-1.16"
 description:  "Ingress traffic classification and rewrite"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    qos_remark_oc_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
+    policy_forwarding_gre_encapsulation_oc_unsupported: true
+  }
+}

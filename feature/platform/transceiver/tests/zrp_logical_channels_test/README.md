@@ -1,4 +1,4 @@
-# TRANSCEIVER-11 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry.
+# TRANSCEIVER-11.2: Telemetry: 400ZR_PLUS Optics logical channels provisioning and related telemetry.
 
 ## Summary
 
@@ -30,7 +30,7 @@ telemetry.
 
 Once the ZR_PLUS link is estabished proceed to configure the following entities:
 
-### TRANSCEIVER 11.1 - Test Optical Channel and Tunable Parameters
+### TRANSCEIVER 11.2.1 - Test Optical Channel and Tunable Parameters
 *   Ensure optical channel related tunable parameters are set through the
     following OC paths such that
       * Both transceivers state is enabled
@@ -43,7 +43,7 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
         * /components/component/optical-channel/config/target-output-power
         * /components/component/optical-channel/config/operational-mode
 
-### TRANSCEIVER 11.2 - Test Ethernet Logical Channels 
+### TRANSCEIVER 11.2.2 - Test Ethernet Logical Channels 
 * Ensure terminal-device ethernet-logical-channels  are set through the
   following OC paths
     * /terminal-device/logical-channels/channel/config/admin-state
@@ -68,7 +68,7 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 *   Not that each logical-channel created above must be assigned an integer value that
     is unique across the system.
 
-### TRANSCEIVER 11.3 - Test Coherent Logical Channels 
+### TRANSCEIVER 11.2.3 - Test Coherent Logical Channels 
 * Ensure terminal-device coherent-logical-channels are set through the
   following OC paths
     * /terminal-device/logical-channels/channel/config/admin-state
@@ -131,6 +131,11 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/index
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/logical-channel
 *   /terminal-device/logical-channels/channel/logical-channel-assignments/assignment/state/optical-channel
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 ```yaml

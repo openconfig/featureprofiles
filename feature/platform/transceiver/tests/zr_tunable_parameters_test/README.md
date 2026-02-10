@@ -1,4 +1,4 @@
-# TRANSCEIVER-5: Configuration: 400ZR channel frequency, output TX launch power and operational mode setting.
+# TRANSCEIVER-5.1: Configuration: 400ZR channel frequency, output TX launch power and operational mode setting.
 
 ## Summary
 
@@ -22,7 +22,7 @@ power and operational mode and verify corresponding telemetry values.
 move to 400ZR++ and 800ZR, optic AppSel code would need to be configured
 explicitly through OC operational mode.
 
-## TRANSCEIVER-5.1
+## TRANSCEIVER-5.1.1
 
 *   Connect two ZR interfaces using a duplex LC fiber jumper such that TX output
     power of one is the RX input power of the other module. Connection between
@@ -73,7 +73,7 @@ explicitly through OC operational mode.
         absolute accuracy should be within +/- 1 dBm of the target value.
     *   For reported data check for validity: min <= avg/instant <= max
 
-## TRANSCEIVER-5.2
+## TRANSCEIVER-5.1.2
 
 *   When the modules or the devices are still in a boot stage, they must not
     stream any invalid string values like "nil" or "-inf".
@@ -83,7 +83,7 @@ explicitly through OC operational mode.
 
 *   TX Output power must be of type decimal64.
 
-## TRANSCEIVER-5.3
+## TRANSCEIVER-5.1.3
 
 *   Verify that the optics Tunable Frequency and TX output power tunes back to
     the correct value as per configuration after the interface flaps.
@@ -110,7 +110,7 @@ explicitly through OC operational mode.
         output power.
     *   For reported data check for validity: min <= avg/instant <= max
 
-## TRANSCEIVER-5.4
+## TRANSCEIVER-5.1.4
 
 *   Verify that the optics Tunable Frequency and TX output power tunes back to
     the correct value as per configuration after a fiber cut.
@@ -137,6 +137,11 @@ explicitly through OC operational mode.
 
 **Note:** For min, max, and avg values, 10 second sampling is preferred. If 10
 seconds is not supported, the sampling interval used must be communicated.
+
+### Canonical OC
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 

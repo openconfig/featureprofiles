@@ -100,10 +100,11 @@ type PacketValidation struct {
 
 // IPv4Layer is a struct to hold the IP layer parameters.
 type IPv4Layer struct {
-	Protocol uint32
-	DstIP    string
-	Tos      uint8
-	TTL      uint8
+	Protocol          uint32
+	DstIP             string
+	Tos               uint8
+	TTL               uint8
+	SkipProtocolCheck bool
 }
 
 // IPv6Layer is a struct to hold the IP layer parameters.
@@ -232,9 +233,10 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 		t.Logf("packet: %v", packet)
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
-
-			if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
-				return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
+			if !packetVal.IPv4Layer.SkipProtocolCheck {
+				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
+					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
+				}
 			}
 			if ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
 				return fmt.Errorf("IP Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv4Layer.DstIP, ip.DstIP)

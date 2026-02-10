@@ -48,7 +48,7 @@ The test verifies policy forwarding(PF) encapsulation action to IPv4 GRE tunnel 
      Match and remark all values for 3 leftmost DSCP bits [0, 8, 16, 24, 32, 40, 48, 56].
     
 
-### PF-1.1.1: Verify PF GRE encapsulate action for IPv4 traffic
+### PF-1.2.1: Verify PF GRE encapsulate action for IPv4 traffic
 Generate traffic on ATE Port 1 from IPV4-SRC2 from a random combination of 1000 source addresses to IPV4-DST at linerate.
 Use 512 bytes frame size.
 
@@ -59,7 +59,7 @@ Verify:
 *  Traffic equally load-balanced across 32 GRE destinations.
 *  Verify PF packet counters matching traffic generated.
 
-### PF-1.1.2: Verify PF GRE encapsulate action for IPv6 traffic
+### PF-1.2.2: Verify PF GRE encapsulate action for IPv6 traffic
 Generate traffic on ATE Port 1 from IPV6-SRC2 from a random combination of 1000 source addresses to IPV6-DST.
 Use 512 bytes frame size.
 
@@ -70,7 +70,7 @@ Verify:
 *  Traffic equally load-balanced across 32 GRE destinations.
 *  Verify PF packet counters matching traffic generated.
 
-### PF-1.1.3: Verify PF IPV4 forward action
+### PF-1.2.3: Verify PF IPV4 forward action
 Generate traffic on ATE Port 1 from sources IPV4-SRC1 to IPV4-DST.
 
 Verify:
@@ -78,7 +78,7 @@ Verify:
 *  All traffic received on ATE Port 3.
 *  No packet loss when forwarding.
 
-### PF-1.1.4: Verify PF IPV6 forward action
+### PF-1.2.4: Verify PF IPV6 forward action
 Generate traffic on ATE Port 1 from sources IPV6-SRC1 to IPV6-DST.
 
 Verify:
@@ -86,7 +86,7 @@ Verify:
 *  All traffic received on ATE Port 3.
 *  No packet loss when forwarding.
 
-### PF-1.1.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic
+### PF-1.2.5: Verify PF GRE DSCP copy to outer header for IPv4 traffic
 Generate traffic on ATE Port 1 from IPV4-SRC1 source for every DSCP value in [0, 8, 16, 24, 32, 40, 48, 56]
 
 Verify:
@@ -95,7 +95,7 @@ Verify:
 *  Outer GRE IPv4 header has same marking as ingress non-encapsulated IPv4 packet.
 *  Verify that DSCP in inner IPv4 header is unchanged.
 
-### PF-1.1.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic
+### PF-1.2.6: Verify PF GRE DSCP copy to outer header for IPv6 traffic
 Generate traffic on ATE Port 1 from IPV6-SRC1 for every IPv6 TC 8-bit value [0, 32, 64, 96, 128, 160, 192, 224]
 
 Verify:
@@ -103,14 +103,80 @@ Verify:
 *  All traffic received on ATE Port 2 GRE-encapsulated.
 *  Outer GRE IPv4 header has DSCP match to ingress IPv6 TC packet.
 *  Verify that TC in inner IPv6 header is unchanged.
-
-### PF-1.1.7: Verify MTU handling during GRE encap
-* Generate traffic on ATE Port 1 from IPV4-SRC1 with frame size of 4000 with DF-bit set.
-* Generate traffic on ATE Port 1 from IPV6-SRC1 with frame size of 4000 with DF-bit set.
-
-Verify:
-
-*  DUT generates "Fragmentation Needed" message back to ATE source.
+## Canonical OC
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Customer A",
+          "name": "eth0"
+        },
+        "name": "eth0"
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT"
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-forwarding-policy": "Encap GRE",
+                  "interface-id": "eth0"
+                },
+                "interface-id": "eth0"
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "Encap GRE"
+                },
+                "policy-id": "Encap GRE",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "encapsulate-gre": {
+                          "targets": {
+                            "target": [
+                              {
+                                "config": {
+                                  "destination": "10.10.10.1/32",
+                                  "id": "Customer A"
+                                },
+                                "id": "Customer A"
+                              }
+                            ]
+                          }
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "sequence-id": 1
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
 
 ## OpenConfig Path and RPC Coverage
 

@@ -12,6 +12,8 @@ platform_exceptions: {
   deviations: {
     ipv4_missing_enabled: true
     missing_isis_interface_afi_safi_enable: true
+    skip_isis_set_metric_style_type: true
+    tc_metric_propagation_unsupported: true
   }
 }
 platform_exceptions: {
@@ -37,6 +39,7 @@ platform_exceptions: {
   deviations: {
     isis_level_enabled: true
     routing_policy_tag_set_embedded: true
+    interface_ref_interface_id_format: true
     }
  }   
 platform_exceptions: {

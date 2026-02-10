@@ -192,9 +192,19 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	top := configureATE(t, ate)
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(30 * time.Second)
+
+	t.Log("Waiting for DUT LAG interfaces to be OperStatus UP")
+	for _, aggID := range aggIDs {
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
+		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
+	}
+	for _, port := range dut.Ports() {
+		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
+	}
+
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
@@ -525,7 +535,15 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 
 	var maxPaths uint8 = 3
-	globalISIS.MaxEcmpPaths = &maxPaths
+	if deviations.PredefinedMaxEcmpPaths(dut) {
+		maxPaths = 16
+	}
+	if deviations.GlobalMaxEcmpPathsUnsupported(dut) {
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxPaths)
+		globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).SetMaxEcmpPaths(maxPaths)
+	} else {
+		globalISIS.SetMaxEcmpPaths(maxPaths)
+	}
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 

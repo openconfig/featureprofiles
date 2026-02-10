@@ -483,8 +483,10 @@ func configureImportExportMultifacetMatchActionsBGPPolicy(t *testing.T, dut *ond
 		myAspath := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(myAsPathName)
 		myAspath.SetAsPathSetMember([]string{strconv.Itoa(int(cfgplugins.AteAS2))})
 
-		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
-		stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		if !deviations.MatchAsPathSetUnsupported(dut) {
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(myAsPathName)
+			stmt5.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(matchAny))
+		}
 	}
 	// Configure set-med 100
 	stmt5.GetOrCreateActions().GetOrCreateBgpActions().SetMed = oc.UnionUint32(medValue)

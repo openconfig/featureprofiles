@@ -30,6 +30,7 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
 	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
@@ -42,6 +43,11 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
+)
+
+const (
+	gnmiRecvMsgSizeDefault = 100 * 1024 * 1024 // 100 MB
 )
 
 var (
@@ -66,6 +72,20 @@ type staticDUT struct {
 	*binding.AbstractDUT
 	r   resolver
 	dev *bindpb.Device
+}
+
+// RPCUsername returns the username for RPC connections to the DUT.
+func (d *staticDUT) RPCUsername() string {
+	// Return the device-specific username, or the global username.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetUsername()
+}
+
+// RPCPassword returns the password for RPC connections to the DUT.
+func (d *staticDUT) RPCPassword() string {
+	// Return the device-specific password, or the global password.
+	opts := merge(d.r.Options, d.dev.Options)
+	return opts.GetPassword()
 }
 
 var _ introspect.Introspector = (*staticDUT)(nil)
@@ -163,6 +183,14 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 	return gpb.NewGNMIClient(conn), nil
 }
 
+func (d *staticDUT) DialGNPSI(ctx context.Context, opts ...grpc.DialOption) (gnpsipb.GNPSIClient, error) {
+	conn, err := dialConn(ctx, d, introspect.GNPSI, opts)
+	if err != nil {
+		return nil, err
+	}
+	return gnpsipb.NewGNPSIClient(conn), nil
+}
+
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
 	conn, err := dialConn(ctx, d, introspect.GNOI, opts)
 	if err != nil {
@@ -195,29 +223,107 @@ func (d *staticDUT) DialP4RT(ctx context.Context, opts ...grpc.DialOption) (p4pb
 	return p4pb.NewP4RuntimeClient(conn), nil
 }
 
+func (d *staticDUT) DialGRPCWithPort(ctx context.Context, port int, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	params := &svcParams{
+		port: port,
+		optsFn: func(_ *bindpb.Device) *bindpb.Options {
+			return nil // No service-specific options for a generic call.
+		},
+	}
+	bopts := d.r.grpc(d.dev, params)
+	dialer, err := makeDialer(params, bopts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gRPC dialer: %w", err)
+	}
+	return dialer.Dial(ctx, opts...)
+}
+
 func (d *staticDUT) DialCLI(context.Context) (binding.CLIClient, error) {
 	sshOpts := d.r.ssh(d.dev)
-	c := &ssh.ClientConfig{
+	config := &ssh.ClientConfig{
 		User: sshOpts.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(sshOpts.Password),
 			ssh.KeyboardInteractive(sshInteractive(sshOpts.Password)),
 		},
 	}
+	sc, err := createSSHClient(config, sshOpts)
+	if err != nil {
+		return nil, err
+	}
+	return newCLI(sc)
+}
+
+func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding.SSHClient, error) {
+	var config *ssh.ClientConfig
+	var hk []byte
+	hkCallback := func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		hk = ssh.MarshalAuthorizedKey(key)
+		return nil
+	}
+	switch auth := sshAuth.(type) {
+	case binding.PasswordAuth:
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.Password(auth.Password),
+				ssh.KeyboardInteractive(sshInteractive(auth.Password)),
+			},
+			HostKeyCallback: hkCallback,
+		}
+	case binding.KeyAuth:
+		signer, err := ssh.ParsePrivateKey(auth.Key)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+			HostKeyCallback: hkCallback,
+		}
+	case binding.CertificateAuth:
+		signer, err := ssh.ParsePrivateKey(auth.PrivateKey)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key: %w", err)
+		}
+		cert, _, _, _, err := ssh.ParseAuthorizedKey(auth.Certificate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse certificate: %w", err)
+		}
+		signer, err = ssh.NewCertSigner(cert.(*ssh.Certificate), signer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create certificate signer: %w", err)
+		}
+		config = &ssh.ClientConfig{
+			User: auth.User,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(signer),
+			},
+			HostKeyCallback: hkCallback,
+		}
+	default:
+		return nil, fmt.Errorf("ssh auth type %T not supported yet", auth)
+	}
+	sc, err := createSSHClient(config, d.r.ssh(d.dev))
+	if err != nil {
+		return nil, err
+	}
+	return newSSH(sc, hk)
+}
+
+func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
 	if sshOpts.SkipVerify {
-		c.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
 	} else {
 		cb, err := knownHostsCallback()
 		if err != nil {
 			return nil, err
 		}
-		c.HostKeyCallback = cb
+		config.HostKeyCallback = cb
 	}
-	sc, err := ssh.Dial("tcp", sshOpts.Target, c)
-	if err != nil {
-		return nil, err
-	}
-	return newCLI(sc)
+	return ssh.Dial("tcp", sshOpts.Target, config)
 }
 
 // For every question asked in an interactive login ssh session, set the answer to user password.
@@ -237,6 +343,11 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
+	// For scale tests, ATE gNMI might receive large data. Set a larger default
+	// max receive message size if not already configured.
+	if bopts.MaxRecvMsgSize == 0 {
+		bopts.MaxRecvMsgSize = gnmiRecvMsgSizeDefault
+	}
 	return makeDialer(params, bopts)
 }
 
@@ -560,10 +671,26 @@ type creds struct {
 	secure             bool
 }
 
-func (c *creds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+	md, ok := metadata.FromOutgoingContext(ctx)
+	var username, password string
+	if ok {
+		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
+			username = md.Get("username")[0]
+		}
+		if len(md.Get("password")) > 0 && md.Get("password")[0] != "" {
+			password = md.Get("password")[0]
+		}
+	}
+	if username == "" {
+		username = c.username
+	}
+	if password == "" {
+		password = c.password
+	}
 	return map[string]string{
-		"username": c.username,
-		"password": c.password,
+		"username": username,
+		"password": password,
 	}, nil
 }
 

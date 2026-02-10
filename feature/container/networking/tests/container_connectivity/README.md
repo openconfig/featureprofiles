@@ -3,6 +3,41 @@
 Tests within this directory ensure that a container deployed on a network
 device is able to connect to external services via gRPC.
 
+## Procedure
+
+* Build the test and upgrade container as described below
+* Pass the tarballs of the container the test as arguments.
+
+### Build Test Container
+
+The test container is available in the feature profile repository under
+`internal/cntrsrv`.
+
+Start by entering in that directory and running the following commands:
+
+```shell
+$ cd internal/cntrsrv
+$ go mod vendor
+$ CGO_ENABLED=0 go build .
+$ docker build -f build/Dockerfile.local -t cntrsrv_image:latest .
+```
+
+At this point you will have a container image build for the test container.
+
+```shell
+$ docker images
+REPOSITORY        TAG            IMAGE ID       CREATED         SIZE
+cntrsrv_image     latest         8d786a6eebc8   3 minutes ago   21.4MB
+```
+
+Now export the container to a tarball.
+
+```shell
+$ docker save -o /tmp/cntrsrv.tar cntrsrv_image:latest
+```
+
+This is the tarball that will be used during tests.
+
 ## CNTR-2.1: Connect to container from external client.
 
 Deploy a container to a DUT that is listening on `[::]:60061`. Validate that the
@@ -50,6 +85,13 @@ service on `tcp/[::]60062`.
 *   Instruct C2 to make a gRPC dial call to C2's listen port with a specified
     timeout, ensure that an RPC response is received.
 
+## Canonical OC
+
+<!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 rpcs:
@@ -57,4 +99,8 @@ rpcs:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
+  gnoi:
+    containerz.Containerz.StartContainer:
+  gribi:
+    gRIBI.Get:
 ```

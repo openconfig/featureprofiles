@@ -21,13 +21,13 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -64,6 +64,7 @@ var (
 	}
 
 	dut2Src = attrs.Attributes{
+		Desc:    "dutdut",
 		Name:    "atesrc",
 		MAC:     "02:11:01:00:00:01",
 		IPv4:    "192.0.2.2",
@@ -89,46 +90,6 @@ type testCase struct {
 	aggID     string
 }
 
-func (tc *testCase) clearAggregate(t *testing.T) {
-	// Clear the aggregate minlink.
-	gnmi.Delete(t, tc.dut1, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
-	gnmi.Delete(t, tc.dut2, gnmi.OC().Interface(tc.aggID).Aggregation().MinLinks().Config())
-
-	// Clear the members of the aggregate.
-	for _, port := range tc.dut1Ports {
-		gnmi.Delete(t, tc.dut1, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-	}
-	for _, port := range tc.dut2Ports {
-		gnmi.Delete(t, tc.dut2, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-	}
-}
-
-func (tc *testCase) setupAggregateAtomically(t *testing.T, dutPorts []*ondatra.Port, dut *ondatra.DUTDevice) {
-	d := &oc.Root{}
-
-	if tc.lagType == lagTypeLACP {
-		d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
-	}
-
-	agg := d.GetOrCreateInterface(tc.aggID)
-	agg.GetOrCreateAggregation().LagType = tc.lagType
-	agg.Type = ieee8023adLag
-
-	for _, port := range dutPorts {
-		i := d.GetOrCreateInterface(port.Name())
-		i.GetOrCreateEthernet().AggregateId = ygot.String(tc.aggID)
-		i.Type = ethernetCsmacd
-
-		if deviations.InterfaceEnabled(tc.dut1) {
-			i.Enabled = ygot.Bool(true)
-		}
-	}
-
-	p := gnmi.OC()
-	fptest.LogQuery(t, fmt.Sprintf("%s to Update()", dut), p.Config(), d)
-	gnmi.Update(t, dut, p.Config(), d)
-}
-
 // sortPorts sorts the ports by the testbed port ID.
 func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	sort.SliceStable(ports, func(i, j int) bool {
@@ -145,116 +106,58 @@ func (tc *testCase) verifyAggID(t *testing.T, dp *ondatra.Port, dut *ondatra.DUT
 	}
 }
 
-func (tc *testCase) configDstMemberDUT(i *oc.Interface, p *ondatra.Port) {
-	i.Description = ygot.String(p.String())
-	i.Type = ethernetCsmacd
-
-	if deviations.InterfaceEnabled(tc.dut1) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	e := i.GetOrCreateEthernet()
-	e.AggregateId = ygot.String(tc.aggID)
-}
-
-func (tc *testCase) configDstAggregateDUT(i *oc.Interface, a *attrs.Attributes) {
-	tc.configSrcDUT(i, a)
-	i.Type = ieee8023adLag
-	g := i.GetOrCreateAggregation()
-	g.LagType = tc.lagType
-}
-
-func (tc *testCase) configSrcDUT(i *oc.Interface, a *attrs.Attributes) {
-	i.Description = ygot.String(a.Desc)
-	if deviations.InterfaceEnabled(tc.dut1) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(tc.dut1) && !deviations.IPv4MissingEnabled(tc.dut1) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	a4 := s4.GetOrCreateAddress(a.IPv4)
-	a4.PrefixLength = ygot.Uint8(plen4)
-
-	s6 := s.GetOrCreateIpv6()
-	if deviations.InterfaceEnabled(tc.dut1) {
-		s6.Enabled = ygot.Bool(true)
-	}
-	s6.GetOrCreateAddress(a.IPv6).PrefixLength = ygot.Uint8(plen6)
-}
-
 func (tc *testCase) configureDUT(t *testing.T) {
 	t.Logf("dut1 ports = %v, dut2 ports = %v", tc.dut1Ports, tc.dut2Ports)
 	if len(tc.dut1Ports) < 2 || len(tc.dut2Ports) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got %d and %d", len(tc.dut1Ports), len(tc.dut2Ports))
 	}
 
-	d := gnmi.OC()
-	aggPath := d.Interface(tc.aggID)
-
-	if deviations.AggregateAtomicUpdate(tc.dut1) {
-		tc.clearAggregate(t)
-		tc.setupAggregateAtomically(t, tc.dut1Ports, tc.dut1)
-		tc.setupAggregateAtomically(t, tc.dut2Ports, tc.dut2)
+	lacpMode := oc.Lacp_LacpActivityType_ACTIVE
+	lacpData := &cfgplugins.LACPParams{
+		Activity: &lacpMode,
+		Period:   &tc.lacpInterval,
 	}
 
-	lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
-	lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
-	lacp.Interval = tc.lacpInterval
-	lacpPath := d.Lacp().Interface(tc.aggID)
-	fptest.LogQuery(t, "LACP", lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut1, lacpPath.Config(), lacp)
-	gnmi.Replace(t, tc.dut2, lacpPath.Config(), lacp)
+	dut1AggData := &cfgplugins.DUTAggData{
+		LagName:      tc.aggID,
+		AggType:      tc.lagType,
+		LacpParams:   lacpData,
+		Attributes:   dut1Src,
+		OndatraPorts: tc.dut1Ports,
+	}
 
-	// TODO - to remove this sleep later
-	time.Sleep(5 * time.Second)
+	dut1Batch := &gnmi.SetBatch{}
+	cfgplugins.NewAggregateInterface(t, tc.dut1, dut1Batch, dut1AggData)
+	dut1Batch.Set(t, tc.dut1)
+	t.Logf("Configured DUT1 aggregate interface %s", tc.aggID)
 
-	// Configure DUT1's aggregate interface
-	agg1 := &oc.Interface{Name: ygot.String(tc.aggID)}
-	tc.configDstAggregateDUT(agg1, &dut1Src)
-	fptest.LogQuery(t, tc.aggID+" on DUT1", aggPath.Config(), agg1)
-	gnmi.Replace(t, tc.dut1, aggPath.Config(), agg1)
+	dut2AggData := &cfgplugins.DUTAggData{
+		LagName:      tc.aggID,
+		AggType:      tc.lagType,
+		LacpParams:   lacpData,
+		Attributes:   dut2Src,
+		OndatraPorts: tc.dut2Ports,
+	}
 
-	// Configure DUT2's aggregate interface
-	agg2 := &oc.Interface{Name: ygot.String(tc.aggID)}
-	tc.configDstAggregateDUT(agg2, &dut2Src)
-	fptest.LogQuery(t, tc.aggID+" on DUT2", aggPath.Config(), agg2)
-	gnmi.Replace(t, tc.dut2, aggPath.Config(), agg2)
+	dut2Batch := &gnmi.SetBatch{}
+	cfgplugins.NewAggregateInterface(t, tc.dut2, dut2Batch, dut2AggData)
+	dut2Batch.Set(t, tc.dut2)
+	t.Logf("Configured DUT2 aggregate interface %s", tc.aggID)
+
+	gnmi.Await(t, tc.dut2, gnmi.OC().Interface(tc.aggID).Type().State(), time.Minute, ieee8023adLag)
 
 	if deviations.ExplicitInterfaceInDefaultVRF(tc.dut1) {
-		fptest.AssignToNetworkInstance(t, tc.dut1, tc.aggID, deviations.DefaultNetworkInstance(tc.dut1), 0)
-		fptest.AssignToNetworkInstance(t, tc.dut1, dut1Src.Name, deviations.DefaultNetworkInstance(tc.dut1), 0)
-	}
-	for _, port := range tc.dut1Ports {
-		i := &oc.Interface{Name: ygot.String(port.Name())}
-		i.Type = ethernetCsmacd
-
-		if deviations.InterfaceEnabled(tc.dut1) {
-			i.Enabled = ygot.Bool(true)
+		duts := []*ondatra.DUTDevice{tc.dut1, tc.dut2}
+		for _, dut := range duts {
+			fptest.AssignToNetworkInstance(t, dut, tc.aggID,
+				deviations.DefaultNetworkInstance(dut), 0)
 		}
-		tc.configDstMemberDUT(i, port)
-		iPath := d.Interface(port.Name())
-		fptest.LogQuery(t, port.String(), iPath.Config(), i)
-		gnmi.Replace(t, tc.dut1, iPath.Config(), i)
 	}
+
 	if deviations.ExplicitPortSpeed(tc.dut1) {
 		for _, port := range tc.dut1Ports {
 			fptest.SetPortSpeed(t, port)
 		}
-	}
-	for _, port := range tc.dut2Ports {
-		i := &oc.Interface{Name: ygot.String(port.Name())}
-		i.Type = ethernetCsmacd
-
-		if deviations.InterfaceEnabled(tc.dut2) {
-			i.Enabled = ygot.Bool(true)
-		}
-		tc.configDstMemberDUT(i, port)
-		iPath := d.Interface(port.Name())
-		fptest.LogQuery(t, port.String(), iPath.Config(), i)
-		gnmi.Replace(t, tc.dut2, iPath.Config(), i)
 	}
 	if deviations.ExplicitPortSpeed(tc.dut2) {
 		for _, port := range tc.dut2Ports {
@@ -275,16 +178,21 @@ func (tc *testCase) verifyDUT(t *testing.T) {
 		tc.verifyInterfaceDUT(t, port, tc.dut2)
 		tc.verifyAggID(t, port, tc.dut2)
 	}
-	lacpIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval()
-	lacpIntervalDUT1 := gnmi.Get(t, tc.dut1, lacpIntervals.State())
-	lacpIntervalDUT2 := gnmi.Get(t, tc.dut2, lacpIntervals.State())
+}
+
+func (tc *testCase) verifyLACPInterval(t *testing.T) {
+	lacpIntervals := gnmi.OC().Lacp().Interface(tc.aggID).Interval().State()
+	lacpIntervalDUT1 := gnmi.Get(t, tc.dut1, lacpIntervals)
+	lacpIntervalDUT2 := gnmi.Get(t, tc.dut2, lacpIntervals)
+
 	if lacpIntervalDUT1 != lacpIntervalDUT2 {
 		t.Errorf("LACP Interval is not same on both the DUTs, DUT1: %v, DUT2: %v", lacpIntervalDUT1, lacpIntervalDUT2)
 	}
 	if lacpIntervalDUT1 != tc.lacpInterval {
 		t.Errorf("LACP Interval is not same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
+	} else {
+		t.Logf("LACP Interval is same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 	}
-	t.Logf("LACP Interval is same as configured, got: %v, want: %v", lacpIntervalDUT1, tc.lacpInterval)
 }
 
 func (tc *testCase) verifyInterfaceDUT(t *testing.T, dp *ondatra.Port, dut *ondatra.DUTDevice) {
@@ -321,6 +229,7 @@ func TestLacpTimers(t *testing.T) {
 		t.Run(fmt.Sprintf("lacpInterval=%s", lacpInterval), func(t *testing.T) {
 			tc.configureDUT(t)
 			tc.verifyDUT(t)
+			tc.verifyLACPInterval(t)
 		})
 	}
 }
