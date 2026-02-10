@@ -1930,3 +1930,4 @@ func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
 func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
 }
+
