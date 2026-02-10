@@ -25,12 +25,10 @@ func TestStorageFileSystemCheck(t *testing.T) {
 
 	configureDUT(t, dut)
 	ate := ondatra.ATE(t, "ate")
-	//top := configureATE(t, ate)
 
 	args := &testArgs{
 		dut: dut,
 		ate: ate,
-		//top: top,
 		ctx: ctx,
 	}
 
@@ -101,14 +99,15 @@ func TestStorageFileSystemCheck(t *testing.T) {
 	// Execute all test cases
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.fn(ctx, t, args, tt.path)
-			executeCLICommands(t, dut, ctx)
+			tt.fn(t, args, tt.path)
 		})
 	}
+	executeCLICommands(t, dut, ctx)
 }
 
 // testSoftReadErrorRate validates soft read error rate counters across all subscription modes
-func testSoftReadErrorRate(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+// ctx is required by the function signature but not used in this implementation
+func testSoftReadErrorRate(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -132,7 +131,7 @@ func testSoftReadErrorRate(ctx context.Context, t *testing.T, args *testArgs, pa
 }
 
 // testReallocatedSectors validates reallocated sectors counters across all subscription modes
-func testReallocatedSectors(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+func testReallocatedSectors(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -156,7 +155,7 @@ func testReallocatedSectors(ctx context.Context, t *testing.T, args *testArgs, p
 }
 
 // testEndToEndError validates end-to-end error counters across all subscription modes
-func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+func testEndToEndError(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -180,7 +179,8 @@ func testEndToEndError(ctx context.Context, t *testing.T, args *testArgs, pathSu
 }
 
 // testOfflineUncorrectableSectors validates offline uncorrectable sectors counters across all subscription modes
-func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+// ctx is required by the function signature but not used in this implementation
+func testOfflineUncorrectableSectors(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -204,7 +204,8 @@ func testOfflineUncorrectableSectors(ctx context.Context, t *testing.T, args *te
 }
 
 // testLifeLeft validates storage life left percentage counters across all subscription modes
-func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+// ctx is required by the function signature but not used in this implementation
+func testLifeLeft(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -227,7 +228,8 @@ func testLifeLeft(ctx context.Context, t *testing.T, args *testArgs, pathSuffix 
 
 }
 
-func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathSuffix string) {
+// testPercentageUsed validates storage percentage used counters across all subscription modes
+func testPercentageUsed(t *testing.T, args *testArgs, pathSuffix string) {
 	t.Run("subscription-mode-sample", func(t *testing.T) {
 		testStorageCounterSampleMode(t, args, pathSuffix)
 	})
@@ -250,7 +252,7 @@ func testPercentageUsed(ctx context.Context, t *testing.T, args *testArgs, pathS
 
 }
 
-func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, path string) {
+func testStorageSystemEvents(t *testing.T, args *testArgs, path string) {
 	t.Log("Description: System Events Test - Validate all storage counters before and after system events")
 
 	t.Run("comprehensive-system-events-test", func(t *testing.T) {
@@ -258,16 +260,17 @@ func testStorageSystemEvents(ctx context.Context, t *testing.T, args *testArgs, 
 	})
 }
 
-func testCounterTriggerScenario(ctx context.Context, t *testing.T, args *testArgs, path string) {
+func testCounterTriggerScenario(t *testing.T, args *testArgs, path string) {
 	t.Log("Description: Counter Trigger Scenario - Validate storage counters on specific triggers")
 
 	t.Run("trigger scenario", func(t *testing.T) {
-		testStorageCounterTriggerScenario(t, args, ctx, path)
+		testStorageCounterTriggerScenario(t, args, args.ctx, path)
 	})
 }
 
 // testStorageSubscriptionLevels validates storage subscriptions at different hierarchy levels
-func testStorageSubscriptionLevels(ctx context.Context, t *testing.T, args *testArgs, path string) {
+// ctx is required by the function signature but not used in this implementation
+func testStorageSubscriptionLevels(t *testing.T, args *testArgs, path string) {
 	t.Log("Description: Validate storage subscriptions at root, container, and leaf levels")
 
 	// Define the storage counter leafs

@@ -34,7 +34,7 @@ type storageTestCase struct {
 	path        string
 	counterType string
 	description string
-	fn          func(ctx context.Context, t *testing.T, args *testArgs, path string)
+	fn          func(t *testing.T, args *testArgs, path string)
 }
 
 const (
@@ -386,7 +386,7 @@ func parseSMARTMonitorDetailedOutput(t *testing.T, output string) {
 	// Summary report
 	t.Logf("\n=== SMART Monitor Parsing Summary ===")
 	t.Logf("Total disks parsed: %d", len(disks))
-	
+
 	// Health status statistics
 	healthStatusCounts := make(map[string]int)
 	for _, disk := range disks {
@@ -412,10 +412,6 @@ func parseSMARTMonitorDetailedOutput(t *testing.T, output string) {
 		t.Logf("    Offline Uncorrectable Sectors: %d", disk.OfflineUncorrectableSectors)
 		t.Logf("    Life Remaining: %d%%", disk.LifeRemaining)
 		t.Logf("    Percentage Used: %d%%", disk.PercentageUsed)
-	}
-
-	if len(disks) == 0 {
-		t.Log("Warning: No disk data was successfully parsed from the output")
 	}
 }
 
@@ -1692,11 +1688,6 @@ func testLeafLevelSubscription(t *testing.T, args *testArgs, leafPath, leafName,
 		// Extract component name for logging
 		componentName := extractComponentNameFromPath(path)
 		t.Logf("Successfully received leaf data for component %s, %s = %d", componentName, leafName, value)
-
-		// Validate data type based on counter type
-		if counterType == "counter64" && value < 0 {
-			t.Logf("Warning: Unexpected negative value for counter64 leaf %s: %d", leafName, value)
-		}
 
 		successfulSubscriptions++
 	}
