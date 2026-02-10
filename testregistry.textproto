@@ -1251,6 +1251,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
 }
 test: {
+  id: "RT-10.2"
+  description: "Aggregage Subinterface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregage_subinterface/README.md"
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
