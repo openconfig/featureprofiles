@@ -474,6 +474,19 @@ type AFTStreamSession struct {
 	notifications     []*gnmipb.SubscribeResponse
 	missingPrefixes   map[string]bool
 	failingNHPrefixes map[string]bool
+	streamStats       []streamStatsRow
+}
+
+type streamStatsRow struct {
+	streamID        string
+	timestamp       time.Time
+	messageCount    int64
+	totalMB         float64
+	avgMsgBytes     int64
+	overallMsgRate  float64
+	overallKBrate   float64
+	intervalMsgRate float64
+	intervalKBrate  float64
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
@@ -488,6 +501,7 @@ func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient,
 		notifications:     []*gnmipb.SubscribeResponse{},
 		missingPrefixes:   make(map[string]bool),
 		failingNHPrefixes: make(map[string]bool),
+		streamStats:       []streamStatsRow{},
 	}
 }
 
@@ -520,6 +534,25 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	prefix := ss.sessionPrefix()
 	ss.Cache.logMetadata(t, ss.start, prefix)
 	t.Logf("%s After %v: Finished streaming.", prefix, time.Since(ss.start).Truncate(time.Millisecond))
+	if len(ss.streamStats) > 0 {
+		var b strings.Builder
+		b.WriteString("gNMI Stream Stats Summary\n")
+		b.WriteString("stream_id | timestamp | messages | total_mb | avg_msg_bytes | overall_msg_s | overall_kb_s | interval_msg_s | interval_kb_s\n")
+		b.WriteString("----------|-----------|----------|----------|---------------|---------------|--------------|----------------|---------------\n")
+		for _, row := range ss.streamStats {
+			b.WriteString(fmt.Sprintf("%s | %s | %d | %.2f | %d | %.2f | %.2f | %.2f | %.2f\n",
+				row.streamID,
+				row.timestamp.Format(time.RFC3339Nano),
+				row.messageCount,
+				row.totalMB,
+				row.avgMsgBytes,
+				row.overallMsgRate,
+				row.overallKBrate,
+				row.intervalMsgRate,
+				row.intervalKBrate))
+		}
+		t.Log(b.String())
+	}
 	if len(ss.missingPrefixes) > 0 {
 		filename, err := writeMissingPrefixes(t, ss.missingPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
@@ -610,16 +643,31 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				intervalByteRate := float64(intervalBytes) / elapsedSinceLog.Seconds()
 
 				prefix := ss.sessionPrefix()
+				totalMB := float64(totalBytes) / (1024 * 1024)
+				avgMsgBytes := totalBytes / messageCount
+				overallKBrate := overallByteRate / 1024
+				intervalKBrate := intervalByteRate / 1024
 				t.Logf("%s [%s] gNMI Stream Stats - Messages: %d, Total Size: %.2f MB, Avg Msg Size: %d bytes, Overall Rate: %.2f msg/s, %.2f KB/s, Interval Rate: %.2f msg/s, %.2f KB/s",
 					prefix,
 					currentTime.Format(time.RFC3339Nano),
 					messageCount,
-					float64(totalBytes)/(1024*1024),
-					totalBytes/messageCount,
+					totalMB,
+					avgMsgBytes,
 					overallMsgRate,
-					overallByteRate/1024,
+					overallKBrate,
 					intervalMsgRate,
-					intervalByteRate/1024)
+					intervalKBrate)
+				ss.streamStats = append(ss.streamStats, streamStatsRow{
+					streamID:        prefix,
+					timestamp:       currentTime,
+					messageCount:    messageCount,
+					totalMB:         totalMB,
+					avgMsgBytes:     avgMsgBytes,
+					overallMsgRate:  overallMsgRate,
+					overallKBrate:   overallKBrate,
+					intervalMsgRate: intervalMsgRate,
+					intervalKBrate:  intervalKBrate,
+				})
 
 				lastLogTime = currentTime
 				lastMessageCount = messageCount
