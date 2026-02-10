@@ -579,7 +579,6 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
 		channel.TribProtocol = params.TribProtocol
-		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
 	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
