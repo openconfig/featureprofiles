@@ -609,7 +609,10 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				intervalMsgRate := float64(intervalMessages) / elapsedSinceLog.Seconds()
 				intervalByteRate := float64(intervalBytes) / elapsedSinceLog.Seconds()
 
-				t.Logf("gNMI Stream Stats - Messages: %d, Total Size: %.2f MB, Avg Msg Size: %d bytes, Overall Rate: %.2f msg/s, %.2f KB/s, Interval Rate: %.2f msg/s, %.2f KB/s",
+				prefix := ss.sessionPrefix()
+				t.Logf("%s [%s] gNMI Stream Stats - Messages: %d, Total Size: %.2f MB, Avg Msg Size: %d bytes, Overall Rate: %.2f msg/s, %.2f KB/s, Interval Rate: %.2f msg/s, %.2f KB/s",
+					prefix,
+					currentTime.Format(time.RFC3339Nano),
 					messageCount,
 					float64(totalBytes)/(1024*1024),
 					totalBytes/messageCount,
