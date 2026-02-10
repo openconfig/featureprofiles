@@ -104,11 +104,13 @@ var (
 	once     sync.Once
 	lBandPNs = map[string]bool{
 		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"DP04QSDD-LLH-24B": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
+		"176-6480-9M0":     true, // Ciena OSFP 800G ZRP L-Band
 	}
 )
 
@@ -1289,4 +1291,26 @@ func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gn
 		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
 	}
 	gnmi.BatchUpdate(b, intPath, intf)
+}
+
+// VlanParams defines the parameters for configuring a VLAN.
+type VlanParams struct {
+	VlanID uint16
+}
+
+// ConfigureVlan configures the Vlan and remove the spanning-tree with ID.
+func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
+	t.Helper()
+	if !deviations.DeprecatedVlanID(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`vlan %[1]d
+			no spanning-tree vlan-id %[1]d`, cfg.VlanID)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
+		}
+	} else {
+		t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
+	}
 }
