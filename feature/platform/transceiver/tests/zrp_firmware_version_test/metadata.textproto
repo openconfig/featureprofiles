@@ -24,4 +24,3 @@ platform_exceptions: {
     explicit_dco_config: true
   }
 }
-
