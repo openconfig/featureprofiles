@@ -1151,6 +1151,9 @@ deviations: {
     ocpaths: {
       name: "/network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/config/maximum-paths"
     }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ibgp/config/maximum-paths"
+    }
   }
   platforms: {
     issue_url: ""
@@ -1161,6 +1164,39 @@ deviations: {
     additional_paths: {
       ocpaths: {
         name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ibgp/config/maximum-paths"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ibgp/config/maximum-paths"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ibgp/config/maximum-paths"
       }
     }
   }
@@ -1968,6 +2004,140 @@ deviations: {
     }
     clis: {
       commands: "management api gnoi\n.service containerz\n..transport gnmi default\n..container runtime\n...vrf [a-zA-Z0-9_-]+"
+    }
+  }
+}
+deviations: {
+  name: "disable_hardware_nexthop_proxy"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "ip hardware fib next-hop proxy disabled"
+    }
+  }
+}
+deviations: {
+  name: "isis_mpls_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/config/enabled"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/config/enabled"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "mpls_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls ip"
+    }
+  }
+}
+deviations: {
+  name: "multipath_unsupported_neighbor_or_afisafi"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/use-multiple-paths/ebgp/config/maximum-paths"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/config/enabled"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/config/allow-multiple-as"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/config/enabled"
+      }
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/use-multiple-paths/ebgp/config/allow-multiple-as"
+      }
+    }
+  }
+}
+deviations: {
+  name: "qos_two_rate_three_color_policer_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/cir"
+    }
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/pir"
+    }
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/bc"
+    }
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/config/be"
+    }
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/exceed-action/config/drop"
+    }
+    ocpaths: {
+      name: "/qos/scheduler-policies/scheduler-policy/schedulers/scheduler/two-rate-three-color/violate-action/config/drop"
+    }
+  }
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/442749011"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "policy-map type quality-of-service.*class.*set traffic-class.*police rate.*bps burst-size.*bytes rate.*bps burst-size.*bytes"
     }
   }
 }
