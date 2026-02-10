@@ -63,48 +63,30 @@ func TestContainerSupervisorFailover(t *testing.T) {
 	sysClient := dut.RawAPIs().GNOI(t).System()
 
 	t.Run("Setup", func(t *testing.T) {
-		t.Logf("Deploying container image %s:%s...", imageName, tag)
-		// Use PushImage from the client library.
-		progCh, err := cli.PushImage(ctx, imageName, tag, containerTarPath(t), false)
-		if err != nil {
-			t.Fatalf("Failed to push image: %v", err)
-		}
-		// Drain the progress channel to ensure completion.
-		for prog := range progCh {
-			if prog.Error != nil {
-				t.Fatalf("Image push failed: %v", prog.Error)
-			}
-		}
-
 		t.Logf("Creating volume %s...", volName)
 		if _, err := cli.CreateVolume(ctx, volName, "local", nil, nil); err != nil {
 			t.Fatalf("Failed to create volume: %v", err)
 		}
 
-		t.Logf("Starting container %s...", containerName)
-		// Use raw client for StartContainer to ensure we can pass volume mounts correctly,
-		// as the high-level client options for volumes might vary or be implicit.
-		// The containerztest/client package is preferred, but for specific volume mounting
-		// we fall back to raw gNOI to be explicit and safe.
-		rawContClient := dut.RawAPIs().GNOI(t).Containerz()
-		if _, err := rawContClient.StartContainer(ctx, &cpb.StartContainerRequest{
-			InstanceName: containerName,
-			ImageName:    imageName,
-			Tag:          tag,
-			Cmd:          "tail -f /dev/null", // Keep alive
-			Volumes: []*cpb.Volume{
-				{
-					Name:       volName,
-					MountPoint: "/tmp",
-					ReadOnly:   true,
-				},
-			},
-		}); err != nil {
-			t.Fatalf("Failed to start container: %v", err)
+		t.Logf("Deploying and starting container %s...", containerName)
+		opts := containerztest.StartContainerOptions{
+			InstanceName:        containerName,
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			TarPath:             containerTarPath(t),
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
+			RemoveExistingImage: true,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        5 * time.Second,
 		}
 
-		if err := verifyContainerState(ctx, cli, containerName, cpb.ListContainerResponse_RUNNING); err != nil {
-			t.Fatalf("Container not running after start: %v", err)
+		// containerztest.DeployAndStart handles pushing the image and starting the container.
+		// We use it instead of containerztest.Setup because it does not return a cleanup
+		// function, which is ideal for a failover test where we want to verify persistence.
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("Failed to deploy and start container: %v", err)
 		}
 		if err := verifyVolumeExists(ctx, cli, volName); err != nil {
 			t.Fatalf("Volume not found after creation: %v", err)
