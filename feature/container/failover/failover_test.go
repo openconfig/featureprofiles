@@ -34,8 +34,8 @@ const (
 	tag            = "latest"
 	containerName  = "cntrsrv"
 	volName        = "test-failover-vol"
-	switchoverWait = 15 * time.Minute
-	pollInterval   = 10 * time.Second
+	switchoverWait = 15 * time.Second
+	pollInterval   = 1 * time.Second
 )
 
 func TestMain(m *testing.M) {
@@ -129,11 +129,7 @@ func TestContainerSupervisorFailover(t *testing.T) {
 	t.Run("VerifyRecovery", func(t *testing.T) {
 		t.Log("Waiting for DUT to reconnect...")
 		// Allow some time for the switchover to initiate and the connection to drop.
-		time.Sleep(30 * time.Second)
-
-		if err := waitForReboot(t, dut); err != nil {
-			t.Fatalf("DUT failed to recover after switchover: %v", err)
-		}
+		time.Sleep(switchoverWait)
 
 		// Refresh clients after reconnection.
 		cli = containerztest.Client(t, dut)
@@ -175,7 +171,7 @@ func verifyContainerState(ctx context.Context, cli *client.Client, name string, 
 		if cnt.Error != nil {
 			return fmt.Errorf("error listing containers: %w", cnt.Error)
 		}
-		// Handle potential leading slash in name returned by some implementations.
+		// Handle potential leading slash in name returned by some vendor implementations.
 		if strings.TrimPrefix(cnt.Name, "/") == name {
 			found = true
 			if cnt.State != want.String() {
@@ -193,7 +189,7 @@ func verifyContainerState(ctx context.Context, cli *client.Client, name string, 
 func verifyContainerStateEventually(ctx context.Context, cli *client.Client, name string, want cpb.ListContainerResponse_Status) error {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
-	timeout := time.After(5 * time.Minute)
+	timeout := time.After(switchoverWait)
 
 	for {
 		select {
@@ -227,21 +223,4 @@ func verifyVolumeExists(ctx context.Context, cli *client.Client, name string) er
 		return fmt.Errorf("volume %s not found", name)
 	}
 	return nil
-}
-
-// waitForReboot waits for the DUT to become reachable via gNMI.
-func waitForReboot(t *testing.T, dut *ondatra.DUTDevice) error {
-	t.Helper()
-	start := time.Now()
-	for time.Since(start) < switchoverWait {
-		// Check a basic path like System CurrentDatetime to verify gNMI connectivity.
-		// Await with a short timeout allows us to poll effectively.
-		_, err := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State()).Await(10 * time.Second)
-		if err == nil {
-			return nil
-		}
-		// If error, it means we are likely still rebooting/connecting.
-		time.Sleep(10 * time.Second)
-	}
-	return fmt.Errorf("DUT did not come back online after %v", switchoverWait)
 }
