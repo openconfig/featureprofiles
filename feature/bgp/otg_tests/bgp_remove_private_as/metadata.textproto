@@ -20,6 +20,9 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    missing_value_for_defaults: true
+    default_bgp_instance_name: "BGP"
   }
 }
 tags: TAGS_AGGREGATION

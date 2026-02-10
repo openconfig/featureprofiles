@@ -30,3 +30,22 @@ platform_exceptions: {
     explicit_breakout_interface_config: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    otn_channel_assignment_cisco_numbering: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    eth_channel_ingress_parameters_unsupported: true
+  }
+}

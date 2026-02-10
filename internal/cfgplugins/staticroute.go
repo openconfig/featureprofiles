@@ -36,6 +36,14 @@ type StaticRouteCfg struct {
 	NextHopAddr     string
 }
 
+// StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
+type StaticVRFRouteCfg struct {
+	NetworkInstance string
+	Prefix          string
+	NextHopGroup    string
+	ProtocolStr     string
+}
+
 // NewStaticRouteCfg provides OC configuration for a static route for a specific NetworkInstance,
 // Prefix and NextHops.
 //
@@ -86,4 +94,42 @@ func StaticRouteNextNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, cfg *S
 		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("DEFAULT")
 		spNetInst.GetOrCreateNextHop("0").SetNextHop(oc.UnionString(cfg.Prefix))
 	}
+}
+
+// NewStaticVRFRoute configures a static route inside a given VRF on the DUT.
+func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCfg, d *ondatra.DUTDevice) (*oc.NetworkInstance_Protocol_Static, error) {
+	t.Helper()
+	if cfg == nil {
+		return nil, errors.New("cfg must be defined")
+	}
+
+	if deviations.NextHopGroupOCUnsupported(d) {
+		switch d.Vendor() {
+		case ondatra.ARISTA:
+			staticNHGCmd := fmt.Sprintf(`
+				%s route vrf %s %s nexthop-group %s
+			`, cfg.ProtocolStr, cfg.NetworkInstance, cfg.Prefix, cfg.NextHopGroup)
+			helpers.GnmiCLIConfig(t, d, staticNHGCmd)
+
+			// Return nil since we're using CLI (no OC object created)
+			return nil, nil
+		default:
+			t.Errorf("Deviation NextHopGroupOCUnsupported is not handled for the dut: %v", d.Vendor())
+		}
+	}
+
+	ni := normalizeNIName(cfg.NetworkInstance, d)
+
+	c := &oc.NetworkInstance_Protocol{
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+		Name:       ygot.String(deviations.StaticProtocolName(d)),
+	}
+	s := c.GetOrCreateStatic(cfg.Prefix)
+	s.GetOrCreateNextHopGroup().SetName(cfg.NextHopGroup)
+
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+	gnmi.BatchUpdate(batch, sp.Config(), c)
+	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
+
+	return s, nil
 }

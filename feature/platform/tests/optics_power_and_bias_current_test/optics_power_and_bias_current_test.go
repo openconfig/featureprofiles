@@ -58,8 +58,30 @@ func TestMain(m *testing.M) {
 //     - https://github.com/karimra/gnmic/blob/main/README.md
 //
 
-func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration) *gnmi.Opts {
-	return dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval))
+func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
+	if functionalTranslatorName == "" {
+		return nil
+	}
+	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
+	if !ok {
+		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
+	}
+	deviceSoftwareVersion := strings.Split(dut.Version(), "-")[0]
+	ftMetadata := ft.Metadata()
+	for _, m := range ftMetadata {
+		if m.SoftwareVersion == deviceSoftwareVersion {
+			return []ygnmi.Option{ygnmi.WithFT(ft)}
+		}
+	}
+	return nil
+}
+
+func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, mode gpb.SubscriptionMode, interval time.Duration, functionalTranslatorName ...string) *gnmi.Opts {
+	opts := []ygnmi.Option{ygnmi.WithSubscriptionMode(mode), ygnmi.WithSampleInterval(interval)}
+	if len(functionalTranslatorName) > 0 {
+		opts = append(opts, getOptsForFunctionalTranslator(t, dut, functionalTranslatorName[0])...)
+	}
+	return dut.GNMIOpts().WithYGNMIOpts(opts...)
 }
 
 type checkThresholdParams struct {
@@ -70,6 +92,7 @@ type checkThresholdParams struct {
 	upperPath   ygnmi.SingletonQuery[float64]
 	instantPath ygnmi.SingletonQuery[float64]
 	name        string
+	ftName      string
 }
 
 // checkThreshold validates a pair of lower and upper thresholds.
@@ -96,7 +119,7 @@ func checkThreshold(t *testing.T, dut *ondatra.DUTDevice, params checkThresholdP
 	if params.name == "module-temperature" && dut.Vendor() != ondatra.CISCO {
 		t.Logf("Skipping instant path check for module-temperature on non-Cisco vendor.")
 	} else {
-		iV := gnmi.Lookup(t, dut.GNMIOpts(), params.instantPath)
+		iV := gnmi.Lookup(t, dut.GNMIOpts().WithYGNMIOpts(getOptsForFunctionalTranslator(t, dut, params.ftName)...), params.instantPath)
 		i, iOK := iV.Val()
 		if !iOK {
 			t.Errorf("Transceiver %s: instant %s is not set", params.transceiver, params.name)
@@ -146,6 +169,7 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		upperPath:   threshold.InputPowerUpper().State(),
 		instantPath: component.Transceiver().Channel(0).InputPower().Instant().State(),
 		name:        "input-power",
+		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
 	checkThreshold(t, dut, checkThresholdParams{
 		transceiver: transceiver,
@@ -155,6 +179,7 @@ func validateThresholds(t *testing.T, dut *ondatra.DUTDevice, transceiver string
 		upperPath:   threshold.OutputPowerUpper().State(),
 		instantPath: component.Transceiver().Channel(0).OutputPower().Instant().State(),
 		name:        "output-power",
+		ftName:      deviations.CiscoxrTransceiverFt(dut),
 	})
 }
 func TestOpticsPowerBiasCurrent(t *testing.T) {
@@ -190,18 +215,18 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
 
-			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
+			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
 				t.Errorf("Get inputPowers list for %q: got 0, want > 0", transceiver)
 			}
-			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
+			outputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().OutputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s outputPowers: %v", transceiver, outputPowers)
 			if len(outputPowers) == 0 {
 				t.Errorf("Get outputPowers list for %q: got 0, want > 0", transceiver)
 			}
 
-			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
+			biasCurrents := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().LaserBiasCurrent().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s biasCurrents: %v", transceiver, biasCurrents)
 			if len(biasCurrents) == 0 {
 				t.Errorf("Get biasCurrents list for %q: got 0, want > 0", transceiver)
@@ -216,9 +241,11 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 					if sensorComponent.GetType() == sensorType {
 						scomponent := gnmi.OC().Component(sensorComponent.GetName())
 						sensorComponentChecked = true
-						v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
-						if _, ok := v.Val(); !ok {
-							t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+						if !deviations.TemperatureSensorCheck(dut) || strings.Contains(sensorComponent.GetDescription(), "Temperature Sensor") {
+							v := gnmi.Lookup(t, dut, scomponent.Temperature().Instant().State())
+							if _, ok := v.Val(); !ok {
+								t.Errorf("Sensor %s: Temperature instant is not defined", sensorComponent.GetName())
+							}
 						}
 					}
 				}
@@ -235,14 +262,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 				return
 			}
 			// TODO(ankursaikia): Validate the values for each leaf.
-			var opts []ygnmi.Option
-			if deviations.CiscoxrLaserFt(dut) != "" {
-				ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
-				if !ok {
-					t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
-				}
-				opts = append(opts, ygnmi.WithFT(ft))
-			}
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
 			var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
 			for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
 				val, ok := s.Val()
@@ -323,8 +343,9 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			t.Logf("Transceiver MfgName: %s", mfgName)
 
 			channels := gnmi.OC().Component(dp.Name()).Transceiver().ChannelAny()
-			inputPowers := gnmi.LookupAll(t, dut, channels.InputPower().Instant().State())
-			outputPowers := gnmi.LookupAll(t, dut, channels.OutputPower().Instant().State())
+			opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+			inputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.InputPower().Instant().State())
+			outputPowers := gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), channels.OutputPower().Instant().State())
 			for _, inputPower := range inputPowers {
 				inPower, ok := inputPower.Val()
 				if !ok {
@@ -351,15 +372,7 @@ func TestOpticsPowerUpdate(t *testing.T) {
 			if deviations.TransceiverThresholdsUnsupported(dut) {
 				t.Logf("Skipping verification of transceiver threshold leaves due to deviation")
 			} else {
-				var opts []ygnmi.Option
-				if deviations.CiscoxrLaserFt(dut) != "" {
-					ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CiscoxrLaserFt(dut)]
-					if !ok {
-						t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
-					}
-					t.Logf("Using functional translator %s for transceiver %s", deviations.CiscoxrLaserFt(dut), transceiverName)
-					opts = append(opts, ygnmi.WithFT(ft))
-				}
+				opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrLaserFt(dut))
 				var sevs []oc.E_AlarmTypes_OPENCONFIG_ALARM_SEVERITY
 				for _, s := range gnmi.LookupAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), component.Transceiver().ThresholdAny().Severity().State()) {
 					val, ok := s.Val()
@@ -399,6 +412,23 @@ func TestInterfacesWithTransceivers(t *testing.T) {
 			populatedTvs[tv] = cp
 			if cp.GetTransceiver() == nil || cp.GetTransceiver().GetFormFactor() == oc.TransportTypes_TRANSCEIVER_FORM_FACTOR_TYPE_UNSET {
 				t.Errorf("transceiver/form-factor unset for Transceiver: %q", tv)
+			}
+			if deviations.TransceiverStateUnsupported(dut) {
+				t.Logf("Skipping verification of transceiver vendor details due to deviation")
+			} else {
+				opts := getOptsForFunctionalTranslator(t, dut, deviations.CiscoxrTransceiverFt(dut))
+				vendor := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().Vendor().State())
+				if vendor == "" {
+					t.Errorf("Transceiver %s: Vendor name is empty", tv)
+				}
+				vendorPart := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorPart().State())
+				if vendorPart == "" {
+					t.Errorf("Transceiver %s: VendorPart is empty", tv)
+				}
+				vendorRev := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Component(tv).Transceiver().VendorRev().State())
+				if vendorRev == "" {
+					t.Errorf("Transceiver %s: VendorRev is empty", tv)
+				}
 			}
 		})
 	}

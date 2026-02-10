@@ -46,6 +46,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	gnmiRecvMsgSizeDefault = 100 * 1024 * 1024 // 100 MB
+)
+
 var (
 	// To be stubbed out by unit tests.
 	grpcDialContextFn = grpc.NewClient
@@ -339,6 +343,11 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
+	// For scale tests, ATE gNMI might receive large data. Set a larger default
+	// max receive message size if not already configured.
+	if bopts.MaxRecvMsgSize == 0 {
+		bopts.MaxRecvMsgSize = gnmiRecvMsgSizeDefault
+	}
 	return makeDialer(params, bopts)
 }
 
