@@ -43,7 +43,7 @@ This is the tarball that will be used during tests.
 
 1.  **Setup**: Using `gnoi.Containerz`, deploy a container image, create a volume, and start a container mounting that volume. Verify the container is running and the volume exists.
 2.  **Trigger Failover**: Identify the standby control processor using gNMI. Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-3.  **Verify Recovery**: Wait for the DUT to recover (reboot/reconnect). Verify that the container started in step 1 is in `RUNNING` state and the volume still exists using `gnoi.Containerz`.
+3.  **Verify Recovery**: Wait for the switchover to complete. Verify that the container started in step 1 is in `RUNNING` state and the volume still exists using `gnoi.Containerz`.
 
 ## Canonical OC
 
