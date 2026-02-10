@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     default_network_instance: "default"
     channel_assignment_rate_class_parameters_unsupported: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
