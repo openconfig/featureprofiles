@@ -101,10 +101,9 @@ func TestContainerSupervisorFailover(t *testing.T) {
 			},
 		}
 
-		// The switchover request is expected to cause a connection drop as the device reboots/switches.
-		// We log the error but proceed to wait for the system to come back.
+		// Log the error but proceed to wait for the system to come back.
 		if _, err := sysClient.SwitchControlProcessor(ctx, switchReq); err != nil {
-			t.Logf("SwitchControlProcessor returned error (expected due to reboot): %v", err)
+			t.Logf("SwitchControlProcessor returned error: %v", err)
 		}
 	})
 
