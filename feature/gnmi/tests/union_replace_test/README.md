@@ -129,6 +129,7 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
+      union_replace: true
     gNMI.Get:
     gNMI.Subscribe:
 ```
