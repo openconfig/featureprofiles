@@ -225,6 +225,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
+	deadline := time.Now().Add(1 * time.Minute)
 	t.Run("Isis telemetry", func(t *testing.T) {
 
 		// Checking adjacency
@@ -318,8 +319,10 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			}
 			if !deviations.IsisDisSysidUnsupported(ts.DUT) {
 				if deviations.MissingValueForDefaults(ts.DUT) {
-					check.EqualOrNil(adjPath.DisSystemId().State(), "0000.0000.0000")
-
+					vd := check.EqualOrNil(adjPath.DisSystemId().State(), "0000.0000.0000")
+					if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
+						t.Errorf("FAIL- DIS system ID validation failed: %v", err)
+					}
 				} else {
 					if got := gnmi.Get(t, ts.DUT, adjPath.DisSystemId().State()); got != "0000.0000.0000" {
 						t.Errorf("FAIL- Expected dis system id not found, got %s, want %s", got, "0000.0000.0000")
@@ -371,23 +374,27 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 		})
 		t.Run("System level counter checks", func(t *testing.T) {
 			if deviations.MissingValueForDefaults(ts.DUT) {
-				deadline := time.Now().Add(1 * time.Minute)
 				missingValueForDefaults := deviations.MissingValueForDefaults(ts.DUT)
 				sysCounts := isissession.ISISPath(ts.DUT).Level(2).SystemLevelCounters()
-
-				for _, vd := range []check.Validator{
+				validators := []check.Validator{
 					EqualToDefault(sysCounts.AuthFails().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.AuthTypeFails().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.CorruptedLsps().State(), uint32(0), missingValueForDefaults),
-					CheckPresence(sysCounts.DatabaseOverloads().State(), missingValueForDefaults),
 					EqualToDefault(sysCounts.ExceedMaxSeqNums().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.IdLenMismatch().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.LspErrors().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.MaxAreaAddressMismatches().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.OwnLspPurges().State(), uint32(0), missingValueForDefaults),
 					EqualToDefault(sysCounts.SeqNumSkips().State(), uint32(0), missingValueForDefaults),
-					EqualToDefault(sysCounts.ManualAddressDropFromAreas().State(), uint32(0), missingValueForDefaults),
-				} {
+				}
+				if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+					validators = append(validators, EqualToDefault(sysCounts.DatabaseOverloads().State(), uint32(0), missingValueForDefaults))
+				}
+				if !deviations.ISISCounterManualAddressDropFromAreasUnsupported(ts.DUT) {
+					validators = append(validators, EqualToDefault(sysCounts.ManualAddressDropFromAreas().State(), uint32(0), missingValueForDefaults))
+				}
+
+				for _, vd := range validators {
 					t.Run(vd.RelPath(sysCounts), func(t *testing.T) {
 						if err := vd.AwaitUntil(deadline, ts.DUTClient); err != nil {
 							t.Error(err)
@@ -403,11 +410,6 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 				}
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().CorruptedLsps().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting any corrupted lsps, got %d, want %d", got, 0)
-				}
-				if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
-					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
-						t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
-					}
 				}
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().ExceedMaxSeqNums().State()); got != 0 {
 					t.Errorf("FAIL- Not expecting non zero max_seqnum counter, got %d, want %d", got, 0)
@@ -432,6 +434,11 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 						t.Errorf("FAIL- Not expecting non zero ManualAddressDropFromAreas counter, got %d, want %d", got, 0)
 					}
 				}
+				if !deviations.IsisDatabaseOverloadsUnsupported(ts.DUT) {
+					if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().DatabaseOverloads().State()); got != 0 {
+						t.Errorf("FAIL- Not expecting pre isis config database_overloads value to change, got %d, want %d", got, 0)
+					}
+				}
 			}
 			if !deviations.ISISCounterPartChangesUnsupported(ts.DUT) {
 				if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().PartChanges().State()); got != 0 {
@@ -440,8 +447,6 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			}
 			if got := gnmi.Get(t, ts.DUT, statePath.Level(2).SystemLevelCounters().SpfRuns().State()); got == 0 {
 				t.Errorf("FAIL- Not expecting spf runs counter to be 0, got %d, want non zero", got)
-			} else {
-				t.Logf("PASS- SPF runs counter is non zero as expected, got %d", got)
 			}
 		})
 		t.Run("Route checks", func(t *testing.T) {
