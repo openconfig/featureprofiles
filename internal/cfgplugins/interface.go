@@ -104,11 +104,13 @@ var (
 	once     sync.Once
 	lBandPNs = map[string]bool{
 		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"DP04QSDD-LLH-24B": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
+		"176-6480-9M0":     true, // Ciena OSFP 800G ZRP L-Band
 	}
 )
 
