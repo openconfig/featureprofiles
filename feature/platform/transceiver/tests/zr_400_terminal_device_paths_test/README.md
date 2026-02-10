@@ -1,4 +1,4 @@
-# TRANSCEIVER-102: Telemetry: ZR terminal-device OC paths streaming.
+# TRANSCEIVER-106: Telemetry: ZR terminal-device OC paths streaming.
 
 ## Summary
 
@@ -83,7 +83,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                 "openconfig-if-ethernet:ethernet": {
                     "config": {
                         "duplex-mode": "FULL",
-                        "port-speed": "SPEED_800GB"
+                        "port-speed": "SPEED_400GB"
                     }
                 }
             }
@@ -91,29 +91,6 @@ Validate ZR optics module reports telemetry data for all leaves in
     },
     "openconfig-platform:components": {
         "component": [
-            {
-                "config": {
-                    "name": "Ethernet4/1-Port"
-                },
-                "name": "Ethernet4/1-Port",
-                "openconfig-platform-port:port": {
-                    "breakout-mode": {
-                        "groups": {
-                            "group": [
-                                {
-                                    "config": {
-                                        "breakout-speed": "openconfig-if-ethernet:SPEED_800GB",
-                                        "index": 1,
-                                        "num-breakouts": 1,
-                                        "num-physical-channels": 8
-                                    },
-                                    "index": 1
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
             {
                 "config": {
                     "name": "Ethernet4/1"
@@ -143,7 +120,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": "400",
                                     "assignment-type": "OPTICAL_CHANNEL",
                                     "description": "OTN to optical channel assignment",
                                     "index": 1,
@@ -155,7 +132,7 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "config": {
                         "admin-state": "ENABLED",
                         "description": "OTN Logical Channel",
-                        "index": 8000,
+                        "index": 4000,
                         "logical-channel-type": "openconfig-transport-types:PROT_OTN"
                     }
                 },
@@ -170,11 +147,11 @@ Validate ZR optics module reports telemetry data for all leaves in
                         "assignment": [
                             {
                                 "config": {
-                                    "allocation": "800",
+                                    "allocation": "400",
                                     "assignment-type": "LOGICAL_CHANNEL",
                                     "description": "ETH to OTN assignment",
                                     "index": 1,
-                                    "logical-channel": 8000
+                                    "logical-channel": 4000
                                 }
                             }
                         ]
@@ -182,10 +159,10 @@ Validate ZR optics module reports telemetry data for all leaves in
                     "config": {
                         "admin-state": "ENABLED",
                         "description": "ETH Logical Channel",
-                        "index": 80000,
+                        "index": 40000,
                         "logical-channel-type": "openconfig-transport-types:PROT_ETHERNET",
-                        "rate-class": "openconfig-transport-types:TRIB_RATE_800G",
-                        "trib-protocol": "openconfig-transport-types:PROT_800GE"
+                        "rate-class": "openconfig-transport-types:TRIB_RATE_400G",
+                        "trib-protocol": "openconfig-transport-types:PROT_400GE"
                     }
                 }
             ]
