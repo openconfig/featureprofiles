@@ -430,9 +430,5 @@ ascii_val:
     " description not connected interface\n"
     " no shutdown\n"
     "!\n"
-    "end\n"
-    "\n"
-    "\n"
-    "\n"
     }
     }

@@ -1,0 +1,286 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+#
+
+###################################### DUT 8818-FOX2714PNYN ######################################
+### https://wwwin-github.cisco.com/B4Test/featureprofiles/tree/master/topologies/cisco/hw/8808-FOX2926PHNF-P200 ####
+### More testbed details : https://ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5)
+#router static
+# Console:
+# 172.27.177.102 2030/172.27.177.102 2031
+# Mgmt:
+# RP0: 172.27.177.66
+# RP1: 172.27.177.67
+# virtual: 172.27.177.68
+## Consoe server:
+# telnet 10.85.84.47
+
+# Username: cafyauto
+# Password: cisco123
+# This Binding is with Port forwarding enabled on UCS: root@sjc-ucs-b4/SJ17labuser!
+duts {
+  id: "dut"
+  vendor: CISCO
+  hardware_model: "CISCO-8808"
+  name: "8818_DUT"  # Change this to the device hostname.
+  options {
+    insecure: false 
+    skip_verify: false
+    mutual_tls: true
+    username: "cafyauto"
+    password: "cisco123"
+    trust_bundle_file: "$TRUST_BUNDLE_FILE"
+    cert_file: "$CERT_FILE"
+    key_file:  "$KEY_FILE"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "172.27.177.111:48800"
+  }
+  gnmi {
+    target: "172.27.177.111:48800" 
+  }
+  gribi{
+    target: "172.27.177.111:48800"
+  }
+  ssh{
+    target: "172.27.177.111:48022"
+    skip_verify: true
+  }
+  p4rt{
+    target: "172.27.177.111:48800"
+  }
+  gnsi{
+    target: "172.27.177.111:48800"
+  }
+  gnpsi{
+    target: "172.27.177.111:48800"
+  }
+
+# Before this binding can be used with a topology, add ports mapping
+# from its topology ID to the actual port name on the device.
+  
+ ports: {
+    id: "port1"
+    name: "HundredGigE0/6/0/0/0"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port2"
+    name: "HundredGigE0/6/0/0/1"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port3"
+    name: "HundredGigE0/6/0/0/2"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port4"
+    name: "HundredGigE0/6/0/0/3"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port5"
+    name: "HundredGigE0/6/0/10/0"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port6"
+    name: "HundredGigE0/6/0/10/1"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port7"
+    name: "HundredGigE0/6/0/10/2"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port8"
+    name: "HundredGigE0/6/0/10/3"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port9"
+    name: "HundredGigE0/7/0/7/4"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port10"
+    name: "HundredGigE0/7/0/7/5"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port11"
+    name: "HundredGigE0/7/0/7/6"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port12"
+    name: "HundredGigE0/7/0/16/0"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port13"
+    name: "HundredGigE0/7/0/16/1"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port14"
+    name: "HundredGigE0/7/0/16/2"
+    speed: S_100GB
+  }
+  ports: {
+    id: "port15"
+    name: "HundredGigE0/7/0/16/3"
+    speed: S_100GB
+  }
+}
+###################################### PEER 8202-32FH FLM29333C23 ########################################
+## Testbed details in https://ciscoteams.atlassian.net/wiki/spaces/HEROBU/pages/497525451/Bobcat+DT+Testbeds (Bobcat5 8202-32FH)
+
+duts {
+  id: "peer"
+  name: "8202_PEER"  # Change this to the device hostname.
+  vendor: CISCO
+  hardware_model: "CISCO-8202"
+
+  options {
+    insecure: false 
+    skip_verify: true
+    username: "cafyauto"
+    password: "cisco123"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnoi{
+    target: "172.27.177.69:9339"
+  }
+  gnmi {
+    target: "172.27.177.69:9339" 
+  }
+  gribi{
+    target: "172.27.177.69:9340"
+  }
+  ssh{
+    target: "172.27.177.69:22"
+  }
+  p4rt{
+    target: "172.27.177.69:9559"
+  }
+  gnsi{
+    target: "172.27.177.69:9339"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+   ports {
+    id: "port16"
+    name: "HundredGigE0/0/0/31/3"  # Change this to the actual port name.
+    speed: S_100GB   
+  }  
+}
+
+ates {
+  id: "ate"
+  name: "172.27.177.121"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+   #linux
+   target: "172.27.177.121"
+   skip_verify: true
+   username: "admin"
+   password: "admin"
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "1/61"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port2"
+    name: "1/62"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port3"
+    name: "1/63"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port4"
+    name: "1/64"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port5"
+    name: "1/53" # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port6"
+    name: "1/54"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port7"
+    name: "1/55"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+   id: "port8"
+   name: "1/56"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+    ports {
+    id: "port9"
+    name: "1/109"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port10"
+    name: "1/110"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port11"
+    name: "1/111"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port12"
+    name: "1/57"  # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port13"
+    name: "1/58" # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port14"
+    name: "1/59" # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+    id: "port15"
+    name: "1/60" # Change this to the actual port name.
+    speed: S_100GB  
+  }
+  ports {
+   id: "port16"
+   name: "1/112"  # Change this to the actual port name.
+   speed: S_100GB   
+  }  
+}

@@ -27,23 +27,12 @@ testbeds:
     binding: topologies/cisco/hw/8808_FOX2506P2QT_B2B/binding_mtls
     baseconf: topologies/cisco/hw/8808_FOX2506P2QT_B2B/baseconfig_mtls_zr_b2b.proto
 
-  8808-36FH_FOX2613PHWL: &8808-36FH_FOX2613PHWL_DEFAULTS
+  8808-36FH_FOX2613PHWL: 
     hw: 8808-36FH_FOX2613PHWL
-    owner: regression
+    owner:
     testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/testbed
     binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/binding
     baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/basecfg-ottawa-lab2.proto
-    otg:
-      host: ott-ucs4-b4
-      controller_port: 40057
-      gnmi_port: 50057
-      rest_port: 30057
-
-  8808-36FH_FOX2613PHWL_BREAKOUT:
-    << : *8808-36FH_FOX2613PHWL_DEFAULTS
-    testbed: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.testbed
-    binding: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.binding
-    baseconf: topologies/cisco/hw/8808-36FH_FOX2613PHWL/breakout.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40057
@@ -66,7 +55,7 @@ testbeds:
       mgmt_ip: 5.78.24.106/16
       mgmt_gw: 5.78.11.49
 
-  8808-36FH_FOX2504P3CE: &8808-36FH_FOX2504P3CE_DEFAULTS
+  8808-36FH_FOX2504P3CE: 
     hw: 8808-36FH_FOX2504P3CE
     owner:
     testbed: topologies/cisco/hw/8808-36FH_FOX2504P3CE/testbed
@@ -106,12 +95,23 @@ testbeds:
       api_port: 8001
       gateway: 5.78.11.49
 
-  8808_FOX2625PLW8_MGMT_GRPC:
+  8808_FOX2625PLW8_MGMT_GRPC: &8808_FOX2625PLW8_MGMT_GRPC_DEFAULTS
     hw: 8808_FOX2625PLW8_MGMT_GRPC
-    owner:
+    owner: regression
     testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/testbed
     binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/binding
     baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/baseconfig.proto
+    otg:
+      host: ott-ucs4-b4
+      controller_port: 40056
+      gnmi_port: 50056
+      rest_port: 30056
+
+  8808_FOX2625PLW8_MGMT_GRPC_BREAKOUT:
+    <<: *8808_FOX2625PLW8_MGMT_GRPC_DEFAULTS
+    testbed: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakout.testbed
+    binding: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakoutbinding
+    baseconf: topologies/cisco/hw/8808_FOX2625PLW8_MGMT_GRPC/breakout.proto
     otg:
       host: ott-ucs4-b4
       controller_port: 40056
@@ -251,7 +251,7 @@ testbeds:
     <<: *8808-FOX2926PHNF-P200_DEFAULTS
     owner:
     testbed: topologies/cisco/hw/P200-DT-DUT-PEER/testbed
-    binding: topologies/cisco/hw/P200-DT-DUT-PEER/binding
+    binding: topologies/cisco/hw/P200-DT-DUT-PEER/binding2
     baseconf:
       dut: topologies/cisco/hw/P200-DT-DUT-PEER/8808-FOX2926PHNF-P200_baseconfig.proto
       peer: topologies/cisco/hw/P200-DT-DUT-PEER/PEER-8202_FLM29333C23_baseconfig.proto
@@ -394,7 +394,7 @@ testbeds:
     binding: topologies/cisco/hw/8608-FOX2543PNNM/binding
     baseconf: topologies/cisco/hw/8608-FOX2543PNNM/base_config.proto
 
-  8808_FOX2730P191: &8808_FOX2730P191_DEFAULTS
+  8808_FOX2730P191: 
     hw: 8808_FOX2730P191
     owner:
     testbed: topologies/cisco/hw/8808_FOX2730P191/testbed
@@ -406,12 +406,6 @@ testbeds:
       gnmi_port: 50062
       rest_port: 30062
 
-  8808_FOX2730P191_ZR_OPTICS:
-    <<: *8808_FOX2730P191_DEFAULTS
-    testbed: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/testbed
-    binding: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/binding
-    baseconf: topologies/cisco/hw/8808_FOX2730P191_ZR_OPTICS/base_config.proto
-  
   8808_FOX2731P4L7:
     hw: 8808_FOX2731P4L7
     owner:
