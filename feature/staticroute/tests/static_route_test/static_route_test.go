@@ -77,6 +77,7 @@ func configureInterfaceVRF(t *testing.T,
 	}
 	vi := v.GetOrCreateInterface(portName)
 	vi.Interface = ygot.String(portName)
+	vi.Subinterface = ygot.Uint32(0)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(vrfName).Config(), v)
 }
 
@@ -116,19 +117,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	t.Logf("Configuring VRF on interface %s", p1.Name())
-	configureInterfaceVRF(t, dut, p1.Name())
-
 	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
 	i1.Enabled = ygot.Bool(true)
 	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
+	t.Logf("Configuring VRF on interface %s", p1.Name())
+	configureInterfaceVRF(t, dut, p1.Name())
 
 	p2 := dut.Port(t, "port2")
-	t.Logf("Configuring VRF on interface %s", p2.Name())
-	configureInterfaceVRF(t, dut, p2.Name())
 	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
 	i2.Enabled = ygot.Bool(true)
 	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+	t.Logf("Configuring VRF on interface %s", p2.Name())
+	configureInterfaceVRF(t, dut, p2.Name())
 
 }
 
