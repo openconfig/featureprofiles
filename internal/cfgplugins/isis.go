@@ -193,7 +193,7 @@ func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 }
 
 // GenerateDynamicRouteWithISIS configures the DUT to generate dynamic routes using ISIS as the trigger protocol.
-func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, localAggregateName string, generateRoute string, generateIPv6Route string) {
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -229,6 +229,24 @@ func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi
     !`)
 		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
 	default:
-		t.Fatalf("Generate dynamic route with ISIS not supported for vendor: %s", dut.Vendor())
+		dc := gnmi.OC()
+		root := &oc.Root{}
+
+		dni := deviations.DefaultNetworkInstance(dut)
+		ni := root.GetOrCreateNetworkInstance(dni)
+
+		aggProto := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName)
+		aggProto.SetIdentifier(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE)
+		aggProto.SetName(localAggregateName)
+
+		aggProto.GetOrCreateAggregate(generateRoute)
+		aggProto.GetOrCreateAggregate(generateRoute).SetPrefix(generateRoute)
+		aggProto.SetEnabled(true)
+
+		aggProto.GetOrCreateAggregate(generateIPv6Route)
+		aggProto.GetOrCreateAggregate(generateIPv6Route).SetPrefix(generateIPv6Route)
+		aggProto.SetEnabled(true)
+
+		gnmi.Replace(t, dut, dc.NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_LOCAL_AGGREGATE, localAggregateName).Config(), aggProto)
 	}
 }
