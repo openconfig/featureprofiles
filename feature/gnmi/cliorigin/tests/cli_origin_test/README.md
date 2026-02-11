@@ -40,8 +40,6 @@ the emergency case that is covered by this requirement.
 
 ## OpenConfig Path and RPC Coverage
 
-TODO: Update the Paths and RPCs used.
-
 ```yaml
 paths:
   /interfaces/interface/state/admin-status:
