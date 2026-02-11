@@ -200,6 +200,17 @@ testbeds:
       gnmi_port: 59818
       rest_port: 39818    
   
+  P200_DE_HW_FIXED_TB: 
+    hw: P200_DE_HW_FIXED_TB
+    owner: regression
+    testbed: topologies/cisco/hw/P200_DE_HW_FIXED_TB/testbed
+    binding: topologies/cisco/hw/P200_DE_HW_FIXED_TB/binding
+    baseconf: topologies/cisco/hw/P200_DE_HW_FIXED_TB/baseconfig.proto
+    otg:
+      host: sjc-ucs-b4
+      controller_port: 49818
+      gnmi_port: 59818
+      rest_port: 39818    
   8808-FOX2926PHNF-P200: &8808-FOX2926PHNF-P200_DEFAULTS
     hw: 8808-FOX2926PHNF-P200
     owner: regression
