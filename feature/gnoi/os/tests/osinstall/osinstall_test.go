@@ -41,7 +41,6 @@ import (
 	spb "github.com/openconfig/gnoi/system"
 )
 
-
 var packageReader = func(ctx context.Context) (io.ReadCloser, uint64, error) {
 	f, err := os.Open(*osFile)
 	if err != nil {
@@ -94,7 +93,7 @@ var (
 const (
 	ipv4PrefixLen = 30
 	ipv6PrefixLen = 126
-	waitTime             = 10 * time.Minute
+	waitTime      = 10 * time.Minute
 )
 
 type bgpAttrs struct {
@@ -435,9 +434,9 @@ func watchStatus(t *testing.T, ic ospb.OS_InstallClient, standby bool) error {
 func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
-        // Wait for streaming telemetry to report the interfaces as up.
+	// Wait for streaming telemetry to report the interfaces as up.
 	for _, p := range dut.Ports() {
-        	gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), waitTime, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), waitTime, oc.Interface_OperStatus_UP)
 	}
 	t.Logf("Create and push interface config to the DUT")
 	dutPort := dut.Port(t, "port1")
