@@ -777,7 +777,7 @@ func (tc *testCase) configureHwProfile(t *testing.T) error {
 		lpts pifib hardware police flow tpa rate 10000 
 		`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	//tc.rebootDUT(t)
+	tc.rebootDUT(t)
 	return nil
 }
 
@@ -787,7 +787,7 @@ func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
 	    no hw-module profile route scale lpm tcam-banks
 		`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	//tc.rebootDUT(t)
+	tc.rebootDUT(t)
 	return nil
 }
 
