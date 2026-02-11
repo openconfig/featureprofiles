@@ -31,22 +31,22 @@ duts {
 
   # Options specific to gNMI.  Remove if not needed.
   gnoi {
-    target: "172.27.136.27:47777"
+    target: "172.27.136.84:47777"
   }
   gnmi {
-    target: "172.27.136.27:47777"
+    target: "172.27.136.84:47777"
   }
   gribi {
-    target: "172.27.136.27:47777"
+    target: "172.27.136.84:47777"
   }
   gnsi{
-    target: "172.27.136.27:47777"
+    target: "172.27.136.84:47777"
   }
   ssh{
-    target: "172.27.136.27:4777"
+    target: "172.27.136.84:4777"
   }
   p4rt{
-    target: "172.27.136.27:47777"
+    target: "172.27.136.84:47777"
   }
 
   # Before this binding can be used with a topology, add ports mapping
