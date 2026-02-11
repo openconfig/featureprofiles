@@ -231,9 +231,9 @@ testbeds:
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49838
-     gnmi_port: 59838
-     rest_port: 39838 
+     controller_port: 49828
+     gnmi_port: 59828
+     rest_port: 39828 
 
   P200_DE_TB_B2B:
     hw: P200_DE_TB_B2B
@@ -255,9 +255,9 @@ testbeds:
     baseconf: topologies/cisco/hw/P200_DT_TB_B2B/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49848
-     gnmi_port: 59848
-     rest_port: 39848 
+     controller_port: 49828
+     gnmi_port: 59828
+     rest_port: 39828 
 
   P200-DT-DUT-PEER:
     <<: *8808-FOX2926PHNF-P200_DEFAULTS
