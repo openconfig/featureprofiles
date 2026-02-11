@@ -1123,67 +1123,6 @@ func processRestartemsd(t *testing.T, args *testArgs, ctx context.Context, pathS
 	testStorageCounterSampleMode(t, args, pathSuffix)
 }
 
-func processRestartMediaSvr(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
-	util.ProcessRestart(t, args.dut, "media_server")
-	time.Sleep(120 * time.Second)
-	testStorageCounterSampleMode(t, args, pathSuffix)
-}
-
-// rpfoReload performs Route Processor Failover and validates storage counters afterward
-func rpfoReload(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
-	util.RPFO(t, args.dut)
-	time.Sleep(120 * time.Second)
-	testStorageCounterSampleMode(t, args, pathSuffix)
-}
-
-// extremeWearAcceleration performs sustained high-intensity write operations
-// WARNING: This function will significantly wear the SSD and should only be used for testing
-func extremeWearAcceleration(t *testing.T, args *testArgs, durationHours int) {
-	t.Helper()
-
-	t.Logf("=== EXTREME WEAR ACCELERATION STARTED (Duration: %d hours) ===", durationHours)
-	t.Log("WARNING: This will significantly wear the SSD for testing purposes!")
-
-	endTime := time.Now().Add(time.Duration(durationHours) * time.Hour)
-	iteration := 0
-
-	for time.Now().Before(endTime) {
-		iteration++
-		t.Logf("Extreme wear cycle %d (Time remaining: %v)", iteration, endTime.Sub(time.Now()).Round(time.Minute))
-
-		// Continuous mixed workload
-		// 1. Large sequential writes
-		for i := 0; i < 10; i++ {
-			writeCmd := fmt.Sprintf("bash dd if=/dev/zero of=/tmp/storage_test/extreme_%d bs=100M count=100 oflag=direct conv=fsync", i)
-			args.dut.CLI().RunResult(t, writeCmd)
-		}
-
-		// 2. Random pattern writes
-		for i := 0; i < 5; i++ {
-			randomCmd := fmt.Sprintf("bash dd if=/dev/urandom of=/tmp/storage_test/random_%d bs=50M count=50 oflag=direct conv=fsync", i)
-			args.dut.CLI().RunResult(t, randomCmd)
-		}
-
-		// 3. Many small writes (stress wear leveling)
-		smallWritesCmd := "bash for i in {1..100}; do dd if=/dev/zero of=/tmp/storage_test/small_$i bs=4K count=100 oflag=direct; done"
-		args.dut.CLI().RunResult(t, smallWritesCmd)
-
-		// Force sync and cleanup
-		args.dut.CLI().RunResult(t, "bash sync")
-		args.dut.CLI().RunResult(t, "bash rm -f /tmp/storage_test/*")
-
-		// Log progress every hour
-		if iteration%10 == 0 {
-			t.Logf("Completed %d extreme wear cycles", iteration)
-		}
-
-		// Brief pause to prevent system overload
-		time.Sleep(30 * time.Second)
-	}
-
-	t.Logf("=== EXTREME WEAR ACCELERATION COMPLETED (%d cycles) ===", iteration)
-}
-
 func testStorageCounterTriggerScenario(t *testing.T, args *testArgs, ctx context.Context, pathSuffix string) {
 	t.Helper()
 
