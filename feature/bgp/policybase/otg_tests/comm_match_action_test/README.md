@@ -291,36 +291,6 @@ criteria.
       | prefix-set-1 | [ 10:10, 20:20, 30:30 ]                       | none                              |
       | prefix-set-2 | [ 10:10, 20:20, 30:30, 5:5, 6:6 ]             | [ 10:10, 20:20, 30:30, 5:5, 6:6 ] |
 
-## Config Parameter Coverage
-
-### Policy for community-set configuration
-
-* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name
-* /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member
-
-### Policy action configuration
-
-* /routing-policy/policy-definitions/policy-definition/config/name
-* /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-* /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs
-
-### Policy for community-set match configuration
-
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set
-* /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options
-
-### Policy attachment point configuration
-
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
-* /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
-* /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy
-* /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy
-
-## Telemetry Parameter Coverage
-
-* /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/community-index
-* /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/neighbors/neighbor/adj-rib-in-post/routes/route/state/community-index
-
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
