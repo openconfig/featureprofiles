@@ -220,9 +220,9 @@ testbeds:
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-P200/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49818
-     gnmi_port: 59818
-     rest_port: 39818       
+     controller_port: 49828
+     gnmi_port: 59828
+     rest_port: 39828       
 
   8808-FOX2926PHNF-800GZR:
     <<: *8808-FOX2926PHNF-P200_DEFAULTS
@@ -231,9 +231,9 @@ testbeds:
     baseconf: topologies/cisco/hw/8808-FOX2926PHNF-800GZR/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49818
-     gnmi_port: 59818
-     rest_port: 39818 
+     controller_port: 49838
+     gnmi_port: 59838
+     rest_port: 39838 
 
   P200_DE_TB_B2B:
     hw: P200_DE_TB_B2B
@@ -243,9 +243,9 @@ testbeds:
     baseconf: topologies/cisco/hw/P200_DE_TB_B2B/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49818
-     gnmi_port: 59818
-     rest_port: 39818 
+     controller_port: 49868
+     gnmi_port: 59868
+     rest_port: 39868 
 
   P200_DT_TB_B2B:
     hw: P200_DT_TB_B2B
@@ -255,9 +255,9 @@ testbeds:
     baseconf: topologies/cisco/hw/P200_DT_TB_B2B/baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49818
-     gnmi_port: 59818
-     rest_port: 39818 
+     controller_port: 49848
+     gnmi_port: 59848
+     rest_port: 39848 
 
   P200-DT-DUT-PEER:
     <<: *8808-FOX2926PHNF-P200_DEFAULTS
@@ -269,9 +269,9 @@ testbeds:
       peer: topologies/cisco/hw/P200-DT-DUT-PEER/PEER-8202_FLM29333C23_baseconfig.proto
     otg:
      host: sjc-ucs-b4
-     controller_port: 49818
-     gnmi_port: 59818
-     rest_port: 39818 
+     controller_port: 49858
+     gnmi_port: 59858
+     rest_port: 39858 
 
   2DUT-TB1:
     hw:
