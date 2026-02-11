@@ -626,7 +626,6 @@ func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string
 	t.Fatalf("ERROR: Could not find packet with matching inner source IP (%s or %s) in capture", ipv4Src, ipv6Src)
 }
 
-
 // waitForBGPSession waits for BGP neighbors to reach the expected session state within a fixed timeout. It validates BGPv4 neighbor session state under the default network instance.
 func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished bool) {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
