@@ -211,6 +211,7 @@ testbeds:
       controller_port: 49818
       gnmi_port: 59818
       rest_port: 39818    
+      
   8808-FOX2926PHNF-P200: &8808-FOX2926PHNF-P200_DEFAULTS
     hw: 8808-FOX2926PHNF-P200
     owner: regression
