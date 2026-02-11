@@ -209,17 +209,13 @@ Traffic:
             "policy": [
               {
                 "config": {
-                  "policy-id": "decap-policy"
+                  "policy-id": "decap-policy-gue"
                 },
-                "policy-id": "decap-policy",
+                "policy-id": "decap-policy-gue",
                 "rules": {
                   "rule": [
                     {
-                      "action": {
-                        "config": {
-                          "decapsulate-gue": true
-                        }
-                      },
+                      "sequence-id": 1,
                       "config": {
                         "sequence-id": 1
                       },
@@ -229,10 +225,14 @@ Traffic:
                           "protocol": "IP_UDP"
                         }
                       },
-                      "sequence-id": 1,
                       "transport": {
                         "config": {
                           "destination-port": 6081
+                        }
+                      },
+                      "action": {
+                        "config": {
+                          "decapsulate-gue": true
                         }
                       }
                     }
