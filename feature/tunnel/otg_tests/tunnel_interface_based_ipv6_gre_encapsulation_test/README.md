@@ -90,6 +90,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/config/name:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/src-ip:
+  /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/dst-ip:
 rpcs:
   gnmi:
     gNMI.Get:
