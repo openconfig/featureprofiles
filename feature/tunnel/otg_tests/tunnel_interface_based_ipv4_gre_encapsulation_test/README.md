@@ -82,6 +82,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/state/counters/out-pkts:
   /network-instances/network-instance/config/type:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/src-ip:
+  /network-instances/network-instance/static/next-hops/next-hop/encap-headers/encap-header/gre/config/dst-ip:
 rpcs:
   gnmi:
     gNMI.Get:
