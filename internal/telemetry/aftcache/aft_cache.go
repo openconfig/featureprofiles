@@ -614,8 +614,6 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	periodicTicker := time.NewTicker(periodicInterval)
-	defer periodicTicker.Stop()
-	stoppingConditionMet := false
 
 	for {
 		select {
@@ -639,16 +637,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			case err != nil:
 				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
 			}
-			// Check if buffer is drained after stopping condition was met
-			if stoppingConditionMet && len(ss.buffer) == 0 {
-				t.Logf("%s Buffer drained. Processed all remaining notifications.", ss.sessionPrefix())
-				return
-			}
 		case <-periodicTicker.C:
-			if stoppingConditionMet {
-				// Stop running periodic hooks after stopping condition is met
-				continue
-			}
 			s := time.Now()
 			for _, hook := range periodicHooks {
 				done, err := hook.PeriodicFunc(ss)
@@ -656,20 +645,8 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 					t.Fatalf("error in PeriodicHook %q: %v", hook.Description, err)
 				}
 				if done {
-					t.Logf("%s Stopping condition met. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
-					stoppingConditionMet = true
-					periodicTicker.Stop()
-					// Check if buffer is already empty
-					if len(ss.buffer) == 0 {
-						t.Logf("%s Buffer empty, stopping stream", ss.sessionPrefix())
-						return
-					}
-					t.Logf("%s Draining remaining %d notifications from buffer...", ss.sessionPrefix(), len(ss.buffer))
-					break
+					return
 				}
-			}
-			if stoppingConditionMet {
-				continue
 			}
 			d := time.Since(s)
 			if d > periodicDeadline {
@@ -679,7 +656,6 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				t.Fatalf("periodic hooks took %v, exceeding deadline of %v", d.Truncate(time.Millisecond), periodicDeadline)
 			}
 		case <-ctx.Done():
-			t.Logf("%s Context cancelled. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
 			t.Fatalf("context cancelled: %v", ctx.Err())
 			return
 		}
