@@ -581,20 +581,54 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 // After the stopping condition is met, it compares the AFT data collected by both sessions.
 // If the data is identical, it returns a single copy of the collected AFT data.
 // Otherwise, it returns an error indicating the inconsistency.
+// If either stream fails, it returns an error immediately without comparison.
 func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
 
+	type sharedStop struct {
+		mu   sync.Mutex
+		done [2]bool
+	}
+	shared := &sharedStop{}
+	wrapStoppingCondition := func(idx int) aftcache.PeriodicHook {
+		return aftcache.PeriodicHook{
+			Description: stoppingCondition.Description + " (shared)",
+			PeriodicFunc: func(ss *aftcache.AFTStreamSession) (bool, error) {
+				done, err := stoppingCondition.PeriodicFunc(ss)
+				if err != nil {
+					return false, err
+				}
+				shared.mu.Lock()
+				if done {
+					shared.done[idx] = true
+				}
+				allDone := shared.done[0] && shared.done[1]
+				shared.mu.Unlock()
+				return allDone, nil
+			},
+		}
+	}
+
 	var wg sync.WaitGroup
+	var streamErr1, streamErr2 error
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+		streamErr1 = aftSession1.ListenUntilWithError(t.Context(), aftConvergenceTime, wrapStoppingCondition(0))
 	}()
 	go func() {
 		defer wg.Done()
-		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+		streamErr2 = aftSession2.ListenUntilWithError(t.Context(), aftConvergenceTime, wrapStoppingCondition(1))
 	}()
 	wg.Wait()
+
+	// Fail fast if either stream had issues - don't compare incomplete data
+	if streamErr1 != nil {
+		return nil, fmt.Errorf("gNMI stream 1 failed: %w", streamErr1)
+	}
+	if streamErr2 != nil {
+		return nil, fmt.Errorf("gNMI stream 2 failed: %w", streamErr2)
+	}
 
 	// Get the AFT from the cache.
 	aft1, err := aftSession1.ToAFT(t, tc.dut)
@@ -606,7 +640,7 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
 	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
+	if diff := cmp.Diff(aft1, aft2, sortSlices, cmpopts.EquateEmpty()); diff != "" {
 		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
 	}
 	return aft1, nil
