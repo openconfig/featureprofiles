@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package collector_flap_test
+package slow_collector_test
 
 import (
 	"context"
@@ -32,12 +32,15 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
+	"github.com/openconfig/featureprofiles/internal/latency"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -62,6 +65,7 @@ const (
 	peerGrpNameV4P2           = "BGP-PEER-GROUP-V4-P2"
 	peerGrpNameV6P2           = "BGP-PEER-GROUP-V6-P2"
 	port1MAC                  = "00:00:02:02:02:02"
+	linkLocalAddress          = "fe80::200:2ff:fe02:202"
 	port2MAC                  = "00:00:03:03:03:03"
 	bgpRoute                  = "200.0.0.0"
 	bgpRoutev6                = "3001:1::0"
@@ -72,12 +76,12 @@ const (
 	isisRoutev6               = "2001:db8::203:0:113:1"
 	startingISISRouteIPv4     = "199.0.0.1/32"
 	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime        = 40 * time.Minute
+	aftConvergenceTime        = 1 * time.Hour
 	bgpTimeout                = 10 * time.Minute
-	bgpRouteCountIPv4LowScale = 1250000
-	bgpRouteCountIPv6LowScale = 500000
-	bgpRouteCountIPv4Default  = 2000000
-	bgpRouteCountIPv6Default  = 1000000
+	bgpRouteCountIPv4LowScale = 250000
+	bgpRouteCountIPv6LowScale = 250000
+	bgpRouteCountIPv4Default  = 500000
+	bgpRouteCountIPv6Default  = 500000
 	policyStatementID         = "id-1"
 	cpuPctThreshold           = 80.0
 	memPctThreshold           = 80.0
@@ -108,6 +112,10 @@ var (
 		IPv6:    "2001:db8::6",
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
+	}
+	routeGrpHash = map[string]map[string]string{
+		"port1.d1": {"ipv4": "d1IPv4Route", "ipv6": "d1IPv6Route"},
+		"port2.d2": {"ipv4": "d2IPv4Route", "ipv6": "d2IPv6Route"},
 	}
 	wantIPv4NHs         = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
 	wantIPv6NHs         = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
@@ -345,6 +353,22 @@ func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs
 	return nil
 }
 
+func (tc *testCase) readvertiseBGPIPv4Routes(t *testing.T, routeNames []string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.ADVERTISE)
+	otg.SetControlState(t, cs)
+}
+
+func (tc *testCase) withdrawBGPIPv4Routes(t *testing.T, routeNames []string) {
+	ate := ondatra.ATE(t, "ate")
+	otg := ate.OTG()
+	cs := gosnappi.NewControlState()
+	cs.Protocol().Route().SetNames(routeNames).SetState(gosnappi.StateProtocolRouteState.WITHDRAW)
+	otg.SetControlState(t, cs)
+}
+
 func (tc *testCase) configureATE(t *testing.T) {
 	ate := tc.ate
 	ap1 := ate.Port(t, port1Name)
@@ -482,7 +506,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 	bgp6Peer := bgp.Ipv6Interfaces().Add().SetIpv6Name(ipv6.Name()).Peers().Add().SetName(dev.Name() + ".BGP6.peer")
 	bgp6Peer.SetPeerAddress(ipv6.Gateway()).SetAsNumber(uint32(ateAS)).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 
-	routes := bgp4Peer.V4Routes().Add().SetName(bgp4Peer.Name() + ".v4route")
+	routes := bgp4Peer.V4Routes().Add().SetName(routeGrpHash[dev.Name()]["ipv4"])
 	routes.SetNextHopIpv4Address(ipv4.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
 		SetNextHopMode(gosnappi.BgpV4RouteRangeNextHopMode.MANUAL)
@@ -491,7 +515,7 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 		SetPrefix(advertisedRoutesV4Prefix).
 		SetCount(routeCount(tc.dut, IPv4))
 
-	routesV6 := bgp6Peer.V6Routes().Add().SetName(bgp6Peer.Name() + ".v6route")
+	routesV6 := bgp6Peer.V6Routes().Add().SetName(routeGrpHash[dev.Name()]["ipv6"])
 	routesV6.SetNextHopIpv6Address(ipv6.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
@@ -558,6 +582,24 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
+func (tc *testCase) verifyPrefixesDeleted(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int) error {
+	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
+		if _, ok := aft.Prefixes[pfix]; ok {
+			return fmt.Errorf("Prefix %s found in AFT, expected to be deleted", pfix)
+		}
+	}
+	return nil
+}
+
+// getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
+// It returns a map of IP addresses to a boolean indicating if the address is expected.
+func getPostChurnIPv6NH(dut *ondatra.DUTDevice) map[string]bool {
+	if deviations.LinkLocalInsteadOfNh(dut) {
+		return map[string]bool{linkLocalAddress: true}
+	}
+	return map[string]bool{ateP1.IPv6: true}
+}
+
 // verifyAFTConsistency fetches the AFT from two sessions, compares them, and returns the AFT data from the first session if they are consistent.
 func (tc *testCase) verifyAFTConsistency(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, desc string) *aftcache.AFTData {
 	t.Helper()
@@ -569,6 +611,18 @@ func (tc *testCase) verifyAFTConsistency(t *testing.T, aftSession1, aftSession2 
 	if err != nil {
 		t.Fatalf("Error getting AFT from session 2 for %s verification: %v", desc, err)
 	}
+
+	// Filter out empty NextHopGroups. These can be transient artifacts during route withdrawal.
+	filterEmptyNHGs := func(aft *aftcache.AFTData) {
+		for id, nhg := range aft.NextHopGroups {
+			if len(nhg.NHIDs) == 0 {
+				delete(aft.NextHopGroups, id)
+			}
+		}
+	}
+	filterEmptyNHGs(aft1)
+	filterEmptyNHGs(aft2)
+
 	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
 	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
 		t.Fatalf("AFTs from two sessions are not consistent for %s verification: %s", desc, diff)
@@ -819,6 +873,14 @@ func aristaMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DU
 	var wg sync.WaitGroup
 	wg.Add(1)
 	memDone := make(chan struct{})
+	defer func() {
+		select {
+		case <-memDone:
+		default:
+			close(memDone)
+		}
+		wg.Wait()
+	}()
 	go func() {
 		defer wg.Done()
 		ticker := time.NewTicker(usagePollingInterval)
@@ -836,7 +898,11 @@ func aristaMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DU
 		}
 	}()
 	aftSession.ListenUntil(ctx, t, aftConvergenceTime, stoppingCondition)
-	close(memDone)
+	select {
+	case <-memDone:
+	default:
+		close(memDone)
+	}
 	wg.Wait()
 	*memBaseline = checkMemoryUsage(t, dut, history, *memBaseline, "after collector 2 convergence")
 	for _, comp := range cpuComponents {
@@ -849,6 +915,14 @@ func ciscoMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	var wg sync.WaitGroup
 	wg.Add(1)
 	memDone := make(chan struct{})
+	defer func() {
+		select {
+		case <-memDone:
+		default:
+			close(memDone)
+		}
+		wg.Wait()
+	}()
 	go func() {
 		defer wg.Done()
 		ticker := time.NewTicker(usagePollingInterval)
@@ -868,7 +942,11 @@ func ciscoMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DUT
 		}
 	}()
 	aftSession.ListenUntil(ctx, t, aftConvergenceTime, stoppingCondition)
-	close(memDone)
+	select {
+	case <-memDone:
+	default:
+		close(memDone)
+	}
 	wg.Wait()
 	for procName, memBase := range memBaseline {
 		memBaseline[procName] = checkMemoryUsage(t, dut, history, memBase, "after collector 2 convergence", procName)
@@ -878,32 +956,52 @@ func ciscoMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DUT
 	}
 }
 
-func (tc *testCase) restartCollector2(t *testing.T, cancelSession2 context.CancelFunc) (context.Context, context.CancelFunc, *aftcache.AFTStreamSession, *usageBaselines, time.Time) {
+func (tc *testCase) restartCollectorsWithLatency(t *testing.T, b *usageBaselines, wantPrefixes map[string]bool, history *usageHistory) (context.Context, context.CancelFunc, *aftcache.AFTStreamSession, context.Context, context.CancelFunc, *aftcache.AFTStreamSession) {
 	t.Helper()
-	// TODO: Add memory usage check for Juniper and Nokia device.
-	b := collectBaselines(t, tc.dut)
-	t.Log("Starting collector restart test, stopping collector 2 by canceling its context...")
-	cancelSession2() // This will cause the ListenUntil to stop.
-	// Explicitly close the underlying gNMI client connection.
-	if closer, ok := tc.gnmiClient2.(io.Closer); ok {
-		if err := closer.Close(); err != nil {
-			t.Logf("Failed to close gnmiClient2, proceeding anyway: %v", err)
-		}
-		tc.gnmiClient2 = nil
-	} else {
-		t.Logf("Warning: gnmiClient2 does not implement io.Closer.")
-	}
-
-	t.Log("Recreating collector 2...")
+	t.Log("Recreating collectors with latency...")
 	startTime := time.Now()
-	gnmiClient2, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+
+	// Recreate client 1
+	gnmiClient1, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI for collector 1: %v", err)
+	}
+	tc.gnmiClient1 = gnmiClient1
+
+	// Recreate client 2
+	gnmiClient2, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context(),
+		grpc.WithChainUnaryInterceptor(latency.UnaryClientInterceptor()),
+		grpc.WithChainStreamInterceptor(latency.StreamClientInterceptor()),
+	)
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI for collector 2: %v", err)
 	}
-	tc.gnmiClient2 = gnmiClient2 // Update the testCase struct.
-	sessionCtx2, newCancelSession2 := context.WithCancel(t.Context())
+	tc.gnmiClient2 = gnmiClient2
+
+	// Session 1 no latency
+	sessionCtx1, cancelSession1 := context.WithCancel(t.Context())
+	aftSession1 := aftcache.NewAFTStreamSession(sessionCtx1, t, tc.gnmiClient1, tc.dut)
+
+	// Session 2 (1ms)
+	sessionCtx2, cancelSession2 := context.WithCancel(t.Context())
+	sessionCtx2 = metadata.AppendToOutgoingContext(sessionCtx2, "latency", "1ms")
 	aftSession2 := aftcache.NewAFTStreamSession(sessionCtx2, t, tc.gnmiClient2, tc.dut)
-	return sessionCtx2, newCancelSession2, aftSession2, b, startTime
+
+	// Wait for Session 1 in background
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, tc.dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		aftSession1.ListenUntil(sessionCtx1, t, aftConvergenceTime, stoppingCondition)
+	}()
+
+	tc.verifyAFTConvergenceAfterFlap(t, sessionCtx2, aftSession1, aftSession2, b, wantPrefixes, history)
+	wg.Wait()
+	convergenceTime := time.Since(startTime)
+	t.Logf("Collectors convergence time: %v", convergenceTime)
+
+	return sessionCtx1, cancelSession1, aftSession1, sessionCtx2, cancelSession2, aftSession2
 }
 
 func (tc *testCase) verifyAFTConvergenceAfterFlap(t *testing.T, sessionCtx2 context.Context, aftSession1 *aftcache.AFTStreamSession, aftSession2 *aftcache.AFTStreamSession, b *usageBaselines, wantPrefixes map[string]bool, history *usageHistory) {
@@ -932,6 +1030,125 @@ func (tc *testCase) verifyAFTConvergenceAfterFlap(t *testing.T, sessionCtx2 cont
 	}
 }
 
+func (tc *testCase) checkUsage(t *testing.T, b *usageBaselines, history *usageHistory, desc string, updateBaseline bool) {
+	t.Helper()
+	if b == nil {
+		return
+	}
+	switch tc.dut.Vendor() {
+	case ondatra.ARISTA:
+		curr := checkMemoryUsage(t, tc.dut, history, b.aristaMem, desc)
+		if updateBaseline {
+			b.aristaMem = curr
+		}
+		for _, comp := range b.cpuComponents {
+			currCPU := checkCPUUsage(t, tc.dut, history, b.aristaCPU[comp], desc, comp)
+			if updateBaseline {
+				b.aristaCPU[comp] = currCPU
+			}
+		}
+	case ondatra.CISCO:
+		for procName, memBase := range b.ciscoMem {
+			curr := checkMemoryUsage(t, tc.dut, history, memBase, desc, procName)
+			if updateBaseline {
+				b.ciscoMem[procName] = curr
+			}
+		}
+		for procName, cpuBase := range b.ciscoCPU {
+			curr := checkCPUUsage(t, tc.dut, history, cpuBase, desc, "", procName)
+			if updateBaseline {
+				b.ciscoCPU[procName] = curr
+			}
+		}
+	}
+}
+
+func (tc *testCase) verifyConvergence(
+	t *testing.T,
+	sessionCtx1 context.Context,
+	aftSession1 *aftcache.AFTStreamSession,
+	sessionCtx2 context.Context,
+	aftSession2 *aftcache.AFTStreamSession,
+	stoppingCondition aftcache.PeriodicHook,
+	startTime time.Time,
+	monitoringDesc string,
+	consistencyDesc string,
+	nhCount int,
+	verifyDeleted bool,
+	b *usageBaselines,
+	history *usageHistory,
+) {
+	t.Helper()
+
+	// Start monitoring
+	done := make(chan struct{})
+	var monitorWg sync.WaitGroup
+	monitorWg.Add(1)
+	go func() {
+		defer monitorWg.Done()
+		ticker := time.NewTicker(usagePollingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				tc.checkUsage(t, b, history, "during "+monitoringDesc, false)
+			}
+		}
+	}()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		aftSession1.ListenUntil(sessionCtx1, t, aftConvergenceTime, stoppingCondition)
+	}()
+	go func() {
+		defer wg.Done()
+		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
+	}()
+	wg.Wait()
+	close(done)
+	monitorWg.Wait()
+
+	// Check usage after
+	tc.checkUsage(t, b, history, "after "+monitoringDesc, true)
+
+	t.Logf("Verifying convergence for %s...", monitoringDesc)
+	convergenceTime := time.Since(startTime)
+	t.Logf("Convergence time: %v", convergenceTime)
+
+	t.Logf("Verifying AFT consistency %s...", consistencyDesc)
+	aftn := tc.verifyAFTConsistency(t, aftSession1, aftSession2, consistencyDesc)
+
+	t.Log("AFT is consistent. Verifying prefixes...")
+	if verifyDeleted {
+		t.Log("Verifying BGP prefixes are removed...")
+		if err := tc.verifyPrefixesDeleted(t, aftn, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4))); err != nil {
+			t.Errorf("Failed to verify IPv4 BGP prefixes removed: %v", err)
+		}
+		if err := tc.verifyPrefixesDeleted(t, aftn, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6))); err != nil {
+			t.Errorf("Failed to verify IPv6 BGP prefixes removed: %v", err)
+		}
+	} else {
+		if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4)), nhCount); err != nil {
+			t.Errorf("Failed to verify IPv4 BGP prefixes after %s: %v", monitoringDesc, err)
+		}
+		if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6)), nhCount); err != nil {
+			t.Errorf("Failed to verify IPv6 BGP prefixes after %s: %v", monitoringDesc, err)
+		}
+	}
+
+	// Verify ISIS prefixes are present in AFT.
+	if err := tc.verifyPrefixes(t, aftn, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
+		t.Errorf("Failed to verify IPv4 ISIS prefixes after %s: %v", monitoringDesc, err)
+	}
+	if err := tc.verifyPrefixes(t, aftn, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
+		t.Errorf("Failed to verify IPv6 ISIS prefixes after %s: %v", monitoringDesc, err)
+	}
+}
+
 type testCase struct {
 	name        string
 	dut         *ondatra.DUTDevice
@@ -940,7 +1157,7 @@ type testCase struct {
 	gnmiClient2 gnmipb.GNMIClient
 }
 
-func TestCollectorFlap(t *testing.T) {
+func TestSlowCollector(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	var history usageHistory
@@ -954,31 +1171,19 @@ func TestCollectorFlap(t *testing.T) {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
 	tc := &testCase{
-		name:        "collectorRestartTest",
+		name:        "slowCollectorTest",
 		dut:         dut,
 		ate:         ate,
 		gnmiClient1: gnmiClient1,
 		gnmiClient2: gnmiClient2,
 	}
 
-	// The gNMI client is closed and re-created in this test. The deferred
-	// function will close the second client. The first is closed manually
-	// before it is re-created.
-	defer func() {
-		if tc.gnmiClient2 != nil {
-			if closer, ok := tc.gnmiClient2.(io.Closer); ok {
-				if err := closer.Close(); err != nil {
-					t.Logf("Error closing gNMI client 2: %v .", err)
-				}
-			}
-		}
-	}()
-
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
-	// Create an AFTStreamSession per gnmiClient
-	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
+	// Create an AFTStreamSession per gNMI client.
+	sessionCtx1, cancelSession1 := context.WithCancel(t.Context())
+	aftSession1 := aftcache.NewAFTStreamSession(sessionCtx1, t, tc.gnmiClient1, tc.dut)
 	sessionCtx2, cancelSession2 := context.WithCancel(t.Context())
 	aftSession2 := aftcache.NewAFTStreamSession(sessionCtx2, t, tc.gnmiClient2, tc.dut)
 
@@ -994,11 +1199,76 @@ func TestCollectorFlap(t *testing.T) {
 
 	tc.verifyInitialAFT(t, t.Context(), aftSession1, sessionCtx2, aftSession2, wantPrefixes)
 
-	sessionCtx2, cancelSession2, aftSession2, b, startTime := tc.restartCollector2(t, cancelSession2)
+	// Restart both collectors with latency.
+	b := collectBaselines(t, tc.dut)
+
+	// Cancel initial sessions.
+	cancelSession1()
+	cancelSession2()
+
+	// Explicitly close the underlying gNMI client connection.
+	if closer, ok := tc.gnmiClient1.(io.Closer); ok {
+		if err := closer.Close(); err != nil {
+			t.Logf("Failed to close gnmiClient1, proceeding anyway: %v", err)
+		}
+	}
+	if closer, ok := tc.gnmiClient2.(io.Closer); ok {
+		if err := closer.Close(); err != nil {
+			t.Logf("Failed to close gnmiClient2, proceeding anyway: %v", err)
+		}
+	}
+
+	sessionCtx1, cancelSession1, aftSession1, sessionCtx2, cancelSession2, aftSession2 = tc.restartCollectorsWithLatency(t, b, wantPrefixes, &history)
+	defer cancelSession1()
 	defer cancelSession2()
 
-	tc.verifyAFTConvergenceAfterFlap(t, sessionCtx2, aftSession1, aftSession2, b, wantPrefixes, &history)
-	convergenceTime := time.Since(startTime)
-	t.Logf("Collector 2 convergence time: %v", convergenceTime)
+	// Step 2: AFT route withdrawal from one BGP peer scenario 1
+	t.Log("Subtest 2: Withdraw BGP routes from ATE port 2...")
+	routeNames := []string{routeGrpHash["port2.d2"]["ipv4"], routeGrpHash["port2.d2"]["ipv6"]}
+	tc.withdrawBGPIPv4Routes(t, routeNames)
+
+	wantIPv4NHsAfterWithdraw := map[string]bool{ateP1.IPv4: true}
+	wantIPv6NHsAfterWithdraw := getPostChurnIPv6NH(dut)
+	startTime := time.Now()
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantIPv4NHsAfterWithdraw, wantIPv6NHsAfterWithdraw)
+
+	tc.verifyConvergence(t, sessionCtx1, aftSession1, sessionCtx2, aftSession2, stoppingCondition, startTime, "route withdrawal convergence", "post-route-withdrawal-port2", 1, false, b, &history)
+
+	// Step 3: AFT Withdraw prefixes from both the BGP neighbor scenario 2
+	t.Log("SubTest 3: Withdraw prefixes from both the BGP neighbors")
+	routeNames = []string{routeGrpHash["port1.d1"]["ipv4"], routeGrpHash["port1.d1"]["ipv6"]}
+	tc.withdrawBGPIPv4Routes(t, routeNames)
+	wantAllPrefixes := make(map[string]bool)
+	for p, v := range wantPrefixes {
+		wantAllPrefixes[p] = v
+	}
+	startTime = time.Now()
+	stoppingCondition = aftcache.DeletionStoppingCondition(t, dut, wantAllPrefixes)
+	tc.verifyConvergence(t, sessionCtx1, aftSession1, sessionCtx2, aftSession2, stoppingCondition, startTime, "complete route withdrawal convergence", "post-route-withdrawal-all", 0, true, b, &history)
+
+	// Step 4: AFT readvertise the prefixes from port1 bgp neighbor scenario 3
+	t.Log("SubTest 4: Readvertise the prefixes from port1 bgp neighbor")
+	tc.readvertiseBGPIPv4Routes(t, []string{routeGrpHash["port1.d1"]["ipv4"], routeGrpHash["port1.d1"]["ipv6"]})
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
+	wantIPv4NHsP1 := map[string]bool{ateP1.IPv4: true}
+	wantIPv6NHsP1 := getPostChurnIPv6NH(dut)
+	startTime = time.Now()
+	stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantIPv4NHsP1, wantIPv6NHsP1)
+	tc.verifyConvergence(t, sessionCtx1, aftSession1, sessionCtx2, aftSession2, stoppingCondition, startTime, "re-advertise convergence", "post-readvertise-port1", 1, false, b, &history)
+
+	// Step 5: AFT readvertise the prefixes from both the BGP neighbor scenario 4
+	t.Log("SubTest 5: Readvertise the prefixes from both the BGP neighbor")
+	tc.readvertiseBGPIPv4Routes(t, []string{routeGrpHash["port2.d2"]["ipv4"], routeGrpHash["port2.d2"]["ipv6"]})
+	t.Log("Waiting for BGP neighbor to establish...")
+
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
+	startTime = time.Now()
+	stoppingCondition = aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
+	tc.verifyConvergence(t, sessionCtx1, aftSession1, sessionCtx2, aftSession2, stoppingCondition, startTime, "re-advertise convergence", "post-readvertise-all", 2, false, b, &history)
+
 	history.print(t)
 }
