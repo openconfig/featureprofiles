@@ -111,42 +111,42 @@ ates {
   # from its topology ID to the actual port name on the device.
   ports {
     id: "port1"
-    name: "13/1"  
+    name: "1/97"  
     speed: S_100GB
   }
   ports {
     id: "port2"
-    name: "13/2"  
+    name: "1/98"  
     speed: S_100GB
   }
   ports {
     id: "port3"
-    name: "13/3" 
+    name: "1/99" 
     speed: S_100GB
   }
   ports {
     id: "port4"
-    name: "13/4"  
+    name: "1/100"  
     speed: S_100GB
   }
   ports {
     id: "port5"
-    name: "14/1"  
+    name: "1/101"  
     speed: S_100GB
   }
   ports {
     id: "port6"
-    name: "14/2"  
+    name: "1/102"  
     speed: S_100GB
   }
   ports {
     id: "port7"
-    name: "14/3"  
+    name: "1/103"  
     speed: S_100GB
   }
   ports {
     id: "port8"
-    name: "14/4"
+    name: "1/104"
     speed: S_100GB
   }
 }
