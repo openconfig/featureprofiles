@@ -1167,16 +1167,14 @@ func configureVRFProfiles(ctx context.Context, t *testing.T, ateConfig gosnappi.
 			defer pumpWg.Done()
 			errCh <- pumpOpsAtRate(t, ctx, c, ops, 1000)
 		}()
+		// keep sending dataplane traffic while ops are streaming
+		sendTraffic(t, tArgs, testCaseArgs.flows, false)
+		// Wait for pump to finish before validating flows (if pumpOpsAtRate is synchronous this returns promptly)
 		pumpWg.Wait()
 		close(errCh)
 		if err := <-errCh; err != nil {
 			t.Fatalf("pumpOpsAtRate failed: %v", err)
 		}
-
-		// keep sending dataplane traffic while ops are streaming
-		sendTraffic(t, tArgs, testCaseArgs.flows, false)
-		// Wait for pump to finish before validating flows (if pumpOpsAtRate is synchronous this returns promptly)
-		pumpWg.Wait()
 
 		if err := validateTrafficFlows(t, tArgs, testCaseArgs.flows, true); err != nil {
 			return fmt.Errorf("profile %d traffic validation failed: %v", profile, err)
