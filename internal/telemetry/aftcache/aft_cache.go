@@ -598,19 +598,96 @@ func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *tes
 }
 
 // ListenUntilWithError is like ListenUntil but returns error instead of calling t.Fatalf on stream failure.
-func (ss *AFTStreamSession) ListenUntilWithError(ctx context.Context, timeout time.Duration, stoppingCondition PeriodicHook) error {
-	return ss.ListenUntilPreUpdateHookWithError(ctx, timeout, nil, stoppingCondition)
+func (ss *AFTStreamSession) ListenUntilWithError(ctx context.Context, t *testing.T, timeout time.Duration, stoppingCondition PeriodicHook) error {
+	return ss.ListenUntilPreUpdateHookWithError(ctx, t, timeout, nil, stoppingCondition)
 }
 
 // ListenUntilPreUpdateHookWithError is like ListenUntilPreUpdateHook but returns error instead of calling t.Fatalf on stream failure.
-func (ss *AFTStreamSession) ListenUntilPreUpdateHookWithError(ctx context.Context, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) error {
+func (ss *AFTStreamSession) ListenUntilPreUpdateHookWithError(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) error {
 	ss.start = time.Now()
 	phs := []PeriodicHook{stoppingCondition}
-	return ss.listenUntilWithError(ctx, timeout, preUpdateHooks, phs)
+	return ss.listenUntilWithError(ctx, t, timeout, preUpdateHooks, phs)
 }
 
 func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) {
 	t.Helper()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	periodicTicker := time.NewTicker(periodicInterval)
+	defer periodicTicker.Stop()
+	stoppingConditionMet := false
+
+	for {
+		select {
+		case resp := <-ss.buffer:
+			if resp.err != nil {
+				// Context cancellation can hit this code path from the stream sending a context cancellation error.
+				t.Fatalf("error from gNMI stream: %v", resp.err)
+			}
+			ss.notifications = append(ss.notifications, resp.notification)
+
+			for _, hook := range preUpdateHooks {
+				err := hook.NotificationFunc(ss.Cache, resp.notification)
+				if err != nil {
+					t.Fatalf("error in notificationHook %q: %v", hook.Description, err)
+				}
+			}
+			err := ss.Cache.addAFTNotification(resp.notification)
+			switch {
+			case errors.Is(err, cache.ErrStale):
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+			case err != nil:
+				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
+			}
+			// Check if buffer is drained after stopping condition was met
+			if stoppingConditionMet && len(ss.buffer) == 0 {
+				t.Logf("%s Buffer drained. Processed all remaining notifications.", ss.sessionPrefix())
+				return
+			}
+		case <-periodicTicker.C:
+			if stoppingConditionMet {
+				// Stop running periodic hooks after stopping condition is met
+				continue
+			}
+			s := time.Now()
+			for _, hook := range periodicHooks {
+				done, err := hook.PeriodicFunc(ss)
+				if err != nil {
+					t.Fatalf("error in PeriodicHook %q: %v", hook.Description, err)
+				}
+				if done {
+					t.Logf("%s Stopping condition met. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
+					stoppingConditionMet = true
+					periodicTicker.Stop()
+					// Check if buffer is already empty
+					if len(ss.buffer) == 0 {
+						t.Logf("%s Buffer empty, stopping stream", ss.sessionPrefix())
+						return
+					}
+					t.Logf("%s Draining remaining %d notifications from buffer...", ss.sessionPrefix(), len(ss.buffer))
+					break
+				}
+			}
+			if stoppingConditionMet {
+				continue
+			}
+			d := time.Since(s)
+			if d > periodicDeadline {
+				// If periodic hooks take too long, we can't guarantee we can catch up on processing
+				// notifications and the test may slow down artificially. The periodic hooks should be
+				// optimized or the parameters (periodicInterval, periodicDeadline) should be tuned.
+				t.Fatalf("periodic hooks took %v, exceeding deadline of %v", d.Truncate(time.Millisecond), periodicDeadline)
+			}
+		case <-ctx.Done():
+			t.Logf("%s Context cancelled. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
+			t.Fatalf("context cancelled: %v", ctx.Err())
+			return
+		}
+	}
+}
+
+// listenUntilWithError is like listenUntil but returns error on stream failure instead of calling t.Fatalf.
+func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) error {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	periodicTicker := time.NewTicker(periodicInterval)
@@ -623,13 +700,14 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	lastLogTime := startTime
 	var lastMessageCount int64
 	var lastTotalBytes int64
+	stoppingConditionMet := false
 
 	for {
 		select {
 		case resp := <-ss.buffer:
 			if resp.err != nil {
-				// Context cancellation can hit this code path from the stream sending a context cancellation error.
-				t.Fatalf("error from gNMI stream: %v", resp.err)
+				// Return error instead of fataling - allows caller to handle stream failure
+				return fmt.Errorf("gNMI stream error: %w", resp.err)
 			}
 			ss.notifications = append(ss.notifications, resp.notification)
 
@@ -690,80 +768,6 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
 				if err != nil {
-					t.Fatalf("error in notificationHook %q: %v", hook.Description, err)
-				}
-			}
-			err := ss.Cache.addAFTNotification(resp.notification)
-			switch {
-			case errors.Is(err, cache.ErrStale):
-				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
-			case err != nil:
-				t.Fatalf("error updating AFT cache with response %v: %v", resp.notification, err)
-			}
-		case <-periodicTicker.C:
-			s := time.Now()
-			for _, hook := range periodicHooks {
-				done, err := hook.PeriodicFunc(ss)
-				if err != nil {
-					t.Fatalf("error in PeriodicHook %q: %v", hook.Description, err)
-				}
-				if done {
-					t.Logf("%s Stopping condition met. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
-					return
-				}
-			}
-			d := time.Since(s)
-			if d > periodicDeadline {
-				// If periodic hooks take too long, we can't guarantee we can catch up on processing
-				// notifications and the test may slow down artificially. The periodic hooks should be
-				// optimized or the parameters (periodicInterval, periodicDeadline) should be tuned.
-				t.Fatalf("periodic hooks took %v, exceeding deadline of %v", d.Truncate(time.Millisecond), periodicDeadline)
-			}
-		case <-ctx.Done():
-			t.Logf("%s Context cancelled. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
-			t.Fatalf("context cancelled: %v", ctx.Err())
-			return
-		}
-	}
-}
-
-// listenUntilWithError is like listenUntil but returns error on stream failure instead of calling t.Fatalf.
-func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) error {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-	periodicTicker := time.NewTicker(periodicInterval)
-	defer periodicTicker.Stop()
-
-	// Variables for tracking message size and rate
-	var messageCount int64
-	var totalBytes int64
-	startTime := time.Now()
-	lastLogTime := startTime
-
-	for {
-		select {
-		case resp := <-ss.buffer:
-			if resp.err != nil {
-				// Return error instead of fataling - allows caller to handle stream failure
-				return fmt.Errorf("gNMI stream error: %w", resp.err)
-			}
-			ss.notifications = append(ss.notifications, resp.notification)
-
-			// Calculate message size
-			messageSize := proto.Size(resp.notification)
-			messageCount++
-			totalBytes += int64(messageSize)
-
-			// Update tracking timestamps
-			currentTime := time.Now()
-			timeSinceLastLog := currentTime.Sub(lastLogTime)
-			if messageCount%10000 == 0 || timeSinceLastLog >= 60*time.Second {
-				lastLogTime = currentTime
-			}
-
-			for _, hook := range preUpdateHooks {
-				err := hook.NotificationFunc(ss.Cache, resp.notification)
-				if err != nil {
 					return fmt.Errorf("error in notificationHook %q: %w", hook.Description, err)
 				}
 			}
@@ -774,7 +778,16 @@ func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, timeout ti
 			case err != nil:
 				return fmt.Errorf("error updating AFT cache: %w", err)
 			}
+			// Check if buffer is drained after stopping condition was met
+			if stoppingConditionMet && len(ss.buffer) == 0 {
+				t.Logf("%s Buffer drained. Processed all remaining notifications.", ss.sessionPrefix())
+				return nil
+			}
 		case <-periodicTicker.C:
+			if stoppingConditionMet {
+				// Stop running periodic hooks after stopping condition is met
+				continue
+			}
 			s := time.Now()
 			for _, hook := range periodicHooks {
 				done, err := hook.PeriodicFunc(ss)
@@ -782,8 +795,20 @@ func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, timeout ti
 					return fmt.Errorf("error in PeriodicHook %q: %w", hook.Description, err)
 				}
 				if done {
-					return nil // Success - stopping condition met
+					t.Logf("%s Stopping condition met. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
+					stoppingConditionMet = true
+					periodicTicker.Stop()
+					// Check if buffer is already empty
+					if len(ss.buffer) == 0 {
+						t.Logf("%s Buffer empty, stopping stream", ss.sessionPrefix())
+						return nil
+					}
+					t.Logf("%s Draining remaining %d notifications from buffer...", ss.sessionPrefix(), len(ss.buffer))
+					break
 				}
+			}
+			if stoppingConditionMet {
+				continue
 			}
 			d := time.Since(s)
 			if d > periodicDeadline {
