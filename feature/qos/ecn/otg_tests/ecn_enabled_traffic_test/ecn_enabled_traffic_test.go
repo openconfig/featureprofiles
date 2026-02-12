@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -103,12 +104,8 @@ func TestECNEnabledTraffic(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top, _ := configureOTG(t, ate)
 
-	configureQoS(t, dut)
 	queues := netutil.CommonTrafficQueues(t, dut)
-
-	if dut.Vendor() == ondatra.JUNIPER {
-		queues.AF4 = "5"
-	}
+	configureQoS(t, dut, queues)
 
 	var tolerance float32 = 2.0
 
@@ -452,14 +449,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []gosn
 	return top, []gosnappi.Device{d1, d2, d3}
 }
 
-func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
+func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTrafficQueueNames) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	if deviations.QOSQueueRequiresID(dut) {
 		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
