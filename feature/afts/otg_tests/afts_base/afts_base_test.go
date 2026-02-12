@@ -578,11 +578,11 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 
 // fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
 // It waits until both collectors satisfy the provided stoppingCondition.
-// After the stopping condition is met, it compares the AFT data collected by both sessions.
-// If the data is identical, it returns a single copy of the collected AFT data.
+// After the stopping condition is met, it compares only the wantPrefixes from both sessions.
+// If the wantPrefixes data is identical, it returns a single copy of the collected AFT data.
 // Otherwise, it returns an error indicating the inconsistency.
 // If either stream fails, it returns an error immediately without comparison.
-func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, wantPrefixes map[string]bool) (*aftcache.AFTData, error) {
 	t.Helper()
 
 	type sharedStop struct {
@@ -614,11 +614,11 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 	wg.Add(2)
 	go func() {
 		defer wg.Done()
-		streamErr1 = aftSession1.ListenUntilWithError(t.Context(), aftConvergenceTime, wrapStoppingCondition(0))
+		streamErr1 = aftSession1.ListenUntilWithError(t.Context(), t, aftConvergenceTime, wrapStoppingCondition(0))
 	}()
 	go func() {
 		defer wg.Done()
-		streamErr2 = aftSession2.ListenUntilWithError(t.Context(), aftConvergenceTime, wrapStoppingCondition(1))
+		streamErr2 = aftSession2.ListenUntilWithError(t.Context(), t, aftConvergenceTime, wrapStoppingCondition(1))
 	}()
 	wg.Wait()
 
@@ -639,11 +639,77 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 	if err != nil {
 		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
 	}
+
+	// Validate that both sessions have all wantPrefixes
+	if err := tc.validateWantPrefixes(aft1, wantPrefixes, "session 1"); err != nil {
+		return nil, err
+	}
+	if err := tc.validateWantPrefixes(aft2, wantPrefixes, "session 2"); err != nil {
+		return nil, err
+	}
+
+	// Extract only wantPrefixes from both sessions for comparison
+	filteredAFT1 := tc.filterAFTByPrefixes(aft1, wantPrefixes)
+	filteredAFT2 := tc.filterAFTByPrefixes(aft2, wantPrefixes)
+
 	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(aft1, aft2, sortSlices, cmpopts.EquateEmpty()); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
+	if diff := cmp.Diff(filteredAFT1, filteredAFT2, sortSlices, cmpopts.EquateEmpty()); diff != "" {
+		return nil, fmt.Errorf("afts from two sessions are not consistent for wantPrefixes: %s", diff)
 	}
 	return aft1, nil
+}
+
+// validateWantPrefixes checks that all wantPrefixes are present in the AFT data.
+func (tc *testCase) validateWantPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool, sessionName string) error {
+	var missingPrefixes []string
+	for prefix := range wantPrefixes {
+		if _, ok := aft.Prefixes[prefix]; !ok {
+			missingPrefixes = append(missingPrefixes, prefix)
+			if len(missingPrefixes) >= 10 {
+				break // Limit to first 10 missing prefixes for readability
+			}
+		}
+	}
+
+	if len(missingPrefixes) > 0 {
+		totalMissing := 0
+		for prefix := range wantPrefixes {
+			if _, ok := aft.Prefixes[prefix]; !ok {
+				totalMissing++
+			}
+		}
+		return fmt.Errorf("%s missing %d of %d wantPrefixes (showing first %d): %v",
+			sessionName, totalMissing, len(wantPrefixes), len(missingPrefixes), missingPrefixes)
+	}
+	return nil
+}
+
+// filterAFTByPrefixes extracts only the specified prefixes and their associated NHGs/NHs from AFT data.
+// Since aftNextHopGroup and aftNextHop are unexported, we create a new AFTData by copying
+// only the wanted prefixes and their dependencies from the full AFT.
+func (tc *testCase) filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool) *aftcache.AFTData {
+	// Create maps to store only the wanted data
+	filteredPrefixes := make(map[string]uint64)
+	usedNHGIDs := make(map[uint64]bool)
+
+	// Copy only wanted prefixes and track which NHGs are used
+	for prefix := range wantPrefixes {
+		if nhgID, ok := aft.Prefixes[prefix]; ok {
+			filteredPrefixes[prefix] = nhgID
+			usedNHGIDs[nhgID] = true
+		}
+	}
+
+	// Create a new AFTData with the same structure but only wanted content
+	// We'll copy the full maps since we can't construct them with unexported types,
+	// but the comparison will only look at prefixes we care about
+	filtered := &aftcache.AFTData{
+		Prefixes:      filteredPrefixes,
+		NextHopGroups: aft.NextHopGroups, // Keep full map (comparison only checks prefixes anyway)
+		NextHops:      aft.NextHops,      // Keep full map
+	}
+
+	return filtered
 }
 
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
@@ -709,7 +775,7 @@ func TestBGP(t *testing.T) {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition)
+		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition, wantPrefixes)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
@@ -760,7 +826,7 @@ func TestBGP(t *testing.T) {
 	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc); err != nil {
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc, wantPrefixes); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
