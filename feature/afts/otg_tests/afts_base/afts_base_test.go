@@ -826,7 +826,8 @@ func TestBGP(t *testing.T) {
 	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
 	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
-	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc, wantPrefixes); err != nil {
+	// Expecting all prefixes deleted, so pass empty map for wantPrefixes validation
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc, map[string]bool{}); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
