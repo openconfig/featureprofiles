@@ -42,7 +42,7 @@ const (
 	pLen4         = 30
 	pLen6         = 126
 	trafficPps    = 1000
-	totalPackets  = 10000
+	totalPackets  = 30000
 	flowV4        = "flowV4"
 	flowV6        = "flowV6"
 	v4Route       = "203.0.113.0"
