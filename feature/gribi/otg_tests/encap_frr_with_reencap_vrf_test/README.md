@@ -505,9 +505,11 @@ NH#1001 -> {
 Test that if there is no lookup match in the encap VRF, then the traffic should
 be routed to the DEFAULT VRF for further lookup.
 
-1.  Send traffic with destination address 20.0.0.1, which should produce no
+1.  In `ENCAP_TE_VRF_A`, Add an 0/0 static route pointing to the DEFAULT VRF
+    using gNMI.
+2.  Send traffic with destination address 20.0.0.1, which should produce no
     match in `ENCAP_TE_VRF_A`.
-2.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
+3.  Validate that the traffic is routed per the BGP-ISIS routes (in the DEFAULT
     VR) out of DUT port-8.
 
 #### Test-8, no match in TE_VRF_222
@@ -584,7 +586,7 @@ NH#102 -> {
 1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
-#### Canonical OC
+  #### Canonical OC
 ```json
 {}
 ```
@@ -620,15 +622,23 @@ NH#102 -> {
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform
