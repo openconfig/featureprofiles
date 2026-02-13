@@ -287,13 +287,15 @@ func validateOTNChannelTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 			operStatus: oc.Interface_OperStatus_DOWN,
 			oneOf:      inactivePreFECBER,
 		},
-		{
+	}
+	if dut.Vendor() != ondatra.JUNIPER {
+		tcs = append(tcs, testcase{
 			desc:       "FEC Uncorrectable Block Count Validation",
 			path:       fmt.Sprintf(logicalChannelPath+"/otn/state/fec-uncorrectable-blocks", params.OTNIndexes[p.Name()]),
 			got:        otnChannelValue.GetOtn().GetFecUncorrectableBlocks(),
 			operStatus: oc.Interface_OperStatus_UP,
 			want:       uint64(0),
-		},
+		})
 	}
 	if deviations.OTNToETHAssignment(dut) {
 		tcs = append(tcs, []testcase{
