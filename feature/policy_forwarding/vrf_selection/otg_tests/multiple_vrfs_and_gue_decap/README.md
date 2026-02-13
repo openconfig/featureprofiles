@@ -351,38 +351,61 @@ TODO: decap policy to be updated by https://github.com/openconfig/public/pull/12
 
 ```yaml
 paths:
-
-/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/ipv4/config/protocol:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
-/network-instances/network-instance/inter-instance-policies/apply-policy/config/export-policy:
-/network-instances/network-instance/inter-instance-policies/apply-policy/config/import-policy:
-/routing-policy/policy-definitions/policy-definition/config/name:
-/routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
-/routing-policy/policy-definitions/policy-definition/statements/statement/name/actions/policy-result:
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
-/routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
-/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
-/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
-/routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
-/routing-policy/defined-sets/prefix-sets/prefix-set/config/masklength-range:
-/routing-policy/defined-sets/prefix-sets/prefix-set/config/ip-prefix:
-/routing-policy/defined-sets/prefix-sets/prefix-set/config/prefix-set-name:
-
-# telemetry
-/interfaces/interface/state/counters/out-pkts:
-/interfaces/interface/state/counters/out-unicast-pkts:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
-/components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
-
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/ip:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
+  /qos/classifiers/classifier/config/name:
+  /qos/classifiers/classifier/config/type:
+  /qos/classifiers/classifier/terms/term/actions/config/target-group:
+  /qos/classifiers/classifier/terms/term/conditions/ipv4/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/conditions/ipv6/config/dscp-set:
+  /qos/classifiers/classifier/terms/term/config/id:
+  /qos/forwarding-groups/forwarding-group/config/name:
+  /qos/forwarding-groups/forwarding-group/config/output-queue:
+  /qos/interfaces/interface/input/classifiers/classifier/config/name:
+  /qos/interfaces/interface/input/classifiers/classifier/config/type:
+  /qos/queues/queue/config/name:
+  /qos/queues/queue/config/queue-id:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
+  /network-instances/network-instance/inter-instance-policies/apply-policy/config/export-policy:
+  /network-instances/network-instance/inter-instance-policies/apply-policy/config/import-policy:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       replace: true
+      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```
