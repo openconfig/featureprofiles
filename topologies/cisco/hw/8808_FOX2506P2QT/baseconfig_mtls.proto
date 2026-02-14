@@ -271,8 +271,7 @@ replace: {
   "interface HundredGigE0/7/0/12\n"
   " no shutdown\n"
   " description HundredGigE0/7/0/12\n"
-  "!\n"  
-  
+  "!\n"
   "interface FourHundredGigE0/7/0/3\n"
   " description FourHundredGigE0/7/0/3\n"
   "!\n"
