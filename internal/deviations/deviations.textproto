@@ -2721,7 +2721,7 @@ deviations: {
   type: DEVIATION_TYPE_VALUE
   impacted_paths: {
     ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol[identifier='BGP']/config/name"
+      name: "/network-instances/network-instance/protocols/protocol[identifier='BGP'][name='DEFAULT']/config/name"
     }
     ocpaths: {
       name: "/network-instances/network-instance/protocols/protocol[identifier='BGP']/state/name"
