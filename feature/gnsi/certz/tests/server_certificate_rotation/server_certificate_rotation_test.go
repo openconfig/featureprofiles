@@ -73,7 +73,7 @@ func TestServerCertRotation(t *testing.T) {
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", logTime)
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
+		t.Fatalf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client.
 	ctx := context.Background()
