@@ -2836,7 +2836,6 @@ deviations: {
 deviations: {
   name: "match_as_path_set_unsupported"
   type: DEVIATION_TYPE_PATH
-  doc: "Device does not support match-as-path-set policy condition, so configuration of match-as-path-set is skipped."
   impacted_paths: {
     ocpaths: {
       name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set"
@@ -3011,36 +3010,6 @@ deviations: {
       ocpaths: {
         name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set"
       }
-    }
-  }
-}
-deviations: {
-  name: "ipv4_missing_enabled"
-  type: DEVIATION_TYPE_PATH
-  impacted_paths: {
-    ocpaths: {
-      name: "/interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled"
-    }
-  }
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: ARISTA
-      software_version_regex: "*.*"
-    }
-  }
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: CISCO
-      software_version_regex: "*.*"
-    }
-  }
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: NOKIA
-      software_version_regex: "*.*"
     }
   }
 }
