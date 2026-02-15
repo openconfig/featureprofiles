@@ -79,6 +79,7 @@ rpcs:
 ```
 
 ## Canonical OC
+No OC configuration is performed in this test as all interaction is via gNSI.Certz
 
 ```json
 {
