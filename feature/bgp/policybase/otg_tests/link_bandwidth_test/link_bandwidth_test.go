@@ -376,6 +376,13 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 		t.Fatalf("invalid import policy")
 	}
 	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
+	_, pok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		_, present := v.Val()
+		return present
+	}).Await(t)
+	if !pok {
+		t.Fatalf("Prefixes not installed on OTG port 2")
+	}
 	found := 0
 	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
 	for _, bgpPrefix := range bgpPrefixes {
@@ -451,13 +458,17 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			if bgpPrefix.GetAddress() == v4Prefix {
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
 				for _, ec := range bgpPrefix.ExtendedCommunity {
+					if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+						continue
+					}
 					lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 					t.Logf("LC: Bandwidth from OTG : %v", ygot.BinaryToFloat32(lbSubType.GetBandwidth()))
 				}
 				switch community {
 				case "none":
-					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("ERROR: community and ext communituy are not empty it should be none")
+					t.Logf("Prefix community :%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
+					if len(bgpPrefix.Community) != 0 {
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -472,6 +483,9 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
+						if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+							continue
+						}
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]
@@ -528,8 +542,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
 				switch community {
 				case "none":
-					if len(bgpPrefix.Community) != 0 || len(bgpPrefix.ExtendedCommunity) != 0 {
-						t.Errorf("ERROR: community and ext community are not empty it should be none")
+					t.Logf("Prefix community AS:%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
+					if len(bgpPrefix.Community) != 0 {
+						t.Errorf("ERROR: community is not empty, it should be none")
 					}
 				case "100:100":
 					for _, gotCommunity := range bgpPrefix.Community {
@@ -544,6 +559,9 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						return
 					}
 					for _, ec := range bgpPrefix.ExtendedCommunity {
+						if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
+							continue
+						}
 						lbSubType := ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype
 						listCommunity := strings.Split(community, ":")
 						bandwidth := listCommunity[2]

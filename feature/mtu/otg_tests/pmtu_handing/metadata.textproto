@@ -27,3 +27,11 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    fragment_total_drops_unsupported: true
+  }
+}

@@ -24,7 +24,8 @@ platform_exceptions:  {
     vendor:  JUNIPER
   }
   deviations:  {
-    bgp_rib_oc_path_unsupported:  true
+    isis_level_enabled: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions:  {

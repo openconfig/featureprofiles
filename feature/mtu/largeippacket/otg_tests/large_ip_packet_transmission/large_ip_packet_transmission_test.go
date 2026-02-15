@@ -446,11 +446,10 @@ func configureDUTBundle(t *testing.T, dut *ondatra.DUTDevice, lag *attrs.Attribu
 	intfAgg := agg.GetOrCreateAggregation()
 	intfAgg.LagType = oc.IfAggregate_AggregationType_STATIC
 
-	switch {
-	case deviations.OmitL2MTU(dut):
-		v4SubInterface.SetMtu(mtu)
-		v6SubInterface.SetMtu(mtu)
-	default:
+	v4SubInterface.SetMtu(mtu)
+	v6SubInterface.SetMtu(mtu)
+
+	if !deviations.OmitL2MTU(dut) {
 		agg.Mtu = ygot.Uint16(mtu + 14)
 	}
 
