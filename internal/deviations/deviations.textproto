@@ -2731,7 +2731,7 @@ deviations: {
     issue_url: ""
     platform: {
       vendor: ARISTA
-      software_version_regex: "*.*"
+      software_version_regex: ".*"
     }
     deviation_values: {
       oc_standard_value: {
