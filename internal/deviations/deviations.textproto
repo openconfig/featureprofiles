@@ -2846,7 +2846,7 @@ deviations: {
     }
   }
   platforms: {
-    issue_url: "b/434583178"
+    issue_url: "https://issuetracker.google.com/issues/434583178"
     platform: {
       vendor: ARISTA
       software_version_regex: "*.*"
