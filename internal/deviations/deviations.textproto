@@ -2721,10 +2721,10 @@ deviations: {
   type: DEVIATION_TYPE_VALUE
   impacted_paths: {
     ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol[identifier='BGP'][name='DEFAULT']/config/name"
+      name: "/network-instances/network-instance/protocols/protocol/config/name"
     }
     ocpaths: {
-      name: "/network-instances/network-instance/protocols/protocol[identifier='BGP']/state/name"
+      name: "/network-instances/network-instance/protocols/protocol/state/name"
     }
   }
   platforms: {
@@ -2984,7 +2984,7 @@ deviations: {
     }
     additional_paths: {
       ocpaths: {
-        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi[afi-safi-name=L3VPN_IPV6_UNICAST]/config/enabled"
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
       }
     }
   }
