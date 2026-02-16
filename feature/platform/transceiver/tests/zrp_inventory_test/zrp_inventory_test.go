@@ -186,7 +186,7 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		for _, p := range dut.Ports() {
 			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
 		}
-		
+
 		// Wait for channels to be up.
 		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
