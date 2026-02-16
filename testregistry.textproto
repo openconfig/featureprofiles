@@ -2228,3 +2228,15 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: ""
 }
+test: {
+  id: "TE-1.2"
+  description: "My Station MAC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "gNMI-1.26"
+  description: "Carrier Transitions Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
+}
