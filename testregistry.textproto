@@ -1568,6 +1568,22 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test/README.md"
 }
 test: {
+  id: "TRANSCEIVER-105"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-106"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-107"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-108"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
+}
+test: {
   id: "TRANSCEIVER-11.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_logical_channels_test/README.md"
 }
@@ -2211,4 +2227,16 @@ test: {
   description: "Telemetry: Firewall High Availability"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: ""
+}
+test: {
+  id: "TE-1.2"
+  description: "My Station MAC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "gNMI-1.26"
+  description: "Carrier Transitions Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
 }

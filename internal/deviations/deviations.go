@@ -1618,7 +1618,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
@@ -1922,4 +1922,11 @@ func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 // there is no routing policy or default policy configured.
 func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
+}
+
+// TerminalDeviceChannelAdminStateUnsupported returns true if setting admin-state on
+// TerminalDevice Channel is unsupported.
+// Arista: https://issuetracker.google.com/482191638
+func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
 }
