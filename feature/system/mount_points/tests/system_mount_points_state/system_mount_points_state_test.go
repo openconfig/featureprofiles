@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package system_mount_points_state
+package system_mount_points_state_test
 
 import (
 	"testing"
