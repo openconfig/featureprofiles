@@ -44,14 +44,11 @@ func TestMain(m *testing.M) {
 func TestSystemMountPointState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	if deviations.MountPointStatePathsUnsupported(dut) {
-		t.Skipf("Mount point state paths are unsupported and there is no functional translator")
-	}
 	opts := getOptsForFunctionalTranslator(t, dut, deviations.SystemMountPointStateFt(dut))
 	mountPointNames := gnmi.GetAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPointAny().Name().State())
 
 	if len(mountPointNames) == 0 {
-		t.Errorf("No mount points found when one or more are expected!")
+		t.Fatalf("No mount points found when one or more are expected!")
 	}
 
 	for _, mountPointName := range mountPointNames {
