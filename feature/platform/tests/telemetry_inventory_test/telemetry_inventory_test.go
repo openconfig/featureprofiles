@@ -958,18 +958,30 @@ func TestRemovableComponents(t *testing.T) {
 		"Port",
 	}
 
-	components := gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State())
+	// Create a reverse map from oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT to string for efficient lookup.
+	typeToString := make(map[oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT]string)
+	for k, v := range componentType {
+		typeToString[v] = k
+	}
+
+	// Group components by type to avoid nested loops.
+	componentsByType := make(map[string][]*oc.Component)
+	for _, comp := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		c, present := comp.Val()
+		if !present {
+			t.Errorf("Component value not present for path: %s", comp.Path.String())
+			continue
+		}
+		if typeStr, ok := typeToString[c.GetType()]; ok {
+			componentsByType[typeStr] = append(componentsByType[typeStr], c)
+		}
+	}
+
 	for _, compType := range componentTypesToCheck {
 		t.Run(compType, func(t *testing.T) {
-			for _, comp := range components {
-				c, present := comp.Val()
-				if !present {
-					t.Errorf("Component value not present for path: %s", comp.Path.String())
-					continue
-				}
-				if c.GetType() != componentType[compType] {
-					continue
-				}
+			// If a component type is not found, the test for it will pass vacuously.
+			// This matches the original logic.
+			for _, c := range componentsByType[compType] {
 				if c.Removable == nil {
 					t.Errorf("Component %s: Removable is nil, want non-nil", c.GetName())
 					continue
