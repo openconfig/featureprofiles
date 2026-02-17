@@ -634,6 +634,12 @@ deviations: {
     ocpaths: {
       name: "/terminal-device/logical-channels/channel/ingress/config/interface"
     }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/ingress/state/transceiver"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/ingress/state/interface"
+    }
   }
   platforms: {
     issue_url: ""
@@ -2707,6 +2713,569 @@ deviations: {
       ocpaths: {
         name: "/network-instances/network-instance/protocols/protocol/static-routes/static/routes/route/next-hops/next-hop/config/metric"
       }
+    }
+  }
+}
+deviations: {
+  name: "default_bgp_instance_name"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/config/name"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/state/name"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: ".*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "DEFAULT"
+      }
+      vendor_specific_value: {
+        string_val: "BGP"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "DEFAULT"
+      }
+      vendor_specific_value: {
+        string_val: "BGP"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "DEFAULT"
+      }
+      vendor_specific_value: {
+        string_val: "default"
+      }
+    }
+  }
+}
+deviations: {
+  name: "use_bgp_set_community_option_type_replace"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-ext-community/config/options"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "ADD"
+      }
+      vendor_specific_value: {
+        string_val: "REPLACE"
+      }
+    }
+  }
+}
+deviations: {
+  name: "fr_breakout_fix"
+  type: DEVIATION_TYPE_PATH
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/port-speed"
+      }
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/duplex-mode"
+      }
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/auto-negotiate"
+      }
+    }
+  }
+}
+deviations: {
+  name: "load_balance_policy_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  platforms: {
+    issue_url: "https://b.corp.google.com/issues/445043741"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "load-balance policies\n  load-balance policy .*\n    ip load-balance fields .*"
+    }
+  }
+}
+deviations: {
+  name: "match_as_path_set_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/as-path-set"
+    }
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-as-path-set/config/match-set-options"
+    }
+  }
+  platforms: {
+    issue_url: "https://issuetracker.google.com/issues/434583178"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "urpf_config_oc_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/interfaces/interface/urpf/config/mode"
+    }
+  }
+  platforms: {
+    issue_url: "b/444942109"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "interface.*\\n.*ip verify unicast source reachable-via any"
+    }
+  }
+}
+deviations: {
+  name: "next_hop_group_config_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/static/next-hop-groups/next-hop-group/config/name"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hop-group/config/name"
+    }
+  }
+  platforms: {
+    issue_url: "b/390507957"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "(ip|ipv6) route vrf .* nexthop-group .*"
+      commands: "nexthop-group .* type .*"
+    }
+  }
+}
+deviations: {
+  name: "static_mpls_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/incoming-label"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/next-hop"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/config/push-label"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/ip-address"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/egress/lsp-next-hops/lsp-next-hop/config/push-label"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "mpls static top-label .*"
+      commands: "nexthop-group .* type mpls"
+      commands: "traffic-policy .*"
+    }
+  }
+}
+deviations: {
+  name: "interface_output_queue_non_standard_name"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/name"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "qos_remark_oc_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "b/415889077"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "community_member_regex_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "community-set .* ios-regex .*"
+    }
+  }
+}
+deviations: {
+  name: "bgp_afi_safi_in_default_ni_before_other_ni"
+  type: DEVIATION_TYPE_PATH
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled"
+      }
+    }
+  }
+}
+deviations: {
+  name: "bgp_conditions_match_community_set_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/community-set"
+    }
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/match-community-set/config/match-set-options"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/routing-policy/policy-definitions/policy-definition/statements/statement/conditions/bgp-conditions/config/community-set"
+      }
+    }
+  }
+}
+deviations: {
+  name: "line_port_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component/optical-channel/config/line-port"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "skip_sampling_qos_counters"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/transmit-pkts"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/transmit-octets"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/dropped-octets"
+    }
+  }
+  platforms: {
+    issue_url: "b/463279843"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "bgp_graceful_restart_under_afi_safi_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/graceful-restart/config/enabled"
+    }
+  }
+  platforms: {
+    issue_url: "b/455784294"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled"
+      }
+    }
+  }
+}
+deviations: {
+  name: "aft_summary_oc_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/afts/aft-summaries/ipv4-unicast/protocols/protocol/state/counters/aft-entries"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/afts/aft-summaries/ipv6-unicast/protocols/protocol/state/counters/aft-entries"
+    }
+  }
+  platforms: {
+    issue_url: "b/450898206"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "gribi_records_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "b/445304668"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "sid_per_interface_counter_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/state/in-pkts"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/mpls/signaling-protocols/segment-routing/interfaces/interface/sid-counters/state/out-pkts"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: "b/447350490"
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "bgp_gr_helper_disable_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only"
+    }
+  }
+  platforms: {
+    issue_url: "b/455781430"
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "explicit_port_speed"
+  type: DEVIATION_TYPE_PATH
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/port-speed"
+      }
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/auto-negotiate"
+      }
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/duplex-mode"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/interfaces/interface/ethernet/config/port-speed"
+      }
+    }
+  }
+}
+
+deviations: {
+  name: "subinterface_packet_counters_missing"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/out-broadcast-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/carrier-transitions"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/out-errors"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/last-clear"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/in-errors"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/in-unknown-protos"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/state/counters/in-broadcast-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
     }
   }
 }
