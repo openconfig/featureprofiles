@@ -543,6 +543,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	// Always populate interface-ref with base interface and subinterface index
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		isisIntf.InterfaceRef = nil
+	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
