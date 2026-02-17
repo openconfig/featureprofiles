@@ -228,8 +228,9 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// Configure DUT and ATE with ISIS and BGP.
-	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, rplName, rplType)
+	configureDUT(t, dut)
+
 	otg := ate.OTG()
 	top := configureOTG(t, otg)
 
