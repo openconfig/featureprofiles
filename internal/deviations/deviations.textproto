@@ -3279,3 +3279,628 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "skip_plq_interface_oper_status_check"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/state/oper-status"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "num_physical_channels_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component/port/breakout-mode/groups/group/config/num-physical-channels"
+    }
+    ocpaths: {
+      name: "/components/component/port/breakout-mode/groups/group/state/num-physical-channels"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "skip_bgp_peer_group_send_community_type"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    additional_paths: {
+      ocpaths: {
+        name: "/network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/send-community-type"
+      }
+    }
+  }
+}
+deviations: {
+  name: "bgp_session_state_idle_in_passive_mode"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "ACTIVE"
+      }
+      vendor_specific_value: {
+        string_val: "IDLE"
+      }
+    }
+  }
+}
+deviations: {
+  name: "interface_counters_from_container"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/state/counters"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "static_protocol_name"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/config/name"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/state/name"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "DEFAULT"
+      }
+      vendor_specific_value: {
+        string_val: "STATIC"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "DEFAULT"
+      }
+      vendor_specific_value: {
+        string_val: "static"
+      }
+    }
+  }
+}
+deviations: {
+  name: "skip_checking_attribute_index"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/attr-index"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "banner_delimiter"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/system/config/motd-banner"
+    }
+    ocpaths: {
+      name: "/system/config/login-banner"
+    }
+    ocpaths: {
+      name: "/system/state/motd-banner"
+    }
+    ocpaths: {
+      name: "/system/state/login-banner"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: ""
+      }
+      vendor_specific_value: {
+        string_val: "c"
+      }
+    }
+  }
+}
+deviations: {
+  name: "tc_default_import_policy_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "model_name_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component/state/model-name"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "skip_setting_allow_multiple_as"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/config/allow-multiple-as"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "ipv6_static_route_with_ipv4_nh_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "add_missing_base_config_via_cli"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "otn_channel_assignment_cisco_numbering"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/assignment/config/index"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/assignment/state/index"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        uint_val: 0
+      }
+      vendor_specific_value: {
+        uint_val: 1
+      }
+    }
+  }
+}
+deviations: {
+  name: "isis_interface_level1_disable_required"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "true"
+      }
+      vendor_specific_value: {
+        string_val: "false"
+      }
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    deviation_values: {
+      oc_standard_value: {
+        string_val: "true"
+      }
+      vendor_specific_value: {
+        string_val: "false"
+      }
+    }
+  }
+}
+deviations: {
+  name: "ip_neighbor_missing"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor"
+    }
+    ocpaths: {
+      name: "/interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "skip_isis_set_level"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-level"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "reorder_calls_for_vendor_compatibilty"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "otn_channel_trib_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/config/trib-protocol"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/state/trib-protocol"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/config/admin-state"
+    }
+    ocpaths: {
+      name: "/terminal-device/logical-channels/channel/state/admin-state"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "missing_bgp_last_notification_error_code"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/messages/received/last-notification-error-code"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "bgp_community_set_refs_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-refs"
+    }
+    ocpaths: {
+      name: "/routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/state/community-set-refs"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "isis_loopback_required"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "tc_metric_propagation_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation"
+    }
+    ocpaths: {
+      name: "/network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "redis_connected_under_ebgp_vrf_unsupported"
+  type: DEVIATION_TYPE_CLI
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/table-connections/table-connection"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+    clis: {
+      commands: "router bgp.*instance.*\n vrf.*\n  address-family ipv6 unicast\n   label mode per-vrf\n   redistribute connected"
+    }
+  }
+}
+deviations: {
+  name: "state_path_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/min-threshold"
+    }
+    ocpaths: {
+      name: "/qos/queue-management-profiles/queue-management-profile/wred/uniform/state/max-threshold"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/scheduler-policy/state/name"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/name"
+    }
+    ocpaths: {
+      name: "/qos/interfaces/interface/output/queues/queue/state/queue-management-profile"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "p4rt_capabilities_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+deviations: {
+  name: "skip_interface_name_check"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/network-instances/network-instance/afts/next-hops/next-hop/state/interface"
+    }
+  }
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
