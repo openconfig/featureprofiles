@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f43d95b6-438c-4128-801e-043e426b55cd"
-plan_id: "gNMI-1.26"
-description: "Carrier Transitions Test"
+uuid: "f7bcfa59-dd84-4998-aa54-243dde4a99db"
+plan_id: "certz-1"
+description: "gNSI Client Certificate Tests"
 testbed: TESTBED_DUT_ATE_2LINKS
