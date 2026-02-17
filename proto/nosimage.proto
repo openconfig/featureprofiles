@@ -74,9 +74,9 @@ message FeatureProfileStatus {
 
   // result identifies if the test was execited and it's result
   oneof result {
-    bool UNKNOWN = 1;
-    bool PASSED = 2;
-    bool FAILED = 3;
-    bool NOT_EXECUTED = 4;
+    bool UNKNOWN = 3;
+    bool PASSED = 4;
+    bool FAILED = 5;
+    bool NOT_EXECUTED = 6;
   }
 }
