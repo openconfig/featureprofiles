@@ -327,8 +327,9 @@ func testFlowFixed(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config,
 			cs := startCapture(t, ate, config)
 			sleepTime := time.Duration(fc.packetsToSend/uint32(fc.ppsRate)) + 10
 			ate.OTG().StartTraffic(t)
-			time.Sleep(sleepTime * time.Second)
-			ate.OTG().StopTraffic(t)
+gnmi.Watch(t, ate.OTG(), gnmi.OTG().Flow(flowName).Transmit().State(), 2*time.Minute, func(val *ygnmi.Value[bool]) bool {
+	return !val.IsPresent() || val.Val() == false
+}).Await(t)
 			stopCapture(t, ate, cs)
 			otgutils.LogFlowMetrics(t, ate.OTG(), config)
 			otgutils.LogPortMetrics(t, ate.OTG(), config)
