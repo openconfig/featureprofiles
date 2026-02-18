@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a1b2c3d4-e5f6-4a5b-8c9d-0123456789ab"
+plan_id: "PF-1.25"
+description: "Double GUEv1 Decapsulation for Overlay Probing"
+testbed: TESTBED_DUT_ATE_2LINKS
