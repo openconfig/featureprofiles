@@ -54,21 +54,20 @@ func TestMain(m *testing.M) {
 //   * ate:port2 -> dut:port2 subnet 192.0.2.5/30
 
 const (
-	dstIPBlock                = "203.0.113.0"
-	vipBlock                  = "198.51.100.0"
-	wantLoss                  = true
-	dutAS                     = 64500
-	ateAS                     = 64501
-	advertisedRoutesv6        = "2001:DB8:2::1"
-	advertisedRoutesv6MaskLen = 128
-	tolerancePct              = 2
-	tolerance                 = 50
-	plenIPv4                  = 30
-	plenIPv6                  = 126
-	fibPassedTraffic          = "fibPassedTraffic"
-	fibFailedTraffic          = "fibFailedTraffic"
-	dstTrackingf1             = "dstTrackingf1"
-	dstTrackingf2             = "dstTrackingf2"
+	dstIPBlock         = "203.0.113.0"
+	vipBlock           = "198.51.100.0"
+	wantLoss           = true
+	dutAS              = 64500
+	ateAS              = 64501
+	advertisedRoutesv6 = "2001:DB8:2::1"
+	tolerancePct       = 2
+	tolerance          = 50
+	plenIPv4           = 30
+	plenIPv6           = 126
+	fibPassedTraffic   = "fibPassedTraffic"
+	fibFailedTraffic   = "fibFailedTraffic"
+	dstTrackingf1      = "dstTrackingf1"
+	dstTrackingf2      = "dstTrackingf2"
 )
 
 var (
@@ -235,15 +234,16 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 }
 
 type testArgs struct {
-	ctx           context.Context
-	dut           *ondatra.DUTDevice
-	ate           *ondatra.ATEDevice
-	otgBgpPeer    gosnappi.BgpV6Peer
-	otgIPv6Device gosnappi.DeviceIpv6
-	otgConfig     gosnappi.Config
-	client        *fluent.GRIBIClient
-	electionID    gribi.Uint128
-	otg           *otg.OTG
+	ctx                       context.Context
+	dut                       *ondatra.DUTDevice
+	ate                       *ondatra.ATEDevice
+	otgBgpPeer                gosnappi.BgpV6Peer
+	otgIPv6Device             gosnappi.DeviceIpv6
+	otgConfig                 gosnappi.Config
+	client                    *fluent.GRIBIClient
+	electionID                gribi.Uint128
+	otg                       *otg.OTG
+	advertisedRoutesv6MaskLen uint32
 }
 
 // TestFibFailDueToHwResExhaust is to test gRIBI FIB_FAILED functionality
@@ -251,6 +251,12 @@ type testArgs struct {
 func TestFibFailDueToHwResExhaust(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+	var advertisedV6MaskLen uint32
+	if deviations.SubnetMaskChangeRequired(dut) {
+		advertisedV6MaskLen = uint32(120)
+	} else {
+		advertisedV6MaskLen = uint32(128)
+	}
 	dstIPList := createIPv4Entries(t, fmt.Sprintf("%s/%d", dstIPBlock, 20))
 	vipList := createIPv4Entries(t, fmt.Sprintf("%s/%d", vipBlock, 20))
 	configureDUT(t, dut)
@@ -323,15 +329,16 @@ func TestFibFailDueToHwResExhaust(t *testing.T) {
 	}
 
 	args := &testArgs{
-		ctx:           ctx,
-		client:        client,
-		dut:           dut,
-		ate:           ate,
-		otgBgpPeer:    otgBgpPeer,
-		otgIPv6Device: otgIPv6Device,
-		otgConfig:     otgConfig,
-		electionID:    eID,
-		otg:           otg,
+		ctx:                       ctx,
+		client:                    client,
+		dut:                       dut,
+		ate:                       ate,
+		otgBgpPeer:                otgBgpPeer,
+		otgIPv6Device:             otgIPv6Device,
+		otgConfig:                 otgConfig,
+		electionID:                eID,
+		otg:                       otg,
+		advertisedRoutesv6MaskLen: advertisedV6MaskLen,
 	}
 	start := time.Now()
 	// cleanup fib table
@@ -464,7 +471,7 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv6).
-		SetPrefix(advertisedRoutesv6MaskLen).
+		SetPrefix(args.advertisedRoutesv6MaskLen).
 		SetCount(vendorSpecRoutecount[args.dut.Vendor()]).SetStep(2)
 	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
 

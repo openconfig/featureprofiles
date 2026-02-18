@@ -54,6 +54,26 @@ None
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/forwarding-viable:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/state/forwarding-viable:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /lacp/interfaces/interface/config/lacp-mode:
 rpcs:
   gnmi:
     gNMI.Set:

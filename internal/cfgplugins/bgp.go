@@ -172,6 +172,10 @@ type BGPConfig struct {
 	ECMPMaxPath uint32
 	// RouterID is the router ID of the DUT. (Usually the IPv4 address.)
 	RouterID string
+	//Maximum Routes
+	EnableMaxRoutes bool
+	//Peer Groups
+	PeerGroups []string
 }
 
 // BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
@@ -182,6 +186,7 @@ type BGPNeighborConfig struct {
 	NeighborIPv6     string
 	IsLag            bool
 	MultiPathEnabled bool
+	PolicyName       *string
 }
 
 // BgpNeighborScale holds parameters for configuring BGP neighbors in a scale test.
@@ -209,6 +214,19 @@ type EBgpConfigScale struct {
 type VrfBGPState struct {
 	NetworkInstanceName string
 	NeighborIPs         []string
+}
+
+// BMPConfigParams holds the parameters to bgp BMP collector
+type BMPConfigParams struct {
+	DutAS        uint32
+	BGPObj       *oc.NetworkInstance_Protocol_Bgp
+	Source       string
+	LocalAddr    string
+	StationAddr  string
+	StationPort  uint16
+	StatsTimeOut uint16
+	PrePolicy    bool
+	PostPolicy   bool
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
@@ -676,6 +694,24 @@ func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.Se
 	return nil
 }
 
+// DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
+func DeviationBgpRibStreamingConfigRequired(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Log("Executing CLI commands for BGP RIB streaming config")
+		bgpRibStreamingConfig := `
+		management api models
+		provider bgp
+		bgp-rib
+		ipv4-unicast
+		ipv6-unicast
+		`
+		helpers.GnmiCLIConfig(t, dut, bgpRibStreamingConfig)
+	default:
+		t.Fatalf("DeviationBgpRibStreamingConfigRequired not implemented for vendor %v", dut.Vendor())
+	}
+}
+
 // sameAS checks if all neighbors have the same local and peer AS.
 func sameAS(nbrs []*BgpNeighbor) bool {
 	for _, nbr := range nbrs {
@@ -690,13 +726,25 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 }
 
 // handleMultipathDeviation implements the deviation logic whether multipath config
-// at the afisafi level is supported or not. It updates the sb with the necessary
-// configuration.
-func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg BGPNeighborsConfig) error {
+// at the afisafi level is supported or not. It updates the root object with the
+// necessary configuration.
+func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig) error {
 	t.Helper()
-	root := &oc.Root{}
 	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-
+	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
+	if deviations.EnableMultipathUnderAfiSafi(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			global := bgp.GetOrCreateGlobal()
+			// set the maxpaths as 2 as we can expect max of 2 paths in the test.
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			return nil
+		default:
+			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
+		}
+	}
+	// Handle MultipathUnsupportedNeighborOrAfisafi deviation and Configure Multipath for Juniper
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
@@ -704,7 +752,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 				SetEnabled(true)
 			bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateUseMultiplePaths().
 				SetEnabled(true)
-			gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 			return nil
 		default:
 			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
@@ -725,7 +772,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
 }
 
@@ -786,7 +832,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
+	if err := handleMultipathDeviation(t, dut, root, cfg); err != nil {
 		return err
 	}
 
@@ -865,10 +911,22 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	af6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 
+	if cfg.EnableMaxRoutes {
+		bgpMaxRouteCfg := new(strings.Builder)
+		fmt.Fprintf(bgpMaxRouteCfg, "router bgp %d\n", cfg.DutAS)
+
+		for _, pg := range cfg.PeerGroups {
+			fmt.Fprintf(bgpMaxRouteCfg, "neighbor %s maximum-routes 0\n", pg)
+		}
+
+		helpers.GnmiCLIConfig(t, dut, bgpMaxRouteCfg.String())
+	}
+
 	// Handle multipath deviation
-	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
-		t.Log("Executing CLI commands for multipath deviation")
-		bgpRouteConfig := fmt.Sprintf(`
+	if cfg.ECMPMaxPath > 0 {
+		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+			t.Log("Executing CLI commands for multipath deviation")
+			bgpRouteConfig := fmt.Sprintf(`
 		router bgp %d
 		address-family ipv4
 		maximum-paths %[2]d ecmp %[2]d
@@ -877,23 +935,24 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 		maximum-paths %[2]d ecmp %[2]d
 		bgp bestpath as-path multipath-relax
 		`, cfg.DutAS, cfg.ECMPMaxPath)
-		helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
-	} else {
-		// TODO: Once multipath is fully supported via OpenConfig across all platforms,
-		// remove CLI fallback and rely solely on OC configuration.
-		v4Multipath := af4.GetOrCreateUseMultiplePaths()
-		v4Multipath.SetEnabled(true)
-		v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-		v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
+		} else {
+			// TODO: Once multipath is fully supported via OpenConfig across all platforms,
+			// remove CLI fallback and rely solely on OC configuration.
+			v4Multipath := af4.GetOrCreateUseMultiplePaths()
+			v4Multipath.SetEnabled(true)
+			v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
-		v6Multipath := af6.GetOrCreateUseMultiplePaths()
-		v6Multipath.SetEnabled(true)
-		v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-		v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v6Multipath := af6.GetOrCreateUseMultiplePaths()
+			v6Multipath.SetEnabled(true)
+			v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+			v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
 
-		if !deviations.SkipSettingAllowMultipleAS(dut) {
-			v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
-			v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			if !deviations.SkipSettingAllowMultipleAS(dut) {
+				v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+				v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			}
 		}
 	}
 	gnmi.BatchUpdate(batch, dutBgpConfPath.Config(), dutBgpConf)
@@ -911,8 +970,13 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv4 := pgv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	pgafv4.Enabled = ygot.Bool(true)
 	rpl4 := pgafv4.GetOrCreateApplyPolicy()
-	rpl4.ImportPolicy = []string{ALLOW}
-	rpl4.ExportPolicy = []string{ALLOW}
+	if cfg.PolicyName != nil {
+		rpl4.ImportPolicy = []string{*cfg.PolicyName}
+		rpl4.ExportPolicy = []string{*cfg.PolicyName}
+	} else {
+		rpl4.ImportPolicy = []string{ALLOW}
+		rpl4.ExportPolicy = []string{ALLOW}
+	}
 
 	// === Peer Group for IPv6 ===
 	pgv6Name := cfg.PortName + "BGP-PEER-GROUP-V6"
@@ -922,8 +986,13 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	pgafv6 := pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	pgafv6.Enabled = ygot.Bool(true)
 	rpl6 := pgafv6.GetOrCreateApplyPolicy()
-	rpl6.ImportPolicy = []string{ALLOW}
-	rpl6.ExportPolicy = []string{ALLOW}
+	if cfg.PolicyName != nil {
+		rpl6.ImportPolicy = []string{*cfg.PolicyName}
+		rpl6.ExportPolicy = []string{*cfg.PolicyName}
+	} else {
+		rpl6.ImportPolicy = []string{ALLOW}
+		rpl6.ExportPolicy = []string{ALLOW}
+	}
 
 	if cfg.MultiPathEnabled {
 		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
@@ -1583,5 +1652,84 @@ func VerifyRoutes(t *testing.T, dut *ondatra.DUTDevice, routesToAdvertise map[st
 		} else {
 			t.Logf("Route %s successfully installed in AFT for VRF %q", route, info.VRF)
 		}
+	}
+}
+
+// ConfigureBMP applies BMP station configuration on DUT.
+func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
+	t.Helper()
+	if deviations.BMPOCUnsupported(dut) {
+
+		bmpConfig := new(strings.Builder)
+
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+
+			fmt.Fprintf(bmpConfig, `
+				router bgp %d
+				bgp monitoring
+				! BMP station
+				monitoring station BMP_STN
+				update-source %s
+				statistics
+				connection address %s
+				connection mode active port %d
+					`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
+
+			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+
+			if cfgParams.PrePolicy {
+				t.Log("Configured BMP station with pre-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes pre-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if cfgParams.PostPolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes post-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+		}
+	} else {
+		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
+		t.Log("BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
+		// // === BMP Configuration ===
+		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
+		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)
+		// bmp.StatisticsTimeout = ygot.Uint16(cfgParams.StatsTimeOut)
+
+		// // --- Create BMP Station ---
+		// st := bmp.GetOrCreateStation("BMP_STN")
+		// st.Address = ygot.String(cfgParams.StationAddr)
+		// st.Port = ygot.Uint16(cfgParams.StationPort)
+		// st.ConnectionMode = oc.BgpTypes_BMPStationMode_ACTIVE
+		// st.Description = ygot.String("ATE BMP station")
+		// st.PolicyType = oc.BgpTypes_BMPPolicyType_POST_POLICY
+		// st.ExcludeNoneligible = ygot.Bool(true)
+		// // Push configuration
+		// gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bmp)
+	}
+}
+
+// ConfigureBMPAccessList applies access-list to permit BMP port if blocked by default rules.
+func ConfigureBMPAccessList(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfgParams BMPConfigParams) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		bmpAclConfig := new(strings.Builder)
+		fmt.Fprintf(bmpAclConfig, `
+			ip access-list restrict-access
+			permit tcp any any eq %[1]d
+ 			permit tcp any eq %[1]d any`, cfgParams.StationPort)
+
+		helpers.GnmiCLIConfig(t, dut, bmpAclConfig.String())
 	}
 }
