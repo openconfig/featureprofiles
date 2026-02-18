@@ -694,6 +694,24 @@ func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.Se
 	return nil
 }
 
+// DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
+func DeviationBgpRibStreamingConfigRequired(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Log("Executing CLI commands for BGP RIB streaming config")
+		bgpRibStreamingConfig := `
+		management api models
+		provider bgp
+		bgp-rib
+		ipv4-unicast
+		ipv6-unicast
+		`
+		helpers.GnmiCLIConfig(t, dut, bgpRibStreamingConfig)
+	default:
+		t.Fatalf("DeviationBgpRibStreamingConfigRequired not implemented for vendor %v", dut.Vendor())
+	}
+}
+
 // sameAS checks if all neighbors have the same local and peer AS.
 func sameAS(nbrs []*BgpNeighbor) bool {
 	for _, nbr := range nbrs {

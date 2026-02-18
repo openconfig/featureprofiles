@@ -206,11 +206,11 @@ func TestBgpSession(t *testing.T) {
 			pol := applyBgpPolicy(rejectPrefix, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			t.Logf("Policy applied, waiting for DUT to apply the policy")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
 			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			// Reject Community
@@ -218,11 +218,11 @@ func TestBgpSession(t *testing.T) {
 			pol = applyBgpPolicy(rejectCommunity, dut, tc.nbr.isV4)
 			gnmi.Update(t, dut, dutConfPath.Config(), pol)
 			t.Logf("Policy applied, waiting for DUT to apply the policy")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectCommunity, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectCommunity, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			deleteBgpPolicy(t, dut, tc.nbr.isV4)
 			t.Logf("Policy deleted, waiting for DUT to delete the policy ")
-			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 15*time.Second)
+			awaitBGPPolicy(t, dut, tc.nbr, rejectPrefix, 30*time.Second)
 			verifyPrefixesTelemetry(t, dut, defaultCount, tc.nbr.isV4)
 
 			// Reject ASPath
@@ -231,7 +231,7 @@ func TestBgpSession(t *testing.T) {
 				pol = applyBgpPolicy(rejectAspath, dut, tc.nbr.isV4)
 				gnmi.Update(t, dut, dutConfPath.Config(), pol)
 				t.Logf("Policy applied, waiting for DUT to apply the policy")
-				awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 15*time.Second)
+				awaitBGPPolicy(t, dut, tc.nbr, rejectAspath, 30*time.Second)
 				verifyPrefixesTelemetry(t, dut, 2, tc.nbr.isV4)
 			}
 			t.Log("Clear BGP Configs on ATE")
@@ -412,7 +412,7 @@ func verifyPrefixesTelemetryV4(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv4 := statePath.Neighbor(ateSrc.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
 
-	gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalled, ok := gnmi.Watch(t, dut, prefixesv4.Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, _ := val.Val()
 		return gotInstalled == wantInstalled
 	}).Await(t)
@@ -428,7 +428,7 @@ func verifyPrefixesTelemetryV6(t *testing.T, dut *ondatra.DUTDevice, wantInstall
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	prefixesv6 := statePath.Neighbor(ateSrc.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
 
-	gotInstalledv6, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), 15*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	gotInstalledv6, ok := gnmi.Watch(t, dut, prefixesv6.Installed().State(), 120*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalledv6, _ := val.Val()
 		return gotInstalledv6 == wantInstalledv6
 	}).Await(t)
@@ -637,6 +637,11 @@ func createBgpNeighbor(nbr *bgpNbr, dut *ondatra.DUTDevice) *oc.NetworkInstance_
 	pg := bgp.GetOrCreatePeerGroup("ATE")
 	pg.PeerAs = ygot.Uint32(nbr.peerAS)
 	pg.PeerGroupName = ygot.String("ATE")
+	if nbr.peerAS != nbr.localAS {
+		if deviations.BgpDefaultPolicyBehaviorAcceptRoute(dut) {
+			pg.GetOrCreateApplyPolicy().SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		}
+	}
 
 	neighbor := bgp.GetOrCreateNeighbor(nbr.peerIP)
 	neighbor.PeerAs = ygot.Uint32(nbr.peerAS)

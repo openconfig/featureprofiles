@@ -15,6 +15,8 @@
 package utilization_test
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -82,10 +85,13 @@ var (
 )
 
 type utilization struct {
-	used                uint64
-	free                uint64
-	upperThreshold      uint8
-	upperThresholdClear uint8
+	name                   string
+	maxLimit               uint64
+	used                   uint64
+	free                   uint64
+	upperThreshold         uint8
+	upperThresholdClear    uint8
+	upperThresholdExceeded bool
 }
 
 func (u *utilization) percent() uint8 {
@@ -93,6 +99,36 @@ func (u *utilization) percent() uint8 {
 		return 0
 	}
 	return uint8(u.used * 100 / (u.used + u.free))
+}
+
+func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
+	if functionalTranslatorName == "" {
+		return nil
+	}
+	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
+	if !ok {
+		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
+	}
+	return []ygnmi.Option{ygnmi.WithFT(ft)}
+}
+
+// Helper function to get translator friendly resource name and component name for Ciscoxr8000IntegratedCircuitResourceFt
+func getFTCompatibleResourceNameAndComponentName(resourceName string, componentName string) (string, string) {
+	ftResourceName := strings.ReplaceAll(resourceName, "_", "-")
+	re := regexp.MustCompile(`(NPU)(\d+)$`)
+	ftComponent := re.ReplaceAllString(componentName, "$1-$2")
+	return ftResourceName, ftComponent
+}
+
+func validateUtilizationExceeded(t *testing.T, utzs map[string]*utilization) {
+	for c, u := range utzs {
+		if u.upperThresholdExceeded && u.percent() < u.upperThresholdClear {
+			t.Errorf("upperThresholdExceeded is true for component: %s when it should be false", c)
+		}
+		if !u.upperThresholdExceeded && u.percent() > u.upperThreshold {
+			t.Errorf("upperThresholdExceeded is false for component: %s when it should be true", c)
+		}
+	}
 }
 
 func TestMain(m *testing.M) {
@@ -118,15 +154,26 @@ func TestResourceUtilization(t *testing.T) {
 	if len(beforeUtzs) != len(comps) {
 		t.Fatalf("Couldn't retrieve Utilization information for all Active Components")
 	}
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, beforeUtzs)
+	}
 
 	injectBGPRoutes(t, otg, otgV6Peer, otgPort1, otgConfig)
 
 	// Use map to store utilization after BGP route installation to compare with cleared state later.
 	afterUtzs := make(map[string]*utilization)
+	if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+		validateUtilizationExceeded(t, afterUtzs)
+	}
 
 	t.Run("Utilization after BGP route installation", func(t *testing.T) {
 		for _, c := range comps {
 			t.Run(c, func(t *testing.T) {
+				if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" {
+					if got, want := beforeUtzs[c].name, fibResource[dut.Vendor()]; got != want {
+						t.Errorf("Resource name mismatch! got: %s, want: %s", got, want)
+					}
+				}
 				beforePct := beforeUtzs[c].percent()
 				t.Logf("Waiting for utilization to increase above %d%%...", beforePct)
 				u := awaitUtilization(t, dut, c, func(pct uint8) bool {
@@ -136,6 +183,8 @@ func TestResourceUtilization(t *testing.T) {
 					t.Errorf("Utilization Percent didn't increase for component: %s (Started at %d%%)", c, beforePct)
 					// Fallback to get current value for map consistency, though test failed.
 					afterUtzs[c] = beforeUtzs[c]
+				} else if deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut) != "" && u.used+u.free > u.maxLimit {
+					t.Errorf("Max limit %d is less than used %d + free %d", u.maxLimit, u.used, u.free)
 				} else {
 					t.Logf("Before Utilization: %d, After Utilization: %d", beforePct, u.percent())
 					afterUtzs[c] = u
@@ -180,16 +229,30 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 
 	var lastVal *utilization
 
-	val, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
+	_, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.Component_IntegratedCircuit_Utilization_Resource]) bool {
 		res, ok := val.Val()
 		if !ok {
 			return false
 		}
 		u := &utilization{
-			used:                res.GetUsed(),
-			free:                res.GetFree(),
-			upperThreshold:      res.GetUsedThresholdUpper(),
-			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
+		}
+		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
+		if len(opts) > 0 {
+			ftResourceName, ftComponent := getFTCompatibleResourceNameAndComponentName(resName, c)
+			resourcePath := gnmi.OC().Component(ftComponent).IntegratedCircuit().Utilization().Resource(ftResourceName)
+
+			u.used = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Used().State())
+			u.upperThresholdClear = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpperClear().State())
+			u.upperThreshold = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpper().State())
+			u.maxLimit = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.MaxLimit().State())
+			u.name = strings.ReplaceAll(gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Name().State()), "-", "_")
 		}
 		lastVal = u
 		return predicate(u.percent())
@@ -198,13 +261,14 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 	if !ok {
 		return lastVal
 	}
-	// Reconstruct the utilization from the final watched value
-	res, _ := val.Val()
 	return &utilization{
-		used:                res.GetUsed(),
-		free:                res.GetFree(),
-		upperThreshold:      res.GetUsedThresholdUpper(),
-		upperThresholdClear: res.GetUsedThresholdUpperClear(),
+		name:                   lastVal.name,
+		maxLimit:               lastVal.maxLimit,
+		used:                   lastVal.used,
+		free:                   lastVal.free,
+		upperThreshold:         lastVal.upperThreshold,
+		upperThresholdClear:    lastVal.upperThresholdClear,
+		upperThresholdExceeded: lastVal.upperThresholdExceeded,
 	}
 }
 
@@ -219,10 +283,24 @@ func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string)
 		comp := gnmi.Get(t, dut, gnmi.OC().Component(c).State())
 		res := comp.GetIntegratedCircuit().GetUtilization().GetResource(resName)
 		utzs[c] = &utilization{
-			used:                res.GetUsed(),
-			free:                res.GetFree(),
-			upperThreshold:      res.GetUsedThresholdUpper(),
-			upperThresholdClear: res.GetUsedThresholdUpperClear(),
+			name:                   res.GetName(),
+			maxLimit:               res.GetMaxLimit(),
+			used:                   res.GetUsed(),
+			free:                   res.GetFree(),
+			upperThreshold:         res.GetUsedThresholdUpper(),
+			upperThresholdClear:    res.GetUsedThresholdUpperClear(),
+			upperThresholdExceeded: res.GetUsedThresholdUpperExceeded(),
+		}
+		opts := getOptsForFunctionalTranslator(t, dut, deviations.Ciscoxr8000IntegratedCircuitResourceFt(dut))
+		if len(opts) > 0 {
+			ftResourceName, ftComponent := getFTCompatibleResourceNameAndComponentName(resName, c)
+			resourcePath := gnmi.OC().Component(ftComponent).IntegratedCircuit().Utilization().Resource(ftResourceName)
+
+			utzs[c].used = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Used().State())
+			utzs[c].upperThresholdClear = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpperClear().State())
+			utzs[c].upperThreshold = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.UsedThresholdUpper().State())
+			utzs[c].maxLimit = gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.MaxLimit().State())
+			utzs[c].name = strings.ReplaceAll(gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), resourcePath.Name().State()), "-", "_")
 		}
 	}
 	return utzs

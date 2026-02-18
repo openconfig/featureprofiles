@@ -1,4 +1,4 @@
-# FNT: Carrier Transitions Test
+# gNMI-1.26: Carrier Transitions Test
 
 ## Summary
 
@@ -52,7 +52,7 @@ port roles:
     *   Verify that the counter values do not increase by more than 100 between samples.
     *   Verify that the final value is greater than the initial value.
 
-#### [TODO: b/391432919] FNT-1 - Admin Flap Test
+#### [TODO: b/391432919] gNMI-1.26.1 - Admin Flap Test
 1. Get Initial Counters: Read the values of:
     *   `/interfaces/interface[name=dutPort1]/state/counters/interface-transitions`
     *   `/interfaces/interface[name=dutPort1]/state/counters/link-transitions`
@@ -76,7 +76,7 @@ port roles:
     * `interface_transitions_final` must be equal to `interface_transitions_initial + 2`.
     * `link_transitions_final` must not change from `link_transitions_initial`.
 
-#### [TODO: b/391432919] FNT-2 - ATE Port Flap Test
+#### [TODO: b/391432919] gNMI-1.26.2 - ATE Port Flap Test
 1. Setup: Ensure the interface is configured as per the basic setup and is
    operationally UP.
 2. Get Initial Counters: Read the values of:
