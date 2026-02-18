@@ -63,6 +63,8 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
 rpcs:
   gnmi:
     gNMI.Set:
