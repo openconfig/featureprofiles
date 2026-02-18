@@ -60,7 +60,7 @@ const (
 	peerGroupV6                       = "BGP-PEER-GROUP-V6"
 	postPolicyRoutev4CountperNeighbor = 4934464 // Calculated based on 3 neighbors(15000000 - 65536*3) / 3
 	postPolicyRoutev6CountperNeighbor = 750000
-	statisticsIntervalSeconds         = 60 * time.Second
+	statisticsInterval                = 60 * time.Second
 )
 
 type PolicyRoute struct {
@@ -464,7 +464,7 @@ func verifyBMPStatisticsReporting(t *testing.T, ate *ondatra.ATEDevice, bmpName 
 	statCounter = gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("BMP statistics counter: %v", statCounter)
 
-	time.Sleep(statisticsIntervalSeconds)
+	time.Sleep(statisticsInterval)
 
 	updatedStatCounter := gnmi.Get(t, ate.OTG(), bmpServer.Counters().StatisticsMessagesReceived().State())
 	t.Logf("Updated BMP statistics counter: %v", updatedStatCounter)
