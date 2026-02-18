@@ -96,8 +96,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
 
-	applyForwardingPolicy(t, dp1.Name())
-
 	// configure 16 L3 subinterfaces under DUT port#2 and assign them to DEFAULT vrf
 	configureDUTSubIfs(t, d, dut, dp2)
 }
@@ -313,7 +311,13 @@ func TestScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+
 	createFlow(t, ate, top, vrfConfigs[1])
+
+	t.Log("ARP resolved. Applying Forwarding Policy now")
+	dp1 := dut.Port(t, "port1")
+	applyForwardingPolicy(t, dp1.Name())
+
 	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
@@ -376,7 +380,7 @@ func createFlow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, vrfTC
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "flow")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 }
 
 func checkTraffic(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config) {

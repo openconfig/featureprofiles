@@ -192,9 +192,19 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	top := configureATE(t, ate)
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(30 * time.Second)
+
+	t.Log("Waiting for DUT LAG interfaces to be OperStatus UP")
+	for _, aggID := range aggIDs {
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
+		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
+	}
+	for _, port := range dut.Ports() {
+		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
+	}
+
 	ate.OTG().StartProtocols(t)
-	time.Sleep(30 * time.Second)
+
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})

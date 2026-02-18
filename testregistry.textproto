@@ -82,13 +82,19 @@ test: {
   id: "AFT-1.1"
   description: "AFTs Base Link Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_base/afts_base_test.go"
+}
+test: {
+  id: "AFT-1.2"
+  description: "AFTs slow collector"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_slowcollector/README.md"
   exec: ""
 }
 test: {
   id: "AFT-1.3"
   description: "AFTs collector Flap"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/collector_flap/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/collector_flap/collector_flap_test.go"
 }
 test: {
   id: "AFT-2.1"
@@ -100,13 +106,13 @@ test: {
   id: "AFT-3.1"
   description: "AFTs Atomic Flag Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_atomic/afts_atomic_test.go"
 }
 test: {
   id: "AFT-5.1"
   description: "AFTs DUT Reboot"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/README.md"
-  exec: ""
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/otg_tests/afts_reboot/afts_reboot_test.go"
 }
 test: {
   id: "attestz-1"
@@ -1044,13 +1050,13 @@ test: {
   id: "RT-4.10"
   description: "AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/README.md"
-  exec: " "
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/route_summary_counters_test/route_summary_counters_test.go"
 }
 test: {
   id: "RT-4.11"
   description: " Scale AFTs Route Summary"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/README.md"
-  exec: " "
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/afts/summary/otg_tests/scale_aft_summary/route_test.go"
 }
 
 test: {
@@ -1131,6 +1137,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.14"
+  description: "Aggregate Subinterface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_subinterface/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
@@ -1201,8 +1213,8 @@ test: {
 }
 test: {
   id: "RT-7.9"
-  description: "Support for configuring ECMP hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port, L3 IPv6 flow label)"
-  readme: " "
+  description: "Support for configuring BGP ECMP with IS-IS protocol nexthop and  hashing based on *any* subset of the following (L3 src IP, L3 dst IP, protocol, L4 src port, L4 dst port)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/policybase/otg_tests/multipath_bgp_ecmp_protocol_nexthop/README.md"
   exec: " "
 }
 test: {
@@ -1489,6 +1501,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-6.4"
+  description: "gRIBI to BGP Redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_to_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "TE-8.2"
   description: "Supervisor Failure"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/supervisor_failure_test/README.md"
@@ -1554,6 +1572,22 @@ test: {
 test: {
   id: "TRANSCEIVER-104"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-105"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-106"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-107"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-108"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11.1"
@@ -2199,4 +2233,16 @@ test: {
   description: "Telemetry: Firewall High Availability"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: ""
+}
+test: {
+  id: "TE-1.2"
+  description: "My Station MAC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "gNMI-1.26"
+  description: "Carrier Transitions Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
 }
