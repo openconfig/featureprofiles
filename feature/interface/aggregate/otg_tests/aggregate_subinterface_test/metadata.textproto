@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "99428c80-2eae-4e51-bd10-d24549faf2e2"
+plan_id:  "RT-5.14"
+description:  "Aggregate Subinterface in Default and Non default Network Instance"
+testbed:  TESTBED_DUT_ATE_4LINKS
