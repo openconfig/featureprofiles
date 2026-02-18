@@ -1137,7 +1137,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-5.14"
+  id: "RT-5.15"
   description: "LACP Fallback Support"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/tests/lacp_fallback_test/README.md" 
   exec: " "
