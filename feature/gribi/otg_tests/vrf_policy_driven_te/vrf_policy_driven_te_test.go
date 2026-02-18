@@ -776,18 +776,17 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
 		// Always populate interface-ref with base interface and subinterface index.
+		baseIntf := intfName
+		subIdx := uint32(0)
 		if strings.Contains(intfName, ".") {
 			parts := strings.SplitN(intfName, ".", 2)
-			baseIntf := parts[0]
-			subIdx := uint32(0)
-			if len(parts) == 2 {
-				if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
-					subIdx = uint32(v)
-				}
+			baseIntf = parts[0]
+			if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+				subIdx = uint32(v)
 			}
-			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
-			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 		}
+		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 		if deviations.InterfaceRefConfigUnsupported(dut) {
 			isisIntf.InterfaceRef = nil
 		}
