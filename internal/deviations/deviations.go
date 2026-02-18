@@ -1816,6 +1816,16 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
+// BgpRibStreamingConfigRequired returns true for devices that require an
+// an explicit config to support BGP RIB streaming through YANG path:
+//
+//	/network-instances/network-instance/protocols/protocol/bgp/rib
+//
+// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+func BgpRibStreamingConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibStreamingConfigRequired()
+}
+
 // InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
 // https://issuetracker.google.com/issues/461368936
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
