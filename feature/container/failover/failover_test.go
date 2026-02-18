@@ -1,0 +1,207 @@
+package failover
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/openconfig/containerz/client"
+	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+
+	cpb "github.com/openconfig/gnoi/containerz"
+	gnoisystem "github.com/openconfig/gnoi/system"
+	gnoitypes "github.com/openconfig/gnoi/types"
+)
+
+var (
+	containerTar = flag.String("container_tar", "", "Path to the container tarball")
+	// containerTarPath returns the path to the container tarball.
+	// This can be overridden for internal testing behavior using init().
+	containerTarPath = func(t *testing.T) string {
+		return *containerTar
+	}
+)
+
+const (
+	imageName      = "cntrsrv_image"
+	tag            = "latest"
+	containerName  = "cntrsrv"
+	volName        = "test-failover-vol"
+	switchoverWait = 15 * time.Second
+	pollInterval   = 1 * time.Second
+)
+
+func TestMain(m *testing.M) {
+	fptest.RunTests(m)
+}
+
+func TestContainerSupervisorFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	// Identify the standby control processor to switch to.
+	standbyRP, err := findStandbyRP(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find standby RP: %v", err)
+	}
+	t.Logf("Found standby RP: %s", standbyRP)
+
+	// Initialize clients.
+	cli := containerztest.Client(t, dut)
+	// Raw system client for switchover.
+	sysClient := dut.RawAPIs().GNOI(t).System()
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, nil); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+
+		t.Logf("Deploying and starting container %s...", containerName)
+		opts := containerztest.StartContainerOptions{
+			InstanceName:        containerName,
+			ImageName:           imageName,
+			ImageTag:            "latest",
+			TarPath:             containerTarPath(t),
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
+			RemoveExistingImage: true,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        5 * time.Second,
+		}
+
+		// containerztest.DeployAndStart handles pushing the image and starting the container.
+		// We use it instead of containerztest.Setup because it does not return a cleanup
+		// function, which is ideal for a failover test where we want to verify persistence.
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("Failed to deploy and start container: %v", err)
+		}
+		if err := verifyVolumeExists(ctx, cli, volName); err != nil {
+			t.Fatalf("Volume not found after creation: %v", err)
+		}
+	})
+
+	t.Run("Switchover", func(t *testing.T) {
+		t.Logf("Switching control processor to %s...", standbyRP)
+		switchReq := &gnoisystem.SwitchControlProcessorRequest{
+			ControlProcessor: &gnoitypes.Path{
+				Elem: []*gnoitypes.PathElem{{Name: standbyRP}},
+			},
+		}
+
+		// Log the error but proceed to wait for the system to come back.
+		if _, err := sysClient.SwitchControlProcessor(ctx, switchReq); err != nil {
+			t.Logf("SwitchControlProcessor returned error: %v", err)
+		}
+	})
+
+	t.Run("VerifyRecovery", func(t *testing.T) {
+		t.Log("Waiting for DUT to reconnect...")
+		// Allow some time for the switchover to initiate and the connection to drop.
+		time.Sleep(switchoverWait)
+
+		// Refresh clients after reconnection.
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container recovery...")
+		if err := verifyContainerStateEventually(ctx, cli, containerName, cpb.ListContainerResponse_RUNNING); err != nil {
+			t.Errorf("Container recovery failed: %v", err)
+		}
+
+		t.Log("Verifying volume persistence...")
+		if err := verifyVolumeExists(ctx, cli, volName); err != nil {
+			t.Errorf("Volume persistence failed: %v", err)
+		}
+	})
+}
+
+// findStandbyRP identifies the secondary/standby control processor.
+func findStandbyRP(t *testing.T, dut *ondatra.DUTDevice) (string, error) {
+	t.Helper()
+	comps := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	for _, c := range comps {
+		if c.GetRedundantRole() == oc.Platform_ComponentRedundantRole_SECONDARY {
+			return c.GetName(), nil
+		}
+	}
+	return "", fmt.Errorf("no standby control processor found")
+}
+
+// verifyContainerState checks if a container exists and is in the expected state.
+func verifyContainerState(ctx context.Context, cli *client.Client, name string, want cpb.ListContainerResponse_Status) error {
+	// Use the client's ListContainer with filter.
+	listCh, err := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {name}})
+	if err != nil {
+		return fmt.Errorf("ListContainer failed: %w", err)
+	}
+
+	found := false
+	for cnt := range listCh {
+		if cnt.Error != nil {
+			return fmt.Errorf("error listing containers: %w", cnt.Error)
+		}
+		// Handle potential leading slash in name returned by some vendor implementations.
+		if strings.TrimPrefix(cnt.Name, "/") == name {
+			found = true
+			if cnt.State != want.String() {
+				return fmt.Errorf("container %s state is %v, want %v", name, cnt.State, want)
+			}
+		}
+	}
+	if !found {
+		return fmt.Errorf("container %s not found", name)
+	}
+	return nil
+}
+
+// verifyContainerStateEventually polls for the container to reach the expected state.
+func verifyContainerStateEventually(ctx context.Context, cli *client.Client, name string, want cpb.ListContainerResponse_Status) error {
+	ticker := time.NewTicker(pollInterval)
+	defer ticker.Stop()
+	timeout := time.After(switchoverWait)
+
+	for {
+		select {
+		case <-timeout:
+			return fmt.Errorf("container %s did not reach state %v within timeout", name, want)
+		case <-ticker.C:
+			if err := verifyContainerState(ctx, cli, name, want); err == nil {
+				return nil
+			}
+		}
+	}
+}
+
+// verifyVolumeExists checks if a volume exists.
+func verifyVolumeExists(ctx context.Context, cli *client.Client, name string) error {
+	volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {name}})
+	if err != nil {
+		return fmt.Errorf("ListVolume failed: %w", err)
+	}
+
+	found := false
+	for vol := range volCh {
+		if vol.Error != nil {
+			return fmt.Errorf("error listing volumes: %w", vol.Error)
+		}
+		if vol.Name == name {
+			found = true
+		}
+	}
+	if !found {
+		return fmt.Errorf("volume %s not found", name)
+	}
+	return nil
+}
