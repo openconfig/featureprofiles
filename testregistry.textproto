@@ -644,7 +644,7 @@ test: {
 test: {
   id: "RELAY-1.1"
   description: "DHCP Relay functionality"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/relay-agent/otg_tests/relay_agent_test/README.md" 
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/relay_agent/otg_tests/relay_agent_test/README.md" 
   exec: " "
 }
 test: {
