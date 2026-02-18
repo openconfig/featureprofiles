@@ -216,6 +216,7 @@ type VrfBGPState struct {
 	NeighborIPs         []string
 }
 
+// BMPConfigParams holds the parameters to bgp BMP collector
 type BMPConfigParams struct {
 	DutAS        uint32
 	BGPObj       *oc.NetworkInstance_Protocol_Bgp
@@ -692,7 +693,6 @@ func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.Se
 }
 
 // DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
-// DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
 func DeviationBgpRibStreamingConfigRequired(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -724,13 +724,25 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 }
 
 // handleMultipathDeviation implements the deviation logic whether multipath config
-// at the afisafi level is supported or not. It updates the sb with the necessary
-// configuration.
-func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg BGPNeighborsConfig) error {
+// at the afisafi level is supported or not. It updates the root object with the
+// necessary configuration.
+func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig) error {
 	t.Helper()
-	root := &oc.Root{}
 	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-
+	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
+	if deviations.EnableMultipathUnderAfiSafi(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			global := bgp.GetOrCreateGlobal()
+			// set the maxpaths as 2 as we can expect max of 2 paths in the test.
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			return nil
+		default:
+			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
+		}
+	}
+	// Handle MultipathUnsupportedNeighborOrAfisafi deviation and Configure Multipath for Juniper
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
@@ -738,7 +750,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 				SetEnabled(true)
 			bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateUseMultiplePaths().
 				SetEnabled(true)
-			gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 			return nil
 		default:
 			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
@@ -759,7 +770,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
 }
 
@@ -820,7 +830,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
+	if err := handleMultipathDeviation(t, dut, root, cfg); err != nil {
 		return err
 	}
 
