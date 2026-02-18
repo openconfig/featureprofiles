@@ -309,6 +309,10 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	ateIBGPNeighborFourIPv6AFPolicy.SetExportPolicy([]string{"permit-all"})
 
 	gnmi.Replace(t, dut, bgpPath.Config(), networkInstanceProtocolBgp)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
 }
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
