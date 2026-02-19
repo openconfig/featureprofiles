@@ -257,11 +257,9 @@ Traffic:
   ## Config Paths
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
   /defined-sets/prefix-sets/prefix-set/config/name:
   /defined-sets/prefix-sets/prefix-set/config/mode:
