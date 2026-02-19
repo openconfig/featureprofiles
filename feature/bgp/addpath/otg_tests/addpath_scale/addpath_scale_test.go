@@ -27,6 +27,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -60,6 +61,7 @@ var (
 	dutPort1 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port1",
+			Desc:    "port1",
 			IPv4:    "192.0.2.1",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:1",
@@ -70,6 +72,7 @@ var (
 	dutPort2 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port2",
+			Desc:    "port2",
 			IPv4:    "192.0.2.5",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:5",
@@ -81,6 +84,7 @@ var (
 	dutPort3 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port3",
+			Desc:    "port3",
 			IPv4:    "192.0.2.9",
 			IPv4Len: plenIPv4,
 			IPv6:    "2001:0db8::192:0:2:9",
@@ -92,6 +96,7 @@ var (
 	dutPort4 = attributes{
 		Attributes: &attrs.Attributes{
 			Name:    "port4",
+			Desc:    "port4",
 			IPv4:    "200.0.0.1", // 192.0.2.13
 			IPv4Len: 24,
 			IPv6:    "1000::200:0:0:1", // 2001:0db8::192:0:2:d
@@ -224,7 +229,8 @@ func TestAddPathScale(t *testing.T) {
 	}
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, "ALLOW", oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
@@ -241,6 +247,14 @@ func TestAddPathScale(t *testing.T) {
 		advertiseRoutesWithEBGP(t, top)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
+		time.Sleep(2 * time.Minute)
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		otgutils.WaitForARP(t, ate.OTG(), top, "IPv6") // check ipv6 show commands
+		t.Logf("Verify OTG BGP sessions up")
+		cfgplugins.VerifyOTGBGPEstablished(t, ate)
+		t.Logf("Verify DUT BGP sessions up")
+		cfgplugins.VerifyDUTBGPEstablished(t, dut)
+
 	})
 
 	testCases := []struct {
@@ -303,6 +317,14 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 		advertiseRoutesWithEBGPWithCommunities(t, top)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
+		time.Sleep(2 * time.Minute)
+		t.Logf("Verify OTG BGP sessions up")
+		cfgplugins.VerifyOTGBGPEstablished(t, ate)
+		t.Logf("Verify DUT BGP sessions up")
+		cfgplugins.VerifyDUTBGPEstablished(t, dut)
+		// // time.Sleep(1 * time.Minute)
+		// otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+		// otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	})
 
 	createTrafficFlow(t, top, ate, true)
