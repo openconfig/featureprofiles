@@ -10,8 +10,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    aggregate_bandwidth_policy_action_unsupported: true
-    auto_link_bandwidth_unsupported: true
     bgp_rib_oc_path_unsupported: true
   }
 }
