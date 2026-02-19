@@ -29,5 +29,6 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "--- Running FNT Gap Analysis ---"
-          go run tools/gap-analyzer/read_fnttests.go --changed-files="${{ steps.changed-files-pr.outputs.all_changed_files }}"
+          echo "--- Building and Running FNT Gap Analysis ---"
+          go build -o gap-analyzer tools/gap-analyzer/read_fnttests.go
+          ./gap-analyzer --changed-files="${{ steps.changed-files-pr.outputs.all_changed_files }}"
