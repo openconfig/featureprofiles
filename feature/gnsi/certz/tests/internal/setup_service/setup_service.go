@@ -29,21 +29,22 @@ import (
 	"testing"
 	"time"
 
-	pkcs7 "github.com/avast/apkverifier/fullsailor/pkcs7"
+	"github.com/avast/apkverifier/fullsailor/pkcs7"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding"
+	ognmi "github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/knebind/creds"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
+
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	gribipb "github.com/openconfig/gribi/v1/proto/service"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/binding"
-	ognmi "github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/knebind/creds"
 	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/status"
 )
 
 var (
