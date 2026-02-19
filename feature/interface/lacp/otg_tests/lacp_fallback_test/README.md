@@ -2,7 +2,7 @@
 # RT-5.15: LACP Fallback Support 
 
 
-# Summary
+## Summary
 
 This  is to validate the LACP Fallback functionality on a DUT.  The tests validate the following actions -
 
@@ -14,14 +14,14 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * As soon as the DUT receives a LACP PDU on one of the bundle ports, the DUT will turn all the individual ports that are a part of the bundle into the bundle. 
 
 
-# Testbed Type
+## Testbed Type
 
 * [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
-# Procedure
+## Procedure
 
 
-# Test environment setup
+### Test environment setup
 
 
 
@@ -33,7 +33,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * After the LACP negotiation timer and fallback timer expire DUT:Port[1] and DUT:Port[2] are transitioned into fallback mode.
 
 
-# Test - 1 LACP fallback ports receives traffic
+### RT-5.15.1 LACP fallback ports receives traffic
 
 
 
@@ -55,7 +55,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * DUT:Port[1] and DUT:Port[2] of LAG1 are still sending LACP pdu
 
 
-# Test - 2 LACP Fallback port receives LACP pdu
+### RT-5.15.2 LACP Fallback port receives LACP pdu
 
 
 * Have ATE:Port[1],ATE:Port[2], and ATE:Port[3] as individual ports
@@ -73,7 +73,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * Verify that DUT:Ports[2] of LAG1 will change its state from fallback to LACP detached
 
 
-# Test - 3 One of the LACP ports times out
+### RT-5.15.3 One of the LACP ports times out
 
 
 
@@ -89,7 +89,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 * After 5 minutes when  DUT:Port[2] starts receiving the LACP PDU, the LACP LACP will be formed again between DUT:Ports[LAG1] ⇔ ATE:Ports[LAG1].
 
 
-# Test - 4 Both LACP ports times out
+### RT-5.15.4 Both LACP ports times out
 
 
 
