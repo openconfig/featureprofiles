@@ -1,7 +1,10 @@
-# PF-1.19: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.24 Egress Static MPLS LSP Verification
 
 ## Summary
-This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
+
+Verify that the Router (DUT) correctly processes incoming MPLSoverGUE traffic, 
+matches the configured static LSP label, pops the label, and forwards the remaining payload 
+to the correct egress interface.
 
 ## Testbed type
 * [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
@@ -11,24 +14,26 @@ This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP co
 
 ```
 DUT has 2 ingress aggregate interfaces and 1 egress aggregate interface.
-
-                         |         | --eBGP-- | ATE Ports 3,4 |
-    [ ATE Ports 1,2 ]----|   DUT   |          |               |
-                         |         | --eBGP-- | ATE Port 5,6  |
+       Egress                                      Ingress
+         |                                            |
+                         |         | --eBGP-- | ATE Port 2 |
+    [ ATE Ports 1 ]------|   DUT   |          |             |
+                         |         | --eBGP-- | ATE Port 3  |
 ```
 
-Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
+Test uses standalone interfaces from DUT to ATEs.
 
-* Ingress Ports: Aggregate2 and Aggregate3
-    * Aggregate2 (ATE Ports 3,4) and Aggregate3 (ATE Ports 5,6) are used as the source ports for encapsulated traffic.
+* Ingress ATE Ports: port2 and port3
+    * Port 2 and port 3 are used as the source ports for encapsulated traffic.
 
-* Egress Ports: Aggregate1
-    * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
+* Egress ATE Ports: port1
+    * Traffic is forwarded (egress) on port1 .
 
-## PF-1.19.1: Generate config for MPLS in GRE decap and push to DUT
+## PF-1.24.1: Generate config for MPLS in GRE decap and push to DUT
+
 #### Configuration
 
-#### Aggregate1 is the egress port having following configuration:
+#### ATE Port1 is the egress port having following configuration:
 
 #### Ten subinterfaces (customer) with different VLAN-IDs
 
@@ -43,21 +48,11 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 #### MTU Configuration
 * One VLAN with MTU 9080 (including L2 header)
 
-#### LLDP must be disabled
-
-### Aggregate 2 and Aggregate 3 configuration
+#### ATE Port 2 & 3 configuration
 
 * IPV4 and IPV6 addresses
 
 * MTU (default 9216)
-
-* LACP Member link configuration
-
-* Lag id
-
-* LACP (default: period short)
-
-* Carrier-delay (default up:3000 down:150)
 
 * Statistics load interval (default:30 seconds)
 
@@ -72,10 +67,6 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
     * IPV6 traffic
     * Multicast traffic
 
-* ECMP (Member links in Aggregate1) based on:
-    * inner IP packet header  AND/OR
-    * MPLS label, Outer IP packet header 
-
 * Inner packet TTL and DSCP must be preserved during decap of traffic from MPLSoGUE to IP traffic
 
 ### MPLS Label 
@@ -84,20 +75,14 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * Labels from start/end/mid ranges must be usable and configured corresponding to MPLSoGUE decapsulation
 
-### Multicast
-
-* Multicast traffic must be decapsulated and sent out with L2 header based on the multicast payload address.
-
 ## NOTE: All test cases expected to meet following requirements even though they are not explicitly validated in the test.
-* Egress routes are programmed and LACP bundles are up without any errors, chassis alarms or exception logs
+* Egress routes are programmed and there shouldnt be any chassis alarms or exception logs
 * There is no recirculation (iow, no impact to line rate traffic. No matter how the port allocation is done) of traffic
 * Header fields are as expected without any bit flips
-* Multicast L2 rewrite/egress headers are correct based on the multicast payload IPV4 destination address
 * Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
 
-
-## PF-1.19.2: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload
-Generate traffic on ATE Ports 3,4,5,6 having:
+## PF-1.24.2: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload
+Generate traffic on ATE Ports 2 & 3 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGUE header
@@ -105,40 +90,24 @@ Generate traffic on ATE Ports 3,4,5,6 having:
   * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
-Verify:
-* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
+**Verify:**
+* All traffic received on ATE port2 and port3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces i.e ATE port1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 * Traffic equally load-balanced across member links of the aggregate interfaces
   * Based on inner payload
   * Based on outer payload
   * Based on inner and outer payload
 
-## PF-1.19.3: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
-Send traffic as in PF-1.19.2
+## PF-1.24.3: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
+Send traffic as in PF-1.24.2
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
 * Remove and add IPV4 MPLSoGUE decap configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 MPLSoGUE decap configs and verify that there is no IPV4 traffic loss
 
-## PF-1.19.4: Verify MPLSoGUE decapsulate action for IPv4 multicast payload
-Generate traffic on ATE Ports 3,4,5,6 having:
-* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
-* Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
-* MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGUE header
-* Inner payload: 
-  * Multicast traffic with random source address, TCP/UDP header with random source and destination ports
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
-Verify:
-* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as multicast traffic on the respective egress interfaces under Aggregate1
-* No packet loss when forwarding with counters incrementing corresponding to traffic
-* Traffic equally load-balanced across member links of the aggregate interfaces
-  * Based on inner payload
-  * Based on outer payload
-  * Based on inner and outer payload
-
-## PF-1.19.5: Verify MPLSoGUE DSCP/TTL preserve operation 
-Generate traffic on ATE Ports 3,4,5,6 having:
+## PF-1.24.4: Verify MPLSoGUE DSCP/TTL preserve operation 
+Generate traffic on ATE Ports 2 & 3 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
 * MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGUE header
@@ -147,28 +116,29 @@ Generate traffic on ATE Ports 3,4,5,6 having:
   * Multicast traffic with random source address, TCP/UDP header with random source and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 
-Verify:
+**Verify:**
 * All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interfaces under Aggregate1
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 * Traffic equally load-balanced across member links of the aggregate interfaces
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-## PF-1.19.6: Verify IPV4/IPV6 nexthop resolution of decap traffic
+## PF-1.24.5: Verify IPV4/IPV6 nexthop resolution of decap traffic
 Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
-* MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6/Multicast static MPLS labels in the MPLSoGUE header
+* MPLS Labels: Configure streams that map to every egress interface by having associated IPV4/IPV6 static MPLS labels in the MPLSoGUE header
 * Inner payload with all possible DSCP range 0-56 : 
   * Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
-  * Multicast traffic with random source address, TCP/UDP header with random source and destination ports
 * Use 64, 128, 256, 512, 1024.. MTU bytes frame size
 * Clear ARP entries and IPV6 neighbors on the device
 
-Verify:
+**Verify:**
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
+
 ## Canonical OC
+
 ```json
 {
   "network-instances": {
@@ -318,3 +288,4 @@ rpcs:
 ## Minimum DUT platform requirement
 
 FFF
+
