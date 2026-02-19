@@ -931,7 +931,7 @@ test: {
 test: {
   id: "RT-1.67"
   description: "IPv4 and IPv6 Static Route using Vlan Interface"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_with_vlan_interface/README.md" 
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_with_vlan_interface/README.md"
   exec: " "
 }
 test: {
