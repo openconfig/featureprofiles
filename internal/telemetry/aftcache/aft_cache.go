@@ -534,25 +534,25 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	prefix := ss.sessionPrefix()
 	ss.Cache.logMetadata(t, ss.start, prefix)
 	t.Logf("%s After %v: Finished streaming.", prefix, time.Since(ss.start).Truncate(time.Millisecond))
-	if len(ss.streamStats) > 0 {
-		var b strings.Builder
-		b.WriteString("gNMI Stream Stats Summary\n")
-		b.WriteString("stream_id | timestamp | messages | total_mb | avg_msg_bytes | overall_msg_s | overall_kb_s | interval_msg_s | interval_kb_s\n")
-		b.WriteString("----------|-----------|----------|----------|---------------|---------------|--------------|----------------|---------------\n")
-		for _, row := range ss.streamStats {
-			b.WriteString(fmt.Sprintf("%s | %s | %d | %.2f | %d | %.2f | %.2f | %.2f | %.2f\n",
-				row.streamID,
-				row.timestamp.Format(time.RFC3339Nano),
-				row.messageCount,
-				row.totalMB,
-				row.avgMsgBytes,
-				row.overallMsgRate,
-				row.overallKBrate,
-				row.intervalMsgRate,
-				row.intervalKBrate))
-		}
-		t.Log(b.String())
-	}
+	// if len(ss.streamStats) > 0 {
+	// 	var b strings.Builder
+	// 	b.WriteString("gNMI Stream Stats Summary\n")
+	// 	b.WriteString("stream_id | timestamp | messages | total_mb | avg_msg_bytes | overall_msg_s | overall_kb_s | interval_msg_s | interval_kb_s\n")
+	// 	b.WriteString("----------|-----------|----------|----------|---------------|---------------|--------------|----------------|---------------\n")
+	// 	for _, row := range ss.streamStats {
+	// 		b.WriteString(fmt.Sprintf("%s | %s | %d | %.2f | %d | %.2f | %.2f | %.2f | %.2f\n",
+	// 			row.streamID,
+	// 			row.timestamp.Format(time.RFC3339Nano),
+	// 			row.messageCount,
+	// 			row.totalMB,
+	// 			row.avgMsgBytes,
+	// 			row.overallMsgRate,
+	// 			row.overallKBrate,
+	// 			row.intervalMsgRate,
+	// 			row.intervalKBrate))
+	// 	}
+	// 	t.Log(b.String())
+	// }
 	if len(ss.missingPrefixes) > 0 {
 		filename, err := writeMissingPrefixes(t, ss.missingPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
@@ -569,7 +569,8 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 			t.Logf("%s Wrote failing NH prefixes to %s", prefix, filename)
 		}
 	}
-	if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
+	if len(ss.notifications) > 0 {
+		// if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
 		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
 		if err != nil {
 			t.Errorf("%s error writing notifications: %v", prefix, err)
@@ -614,7 +615,6 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	periodicTicker := time.NewTicker(periodicInterval)
-
 	for {
 		select {
 		case resp := <-ss.buffer:
@@ -750,7 +750,7 @@ func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, t *testing
 			err := ss.Cache.addAFTNotification(resp.notification)
 			switch {
 			case errors.Is(err, cache.ErrStale):
-				// Stale notification - not an error, just log and continue
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
 			case err != nil:
 				return fmt.Errorf("error updating AFT cache: %w", err)
 			}
