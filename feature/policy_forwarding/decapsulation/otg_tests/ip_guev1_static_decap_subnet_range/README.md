@@ -252,38 +252,30 @@ Traffic:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-<<<<<<< HEAD
-paths:
-  /interfaces/interface/state/counters/in-unicast-pkts:
-  /interfaces/interface/state/counters/out-unicast-pkts:
+# paths:
+
+  ## Config Paths
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
-  /interfaces/interface/state/counters/out-pkts:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-=======
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
+  /defined-sets/prefix-sets/prefix-set/config/name:
+  /defined-sets/prefix-sets/prefix-set/config/mode:
+  /defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
 
-# paths:
+  ## State paths
+  openconfig-interfaces/interfaces/interface/state/counters/in-unicast-pkts:
+  openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
+  openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
+  openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  openconfig-network-instance/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 
-/network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/decapsulate-gue:
-/defined-sets/prefix-sets/prefix-set/config/name:
-/defined-sets/prefix-sets/prefix-set/config/mode:
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
-/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
-
-# telemetry
-openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
-openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
-openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-
->>>>>>> f2144295 (Update `Static GUE decap` README.md with IPv6 transport)
 rpcs:
   gnmi:
     gNMI.Set:
