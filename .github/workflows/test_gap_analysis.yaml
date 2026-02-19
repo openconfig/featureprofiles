@@ -1,14 +1,9 @@
-# .github/workflows/test_fail_scenario.yaml
-name: FNT Gap Analysis Fail Scenario Test
+# .github/workflows/test_gap_analysis.yaml
+name: FNT Gap Analysis
 
 on:
   pull_request:
     # No paths filter for testing triggers.
-
-  schedule:
-    - cron: '0 0 * * 0' # Every Sunday at 00:00 UTC
-
-  workflow_dispatch: # Allows manual trigger
 
 jobs:
   gap_analysis_test:
@@ -16,20 +11,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for changed-files action to diff against base branch
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
 
-      - name: Run Gap Analysis Script (PR Trigger - Induced Failure)
-        if: github.event_name == 'pull_request'
-        working-directory: ./tools/gap-analyzer
-        run: |
-          echo "--- Running PR Trigger Scenario (Induced Success) ---"
-          go run read_fnttests.go --fail_scenario=false
+      - name: Get changed files
+        id: changed-files-pr
+        uses: tj-actions/changed-files@v44
+        with:
+          separator: ','
 
-      - name: Show Results (Always Run)
-        if: always()
+      - name: Run Gap Analysis Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          echo "Execution completed for event: ${{ github.event_name }}"
+          echo "--- Running FNT Gap Analysis ---"
+          go run tools/gap-analyzer/fnt_gap_analyzer_gh.go --changed-files=${{ steps.changed-files-pr.outputs.all_changed_files }}
