@@ -1144,7 +1144,11 @@ func setupLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	// Apply all configurations atomically
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 	t.Logf("Configured LACP LAG interface %s with ports %s and %s", aggID, dp1.Name(), dp2.Name())
-	time.Sleep(2 * time.Second)
+	// Wait for the aggregate interface to become operationally UP using gNMI Watch
+	gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		v, ok := val.Val()
+		return ok && v == operStatusUp
+	}).Await(t)
 }
 
 // teardownLACPConfig removes the LACP configuration from the DUT.
