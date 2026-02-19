@@ -132,6 +132,49 @@ type AFTData struct {
 	NextHops map[uint64]*aftNextHop
 }
 
+// FilterByPrefixes returns a new AFTData containing only the specified prefixes
+// and their associated NextHopGroups and NextHops.
+func (a *AFTData) FilterByPrefixes(wantPrefixes map[string]bool) *AFTData {
+	// Track which prefixes and NHG IDs we want to keep
+	filteredPrefixes := make(map[string]uint64)
+	usedNHGIDs := make(map[uint64]bool)
+
+	// Copy only wanted prefixes and track which NHGs are used
+	for prefix := range wantPrefixes {
+		if nhgID, ok := a.Prefixes[prefix]; ok {
+			filteredPrefixes[prefix] = nhgID
+			usedNHGIDs[nhgID] = true
+		}
+	}
+
+	// Filter NextHopGroups to only include those referenced by wantPrefixes
+	filteredNHGs := make(map[uint64]*aftNextHopGroup)
+	usedNHIDs := make(map[uint64]bool)
+	for nhgID := range usedNHGIDs {
+		if nhg, ok := a.NextHopGroups[nhgID]; ok {
+			filteredNHGs[nhgID] = nhg
+			// Collect all NH IDs from this NHG
+			for _, nhID := range nhg.NHIDs {
+				usedNHIDs[nhID] = true
+			}
+		}
+	}
+
+	// Filter NextHops to only include those referenced by the filtered NextHopGroups
+	filteredNHs := make(map[uint64]*aftNextHop)
+	for nhID := range usedNHIDs {
+		if nh, ok := a.NextHops[nhID]; ok {
+			filteredNHs[nhID] = nh
+		}
+	}
+
+	return &AFTData{
+		Prefixes:      filteredPrefixes,
+		NextHopGroups: filteredNHGs,
+		NextHops:      filteredNHs,
+	}
+}
+
 // aftCache is the AFT streaming cache.
 type aftCache struct {
 	cache  *cache.Cache // Cache used to store AFT notifications during streaming.
