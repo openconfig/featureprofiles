@@ -108,7 +108,7 @@ var (
 // --- Regular Expressions for parsing metadata.textproto ---
 var (
 	descRegex = regexp.MustCompile(`description:\s*"([^"]+)"`)
-	idRegex   = regexp.MustCompile(`test_plan_id:\s*"([^"]+)"`)
+	idRegex   = regexp.MustCompile(`plan_id:\s*"([^"]+)"`)
 )
 
 // parseMetadata parses a metadata.textproto file to extract test info.
@@ -146,9 +146,9 @@ func findFNTTests(rootDir string) ([]*FNTTest, error) {
 				log.Printf("Warning: could not parse %s: %v", path, err)
 				return nil // Continue walking even if one metadata is bad
 			}
-			// If metadata.textproto does not contain test_plan_id, it's not a valid test.
+			// If metadata.textproto does not contain plan_id, it's not a valid test.
 			if test.ID == "" {
-				log.Printf("Info: Skipping %s: metadata.textproto lacks test_plan_id.", path)
+				log.Printf("Info: Skipping %s: metadata.textproto lacks plan_id.", path)
 				return nil
 			}
 
