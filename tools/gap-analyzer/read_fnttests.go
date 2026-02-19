@@ -69,13 +69,6 @@ type APIRequest struct {
 	GenerationConfig APIGenerationConfig `json:"generationConfig"`
 }
 
-// APIUsageMetadata contains token count info from the response.
-type APIUsageMetadata struct {
-	PromptTokenCount     int `json:"promptTokenCount"`
-	CandidatesTokenCount int `json:"candidatesTokenCount"`
-	TotalTokenCount      int `json:"totalTokenCount"`
-}
-
 // APICandidate contains one potential response from Gemini.
 type APICandidate struct {
 	Content APIContent `json:"content"`
@@ -83,9 +76,8 @@ type APICandidate struct {
 
 // APIResponse is the top-level response body received from Gemini.
 type APIResponse struct {
-	Candidates    []APICandidate   `json:"candidates"`
-	UsageMetadata APIUsageMetadata `json:"usageMetadata"`
-	Error         *struct {        // Field for API-level errors
+	Candidates []APICandidate `json:"candidates"`
+	Error      *struct {      // Field for API-level errors
 		Code    int    `json:"code"`
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
@@ -190,7 +182,7 @@ func findFNTTests(rootDir string) ([]*FNTTest, error) {
 
 // callGemini sends the readme and automation content to the public Gemini API
 // and returns the parsed gap analysis result and token count.
-func callGemini(ctx context.Context, readmeContent, automationContent string) (bool, string, int, error) {
+func callGemini(ctx context.Context, readmeContent, automationContent string) (bool, string, error) {
 	prompt := fmt.Sprintf(`
 Preamble: You are a test engineer analyzing test coverage.
 Task: Analyze the provided readme markdown and automation code. Identify any gaps in the automation code based on the requirements provided in the readme markdown.
@@ -238,58 +230,55 @@ Result in JSON format:
 
 	reqBytes, err := json.Marshal(reqBody)
 	if err != nil {
-		return false, "", 0, fmt.Errorf("failed to marshal request: %w", err)
+		return false, "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
 	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
 	if err != nil {
-		return false, "", 0, fmt.Errorf("failed to create http request: %w", err)
+		return false, "", fmt.Errorf("failed to create http request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	client := &http.Client{Timeout: 60 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
-		return false, "", 0, fmt.Errorf("http request failed: %w", err)
+		return false, "", fmt.Errorf("http request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return false, "", 0, fmt.Errorf("failed to read response body: %w", err)
+		return false, "", fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return false, "", 0, fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
+		return false, "", fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	// Unmarshal response body
 	var apiResp APIResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
-		return false, "", 0, fmt.Errorf("failed to unmarshal api response: %w", err)
+		return false, "", fmt.Errorf("failed to unmarshal api response: %w", err)
 	}
 
 	if apiResp.Error != nil {
-		return false, "", 0, fmt.Errorf("gemini api error: %s", apiResp.Error.Message)
+		return false, "", fmt.Errorf("gemini api error: %s", apiResp.Error.Message)
 	}
 
 	if len(apiResp.Candidates) == 0 || len(apiResp.Candidates[0].Content.Parts) == 0 {
-		return false, "", 0, fmt.Errorf("gemini returned no candidates in response")
+		return false, "", fmt.Errorf("gemini returned no candidates in response")
 	}
 
 	// Unmarshal the actual gap result JSON from the candidate text
 	var gapResult GapResult
 	resultText := apiResp.Candidates[0].Content.Parts[0].Text
 	if err := json.Unmarshal([]byte(resultText), &gapResult); err != nil {
-		return false, "", 0, fmt.Errorf("failed to unmarshal gap result json '%s': %w", resultText, err)
+		return false, "", fmt.Errorf("failed to unmarshal gap result json '%s': %w", resultText, err)
 	}
 
-	tokenCount := apiResp.UsageMetadata.TotalTokenCount
-	log.Printf("Token usage: %d", tokenCount)
-
-	return gapResult.GapFound, gapResult.GapDescription, tokenCount, nil
+	return gapResult.GapFound, gapResult.GapDescription, nil
 }
 
 func main() {
@@ -327,7 +316,6 @@ func main() {
 
 	gapsOrErrorsFound := false
 	var failureMessages []string
-	var totalTokens int64
 
 	for _, test := range testsToRun {
 		readmePath := filepath.Join(test.TestDir, test.RequirementFile)
@@ -350,8 +338,7 @@ func main() {
 			continue
 		}
 
-		gapFound, gapDesc, tokens, err := callGemini(ctx, string(readmeContent), string(autoContent))
-		totalTokens += int64(tokens)
+		gapFound, gapDesc, err := callGemini(ctx, string(readmeContent), string(autoContent))
 
 		if err != nil {
 			log.Printf("Warning: Gemini analysis failed for %s: %v", test.ID, err)
