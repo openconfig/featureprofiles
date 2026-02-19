@@ -146,6 +146,11 @@ func findFNTTests(rootDir string) ([]*FNTTest, error) {
 				log.Printf("Warning: could not parse %s: %v", path, err)
 				return nil // Continue walking even if one metadata is bad
 			}
+			// If metadata.textproto does not contain test_plan_id, it's not a valid test.
+			if test.ID == "" {
+				log.Printf("Info: Skipping %s: metadata.textproto lacks test_plan_id.", path)
+				return nil
+			}
 
 			dirEntries, err := os.ReadDir(test.TestDir)
 			if err != nil {
@@ -359,6 +364,8 @@ func main() {
 			gapsOrErrorsFound = true
 			failureMessages = append(failureMessages, fmt.Sprintf("Gap found in %s: %s", test.ID, gapDesc))
 		}
+		// // Add sleep to avoid hitting rate limits
+		// time.Sleep(2 * time.Second) // Sleep for 2s between tests if required
 	}
 
 	// If gaps or errors were found, print messages and exit with failure
