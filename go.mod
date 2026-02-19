@@ -18,7 +18,7 @@ require (
 	github.com/open-traffic-generator/snappi/gosnappi v1.42.0
 	github.com/openconfig/containerz v0.0.0-20251127123343-8882cbca4a2d
 	github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1
-	github.com/openconfig/functional-translators v0.0.0-20250923103542-4bd20e7e0ef0
+	github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
@@ -32,7 +32,7 @@ require (
 	github.com/openconfig/models-ci v1.0.2-0.20231113233730-f0986391428e
 	github.com/openconfig/ondatra v0.14.0
 	github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30
-	github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07
+	github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452
 	github.com/openconfig/ygnmi v0.14.0
 	github.com/openconfig/ygot v0.34.0
 	github.com/p4lang/p4runtime v1.4.1
@@ -43,6 +43,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/yoheimuta/go-protoparser/v4 v4.9.0
 	github.com/yuin/goldmark v1.4.13
+	go.mozilla.org/pkcs7 v0.9.0
 	golang.org/x/crypto v0.45.0
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39
 	golang.org/x/oauth2 v0.32.0
@@ -72,6 +73,7 @@ require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.3 // indirect
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2 // indirect
+	github.com/avast/apkverifier v0.0.0-20251022140917-74acdc5f8b3f // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect

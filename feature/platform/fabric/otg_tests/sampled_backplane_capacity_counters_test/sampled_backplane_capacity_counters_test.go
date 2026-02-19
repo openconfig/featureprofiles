@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Topology:
@@ -149,6 +150,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
@@ -162,6 +164,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)

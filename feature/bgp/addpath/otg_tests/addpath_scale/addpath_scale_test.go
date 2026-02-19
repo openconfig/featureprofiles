@@ -233,7 +233,7 @@ func TestAddPathScale(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut, "ALLOW", "ALLOW")
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+		// fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 		atePort2.configureBGPOnATE(t, top, 1, ateAS2)
 		atePort3.configureBGPOnATE(t, top, 2, ateAS3)
@@ -245,12 +245,12 @@ func TestAddPathScale(t *testing.T) {
 
 	testCases := []struct {
 		name        string
-		applyConfig func(t *testing.T, dut *ondatra.DUTDevice)
+		applyConfig func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice)
 		validate    func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config)
 	}{
 		{
 			name:        "RT-1.15.1 - AddPath Disabled",
-			applyConfig: nil,
+			applyConfig: configAddPathDisabled,
 			validate:    validateAddPathDisabled,
 		},
 		{
@@ -267,7 +267,7 @@ func TestAddPathScale(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.applyConfig != nil {
-				tc.applyConfig(t, dut)
+				tc.applyConfig(t, dut, ate)
 			}
 			time.Sleep(30 * time.Second)
 			tc.validate(t, dut, ate, top)
@@ -295,7 +295,7 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 	t.Run("configureBGP", func(t *testing.T) {
 		dutConf := bgpWithNbr(dutAS, nbrList, dut, "community-match", "ALLOW")
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+		// fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 
 		atePort2.configureBGPOnATE(t, top, 1, ateAS2)
 		atePort3.configureBGPOnATE(t, top, 2, ateAS3)
@@ -305,7 +305,7 @@ func TestAddPathScaleWithRoutePolicy(t *testing.T) {
 		ate.OTG().StartProtocols(t)
 	})
 
-	createTrafficFlow(t, top, ate)
+	createTrafficFlow(t, top, ate, true)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -423,29 +423,13 @@ func buildNeighborList(atePort2, atePort3, atePort4 attributes) []*bgpNeighbor {
 }
 
 func validateAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
-
-	addPathV4 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths](t, dut, bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).AddPaths().State())
-	if addPathV4.GetSend() {
-		t.Errorf("Add Path Send - got: %v, want: %v", addPathV4.GetSend(), false)
-	}
-	if addPathV4.GetReceive() {
-		t.Errorf("Add Path Receive - got: %v, want: %v", addPathV4.GetReceive(), false)
-	}
-	addPathV6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Global_AfiSafi_AddPaths](t, dut, bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).AddPaths().State())
-	if addPathV6.GetSend() {
-		t.Errorf("Add Path Send - got: %v, want: %v", addPathV6.GetSend(), false)
-	}
-	if addPathV6.GetReceive() {
-		t.Errorf("Add Path Receive - got: %v, want: %v", addPathV6.GetReceive(), false)
-	}
 }
 
 func validateAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	validatePrefixes(t, dut, "200.0.0.2", "1000::200:0:0:2")
+	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
 
-	createTrafficFlow(t, top, ate)
+	createTrafficFlow(t, top, ate, false)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -458,64 +442,89 @@ func validateAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 }
 
 func validateAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config) {
-	validatePrefixes(t, dut, "200.0.0.2", "1000::200:0:0:2")
+	validatePrefixes(t, dut, "50.1.1.2", "1000:1::50:1:1:2")
 }
 
-func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice) {
+func configAddPathDisabled(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	for _, nbr := range nbrList {
 		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 		if nbr.isV4 {
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateAddPaths().SetReceive(true)
-		} else {
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateAddPaths().SetReceive(true)
+			afiSafiType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 		}
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSend(false)
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetReceive(false)
 	}
 	gnmi.Update(t, dut, bgpPath.Config(), bgp)
-	// ate.OTG().StopProtocols(t)
-	// ate.OTG().StartProtocols(t)
+	ate.OTG().StopProtocols(t)
+	ate.OTG().StartProtocols(t)
 }
 
-func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice) {
+func configAddPathReceive(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	ocRoot := &oc.Root{}
 	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
 	for _, nbr := range nbrList {
 		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
 		if nbr.isV4 {
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateAddPaths().SetSend(true)
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateAddPaths().SetReceive(true)
-		} else {
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateAddPaths().SetSend(true)
-			nbrD.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateAddPaths().SetReceive(true)
+			afiSafiType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
 		}
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSend(false)
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetReceive(true)
 	}
 	gnmi.Update(t, dut, bgpPath.Config(), bgp)
-	// ate.OTG().StopProtocols(t)
-	// ate.OTG().StartProtocols(t)
+	ate.OTG().StopProtocols(t)
+	ate.OTG().StartProtocols(t)
+}
+
+func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
+	ocRoot := &oc.Root{}
+	nbrList := buildNeighborList(atePort2, atePort3, atePort4)
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	bgp := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
+	for _, nbr := range nbrList {
+		nbrD := bgp.GetOrCreateNeighbor(nbr.neighborip)
+		afiSafiType := oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST
+		if nbr.isV4 {
+			afiSafiType = oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST
+		}
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSend(true)
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetReceive(true)
+		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSendMax(10)
+	}
+	gnmi.Update(t, dut, bgpPath.Config(), bgp)
+	ate.OTG().StopProtocols(t)
+	ate.OTG().StartProtocols(t)
 }
 
 func validatePrefixes(t *testing.T, dut *ondatra.DUTDevice, neighborIPv4, neighborIPv6 string) {
 	t.Helper()
-
 	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	ipv4Pfx := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Prefixes](t, dut, bgpPath.Neighbor(neighborIPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes().State())
-	if ipv4Prefixes != ipv4Pfx.GetReceived() {
-		t.Errorf("Received Prefixes - got: %v, want: %v", ipv4Pfx.GetReceived(), ipv4Prefixes)
+
+	gnmi.Await(t, dut, bgpPath.Neighbor(neighborIPv4).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	ipv4Pfx := bgpPath.Neighbor(neighborIPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Prefixes()
+	if gotReceived, ok := gnmi.Await(t, dut, ipv4Pfx.Received().State(), 15*time.Minute, ipv4Prefixes).Val(); !ok {
+		t.Errorf("Received IPv4 Prefixes - got: %v, want: %v", gotReceived, ipv4Prefixes)
 	}
-	if ipv4Prefixes != ipv4Pfx.GetInstalled() {
-		t.Errorf("Installed Prefixes - got: %v, want: %v", ipv4Pfx.GetInstalled(), ipv4Prefixes)
+
+	if gotInstalled, ok := gnmi.Await(t, dut, ipv4Pfx.Installed().State(), 15*time.Minute, ipv4Prefixes).Val(); !ok {
+		t.Errorf("Installed IPv4 Prefixes - got: %v, want: %v", gotInstalled, ipv4Prefixes)
 	}
-	ipv6Pfx := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_Prefixes](t, dut, bgpPath.Neighbor(neighborIPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes().State())
-	if ipv6Prefixes != ipv6Pfx.GetReceived() {
-		t.Errorf("Received Prefixes - got: %v, want: %v", ipv6Pfx.GetReceived(), ipv6Prefixes)
+
+	gnmi.Await(t, dut, bgpPath.Neighbor(neighborIPv6).SessionState().State(), 2*time.Minute, oc.Bgp_Neighbor_SessionState_ESTABLISHED)
+	ipv6Pfx := bgpPath.Neighbor(neighborIPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Prefixes()
+	if gotReceived, ok := gnmi.Await(t, dut, ipv6Pfx.Received().State(), 15*time.Minute, ipv6Prefixes).Val(); !ok {
+		t.Errorf("Received IPv6 Prefixes - got: %v, want: %v", gotReceived, ipv6Prefixes)
 	}
-	if ipv6Prefixes != ipv6Pfx.GetInstalled() {
-		t.Errorf("Installed Prefixes - got: %v, want: %v", ipv6Pfx.GetInstalled(), ipv6Prefixes)
+
+	if gotInstalled, ok := gnmi.Await(t, dut, ipv6Pfx.Installed().State(), 15*time.Minute, ipv6Prefixes).Val(); !ok {
+		t.Errorf("Installed IPv6 Prefixes - got: %v, want: %v", gotInstalled, ipv6Prefixes)
 	}
 }
 
@@ -557,7 +566,7 @@ func (a *attributes) configInterfaceDUT(t *testing.T, d *ondatra.DUTDevice) {
 	a.configSubinterfaceDUT(t, i, d)
 	intfPath := gnmi.OC().Interface(p.Name())
 	gnmi.Update(t, d, intfPath.Config(), i)
-	fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
+	// fptest.LogQuery(t, "DUT", intfPath.Config(), gnmi.Get(t, d, intfPath.Config()))
 }
 
 func (a *attributes) configSubinterfaceDUT(t *testing.T, intf *oc.Interface, dut *ondatra.DUTDevice) {
@@ -868,7 +877,7 @@ func createPrefixesV6(t *testing.T) []netip.Prefix {
 
 	// Create /64s - 360
 	for i := 0; i < 360; i++ {
-		ip := netip.MustParsePrefix(fmt.Sprintf("fc00:abcd:1:1:%d::/64", i))
+		ip := netip.MustParsePrefix(fmt.Sprintf("fc00:abcd:1:%d::/64", i))
 		ips = append(ips, ip)
 	}
 
@@ -990,7 +999,7 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, impPolic
 	return niProto
 }
 
-func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice) {
+func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, withCommunities bool) {
 	t.Helper()
 
 	prefixesV4 := createPrefixesV4(t)
@@ -1000,11 +1009,20 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 	}
 
 	top.Flows().Clear()
-	for i := uint32(1); i <= atePort2.numSubIntf; i++ {
+	numFlows := atePort2.numSubIntf
+	if numFlows > 50 {
+		// b/485393718 Limit the number of flows to 10 to avoid OTG port limitations. This section of code can be removed if we have more advanced card from Ixia
+		numFlows = 10
+	}
+	for i := uint32(1); i <= numFlows; i++ {
 		rxName := fmt.Sprintf(`v4-bgpNet-%sdst%d.Dev`, atePort2.Name, i)
 		rxNames := []string{}
-		for _, pfxLen := range []int{22, 24, 30} {
-			rxNames = append(rxNames, fmt.Sprintf(`%s-%d`, rxName, pfxLen))
+		if withCommunities {
+			for _, pfxLen := range []int{22, 24, 30} {
+				rxNames = append(rxNames, fmt.Sprintf(`%s-%d`, rxName, pfxLen))
+			}
+		} else {
+			rxNames = append(rxNames, rxName)
 		}
 		flow := top.Flows().Add().SetName(fmt.Sprintf("flow%d", i))
 		flow.Metrics().SetEnable(true)
@@ -1013,7 +1031,6 @@ func createTrafficFlow(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice
 		flow.Rate().SetPps(100)
 		e1 := flow.Packet().Add().Ethernet()
 		e1.Src().SetValue(atePort1.MAC)
-		e1.Dst().SetValue(atePort2.MAC)
 		v4 := flow.Packet().Add().Ipv4()
 		v4.Src().SetValue(atePort1.IPv4)
 		v4.Dst().SetValues(dstIps)
