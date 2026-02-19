@@ -691,6 +691,7 @@ message Metadata {
 
     // Device does not support fragment total drops.
     // Nokia: b/395553772
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/395567844
     bool fragment_total_drops_unsupported = 253;
 
     // Juniper: b/383145521
@@ -812,7 +813,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-
+    
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -909,7 +910,7 @@ message Metadata {
     bool otn_to_eth_assignment = 317;
     
     // Devices that do not support import export policies configured in network instance
-    bool network_instance_import_export_policy_oc_unsuppored = 318;
+    bool network_instance_import_export_policy_oc_unsupported = 318;
 
     // Device does not support 'origin' field in gNMI/gNOI RPC paths.
     // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
@@ -1130,11 +1131,32 @@ message Metadata {
     // Arista https://partnerissuetracker.corp.google.com/476271160
     bool retain_gnmi_cfg_after_reboot = 372;
 
-    // Cisco: http://b/429231108
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
     string ciscoxr_transceiver_ft = 373;
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
+    
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+    bool subnet_mask_change_required = 375;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
+    string ciscoxr8000_integrated_circuit_resource_ft = 376;
+
+    // The BGP routes are accepted by default when no policy or default policy is configured.
+    // b/479957749
+    bool bgp_default_policy_behavior_accept_route = 377;
+
+    // Nokia: b/459893133
+    // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+    bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
+
+    // Setting admin-state on TerminalDevice Channel is unsupported.
+    bool terminal_device_channel_admin_state_unsupported = 379;
+
+    // Device that requires explicit config to support BGP RIB streaming
+    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
+    bool bgp_rib_streaming_config_required = 380;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;

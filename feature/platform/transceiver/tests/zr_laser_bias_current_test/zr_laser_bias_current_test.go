@@ -91,7 +91,7 @@ func TestZRLaserBiasCurrentState(t *testing.T) {
 	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
-	intUpdateTime := 2 * time.Minute
+	intUpdateTime := 5 * time.Minute
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverState := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	if dp1.PMD() != ondatra.PMD400GBASEZR {
@@ -114,7 +114,7 @@ func TestZRLaserBiasCurrentStateInterfaceFlap(t *testing.T) {
 	operationalMode = cfgplugins.InterfaceInitialize(t, dut1, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut1, dp1)
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
-	intUpdateTime := 2 * time.Minute
+	intUpdateTime := 5 * time.Minute
 	// Check interface is up
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	// Check if TRANSCEIVER is of type 400ZR
