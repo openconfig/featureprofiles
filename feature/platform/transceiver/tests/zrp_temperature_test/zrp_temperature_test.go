@@ -49,15 +49,7 @@ func TestMain(m *testing.M) {
 //
 //	dut:port1 <--> port2:dut
 
-func verifyTemperatureSensorValue(t *testing.T, pStream *samplestream.SampleStream[float64], sensorName string) float64 {
-	temperatureSample := pStream.Next()
-	if temperatureSample == nil {
-		t.Fatalf("Temperature telemetry %s was not streamed in the most recent subscription interval", sensorName)
-	}
-	temperatureVal, ok := temperatureSample.Val()
-	if !ok {
-		t.Fatalf("Temperature %q telemetry is not present", temperatureSample)
-	}
+func verifyTemperatureSensorValue(t *testing.T, temperatureVal float64, sensorName string) float64 {
 	// Check temperature return value of correct type
 	if reflect.TypeOf(temperatureVal).Kind() != reflect.Float64 {
 		t.Fatalf("Return value is not type float64")
@@ -81,10 +73,9 @@ func TestZRTemperatureState(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// Check if TRANSCEIVER is of type 400ZR_PLUS.
-	// Uncomment once the Ondatra OC release version is fixed
-	// if dp1.PMD() != ondatra.PMD400GBASEZRP {
-	// 	t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverName, dp1.PMD())
-	// }
+	if dp1.PMD() != ondatra.PMD400GBASEZRP {
+		t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverName, dp1.PMD())
+	}
 	compWithTemperature := gnmi.OC().Component(transceiverName)
 	if !deviations.UseParentComponentForTemperatureTelemetry(dut1) {
 		subcomponents := gnmi.LookupAll[*oc.Component_Subcomponent](t, dut1, compWithTemperature.SubcomponentAny().State())
@@ -101,32 +92,38 @@ func TestZRTemperatureState(t *testing.T) {
 			}
 		}
 	}
-	p1StreamInstant := samplestream.New(t, dut1, compWithTemperature.Temperature().Instant().State(), 10*time.Second)
-	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
+	p1Stream := samplestream.New(t, dut1, compWithTemperature.Temperature().State(), 10*time.Second)
+	defer p1Stream.Close()
+	currStreamSample := p1Stream.Next()
+	if currStreamSample == nil {
+		t.Fatalf("Temperature telemetry data was not streamed in the most recent subscription interval")
+	}
+	temprStateData, ok := currStreamSample.Val()
+	if !ok {
+		t.Fatalf("Failed to get temperature telemetry value")
+	}
+	temperatureInstant := verifyTemperatureSensorValue(t, temprStateData.GetInstant(), "Instant")
+
 	t.Logf("Port1 dut1 %s Instant Temperature: %v", dp1.Name(), temperatureInstant)
 	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
 		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		p1StreamAvg := samplestream.New(t, dut1, compWithTemperature.Temperature().Avg().State(), 10*time.Second)
-		p1StreamMin := samplestream.New(t, dut1, compWithTemperature.Temperature().Min().State(), 10*time.Second)
-		p1StreamMax := samplestream.New(t, dut1, compWithTemperature.Temperature().Max().State(), 10*time.Second)
-
-		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
+		temperatureMax := verifyTemperatureSensorValue(t, temprStateData.GetMax(), "Max")
 		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
+
+		temperatureMin := verifyTemperatureSensorValue(t, temprStateData.GetMin(), "Min")
 		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
+
+		temperatureAvg := verifyTemperatureSensorValue(t, temprStateData.GetAvg(), "Avg")
 		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+
 		if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
 			t.Logf("The average is between the maximum and minimum values")
 		} else {
 			t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", temperatureAvg, temperatureMax, temperatureMin)
 		}
-		p1StreamMin.Close()
-		p1StreamMax.Close()
-		p1StreamAvg.Close()
+		p1Stream.Close()
 	}
-	p1StreamInstant.Close()
 }
 
 func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
@@ -141,11 +138,10 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	cfgplugins.InterfaceConfig(t, dut1, dp2)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 	transceiverName := gnmi.Get(t, dut1, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
-	// Check if TRANSCEIVER is of type 400ZR_PLUS
-	// Uncomment once the Ondatra OC release version is fixed
-	// if dp1.PMD() != ondatra.PMD400GBASEZRP {
-	// 	t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverName, dp1.PMD())
-	// }
+	// Check if TRANSCEIVER is of type 400ZR_PLUS.
+	if dp1.PMD() != ondatra.PMD400GBASEZRP {
+		t.Fatalf("%s Transceiver is not 400ZR_PLUS its of type: %v", transceiverName, dp1.PMD())
+	}
 	// Disable interface
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), false)
 	compWithTemperature := gnmi.OC().Component(transceiverName)
@@ -164,42 +160,65 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 			}
 		}
 	}
-	p1StreamInstant := samplestream.New(t, dut1, compWithTemperature.Temperature().Instant().State(), 10*time.Second)
-	p1StreamAvg := samplestream.New(t, dut1, compWithTemperature.Temperature().Avg().State(), 10*time.Second)
-	p1StreamMin := samplestream.New(t, dut1, compWithTemperature.Temperature().Min().State(), 10*time.Second)
-	p1StreamMax := samplestream.New(t, dut1, compWithTemperature.Temperature().Max().State(), 10*time.Second)
+    p1Stream := samplestream.New(t, dut1, compWithTemperature.Temperature().State(), 10*time.Second)
+	defer p1Stream.Close()
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-	temperatureInstant := verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
+
+	currStreamSample := p1Stream.Next()
+	if currStreamSample == nil {
+		t.Fatalf("Temperature telemetry data was not streamed in the most recent subscription interval")
+	}
+	temprStateData, ok := currStreamSample.Val()
+	if !ok {
+		t.Fatalf("Failed to get temperature telemetry value")
+	}
+
+	temperatureInstant := verifyTemperatureSensorValue(t, temprStateData.GetInstant(), "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature after interface down: %v", dp1.Name(), temperatureInstant)
 	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
 		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
 	} else {
-		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
+		temperatureMax := verifyTemperatureSensorValue(t, temprStateData.GetMax(), "Max")
 		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
+
+		temperatureMin := verifyTemperatureSensorValue(t, temprStateData.GetMin(), "Min")
 		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
+
+		temperatureAvg := verifyTemperatureSensorValue(t, temprStateData.GetAvg(), "Avg")
 		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
-	}
-	// Enable interface
-	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
-	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
-	temperatureInstant = verifyTemperatureSensorValue(t, p1StreamInstant, "Instant")
-	t.Logf("Port1 dut1 %s Instant Temperature after interface up: %v", dp1.Name(), temperatureInstant)
-	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
-		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
-	} else {
-		temperatureMax := verifyTemperatureSensorValue(t, p1StreamMax, "Max")
-		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
-		temperatureMin := verifyTemperatureSensorValue(t, p1StreamMin, "Min")
-		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
-		temperatureAvg := verifyTemperatureSensorValue(t, p1StreamAvg, "Avg")
-		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+
 		if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
 			t.Logf("The average is between the maximum and minimum values")
 		} else {
 			t.Fatalf("The average is not between the maximum and minimum values")
 		}
+	}
+	// Enable interface
+	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
+	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
+
+	temprStateData, _ = p1Stream.Next().Val()
+	temperatureInstant = verifyTemperatureSensorValue(t, temprStateData.GetInstant(), "Instant")
+	t.Logf("Port1 dut1 %s Instant Temperature after interface up: %v", dp1.Name(), temperatureInstant)
+
+	if deviations.MissingZROpticalChannelTunableParametersTelemetry(dut1) {
+		t.Log("Skipping Min/Max/Avg Tunable Parameters Telemetry validation. Deviation MissingZROpticalChannelTunableParametersTelemetry enabled.")
+	} else {
+		temperatureMax := verifyTemperatureSensorValue(t, temprStateData.GetMax(), "Max")
+		t.Logf("Port1 dut1 %s Max Temperature: %v", dp1.Name(), temperatureMax)
+
+		temperatureMin := verifyTemperatureSensorValue(t, temprStateData.GetMin(), "Min")
+		t.Logf("Port1 dut1 %s Min Temperature: %v", dp1.Name(), temperatureMin)
+
+		temperatureAvg := verifyTemperatureSensorValue(t, temprStateData.GetAvg(), "Avg")
+		t.Logf("Port1 dut1 %s Avg Temperature: %v", dp1.Name(), temperatureAvg)
+
+		if temperatureAvg >= temperatureMin && temperatureAvg <= temperatureMax {
+			t.Logf("The average is between the maximum and minimum values")
+		} else {
+			t.Fatalf("The average is not between the maximum and minimum values")
+		}
+		p1Stream.Close()
 	}
 }
