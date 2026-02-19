@@ -141,7 +141,7 @@ func TestRemoteSyslog(t *testing.T) {
 			}
 
 			configureDUT(t, dut, &tc.vrf)
-			configureDUTLoopback(t, dut)
+			configureDUTLoopback(t, dut, tc.vrf)
 			configureStaticRoute(t, dut, tc.vrf)
 			configureSyslog(t, dut, tc.vrf)
 
@@ -157,6 +157,7 @@ func TestRemoteSyslog(t *testing.T) {
 			ate.OTG().StopTraffic(t)
 
 			stopCapture(t, ate, cs)
+			time.Sleep(30 * time.Second)
 
 			otgutils.LogFlowMetrics(t, ate.OTG(), top)
 			otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -164,9 +165,19 @@ func TestRemoteSyslog(t *testing.T) {
 			processCapture(t, ate, top)
 
 			t.Cleanup(func() {
+				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(p1.Name()).Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(p2.Name()).Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(lb).Config())
+				} else if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(p1.Name()+".0").Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(p2.Name()+".0").Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Interface(lb+".0").Config())
+				}
 				gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Config())
 				gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
-				gnmi.Delete(t, dut, gnmi.OC().Interface(lb).Config())
+				// gnmi.Delete(t, dut, gnmi.OC().Interface(lb).Config())
+				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
 				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
@@ -190,7 +201,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, vrfName *string) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) && *vrfName == deviations.DefaultNetworkInstance(dut) {
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
@@ -216,7 +228,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // configureDUTLoopback configures the loopback interface on the DUT
-func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, vrfName string) {
 	t.Helper()
 	// lb = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
@@ -244,7 +256,7 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
 	}
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) && vrfName == deviations.DefaultNetworkInstance(dut) {
 		fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
@@ -428,7 +440,7 @@ func enableCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	config.Captures().Clear()
 
 	// enable packet capture on this port
-	config.Captures().Add().SetName("sFlowpacketCapture").
+	config.Captures().Add().SetName("syslogPacketCapture").
 		SetPortNames([]string{config.Ports().Items()[0].Name()}).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
@@ -454,7 +466,6 @@ func stopCapture(t *testing.T, ate *ondatra.ATEDevice, cs gosnappi.ControlState)
 
 func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 	bytes := ate.OTG().GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(config.Ports().Items()[0].Name()))
-	time.Sleep(30 * time.Second)
 	pcapFile, err := os.CreateTemp("", "pcap")
 	if err != nil {
 		t.Errorf("ERROR: Could not create temporary pcap file: %v\n", err)
@@ -496,7 +507,7 @@ func validatePackets(t *testing.T, filename string) {
 
 	}
 
-	if !foundV4 {
-		t.Errorf("sflow packets not found: v4 %v, v6 %v", foundV4, foundV6)
+	if !foundV4 || !foundV6 {
+		t.Errorf("syslog packets not found: v4 %v, v6 %v", foundV4, foundV6)
 	}
 }
