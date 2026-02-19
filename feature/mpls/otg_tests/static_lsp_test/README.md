@@ -1,4 +1,4 @@
-# PF-1.24: Egress Static MPLS LSP Verification
+# PF-1.25: Egress Static MPLS LSP Verification
 
 ## Summary
 
@@ -29,7 +29,7 @@ Test uses standalone interfaces from DUT to ATEs.
 * Egress ATE Ports: port1
     * Traffic is forwarded (egress) on port1 .
 
-## PF-1.24.1: Generate config for MPLS in GRE decap and push to DUT
+## PF-1.25.1: Generate config for MPLS in GRE decap and push to DUT
 
 #### Configuration
 
@@ -81,7 +81,7 @@ Test uses standalone interfaces from DUT to ATEs.
 * Header fields are as expected without any bit flips
 * Device must be able to resolve the ARP and IPV6 neighbors upon receiving traffic from ATE ports
 
-## PF-1.24.2: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload
+## PF-1.25.2: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload
 Generate traffic on ATE Ports 2 & 3 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
@@ -98,15 +98,15 @@ Generate traffic on ATE Ports 2 & 3 having:
   * Based on outer payload
   * Based on inner and outer payload
 
-## PF-1.24.3: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
-Send traffic as in PF-1.24.2
+## PF-1.25.3: Verify MPLSoGUE decapsulate action for IPv4 and IPV6 payload with changes in IPV4 and IPV6 configs
+Send traffic as in PF-1.25.2
 * Remove and add IPV4 interface VLAN configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 interface VLAN configs and verify that there is no IPV4 traffic loss
 * Remove and add IPV4 MPLSoGUE decap configs and verify that there is no IPV6 traffic loss
 * Remove and add IPV6 MPLSoGUE decap configs and verify that there is no IPV4 traffic loss
 
 
-## PF-1.24.4: Verify MPLSoGUE DSCP/TTL preserve operation 
+## PF-1.25.4: Verify MPLSoGUE DSCP/TTL preserve operation 
 Generate traffic on ATE Ports 2 & 3 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
@@ -123,7 +123,7 @@ Generate traffic on ATE Ports 2 & 3 having:
 * Header fields are as expected without any bit flips
 * Inner payload DSCP and TTL values are not altered by the device
 
-## PF-1.24.5: Verify IPV4/IPV6 nexthop resolution of decap traffic
+## PF-1.25.5: Verify IPV4/IPV6 nexthop resolution of decap traffic
 Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
 * Outer destination address: Traffic must fall within the configured IPV4 unicast decap prefix range for MPLSoGUE traffic on the device
