@@ -18,18 +18,18 @@ import (
 	"testing"
 	"time"
 
-	"google3/third_party/golang/ygot/ygot/ygot"
-	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
-	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
-	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
-	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
-	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
-	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
-	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
-	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
-	"google3/third_party/openconfig/ondatra/ondatra"
-	otg "google3/third_party/openconfig/ondatra/otg/otg"
-	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
+	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	otg "github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 func TestMain(m *testing.M) {
@@ -93,7 +93,6 @@ var (
 	otgPort2V4Peer = "atePort2.BGP4.peer"
 )
 
-// configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
@@ -108,7 +107,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// bgpCreateNbr creates a BGP object with neighbors pointing to atePort1 and atePort2
 func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	t.Helper()
 	dutOcRoot := &oc.Root{}
@@ -150,7 +148,6 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 	return niProto
 }
 
-// configureOTG configures the interfaces and BGP protocols on an ATE.
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
 	t.Helper()
 	config := gosnappi.NewConfig()
@@ -193,7 +190,6 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 	return iDut1Bgp4Peer, iDut1Ipv4, config
 }
 
-// advBGPRouteFromOTG is to advertise prefix with specific AS sequence set.
 func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 	args.otgBgpPeer.V4Routes().Clear()
 	bgpNeti1Bgp4PeerRoutes := args.otgBgpPeer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
@@ -215,7 +211,6 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 	time.Sleep(30 * time.Second)
 }
 
-// verifyPrefixesTelemetry confirms that the dut shows prefix state.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantSent uint32) {
 	t.Helper()
 	time.Sleep(15 * time.Second)
@@ -229,7 +224,6 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	}
 }
 
-// configureRoutePolicy adds route-policy config.
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
@@ -245,7 +239,6 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-// verifyOTGPrefixTelemetry is to Validate prefix received on OTG Port 2.
 func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(atePort2.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
@@ -258,7 +251,6 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 		for _, prefix := range bgpPrefixes {
 			if prefix.GetAddress() == advertisedRoutesv4Net {
 				if wantPrefix {
-					// FIX: Check length to avoid index out of range panic
 					if len(prefix.AsPath) == 0 {
 						t.Errorf("Prefix %v received but AS-PATH is empty", prefix.GetAddress())
 						continue
@@ -275,20 +267,17 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 	}
 }
 
-// testSplitHorizonNoAllowOwnIn: Baseline Test No allow-own-in
 func testSplitHorizonNoAllowOwnIn(t *testing.T, args *otgTestArgs) {
-	t.Log("Advertise a prefix with an AS-path that includes DUT's AS (65501) in the middle.")
+	t.Log("Baseline Test No allow-own-in")
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
 	cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
 	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 0, 0)
 	verifyOTGPrefixTelemetry(t, args.otg, false)
 }
 
-// testSplitHorizonAllowOwnAs1: Test allow-own-as 1
 func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 1, Enable allow-own-as 1 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	// FIX: Use uint8 cast
 	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(1))
 
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
@@ -296,7 +285,6 @@ func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 	verifyOTGPrefixTelemetry(t, args.otg, true)
 }
 
-// testSplitHorizonAllowOwnAs3: Test allow-own-as 3
 func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 3, Enable allow-own-as 3 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -314,7 +302,6 @@ func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 	})
 }
 
-// testSplitHorizonAllowOwnAs4: Test allow-own-as 4
 func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 4, Enable allow-own-as 4 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -325,13 +312,11 @@ func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 	verifyOTGPrefixTelemetry(t, args.otg, true)
 }
 
-// testSplitHorizonOriginatingAS: RT-1.54.5 Test "DUT's AS as Originating AS"
 func testSplitHorizonOriginatingAS(t *testing.T, args *otgTestArgs) {
-	t.Log("Test allow-own-as 1 (Originating AS), Enable allow-own-as 1 on the DUT.")
+	t.Log("Test RT-1.54.5: DUT's AS as Originating AS")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(1))
 
-	t.Log("Advertise prefix where DUT AS (65501) is the originating AS: 65502 65500 dutLocalAS1")
 	advBGPRouteFromOTG(t, args, []uint32{65502, 65500, dutLocalAS1})
 	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
 	verifyOTGPrefixTelemetry(t, args.otg, true)
@@ -355,7 +340,8 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		cfgplugins.BGPClearConfig(t, dut)
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpCreateNbr(t, dut))
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		gnmi.Replace(t, dut, dutConfPath.Config(), bgpCreateNbr(t, dut))
 	})
 
 	otg := ate.OTG()
@@ -366,11 +352,11 @@ func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
 		desc     string
 		funcName func()
 	}{
-		{desc: "Baseline (Reject)", funcName: func() { testSplitHorizonNoAllowOwnIn(t, args) }},
-		{desc: "RT-1.54.2 (Allow 1)", funcName: func() { testSplitHorizonAllowOwnAs1(t, args) }},
-		{desc: "RT-1.54.3 (Allow 3)", funcName: func() { testSplitHorizonAllowOwnAs3(t, args) }},
-		{desc: "RT-1.54.4 (Allow 4)", funcName: func() { testSplitHorizonAllowOwnAs4(t, args) }},
-		{desc: "RT-1.54.5 (Originating AS)", funcName: func() { testSplitHorizonOriginatingAS(t, args) }},
+		{desc: "RT-1.54.1: Baseline (Reject)", funcName: func() { testSplitHorizonNoAllowOwnIn(t, args) }},
+		{desc: "RT-1.54.2: Allow 1", funcName: func() { testSplitHorizonAllowOwnAs1(t, args) }},
+		{desc: "RT-1.54.3: Allow 3", funcName: func() { testSplitHorizonAllowOwnAs3(t, args) }},
+		{desc: "RT-1.54.4: Allow 4", funcName: func() { testSplitHorizonAllowOwnAs4(t, args) }},
+		{desc: "RT-1.54.5: Originating AS", funcName: func() { testSplitHorizonOriginatingAS(t, args) }},
 	}
 
 	for _, tc := range cases {
