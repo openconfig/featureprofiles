@@ -267,9 +267,11 @@ func setPrefixLimitv4(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -277,9 +279,11 @@ func setPrefixLimitv6(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -408,32 +412,35 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
-func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
-func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
 func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
 	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
 		if *neighbor.NeighborAddress == ateDst.IPv4 {
-			maxPrefix, limitExceeded := getPrefixLimitv4(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv4(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v4 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
@@ -441,9 +448,12 @@ func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *
 				}
 			}
 		} else if *neighbor.NeighborAddress == ateDst.IPv6 {
-			maxPrefix, limitExceeded := getPrefixLimitv6(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv6(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v6 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
