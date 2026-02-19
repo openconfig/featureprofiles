@@ -72,7 +72,7 @@ graph LR
     *  Verify that the ATE Port2 receives the route with 1, 3 and 4 occurrences of AS 65501.
     *  Validate session state and capabilities received on DUT using telemetry.
  ### RT-1.54.5  Test "DUTs AS as Originating AS"
-*  Test "allow-own-as 1:
+*  Test "allow-own-as 1":
     *  Change the DUT's configuration to "allow-own-as 1".
     *  Test with the following AS-path occurrence:
         *  Occurrence: 65502 65500 65499 65501
