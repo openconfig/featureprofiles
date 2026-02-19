@@ -373,5 +373,3 @@ func configureAcl(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 
 	configureAclInterface(t, dut, acl, tc)
 }
-
-// adding a comment to trigger run
