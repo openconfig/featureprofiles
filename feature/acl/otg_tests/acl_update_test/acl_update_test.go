@@ -193,8 +193,7 @@ var (
 		{SeqID: 920, Description: "src IP", IPSrc: ipv6UpdateACLSrc},
 	}
 
-	entryCounters     = map[uint32]uint64{}
-	flowToACLEntryMap = map[string]uint32{}
+	entryCounters = map[uint32]uint64{}
 )
 
 type testCase struct {
@@ -405,7 +404,6 @@ func newStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, 
 	if _, err := cfgplugins.NewStaticRouteCfg(batch, routeCfg, dut); err != nil {
 		t.Fatalf("Failed to configure static route: %v", err)
 	}
-	batch.Set(t, dut)
 }
 
 func processACLTermsPermit(terms []cfgplugins.AclTerm, allow bool) []cfgplugins.AclTerm {
@@ -477,12 +475,14 @@ func createFlowConfig(t *testing.T, ipType string, terms []cfgplugins.AclTerm, s
 				fc.trafficItem.L4SrcPort = term.L4SrcPort
 			}
 		} else if term.L4SrcPortRange != "" {
-			var endPort uint32
-			fmt.Sscanf(term.L4SrcPortRange, "-%d", &endPort)
-			if !shouldMatchTerm {
-				fc.trafficItem.L4SrcPort = endPort + 1
-			} else {
-				fc.trafficItem.L4SrcPort = endPort - 1
+			portString := term.L4SrcPortRange[strings.LastIndex(term.L4SrcPortRange, "-")+1:]
+			endPort, err := strconv.ParseUint(portString, 10, 0)
+			if err != nil {
+				if !shouldMatchTerm {
+					fc.trafficItem.L4SrcPort = uint32(endPort) + 1
+				} else {
+					fc.trafficItem.L4SrcPort = uint32(endPort) - 1
+				}
 			}
 		}
 		if term.L4DstPort != 0 {
@@ -492,13 +492,21 @@ func createFlowConfig(t *testing.T, ipType string, terms []cfgplugins.AclTerm, s
 				fc.trafficItem.L4DstPort = term.L4DstPort
 			}
 		} else if term.L4DstPortRange != "" {
-			var endPort uint32
-			fmt.Sscanf(term.L4DstPortRange, "-%d", &endPort)
-			if !shouldMatchTerm {
-				fc.trafficItem.L4DstPort = endPort + 1
-			} else {
-				fc.trafficItem.L4DstPort = endPort - 1
+			portString := term.L4DstPortRange[strings.LastIndex(term.L4DstPortRange, "-")+1:]
+			endPort, err := strconv.ParseUint(portString, 10, 0)
+			if err != nil {
+				if !shouldMatchTerm {
+					fc.trafficItem.L4DstPort = uint32(endPort) + 1
+				} else {
+					fc.trafficItem.L4DstPort = uint32(endPort) - 1
+				}
 			}
+		}
+
+		fc.trafficItem.Protocol = term.Protocol
+		if term.Protocol == cfgplugins.ICMPv4ProtocolNum || term.Protocol == cfgplugins.ICMPv6ProtocolNum {
+			fc.trafficItem.ICMPType = term.ICMPType
+			fc.trafficItem.ICMPCode = term.ICMPCode
 		}
 
 		var match, pass string
@@ -514,7 +522,7 @@ func createFlowConfig(t *testing.T, ipType string, terms []cfgplugins.AclTerm, s
 		}
 
 		fc.name = fmt.Sprintf("flow-%s-%s-%s", strings.ReplaceAll(term.Description, " ", "-"), match, pass)
-		flowToACLEntryMap[fc.name] = term.SeqID
+		fc.trafficItem.SeqID = term.SeqID
 		flows = append(flows, fc)
 	}
 
@@ -530,7 +538,7 @@ func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	if *flowMetrics.Counters.OutPkts != packetCount {
-		validationErrors = append(validationErrors, fmt.Errorf("flow %s sent %d packets, expected %d packets", flowName, *flowMetrics.Counters.InPkts, packetCount))
+		validationErrors = append(validationErrors, fmt.Errorf("flow %s sent %d packets, expected %d packets", flowName, *flowMetrics.Counters.OutPkts, packetCount))
 	}
 
 	if expectPass {
@@ -553,11 +561,11 @@ func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 	return nil
 }
 
-func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, flowName string, expectPass bool, aclParams cfgplugins.AclParams, maxDroppedPackets uint32) error {
+func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expectPass bool, aclParams cfgplugins.AclParams, maxDroppedPackets uint32) error {
 	t.Helper()
 
 	t.Logf("Verifying ACL counters for ACL %s", aclParams.Name)
-	entryID := flowToACLEntryMap[flowName]
+	entryID := fc.trafficItem.SeqID
 	aclSetPath := gnmi.OC().Acl().AclSet(aclParams.Name, aclParams.ACLType)
 	entry := gnmi.Get(t, dut, aclSetPath.AclEntry(entryID).State())
 	if entry == nil {
@@ -587,7 +595,7 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, flowName string, ex
 	entryCounters[entryID] = matched
 	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched)
 	if matched-previouslyMatched < expectedPackets {
-		return fmt.Errorf("ACL validation failed for flow %s: %s", flowName, message)
+		return fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
 	}
 
 	t.Log(message)
@@ -608,7 +616,7 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
-	if err := verifyACLCounters(t, dut, flowConfig.name, expectPass, aclParams, maxDroppedPackets); err != nil {
+	if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclParams, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 
@@ -635,7 +643,7 @@ func verifyACLUpdate(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
-	if err := verifyACLCounters(t, dut, flowConfig.name, expectPass, aclUpdateParams, maxDroppedPackets); err != nil {
+	if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclUpdateParams, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 
@@ -668,13 +676,13 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top g
 			flowConfigMap[expectTraffic] = createFlowConfig(t, ipTypeForACL(aclParams.ACLType), aclParams.Terms, aclParams.DefaultPermit != expectTraffic, expectTraffic)
 		}
 
-		for expectPass, flows := range flowConfigMap {
+		for shouldPass, flows := range flowConfigMap {
 			for _, flowConfig := range flows {
-				t.Logf("Configuring %s expecting pass: %t", flowConfig.name, expectPass)
+				t.Logf("Configuring %s expecting pass: %t", flowConfig.name, shouldPass)
 				if err := configureFlow(t, top, flowConfig); err != nil {
 					testErrors = append(testErrors, err)
 				} else {
-					if err := sendAndVerifyTraffic(t, dut, ate, top, aclParams, flowConfig, expectPass, 0); err != nil {
+					if err := sendAndVerifyTraffic(t, dut, ate, top, aclParams, flowConfig, shouldPass, 0); err != nil {
 						testErrors = append(testErrors, err)
 					}
 				}
@@ -762,21 +770,35 @@ func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) error {
 		return fmt.Errorf("invalid traffic type %s", fc.ipType)
 	}
 
-	if fc.trafficItem.L4SrcPort != 0 && fc.trafficItem.L4DstPort != 0 {
-		switch fc.trafficItem.Protocol {
-		case cfgplugins.TCPProtocolNum:
-			tcp := flow.Packet().Add().Tcp()
-			tcp.SrcPort().SetValue(fc.trafficItem.L4SrcPort)
-			tcp.DstPort().SetValue(fc.trafficItem.L4DstPort)
-		case cfgplugins.UDPProtocolNum:
-			udp := flow.Packet().Add().Udp()
-			udp.SrcPort().SetValue(fc.trafficItem.L4SrcPort)
-			udp.DstPort().SetValue(fc.trafficItem.L4DstPort)
+	switch fc.trafficItem.Protocol {
+	case cfgplugins.TCPProtocolNum:
+		if fc.trafficItem.L4SrcPort == 0 || fc.trafficItem.L4DstPort == 0 {
+			return fmt.Errorf("missing L4 ports for TCP protocol")
 		}
-	} else if fc.trafficItem.ICMPType != 0 && fc.trafficItem.ICMPCode != 0 {
+		tcp := flow.Packet().Add().Tcp()
+		tcp.SrcPort().SetValue(fc.trafficItem.L4SrcPort)
+		tcp.DstPort().SetValue(fc.trafficItem.L4DstPort)
+	case cfgplugins.UDPProtocolNum:
+		if fc.trafficItem.L4SrcPort == 0 || fc.trafficItem.L4DstPort == 0 {
+			return fmt.Errorf("missing L4 ports for UDP protocol")
+		}
+		udp := flow.Packet().Add().Udp()
+		udp.SrcPort().SetValue(fc.trafficItem.L4SrcPort)
+		udp.DstPort().SetValue(fc.trafficItem.L4DstPort)
+	case cfgplugins.ICMPv4ProtocolNum:
+		if fc.ipType != cfgplugins.IPv4 {
+			return fmt.Errorf("ICMPv4 protocol specified for non-IPv4 traffic")
+		}
 		icmp := flow.Packet().Add().Icmp()
 		icmp.Echo().SetType(gosnappi.NewPatternFlowIcmpEchoType().SetValue(uint32(fc.trafficItem.ICMPType)))
 		icmp.Echo().SetCode(gosnappi.NewPatternFlowIcmpEchoCode().SetValue(uint32(fc.trafficItem.ICMPCode)))
+	case cfgplugins.ICMPv6ProtocolNum:
+		if fc.ipType != cfgplugins.IPv6 {
+			return fmt.Errorf("ICMPv6 protocol specified for non-IPv6 traffic")
+		}
+		icmpv6 := flow.Packet().Add().Icmpv6()
+		icmpv6.Echo().SetType(gosnappi.NewPatternFlowIcmpv6EchoType().SetValue(uint32(fc.trafficItem.ICMPType)))
+		icmpv6.Echo().SetCode(gosnappi.NewPatternFlowIcmpv6EchoCode().SetValue(uint32(fc.trafficItem.ICMPCode)))
 	}
 
 	return nil
