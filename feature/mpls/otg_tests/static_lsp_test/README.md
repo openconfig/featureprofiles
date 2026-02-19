@@ -1,4 +1,4 @@
-# PF-1.24 Egress Static MPLS LSP Verification
+# PF-1.24: Egress Static MPLS LSP Verification
 
 ## Summary
 
@@ -7,7 +7,7 @@ matches the configured static LSP label, pops the label, and forwards the remain
 to the correct egress interface.
 
 ## Testbed type
-* [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
+* [`featureprofiles/topologies/atedut_4.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_4.testbed)
 
 ## Procedure
 ### Test environment setup
@@ -16,7 +16,7 @@ to the correct egress interface.
 DUT has 2 ingress aggregate interfaces and 1 egress aggregate interface.
        Egress                                      Ingress
          |                                            |
-                         |         | --eBGP-- | ATE Port 2 |
+                         |         | --eBGP-- | ATE Port 2  |
     [ ATE Ports 1 ]------|   DUT   |          |             |
                          |         | --eBGP-- | ATE Port 3  |
 ```
@@ -193,7 +193,7 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
                     {
                       "action": {
                         "config": {
-                          "decapsulate-gue": true
+                          "decapsulate-mpls-in-udp": true
                         }
                       },
                       "config": {
@@ -224,11 +224,11 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
-  # Telemetry for GRE decap rule    
+  # Telemetry for MPLSoGUE decap rule   
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
     
-  # Config paths for GRE decap
+  # Config paths for MPLSoGUE decap
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
 
   /interfaces/interface/state/counters/in-discards:
