@@ -232,7 +232,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
           "config": {
             "name": "Port-Channel10",
             "interval": "FAST",
-            "lacp-mode": "ACTIVE"
+            "lacp-mode": "ACTIVE",
             "fallback" : "TRUE"
           },
           "members": {
