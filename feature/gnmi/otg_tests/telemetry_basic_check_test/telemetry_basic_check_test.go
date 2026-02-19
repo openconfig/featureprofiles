@@ -1161,16 +1161,18 @@ func teardownLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, "port1")
 	dp2 := dut.Port(t, "port2")
 
-	// Remove member ports from LAG
+	b := &gnmi.SetBatch{}
 	for _, port := range []*ondatra.Port{dp1, dp2} {
-		gnmi.Delete(t, dut, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
 	}
 
 	// Remove LAG interface
-	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Config())
+	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Config())
 
 	// Remove LACP interface configuration
-	gnmi.Delete(t, dut, gnmi.OC().Lacp().Interface(aggID).Config())
+	gnmi.BatchDelete(b, gnmi.OC().Lacp().Interface(aggID).Config())
+
+	b.Set(t, dut)
 
 	t.Logf("LACP configuration removed from DUT")
 }
