@@ -611,30 +611,6 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatal(err2)
 	}
 	st2.GetOrCreateConditions().GetOrCreateBgpConditions().SetRouteType(oc.BgpConditions_RouteType_EXTERNAL)
-
-	//var cliConfig string
-	//	if deviations.AggregateBandwidthPolicyActionUnsupported(dut) {
-	//		switch dut.Vendor() {
-	//		case ondatra.JUNIPER:
-	//			cliConfig = fmt.Sprintf(`policy-options {
-	//							policy-statement %s {
-	//									term %s {
-	//											then {
-	//													aggregate-bandwidth {
-	//															transitive;
-	//													}
-	//											}
-	//									}
-	//							}
-	//						}`, exportPolicy, exportStatements)
-	//			helpers.GnmiCLIConfig(t, dut, cliConfig)
-	//		default:
-	//			t.Fatalf("Vendor %s, has no CLI configuration for aggregate-bandwidth policy action", dut.Vendor())
-	//		}
-	//	} else {
-	//			t.Fatalf("Vendor %s, has no OC support for aggregate-bandwidth policy action", dut.Vendor())
-	//	}
-
 	st2.GetOrCreateActions().PolicyResult = accept
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
