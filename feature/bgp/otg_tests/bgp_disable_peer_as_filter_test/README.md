@@ -41,6 +41,10 @@ graph LR
 
 ## Procedure
 
+### Test environment setup
+
+1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2.
+
 ### RT-1.71.1: Baseline Test (Default Filtering)
 
 1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2\.  
