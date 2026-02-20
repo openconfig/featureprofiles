@@ -237,12 +237,12 @@ oc_paths:
 
   ## State Paths ##
 
-  - /lacp/interfaces/interface/state/name
-  - /lacp/interfaces/interface/members/member/state/interface
-  - /lacp/interfaces/interface/members/member/state/port-num
-  - /interfaces/interface/ethernet/state/aggregate-id
-  - /lacp/interfaces/interface/state/interval
-  - /lacp/interfaces/interface/state/fallback
+/lacp/interfaces/interface/state/name:
+/lacp/interfaces/interface/members/member/state/interface:
+/lacp/interfaces/interface/members/member/state/port-num:
+/interfaces/interface/ethernet/state/aggregate-id:
+/lacp/interfaces/interface/state/interval:
+/lacp/interfaces/interface/state/fallback:
 
 rpcs:
   gnmi:
