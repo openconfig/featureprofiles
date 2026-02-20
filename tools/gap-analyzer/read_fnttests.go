@@ -94,7 +94,10 @@ type GapResult struct {
 	GapDescription string `json:"gap_description"`
 }
 
-// --- Command Line Flags ---
+// apiKey specifies the API Key for Gemini API.
+// model specifies the Gemini model to use for gap analysis.
+// featureprofilesRoot specifies the root directory for searching feature profiles tests.
+// changedFilesStr specifies a comma-separated list of changed files to analyze.
 var (
 	apiKey              = flag.String("api-key", os.Getenv("GEMINI_API_KEY"), "API Key for Google AI Gemini API. Can also be set via GEMINI_API_KEY env var.")
 	model               = flag.String("model", "gemini-2.5-pro", "The public Gemini model to use.")
@@ -102,7 +105,8 @@ var (
 	changedFilesStr     = flag.String("changed-files", "", "Comma-separated list of changed files.")
 )
 
-// --- Regular Expressions for parsing metadata.textproto ---
+// descRegex is a regular expression to extract the description field from metadata.textproto.
+// idRegex is a regular expression to extract the plan_id field of the test from metadata.textproto.
 var (
 	descRegex = regexp.MustCompile(`description:\s*"([^"]+)"`)
 	idRegex   = regexp.MustCompile(`plan_id:\s*"([^"]+)"`)
