@@ -51,6 +51,7 @@ var (
 			OCAGENT: "mgd-api",
 			P4RT:    "p4-switch",
 			ROUTING: "rpd",
+			GNPSI:   "nginx",
 		},
 		ondatra.NOKIA: {
 			GRIBI:   "sr_grpc_server",
