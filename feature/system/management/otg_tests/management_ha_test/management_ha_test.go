@@ -474,10 +474,7 @@ func lossPct(tx, rx float64) float64 {
 }
 
 func getCiscoCLIRedisConfig(instanceName string, as uint32, vrf string) string {
-	cfg := fmt.Sprintf("router bgp %d\n", as)
-	if instanceName != "default" {
-		cfg = fmt.Sprintf("router bgp %d instance %s\n", as, instanceName)
-	}
+	cfg := fmt.Sprintf("router bgp %d instance %s\n", as, instanceName)
 	cfg = cfg + fmt.Sprintf(" vrf %s\n", vrf)
 	cfg = cfg + "  address-family ipv6 unicast\n"
 	cfg = cfg + "   label mode per-vrf\n"
