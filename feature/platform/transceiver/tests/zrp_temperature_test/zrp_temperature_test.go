@@ -122,7 +122,6 @@ func TestZRTemperatureState(t *testing.T) {
 		} else {
 			t.Fatalf("The average is not between the maximum and minimum values, Avg:%v Max:%v Min:%v", temperatureAvg, temperatureMax, temperatureMin)
 		}
-		p1Stream.Close()
 	}
 }
 
@@ -160,7 +159,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 			}
 		}
 	}
-    p1Stream := samplestream.New(t, dut1, compWithTemperature.Temperature().State(), 10*time.Second)
+	p1Stream := samplestream.New(t, dut1, compWithTemperature.Temperature().State(), 10*time.Second)
 	defer p1Stream.Close()
 	// Wait 120 sec cooling-off period
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
@@ -219,6 +218,5 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 		} else {
 			t.Fatalf("The average is not between the maximum and minimum values")
 		}
-		p1Stream.Close()
 	}
 }
