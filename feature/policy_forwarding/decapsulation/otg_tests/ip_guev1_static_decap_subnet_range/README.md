@@ -252,8 +252,7 @@ Traffic:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-# paths:
-
+paths:
   ## Config Paths
   /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
