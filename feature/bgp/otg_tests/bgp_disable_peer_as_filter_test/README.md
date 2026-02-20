@@ -6,34 +6,23 @@ Verifies the `disable-peer-as-filter` feature, which allows a BGP speaker to adv
 
 ## Testbed type
 
-* [TESTBED_DUT_ATE_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/ate_tests/base_2link_topology.testbed)
+* [TESTBED\_DUT\_ATE\_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/ate_tests/base_2link_topology.testbed)
 
 ## Topology
 
 ```mermaid
-graph LR
-    subgraph ATE ["Automated Test Equipment (ATE)"]
-        direction TB
-        ATE1["Port 1<br/>(AS 65502)"]
-        ATE2["Port 2<br/>(AS 15169)"]
+flowchart LR
+    subgraph ATE [Automated Test Equipment]
+        ATE1(Port 1 AS 64496)
+        ATE2(Port 2 AS 64497)
     end
 
-    subgraph DUT_Domain ["Device Under Test (DUT)"]
-        DUT["DUT<br/>(AS 64701)"]
+    subgraph DUT_Domain [Device Under Test]
+        DUT(DUT AS 64498)
     end
 
-    %% Peering Connections
-    ATE1 <-->|eBGP| DUT
-    DUT <-->|eBGP| ATE2
-
-    %% Styling
-    classDef ateStyle fill:#f8f9fa,stroke:#3c4043,stroke-width:2px,rx:10,ry:10;
-    classDef dutStyle fill:#e8f0fe,stroke:#1a73e8,stroke-width:2px,rx:10,ry:10;
-    classDef nodeStyle font-family:sans-serif,font-size:12px;
-
-    class ATE ateStyle;
-    class DUT_Domain dutStyle;
-    class ATE1,ATE2,DUT nodeStyle;
+    ATE1 ---|eBGP| DUT
+    DUT ---|eBGP| ATE2
 ```
 
 * **ATE Port 1** (AS 64496\) connects to the **DUT** (AS 64498\) via eBGP.  
@@ -43,26 +32,26 @@ graph LR
 
 ### Test environment setup
 
-1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2.
+1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2\.
 
 ### RT-1.71.1: Baseline Test (Default Filtering)
 
 1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2\.  
 2. Advertise a prefix (e.g., `192.0.2.0/24`) from ATE Port 1 with an AS-PATH containing the target peer's AS (`64497`) in the middle (e.g., `64496 64497 64499`).  
 3. Verify that the DUT **receives** and **accepts** the route from ATE Port 1\.  
-4. Verify that the DUT **does not** advertise this route to ATE Port 2 (it should filter it out because ATE Port 2 is in AS 15169).
+4. Verify that the DUT **does not** advertise this route to ATE Port 2 (it should filter it out because ATE Port 2 is in AS 64497).
 
 ### RT-1.71.2: Test `disable-peer-as-filter = TRUE` (Transit AS)
 
 1. Enable `disable-peer-as-filter` on the DUT's neighbor/peer-group configuration towards ATE Port 2\.  
-2. Re-advertise the prefix from ATE Port 1 with the same AS-PATH (`65502 15169 65500`).  
+2. Re-advertise the prefix from ATE Port 1 with the same AS-PATH (`64496 64497 64499`).  
 3. Verify that the DUT **advertises** the route to ATE Port 2\.  
 4. Verify that ATE Port 2 **receives** the route (assuming it has `allowas-in` or equivalent configured to accept it).
 
 ### RT-1.71.3: Test "Originating Peer AS"
 
 1. Ensure `disable-peer-as-filter` is enabled on the DUT's neighbor/peer-group configuration towards ATE Port 2\.  
-2. Advertise a prefix from ATE Port 1 with an AS-PATH where the target peer's AS (15169) is the **originating AS** (e.g., AS-PATH: `65502 65500 15169`).  
+2. Advertise a prefix from ATE Port 1 with an AS-PATH where the target peer's AS (64497) is the **originating AS** (e.g., AS-PATH: `64496 64499 64497`).  
 3. Verify that the DUT **advertises** the route to ATE Port 2\.  
 4. Verify that ATE Port 2 **receives** the route.  
 5. Validate session state and capabilities received on DUT using telemetry.
@@ -135,5 +124,5 @@ rpcs:
 
 ## Required DUT platform
 
-* Specify the minimum DUT-type:
-  * vRX - virtual router device
+* Specify the minimum DUT-type:  
+  * vRX \- virtual router device
