@@ -193,8 +193,7 @@ paths:
 /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
 /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
 /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
-/network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
-/network-instances/network-instance[name=default]/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop: 
+
 
 ## State Paths ##
 
@@ -207,8 +206,6 @@ paths:
 /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/state/prefix-length:
 /network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
 /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
-/network-instances/network-instance/protocols/protocol/static-routes/static/state/prefix:
-/network-instances/network-instance[name=default]/protocols/protocol/static-routes/static/next-hops/next-hop/state/next-hop:
 
 rpcs:
   gnmi:
