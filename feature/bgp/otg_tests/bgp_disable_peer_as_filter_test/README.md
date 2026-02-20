@@ -36,8 +36,8 @@ graph LR
     class ATE1,ATE2,DUT nodeStyle;
 ```
 
-* **ATE Port 1** (AS 65502\) connects to the **DUT** (AS 64701\) via eBGP.  
-* **DUT** (AS 64701\) connects to **ATE Port 2** (AS 15169\) via eBGP.
+* **ATE Port 1** (AS 64496\) connects to the **DUT** (AS 64498\) via eBGP.  
+* **DUT** (AS 64498\) connects to **ATE Port 2** (AS 64497\) via eBGP.
 
 ## Procedure
 
