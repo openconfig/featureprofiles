@@ -92,7 +92,6 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
       }
     ]
   },
-{
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
