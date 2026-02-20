@@ -82,88 +82,98 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 ```json
 {
-  "openconfig-network-instance:protocols": {
-    "protocol": [
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
       {
-        "identifier": "openconfig-policy-types:STATIC",
         "name": "default",
         "config": {
-          "identifier": "openconfig-policy-types:STATIC",
           "name": "default"
         },
-        "static-routes": {
-          "static": [
+        "protocols": {
+          "protocol": [
             {
-              "prefix": "198.51.100.160/28",
+              "identifier": "openconfig-policy-types:STATIC",
+              "name": "default",
               "config": {
-                "prefix": "198.51.100.160/28"
+                "identifier": "openconfig-policy-types:STATIC",
+                "name": "default"
               },
-              "next-hops": {
-                "next-hop": [
+              "static-routes": {
+                "static": [
                   {
-                    "index": "0",
+                    "prefix": "198.51.100.160/28",
                     "config": {
-                      "index": "0",
-                      "next-hop": "198.51.100.161"
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "prefix": "198.51.100.160/31",
-              "config": {
-                "prefix": "198.51.100.160/31"
-              },
-              "next-hops": {
-                "next-hop": [
-                  {
-                    "index": "0",
-                    "config": {
-                      "index": "0"
+                      "prefix": "198.51.100.160/28"
                     },
-                    "interface-ref": {
-                      "config": {
-                        "interface": "Vlan10"
-                      }
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "198.51.100.161"
+                          }
+                        }
+                      ]
                     }
-                  }
-                ]
-              }
-            },
-            {
-              "prefix": "2001:db8:2:1::/64",
-              "config": {
-                "prefix": "2001:db8:2:1::/64"
-              },
-              "next-hops": {
-                "next-hop": [
+                  },
                   {
-                    "index": "0",
+                    "prefix": "198.51.100.160/31",
                     "config": {
-                      "index": "0",
-                      "next-hop": "2001:db8:2:1::"
-                    }
-                  }
-                ]
-              }
-            },
-            {
-              "prefix": "2001:db8:2:1::/127",
-              "config": {
-                "prefix": "2001:db8:2:1::/127"
-              },
-              "next-hops": {
-                "next-hop": [
-                  {
-                    "index": "0",
-                    "config": {
-                      "index": "0"
+                      "prefix": "198.51.100.160/31"
                     },
-                    "interface-ref": {
-                      "config": {
-                        "interface": "Vlan10"
-                      }
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0"
+                          },
+                          "interface-ref": {
+                            "config": {
+                              "interface": "Vlan10"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "prefix": "2001:db8:2:1::/64",
+                    "config": {
+                      "prefix": "2001:db8:2:1::/64"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "2001:db8:2:1::"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "prefix": "2001:db8:2:1::/127",
+                    "config": {
+                      "prefix": "2001:db8:2:1::/127"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0"
+                          },
+                          "interface-ref": {
+                            "config": {
+                              "interface": "Vlan10"
+                            }
+                          }
+                        }
+                      ]
                     }
                   }
                 ]
