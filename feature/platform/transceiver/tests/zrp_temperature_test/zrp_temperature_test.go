@@ -197,7 +197,14 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	cfgplugins.ToggleInterface(t, dut1, dp1.Name(), true)
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
-	temprStateData, _ = p1Stream.Next().Val()
+	nextSample := p1Stream.Next()
+	if (nextSample == nil) {
+		t.Fatalf("Temperature telemetry data was not streamed after interface up")
+	}
+	temprStateData, ok = nextSample.Val()
+	if !ok {
+		t.Fatalf("Failed to get temperature telemetry value after interface up")
+	}
 	temperatureInstant = verifyTemperatureSensorValue(t, temprStateData.GetInstant(), "Instant")
 	t.Logf("Port1 dut1 %s Instant Temperature after interface up: %v", dp1.Name(), temperatureInstant)
 
