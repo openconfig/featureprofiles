@@ -1,3 +1,8 @@
+// The read_fnttests_github program analyzes FNT tests by comparing
+// requirement files (README.md) with automation files (*.go)
+// using the Gemini API to detect gaps in test coverage.
+// It is intended to be run in a CI/CD workflow, triggered by changes
+// to README.md or *.go files within FNT test directories.
 package main
 
 import (
