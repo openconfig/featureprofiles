@@ -234,7 +234,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
-paths:
+oc_paths:
 
   ## Config Paths ##
 
