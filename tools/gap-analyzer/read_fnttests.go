@@ -351,8 +351,6 @@ func main() {
 			gapsOrErrorsFound = true
 			failureMessages = append(failureMessages, fmt.Sprintf("Gap found in %s: %s", test.ID, gapDesc))
 		}
-		// // Add sleep to avoid hitting rate limits
-		// time.Sleep(2 * time.Second) // Sleep for 2s between tests if required
 	}
 
 	// If gaps or errors were found, print messages and exit with failure
