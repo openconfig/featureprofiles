@@ -198,7 +198,7 @@ func TestZRTemperatureStateInterfaceFlap(t *testing.T) {
 	gnmi.Await(t, dut1, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
 	nextSample := p1Stream.Next()
-	if (nextSample == nil) {
+	if nextSample == nil {
 		t.Fatalf("Temperature telemetry data was not streamed after interface up")
 	}
 	temprStateData, ok = nextSample.Val()
