@@ -242,7 +242,7 @@ oc_paths:
   - /interfaces/interface/ethernet/config/duplex-mode
   - /interfaces/interface/ethernet/config/aggregate-id
   - /interfaces/interface/aggregation/config/lag-type
-  - /lacp/interfaces/interface/config/name
+  - /lacp/interfaces/interface/config/name:
   - /lacp/interfaces/interface/config/interval
   - /lacp/interfaces/interface/config/lacp-mode
   - /lacp/interfaces/interface/config/fallback
