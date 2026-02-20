@@ -5,9 +5,14 @@ on:
   pull_request:
     # No paths filter for testing triggers.
 
+permissions: {}
+
 jobs:
   gap_analysis_test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
