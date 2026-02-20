@@ -3,7 +3,7 @@
 
 uuid:  "f5a81496-a16d-49d8-ba7a-4ddda28cf113"
 plan_id: "RT-1.67"
-description:  "static route with next-hop vlan interface"
+description:  "IPv4 and IPv6 Static Route using Vlan Interface"
 testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
