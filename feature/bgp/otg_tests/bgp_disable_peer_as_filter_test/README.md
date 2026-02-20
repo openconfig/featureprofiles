@@ -4,6 +4,10 @@
 
 Verifies the `disable-peer-as-filter` feature, which allows a BGP speaker to advertise routes to an eBGP peer even if the peer's autonomous system (AS) number is already present in the AS-PATH attribute. This is essential for transit scenarios between domains sharing the same ASN.
 
+## Testbed type
+
+* [TESTBED_DUT_ATE_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/ate_tests/base_2link_topology.testbed)
+
 ## Topology
 
 ```mermaid
