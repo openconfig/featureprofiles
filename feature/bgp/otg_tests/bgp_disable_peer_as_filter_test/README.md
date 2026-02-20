@@ -128,7 +128,9 @@ paths:
 rpcs:
   gnmi:
     gNMI.Set:
+      union_replace: true
     gNMI.Subscribe:
+      on_change: true
 ```
 
 ## Required DUT platform
