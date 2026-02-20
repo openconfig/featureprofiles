@@ -76,159 +76,98 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
 
 #### Canonical OC
 ```json
-{
-  "openconfig-interfaces:interfaces": {
-    "interface": [
-      {
-        "name": "Ethernet5/1",
-        "config": {
-          "name": "Ethernet5/1",
-          "type": "iana-if-type:ethernetCsmacd",
-          "description": "ATE:Port[3]"
-        },
-        "openconfig-vlan:switched-vlan": {
-          "config": {
-            "interface-mode": "ACCESS",
-            "access-vlan": 10
-          }
-        },
-        "openconfig-if-ethernet:ethernet": {
-          "config": {
-            "port-speed": "SPEED_100GB", 
-            "auto-negotiate": true
-          }
-        }
-      },
-      {
-        "name": "Ethernet29/1",
-        "config": {
-          "name": "Ethernet29/1",
-          "type": "iana-if-type:ethernetCsmacd",
-          "description": "ATE:Port[1]"
-        },
-        "openconfig-if-ethernet:ethernet": {
-          "config": {
-            "port-speed": "SPEED_100GB",
-            "auto-negotiate": true,
-            "aggregate-id": "Port-Channel10"
-          }
-        }
-      },
-      {
-        "name": "Ethernet30/1",
-        "config": {
-          "name": "Ethernet30/1",
-          "type": "iana-if-type:ethernetCsmacd",
-          "description": "ATE:Port[2]"
-        },
-        "openconfig-if-ethernet:ethernet": {
-          "config": {
-            "port-speed": "SPEED_100GB",
-            "auto-negotiate": true,
-            "aggregate-id": "Port-Channel10"
-          }
-        }
-      },
-      {
-        "name": "Port-Channel10",
-        "config": {
-          "name": "Port-Channel10",
-          "type": "iana-if-type:ieee8023adLag",
-          "description": "ATE:Ports[LAG1]"
-        },
-        "openconfig-if-aggregate:aggregation": {
-          "config": {
-            "lag-type": "LACP"
-          }
-        },
-        "openconfig-vlan:switched-vlan": {
-          "config": {
-            "interface-mode": "ACCESS",
-            "access-vlan": 10
-          }
-        }
-      },
-      {
-        "name": "Vlan10",
-        "config": {
-          "name": "Vlan10",
-          "type": "iana-if-type:l3ipvlan",
-          "mtu": 9202
-        },
-        "subinterfaces": {
-          "subinterface": [
-            {
-              "index": 0,
-              "openconfig-if-ip:ipv4": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "10.10.11.1",
-                      "config": {
-                        "ip": "10.10.11.1",
-                        "prefix-length": 27
-                      }
-                    }
-                  ]
-                }
-              },
-              "openconfig-if-ip:ipv6": {
-                "addresses": {
-                  "address": [
-                    {
-                      "ip": "2001:f:b::1",
-                      "config": {
-                        "ip": "2001:f:b::1",
-                        "prefix-length": 64
-                      }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
-        }
-      }
-    ]
-  },
-  "openconfig-lacp:lacp": {
-    "interfaces": {
-      "interface": [
-        {
-          "name": "Port-Channel10",
-          "config": {
-            "name": "Port-Channel10",
-            "interval": "FAST",
-            "lacp-mode": "ACTIVE",
-            "fallback" : "TRUE"
-          },
-          "members": {
-            "member": [
-              {
-                "interface": "Ethernet29/1"
-              },
-              {
-                "interface": "Ethernet30/1"
-              }
-            ]
-          }
-        }
-      ]
-    }
-  },
-  "openconfig-vlan:vlans": {
-    "vlan": [
-      {
-        "vlan-id": 10,
-        "config": {
-          "vlan-id": 10,
-          "name": "vlan10",
-          "status": "ACTIVE"
-        }
-      }
-    ]
-  }
-}
+{                                                                                                                                                                                                                                        
+  "openconfig-lacp:config": {                                                                                                                                                                                                            
+    "name": "Port-Channel100"                                                                                                                                                                                                            
+  },                                                                                                                                                                                                                                     
+  "openconfig-lacp:members": {                                                                                                                                                                                                           
+    "member": [                                                                                                                                                                                                                          
+      {                                                                                                                                                                                                                                  
+        "config": {                                                                                                                                                                                                                      
+          "interface": "Ethernet30/1"                                                                                                                                                                                                    
+        },                                                                                                                                                                                                                               
+        "interface": "Ethernet30/1",                                                                                                                                                                                                     
+        "state": {                                                                                                                                                                                                                       
+          "activity": "ACTIVE",                                                                                                                                                                                                          
+          "aggregatable": true,                                                                                                                                                                                                          
+          "collecting": false,                                                                                                                                                                                                           
+          "counters": {                                                                                                                                                                                                                  
+            "arista-lacp-augments:lacp-actor-sync-transitions": "1",                                                                                                                                                                     
+            "lacp-errors": "0",                                                                                                                                                                                                                      "lacp-in-pkts": "1200",                                                                                                                                                                                                    
+            "lacp-out-pkts": "3568",                                                                                                                                                                                                     
+            "arista-lacp-augments:lacp-partner-sync-transitions": "1",                                                                                                                                                                   
+            "lacp-rx-errors": "0",                                                                                                                                                                                                       
+            "lacp-tx-errors": "0",                                                                                                                                                                                                       
+            "lacp-unknown-errors": "0"                                                                                                                                                                                                   
+          },                                                                                                                                                                                                                             
+          "distributing": false,                                                                                                                                                                                                         
+          "interface": "Ethernet30/1",                                                                                                                                                                                                   
+          "oper-key": 100,                                                                                                                                                                                                               
+          "partner-id": "00:00:00:00:00:00",                                                                                                                                                                                             
+          "partner-key": 0,                                                                                                                                                                                                              
+          "partner-port-num": 0,                                                                                                                                                                                                         
+          "port-num": 121,                                                                                                                                                                                                               
+          "synchronization": "OUT_SYNC",                                                                                                                                                                                                 
+          "system-id": "8c:01:9d:5f:da:63",                                                                                                                                                                                              
+          "timeout": "LONG"                                                                                                                                                                                                              
+        }                                                                                                                                                                                                                                
+      },  
+      {                                                                                                                                                                                                                                  
+        "config": {                                                                                                                                                                                                                      
+          "interface": "Ethernet31/1"                                                                                                                                                                                                    
+        },                                                                                                                                                                                                                               
+        "interface": "Ethernet31/1",                                                                                                                                                                                                              "state": {                                                                                                                                                                                                                      
+          "activity": "ACTIVE",                                                                                                                                                                                                          
+          "aggregatable": true,                                                                                                                                                                                                          
+          "collecting": false,                                                                                                                                                                                                           
+          "counters": {                                                                                                                                                                                                                  
+            "arista-lacp-augments:lacp-actor-sync-transitions": "0",                                                                                                                                                                     
+            "lacp-errors": "0",                                                                                                                                                                                                          
+            "lacp-in-pkts": "0",                                                                                                                                                                                                         
+            "lacp-out-pkts": "0",                                                                                                                                                                                                        
+            "arista-lacp-augments:lacp-partner-sync-transitions": "0",                                                                                                                                                                   
+            "lacp-rx-errors": "0",                                                                                                                                                                                                       
+            "lacp-tx-errors": "0",                                                                                                                                                                                                       
+            "lacp-unknown-errors": "0"                                                                                                                                                                                                   
+          },                                                                                                                                                                                                                             
+          "distributing": false,                                                                                                                                                                                                         
+          "interface": "Ethernet31/1",                                                                                                                                                                                                   
+          "oper-key": 100,                                                                                                                                                                                                               
+          "partner-id": "00:00:00:00:00:00",                                                                                                                                                                                             
+          "partner-key": 0,                                                                                                                                                                                                              
+          "partner-port-num": 0,                                                                                                                                                                                                         
+          "port-num": 125,                                                                                                                                                                                                               
+          "synchronization": "OUT_SYNC",                                                                                                                                                                                                 
+          "system-id": "8c:01:9d:5f:da:63",                                                                                                                                                                                              
+          "timeout": "LONG"                                                                                                                                                                                                              
+        }                                                                                                                                                                                                                                
+      }                                                                                                                                                                                                                                  
+    ]                                                                                                                                                                                                                                    
+  },                                                                                                                                                                                                                                     
+  "openconfig-lacp:name": "Port-Channel100",                                                                                                                                                                                             
+  "openconfig-lacp:state": {                                                                                                                                                                                                             
+    "name": "Port-Channel100",                                                                                                                                                                                                           
+    "system-id-mac": "8c:01:9d:5f:da:63"                                                                                                                                                                                                 
+  }                                                                                                                                                                                                                                      
+}                                                                                                                                                                      
+{                                                                                                                                                                                                                                        
+  "openconfig-if-aggregate:config": {                                                                                                                                                                                                    
+    "arista-intf-augments:fallback": "individual",                                                                                                                                                                                       
+    "lag-type": "LACP"                                                                                                                                                                                                                   
+  },                                                                                                                                                                                                                                     
+  "openconfig-if-aggregate:state": {                                                                                                                                                                                                     
+    "arista-intf-augments:fallback": "individual",                                                                                                                                                                                       
+    "arista-intf-augments:fallback-state": "fallbackStateEnabled",                                                                                                                                                                       
+    "lag-speed": 0,                                                                                                                                                                                                                      
+    "lag-type": "LACP"                                                                                                                                                                                                                   
+  },                                                                                                                                                                                                                                     
+  "openconfig-vlan:switched-vlan": {                                                                                                                                                                                                     
+    "config": {                                                                                                                                                                                                                          
+      "access-vlan": 10,                                                                                                                                                                                                                 
+      "interface-mode": "ACCESS"                                                                                                                                                                                                         
+    }                                                                                                                                                                                                                                    
+  }                                                                                                                                                                                                                                      
+}  
 ```
 ## OpenConfig Path and RPC Coverage
 
