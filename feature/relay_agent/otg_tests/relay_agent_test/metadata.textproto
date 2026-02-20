@@ -3,7 +3,7 @@
 
 uuid:  "b67ccb9a-205f-4663-801b-e8fa5fda9920"
 plan_id: "RELAY-1.1"
-description:  "DHCP Relay functionality Test"
+description:  "DHCP Relay functionality"
 testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
