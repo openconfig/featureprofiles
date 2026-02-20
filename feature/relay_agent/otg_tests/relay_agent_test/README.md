@@ -74,42 +74,29 @@ A[ATE:Port1] --(Vlan 10)-->B[Port1:DUT:Port3];B --Egress-->C[Port3:ATE];
 #### Canonical OC
 
 ```json
-{                                                                                                                                                                                                                                                                                                                          
-  "openconfig-relay-agent:relay-agent" {                                                                                                                                                                                                                                                                                   
-    "interfaces": {                                                                                                                                                                                                                                                                                                        
-      "interface": [                                                                                                                                                                                                                                                                                                       
-        {                                                                                                                                                                                                                                                                                                                  
-          "config": {                                                                                                                                                                                                                                                                                                      
-            "helper-address": [                                                                                                                                                                                                                                                                                                             "192.0.2.254"                                                                                                                                                                                                                                                                                             
-            ],                                                                                                                                                                                                                                                                                                             
-            "id": "Vlan10"                                                                                                                                                                                                                                                                                                 
-          },                                                                                                                                                                                                                                                                                                               
-          "id": "Vlan10",                                                                                                                                                                                                                                                                                                  
-          "state": {                                                                                                                                                                                                                                                                                                       
-            "id": "Vlan10"                                                                                                                                                                                                                                                                                                 
-          }                                                                                                                                                                                                                                                                                                                
-        }                                                                                                                                                                                                                                                                                                                  
-      ]                                                                                                                                                                                                                                                                                                                    
-    }                                                                                                                                                                                                                                                                                                                      
-  },                                                                                                                                                                                                                                                                                                                       
-  "openconfig-relay-agent:relay-agent" {                                                                                                                                                                                                                                                                                   
-    "interfaces": {                                                                                                                                                                                                                                                                                                        
-      "interface": [                                                                                                                                                                                                                                                                                                       
-        {                                                                                                                                                                                                                                                                                                                  
-          "config": {                                                                                                                                                                                                                                                                                                      
-            "helper-address": [                                                                                                                                                                                                                                                                                            
-              "2001:db8:a:2::1"                                                                                                                                                                                                                                                                                         
-            ],                                                                                                                                                                                                                                                                                                             
-            "id": "Vlan10"                                                                                                                                                                                                                                                                                                 
-          },                                                                                                                                                                                                                                                                                                               
-          "id": "Vlan10",                                                                                                                                                                                                                                                                                                  
-          "state": {                                                                                                                                                                                                                                                                                                                   "id": "Vlan10"                                                                                                                                                                                                                                                                                                 
-          }                                                                                                                                                                                                                                                                                                                
-        }                                                                                                                                                                                                                                                                                                                  
-      ]                                                                                                                                                                                                                                                                                                                    
-    }                                                                                                                                                                                                                                                                                                                      
-  }                                                                                                                                                                                                                                                                                                                        
-}  
+{
+  "openconfig-relay-agent:relay-agent": {
+    "dhcp": {
+      "interfaces": {
+        "interface": [
+          {
+            "id": "Vlan10",
+            "config": {
+              "id": "Vlan10",
+              "helper-address": [
+                "192.0.2.254",
+                "2001:db8:a:2::1"
+              ]
+            },
+            "state": {
+              "id": "Vlan10"
+            }
+          }
+        ]
+      }
+    }
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
