@@ -21,12 +21,14 @@ This  is to validate the Static Routes with next-hop using Vlan interface functi
 
 ```mermaid
 graph LR; 
-A[ATE:Port1-3] --(Vlan 10)-->B[Port1-3:DUT:Port4];B --Egress-->C[Port4:ATE];
+A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 point-to-point-->C[Port4:ATE];
 ```
 
 * Connect ports DUT:Ports[1-4] to ports ATE:Ports[1-4]
-* DUT:Port[4] IPv4 address = 10.10.10.0/31
-* DUT:Port[4] IPv6 address = 2001:f:a::0/127
+* DUT:Port[4] IPv4 address = 198.51.100.0/31
+* DUT:Port[4] IPv6 address = 2001:db8:1::/127
+* ATE:Port[4] IPv4 address = 198.51.100.1/31
+* ATE:Port[4] IPv6 address = 2001:db8:1::1/127
 
 
 #### Configuration
@@ -34,147 +36,134 @@ A[ATE:Port1-3] --(Vlan 10)-->B[Port1-3:DUT:Port4];B --Egress-->C[Port4:ATE];
 
 * Configure VLAN 10 on DUT.
     * Have DUT:Port[1], DUT:Port[2], and DUT:Port[3] be a part of vlan 10
-    * VLAN10 interface IPv4 address: 10.11.0.1/16
-    * VLAN10 interface IPv6 address: 2001:a:b::1/48
+    * VLAN10 interface IPv4 address: 198.51.100.128/25
+    * VLAN10 interface IPv6 address:2001:db8:2::/48
     * Have the following IPv4 and IPv6 address on the ATE ports:
-        *  ATE:Port[1]:IPv4 address 10.11.1.0/16 / 2001:a:b:1::0/48
-        *  ATE:Port[2]:IPv4 address 10.11.2.0/16 / 2001:a:b:2::0/48
-        *  ATE:Port[3]:IPv4 address 10.11.3.0/16 / 2001:a:b:3::0/48
+        *  ATE:Port[1]:IPv4 address 198.51.100.161/28 / 2001:db8:2:1::/64
+        *  ATE:Port[2]:IPv4 address 198.51.100.193/28 / 2001:db8:2:2::/64
+        *  ATE:Port[3]:IPv4 address 198.51.100.225/28 / 2001:db8:2:3::/64
     * Configure IPv4 and IPv6 static routes recursively pointing to the VLAN10 interface
-
+       *  Example:
+           * 198.51.100.160/28 ---> 198.51.100.161
+              * 198.51.100.160/31 ---> vlan10 
+           * 2001:db8:2:1::/64  ---> 2001:db8:2:1::
+              * 2001:db8:2:1::/127 ---> vlan10 
 
 ### RT-1.67.1 Validate Layer 3 Forwarding over VLAN interface
 
-* Step 1 - Send IPv4 / IPv6 traffic flows from ATE:Port[1] to destination 10.10.10.1 and 2001:f:a::1
-* Step 2 - Send IPv4 / IPv6 traffic flows from ATE:Port[2] to destination 10.10.10.1 and 2001:f:a::1
-* Step 3 - Send IPv4 / IPv6 traffic flows from ATE:Port[3] to destination 10.10.10.1 and 2001:f:a::1
+* Step 1 - Send IPv4 / IPv6 traffic flows between ATE:Port[1] and ATE:Port[4]
+* Step 2 - Send IPv4 / IPv6 traffic flows between ATE:Port[2] and ATE:Port[4]
+* Step 3 - Send IPv4 / IPv6 traffic flows between ATE:Port[3] and ATE:Port[4]
 
 **Verify that:**
 
-* The DUT:Port[1], DUT:Port[1], and DUT:Port[3] receive the traffic for the flows and forward traffic out over DUT:Port[4]
+* The DUT:Port[1], DUT:Port[2], and DUT:Port[3] receive the traffic for the flows and forward traffic out over DUT:Port[4]
 
 ### RT-1.67.2 Validate IP forwarding over static route 
 
-* Send three different IPv4 traffic flows from ATE:Port[3] to destinations 
-    * 10.11.1.0/24
-    * 10.11.2.0/24
-    * 10.11.3.0/24
-* Send three different IPv6 traffic flows from ATE:Port[3] to destinations 
-    * 2001:a:b:1::0/64
-    * 2001:a:b:2::0/64
-    * 2001:a:b:3::0/64
+* Send three different IPv4 traffic flows from ATE:Port[4] to destinations 
+    * 198.51.100.160/28 
+    * 198.51.100.192/28 
+    * 198.51.100.224/28 
+* Send three different IPv6 traffic flows from ATE:Port[4] to destinations 
+    * 2001:db8:2:1::/64
+    * 2001:db8:2:2::/64
+    * 2001:db8:2:3::/64
 
 **Verify that:**
 
+* Vaidate the static routes forv198.51.100.160/28, 198.51.100.192/28, 198.51.100.224/28  are pointing to a vlan 10.
 * The DUT:Port[4] receives the traffic for the flows and forward traffic out over VLAN interfaces.
-    * 10.11.1.0/24 & 2001:a:b:1::0/64 going towards DUT:Port[1] ⇔ ATE:Port[1]
-    * 10.11.2.0/24 & 2001:a:b:2::0/64 going towards DUT:Port[2] ⇔ ATE:Port[2]
-    * 10.11.3.0/24 & 2001:a:b:3::0/64 going towards DUT:Port[3] ⇔ ATE:Port[3]
+    * 198.51.100.160/28 & 2001:db8:2:1::/64 going towards DUT:Port[1] ⇔ ATE:Port[1]
+    * 198.51.100.160/28 & 2001:db8:2:2::/64 going towards DUT:Port[2] ⇔ ATE:Port[2]
+    * 198.51.100.160/28 & 2001:db8:2:3::/64 going towards DUT:Port[3] ⇔ ATE:Port[3]
 
 #### Canonical OC
 
 ```json
 {
-  "openconfig-network-instance:network-instances": {
-    "network-instance": [
+  "openconfig-network-instance:protocols": {
+    "protocol": [
       {
+        "identifier": "openconfig-policy-types:STATIC",
         "name": "default",
         "config": {
+          "identifier": "openconfig-policy-types:STATIC",
           "name": "default"
         },
-        "protocols": {
-          "protocol": [
+        "static-routes": {
+          "static": [
             {
-              "identifier": "STATIC",
-              "name": "static",
+              "prefix": "198.51.100.160/28",
               "config": {
-                "identifier": "STATIC",
-                "name": "static"
+                "prefix": "198.51.100.160/28"
               },
-              "static-routes": {
-                "static": [
+              "next-hops": {
+                "next-hop": [
                   {
-                    "prefix": "10.11.1.0/24",
-                    "config": { "prefix": "10.11.1.0/24" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "10.11.1.0", "config": { "index": "10.11.1.0", "next-hop": "10.11.1.0" } } ]
+                    "index": "0",
+                    "config": {
+                      "index": "0",
+                      "next-hop": "198.51.100.161"
                     }
-                  },
+                  }
+                ]
+              }
+            },
+            {
+              "prefix": "198.51.100.160/31",
+              "config": {
+                "prefix": "198.51.100.160/31"
+              },
+              "next-hops": {
+                "next-hop": [
                   {
-                    "prefix": "10.11.1.0/31",
-                    "config": { "prefix": "10.11.1.0/31" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
+                    "index": "0",
+                    "config": {
+                      "index": "0"
+                    },
+                    "interface-ref": {
+                      "config": {
+                        "interface": "Vlan10"
+                      }
                     }
-                  },
+                  }
+                ]
+              }
+            },
+            {
+              "prefix": "2001:db8:2:1::/64",
+              "config": {
+                "prefix": "2001:db8:2:1::/64"
+              },
+              "next-hops": {
+                "next-hop": [
                   {
-                    "prefix": "10.11.2.0/24",
-                    "config": { "prefix": "10.11.2.0/24" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "10.11.2.0", "config": { "index": "10.11.2.0", "next-hop": "10.11.2.0" } } ]
+                    "index": "0",
+                    "config": {
+                      "index": "0",
+                      "next-hop": "2001:db8:2:1::"
                     }
-                  },
+                  }
+                ]
+              }
+            },
+            {
+              "prefix": "2001:db8:2:1::/127",
+              "config": {
+                "prefix": "2001:db8:2:1::/127"
+              },
+              "next-hops": {
+                "next-hop": [
                   {
-                    "prefix": "10.11.2.0/31",
-                    "config": { "prefix": "10.11.2.0/31" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "10.11.3.0/24",
-                    "config": { "prefix": "10.11.3.0/24" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "10.11.3.0", "config": { "index": "10.11.3.0", "next-hop": "10.11.3.0" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "10.11.3.0/31",
-                    "config": { "prefix": "10.11.3.0/31" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:1::/64",
-                    "config": { "prefix": "2001:a:b:1::/64" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "2001:a:b:1::", "config": { "index": "2001:a:b:1::", "next-hop": "2001:a:b:1::" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:1::/127",
-                    "config": { "prefix": "2001:a:b:1::/127" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:2::/64",
-                    "config": { "prefix": "2001:a:b:2::/64" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "2001:a:b:2::", "config": { "index": "2001:a:b:2::", "next-hop": "2001:a:b:2::" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:2::/127",
-                    "config": { "prefix": "2001:a:b:2::/127" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:3::/64",
-                    "config": { "prefix": "2001:a:b:3::/64" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "2001:a:b:3::", "config": { "index": "2001:a:b:3::", "next-hop": "2001:a:b:3::" } } ]
-                    }
-                  },
-                  {
-                    "prefix": "2001:a:b:3::/127",
-                    "config": { "prefix": "2001:a:b:3::/127" },
-                    "next-hops": {
-                      "next-hop": [ { "index": "Vlan10", "config": { "index": "Vlan10", "next-hop": "Vlan10" } } ]
+                    "index": "0",
+                    "config": {
+                      "index": "0"
+                    },
+                    "interface-ref": {
+                      "config": {
+                        "interface": "Vlan10"
+                      }
                     }
                   }
                 ]
