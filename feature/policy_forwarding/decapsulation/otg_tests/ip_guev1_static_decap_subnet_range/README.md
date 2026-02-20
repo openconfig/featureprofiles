@@ -285,4 +285,4 @@ rpcs:
 ## Required DUT platform
 
 * Specify the minimum DUT-type:
-  * FFF - fixed form factor
+  * vRX - virtual router device
