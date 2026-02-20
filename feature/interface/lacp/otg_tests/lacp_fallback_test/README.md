@@ -238,23 +238,23 @@ paths:
 
   ## Config Paths ##
 
-  - /interfaces/interface/ethernet/config/port-speed
-  - /interfaces/interface/ethernet/config/duplex-mode
-  - /interfaces/interface/ethernet/config/aggregate-id
-  - /interfaces/interface/aggregation/config/lag-type
-  - /lacp/interfaces/interface/config/name
-  - /lacp/interfaces/interface/config/interval
-  - /lacp/interfaces/interface/config/lacp-mode
-  - /lacp/interfaces/interface/config/fallback
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/ethernet/config/duplex-mode:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/aggregation/config/lag-type:
+  /lacp/interfaces/interface/config/name:
+  /lacp/interfaces/interface/config/interval:
+  /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/config/fallback:
 
   ## State Paths ##
 
-  - /lacp/interfaces/interface/state/name
-  - /lacp/interfaces/interface/members/member/state/interface
-  - /lacp/interfaces/interface/members/member/state/port-num
-  - /interfaces/interface/ethernet/state/aggregate-id
-  - /lacp/interfaces/interface/state/interval
-  - /lacp/interfaces/interface/state/fallback
+  /lacp/interfaces/interface/state/name:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/port-num:
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /lacp/interfaces/interface/state/interval:
+ /lacp/interfaces/interface/state/fallback:
 
 rpcs:
   gnmi:
