@@ -29,7 +29,8 @@ import (
 	"testing"
 	"time"
 
-	pkcs7 "github.com/avast/apkverifier/fullsailor/pkcs7"
+	"go.mozilla.org/pkcs7"
+
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
