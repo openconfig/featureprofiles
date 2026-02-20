@@ -24,7 +24,7 @@ B -- IBGP --> C[Port2:ATE];
 *   Configure EBGP peering between ATE:Port1 and DUT:Port1
 *   Configure IBGP peering between ATE:Port2 and DUT:Port2
 *   Ensure that the EBGP and IBGP peering are setup for IPv4-Unicast and IPv6-unicast AFI-SAFIs. Total 2xpeer-groups (1 per protocol) with 1 BGP session each.  
-*   Enable `Graceful-Restart` capability at the `Peer-Group` level.
+*   Enable `Graceful-Restart` capability at the `Peer-Group` level once and also repeat all steps below by enabling `Graceful-Restart` at `neighbor` level
 *   Ensure that the `restart-time` and the `stale-routes-time` are configured at the `Global` level. The `stale-routes-time` should be set at a value less than the BGP Holddown timer.
 *   Configure allow route-policy under BGP peer-group address-family
 *   Validate received capabilities at DUT and ATE reflect support for graceful
@@ -102,6 +102,59 @@ The origial RFC4724 had no coverage for Graceful restart process post send/recei
      *   Start traffic from ATE Port1 towards ATE Port2. Confirm there is zero packet loss. Stop traffic.
 *   Revert ATE configurtion blocking TCP connection to/from DUT over TCP-Port:179 so the EBGP peering between ATE:Port1 <> DUT:port1 is reestablished. Restart traffic and confirm that there is zero packet loss. 
 *   Restart the above procedure for the IBGP peering between DUT port-2 and ATE port-2
+
+## Canonical OpenConfig for keepalive-interval and hold-time at neighbour and peer-group level for BGP
+
+```json
+{
+  "network-instances": {
+    "network-instance": {
+      "DEFAULT": {
+        "protocols": {
+          "protocol": {
+            "BGP": {
+              "BGP": {
+                "bgp": {
+                  "peer-groups": {
+                    "peer-group": {
+                      "BGP-PEER-GROUP-V4": {
+                        "afi-safis": {
+                          "afi-safi": {
+                            "IPV4_UNICAST": {
+                              "graceful-restart": {
+                                "state": {
+                                  "enabled": true
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "BGP-PEER-GROUP-V6": {
+                        "afi-safis": {
+                          "afi-safi": {
+                            "IPV6_UNICAST": {
+                              "graceful-restart": {
+                                "state": {
+                                  "enabled": true
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
 ## Config Parameter Coverage
 
 For prefixes:
@@ -113,6 +166,7 @@ For prefixes:
 Parameters:
 
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/enabled
+*   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/graceful-restart/config/enabled
 *   /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/graceful-restart/config/helper-only
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time
 *   /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time
@@ -143,10 +197,32 @@ BGP conifguration:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address:
+  /acl/interfaces/interface/interface-ref/config/interface:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
 rpcs:
   gnmi:
-    gNMI.Set:
     gNMI.Get:
+    gNMI.Set:
     gNMI.Subscribe:
   gnoi:
     system.System.KillProcess:

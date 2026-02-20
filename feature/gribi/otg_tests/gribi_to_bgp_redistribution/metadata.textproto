@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "6496f90f-b817-4e28-bf6d-bcbdb4c8efcd"
+plan_id:  "TestID-16.4"
+description:  "gRIBI to BGP Route Redistribution for IPv4"
+testbed:  TESTBED_DUT_ATE_2LINKS

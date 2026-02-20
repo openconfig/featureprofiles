@@ -1,0 +1,38 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6e374637-8d2b-4069-9b71-ffd980b8fa91"
+plan_id: "TRANSCEIVER-9.2"
+description: "Telemetry: 400ZR_PLUS TX laser bias current telemetry values streaming."
+testbed: TESTBED_DUT_400ZR_PLUS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    missing_port_to_optical_channel_component_mapping: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+    transceiver_config_enable_unsupported: true
+    missing_zr_optical_channel_tunable_parameters_telemetry: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}

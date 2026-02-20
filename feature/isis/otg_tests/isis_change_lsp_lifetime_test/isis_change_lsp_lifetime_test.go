@@ -135,7 +135,7 @@ func TestISISChangeLSPLifetime(t *testing.T) {
 
 	isisPath := isissession.ISISPath(ts.DUT)
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName += ".0"
 	}
 	t.Run("Isis telemetry", func(t *testing.T) {

@@ -51,8 +51,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```100```
+*   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```100``` and set MED action as ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -94,8 +95,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```med-policy``` statement ```match-statement-1``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```+100```
+*   For routing-policy ```med-policy``` statement ```match-statement-1``` set MED as ```+100``` and set MED action as ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 ##### Configure  bgp import and export policy for the DUT IPv4 and IPv6 BGP neighbors on ATE Port-2
 *   Set default import and export policy to ```REJECT_ROUTE```
     *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
@@ -180,8 +182,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set policy-result as ```NEXT-STATEMENT```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
-*   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set MED to 70
+*   For routing-policy ```flow-control-policy``` statement ```match-statement-1``` set MED to 70 and set MED action as ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 *   For routing-policy ```flow-control-policy``` configure a statement with the name ```match-statement-2```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
 *   For routing-policy ```flow-control-policy``` statement ```match-statement-2``` set policy-result as ```ACCEPT-ROUTE```
@@ -321,6 +324,7 @@ paths:
     /routing-policy/policy-definitions/policy-definition/config/name:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+    /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
     /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:

@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "23d3189f-65e2-4cd7-80b8-a0b890859607"
+plan_id:  "RT-1.63"
+description:  "BGP Multihop"
+testbed:  TESTBED_DUT_ATE_2LINKS

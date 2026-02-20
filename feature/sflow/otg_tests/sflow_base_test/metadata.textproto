@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    sflow_ingress_min_sampling_rate: 262144
   }
 }
 platform_exceptions: {
@@ -33,5 +34,6 @@ platform_exceptions: {
     default_network_instance: "default"
     static_protocol_name: "STATIC"
     sflow_source_address_update_unsupported: true
+    fr_breakout_fix: true
   }
 }

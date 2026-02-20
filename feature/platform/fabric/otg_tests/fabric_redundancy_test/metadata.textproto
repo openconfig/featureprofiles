@@ -11,7 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     explicit_interface_in_default_vrf: true
-    missing_value_for_defaults: true
+    interface_enabled: true
   }
 }
 platform_exceptions: {
@@ -21,5 +21,23 @@ platform_exceptions: {
   deviations: {
     missing_value_for_defaults: true
     default_network_instance: "default"
+    omit_l2_mtu:  true
+    interface_enabled: true 
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    config_leaf_create_required: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    config_leaf_create_required: true
   }
 }

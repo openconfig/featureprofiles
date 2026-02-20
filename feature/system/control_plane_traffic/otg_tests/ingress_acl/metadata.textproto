@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "85a963b4-df73-4372-ac4e-1a684bc26018"
+plan_id:  "SYS-2.1"
+description:  "Ingress control-plane ACL."
+testbed:  TESTBED_DUT_ATE_2LINKS

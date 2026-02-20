@@ -4,7 +4,7 @@
 uuid:  "4fdd3abd-24b6-482c-9b32-da96910ef080"
 plan_id:  "System-1.2"
 description:  "System g protocol test"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -28,5 +28,6 @@ platform_exceptions: {
   }
   deviations: {
     gnmi_get_on_root_unsupported: true
+    non_standard_grpc_port: true
   }
 }

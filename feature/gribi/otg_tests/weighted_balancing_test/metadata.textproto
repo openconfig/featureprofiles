@@ -29,5 +29,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    fr_breakout_fix: true
   }
 }
+

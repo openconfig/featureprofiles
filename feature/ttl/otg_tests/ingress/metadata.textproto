@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "23bc0339-0b79-437e-b261-03147fbc6b55"
+plan_id: "PF-1.8"
+description: "Ingress handling of TTL"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    default_network_instance: "default"
+    policy_forwarding_unsupported: true
+    policy_forwarding_to_next_hop_oc_unsupported: true
+    policy_forwarding_gre_encapsulation_oc_unsupported: true
+  }
+}

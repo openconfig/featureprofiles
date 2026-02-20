@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package parent_component_validation
+package parent_component_validation_test
 
 import (
 	"regexp"
@@ -46,30 +46,33 @@ func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) s
 // TestInterfaceParentComponent tests that the parent component of any given interface is a Switch Chip.
 func TestInterfaceParentComponent(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	parentComponentRegex := regexp.MustCompile("^(SwitchChip(?:[0-9]+|[0-9]/[0-9])?|NPU[0-9]|[0-9]/(?:[0-9]|RP[0-9])/CPU[0-9]-NPU[0-9]|FPC[0-9]+:PIC[0-9]:NPU[0-9]+|CHASSIS0:FPC[0-9]+:PIC[0-9]:NPU[0-9]+)$")
 	cases := []struct {
-		desc    string
-		port    string
-		pattern string
+		desc string
+		port string
 	}{
 		{
-			desc:    "Port1",
-			port:    "port1",
-			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			desc: "Port1",
+			port: "port1",
 		},
 		{
-			desc:    "Port2",
-			port:    "port2",
-			pattern: "^(SwitchChip|NPU[0-9]|[0-9]/[0-9]/CPU[0-9]-NPU[0-9])$",
+			desc: "Port2",
+			port: "port2",
 		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			dp := dut.Port(t, tc.port)
-			parent := checkParentComponent(t, dut, dp.Name())
+			hardwarePortName := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+			hVal, present := hardwarePortName.Val()
+			if !present {
+				t.Errorf("Hardware port NOT found for interface: %s", dp.Name())
+			}
+			parent := checkParentComponent(t, dut, hVal)
 			t.Logf("Interface %s parent is %s", dp.Name(), parent)
-			if ok, err := regexp.MatchString(tc.pattern, parent); !ok || err != nil {
-				t.Errorf("Interface %s parent did not match pattern %s: %v", dp.Name(), tc.pattern, err)
+			if !parentComponentRegex.MatchString(parent) {
+				t.Errorf("Interface %s parent %q did not match pattern %s", dp.Name(), parent, parentComponentRegex.String())
 			}
 		})
 	}

@@ -15,6 +15,7 @@
 package admin_distance_test
 
 import (
+	"fmt"
 	"math"
 	"testing"
 	"time"
@@ -24,6 +25,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
@@ -135,11 +137,27 @@ func TestAdminDistance(t *testing.T) {
 			t.Run(tc.desc, func(t *testing.T) {
 				if tc.bgp == "iBGP" {
 					changeProtocolToIBGP(t, ts)
-					gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().Config(), tc.rd)
-					gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().State(), 30*time.Second, tc.rd)
+					if deviations.BgpDistanceOcPathUnsupported(ts.DUT) {
+						for _, af := range []string{"ipv4", "ipv6"} {
+							helpers.GnmiCLIConfig(t, ts.DUT, fmt.Sprintf(`
+							router bgp %d instance BGP address-family %s unicast distance bgp 20 %d 200
+							`, dutAS, af, tc.rd))
+						}
+					} else {
+						gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().Config(), tc.rd)
+						gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().InternalRouteDistance().State(), 30*time.Second, tc.rd)
+					}
 				} else {
-					gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().Config(), tc.rd)
-					gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().State(), 30*time.Second, tc.rd)
+					if deviations.BgpDistanceOcPathUnsupported(ts.DUT) {
+						for _, af := range []string{"ipv4", "ipv6"} {
+							helpers.GnmiCLIConfig(t, ts.DUT, fmt.Sprintf(`
+							router bgp %d instance BGP address-family %s unicast distance bgp %d 200 200
+							`, dutAS, af, tc.rd))
+						}
+					} else {
+						gnmi.Update(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().Config(), tc.rd)
+						gnmi.Await(t, ts.DUT, bgpPath.Global().DefaultRouteDistance().ExternalRouteDistance().State(), 30*time.Second, tc.rd)
+					}
 				}
 
 				ts.ATETop.Flows().Clear()

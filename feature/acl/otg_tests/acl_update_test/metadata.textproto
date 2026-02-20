@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "733c243c-96d1-4ca1-8f7e-199f9634f22e"
+plan_id:  "ACL-1.2"
+description:  "ACL Update (Make-before-break)"
+testbed:  TESTBED_DUT_ATE_2LINKS

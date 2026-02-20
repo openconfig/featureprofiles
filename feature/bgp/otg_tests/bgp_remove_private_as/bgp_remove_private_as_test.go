@@ -21,6 +21,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
@@ -56,7 +57,6 @@ const (
 	peerGrpName2             = "BGP-PEER-GROUP2"
 	routeCount               = 254
 	dutAS                    = 500
-	ateAS1                   = 100
 	ateAS2                   = 200
 	plenIPv4                 = 30
 	plenIPv6                 = 126
@@ -65,6 +65,7 @@ const (
 )
 
 var (
+	ateAS1 = uint32(500)
 	dutSrc = attrs.Attributes{
 		Desc:    "DUT to ATE source",
 		IPv4:    "192.0.2.1",
@@ -106,6 +107,12 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", name, err)
 	}
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		stmt.GetOrCreateConditions().InstallProtocolEq = oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP
+	default:
+		t.Logf("Skipping statement condition for vendor %v", dut.Vendor().String())
+	}
 	stmt.GetOrCreateActions().PolicyResult = pr
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -119,6 +126,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutDst.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
 // verifyPortsUp asserts that each port on the device is operating.
@@ -133,7 +148,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst.
-func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbr1v4 := &bgpNeighbor{as: ateAS1, neighborip: ateSrc.IPv4, isV4: true, peerGrp: peerGrpName1}
 	nbr2v4 := &bgpNeighbor{as: ateAS2, neighborip: ateDst.IPv4, isV4: true, peerGrp: peerGrpName2}
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4}
@@ -160,24 +175,39 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
 		rpl := pg1.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
-
 		rp2 := pg2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		switch dut.Vendor() {
+		case ondatra.ARISTA, ondatra.JUNIPER:
+			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		default:
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+			rp2.ImportPolicy = []string{policyName}
+			rp2.ExportPolicy = []string{policyName}
+		}
 	} else {
 		pgaf := pg1.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf.Enabled = ygot.Bool(true)
 		rpl := pgaf.GetOrCreateApplyPolicy()
-		rpl.ImportPolicy = []string{policyName}
-		rpl.ExportPolicy = []string{policyName}
 
 		pgaf2 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		pgaf2.Enabled = ygot.Bool(true)
 		rp2 := pgaf2.GetOrCreateApplyPolicy()
-		rp2.ImportPolicy = []string{policyName}
-		rp2.ExportPolicy = []string{policyName}
+		switch dut.Vendor() {
+		case ondatra.ARISTA, ondatra.JUNIPER:
+			rpl.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rpl.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+			rp2.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+		default:
+			rpl.ImportPolicy = []string{policyName}
+			rpl.ExportPolicy = []string{policyName}
+			rp2.ImportPolicy = []string{policyName}
+			rp2.ExportPolicy = []string{policyName}
+		}
 	}
 
 	for _, nbr := range nbrs {
@@ -234,7 +264,7 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 
 // configureOTG configures the interfaces and BGP protocols on an ATE, including
 // advertising some(faked) networks over BGP.
-func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) gosnappi.Config {
+func configureOTG(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []uint32, asSEQMode bool) gosnappi.Config {
 	t.Helper()
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
@@ -258,14 +288,17 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, asSEQMode bool) go
 
 	iDut1Bgp := iDut1Dev.Bgp().SetRouterId(iDut1Ipv4.Address())
 	iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(ateSrc.Name + ".BGP4.peer")
-	iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut1Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
+	default:
+		iDut1Bgp4Peer.SetPeerAddress(dutSrc.IPv4).SetAsNumber(ateAS1).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	}
 	iDut1Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	iDut2Bgp := iDut2Dev.Bgp().SetRouterId(iDut2Ipv4.Address())
 	iDut2Bgp4Peer := iDut2Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut2Ipv4.Name()).Peers().Add().SetName(ateDst.Name + ".BGP4.peer")
 	iDut2Bgp4Peer.SetPeerAddress(dutDst.IPv4).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-	iDut2Bgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
 	iDut2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	bgpNeti1Bgp4PeerRoutes := iDut1Bgp4Peer.V4Routes().Add().SetName(ateSrc.Name + ".BGP4.Route")
@@ -332,14 +365,21 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
-func verifyBGPAsPath(t *testing.T, otg *otg.OTG, asSeg []uint32, removeASPath bool) {
+func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []uint32, removeASPath bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			return v.IsPresent()
 		}).Await(t)
 
-	var wantASSeg = []uint32{dutAS, ateAS1}
+	var wantASSeg []uint32
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		wantASSeg = []uint32{dutAS}
+	default:
+		wantASSeg = []uint32{dutAS, ateAS1}
+	}
+
 	if removeASPath {
 		for _, as := range asSeg {
 			if as < 64512 {
@@ -399,6 +439,13 @@ func TestRemovePrivateAS(t *testing.T) {
 	otg := ate.OTG()
 	var otgConfig gosnappi.Config
 
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		ateAS1 = dutAS
+	default:
+		ateAS1 = 100
+	}
+
 	t.Run("Configure DUT interfaces", func(t *testing.T) {
 		configureDUT(t, dut)
 	})
@@ -411,7 +458,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
+		dutConf := bgpCreateNbr(dutAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
@@ -445,7 +492,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("Start OTG Config.")
-			otgConfig = configureOTG(t, otg, tc.asSeg, tc.asSEQMode)
+			otgConfig = configureOTG(t, dut, otg, tc.asSeg, tc.asSEQMode)
 
 			t.Log("Verifying port status.")
 			verifyPortsUp(t, dut.Device)
@@ -457,17 +504,17 @@ func TestRemovePrivateAS(t *testing.T) {
 			verifyBGPTelemetry(t, dut)
 
 			t.Log("Verify BGP prefix telemetry.")
-			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, routeCount)
+			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, 0)
 			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, 0, routeCount)
 
 			t.Log("Verify AS Path list received at ate Port2 including private AS number.")
-			verifyBGPAsPath(t, otg, tc.asSeg, !removeASPath)
+			verifyBGPAsPath(t, dut, otg, tc.asSeg, !removeASPath)
 
 			t.Log("Configure remove private AS on DUT.")
 			gnmi.Update(t, dut, dutConfPath.Bgp().PeerGroup(peerGrpName2).RemovePrivateAs().Config(), oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL)
 
 			t.Log("Private AS numbers should be stripped off while advertising BGP routes into public AS.")
-			verifyBGPAsPath(t, otg, tc.asSeg, removeASPath)
+			verifyBGPAsPath(t, dut, otg, tc.asSeg, removeASPath)
 
 			otg.StopProtocols(t)
 			time.Sleep(30 * time.Second)

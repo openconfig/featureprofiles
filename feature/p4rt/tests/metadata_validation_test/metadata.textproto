@@ -7,14 +7,6 @@ description: "P4RT Metadata Validation"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    p4rt_modify_table_entry_unsupported: true
-  }
-}
-platform_exceptions: {
-  platform: {
     vendor: CISCO
   }
   deviations: {

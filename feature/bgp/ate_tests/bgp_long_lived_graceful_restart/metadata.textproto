@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {

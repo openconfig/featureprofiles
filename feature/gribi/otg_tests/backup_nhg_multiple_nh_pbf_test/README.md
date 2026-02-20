@@ -8,8 +8,7 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
     DUT port-3, and ATE port-4 to DUT port-4.
-*   Create a L3 routing instance (VRF-A), and assign DUT port-1 to VRF-A.
-*   Create a L3 routing instance (VRF-B) that includes no interface.
+*   Create a L3 routing instance (VRF-A & VRF-B).
 *   Connect a gRIBI client to the DUT, make it become leader and inject the
     following:
     *   An IPv4Entry in VRF-A, pointing to a NextHopGroup (in DEFAULT VRF)
@@ -34,15 +33,33 @@ Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Minimum DUT platform requirement

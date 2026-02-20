@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "2e1c4f53-5d19-4fd0-a76e-987f0a2b97ed"
+plan_id:  "SYS-3.1"
+description:  "AAA and TACACS+ Configuration Verification Test Suite"
+testbed:  TESTBED_DUT_ATE_2LINKS

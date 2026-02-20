@@ -537,7 +537,7 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 	var newGoodFlows, newBadFlows []string
 	allFlows := append(good, bad...)
 	otg := ate.OTG()
-	ateTop := otg.FetchConfig(t)
+	ateTop := otg.GetConfig(t)
 	if len(good) == 0 && len(bad) == 0 {
 		otg.PushConfig(t, ateTop)
 		otg.StartProtocols(t)
@@ -585,7 +585,7 @@ func validateTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []stri
 	newGoodFlows := good
 	newBadFlows := bad
 
-	ateTop := ate.OTG().FetchConfig(t)
+	ateTop := ate.OTG().GetConfig(t)
 
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)

@@ -13,6 +13,8 @@ Validate QoS interface output queue counters.
     *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
     *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
     *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+*   Start traffic and subscribe to packet counters every 30s. Collect 10 or more samples and verify if counters are being incremented for the below path. 
+    *   qos/interfaces/interface/output/queues/queue/state/transmit-octets
 
 ## Config Parameter coverage
 

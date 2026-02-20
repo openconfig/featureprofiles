@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package telemetry_interface_packet_counters_test
+package aggregate_interface_counters_test
 
 import (
 	"bytes"
@@ -205,6 +205,11 @@ func (tc *testCase) clearAggregate(t *testing.T) {
 		t.Logf("Deleting the aggregate on the device")
 		agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 		agg.Type = ieee8023adLag
+		if deviations.ExplicitInterfaceInDefaultVRF(tc.dut) {
+			interfaceID := fmt.Sprintf("%s.%d", tc.aggID, 0)
+			niName := deviations.DefaultNetworkInstance(tc.dut)
+			gnmi.Delete(t, tc.dut, gnmi.OC().NetworkInstance(niName).Interface(interfaceID).Config())
+		}
 		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.aggID).Config())
 		gnmi.Update(t, tc.dut, gnmi.OC().Interface(tc.aggID).Config(), agg)
 

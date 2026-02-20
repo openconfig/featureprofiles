@@ -12,6 +12,8 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    missing_value_for_defaults: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions: {
@@ -23,14 +25,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     bgp_set_med_requires_equal_ospf_set_metric: true
-  }
-}
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    bgp_allowownas_diff_default_value: true
   }
 }
 tags: TAGS_AGGREGATION

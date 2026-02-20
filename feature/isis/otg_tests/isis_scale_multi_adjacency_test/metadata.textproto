@@ -1,0 +1,51 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "d6453669-e73b-4bca-9d8c-ceb812b97132"
+plan_id: "RT-2.18"
+description: "Scale for IS-IS with multiple adjacencies"
+testbed: TESTBED_DUT_ATE_8LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    explicit_port_speed: true
+    isis_mpls_unsupported: true
+    ipv4_missing_enabled: true
+    isis_lsp_tlvs_oc_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    missing_isis_interface_afi_safi_enable: true
+    aft_summary_oc_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_isis_interface_afi_safi_enable: true
+    explicit_interface_in_default_vrf: true
+    isis_mpls_unsupported: true
+    ipv4_missing_enabled: true
+    aggregate_atomic_update: true
+    isis_adjacency_stream_unsupported: true
+  }
+}

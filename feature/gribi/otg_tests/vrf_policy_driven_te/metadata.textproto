@@ -23,7 +23,7 @@ platform_exceptions:  {
   }
   deviations:  {
     isis_level_enabled:  true
-    gribi_decap_mixed_plen_unsupported: true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions:  {
@@ -33,6 +33,7 @@ platform_exceptions:  {
   deviations:  {
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
+    missing_isis_interface_afi_safi_enable: true
   }
 }
 platform_exceptions:  {

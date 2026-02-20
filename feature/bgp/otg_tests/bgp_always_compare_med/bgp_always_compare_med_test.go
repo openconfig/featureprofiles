@@ -129,11 +129,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i3 := dutDst2.NewOCInterface(dut.Port(t, "port3").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i3.GetName()).Config(), i3)
 
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, dut.Port(t, "port1"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
-		fptest.SetPortSpeed(t, dut.Port(t, "port3"))
-	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
@@ -446,6 +441,9 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions1 := st.GetOrCreateActions()
 	actions1.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED100)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		actions1.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
 		actions1.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED100)
 	}
@@ -458,6 +456,9 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 	}
 	actions2 := st.GetOrCreateActions()
 	actions2.GetOrCreateBgpActions().SetMed = oc.UnionUint32(bgpMED50)
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		actions2.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
+	}
 	if deviations.BGPSetMedRequiresEqualOspfSetMetric(dut) {
 		actions2.GetOrCreateOspfActions().GetOrCreateSetMetric().SetMetric(bgpMED50)
 	}
@@ -476,23 +477,31 @@ func configPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 
 // verifySetMed is used to validate MED on received prefixes at OTG Port1.
 func verifySetMed(t *testing.T, otg *otg.OTG, config gosnappi.Config, wantMEDValue uint32) {
-	t.Helper()
-
 	bgpPrefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
 	gotPrefixCount := len(bgpPrefixes)
+	var gotMEDValue uint32
 	if gotPrefixCount < routeCount {
 		t.Errorf("Received prefixes on otg are not as expected got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
 	} else {
 		t.Logf("Received prefixes on otg are matched, got prefixes %v, want prefixes %v", gotPrefixCount, routeCount)
-	}
-
-	// compare Med val with expected for each of the recieved routes.
-	for _, prefix := range bgpPrefixes {
-		if prefix.GetMultiExitDiscriminator() != wantMEDValue {
-			t.Errorf("Received Prefix Med %d Expected Med %d for Prefix %v", prefix.GetMultiExitDiscriminator(), wantMEDValue, prefix.GetAddress())
+		// compare Med val with expected for each of the recieved routes.
+		for _, prefix := range bgpPrefixes {
+			_, ok := gnmi.Watch(t, otg, gnmi.OTG().BgpPeer(ateSrc.Name+".BGP4.peer").UnicastIpv4Prefix(prefix.GetAddress(), prefix.GetPrefixLength(), prefix.GetOrigin(), prefix.GetPathId()).MultiExitDiscriminator().State(),
+				time.Minute, func(v *ygnmi.Value[uint32]) bool {
+					if !v.IsPresent() {
+						return false
+					}
+					if gotMEDValue, _ = v.Val(); gotMEDValue == wantMEDValue {
+						return true
+					}
+					return false
+				}).Await(t)
+			if !ok {
+				t.Errorf("Prefix: %v  MED value got: %v want: %v", prefix.GetAddress(), gotMEDValue, wantMEDValue)
+			}
 		}
+		t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
 	}
-	t.Logf("Received Prefixes are verified for Proper MED value %d", wantMEDValue)
 }
 
 // verifyBGPCapabilities is used to Verify BGP capabilities like route refresh as32 and mpbgp.
@@ -629,7 +638,6 @@ func TestAlwaysCompareMED(t *testing.T) {
 		}
 
 	})
-
 	t.Run("Verify MED on received routes at ATE Port1 after removing MED settings", func(t *testing.T) {
 		t.Log("Verify BGP prefix telemetry.")
 		verifyPrefixesTelemetry(t, dut, 0, routeCount)

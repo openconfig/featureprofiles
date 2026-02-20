@@ -274,6 +274,10 @@ func TestGNOITraceroute(t *testing.T) {
 				if resps[i].GetRtt() < minTracerouteRTT {
 					t.Errorf("Traceroute reply RTT: got %v, want >= %v", resps[i].GetRtt(), minTracerouteRTT)
 				}
+				if resps[i].GetState() == spb.TracerouteResponse_NONE {
+					t.Logf("Hop %d timed out (state=NONE), which is acceptable.", resps[i].GetHop())
+					continue
+				}
 				if len(resps[i].GetAddress()) == 0 {
 					t.Errorf("Traceroute reply address: got none, want non-empty address")
 				}

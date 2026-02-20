@@ -273,21 +273,30 @@ func configInterfaceMTU(i *oc.Interface, dut *ondatra.DUTDevice) *oc.Interface {
 
 func calculatePLQDurations(t *testing.T, generatorPlqResp *plqpb.CapabilitiesResponse, reflectorPlqResp *plqpb.CapabilitiesResponse, dut *ondatra.DUTDevice) *LinkQualificationDuration {
 
+	var refPblqMinSetup, refPblqMinTearDown float64
 	genPblqMinSetup := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
-	refPblqMinSetup := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinSetupDuration().GetSeconds())
 	genPblqMinTearDown := float64(generatorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
-	refPblqMinTearDown := float64(reflectorPlqResp.GetGenerator().GetPacketGenerator().GetMinTeardownDuration().GetSeconds())
-
+	asicLoopbackSupported := reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinSetupDuration().AsDuration() > 0
+	pmdLoopbackSupported := reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().AsDuration() > 0
+	if asicLoopbackSupported {
+		refPblqMinSetup = float64(reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinSetupDuration().GetSeconds())
+		refPblqMinTearDown = float64(reflectorPlqResp.GetReflector().GetAsicLoopback().GetMinTeardownDuration().GetSeconds())
+	} else if pmdLoopbackSupported {
+		refPblqMinSetup = float64(reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinSetupDuration().GetSeconds())
+		refPblqMinTearDown = float64(reflectorPlqResp.GetReflector().GetPmdLoopback().GetMinTeardownDuration().GetSeconds())
+	} else {
+		t.Fatalf("Neither ASIC nor PMD loopback is supported by the DUT.")
+	}
 	return &LinkQualificationDuration{
-		generatorpreSyncDuration:  30 * time.Second,
+		generatorpreSyncDuration:  10 * time.Second,
 		reflectorpreSyncDuration:  0 * time.Second,
 		generatorsetupDuration:    time.Duration(math.Max(30, genPblqMinSetup)) * time.Second,
-		reflectorsetupDuration:    time.Duration(math.Max(60, refPblqMinSetup)) * time.Second,
-		testDuration:              120 * time.Second,
-		generatorPostSyncDuration: 5 * time.Second,
-		reflectorPostSyncDuration: 10 * time.Second,
+		reflectorsetupDuration:    time.Duration(math.Max(40, refPblqMinSetup)) * time.Second,
+		testDuration:              180 * time.Second,
+		generatorPostSyncDuration: 0 * time.Second,
+		reflectorPostSyncDuration: 30 * time.Second,
 		generatorTeardownDuration: time.Duration(math.Max(30, genPblqMinTearDown)) * time.Second,
-		reflectorTeardownDuration: time.Duration(math.Max(30, refPblqMinTearDown)) * time.Second,
+		reflectorTeardownDuration: time.Duration(math.Max(10, refPblqMinTearDown)) * time.Second,
 	}
 }
 
