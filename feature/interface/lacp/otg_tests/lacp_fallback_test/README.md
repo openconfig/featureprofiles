@@ -1,4 +1,3 @@
-
 # RT-5.15: LACP Fallback Support 
 
 ## Summary
