@@ -2,7 +2,7 @@
 
 ## Summary
 
-Verifies the `disable-peer-as-filter` feature, which allows a BGP speaker to advertise routes to an eBGP peer even if the peer's autonomous system (AS) number is already present in the AS-PATH attribute. This is essential for transit scenarios between domains sharing the same ASN, such as the GIRO-DP Inter-Edge peering project.
+Verifies the `disable-peer-as-filter` feature, which allows a BGP speaker to advertise routes to an eBGP peer even if the peer's autonomous system (AS) number is already present in the AS-PATH attribute. This is essential for transit scenarios between domains sharing the same ASN.
 
 ## Topology
 
