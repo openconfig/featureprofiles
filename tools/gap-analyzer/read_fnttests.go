@@ -94,21 +94,21 @@ type GapResult struct {
 	GapDescription string `json:"gap_description"`
 }
 
-// apiKey specifies the API Key for Gemini API.
-// model specifies the Gemini model to use for gap analysis.
-// featureprofilesRoot specifies the root directory for searching feature profiles tests.
-// changedFilesStr specifies a comma-separated list of changed files to analyze.
 var (
+	// apiKey specifies the API Key for Gemini API.
 	apiKey              = flag.String("api-key", os.Getenv("GEMINI_API_KEY"), "API Key for Google AI Gemini API. Can also be set via GEMINI_API_KEY env var.")
+	// model specifies the Gemini model to use for gap analysis.
 	model               = flag.String("model", "gemini-2.5-pro", "The public Gemini model to use.")
+	// featureprofilesRoot specifies the root directory for searching feature profiles tests.
 	featureprofilesRoot = flag.String("featureprofiles-root", ".", "Root directory for searching tests (e.g., '.' for repo root).")
+	// changedFilesStr specifies a comma-separated list of changed files to analyze.
 	changedFilesStr     = flag.String("changed-files", "", "Comma-separated list of changed files.")
 )
 
-// descRegex is a regular expression to extract the description field from metadata.textproto.
-// idRegex is a regular expression to extract the plan_id field of the test from metadata.textproto.
 var (
+	// descRegex is a regular expression to extract the description field from metadata.textproto.
 	descRegex = regexp.MustCompile(`description:\s*"([^"]+)"`)
+	// idRegex is a regular expression to extract the plan_id field of the test from metadata.textproto.
 	idRegex   = regexp.MustCompile(`plan_id:\s*"([^"]+)"`)
 )
 
