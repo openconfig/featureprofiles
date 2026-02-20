@@ -48,7 +48,7 @@ graph LR
 ### RT-1.71.1: Baseline Test (Default Filtering)
 
 1. Configure eBGP sessions between ATE Port 1, DUT, and ATE Port 2\.  
-2. Advertise a prefix (e.g., `10.0.0.0/24`) from ATE Port 1 with an AS-PATH containing the target peer's AS (`15169`) in the middle (e.g., `65502 15169 65500`).  
+2. Advertise a prefix (e.g., `192.0.2.0/24`) from ATE Port 1 with an AS-PATH containing the target peer's AS (`64497`) in the middle (e.g., `64496 64497 64499`).  
 3. Verify that the DUT **receives** and **accepts** the route from ATE Port 1\.  
 4. Verify that the DUT **does not** advertise this route to ATE Port 2 (it should filter it out because ATE Port 2 is in AS 15169).
 
