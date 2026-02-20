@@ -82,6 +82,17 @@ A[ATE:Port1-3] <--(Layer 3 - Vlan 10)-->B[Port1-3:-DUT-:Port4];B <--Layer 3 poin
 
 ```json
 {
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "Vlan10",
+        "config": {
+          "name": "Vlan10"
+        }
+      }
+    ]
+  },
+{
   "openconfig-network-instance:network-instances": {
     "network-instance": [
       {
