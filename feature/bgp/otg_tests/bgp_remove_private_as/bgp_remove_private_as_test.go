@@ -148,7 +148,7 @@ func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 }
 
 // bgpCreateNbr creates a BGP object with neighbors pointing to ateSrc and ateDst.
-func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbr1v4 := &bgpNeighbor{as: ateAS1, neighborip: ateSrc.IPv4, isV4: true, peerGrp: peerGrpName1}
 	nbr2v4 := &bgpNeighbor{as: ateAS2, neighborip: ateDst.IPv4, isV4: true, peerGrp: peerGrpName2}
 	nbrs := []*bgpNeighbor{nbr1v4, nbr2v4}
@@ -365,7 +365,7 @@ func verifyOTGBGPTelemetry(t *testing.T, otg *otg.OTG, c gosnappi.Config, state 
 }
 
 // verifyBGPAsPath is to Validate AS Path attribute using bgp rib telemetry on ATE.
-func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, config gosnappi.Config, asSeg []uint32, removeASPath bool) {
+func verifyBGPAsPath(t *testing.T, dut *ondatra.DUTDevice, otg *otg.OTG, asSeg []uint32, removeASPath bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ateDst.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
@@ -458,7 +458,7 @@ func TestRemovePrivateAS(t *testing.T) {
 	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		gnmi.Delete(t, dut, dutConfPath.Config())
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
-		dutConf := bgpCreateNbr(dutAS, ateAS1, dut)
+		dutConf := bgpCreateNbr(dutAS, dut)
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 	})
@@ -504,19 +504,17 @@ func TestRemovePrivateAS(t *testing.T) {
 			verifyBGPTelemetry(t, dut)
 
 			t.Log("Verify BGP prefix telemetry.")
-			// Neighbor ateSrc.IPv4 is source node which is advertising routes
 			verifyPrefixesTelemetry(t, dut, ateSrc.IPv4, routeCount, 0)
-			// Neighbor ateDst.IPv4 is destination node which is receiving routes
 			verifyPrefixesTelemetry(t, dut, ateDst.IPv4, 0, routeCount)
 
 			t.Log("Verify AS Path list received at ate Port2 including private AS number.")
-			verifyBGPAsPath(t, dut, otg, otgConfig, tc.asSeg, !removeASPath)
+			verifyBGPAsPath(t, dut, otg, tc.asSeg, !removeASPath)
 
 			t.Log("Configure remove private AS on DUT.")
 			gnmi.Update(t, dut, dutConfPath.Bgp().PeerGroup(peerGrpName2).RemovePrivateAs().Config(), oc.Bgp_RemovePrivateAsOption_PRIVATE_AS_REMOVE_ALL)
 
 			t.Log("Private AS numbers should be stripped off while advertising BGP routes into public AS.")
-			verifyBGPAsPath(t, dut, otg, otgConfig, tc.asSeg, removeASPath)
+			verifyBGPAsPath(t, dut, otg, tc.asSeg, removeASPath)
 
 			otg.StopProtocols(t)
 			time.Sleep(30 * time.Second)
