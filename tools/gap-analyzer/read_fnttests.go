@@ -290,6 +290,13 @@ Result in JSON format:
 	return gapResult.GapFound, gapResult.GapDescription, nil
 }
 
+// escape replaces special characters in a string for GitHub Action command values.
+func escape(s string) string {
+	s = strings.ReplaceAll(s, "\r", "%0D")
+	s = strings.ReplaceAll(s, "\n", "%0A")
+	return s
+}
+
 func main() {
 	flag.Parse()
 	ctx := context.Background()
@@ -336,14 +343,14 @@ func main() {
 		if err != nil {
 			log.Printf("Warning: Failed to read readme %s: %v", readmePath, err)
 			gapsOrErrorsFound = true
-			failureMessages = append(failureMessages, fmt.Sprintf("Error reading %s for test %s: %v", readmePath, test.ID, err))
+			failureMessages = append(failureMessages, fmt.Sprintf("::error file=%s,title=FNT File Read Error for %s::Error reading file: %v", readmePath, test.ID, escape(err.Error())))
 			continue
 		}
 		autoContent, err := os.ReadFile(autoPath)
 		if err != nil {
 			log.Printf("Warning: Failed to read automation %s: %v", autoPath, err)
 			gapsOrErrorsFound = true
-			failureMessages = append(failureMessages, fmt.Sprintf("Error reading %s for test %s: %v", autoPath, test.ID, err))
+			failureMessages = append(failureMessages, fmt.Sprintf("::error file=%s,title=FNT File Read Error for %s::Error reading file: %v", autoPath, test.ID, escape(err.Error())))
 			continue
 		}
 
@@ -352,19 +359,18 @@ func main() {
 		if err != nil {
 			log.Printf("Warning: Gemini analysis failed for %s: %v", test.ID, err)
 			gapsOrErrorsFound = true
-			failureMessages = append(failureMessages, fmt.Sprintf("Gemini analysis failed for %s: %v", test.ID, err))
+			failureMessages = append(failureMessages, fmt.Sprintf("::error title=FNT Gemini Analysis Error for %s::Gemini analysis failed: %v", test.ID, escape(err.Error())))
 			continue
 		}
 
 		if gapFound {
 			gapsOrErrorsFound = true
-			failureMessages = append(failureMessages, fmt.Sprintf("Gap found in %s: %s", test.ID, gapDesc))
+			failureMessages = append(failureMessages, fmt.Sprintf("::error file=%s,title=FNT Gap Analysis for %s::%s", readmePath, test.ID, escape(gapDesc)))
 		}
 	}
 
 	// If gaps or errors were found, print messages and exit with failure
 	if gapsOrErrorsFound {
-		fmt.Println("--- FNT Gap Analysis Failed ---")
 		for _, msg := range failureMessages {
 			fmt.Println(msg)
 		}
