@@ -790,6 +790,7 @@ func (tc *testCase) configureHwProfile(t *testing.T) error {
 		command show tech-support insight include-database
 		command show tech-support lpts
 		command show tech-support parser
+		command show tech-support telemetry model-driven
 		lpts pifib hardware police flow tpa rate 10000 
 		`
 	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
