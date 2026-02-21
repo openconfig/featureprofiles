@@ -673,6 +673,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.71"
+  description: "BGP Disable Peer AS Filter (disable-peer-as-filter)"
+  readme: ""
+  exec: " "
+}
+test: {
   id: "RT-1.8"
   description: "BGP Route Reflector test at scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/routereflector/otg_tests/route_reflector_scale/README.md"
