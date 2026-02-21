@@ -1,6 +1,6 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
-uuid:  "9b452a48-0a2c-4e04-96ea-96c5e1bdc63b"
+uuid:  "d40f107d-6bc2-4379-b6d9-cd4e32fba543"
 plan_id: "RT-5.15"
 description:  "LACP Fallback Functionality"
 testbed:  TESTBED_DUT_ATE_4LINKS
