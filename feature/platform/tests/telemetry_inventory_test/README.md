@@ -57,6 +57,8 @@ paths:
        platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/part-no:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/removable:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "FAN", "FRU", "LINECARD", "PORT", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/serial-no:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/type:
