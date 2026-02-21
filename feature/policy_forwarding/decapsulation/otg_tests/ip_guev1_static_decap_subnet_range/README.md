@@ -266,12 +266,12 @@ paths:
   /defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
 
   ## State paths
-  openconfig-interfaces/interfaces/interface/state/counters/in-unicast-pkts:
-  openconfig-interfaces/interfaces/interface/state/counters/out-pkts:
-  openconfig-interfaces/interfaces/interface/state/counters/out-unicast-pkts:
-  openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
-  openconfig-network-instance/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
-  openconfig-network-instance/network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 
 rpcs:
   gnmi:
