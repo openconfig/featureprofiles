@@ -16,5 +16,6 @@ platform_exceptions: {
     gue_gre_decap_unsupported: true
     policy_forwarding_unsupported: true
     interface_policy_forwarding_unsupported: true
+    static_mpls_lsp_oc_unsupported: true
   }
 }
