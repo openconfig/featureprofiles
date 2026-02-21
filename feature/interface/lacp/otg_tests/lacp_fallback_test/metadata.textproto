@@ -3,7 +3,7 @@
 
 uuid: "d40f107d-6bc2-4379-b6d9-cd4e32fba543"
 plan_id: "RT-5.15"
-description: "LACP Fallback Functionality"
+description: "LACP Fallback Support"
 testbed: TESTBED_DUT_ATE_4LINKS
 platform_exceptions: {
   platform: {
