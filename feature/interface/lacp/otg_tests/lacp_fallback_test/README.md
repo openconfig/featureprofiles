@@ -87,13 +87,13 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
         "openconfig-if-aggregate:aggregation": {
           "config": {
             "lag-type": "LACP",
-            "arista-intf-augments:fallback": "individual"
+            "openconfig-if-aggregate-ext:fallback": "individual"
           },
           "state": {
             "lag-type": "LACP",
             "lag-speed": 0,
-            "arista-intf-augments:fallback": "individual",
-            "arista-intf-augments:fallback-state": "fallbackStateEnabled"
+            "openconfig-if-aggregate-ext:fallback": "individual",
+            "openconfig-if-aggregate-ext:fallback-state": "fallbackStateEnabled"
           }
         },
         "openconfig-vlan:switched-vlan": {
@@ -145,8 +145,8 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
                     "lacp-rx-errors": "0",
                     "lacp-tx-errors": "0",
                     "lacp-unknown-errors": "0",
-                    "arista-lacp-augments:lacp-actor-sync-transitions": "1",
-                    "arista-lacp-augments:lacp-partner-sync-transitions": "1"
+                    "openconfig-lacp-ext:lacp-actor-sync-transitions": "1",
+                    "openconfig-lacp-ext:lacp-partner-sync-transitions": "1"
                   }
                 }
               },
@@ -176,8 +176,8 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
                     "lacp-rx-errors": "0",
                     "lacp-tx-errors": "0",
                     "lacp-unknown-errors": "0",
-                    "arista-lacp-augments:lacp-actor-sync-transitions": "0",
-                    "arista-lacp-augments:lacp-partner-sync-transitions": "0"
+                    "openconfig-lacp-ext:lacp-actor-sync-transitions": "0",
+                    "openconfig-lacp-ext:lacp-partner-sync-transitions": "0"
                   }
                 }
               }
