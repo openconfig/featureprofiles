@@ -1,0 +1,7 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "0a9bd744-53e0-4152-bb30-ef23d5c3fe78"
+plan_id: "RT-1.71"
+description: "BGP Disable Peer AS Filter"
+testbed: TESTBED_DUT_ATE_2LINKS
