@@ -1,8 +1,4 @@
-<<<<<<< HEAD:feature/gnsi/certz/tests/client_certificates/README.md
-# Certz-1: gNSI Client Certificate Tests
-=======
 # CERTZ-1: gNSI Client Certificate Tests
->>>>>>> certz1.1/1.2:feature/security/gnsi/certz/tests/client_certificates/README.md
 
 ## Summary
 
