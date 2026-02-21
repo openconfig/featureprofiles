@@ -92,7 +92,19 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
             "lag-type": "LACP",
             "lag-speed": 0
           }
-        } 
+        }
+      },
+      {
+        "name": "Ethernet30/1",
+        "config": {
+          "name": "Ethernet30/1"
+        }
+      },
+      {
+        "name": "Ethernet31/1",
+        "config": {
+          "name": "Ethernet31/1"
+        }
       }
     ]
   },
