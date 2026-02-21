@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid:  "9b452a48-0a2c-4e04-96ea-96c5e1bdc63b"
+plan_id: "RT-5.15"
+description:  "LACP Fallback Functionality"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
