@@ -71,7 +71,7 @@ func TestClientCert(t *testing.T) {
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates
 	t.Logf("%sSTATUS:Generation of test data certificates.", logTime)
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	if err := setupService.CreateOrDeleteTestData(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
 		t.Fatalf("%sSTATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client
@@ -298,7 +298,7 @@ func TestClientCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
 	//Cleanup of test data.
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+	if err := setupService.CreateOrDeleteTestData(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
 		t.Errorf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
 	}
 	t.Logf("%s:STATUS:Test completed!", logTime)
