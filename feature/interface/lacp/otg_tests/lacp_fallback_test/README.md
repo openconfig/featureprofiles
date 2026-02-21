@@ -92,7 +92,7 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
             "lag-type": "LACP",
             "lag-speed": 0
           }
-        },
+        } 
       }
     ]
   },
