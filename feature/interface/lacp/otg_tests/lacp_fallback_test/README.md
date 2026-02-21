@@ -93,12 +93,6 @@ This  is to validate the LACP Fallback functionality on a DUT.  The tests valida
             "lag-speed": 0
           }
         },
-        "openconfig-vlan:switched-vlan": {
-          "config": {
-            "access-vlan": 10,
-            "interface-mode": "ACCESS"
-          }
-        }
       }
     ]
   },
