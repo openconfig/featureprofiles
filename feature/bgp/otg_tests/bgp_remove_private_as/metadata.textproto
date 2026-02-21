@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    bgp_rib_streaming_config_required: true
   }
 }
 platform_exceptions: {
