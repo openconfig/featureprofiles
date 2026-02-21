@@ -164,6 +164,9 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 
+	// Disable hardware nexthop proxying for devices that require it to ensure FIB-ACK works correctly.
+	cfgplugins.DisableHardwareNexthopProxy(t, dut)
+
 	// Configure gRIBI client
 	c := gribi.Client{
 		DUT:         dut,
