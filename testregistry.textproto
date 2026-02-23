@@ -1137,6 +1137,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.14"
+  description: "Aggregate Subinterface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_subinterface/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
