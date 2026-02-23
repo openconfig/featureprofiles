@@ -1536,7 +1536,7 @@ test: {
 test: {
   id: "PF-1.25"
   description: "MPLS based forwarding Static LSP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/README.md"
 }
 test: {
   id: "TR-6.1"
