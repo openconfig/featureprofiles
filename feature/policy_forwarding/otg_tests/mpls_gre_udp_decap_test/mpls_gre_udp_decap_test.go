@@ -235,16 +235,16 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	if *flowMetrics.Counters.OutPkts == 0 {
-		return errors.New("no packets transmitted")
+		return fmt.Errorf("%s - no packets transmitted", flowName)
 	}
 
 	if *flowMetrics.Counters.InPkts != packetCount {
-		return fmt.Errorf("unexpected number of packets received: got %d, want %d", *flowMetrics.Counters.InPkts, packetCount)
+		return fmt.Errorf("%s - unexpected number of packets received: got %d, want %d", flowName, *flowMetrics.Counters.InPkts, packetCount)
 	}
 
 	mustProcessCapture(t, ate, capturePort, flowName)
 	if err := verifyReceivedInnerPacketPopLabel(t, captureFilePath, tc, flowConfig); err != nil {
-		return fmt.Errorf("packet validation failed: %w", err)
+		return fmt.Errorf("%s - packet validation failed: %w", flowName, err)
 	}
 	return nil
 }
@@ -326,8 +326,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTPort(t, dut, &dutPort1, dp1, defaultNIName)
 	configureDUTPort(t, dut, &dutPort2, dp2, nonDefaultNIName)
 
-	t.Log("Configuring routes")
-	configureStaticRoutes(t, dut)
+	t.Logf("Configuring Routes in VRF %s", nonDefaultNIName)
+	configureStaticRoutes(t, dut, nonDefaultNIName)
 
 	t.Log("Configuring decap policy forwarding")
 	configureDecapPolicyForwarding(t, dut, dp1.Name())
@@ -350,7 +350,7 @@ func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
 }
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
-	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
+	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
 
 	grePFParams := cfgplugins.OcPolicyForwardingParams{
 		NetworkInstanceName: defaultNIName,
@@ -373,21 +373,25 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 		HasMPLS:             true,
 	}
 	cfgplugins.DecapGroupConfigGue(t, dut, pf, guePFParams)
+
+	if !deviations.PolicyForwardingOCUnsupported(dut) {
+		cfgplugins.PushPolicyForwardingConfig(t, dut, ni)
+	}
 }
 
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 
 	lspParams := []cfgplugins.StaticLSPParams{
 		{
-			Name:         "Customer IPV4 in:40571 out:pop",
-			Label:        40571,
+			Name:         fmt.Sprintf("Customer IPV4 in:%d out:pop", mplsLabelIpv4),
+			Label:        mplsLabelIpv4,
 			NextHop:      lspNextHopIPv4,
 			VRF:          nonDefaultNIName,
 			ProtocolType: cfgplugins.IPv4,
 		},
 		{
-			Name:         "Customer IPV6 in:40572 out:pop",
-			Label:        40572,
+			Name:         fmt.Sprintf("Customer IPV6 in:%d out:pop", mplsLabelIpv6),
+			Label:        mplsLabelIpv6,
 			NextHop:      lspNextHopIPv6,
 			VRF:          nonDefaultNIName,
 			ProtocolType: cfgplugins.IPv6,
@@ -563,18 +567,18 @@ func verifyReceivedInnerPacketPopLabel(t *testing.T, captureFilename string, tc 
 	return errors.Join(validationErrs...)
 }
 
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
-	mustConfigStaticRoute(t, dut, lspNextHopIPv4+"/32", otgPort2.IPv4, "0")
-	mustConfigStaticRoute(t, dut, lspNextHopIPv6+"/128", otgPort2.IPv6, "0")
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, networkInstance string) {
+	mustConfigStaticRoute(t, dut, lspNextHopIPv4+"/32", otgPort2.IPv4, "0", networkInstance)
+	mustConfigStaticRoute(t, dut, lspNextHopIPv6+"/128", otgPort2.IPv6, "0", networkInstance)
 }
 
-func mustConfigStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
+func mustConfigStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string, networkInstance string) {
 	b := &gnmi.SetBatch{}
 	if nexthop == "Null0" {
 		nexthop = "DROP"
 	}
 	routeCfg := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: networkInstance,
 		Prefix:          prefix,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			index: oc.UnionString(nexthop),
