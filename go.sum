@@ -204,6 +204,10 @@ github.com/google/go-github/v50 v50.1.0 h1:hMUpkZjklC5GJ+c3GquSqOP/T4BNsB7XohaPh
 github.com/google/go-github/v50 v50.1.0/go.mod h1:Ev4Tre8QoKiolvbpOSG3FIi4Mlon3S2Nt9W5JYqKiwA=
 github.com/google/go-querystring v1.1.0 h1:AnCroh3fv4ZBgVIf1Iwtovgjaw/GiKJo8M8yD/fhyJ8=
 github.com/google/go-querystring v1.1.0/go.mod h1:Kcdr2DB4koayq7X8pmAG4sNG59So17icRSOU623lUBU=
+github.com/google/go-tpm v0.9.5 h1:ocUmnDebX54dnW+MQWGQRbdaAcJELsa6PqZhJ48KwVU=
+github.com/google/go-tpm v0.9.5/go.mod h1:h9jEsEECg7gtLis0upRBQU+GhYVH6jMjrFxI8u6bVUY=
+github.com/google/go-tpm-tools v0.3.13-0.20230620182252-4639ecce2aba h1:qJEJcuLzH5KDR0gKc0zcktin6KSAwL7+jWKBYceddTc=
+github.com/google/go-tpm-tools v0.3.13-0.20230620182252-4639ecce2aba/go.mod h1:EFYHy8/1y2KfgTAsx7Luu7NGhoxtuVHnNo8jE7FikKc=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
 github.com/google/gofuzz v1.2.0 h1:xRy4A+RhZaiKjJ1bPfwQ8sedCA+YS2YcCHW6ec7JMi0=
 github.com/google/gofuzz v1.2.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=
@@ -337,8 +341,6 @@ github.com/openconfig/ondatra v0.14.0 h1:TwvddZ7kKPgJm7HWUFmULGgyD97GQMzFVW9mQJz
 github.com/openconfig/ondatra v0.14.0/go.mod h1:2o5JenLqn74ut9w6r3Ds0KbZgUQJbhKQ6vnjS3pgm2M=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30 h1:KcHS08m7nFHq/D03ZfZKKNCSaS1jsuvdF3lCyDjPWJc=
 github.com/openconfig/replayer v0.0.0-20240110192655-4e9cf83d8d30/go.mod h1:VQ8FdPVaHwxKtamhcrwkPsvTeeoEgFYNK1xE8nHD0S8=
-github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07 h1:X631iD/B0ximGFb5P9LY5wHju4SiedxUhc5UZEo7VSw=
-github.com/openconfig/testt v0.0.0-20220311054427-efbb1a32ec07/go.mod h1:bmpU0kIsCiXuncozViVuQx1HqolC3C94H7lD9KKmoTo=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452 h1:KI67JEIYGMXx9aZjGOwfO2aUsCGih9199v+zhJNHB9Y=
 github.com/openconfig/testt v0.0.0-20251119232631-fbbd49c39452/go.mod h1:wOB0bus1N8a90H58cmlxE15dKN4bTvdqqlh7bEQkQFc=
 github.com/openconfig/ygnmi v0.14.0 h1:WXkZU8NcMVJzZBn1mDm7GMdJ+WyU2ab/4ls1kMKPN5c=
