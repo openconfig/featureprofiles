@@ -972,15 +972,16 @@ func TestRemovableComponents(t *testing.T) {
 			t.Errorf("Component value not present for path: %s", comp.Path.String())
 			continue
 		}
-		if typeStr, ok := typeToString[c.GetType()]; ok {
-			componentsByType[typeStr] = append(componentsByType[typeStr], c)
+		if hwType, ok := c.GetType().(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT); ok {
+			if typeStr, ok := typeToString[hwType]; ok {
+				componentsByType[typeStr] = append(componentsByType[typeStr], c)
+			}
 		}
 	}
 
 	for _, compType := range componentTypesToCheck {
 		t.Run(compType, func(t *testing.T) {
 			// If a component type is not found, the test for it will pass vacuously.
-			// This matches the original logic.
 			for _, c := range componentsByType[compType] {
 				if c.Removable == nil {
 					t.Errorf("Component %s: Removable is nil, want non-nil", c.GetName())
