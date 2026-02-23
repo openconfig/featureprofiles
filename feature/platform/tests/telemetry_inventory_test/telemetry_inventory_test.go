@@ -48,7 +48,6 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 
 // validInstallComponentTypes indicates for each component type, which types of
 // install-component it can have (i.e., what types of components can it be installed into).
-// adding dummy comment for test
 var validInstallComponentTypes = map[oc.Component_Type_Union]map[oc.Component_Type_Union]bool{
 	oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD: {
 		oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS: true,
