@@ -762,4 +762,3 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
-
