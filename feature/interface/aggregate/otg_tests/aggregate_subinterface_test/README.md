@@ -38,49 +38,51 @@ subinterfaces come up and can take traffic successfully.
 
 #### DUT and OTG Configuration Parameters
 
-##### IPv4 Addresses
+##### IPv4 Addresses (Table 1)
 Device | Lag 1 vlan 10 | lag1 vlan 20 | lag2 vlan 10 | lag2 vlan20
 :------| :----------| :-------- | :---------| :-------:
 DUT    | 198.51.100.1/30 | 198.51.100.5/30 | 198.51.100.9/30 | 198.51.100.13/30
 ATE    | 198.51.100.2/30 | 198.51.100.6/30 | 198.51.100.10/30 | 198.51.100.14/30
 
-##### IPv6 Addresses
+##### IPv6 Addresses (Table 2)
 Device | Lag 1 vlan 10 | lag1 vlan 20 | lag2 vlan 10 | lag2 vlan20
 :------| :----------| :-------- | :---------| :-------:
 DUT    | 2001:db8::1/126 | 2001:db8::5/126 | 2001:db8::9/126 | 2001:db8::13/126
 ATE    | 2001:db8::2/126 | 2001:db8::6/126 | 2001:db8::10/126 | 2001:db8::14/126
 
 
-### RT-5.14.1: Generate DUT Configuration
+### RT-5.14.1:  Aggregate sub-interface in default Network Instance (NI)
 
-This configuration is done in an iteration with the first iteration having the
-subinterfaces in default Network instance and the second iteration having the
-subinterfaces in a non-default test network instance.
+#### Configure the DUT
+
   1.  Create the aggregate interfaces lag1 and lag2 with LACP
   2.  Configure the lags as the LACP active side
   3.  Add port 1 and port 2 to lag 1
   4.  Add port 3 and port 4 to lag 2
   5.  Create subinterfaces in vlan 10 and vlan 20 on both lag 1 and lag 2
-  6.  Add the subinterfaces to Network instance
-  7.  Configure IPV4 and IPV6 addresses on the subinterfaces.
+  6.  Add the subinterfaces to DEFAULT NI
+  7.  Configure IPV4 addresses on the subinterfaces as specified for DUT on table 1
+  8.  Configure IPV6 addresses on the subinterfaces as specified for DUT on table 2
 
-### RT-5.14.2:  Configure the ATE
+#### Configure the ATE
+
   1. Create two aggregate interfaces with LACP
   2. Add port 1 and port 2 to aggregate interface 1
   3. Add port 3 and port 4 to aggregate interface 2
   4. Create two emulated routers with ethernet interfaces on both routers
   5. Connect the ethernet interfaces to the aggregate interfaces
-  6. Create vlan 10 and vlan 20 on both the aggregate interfaces and configure 
-  both the IPV4 and IPV6 addresses on vlans.
-  7. Create IP flows from aggregate interface with the following mapping
+  6. Create vlan 10 and vlan 20 on both the aggregate interfaces a
+  7. Configure IPV4 addresses on the subinterfaces as specified for ATE on table 1
+  8. Configure IPV6 addresses on the subinterfaces as specified for ATE on table 2
+  9. Create IP flows from aggregate interface with the following mapping
       *  Flow 1: 198.51.100.2 - 198.51.100.10
       *  Flow 2: 198.51.100.6 - 198.51.100.14
       *  Flow 3: 2001:db8::2 - 2001:db8::10
       *  Flow 4: 2001:db8::6 - 2001:db8::14
-  8. Push Config to the OTG.
-  9. Start Protocols on the OTG
+  10. Push Config to the OTG.
+  11. Start Protocols on the OTG
 
-### RT-5.14.3 - Testing Steps
+####  Testing Steps
 
   * Wait for LAG interfaces to be UP on DUT and ATE.
   * Validate that all the 4 ports are Operationally UP on the OTG
@@ -91,7 +93,53 @@ subinterfaces in a non-default test network instance.
   * Collect the receive and the transmit packet information from the
     flows and validate it against the test pass criteria
 
-### RT-5.14.4 - Test Pass Criteria
+### Test Pass Criteria
+
+  * Packet drop from the flows must be less than 2 percent.
+
+### RT-5.14.2: Aggregate sub-interface in non-default Network Instance (NI)
+
+#### Configure the DUT
+
+  1.  Create the aggregate interfaces lag1 and lag2 with LACP
+  2.  Configure the lags as the LACP active side
+  3.  Add port 1 and port 2 to lag 1
+  4.  Add port 3 and port 4 to lag 2
+  5.  Create subinterfaces in vlan 10 and vlan 20 on both lag 1 and lag 2
+  6.  Add the subinterfaces to test-instance NI
+  7.  Configure IPV4 addresses on the subinterfaces as specified for DUT on table 1
+  8.  Configure IPV6 addresses on the subinterfaces as specified for DUT on table 2
+
+#### Configure the ATE
+
+  1. Create two aggregate interfaces with LACP
+  2. Add port 1 and port 2 to aggregate interface 1
+  3. Add port 3 and port 4 to aggregate interface 2
+  4. Create two emulated routers with ethernet interfaces on both routers
+  5. Connect the ethernet interfaces to the aggregate interfaces
+  6. Create vlan 10 and vlan 20 on both the aggregate interfaces a
+  7. Configure IPV4 addresses on the subinterfaces as specified for ATE on table 1
+  8. Configure IPV6 addresses on the subinterfaces as specified for ATE on table 2
+  9. Create IP flows from aggregate interface with the following mapping
+      *  Flow 1: 198.51.100.2 - 198.51.100.10
+      *  Flow 2: 198.51.100.6 - 198.51.100.14
+      *  Flow 3: 2001:db8::2 - 2001:db8::10
+      *  Flow 4: 2001:db8::6 - 2001:db8::14
+  10. Push Config to the OTG.
+  11. Start Protocols on the OTG
+
+####  Testing Steps
+
+  * Wait for LAG interfaces to be UP on DUT and ATE.
+  * Validate that all the 4 ports are Operationally UP on the OTG
+  * Validate that the Aggregate Interfaces are UP on the OTG
+  * Start Traffic flows
+  * Wait for another 60 seconds
+  * Stop Traffic Flow
+  * Collect the receive and the transmit packet information from the
+    flows and validate it against the test pass criteria
+
+### Test Pass Criteria
 
   * Packet drop from the flows must be less than 2 percent.
 
