@@ -463,6 +463,8 @@ hardware tcam
          action count set-dscp set-tc set-unshared-policer
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
+         packet ipv4 gue mpls ipv4 forwarding routed decap
+         packet ipv4 gue mpls ipv6 forwarding routed decap
          packet ipv4 mpls ipv4 forwarding mpls decap
          packet ipv4 mpls ipv6 forwarding mpls decap
          packet ipv4 non-vxlan forwarding routed decap
@@ -473,6 +475,8 @@ hardware tcam
          key field ipv6-traffic-class
          action count set-dscp set-tc set-unshared-policer
          packet ipv6 forwarding routed
+         packet ipv6 gue mpls ipv4 forwarding routed decap
+         packet ipv6 gue mpls ipv6 forwarding routed decap
       !
       feature qos mac
          key size limit 160
@@ -514,7 +518,7 @@ hardware tcam
       feature traffic-policy port ipv6
          sequence 25
          key size limit 160
-         key field dst-ipv6-label icmp-type-code ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
+         key field dst-ipv6-label dst-port icmp-type-code ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
          action count drop redirect set-dscp set-tc set-unshared-policer
          packet ipv6 forwarding routed
       !
@@ -530,7 +534,19 @@ hardware tcam
          key size limit 160
          packet ipv4 vxlan eth ipv4 forwarding routed decap
          packet ipv4 vxlan forwarding bridged decap
+   !
    system profile ngpr
+   !
+   !
+   hardware counter feature gre tunnel interface out
+   !
+   hardware counter feature traffic-policy in
+   !
+   hardware counter feature traffic-policy out
+   !
+   hardware counter feature route ipv4
+   !
+   hardware counter feature nexthop
    `
 
 	aristaTcamProfilePreserveTTL = `
@@ -746,3 +762,4 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
+
