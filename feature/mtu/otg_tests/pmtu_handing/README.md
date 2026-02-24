@@ -40,6 +40,10 @@ Verify:
   traffic is permitted.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
+#### Canonical OC
+```json
+```
+
 ### MTU-1.5.2 IPv6 Path MTU 
 
 Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
@@ -52,6 +56,10 @@ Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
 * Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
   traffic is permitted.
 * Verify low CPU (<20%) utilization on control plane.
+
+#### Canonical OC
+```json
+```
 
 ## OpenConfig Path and RPC Coverage
 
