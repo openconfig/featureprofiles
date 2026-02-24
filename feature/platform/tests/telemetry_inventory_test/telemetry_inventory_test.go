@@ -42,6 +42,8 @@ var componentType = map[string]oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT{
 	"TempSensor":  oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_SENSOR,
 	"Cpu":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU,
 	"Storage":     oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_STORAGE,
+	"FRU":         oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FRU,
+	"Port":        oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_PORT,
 }
 
 // validInstallComponentTypes indicates for each component type, which types of
@@ -940,6 +942,55 @@ func TestLinecardConfig(t *testing.T) {
 func TestHeatsinkTempSensor(t *testing.T) {
 	// TODO: Add heatsink-temperature-sensor test case here once supported.
 	t.Skipf("/components/component[name=<heatsink-temperature-sensor>]/state/temperature/instant is not supported.")
+}
+
+func TestRemovableComponents(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	componentTypesToCheck := []string{
+		"Fabric",
+		"Fan",
+		"Linecard",
+		"PowerSupply",
+		"Supervisor",
+		"Transceiver",
+		"Storage",
+		"FRU",
+		"Port",
+	}
+
+	// Create a reverse map from oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT to string for efficient lookup.
+	typeToString := make(map[oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT]string)
+	for k, v := range componentType {
+		typeToString[v] = k
+	}
+
+	// Group components by type to avoid nested loops.
+	componentsByType := make(map[string][]*oc.Component)
+	for _, comp := range gnmi.LookupAll(t, dut, gnmi.OC().ComponentAny().State()) {
+		c, present := comp.Val()
+		if !present {
+			t.Errorf("Component value not present for path: %s", comp.Path.String())
+			continue
+		}
+		if hwType, ok := c.GetType().(oc.E_PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT); ok {
+			if typeStr, ok := typeToString[hwType]; ok {
+				componentsByType[typeStr] = append(componentsByType[typeStr], c)
+			}
+		}
+	}
+
+	for _, compType := range componentTypesToCheck {
+		t.Run(compType, func(t *testing.T) {
+			// If a component type is not found, the test for it will pass vacuously.
+			for _, c := range componentsByType[compType] {
+				if c.Removable == nil {
+					t.Errorf("Component %s: Removable is nil, want non-nil", c.GetName())
+					continue
+				}
+				t.Logf("Component %s Removable: %v", c.GetName(), c.GetRemovable())
+			}
+		})
+	}
 }
 
 // Creates a map of component Name to corresponding Component OC object.
