@@ -127,7 +127,15 @@ func TestCopyingDebugFiles(t *testing.T) {
 	if !deviations.SkipOrigin(dut) {
 		req.Path.Origin = "openconfig"
 	}
-	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+	var validResponse *hpb.GetResponse
+	for i := 0; i < 10; i++ {
+		validResponse, err = gnoiClient.Healthz().Get(context.Background(), req)
+		if err == nil {
+			break
+		}
+		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
+		time.Sleep(30 * time.Second)
+	}
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
