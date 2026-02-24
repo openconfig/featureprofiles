@@ -27,7 +27,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	"github.com/openconfig/featureprofiles/internal/qoscfg"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -505,8 +504,17 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 	}}
 
 	t.Logf("qos forwarding groups config: %v", forwardingGroups)
+	if deviations.QOSQueueRequiresID(dut) {
+		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
+		for i, queueName := range queueNames {
+			q1 := q.GetOrCreateQueue(queueName)
+			q1.QueueId = ygot.Uint8(uint8(len(queueNames) - i))
+		}
+	}
+
 	for _, tc := range forwardingGroups {
-		qoscfg.SetForwardingGroup(t, dut, q, tc.targetGroup, tc.queueName)
+		q.GetOrCreateForwardingGroup(tc.targetGroup).SetOutputQueue(tc.queueName)
+		q.GetOrCreateQueue(tc.queueName)
 	}
 
 	t.Logf("Create qos queue management profile config")
@@ -645,7 +653,6 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 		} else if tc.name == "dscp_based_classifier_ipv6" {
 			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
 		}
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos input classifier config")
@@ -678,8 +685,18 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
 	for _, tc := range classifierIntfs {
-		qoscfg.SetInputClassifier(t, dut, q, tc.intf, tc.inputClassifierType, tc.classifier)
+		intf := q.GetOrCreateInterface(tc.intf)
+		intf.GetOrCreateInterfaceRef().SetInterface(tc.intf)
+		if dut.Vendor() != ondatra.CISCO {
+			intf.GetOrCreateInterfaceRef().SetSubinterface(0)
+		}
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			intf.InterfaceRef = nil
+		}
+		intf.GetOrCreateInput().GetOrCreateClassifier(tc.inputClassifierType).SetName(tc.classifier)
 	}
+
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	t.Logf("Create qos scheduler policies config")
 	schedulerPolicies := []struct {
@@ -768,7 +785,6 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 		input.SetInputType(tc.inputType)
 		input.SetQueue(tc.queueName)
 		input.SetWeight(tc.weight)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
 
 	t.Logf("Create qos output interface config")
@@ -819,6 +835,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 		schedulerPolicy.SetName(tc.scheduler)
 		queue := output.GetOrCreateQueue(tc.queueName)
 		queue.SetName(tc.queueName)
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
+
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 }
