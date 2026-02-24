@@ -16,7 +16,6 @@ package ecn_enabled_traffic_test
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -515,7 +514,7 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 	wup := qmp.GetOrCreateWred().GetOrCreateUniform()
 	wup.SetEnableEcn(true)
 	wup.SetMinThreshold(uint64(80_000))
-	wup.SetMaxThreshold(math.MaxUint32)
+	wup.SetMaxThreshold(3_000_000)
 	wup.SetDrop(false)
 	wup.SetMaxDropProbabilityPercent(uint8(1))
 
