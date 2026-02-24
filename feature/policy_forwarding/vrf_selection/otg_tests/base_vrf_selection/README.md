@@ -97,26 +97,45 @@ Test different VRF selection policies.
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
+  /interfaces/interface/name:
   /interfaces/interface/config/description:
-  /interfaces/interface/config/enabled:
   /interfaces/interface/config/type:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/index:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
-  /interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /network-instances/network-instance/name:
   /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/id:
   /network-instances/network-instance/interfaces/interface/config/interface:
   /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/identifier:
+  /network-instances/network-instance/protocols/protocol/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/index:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/policy-forwarding/policies/policy/policy-id:
+  /network-instances/network-instance/protocols/protocol/config/identifier:
+  /network-instances/network-instance/protocols/protocol/config/name:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
+  /network-instances/network-instance/protocols/protocol/identifier:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/interfaces/interface/id:
+  /network-instances/network-instance/name:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/sequence-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-id:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/subinterface:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
-  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 rpcs:
   gnmi:
     gNMI.Get:
