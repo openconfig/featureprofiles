@@ -40,6 +40,12 @@ Verify:
   traffic is permitted.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
+#### Canonical OC
+```json
+{
+
+}
+```
 
 ### MTU-1.5.2 IPv6 Path MTU 
 
@@ -54,8 +60,11 @@ Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
   traffic is permitted.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
-## Canonical OC
+#### Canonical OC
 ```json
+{
+
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
