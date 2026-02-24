@@ -490,8 +490,8 @@ func verifyControllerCardCPUUtilization(t *testing.T, td testData) {
 				t.Errorf("FAIL: %v: pre-config cpuUtilization not found", component)
 				continue
 			}
-			if postVal > preVal+10 {
-				t.Errorf("FAIL: %v: cpuUtilization increased by more than 5%%, pre: %v, post: %v", component, preVal, postVal)
+            if postVal > preVal+10 {
+                t.Errorf("FAIL: %v: cpuUtilization increased by more than 10%%, pre: %v, post: %v", component, preVal, postVal)
 			} else {
 				t.Logf("PASS: %v: cpuUtilization increase within 5%%, pre: %v, post: %v", component, preVal, postVal)
 			}
