@@ -58,6 +58,11 @@ const (
 	tolerance               = 5000
 )
 
+type testDefinition struct {
+	name     string
+	desc     string
+	flowSize uint32
+}
 
 type testData struct {
 	name         string
