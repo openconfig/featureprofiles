@@ -81,8 +81,7 @@ func (v *rpcServiceAccumulator) VisitReserved(*parser.Reserved) (next bool) {
 
 func (v *rpcServiceAccumulator) VisitRPC(r *parser.RPC) (next bool) {
 	pkg := strings.TrimPrefix(v.packageName, "openconfig.")
-	rpcName := fmt.Sprintf("%s.%s.%s", pkg, v.currentService, r.RPCName)
-	v.rpcs = append(v.rpcs, rpcName)
+	v.rpcs = append(v.rpcs, fmt.Sprintf("%s.%s.%s", pkg, v.currentService, r.RPCName))
 	return
 }
 
