@@ -111,24 +111,33 @@ func TestCopyingDebugFiles(t *testing.T) {
 	}
 	t.Logf("Component Name: %v", componentName)
 
-	req := &hpb.GetRequest{
-		Path: &tpb.Path{
-			Elem: []*tpb.PathElem{
-				{
-					Name: "components",
-				},
-				{
-					Name: "component",
-					Key:  componentName,
-				},
-			},
+	// Define the path once so it's consistent for both Check and Get
+	healthPath := &tpb.Path{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: componentName},
 		},
 	}
 	if !deviations.SkipOrigin(dut) {
-		req.Path.Origin = "openconfig"
+		healthPath.Origin = "openconfig"
 	}
+
+	// Trigger an active health check using Check()
+	checkReq := &hpb.CheckRequest{
+		Path: healthPath,
+	}
+	t.Logf("Triggering Healthz Check for %v", componentName)
+	if _, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq); checkErr != nil {
+		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
+	}
+
+	// Poll for the results using Get()
+	req := &hpb.GetRequest{
+		Path: healthPath,
+	}
+
 	var validResponse *hpb.GetResponse
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		validResponse, err = gnoiClient.Healthz().Get(context.Background(), req)
 		if err == nil {
 			break
@@ -136,6 +145,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
 		time.Sleep(30 * time.Second)
 	}
+	
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
