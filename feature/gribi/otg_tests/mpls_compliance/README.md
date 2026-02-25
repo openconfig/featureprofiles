@@ -1,4 +1,4 @@
-# TE-9: gRIBI MPLS Compliance
+# TE-9.1: gRIBI MPLS Compliance
 
 ## Summary
 
@@ -8,7 +8,7 @@ traffic validation.
 
 ## Procedure
 
-### TE-9.1: Push MPLS Labels to MPLS payload
+### TE-9.1.1: Push MPLS Labels to MPLS payload
 
 * Configure ATE `port-1` connected to DUT `port-1`, and ATE `port-2` connected
   to DUT `port-2`.
@@ -22,7 +22,7 @@ traffic validation.
      ..., baseLabel+numLabels]` onto the MPLS label stack.
 * Validate that gRIBI transactions are successfully processed by the server.
 
-### TE-9.2: Push MPLS Labels to IP Packet
+### TE-9.1.2: Push MPLS Labels to IP Packet
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have an assigned address of `192.0.2.2`, and the interface to
@@ -32,7 +32,7 @@ traffic validation.
        additional labels onto the packet.
 * Validate that gRIBI transactions are successfully processed by the server.
 
-### TE-9.3: Pop Top MPLS Label
+### TE-9.1.3: Pop Top MPLS Label
 
 * Configure DUT with a destination interface connected to an ATE. The ATE is
   configured to have assigned address 192.0.2.2.
@@ -40,7 +40,7 @@ traffic validation.
   pop the top label.
 * Validate that gRIBI transactions are successfully processed by the server.
 
-## TE-9.4: Pop N Labels from Stack
+## TE-9.1.4: Pop N Labels from Stack
 
 * Configure DUT with destination interface connected to an ATE. The ATE is
   configured to have assigned address `192.0.2.2`.
@@ -50,7 +50,7 @@ traffic validation.
     * Label stack `[100, 42]`
     * Label stack `[100, 42, 43, 44, 45]`
 
-## TE-9.5: Pop 1 Push N Labels
+## TE-9.1.5: Pop 1 Push N Labels
 
 * Configure DUT with destination interface connected to an ATE. The ATE is
   configured to have assigned address `192.0.2.2`.
