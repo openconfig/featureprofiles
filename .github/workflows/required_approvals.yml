@@ -10,15 +10,18 @@ jobs:
       id-token: write
       contents: read
       pull-requests: read
+      # actions: read # might be needed
     steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+
     - name: Check for required approvals
       id: check-approvals
-      uses: skymoore/required-approvals@57612e00c501132dfb35ddaff54615b363f8e076
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        read_org_scoped_token: ${{ secrets.READ_ORG_SCOPED_TOKEN }}
-        org_name: openconfig
-        min_approvals: 1
-        approval_mode: ALL
-        pr_number: ${{ github.event.pull_request.number }}
-        require_all_approvals_latest_commit: false
+      env:
+        # Use the Org Scoped Token if available for team membership checks
+        GITHUB_TOKEN: ${{ secrets.READ_ORG_SCOPED_TOKEN || secrets.GITHUB_TOKEN }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+      run: go run tools/check_approvals/main.go
