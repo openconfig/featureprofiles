@@ -297,25 +297,6 @@ func (ce *commonEntities) createTrafficFlows(t *testing.T, top gosnappi.Config, 
 	}
 }
 
-// checkCPUUtilization checks the CPU utilization of the device.
-func (ce *commonEntities) checkCPUUtilization(t *testing.T) error {
-	t.Helper()
-
-	dut := ondatra.DUT(t, "dut")
-	t.Helper()
-	cpuList := gnmi.OC().System().CpuAny().State()
-	cpus := gnmi.GetAll(t, dut, cpuList)
-	for _, cpu := range cpus {
-		cpuUtil := gnmi.OC().System().Cpu(cpu.GetIndex()).Total().Instant().State()
-		utilization := gnmi.Get(t, dut, cpuUtil)
-		if utilization >= thresholdCPUUtilization {
-			return fmt.Errorf("checkCPUUtilization: high CPU utilization seen, cpu name: %d, output: %d%%", cpu.GetIndex(), utilization)
-		}
-		t.Logf("checkCPUUtilization: CPU utilization within limit, cpu name: %d, output: %d%%\n", cpu.GetIndex(), utilization)
-	}
-	return nil
-}
-
 // runTraffic starts and stops the traffic flow.
 func (ce *commonEntities) runTraffic(t *testing.T) {
 	t.Helper()
