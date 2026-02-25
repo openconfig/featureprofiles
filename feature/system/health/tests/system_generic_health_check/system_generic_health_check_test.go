@@ -17,6 +17,7 @@ package system_generic_health_check_test
 import (
 	"context"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -223,32 +224,52 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	if len(controllerCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
-	for _, cpu := range cpuCards {
-		t.Run(cpu, func(t *testing.T) {
-			query := gnmi.OC().Component(cpu).State()
-			timestamp := time.Now().Round(time.Second)
-			component := gnmi.Get(t, dut, query)
-			cpuParent := component.GetParent()
-			if cpuParent == "" {
-				t.Errorf("ERROR: can't find parent information for CPU card %v", component)
-			}
-
-			if slices.Contains(controllerCards, cpuParent) {
-				// Remove parent from the list of check cards.
-				controllerCards = removeElement(controllerCards, cpuParent)
-				cpuUtilization := component.GetCpu().GetUtilization()
-				if cpuUtilization.Avg == nil {
+	if deviations.CpuUtilizationQueryAgainstBaseControllerCardComponent(dut) {
+		for _, cpu := range controllerCards {
+			t.Run(cpu, func(t *testing.T) {
+				ts := time.Now().Round(time.Second)
+				ccState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
+				util := ccState.GetCpu().GetUtilization()
+				ccType := ccState.GetType()
+				if util == nil || util.Avg == nil {
 					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
-						timestamp, deviceName, cpu, cpuParent)
+						ts, deviceName, cpu, ccType)
 				} else {
-					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
+						ts, deviceName, cpu, ccType, util.GetAvg())
 				}
-			}
-		})
+			})
+		}
+		// prevent missing-CPU association check at the end of test since it's already handled above
+		controllerCards = []string{}
+	} else {
+		for _, cpu := range cpuCards {
+			t.Run(cpu, func(t *testing.T) {
+				query := gnmi.OC().Component(cpu).State()
+				timestamp := time.Now().Round(time.Second)
+				component := gnmi.Get(t, dut, query)
+				cpuParent := component.GetParent()
+				if cpuParent == "" {
+					t.Errorf("ERROR: can't find parent information for CPU card %v", component)
+				}
 
+				if slices.Contains(controllerCards, cpuParent) {
+					// Remove parent from the list of check cards.
+					controllerCards = removeElement(controllerCards, cpuParent)
+					cpuUtilization := component.GetCpu().GetUtilization()
+					if cpuUtilization == nil || cpuUtilization.Avg == nil {
+						t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
+							timestamp, deviceName, cpu, cpuParent)
+					} else {
+						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+					}
+				}
+			})
+
+		}
 	}
 	if len(controllerCards) > 0 {
-		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", controllerCards)
+		t.Errorf("ERROR: Didn't find cpu card for controllerCards %s", controllerCards)
 	}
 }
 
@@ -263,51 +284,95 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	chassisLineCards := make([]string, 0)
-	for _, lc := range lineCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if !compMtyVal && ok {
-			chassisLineCards = append(chassisLineCards, lc)
-		}
-	}
 
-	for _, lc := range chassisLineCards {
-		if !gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
-			t.Skipf("Skip the test on non-removable linecard.")
-		}
-	}
-	lineCards = chassisLineCards
-	if len(lineCards) == 0 || len(cpuCards) == 0 {
-		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
-	}
-	for _, cpu := range cpuCards {
-		t.Run(cpu, func(t *testing.T) {
-			timestamp := time.Now().Round(time.Second)
-			query := gnmi.OC().Component(cpu).State()
-			component := gnmi.Get(t, dut, query)
-
-			cpuParent := component.GetParent()
-			if cpuParent == "" {
-				t.Errorf("ERROR: can't find parent information for CPU card %v", component)
-			}
-
-			// If cpu card's parent is line card, check cpu ultilization.
-			if slices.Contains(lineCards, cpuParent) {
-				// Remove parent from the list of check cards.
-				lineCards = removeElement(lineCards, cpuParent)
-				// Fetch CPU utilization data.
-				cpuUtilization := component.GetCpu().GetUtilization()
-				if cpuUtilization.Avg == nil {
-					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
-						timestamp, deviceName, cpu, cpuParent)
-				} else {
-					t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+	if deviations.CpuUtilizationQueryAgainstBaseLinecardComponent(dut) {
+		// Cisco reports CPU utilization on the base linecard component (e.g. 0/0/CPU0)
+		var baseLCs []string
+		for _, cpu := range cpuCards {
+			cpuState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
+			if strings.Contains(cpuState.GetParent(), "Motherboard") {
+				base := strings.Split(cpu, "-")[0]
+				// Filter non-empty components
+				if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Empty().State()).Val(); !empty && ok {
+					baseLCs = append(baseLCs, base)
 				}
 			}
-		})
+		}
+		if len(baseLCs) == 0 {
+			t.Errorf("ERROR: No Cisco linecard CPU base components found")
+		}
+		// Skip non-removable linecards
+		var removable []string
+		for _, lc := range baseLCs {
+			if gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
+				removable = append(removable, lc)
+			} else {
+				t.Skipf("Skip non-removable linecard %s", lc)
+			}
+		}
+		for _, removableLC := range removable {
+			t.Run(removableLC, func(t *testing.T) {
+				timestamp := time.Now().Round(time.Second)
+				removableLCState := gnmi.Get(t, dut, gnmi.OC().Component(removableLC).State())
+				util := removableLCState.GetCpu().GetUtilization()
+				if util == nil || util.Avg == nil {
+					t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
+						timestamp, deviceName, removableLCState.GetType(), removableLC)
+					return
+				}
+				t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%",
+					timestamp, deviceName, removableLCState.GetType(), removableLC, util.GetAvg())
+			})
+		}
+		// prevent missing-CPU association check at the end of test since it's already handled above
+		lineCards = []string{}
+	} else {
+		for _, lc := range lineCards {
+			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !compMtyVal && ok {
+				chassisLineCards = append(chassisLineCards, lc)
+			}
+		}
+
+		for _, lc := range chassisLineCards {
+			if !gnmi.Get(t, dut, gnmi.OC().Component(lc).Removable().State()) {
+				t.Skipf("Skip the test on non-removable linecard.")
+			}
+		}
+		lineCards = chassisLineCards
+		if len(lineCards) == 0 || len(cpuCards) == 0 {
+			t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
+		}
+		for _, cpu := range cpuCards {
+			t.Run(cpu, func(t *testing.T) {
+				timestamp := time.Now().Round(time.Second)
+				query := gnmi.OC().Component(cpu).State()
+				component := gnmi.Get(t, dut, query)
+
+				cpuParent := component.GetParent()
+				if cpuParent == "" {
+					t.Errorf("ERROR: can't find parent information for CPU card %v", component)
+				}
+
+				// If cpu card's parent is line card, check cpu ultilization.
+				if slices.Contains(lineCards, cpuParent) {
+					// Remove parent from the list of check cards.
+					lineCards = removeElement(lineCards, cpuParent)
+					// Fetch CPU utilization data.
+					cpuUtilization := component.GetCpu().GetUtilization()
+					if cpuUtilization == nil || cpuUtilization.Avg == nil {
+						t.Errorf("ERROR: %s %s %s Type %-20s - CPU utilization data not available",
+							timestamp, deviceName, cpu, cpuParent)
+					} else {
+						t.Logf("INFO: %s %s Type %-20s %-10s - Utilization: %3d%%", timestamp, deviceName, cpu, cpuParent, cpuUtilization.GetAvg())
+					}
+				}
+			})
+		}
 	}
 
 	if len(lineCards) > 0 {
-		t.Errorf("ERROR: Didn't find cpu card for checkCards %s", lineCards)
+		t.Errorf("ERROR: Didn't find cpu card for lineCards %s", lineCards)
 	}
 }
 
@@ -401,6 +466,9 @@ func TestSystemProcessNoHighMemorySpike(t *testing.T) {
 
 func TestNoQueueDrop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if deviations.NoQueueDropUnsupported(dut) {
+		t.Skipf("Skip test when no-queue drop counters are unsupported")
+	}
 	type testCase struct {
 		desc     string
 		path     string
@@ -764,6 +832,9 @@ func TestInterfaceEthernetNoDrop(t *testing.T) {
 
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
+					if c.desc == "InBlockErrors" && deviations.InterfaceEthernetInblockErrorsUnsupported(dut) {
+						t.Skipf("skip testcase as in-block errors counters are not supported")
+					}
 					if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 						t.Logf("INFO: %s: %d", c.counter, val)
 					} else {
