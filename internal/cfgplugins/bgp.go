@@ -141,6 +141,8 @@ var (
 
 	bgpName = "BGP"
 
+	// PortCount1 use this for topology of 1 ports
+	PortCount1 PortCount = 1
 	// PortCount2 use this for topology of 2 ports
 	PortCount2 PortCount = 2
 	// PortCount4 use this for topology of 4 ports
@@ -241,6 +243,11 @@ func NewBGPSession(t *testing.T, pc PortCount, ni *string) *BGPSession {
 		OndatraDUTPorts: make([]*ondatra.Port, int(pc)),
 		OndatraATEPorts: make([]*ondatra.Port, int(pc)),
 		ATEIntfs:        make([]gosnappi.Device, int(pc)),
+	}
+
+	if pc == PortCount1 {
+		conf.DUTPorts = []*attrs.Attributes{dutPort1}
+		conf.ATEPorts = []*attrs.Attributes{atePort1}
 	}
 
 	if pc == PortCount4 {

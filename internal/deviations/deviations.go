@@ -1940,3 +1940,8 @@ func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
 func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
 }
+
+// StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
+}
