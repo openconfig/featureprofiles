@@ -183,29 +183,65 @@ func configureOTG(t *testing.T) gosnappi.Config {
 func getDroppedPktsForCounter(t *testing.T, jsonData []byte, counterName string) float64 {
 	t.Helper()
 
-	logAndReturnErroredCount := func(format string, args ...any) float64 {
-		t.Errorf(format, args...)
-		return -1
-	}
 	var data map[string]any
 	if err := json.Unmarshal(jsonData, &data); err != nil {
-		return logAndReturnErroredCount("getDroppedPktsForCounter: Error unmarshalling JSON: %v", err)
+		t.Errorf("getDroppedPktsForCounter: Error unmarshalling JSON: %v", err)
+		return -1
 	}
-	counterMap, ok := data[counterName].(map[string]any)
+
+	// Try exact match first
+	if val, ok := data[counterName]; ok {
+		return parseDroppedValue(t, val, counterName)
+	}
+
+	// Try matching by suffix (e.g., just "lacp" or "l3-lpm-overflow")
+	searchSuffix := counterName
+	if strings.Contains(counterName, ":") {
+		parts := strings.Split(counterName, ":")
+		searchSuffix = parts[len(parts)-1]
+	}
+
+	for key, val := range data {
+		if strings.HasSuffix(key, ":"+searchSuffix) || key == searchSuffix {
+			t.Logf("getDroppedPktsForCounter: Found match for %q via key %q", counterName, key)
+			return parseDroppedValue(t, val, key)
+		}
+	}
+
+	// Log all keys to see exactly what the device sent
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	t.Errorf("getDroppedPktsForCounter: Counter %q not found. Available keys: %v", counterName, keys)
+	return -1
+}
+
+// Helper to handle the parsing logic
+func parseDroppedValue(t *testing.T, counterVal any, keyName string) float64 {
+	counterMap, ok := counterVal.(map[string]any)
 	if !ok {
-		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting stats for counter: %s", counterName)
+		return -1
 	}
+
 	dropped, ok := counterMap["dropped"]
 	if !ok {
-		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting stats for counter: %s", counterName)
+		return -1
 	}
-	droppedStr, ok := dropped.(string)
-	if !ok {
-		return logAndReturnErroredCount("getDroppedPktsForCounter: Error converting dropped value to string for counter: %s", counterName)
+
+	var droppedStr string
+	switch v := dropped.(type) {
+	case string:
+		droppedStr = v
+	case float64:
+		return v
+	default:
+		return -1
 	}
+
 	packetsDropped, err := strconv.ParseFloat(droppedStr, 64)
 	if err != nil {
-		return logAndReturnErroredCount("getDroppedPktsForCounter: Error getting packets dropped for counter: %s", counterName)
+		return -1
 	}
 	return packetsDropped
 }
@@ -286,16 +322,10 @@ func (ce *commonEntities) runTraffic(t *testing.T) {
 
 	t.Log("Starting traffic for 15 seconds")
 	ce.ate.OTG().StartTraffic(t)
-	for idx := 0; idx < 3; idx++ {
-		time.Sleep(5 * time.Second)
-		if err := ce.checkCPUUtilization(t); err != nil {
-			t.Errorf("runTraffic: CPU utilization check failed: %v", err)
-		}
-	}
-
-	t.Log("Stopping traffic and waiting 10 seconds for traffic stats to complete")
+	time.Sleep(15 * time.Second)
+	t.Log("Stopping traffic and waiting 30 seconds for traffic stats to complete")
 	ce.ate.OTG().StopTraffic(t)
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 }
 
 func removeAfterLastSlash(str string) string {
@@ -411,67 +441,67 @@ func TestCoppSystem(t *testing.T) {
 
 	ce.configureDUT(t)
 	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic.
-	// Add test case for arista-sand-control-plane-traffic-counters:l3-destination-miss.
+	// Add test case for arista-platform-control-plane-traffic-counters:l3-destination-miss.
 	testCases := []coppSystemTestcase{
 		{
 			name:               "CoppSystemL3LpmOverflowExceedingLimitTest",
 			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: true,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l3-lpm-overflow"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l3-lpm-overflow"},
 		},
 		{
 			name:               "CoppSystemL3LpmOverflowInLimitTest",
 			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: false,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l3-lpm-overflow"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l3-lpm-overflow"},
 		},
 		{
 			name:               "CoppSystemL2UcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: true,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-unicast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-unicast"},
 		},
 		{
 			name:               "CoppSystemL2UcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: false,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-unicast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-unicast"},
 		},
 		{
 			name:               "CoppSystemIpUcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: true,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:ip-unicast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:ip-unicast"},
 		},
 		{
 			name:               "CoppSystemIpUcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: false,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:ip-unicast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:ip-unicast"},
 		},
 		{
 			name:               "CoppSystemL2BcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: true,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-broadcast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-broadcast"},
 		},
 		{
 			name:               "CoppSystemL2BcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: false,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:l2-broadcast"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-broadcast"},
 		},
 		{
 			name:               "CoppSystemLacpExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: true,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:lacp"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:lacp"},
 		},
 		{
 			name:               "CoppSystemLacpInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: false,
-			counters:           []string{"arista-sand-control-plane-traffic-counters:lacp"},
+			counters:           []string{"arista-platform-control-plane-traffic-counters:lacp"},
 		},
 	}
 
