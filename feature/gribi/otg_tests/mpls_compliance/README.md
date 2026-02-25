@@ -92,6 +92,14 @@ traffic validation.
 
 ## Telemetry parameter coverage
 
+## Canonical OC
+
+```json
+{
+
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.
