@@ -1137,6 +1137,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.14"
+  description: "Aggregate Subinterface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_subinterface/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
@@ -1523,9 +1529,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test/README.md"
 }
 test: {
-  id: "TE-9.2"
+  id: "PF-1.25"
   description: "MPLS based forwarding Static LSP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/README.md"
 }
 test: {
   id: "TR-6.1"
@@ -1566,6 +1572,22 @@ test: {
 test: {
   id: "TRANSCEIVER-104"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_800_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-105"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-106"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_400_terminal_device_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-107"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_platform_paths_test/README.md"
+}
+test: {
+  id: "TRANSCEIVER-108"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zrp_400_terminal_device_paths_test/README.md"
 }
 test: {
   id: "TRANSCEIVER-11.1"
@@ -2211,4 +2233,34 @@ test: {
   description: "Telemetry: Firewall High Availability"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: ""
+}
+test: {
+  id: "TE-1.2"
+  description: "My Station MAC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/my_station_mac/otg_tests/my_station_mac_test/my_station_mac_test.go"
+}
+test: {
+  id: "gNMI-1.26"
+  description: "Carrier Transitions Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
+}
+test: {
+  id: "TE-13.1"
+  description: "gRIBI route ADD during Failover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_addition_during_failover_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_addition_during_failover_test/route_addition_during_failover_test.go"
+}
+test: {
+  id: "TE-13.2"
+  description: "gRIBI route DELETE during Failover "
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_removal_during_failover_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_removal_during_failover_test/route_removal_during_failover_test.go"
+}
+test: {
+  id: "SR-1.1"
+  description: "Transit forwarding to Node-SID via ISIS"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/isis_node_sid_forward_test.go"
 }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
+	"github.com/openconfig/entity-naming/entname"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -103,8 +104,8 @@ func TestECNEnabledTraffic(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	top, _ := configureOTG(t, ate)
 
-	configureQoS(t, dut)
 	queues := netutil.CommonTrafficQueues(t, dut)
+	configureQoS(t, dut, queues)
 
 	var tolerance float32 = 2.0
 
@@ -114,7 +115,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.NC1,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  56,
 				ecnValue:              3,
@@ -123,7 +124,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.NC1,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  56,
 				ecnValue:              3,
@@ -134,7 +135,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF4,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  32,
 				ecnValue:              2,
@@ -143,7 +144,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF4,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  32,
 				ecnValue:              2,
@@ -154,7 +155,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF3,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  24,
 				ecnValue:              2,
@@ -163,7 +164,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF3,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  24,
 				ecnValue:              2,
@@ -174,7 +175,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF2,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  16,
 				ecnValue:              2,
@@ -183,7 +184,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF2,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  16,
 				ecnValue:              2,
@@ -194,7 +195,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF1,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  8,
 				ecnValue:              2,
@@ -203,7 +204,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.AF1,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  8,
 				ecnValue:              2,
@@ -214,7 +215,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.BE0,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  4,
 				ecnValue:              2,
@@ -223,7 +224,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.BE0,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  4,
 				ecnValue:              2,
@@ -234,7 +235,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.BE1,
 				inputIntf:             atePort1,
 				trafficRate:           51,
-				expectedThroughputPct: 51,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  0,
 				ecnValue:              2,
@@ -243,7 +244,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				queue:                 queues.BE1,
 				inputIntf:             atePort2,
 				trafficRate:           50,
-				expectedThroughputPct: 50,
+				expectedThroughputPct: 100,
 				frameSize:             1000,
 				dscp:                  0,
 				ecnValue:              2,
@@ -260,6 +261,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 				flow := top.Flows().Add().SetName(name)
 				flow.Metrics().SetEnable(true)
 				flow.TxRx().Device().SetTxNames([]string{tf.inputIntf.Name + ".IPv4"}).SetRxNames([]string{atePort3.Name + ".IPv4"})
+				flow.EgressPacket().Add().Ethernet()
 				ethHeader := flow.Packet().Add().Ethernet()
 				ethHeader.Src().SetValue(tf.inputIntf.MAC)
 
@@ -370,7 +372,7 @@ func TestECNEnabledTraffic(t *testing.T) {
 							if data.queue == queues.NC1 && valueAsHex != "0x3" {
 								// NC1 should be 11 -- ecn capable and congestion experienced.
 								t.Errorf("expected ecn bit to be 0x3, but got %s", valueAsHex)
-							} else if valueAsHex != "0x2" {
+							} else if data.queue != queues.NC1 && valueAsHex != "0x2" {
 								// ECN should be 10 -- ecn capable but no congestion experienced.
 								t.Errorf("expected ecn bit to be 0x2, but got %s", valueAsHex)
 							}
@@ -447,14 +449,13 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []gosn
 	return top, []gosnappi.Device{d1, d2, d3}
 }
 
-func configureQoS(t *testing.T, dut *ondatra.DUTDevice) {
+func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTrafficQueueNames) {
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	p3 := dut.Port(t, "port3")
 
 	d := &oc.Root{}
 	q := d.GetOrCreateQos()
-	queues := netutil.CommonTrafficQueues(t, dut)
 
 	if deviations.QOSQueueRequiresID(dut) {
 		queueNames := []string{queues.NC1, queues.AF4, queues.AF3, queues.AF2, queues.AF1, queues.BE0, queues.BE1}
