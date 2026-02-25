@@ -45,7 +45,7 @@ const (
 	portSpeed            = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 	startVLANPort1       = 100
 	startVLANPort2       = 200
-	numVRFs              = 1023
+	numVRFs              = 1021
 	trafficDuration      = 15 * time.Second
 	nextHopID            = uint64(10001)
 	nextHopGroupID       = uint64(20001)
