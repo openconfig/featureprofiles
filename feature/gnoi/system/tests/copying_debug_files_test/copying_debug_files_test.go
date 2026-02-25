@@ -145,7 +145,7 @@ func TestCopyingDebugFiles(t *testing.T) {
 		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
 		time.Sleep(30 * time.Second)
 	}
-	
+
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
