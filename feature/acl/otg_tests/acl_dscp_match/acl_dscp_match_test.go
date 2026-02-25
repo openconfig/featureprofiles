@@ -154,6 +154,7 @@ func TestAclDscpMatch(t *testing.T) {
 }
 
 func runTest(t *testing.T, tc testCase, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config *gosnappi.Config) {
+	t.Logf("Test Loggin...")
 	otg := ate.OTG()
 	t.Logf("Configuring ACLs for testcase %s for DSCP %d", tc.name, tc.aclDscpValue)
 	configureAcl(t, dut, tc)
