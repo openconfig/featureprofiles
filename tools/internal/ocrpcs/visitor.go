@@ -2,8 +2,9 @@ package ocrpcs
 
 import (
 	"fmt"
-	"github.com/yoheimuta/go-protoparser/v4/parser"
 	"strings"
+	
+	"github.com/yoheimuta/go-protoparser/v4/parser"
 )
 
 type rpcServiceAccumulator struct {
