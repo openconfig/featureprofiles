@@ -214,7 +214,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 
 			mfgName := gnmi.Get(t, dut, component.MfgName().State())
 			t.Logf("Transceiver %s MfgName: %s", transceiver, mfgName)
-			
+
 			portName := transceiverToInterface[transceiver]
 			if portName != "" {
 				adminStatus := gnmi.Get(t, dut, gnmi.OC().Interface(portName).Enabled().State())
@@ -223,7 +223,7 @@ func TestOpticsPowerBiasCurrent(t *testing.T) {
 					return
 				}
 			}
-			
+
 			inputPowers := gnmi.CollectAll(t, gnmiOpts(t, dut, gpb.SubscriptionMode_SAMPLE, time.Second*30, deviations.CiscoxrTransceiverFt(dut)), component.Transceiver().ChannelAny().InputPower().Instant().State(), time.Second*30).Await(t)
 			t.Logf("Transceiver %s inputPowers: %v", transceiver, inputPowers)
 			if len(inputPowers) == 0 {
