@@ -92,6 +92,7 @@ const (
 	niEncapTeVrfD           = "ENCAP_TE_VRF_D"
 	niTeVrf111              = "vrf_t"
 	niTeVrf222              = "vrf_r"
+	niRepaired              = "vrf_rd"
 	niDefault               = "DEFAULT"
 	IPBlockEncapA           = "101.1.64.1/15"  // IPBlockEncapA represents the ipv4 entries in EncapVRFA
 	IPBlockEncapB           = "101.5.64.1/15"  // IPBlockEncapB represents the ipv4 entries in EncapVRFB
@@ -597,7 +598,7 @@ func pushDecapScaleEntries(t *testing.T, args *testArgs, decapEntries []string) 
 func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, prefix string) {
 	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP)
-	if !deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
+	if deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
 		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut))
 	}
 	args.client.Modify().AddEntry(t,
@@ -734,7 +735,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dutOCRoot := gnmi.OC()
 
 	vrfs := []string{deviations.DefaultNetworkInstance(dut), niDecapTeVrf,
-		niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222}
+		niEncapTeVrfA, niEncapTeVrfB, niEncapTeVrfC, niEncapTeVrfD, niTeVrf111, niTeVrf222, niRepaired}
 	createVrf(t, dut, vrfs)
 
 	// configure Ethernet interfaces first
@@ -822,9 +823,6 @@ func configureDUTSubIfs(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.P
 		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(dutPort.Name()).Subinterface(index).Config(), createSubifDUT(t, d, dut, dutPort, index, vlanID, dutIPv4, ipv4PrefixLen))
 		gnmi.BatchUpdate(batchConfig, gnmi.OC().Interface(dutPort.Name()).Subinterface(index).Config(), createStaticArpEntries(dutPort.Name(), index, ateIPv4, mac))
 
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
-		}
 		nextHops = append(nextHops, &nextHopIntfRef{
 			nextHopIPAddress: ateIPv4,
 			subintfIndex:     index,
@@ -832,6 +830,12 @@ func configureDUTSubIfs(t *testing.T, dut *ondatra.DUTDevice, dutPort *ondatra.P
 		})
 	}
 	batchConfig.Set(t, dut)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		for i := 0; i < *fpargs.DefaultVRFIPv4NHCount; i++ {
+			index := uint32(i)
+			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), index)
+		}
+	}
 	return nextHops
 }
 
@@ -971,26 +975,41 @@ func TestGribiEncapDecapScaling(t *testing.T) {
 			V4ReEncapNHGCount:     *fpargs.V4ReEncapNHGCount,
 		},
 	)
+	var maxEntries int = 10000
 	for _, vrfConfig := range vrfConfigs {
 		// skip adding unwanted entries
-		if vrfConfig.Name == "vrf_rd" {
-			continue
-		}
+
 		entries := append(vrfConfig.NHs, vrfConfig.NHGs...)
 		entries = append(entries, vrfConfig.V4Entries...)
-		client.Modify().AddEntry(t, entries...)
-		if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
-			t.Fatalf("Could not program entries, got err: %v", err)
+		if len(entries) > maxEntries {
+			index := 0
+			for idx := 0; idx < len(entries)/maxEntries; idx++ {
+				client.Modify().AddEntry(t, entries[index:maxEntries+index]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+				index += maxEntries
+			}
+			if len(entries)%maxEntries != 0 {
+				client.Modify().AddEntry(t, entries[index:]...)
+				if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+					t.Fatalf("Could not program entries, got err: %v", err)
+				}
+
+			}
+		} else {
+			client.Modify().AddEntry(t, entries...)
+			if err := awaitTimeout(ctx, client, t, 5*time.Minute); err != nil {
+				t.Fatalf("Could not program entries, got err: %v", err)
+			}
 		}
 		t.Logf("Created %d NHs, %d NHGs, %d IPv4Entries in %s VRF", len(vrfConfig.NHs), len(vrfConfig.NHGs), len(vrfConfig.V4Entries), vrfConfig.Name)
 	}
-
 	defaultIpv4Entries := []string{}
 	for _, v4Entry := range vrfConfigs[1].V4Entries {
 		ep, _ := v4Entry.EntryProto()
 		defaultIpv4Entries = append(defaultIpv4Entries, strings.Split(ep.GetIpv4().GetPrefix(), "/")[0])
 	}
-
 	// Inject 5000 IPv4Entry-ies and 5000 IPv6Entry-ies to each of the 4 encap VRFs.
 	pushEncapEntries(t, defaultIpv4Entries, args)
 
@@ -1062,6 +1081,9 @@ func overrideScaleParams(dut *ondatra.DUTDevice) {
 			*fpargs.V4TunnelCount = 1024
 			encapNhSize = 2
 			decapIPv4ScaleCount = 400
+		}
+		if dut.Vendor() == ondatra.NOKIA {
+			decapIPv4ScaleCount = 128
 		}
 	}
 }
