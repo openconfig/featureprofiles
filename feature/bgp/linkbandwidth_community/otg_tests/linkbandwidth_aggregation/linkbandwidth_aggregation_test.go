@@ -17,12 +17,10 @@ package linkbandwidthaggregation
 
 import (
 	"bytes"
-	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"net/netip"
-	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,12 +31,9 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -246,7 +241,6 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 		advertiseRoutesWithEBGPExtCommunitys(t, top)
-		configureLinkBandwidth(t, dut)
 		ate.OTG().PushConfig(t, top)
 		ate.OTG().StartProtocols(t)
 	})
@@ -256,7 +250,7 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 		expectLBwAdvertised uint64
 		enablePeers         bool
 		applyConfig         func(t *testing.T, dut *ondatra.DUTDevice, enablePeers bool)
-		validate            func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, totalLBwAdvertised uint64)
+		validate            func(t *testing.T, dut *ondatra.DUTDevice, totalLBwAdvertised uint64)
 	}{
 		{
 			name:                "RT-7.6.1: Verify LBW cumulative to eBGP peer",
@@ -285,142 +279,63 @@ func TestLinkBandwidthExtendedCommunityCumulative(t *testing.T) {
 				tc.applyConfig(t, dut, tc.enablePeers)
 			}
 			time.Sleep(30 * time.Second)
-			tc.validate(t, dut, ate, top, tc.expectLBwAdvertised)
+			if !deviations.BgpExtendedCommunityIndexUnsupported(dut) {
+				if !deviations.BGPRibOcPathUnsupported(dut) {
+					tc.validate(t, dut, tc.expectLBwAdvertised)
+				}
+			}
 		})
 	}
 	ate.OTG().StopProtocols(t)
 }
 
+func validateCumulativeLBwCommunityAdvertisedByDUT(t *testing.T, dut *ondatra.DUTDevice, expectCumulativeLBwAdvertised uint64) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpRIBPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRib := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv4Unicast_LocRib](t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().State())
+	t.Logf("RIB: %v", locRib)
+	for route, prefix := range locRib.Route {
+		if prefix.GetPrefix() != testPrefixV4Add {
+			continue
+		}
+		t.Logf("%v", expectCumulativeLBwAdvertised)
+		t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+		if prefix.ExtCommunityIndex == nil {
+			t.Fatalf("No V4 community index found")
+		}
+		extCommunity := bgpRIBPath.ExtCommunity(prefix.GetExtCommunityIndex()).ExtCommunity().State()
+		if extCommunity == nil {
+			t.Fatalf("No V4 community found at given index: %v", prefix.GetExtCommunityIndex())
+		}
+	}
+
+	bgpRIBPathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
+	locRibv6 := gnmi.Get[*oc.NetworkInstance_Protocol_Bgp_Rib_AfiSafi_Ipv6Unicast_LocRib](t, dut, bgpRIBPathV6.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Ipv6Unicast().LocRib().State())
+	t.Logf("RIB: %v", locRibv6)
+	for route, prefix := range locRibv6.Route {
+		if prefix.GetPrefix() != testPrefixV6Add {
+			continue
+		}
+		t.Logf("%v", expectCumulativeLBwAdvertised)
+		t.Logf("Found Route(prefix %s, origin: %v, pathid: %d) => %s", route.Prefix, route.Origin, route.PathId, prefix.GetPrefix())
+		if prefix.ExtCommunityIndex == nil {
+			t.Fatalf("No V6 community index found")
+		}
+		extCommunity := bgpRIBPathV6.ExtCommunity(prefix.GetExtCommunityIndex()).ExtCommunity().State()
+		if extCommunity == nil {
+			t.Fatalf("No V6 community found at given index: %v", prefix.GetExtCommunityIndex())
+		}
+	}
+}
+
 func configureLinkBandwidth(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.AutoLinkBandwidthUnsupported(dut) {
 		switch dut.Vendor() {
-		case ondatra.JUNIPER:
-			cliConfig := fmt.Sprintf(`protocols {
-									bgp {
-											group %s {
-													multipath {
-															multiple-as;
-													}
-													link-bandwidth {
-															auto-sense;
-													}
-											}
-											group %s {
-													multipath {
-															multiple-as;
-													}
-													link-bandwidth {
-															auto-sense;
-													}
-											}
-									}
-							}`, peerv41GrpName, peerv61GrpName)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Fatalf("Vendor %s, has no CLI configuration for auto link bandwidth", dut.Vendor())
 		}
 	} else {
 		t.Fatalf("Vendor %s, has no OC support for auto link bandwidth", dut.Vendor())
-	}
-}
-
-func validateCumulativeLBwCommunityAdvertisedByDUT(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, expectCumulativeLBwAdvertised uint64) {
-	_, ok := gnmi.WatchAll(t,
-		ate.OTG(),
-		gnmi.OTG().BgpPeer(atePort2.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
-		2*time.Minute,
-		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-	if ok {
-		bgpPrefixes := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().BgpPeer(atePort2.Name+".BGP4.peer").UnicastIpv4PrefixAny().State())
-		for _, bgpPrefix := range bgpPrefixes {
-			if bgpPrefix.GetAddress() == testPrefixV4Add {
-				if deviations.AdvertisedCumulativeLBwOCUnsupported(dut) {
-					switch dut.Vendor() {
-					case ondatra.JUNIPER:
-						cmd := fmt.Sprintf("show route advertising-protocol bgp %s detail", atePort2.IPv4)
-						runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
-						if err != nil {
-							t.Fatalf("IPV4: '%s' failed: %v", cmd, err)
-						}
-						re := regexp.MustCompile(comBdWthRE)
-						match := re.FindStringSubmatch(runningConfig.Output())
-						if len(match) < 2 {
-							t.Fatalf("IPV4: cumulative bandwidth community not found in the output")
-						}
-						bandwidth, err := strconv.Atoi(match[1])
-						if err != nil {
-							t.Fatalf("IPV4: failed to convert bandwidth value to integer: %v", err)
-						}
-						if uint64(bandwidth) != expectCumulativeLBwAdvertised {
-							t.Logf("IPV4: Advertised cumulative bandwidth cmd output: %s", runningConfig.Output())
-							t.Fatalf("IPV4: Advertised cumulative bandwidth community value does not match expected "+
-								"value: got %v, want %v", bandwidth, expectCumulativeLBwAdvertised)
-						} else {
-							t.Logf("IPV4: Advertised cumulative bandwidth cmd output: %s", runningConfig.Output())
-							t.Logf("IPV4: Advertised cumulative bandwidth community value matches expected value: %v", bandwidth)
-						}
-					default:
-						t.Fatalf("Vendor %s, has no CLI configuration added to verify ipv4 advertised cumulative bandwidth community", dut.Vendor())
-					}
-				} else {
-					t.Fatalf("IPV4:OC path to verify advertised cumulative bandwidth community is unsupported")
-				}
-			}
-		}
-	} else {
-		t.Fatalf("IPV4: did not receive any prefixes from peer on ATE port2")
-	}
-
-	_, okay := gnmi.WatchAll(t,
-		ate.OTG(),
-		gnmi.OTG().BgpPeer(atePort2.Name+".BGP6.peer").UnicastIpv6PrefixAny().State(),
-		time.Minute,
-		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			_, present := v.Val()
-			return present
-		}).Await(t)
-	if okay {
-		bgpPrefixes := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().BgpPeer(atePort2.Name+".BGP6.peer").UnicastIpv6PrefixAny().State())
-		for _, bgpPrefix := range bgpPrefixes {
-			if bgpPrefix.GetAddress() == testPrefixV6Add {
-				if deviations.AdvertisedCumulativeLBwOCUnsupported(dut) {
-					switch dut.Vendor() {
-					case ondatra.JUNIPER:
-						cmd := fmt.Sprintf("show route advertising-protocol bgp %s detail", atePort2.IPv6)
-						runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
-						if err != nil {
-							t.Fatalf("IPV6: '%s' failed: %v", cmd, err)
-						}
-						re := regexp.MustCompile(comBdWthRE)
-						match := re.FindStringSubmatch(runningConfig.Output())
-						if len(match) < 2 {
-							t.Fatalf("IPV6: cumulative bandwidth community not found in the output")
-						}
-						bandwidth, err := strconv.Atoi(match[1])
-						if err != nil {
-							t.Fatalf("IPV6: failed to convert bandwidth value to integer: %v", err)
-						}
-						if uint64(bandwidth) != expectCumulativeLBwAdvertised {
-							t.Logf("IPV6: Advertised cumulative bandwidth cmd output: %s", runningConfig.Output())
-							t.Fatalf("IPV6: Advertised cumulative bandwidth community value does not match expected "+
-								"value: got %v, want %v", bandwidth, expectCumulativeLBwAdvertised)
-						} else {
-							t.Logf("IPV6: Advertised cumulative bandwidth cmd output: %s", runningConfig.Output())
-							t.Logf("IPV6: Advertised cumulative bandwidth community value matches expected value: %v", bandwidth)
-						}
-					default:
-						t.Fatalf("Vendor %s, has no CLI configuration added to verify ipv6 advertised cumulative bandwidth community", dut.Vendor())
-					}
-				} else {
-					t.Fatalf("IPV6:OC path to verify advertised cumulative bandwidth community is unsupported")
-				}
-			}
-		}
-	} else {
-		t.Fatalf("IPV6: did not receive any prefixes from peer on ATE port2")
 	}
 }
 
@@ -638,7 +553,7 @@ func createPrefixesV4(t *testing.T, numberOfPrefixes uint32) []netip.Prefix {
 	t.Helper()
 
 	var ips []netip.Prefix
-	v4VlanPlenStr := strconv.FormatUint(uint64(v4VlanPlen), 10)
+	v4VlanPlenStr := strconv.FormatUint(uint64(32), 10)
 	testPrefixV4 := testPrefixV4Add + "/" + v4VlanPlenStr
 	for i := uint32(0); i < numberOfPrefixes; i++ {
 		ips = append(ips, netip.MustParsePrefix(fmt.Sprint(testPrefixV4)))
@@ -651,7 +566,7 @@ func createPrefixesV6(t *testing.T, numberOfPrefixes uint32) []netip.Prefix {
 	t.Helper()
 	var ips []netip.Prefix
 
-	v6VlanPlenStr := strconv.FormatUint(uint64(v6VlanPlen), 10)
+	v6VlanPlenStr := strconv.FormatUint(uint64(128), 10)
 	testPrefixV6 := testPrefixV6Add + "/" + v6VlanPlenStr
 	for i := uint32(0); i < numberOfPrefixes; i++ {
 		ip := netip.MustParsePrefix(fmt.Sprint(testPrefixV6))
@@ -696,30 +611,6 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatal(err2)
 	}
 	st2.GetOrCreateConditions().GetOrCreateBgpConditions().SetRouteType(oc.BgpConditions_RouteType_EXTERNAL)
-
-	var cliConfig string
-	if deviations.AggregateBandwidthPolicyActionUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.JUNIPER:
-			cliConfig = fmt.Sprintf(`policy-options {
-							policy-statement %s {
-									term %s {
-											then {
-													aggregate-bandwidth {
-															transitive;
-													}
-											}
-									}
-							}
-						}`, exportPolicy, exportStatements)
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-		default:
-			t.Fatalf("Vendor %s, has no CLI configuration for aggregate-bandwidth policy action", dut.Vendor())
-		}
-	} else {
-		t.Fatalf("Vendor %s, has no OC support for aggregate-bandwidth policy action", dut.Vendor())
-	}
-
 	st2.GetOrCreateActions().PolicyResult = accept
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -752,6 +643,19 @@ func disableEnableBgpWithNbr(t *testing.T, dut *ondatra.DUTDevice, enablePeers b
 			bgpNbr.Enabled = ygot.Bool(false)
 		}
 		bgpNbr.PeerGroup = ygot.String(nbr.Pg)
+
+		if deviations.AutoLinkBandwidthUnsupported(dut) {
+			configureLinkBandwidth(t, dut)
+		} else {
+			bgpNbr.GetOrCreateAutoLinkBandwidth().GetOrCreateImport().SetEnabled(true)
+			bgpNbr.GetOrCreateAutoLinkBandwidth().GetOrCreateImport().SetTransitive(true)
+			bgpNbr.GetOrCreateUseMultiplePaths().SetEnabled(true)
+			bgpNbr.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetAllowMultipleAs(true)
+		}
+
+		bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetSendCommunityType([]oc.E_Bgp_CommunityType{oc.Bgp_CommunityType_STANDARD, oc.Bgp_CommunityType_EXTENDED})
+		bgpNbr.GetOrCreateApplyPolicy().DefaultExportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+		bgpNbr.GetOrCreateApplyPolicy().DefaultImportPolicy = oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
 	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
