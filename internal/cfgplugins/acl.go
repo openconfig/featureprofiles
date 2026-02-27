@@ -1,8 +1,11 @@
 package cfgplugins
 
 import (
+	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -50,8 +53,9 @@ func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 	t.Helper()
 	aclRoot := &oc.Root{}
 	acl := aclRoot.GetOrCreateAcl()
-	acl.SetCounterCapability(oc.Acl_ACL_COUNTER_CAPABILITY_INTERFACE_ONLY)
+	acl.CounterCapability = oc.Acl_ACL_COUNTER_CAPABILITY_AGGREGATE_ONLY
 	aclSet := acl.GetOrCreateAclSet(params.Name, params.ACLType)
+	aclSet.Type = params.ACLType
 	for _, term := range params.Terms {
 		entry := aclSet.GetOrCreateAclEntry(term.SeqID)
 		if term.Permit {
@@ -171,5 +175,24 @@ func DeleteACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 
 	t.Log("Deleting ACL")
 	gnmi.BatchDelete(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config())
+}
+func EnableACLCountersFromCLI(t *testing.T, dut *ondatra.DUTDevice, params AclParams) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var ipStr string
+		switch params.ACLType {
+		case oc.Acl_ACL_TYPE_ACL_IPV4:
+			ipStr = "ip"
+		case oc.Acl_ACL_TYPE_ACL_IPV6:
+			ipStr = "ipv6"
+		}
 
+		countersCommand := fmt.Sprintf(`%s access-list %s
+	counters per-entry
+	!`, ipStr, params.Name)
+		helpers.GnmiCLIConfig(t, dut, countersCommand)
+		return
+	default:
+		t.Logf("ACL counter enabling not implemented for vendor %s, skipping", dut.Vendor())
+	}
 }

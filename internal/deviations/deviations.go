@@ -1940,3 +1940,9 @@ func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
 func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
 }
+
+// ACLCountersEnableOCUnsupported returns true if enabling ACL counters via OpenConfig is unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+func ACLCountersEnableOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclCountersEnableOcUnsupported()
+}

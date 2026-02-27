@@ -688,7 +688,7 @@ hardware tcam
          sequence 45
          key size limit 160
          key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control ttl
-         action count drop mirror
+         action count drop mirror snoop
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast
@@ -702,22 +702,28 @@ hardware tcam
       feature acl port ipv6
          sequence 25
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-ops-3b l4-src-port src-ipv6-high src-ipv6-low tcp-control
-         action count drop mirror
+         action count drop mirror snoop
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
          packet ipv6 forwarding routed multicast
          packet ipv6 ipv6 forwarding routed decap
+      feature acl port ip egress
+        sequence 125
+        key field dscp dst-ip ip-frag ip-protocol l4-dst-port l4-ops l4-src-port src-ip tcp-control
+        action count drop mirror snoop
+        packet ipv4 forwarding bridged
+        packet ipv4 forwarding routed
       feature acl port ipv6 egress
          sequence 105
          key field dst-ipv6 ipv6-next-header ipv6-traffic-class l4-dst-port l4-src-port src-ipv6-high src-ipv6-low tcp-control
-         action count drop mirror
+         action count drop mirror snoop
          packet ipv6 forwarding bridged
          packet ipv6 forwarding routed
       feature acl port mac
          sequence 55
          key size limit 160
          key field dst-mac ether-type src-mac
-         action count drop mirror
+         action count drop mirror snoop
          packet ipv4 forwarding bridged
          packet ipv4 forwarding routed
          packet ipv4 forwarding routed multicast

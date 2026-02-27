@@ -1158,6 +1158,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
     bool bgp_rib_streaming_config_required = 380;
 
+    // Device does not support enabling ACL counters through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+    bool acl_counters_enable_oc_unsupported = 381;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

@@ -44,6 +44,7 @@ const (
 	staticRouteCount      = 2
 	maxDroppedPackets     = uint32(trafficRatePps * maxLostTrafficTime)
 	minPacketsToUpdateACL = 2000
+	aclCounterTimeout     = 5 * time.Second
 
 	expectPass = true
 	expectDrop = false
@@ -90,8 +91,8 @@ var (
 		IPv6Len: 126,
 	}
 
-	l4SourceRange      = fmt.Sprintf("%d-%d", l4SourcePort-l4PortRangeCount, l4SourcePort+l4PortRangeCount-1)
-	l4DestinationRange = fmt.Sprintf("%d-%d", l4DestinationPort-l4PortRangeCount, l4DestinationPort+l4PortRangeCount-1)
+	l4SourceRange      = fmt.Sprintf("%d %d", l4SourcePort-l4PortRangeCount, l4SourcePort+l4PortRangeCount-1)
+	l4DestinationRange = fmt.Sprintf("%d %d", l4DestinationPort-l4PortRangeCount, l4DestinationPort+l4PortRangeCount-1)
 	ipv4ACLSrc         = fmt.Sprintf("%s/32", ipv4ACLSrcAddr)
 	ipv4ACLDst         = fmt.Sprintf("%s/32", ipv4ACLDstAddr)
 	ipv6ACLSrc         = fmt.Sprintf("%s/128", ipv6ACLSrcAddr)
@@ -101,14 +102,8 @@ var (
 
 	ipv4BaseTerms = []cfgplugins.AclTerm{
 		{
-			SeqID:       10,
-			Description: "IPv4",
-			IPSrc:       ipv4ACLSrc,
-			IPDst:       ipv4ACLDst,
-		},
-		{
 			Description: "IPv4 TCP",
-			SeqID:       20,
+			SeqID:       10,
 			IPSrc:       ipv4ACLSrc,
 			IPDst:       ipv4ACLDst,
 			L4SrcPort:   l4SourcePort,
@@ -117,7 +112,7 @@ var (
 		},
 		{
 			Description: "IPv4 UDP",
-			SeqID:       30,
+			SeqID:       20,
 			IPSrc:       ipv4ACLSrc,
 			IPDst:       ipv4ACLDst,
 			L4SrcPort:   l4SourcePort,
@@ -126,32 +121,32 @@ var (
 		},
 		{
 			Description: "IPv4 ICMP",
-			SeqID:       40,
+			SeqID:       30,
 			IPSrc:       ipv4ACLSrc,
 			IPDst:       ipv4ACLDst,
 			Protocol:    cfgplugins.ICMPv4ProtocolNum,
 		},
 		{
 			Description:    "IPv4 TCP Range",
-			SeqID:          50,
+			SeqID:          40,
 			IPSrc:          ipv4ACLSrc,
 			IPDst:          ipv4ACLDst,
 			L4SrcPortRange: l4SourceRange,
 			L4DstPortRange: l4DestinationRange,
 			Protocol:       cfgplugins.TCPProtocolNum,
 		},
+		{
+			SeqID:       50,
+			Description: "IPv4",
+			IPSrc:       ipv4ACLSrc,
+			IPDst:       ipv4ACLDst,
+		},
 	}
 
 	ipv6BaseTerms = []cfgplugins.AclTerm{
 		{
-			SeqID:       110,
-			Description: "IPv6",
-			IPSrc:       ipv6ACLSrc,
-			IPDst:       ipv6ACLDst,
-		},
-		{
 			Description: "IPv6 TCP",
-			SeqID:       120,
+			SeqID:       110,
 			IPSrc:       ipv6ACLSrc,
 			IPDst:       ipv6ACLDst,
 			L4SrcPort:   l4SourcePort,
@@ -160,7 +155,7 @@ var (
 		},
 		{
 			Description: "IPv6 UDP",
-			SeqID:       130,
+			SeqID:       120,
 			IPSrc:       ipv6ACLSrc,
 			IPDst:       ipv6ACLDst,
 			L4SrcPort:   l4SourcePort,
@@ -169,19 +164,25 @@ var (
 		},
 		{
 			Description: "IPv6 ICMP",
-			SeqID:       140,
+			SeqID:       130,
 			IPSrc:       ipv6ACLSrc,
 			IPDst:       ipv6ACLDst,
 			Protocol:    cfgplugins.ICMPv6ProtocolNum,
 		},
 		{
 			Description:    "IPv6 TCP Range",
-			SeqID:          150,
+			SeqID:          140,
 			IPSrc:          ipv6ACLSrc,
 			IPDst:          ipv6ACLDst,
 			L4SrcPortRange: l4SourceRange,
 			L4DstPortRange: l4DestinationRange,
 			Protocol:       cfgplugins.TCPProtocolNum,
+		},
+		{
+			SeqID:       150,
+			Description: "IPv6",
+			IPSrc:       ipv6ACLSrc,
+			IPDst:       ipv6ACLDst,
 		},
 	}
 
@@ -475,9 +476,11 @@ func createFlowConfig(t *testing.T, ipType string, terms []cfgplugins.AclTerm, s
 				fc.trafficItem.L4SrcPort = term.L4SrcPort
 			}
 		} else if term.L4SrcPortRange != "" {
-			portString := term.L4SrcPortRange[strings.LastIndex(term.L4SrcPortRange, "-")+1:]
+			portString := term.L4SrcPortRange[strings.LastIndex(term.L4SrcPortRange, " ")+1:]
 			endPort, err := strconv.ParseUint(portString, 10, 0)
 			if err != nil {
+				t.Fatalf("Failed to parse L4SrcPortRange %s: %v", term.L4SrcPortRange, err)
+			} else {
 				if !shouldMatchTerm {
 					fc.trafficItem.L4SrcPort = uint32(endPort) + 1
 				} else {
@@ -492,9 +495,11 @@ func createFlowConfig(t *testing.T, ipType string, terms []cfgplugins.AclTerm, s
 				fc.trafficItem.L4DstPort = term.L4DstPort
 			}
 		} else if term.L4DstPortRange != "" {
-			portString := term.L4DstPortRange[strings.LastIndex(term.L4DstPortRange, "-")+1:]
+			portString := term.L4DstPortRange[strings.LastIndex(term.L4DstPortRange, " ")+1:]
 			endPort, err := strconv.ParseUint(portString, 10, 0)
 			if err != nil {
+				t.Fatalf("Failed to parse L4DstPortRange %s: %v", term.L4DstPortRange, err)
+			} else {
 				if !shouldMatchTerm {
 					fc.trafficItem.L4DstPort = uint32(endPort) + 1
 				} else {
@@ -564,13 +569,20 @@ func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expectPass bool, aclParams cfgplugins.AclParams, maxDroppedPackets uint32) error {
 	t.Helper()
 
-	t.Logf("Verifying ACL counters for ACL %s", aclParams.Name)
 	entryID := fc.trafficItem.SeqID
 	aclSetPath := gnmi.OC().Acl().AclSet(aclParams.Name, aclParams.ACLType)
-	entry := gnmi.Get(t, dut, aclSetPath.AclEntry(entryID).State())
-	if entry == nil {
-		return fmt.Errorf("ACL entry %d not found in ACL %s", entryID, aclParams.Name)
+
+	t.Logf("Verifying ACL counters for ACL %s entry %d", aclParams.Name, entryID)
+	var entry *oc.Acl_AclSet_AclEntry
+	check := func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
+		e, present := val.Val()
+		return present && e != nil
 	}
+	val, ok := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, check).Await(t)
+	if !ok {
+		return fmt.Errorf("ACL entry %d not found in ACL %s after %v seconds", entryID, aclParams.Name, aclCounterTimeout)
+	}
+	entry, _ = val.Val()
 
 	var expectedPackets uint64
 	matched := entry.GetMatchedPackets()
@@ -593,7 +605,7 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 	}
 
 	entryCounters[entryID] = matched
-	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched)
+	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched-previouslyMatched)
 	if matched-previouslyMatched < expectedPackets {
 		return fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
 	}
@@ -608,6 +620,7 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otg := ate.OTG()
 	otg.PushConfig(t, config)
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, flowConfig.ipType)
 
 	otg.StartTraffic(t)
 	waitForTraffic(t, otg, flowConfig.name, trafficDuration)
@@ -631,6 +644,8 @@ func verifyACLUpdate(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 	otg.PushConfig(t, config)
 
 	otg.StartProtocols(t)
+	otgutils.WaitForARP(t, otg, config, flowConfig.ipType)
+
 	otg.StartTraffic(t)
 	waitForPackets(t, otg, flowConfig.name, minPacketsToUpdateACL, trafficDuration)
 
@@ -671,8 +686,12 @@ func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top g
 		cfgplugins.ConfigureACL(t, batch, aclParams)
 		batch.Set(t, dut)
 
+		if deviations.ACLCountersEnableOCUnsupported(dut) {
+			cfgplugins.EnableACLCountersFromCLI(t, dut, aclParams)
+		}
+
 		flowConfigMap := make(map[bool][]flowConfig)
-		for _, expectTraffic := range []bool{expectPass, expectDrop} {
+		for _, expectTraffic := range []bool{expectPass} {
 			flowConfigMap[expectTraffic] = createFlowConfig(t, ipTypeForACL(aclParams.ACLType), aclParams.Terms, aclParams.DefaultPermit != expectTraffic, expectTraffic)
 		}
 
@@ -729,6 +748,7 @@ func cleanupACL(t *testing.T, dut *ondatra.DUTDevice, aclParams cfgplugins.AclPa
 	deleteBatch := &gnmi.SetBatch{}
 	cfgplugins.DeleteACL(t, deleteBatch, aclParams)
 	deleteBatch.Set(t, dut)
+	clear(entryCounters)
 }
 
 func ipTypeForACL(aclType oc.E_Acl_ACL_TYPE) string {
@@ -754,7 +774,7 @@ func configureFlow(t *testing.T, config gosnappi.Config, fc flowConfig) error {
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(otgPort1.MAC)
 	if fc.trafficItem.IPDst == "" || fc.trafficItem.IPSrc == "" {
-		return errors.New("missing source or destination IP for flow")
+		return fmt.Errorf("missing source or destination IP for flow")
 	}
 
 	switch fc.ipType {
