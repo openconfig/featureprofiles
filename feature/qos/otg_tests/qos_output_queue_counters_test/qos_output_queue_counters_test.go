@@ -232,9 +232,9 @@ func TestQoSCounters(t *testing.T) {
 	t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 	ate.OTG().StartTraffic(t)
 	time.Sleep(30 * time.Second)
-	outputQosPerSecoundCounterOK := validateoutputQosPerSecoundCounter(t, dut, dp1, dp2, trafficFlows)
+	outputQosPerSecondCounterOK := validateOutputQosPerSecondCounter(t, dut, dp1, dp2, trafficFlows)
 	ate.OTG().StopTraffic(t)
-	if !outputQosPerSecoundCounterOK {
+	if !outputQosPerSecondCounterOK {
 		t.Errorf("Output QoS per second counter is not updated correctly")
 	}
 	time.Sleep(30 * time.Second)
@@ -346,8 +346,8 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// verifyCounters verifies the qos counters are updated over 300s.
-func validateoutputQosPerSecoundCounter(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, trafficFlows map[string]*trafficData) bool {
+// validateOutputQosPerSecondCounter verifies the qos counters are updated over 300s.
+func validateOutputQosPerSecondCounter(t *testing.T, dut *ondatra.DUTDevice, dp1, dp2 *ondatra.Port, trafficFlows map[string]*trafficData) bool {
 	i2 := gnmi.OC().Qos().Interface(dp2.Name())
 	trafficData, ok := trafficFlows["flow-af2"]
 	if !ok {
