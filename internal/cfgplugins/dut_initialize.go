@@ -518,7 +518,7 @@ hardware tcam
       feature traffic-policy port ipv6
          sequence 25
          key size limit 160
-         key field dst-ipv6-label dst-port icmp-type-code ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control
+         key field dst-ipv6-label dst-port icmp-type-code ipv6-length ipv6-next-header ipv6-traffic-class l4-dst-port-label l4-src-port-label src-ipv6-label tcp-control hop-limit
          action count drop redirect set-dscp set-tc set-unshared-policer
          packet ipv6 forwarding routed
       !
