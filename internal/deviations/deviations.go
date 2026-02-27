@@ -1828,6 +1828,7 @@ func BgpRibStreamingConfigRequired(dut *ondatra.DUTDevice) bool {
 
 // InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
 // https://issuetracker.google.com/issues/461368936
+// Arista: https://issuetracker.google.com/456175795
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
 }
@@ -1896,11 +1897,13 @@ func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) boo
 }
 
 // NoQueueDropUnsupported returns true if device does not support no-queue drops
+// Arista: https://issuetracker.google.com/456220916
 func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoQueueDropUnsupported()
 }
 
 // InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
+// Arista: https://issuetracker.google.com/456175793
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
