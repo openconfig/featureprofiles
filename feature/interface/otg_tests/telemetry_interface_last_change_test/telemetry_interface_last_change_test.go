@@ -178,7 +178,8 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 			action = "Disable"
 			enabledState = false
 			targetOperStatus = oc.Interface_OperStatus_DOWN
-			if dut.Vendor() == ondatra.JUNIPER {
+			// For Juniper devices, when a LAG member port is disabled, the LAG oper status goes to LOWER_LAYER_DOWN instead of DOWN.
+			if dut.Vendor() == ondatra.JUNIPER && (testName == "LAGMemberFlap" || testName == "OTGLAGFlap") {
 				targetOperStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 			}
 		} else { // In even-numbered iterations, enable the interface.
