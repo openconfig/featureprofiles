@@ -1,4 +1,4 @@
-# TE-14.3.2: gRIBI Scaling - full scale setup, target T2
+# TE-14.4: gRIBI Scaling - full scale setup, target T2
 
 ## Summary
 
@@ -6,11 +6,11 @@ Validate gRIBI scaling requirements (Target T2).
 
 ## Topology & Baseline
 
-Use the same topology as `TE-14.3.1` but adjust the scale:
+Use the same topology as [`TE-14.3`](../gribi_full_scale_t1/README.md) but adjust the scale:
 
 - T1)
-    - 70% (700) NHGs should have granularity 512
-    - 30% (300) NHGs should have granularity 1K
+    - 70% (700) NHGs should have granularity 1/512
+    - 30% (300) NHGs should have granularity 1/1K
 
 - T2) X = 2K
 - T3) 8K
