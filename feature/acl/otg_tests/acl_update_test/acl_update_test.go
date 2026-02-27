@@ -645,7 +645,7 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	} else {
 		waitForPackets(t, otg, flowConfig.name, minPacketsToUpdateACL, trafficDuration)
 		updateBatch := &gnmi.SetBatch{}
-		cfgplugins.ConfigureACL(t, updateBatch, aclParams)
+		cfgplugins.ConfigureACL(t, dut, updateBatch, aclParams)
 		updateBatch.Set(t, dut)
 		t.Log("Successfully updated ACL")
 		waitForTraffic(t, otg, flowConfig.name, trafficDuration)
@@ -683,12 +683,16 @@ func validateTrafficPerACLConfig(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 
 	t.Logf("Configuring ACL %s for test case %s", aclParams.Name, tc.name)
 	batch := &gnmi.SetBatch{}
-	cfgplugins.ConfigureACL(t, batch, aclParams)
+	cfgplugins.ConfigureACL(t, dut, batch, aclParams)
 	batch.Set(t, dut)
 	defer cleanupACL(t, dut, aclParams)
 
 	if deviations.ACLCountersEnableOCUnsupported(dut) {
 		cfgplugins.EnableACLCountersFromCLI(t, dut, aclParams)
+	}
+
+	if aclParams.ACLType == oc.Acl_ACL_TYPE_ACL_IPV6 && deviations.ACLIcmpTypeCodeConfigurationUnsupported(dut) {
+		cfgplugins.ConfigureNDPRulesFromCLI(t, dut, aclParams)
 	}
 
 	flowConfigMap := make(map[bool][]flowConfig)

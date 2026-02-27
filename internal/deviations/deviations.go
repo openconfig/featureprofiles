@@ -1952,3 +1952,9 @@ func ACLCountersEnableOCUnsupported(dut *ondatra.DUTDevice) bool {
 func SkipACLCountersVerificationDuringUpdate(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipAclCountersVerificationDuringUpdate()
 }
+
+// ACLIcmpTypeCodeConfigurationUnsupported returns true if device does not support configuring ICMP type and code fields for ACL.
+// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclIcmpTypeCodeConfigurationUnsupported()
+}

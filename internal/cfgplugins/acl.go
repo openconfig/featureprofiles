@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -63,12 +64,47 @@ var (
 		IPDst: matchAllV6,
 	}
 
-	ndpPermitTerm = AclTerm{
-		SeqID:    DefaultEntryID - 10,
-		Permit:   true,
-		Protocol: ICMPv6ProtocolNum,
-		IPSrc:    matchAllV6,
-		IPDst:    matchAllV6,
+	ndpACLRules = []AclTerm{
+		{
+			SeqID:       DefaultEntryID - 40,
+			Description: "neighbor-advertisement",
+			Protocol:    ICMPv6ProtocolNum,
+			ICMPType:    int64(oc.Icmpv6Types_TYPE_NEIGHBOR_ADVERTISEMENT),
+			ICMPCode:    int64(oc.Icmpv6Types_CODE_NEIGHBOR_ADVERTISEMENT_CODE),
+			Permit:      true,
+			IPSrc:       matchAllV6,
+			IPDst:       matchAllV6,
+		},
+		{
+			SeqID:       DefaultEntryID - 30,
+			Description: "neighbor-solicitation",
+			Protocol:    ICMPv6ProtocolNum,
+			ICMPType:    int64(oc.Icmpv6Types_TYPE_NEIGHBOR_SOLICITATION),
+			ICMPCode:    int64(oc.Icmpv6Types_CODE_NEIGHBOR_SOLICITATION_CODE),
+			Permit:      true,
+			IPSrc:       matchAllV6,
+			IPDst:       matchAllV6,
+		},
+		{
+			SeqID:       DefaultEntryID - 20,
+			Description: "router-solicitation",
+			Protocol:    ICMPv6ProtocolNum,
+			ICMPType:    int64(oc.Icmpv6Types_TYPE_ROUTER_SOLICITATION),
+			ICMPCode:    int64(oc.Icmpv6Types_CODE_ROUTER_SOLICITATION_CODE),
+			Permit:      true,
+			IPSrc:       matchAllV6,
+			IPDst:       matchAllV6,
+		},
+		{
+			SeqID:       DefaultEntryID - 10,
+			Description: "router-advertisement",
+			Protocol:    ICMPv6ProtocolNum,
+			ICMPType:    int64(oc.Icmpv6Types_TYPE_ROUTER_ADVERTISEMENT),
+			ICMPCode:    int64(oc.Icmpv6Types_CODE_ROUTER_ADVERTISEMENT_CODE),
+			Permit:      true,
+			IPSrc:       matchAllV6,
+			IPDst:       matchAllV6,
+		},
 	}
 )
 
@@ -135,7 +171,7 @@ func createACLEntry(aclSet *oc.Acl_AclSet, term AclTerm, aclType oc.E_Acl_ACL_TY
 	}
 }
 
-func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
+func ConfigureACL(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params AclParams) {
 	t.Helper()
 	aclRoot := &oc.Root{}
 	acl := aclRoot.GetOrCreateAcl()
@@ -143,26 +179,29 @@ func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 	aclSet := acl.GetOrCreateAclSet(params.Name, params.ACLType)
 	aclSet.Type = params.ACLType
 
-	defaultTerm := defaultRuleV4
-	if params.ACLType == oc.Acl_ACL_TYPE_ACL_IPV6 {
-		defaultTerm = defaultRuleV6
-
-		if !params.DefaultPermit {
-			createACLEntry(aclSet, ndpPermitTerm, params.ACLType)
-		}
-	}
-	defaultTerm.Permit = params.DefaultPermit
-
 	for _, term := range params.Terms {
 		createACLEntry(aclSet, term, params.ACLType)
 	}
-	createACLEntry(aclSet, defaultTerm, params.ACLType)
 
 	if params.Update {
 		t.Logf("Updating ACL %s", params.Name)
 		gnmi.BatchUpdate(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config(), aclSet)
 		return
 	}
+
+	defaultTerm := defaultRuleV4
+	if params.ACLType == oc.Acl_ACL_TYPE_ACL_IPV6 {
+		defaultTerm = defaultRuleV6
+
+		if !deviations.ACLIcmpTypeCodeConfigurationUnsupported(dut) {
+			t.Log("Configuring NDP ICMPv6 rules from OC")
+			for _, term := range ndpACLRules {
+				createACLEntry(aclSet, term, params.ACLType)
+			}
+		}
+	}
+	defaultTerm.Permit = params.DefaultPermit
+	createACLEntry(aclSet, defaultTerm, params.ACLType)
 
 	t.Logf("Creating ACL %s", params.Name)
 	gnmi.BatchReplace(batch, gnmi.OC().Acl().AclSet(params.Name, params.ACLType).Config(), aclSet)
@@ -217,5 +256,31 @@ func EnableACLCountersFromCLI(t *testing.T, dut *ondatra.DUTDevice, params AclPa
 		return
 	default:
 		t.Logf("ACL counter enabling not implemented for vendor %s, skipping", dut.Vendor())
+	}
+}
+
+func ConfigureNDPRulesFromCLI(t *testing.T, dut *ondatra.DUTDevice, params AclParams) {
+	if params.ACLType != oc.Acl_ACL_TYPE_ACL_IPV6 {
+		t.Fatalf("NDP rules can only be configured on IPv6 ACLs, got ACL type %v", params.ACLType)
+	}
+
+	t.Log("Configuring NDP ICMPv6 rules from CLI")
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		ipStr := "ipv6"
+		prot := "icmpv6"
+
+		var rulesStr string
+		for _, term := range ndpACLRules {
+			rulesStr += fmt.Sprintf("%d permit %s %s %s %s\n", term.SeqID, prot, term.IPSrc, term.IPDst, term.Description)
+		}
+
+		countersCommand := fmt.Sprintf(`%s access-list %s
+	%s
+	!`, ipStr, params.Name, rulesStr)
+		helpers.GnmiCLIConfig(t, dut, countersCommand)
+		return
+	default:
+		t.Logf("ACL NDP rules cli configuration not implemented for vendor %s, skipping", dut.Vendor())
 	}
 }
