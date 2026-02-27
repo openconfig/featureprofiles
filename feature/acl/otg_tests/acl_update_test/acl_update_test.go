@@ -23,8 +23,8 @@ import (
 )
 
 const (
-	aclNameV4             = "ACL-1.2-IPV4"
-	aclNameV6             = "ACL-1.2-IPV6"
+	aclNameV4             = "ACL-12-IPV4"
+	aclNameV6             = "ACL-12-IPV6"
 	port1                 = "port1"
 	port2                 = "port2"
 	l4SourcePort          = 1234
@@ -109,6 +109,7 @@ var (
 			L4SrcPort:   l4SourcePort,
 			L4DstPort:   l4DestinationPort,
 			Protocol:    cfgplugins.TCPProtocolNum,
+			Log:         true,
 		},
 		{
 			Description: "IPv4 UDP",
@@ -118,6 +119,7 @@ var (
 			L4SrcPort:   l4SourcePort,
 			L4DstPort:   l4DestinationPort,
 			Protocol:    cfgplugins.UDPProtocolNum,
+			Log:         true,
 		},
 		{
 			Description: "IPv4 ICMP",
@@ -125,6 +127,7 @@ var (
 			IPSrc:       ipv4ACLSrc,
 			IPDst:       ipv4ACLDst,
 			Protocol:    cfgplugins.ICMPv4ProtocolNum,
+			Log:         true,
 		},
 		{
 			Description:    "IPv4 TCP Range",
@@ -134,12 +137,14 @@ var (
 			L4SrcPortRange: l4SourceRange,
 			L4DstPortRange: l4DestinationRange,
 			Protocol:       cfgplugins.TCPProtocolNum,
+			Log:            true,
 		},
 		{
 			SeqID:       50,
 			Description: "IPv4",
 			IPSrc:       ipv4ACLSrc,
 			IPDst:       ipv4ACLDst,
+			Log:         true,
 		},
 	}
 
@@ -152,6 +157,7 @@ var (
 			L4SrcPort:   l4SourcePort,
 			L4DstPort:   l4DestinationPort,
 			Protocol:    cfgplugins.TCPProtocolNum,
+			Log:         true,
 		},
 		{
 			Description: "IPv6 UDP",
@@ -161,6 +167,7 @@ var (
 			L4SrcPort:   l4SourcePort,
 			L4DstPort:   l4DestinationPort,
 			Protocol:    cfgplugins.UDPProtocolNum,
+			Log:         true,
 		},
 		{
 			Description: "IPv6 ICMP",
@@ -168,6 +175,9 @@ var (
 			IPSrc:       ipv6ACLSrc,
 			IPDst:       ipv6ACLDst,
 			Protocol:    cfgplugins.ICMPv6ProtocolNum,
+			ICMPType:    int64(oc.Icmpv6Types_TYPE_ECHO_REQUEST),
+			ICMPCode:    int64(oc.Icmpv6Types_CODE_ECHO_REQUEST_CODE),
+			Log:         true,
 		},
 		{
 			Description:    "IPv6 TCP Range",
@@ -177,12 +187,14 @@ var (
 			L4SrcPortRange: l4SourceRange,
 			L4DstPortRange: l4DestinationRange,
 			Protocol:       cfgplugins.TCPProtocolNum,
+			Log:            true,
 		},
 		{
 			SeqID:       150,
 			Description: "IPv6",
 			IPSrc:       ipv6ACLSrc,
 			IPDst:       ipv6ACLDst,
+			Log:         true,
 		},
 	}
 
@@ -555,7 +567,9 @@ func verifyFlowStatistics(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.
 	}
 
 	if len(validationErrors) > 0 {
-		return errors.Join(validationErrors...)
+		err := errors.Join(validationErrors...)
+		t.Log(err.Error())
+		return err
 	}
 
 	if expectedDroppedPackets > 0 {
@@ -607,7 +621,9 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 	entryCounters[entryID] = matched
 	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched-previouslyMatched)
 	if matched-previouslyMatched < expectedPackets {
-		return fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
+		err := fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
+		t.Log(err.Error())
+		return err
 	}
 
 	t.Log(message)
@@ -623,42 +639,23 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	otgutils.WaitForARP(t, otg, config, flowConfig.ipType)
 
 	otg.StartTraffic(t)
-	waitForTraffic(t, otg, flowConfig.name, trafficDuration)
+
+	if !aclParams.Update {
+		waitForTraffic(t, otg, flowConfig.name, trafficDuration)
+	} else {
+		waitForPackets(t, otg, flowConfig.name, minPacketsToUpdateACL, trafficDuration)
+		updateBatch := &gnmi.SetBatch{}
+		cfgplugins.ConfigureACL(t, updateBatch, aclParams)
+		updateBatch.Set(t, dut)
+		t.Log("Successfully updated ACL")
+		waitForTraffic(t, otg, flowConfig.name, trafficDuration)
+	}
 	otg.StopProtocols(t)
 
 	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 	if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclParams, maxDroppedPackets); err != nil {
-		validationErrors = append(validationErrors, err)
-	}
-
-	return errors.Join(validationErrors...)
-}
-
-func verifyACLUpdate(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, config gosnappi.Config, aclUpdateParams cfgplugins.AclParams, flowConfig flowConfig) error {
-	var validationErrors []error
-	batch := &gnmi.SetBatch{}
-
-	otg := ate.OTG()
-	otg.PushConfig(t, config)
-
-	otg.StartProtocols(t)
-	otgutils.WaitForARP(t, otg, config, flowConfig.ipType)
-
-	otg.StartTraffic(t)
-	waitForPackets(t, otg, flowConfig.name, minPacketsToUpdateACL, trafficDuration)
-
-	cfgplugins.ConfigureACL(t, batch, aclUpdateParams)
-	batch.Set(t, dut)
-
-	waitForTraffic(t, otg, flowConfig.name, trafficDuration)
-	otg.StopProtocols(t)
-
-	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
-		validationErrors = append(validationErrors, err)
-	}
-	if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclUpdateParams, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
 
@@ -678,55 +675,64 @@ func waitForPackets(t *testing.T, otg *otg.OTG, flowName string, minPkts uint64,
 	}
 }
 
+func validateTrafficPerACLConfig(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, tc testCase, aclParams cfgplugins.AclParams) error {
+	var testErrors []error
+
+	t.Logf("Configuring ACL %s for test case %s", aclParams.Name, tc.name)
+	batch := &gnmi.SetBatch{}
+	cfgplugins.ConfigureACL(t, batch, aclParams)
+	batch.Set(t, dut)
+	defer cleanupACL(t, dut, aclParams)
+
+	if deviations.ACLCountersEnableOCUnsupported(dut) {
+		cfgplugins.EnableACLCountersFromCLI(t, dut, aclParams)
+	}
+
+	flowConfigMap := make(map[bool][]flowConfig)
+	for _, expectTraffic := range []bool{expectPass, expectDrop} {
+		flowConfigMap[expectTraffic] = createFlowConfig(t, ipTypeForACL(aclParams.ACLType), aclParams.Terms, aclParams.DefaultPermit != expectTraffic, expectTraffic)
+	}
+
+	for shouldPass, flows := range flowConfigMap {
+		for _, flowConfig := range flows {
+			t.Logf("Configuring %s expecting pass: %t", flowConfig.name, shouldPass)
+			if err := configureFlow(t, top, flowConfig); err != nil {
+				testErrors = append(testErrors, err)
+				continue
+			}
+			if err := sendAndVerifyTraffic(t, dut, ate, top, aclParams, flowConfig, shouldPass, 0); err != nil {
+				testErrors = append(testErrors, err)
+				continue
+			}
+		}
+	}
+
+	aclUpdateParams, found := tc.aclUpdateParams[aclParams.Name]
+	if !found {
+		return errors.Join(testErrors...)
+	}
+
+	passingFlowConfig := flowConfigMap[expectPass][0]
+	passingFlowConfig.name += "-update"
+	t.Logf("Configuring %s and updating ACL on the fly", passingFlowConfig.name)
+	if err := configureFlow(t, top, passingFlowConfig); err != nil {
+		testErrors = append(testErrors, err)
+	} else {
+		if err := sendAndVerifyTraffic(t, dut, ate, top, aclUpdateParams, passingFlowConfig, expectPass, maxDroppedPackets); err != nil {
+			testErrors = append(testErrors, err)
+		}
+	}
+
+	return errors.Join(testErrors...)
+}
+
 func runTest(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, top gosnappi.Config, tc testCase) error {
 	var testErrors []error
 	for _, aclParams := range tc.aclParams {
-		t.Logf("Configuring ACL %s for test case %s", aclParams.Name, tc.name)
-		batch := &gnmi.SetBatch{}
-		cfgplugins.ConfigureACL(t, batch, aclParams)
-		batch.Set(t, dut)
-
-		if deviations.ACLCountersEnableOCUnsupported(dut) {
-			cfgplugins.EnableACLCountersFromCLI(t, dut, aclParams)
-		}
-
-		flowConfigMap := make(map[bool][]flowConfig)
-		for _, expectTraffic := range []bool{expectPass} {
-			flowConfigMap[expectTraffic] = createFlowConfig(t, ipTypeForACL(aclParams.ACLType), aclParams.Terms, aclParams.DefaultPermit != expectTraffic, expectTraffic)
-		}
-
-		for shouldPass, flows := range flowConfigMap {
-			for _, flowConfig := range flows {
-				t.Logf("Configuring %s expecting pass: %t", flowConfig.name, shouldPass)
-				if err := configureFlow(t, top, flowConfig); err != nil {
-					testErrors = append(testErrors, err)
-				} else {
-					if err := sendAndVerifyTraffic(t, dut, ate, top, aclParams, flowConfig, shouldPass, 0); err != nil {
-						testErrors = append(testErrors, err)
-					}
-				}
-			}
-		}
-
-		aclUpdateParams, found := tc.aclUpdateParams[aclParams.Name]
-		if !found {
-			cleanupACL(t, dut, aclParams)
-			continue
-		}
-
-		passingFlowConfig := flowConfigMap[expectPass][0]
-		t.Logf("Configuring %s and updating ACL on the fly", passingFlowConfig.name)
-		if err := configureFlow(t, top, passingFlowConfig); err != nil {
+		if err := validateTrafficPerACLConfig(t, dut, ate, top, tc, aclParams); err != nil {
 			testErrors = append(testErrors, err)
-		} else {
-			if err := verifyACLUpdate(t, dut, ate, top, aclUpdateParams, passingFlowConfig); err != nil {
-				testErrors = append(testErrors, err)
-			}
 		}
-
-		cleanupACL(t, dut, aclParams)
 	}
-
 	return errors.Join(testErrors...)
 }
 
