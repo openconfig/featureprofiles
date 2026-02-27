@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    skip_sampling_qos_counters: true
   }
 }
 platform_exceptions: {
@@ -38,5 +39,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    qos_get_state_path_unsupported: true
   }
 }

@@ -1,0 +1,25 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "25351f50-ff2a-4a0c-aca0-7d14dc62007c"
+plan_id:  "RT-7.9"
+description:  "BGP ECMP for iBGP with IS-IS protocol nexthop"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    missing_isis_interface_afi_safi_enable: false
+    isis_interface_afi_unsupported: true
+    isis_instance_enabled_required: true
+    default_import_export_policy_unsupported: true
+    bgp_default_policy_unsupported: true
+    enable_multipath_under_afi_safi: true
+    ibgp_multipath_path_unsupported: true
+    isis_mpls_unsupported: true
+  }
+}
+

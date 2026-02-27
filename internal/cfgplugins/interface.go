@@ -104,11 +104,13 @@ var (
 	once     sync.Once
 	lBandPNs = map[string]bool{
 		"DP04QSDD-LLH-240": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
+		"DP04QSDD-LLH-24B": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP04QSDD-LLH-00A": true, // Cisco QSFPDD Acacia 400G ZRP L-Band
 		"DP08SFP8-LRB-240": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"DP08SFP8-LRB-24B": true, // Cisco OSFP Acacia 800G ZRP L-Band
 		"C-OS08LEXNC-GG":   true, // Nokia OSFP 800G ZRP L-Band
 		"176-6490-9G1":     true, // Ciena OSFP 800G ZRP L-Band
+		"176-6480-9M0":     true, // Ciena OSFP 800G ZRP L-Band
 	}
 )
 
@@ -492,8 +494,9 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	} else {
 		firstAssignmentIndex = 0
 	}
+	var ch *oc.TerminalDevice_Channel
 	if deviations.OTNToETHAssignment(dut) {
-		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), &oc.TerminalDevice_Channel{
+		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
@@ -513,14 +516,13 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 					AssignmentType: oc.Assignment_AssignmentType_LOGICAL_CHANNEL,
 				},
 			},
-		})
+		}
 	} else {
-		gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), &oc.TerminalDevice_Channel{
+		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(params.OTNIndexes[p.Name()]),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       params.TribProtocol,
-			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				firstAssignmentIndex: {
 					Index:          ygot.Uint32(firstAssignmentIndex),
@@ -530,8 +532,12 @@ func updateOTNChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 			},
-		})
+		}
 	}
+	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) && !deviations.OTNToETHAssignment(dut) {
+		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
+	}
+	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).Config(), ch)
 }
 
 // updateETHChannelConfig updates the ETH channel config.
@@ -573,6 +579,8 @@ func updateETHChannelConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *ond
 	}
 	if !deviations.OTNChannelTribUnsupported(dut) {
 		channel.TribProtocol = params.TribProtocol
+	}
+	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
 		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
 	gnmi.BatchReplace(batch, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).Config(), channel)
@@ -708,8 +716,9 @@ func ConfigOpticalChannel(t *testing.T, dut *ondatra.DUTDevice, och string, freq
 func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex, ethIndex uint32) {
 	t.Helper()
 	t.Logf(" otnIndex:%v, ethIndex: %v", otnIndex, ethIndex)
+	var ch *oc.TerminalDevice_Channel
 	if deviations.OTNChannelTribUnsupported(dut) {
-		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
@@ -722,14 +731,13 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 			},
-		})
+		}
 	} else {
-		gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), &oc.TerminalDevice_Channel{
+		ch = &oc.TerminalDevice_Channel{
 			Description:        ygot.String("OTN Logical Channel"),
 			Index:              ygot.Uint32(otnIndex),
 			LogicalChannelType: oc.TransportTypes_LOGICAL_ELEMENT_PROTOCOL_TYPE_PROT_OTN,
 			TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
-			AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
 			Assignment: map[uint32]*oc.TerminalDevice_Channel_Assignment{
 				0: {
 					Index:          ygot.Uint32(0),
@@ -739,8 +747,12 @@ func ConfigOTNChannel(t *testing.T, dut *ondatra.DUTDevice, och string, otnIndex
 					AssignmentType: oc.Assignment_AssignmentType_OPTICAL_CHANNEL,
 				},
 			},
-		})
+		}
 	}
+	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
+		ch.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
+	}
+	gnmi.Replace(t, dut, gnmi.OC().TerminalDevice().Channel(otnIndex).Config(), ch)
 }
 
 // ConfigETHChannel configures the ETH channel.
@@ -772,7 +784,9 @@ func ConfigETHChannel(t *testing.T, dut *ondatra.DUTDevice, interfaceName, trans
 		TribProtocol:       oc.TransportTypes_TRIBUTARY_PROTOCOL_TYPE_PROT_400GE,
 		Ingress:            ingress,
 		Assignment:         assignment,
-		AdminState:         oc.TerminalDevice_AdminStateType_ENABLED,
+	}
+	if !deviations.TerminalDeviceChannelAdminStateUnsupported(dut) {
+		channel.AdminState = oc.TerminalDevice_AdminStateType_ENABLED
 	}
 	if !deviations.ChannelRateClassParametersUnsupported(dut) {
 		channel.RateClass = oc.TransportTypes_TRIBUTARY_RATE_CLASS_TYPE_TRIB_RATE_400G
@@ -900,11 +914,12 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
+	if !deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
 	agg.GetOrCreateAggregation().LagType = l.AggType
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
@@ -917,8 +932,6 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		lacpPath := gnmi.OC().Lacp().Interface(aggID)
 		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
 	}
-
-	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
@@ -1272,5 +1285,44 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 		cfg.IPv6Obj.GetOrCreateUrpf()
 		cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
 		cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_STRICT
+	}
+}
+
+// EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
+func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
+	t.Helper()
+	port := dut.Port(t, portAttribs.Name)
+	intPath := gnmi.OC().Interface(port.Name()).Config()
+	intf := &oc.Interface{
+		Name:    ygot.String(port.Name()),
+		Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		Enabled: ygot.Bool(true),
+	}
+	if deviations.InterfaceEnabled(dut) {
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv4().SetEnabled(true)
+		intf.GetOrCreateSubinterface(portAttribs.Subinterface).GetOrCreateIpv6().SetEnabled(true)
+	}
+	gnmi.BatchUpdate(b, intPath, intf)
+}
+
+// VlanParams defines the parameters for configuring a VLAN.
+type VlanParams struct {
+	VlanID uint16
+}
+
+// ConfigureVlan configures the Vlan and remove the spanning-tree with ID.
+func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
+	t.Helper()
+	if !deviations.DeprecatedVlanID(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`vlan %[1]d
+			no spanning-tree vlan-id %[1]d`, cfg.VlanID)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
+		}
+	} else {
+		t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
 	}
 }

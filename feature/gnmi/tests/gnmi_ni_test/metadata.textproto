@@ -19,7 +19,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    interface_enabled: true
+    default_ni_gnmi_server_name: "gnxi-default"
   }
 }
 platform_exceptions: {

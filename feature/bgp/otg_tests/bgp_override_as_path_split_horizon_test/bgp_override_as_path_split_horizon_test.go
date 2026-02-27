@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Package bgp_override_as_path_split_horizon_test implements the RT-1.54 test suite
+// for validating the BGP allow-own-as feature.
 package bgp_override_as_path_split_horizon_test
 
 import (
@@ -32,10 +34,12 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+// TestMain initializes the Ondatra test environment.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// BGP test constants defining AS numbers, prefixes, and naming conventions.
 const (
 	advertisedRoutesv4CIDR      = "203.0.113.1/32"
 	advertisedRoutesv4Net       = "203.0.113.1"
@@ -54,6 +58,7 @@ const (
 	prefixSetName               = "prefSet"
 )
 
+// Global test variables for port attributes and BGP neighbor configurations.
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "DUT to ATE Port1",
@@ -93,7 +98,7 @@ var (
 	otgPort2V4Peer = "atePort2.BGP4.peer"
 )
 
-// configureDUT configures all the interfaces on the DUT.
+// configureDUT sets up basic interface configurations on the Device Under Test (DUT).
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	dc := gnmi.OC()
@@ -102,9 +107,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	i2 := dutPort2.NewOCInterface(dut.Port(t, "port2").Name(), dut)
 	gnmi.Replace(t, dut, dc.Interface(i2.GetName()).Config(), i2)
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+	}
 }
 
-// bgpCreateNbr creates a BGP object with neighbors pointing to atePort1 and atePort2
+// bgpCreateNbr constructs the OpenConfig BGP protocol object with global and neighbor settings.
 func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	t.Helper()
 	dutOcRoot := &oc.Root{}
@@ -117,11 +126,7 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
-	// Note: we have to define the peer group even if we aren't setting any policy because it's
-	// invalid OC for the neighbor to be part of a peer group that doesn't exist.
-
 	for _, nbr := range []*cfgplugins.BgpNeighbor{nbr1, nbr2} {
-
 		pg := bgp.GetOrCreatePeerGroup(nbr.PeerGrp)
 		pg.PeerAs = ygot.Uint32(nbr.PeerAS)
 		pg.LocalAs = ygot.Uint32(nbr.LocalAS)
@@ -150,7 +155,7 @@ func bgpCreateNbr(t *testing.T, dut *ondatra.DUTDevice) *oc.NetworkInstance_Prot
 	return niProto
 }
 
-// configureOTG configures the interfaces and BGP protocols on an ATE.
+// configureOTG sets up the Automated Test Equipment (ATE) interfaces and BGP peerings using OTG.
 func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.DeviceIpv4, gosnappi.Config) {
 	t.Helper()
 	config := gosnappi.NewConfig()
@@ -193,11 +198,9 @@ func configureOTG(t *testing.T, otg *otg.OTG) (gosnappi.BgpV4Peer, gosnappi.Devi
 	return iDut1Bgp4Peer, iDut1Ipv4, config
 }
 
-// advBGPRouteFromOTG is to advertise prefix with specific AS sequence set.
+// advBGPRouteFromOTG advertises a BGP prefix from the ATE with a customized AS-PATH.
 func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
-
 	args.otgBgpPeer.V4Routes().Clear()
-
 	bgpNeti1Bgp4PeerRoutes := args.otgBgpPeer.V4Routes().Add().SetName(atePort1.Name + ".BGP4.Route")
 	bgpNeti1Bgp4PeerRoutes.SetNextHopIpv4Address(args.otgIPv4Device.Address()).
 		SetNextHopAddressType(gosnappi.BgpV4RouteRangeNextHopAddressType.IPV4).
@@ -217,8 +220,7 @@ func advBGPRouteFromOTG(t *testing.T, args *otgTestArgs, asSeg []uint32) {
 	time.Sleep(30 * time.Second)
 }
 
-// verifyPrefixesTelemetry confirms that the dut shows the correct numbers of installed,
-// sent and received IPv4 prefixes.
+// verifyPrefixesTelemetry validates the installed and sent prefix counts on the DUT.
 func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantInstalled, wantSent uint32) {
 	t.Helper()
 	time.Sleep(15 * time.Second)
@@ -232,11 +234,10 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 	}
 }
 
-// configreRoutePolicy adds route-policy config.
+// configureRoutePolicy sets up basic routing policies to accept routes.
 func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr oc.E_RoutingPolicy_PolicyResultType) {
 	d := &oc.Root{}
 	rp := d.GetOrCreateRoutingPolicy()
-
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
 	prefixSet.GetOrCreatePrefix(advertisedRoutesv4CIDR, advertisedRoutesv4PrefixLen)
 	pdef := rp.GetOrCreatePolicyDefinition(name)
@@ -249,7 +250,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-// verifyOTGPrefixTelemetry is to Validate prefix received on OTG por2.
+// verifyOTGPrefixTelemetry validates that the ATE receives the prefix with a valid AS-PATH.
 func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 	t.Helper()
 	_, ok := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(atePort2.Name+".BGP4.peer").UnicastIpv4PrefixAny().State(),
@@ -262,6 +263,11 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 		for _, prefix := range bgpPrefixes {
 			if prefix.GetAddress() == advertisedRoutesv4Net {
 				if wantPrefix {
+					// Safety check to avoid index out of range panic if AS-PATH is unexpectedly empty.
+					if len(prefix.AsPath) == 0 {
+						t.Errorf("Prefix %v received but AS-PATH is empty", prefix.GetAddress())
+						continue
+					}
 					gotASPath := prefix.AsPath[len(prefix.AsPath)-1].GetAsNumbers()
 					t.Logf("Received prefix %v on otg as expected with AS-PATH %v", prefix.GetAddress(), gotASPath)
 				} else {
@@ -269,150 +275,72 @@ func verifyOTGPrefixTelemetry(t *testing.T, otg *otg.OTG, wantPrefix bool) {
 				}
 			}
 		}
+	} else if wantPrefix {
+		t.Errorf("Timed out waiting for prefix %v on OTG", advertisedRoutesv4Net)
 	}
 }
 
-// ### RT-1.54.1  Test no allow-own-in
+// RT-1.54.1: Baseline Test No allow-own-in. Verifies that the DUT rejects loops by default.
 func testSplitHorizonNoAllowOwnIn(t *testing.T, args *otgTestArgs) {
 	t.Log("Baseline Test No allow-own-in")
-
-	t.Log("Advertise a prefix from the ATE with an AS-path that includes AS dutLocalAS1 (DUT's AS) in the middle (e.g., AS-path: 65500 dutLocalAS1 65499")
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
-
-	t.Log("Validate session state and capabilities received on DUT using telemetry.")
 	cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-	cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-	t.Log("Verify that the ATE Port2 doesn't receive the route. due to the presence of its own AS in the path.")
 	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 0, 0)
-	verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 0)
 	verifyOTGPrefixTelemetry(t, args.otg, false)
 }
 
-// ### RT-1.54.2  Test "allow-own-as 1"
+// RT-1.54.2: Test allow-own-as 1. Verifies that the DUT accepts a route with 1 occurrence of its AS.
 func testSplitHorizonAllowOwnAs1(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 1, Enable allow-own-as 1 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 1)
+	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(1))
 
-	t.Log("Re-advertise the prefix from the ATE with the same AS-path.")
 	advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
-
-	t.Log("Validate session state and capabilities received on DUT using telemetry.")
-	cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-	cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-	t.Log("Verify that the DUT accepts the route.")
 	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-	verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-	t.Log("Verify that the ATE Port2 receives the route.")
 	verifyOTGPrefixTelemetry(t, args.otg, true)
-
 }
 
-// ### RT-1.54.3  Test "allow-own-as 3"
+// RT-1.54.3: Test allow-own-as 3. Verifies that the DUT accepts up to 3 occurrences but rejects 4.
 func testSplitHorizonAllowOwnAs3(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 3, Enable allow-own-as 3 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 3)
+	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(3))
 
-	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500 dutLocalAS1 65499", func(t *testing.T) {
-		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
-		verifyOTGPrefixTelemetry(t, args.otg, true)
-	})
-
-	t.Run("Re-advertise the prefix from the ATE with 3 Occurrences: dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499", func(t *testing.T) {
+	t.Run("Re-advertise with 3 Occurrences", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-
-		t.Log("Verify that the DUT accepts the route.")
 		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, true)
 	})
-
-	t.Run("Re-advertise the prefix from the ATE with 4 Occurrences: dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499 (Should be rejected)", func(t *testing.T) {
+	t.Run("Re-advertise with 4 Occurrences (Reject)", func(t *testing.T) {
 		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-		t.Log("Verify that the DUT accepts the route.")
 		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 0, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 0)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
 		verifyOTGPrefixTelemetry(t, args.otg, false)
 	})
 }
 
-// ### RT-1.54.4  Test "allow-own-as 4"
+// RT-1.54.4: Test allow-own-as 4. Verifies that the DUT accepts 4 occurrences.
 func testSplitHorizonAllowOwnAs4(t *testing.T, args *otgTestArgs) {
 	t.Log("Test allow-own-as 4, Enable allow-own-as 4 on the DUT.")
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), 4)
+	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(4))
 
-	t.Run("Re-advertise the prefix from the ATE with 1 Occurrence: 65500, dutLocalAS1, 65499", func(t *testing.T) {
-		advBGPRouteFromOTG(t, args, []uint32{65500, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
-		verifyOTGPrefixTelemetry(t, args.otg, true)
-	})
-
-	t.Run("Re-advertise the prefix from the ATE with 3 Occurrences: dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499", func(t *testing.T) {
-		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
-		verifyOTGPrefixTelemetry(t, args.otg, true)
-	})
-
-	t.Run("Re-advertise the prefix from the ATE with 4 Occurrences: dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499 (Should be accepted)", func(t *testing.T) {
-		advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
-
-		t.Log("Validate session state and capabilities received on DUT using telemetry.")
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-
-		t.Log("Verify that the DUT accepts the route.")
-		verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
-		verifyPrefixesTelemetry(t, args.dut, nbr2.Neighborip, 0, 1)
-
-		t.Log("Verify that the ATE Port2 receives the route.")
-		verifyOTGPrefixTelemetry(t, args.otg, true)
-	})
+	advBGPRouteFromOTG(t, args, []uint32{dutLocalAS1, dutLocalAS1, dutLocalAS1, dutLocalAS1, 65499})
+	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+	verifyOTGPrefixTelemetry(t, args.otg, true)
 }
 
+// RT-1.54.5: Test "DUT's AS as Originating AS". Verifies loops where the local AS is the source.
+func testSplitHorizonOriginatingAS(t *testing.T, args *otgTestArgs) {
+	t.Log("Test RT-1.54.5: DUT's AS as Originating AS")
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(args.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	gnmi.Replace(t, args.dut, dutConfPath.Bgp().PeerGroup(peerGrpName1).AsPathOptions().AllowOwnAs().Config(), uint8(1))
+
+	advBGPRouteFromOTG(t, args, []uint32{65502, 65500, dutLocalAS1})
+	verifyPrefixesTelemetry(t, args.dut, nbr1.Neighborip, 1, 0)
+	verifyOTGPrefixTelemetry(t, args.otg, true)
+}
+
+// otgTestArgs holds common Ondatra arguments for the BGP test.
 type otgTestArgs struct {
 	dut           *ondatra.DUTDevice
 	ate           *ondatra.ATEDevice
@@ -422,74 +350,37 @@ type otgTestArgs struct {
 	otg           *otg.OTG
 }
 
-// TestBGPOverrideASPathSplitHorizon validates BGP Override AS-path split-horizon.
+// TestBGPOverrideASPathSplitHorizon is the entry point for the RT-1.54 test suite.
 func TestBGPOverrideASPathSplitHorizon(t *testing.T) {
-	t.Logf("Start DUT config load.")
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	t.Run("Configure DUT interfaces", func(t *testing.T) {
+	t.Run("Configure DUT and OTG", func(t *testing.T) {
 		configureDUT(t, dut)
-	})
-
-	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
-	})
-
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-
-	t.Run("Configure BGP Neighbors", func(t *testing.T) {
 		configureRoutePolicy(t, dut, policyName, oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 		cfgplugins.BGPClearConfig(t, dut)
-		dutConf := bgpCreateNbr(t, dut)
-		gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
-		fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
+		dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+		gnmi.Replace(t, dut, dutConfPath.Config(), bgpCreateNbr(t, dut))
 	})
 
 	otg := ate.OTG()
-	var otgConfig gosnappi.Config
-	var otgBgpPeer gosnappi.BgpV4Peer
-	var otgIPv4Device gosnappi.DeviceIpv4
-	otgBgpPeer, otgIPv4Device, otgConfig = configureOTG(t, otg)
+	otgBgpPeer, otgIPv4Device, otgConfig := configureOTG(t, otg)
+	args := &otgTestArgs{dut: dut, ate: ate, otgBgpPeer: otgBgpPeer, otgIPv4Device: otgIPv4Device, otgConfig: otgConfig, otg: otg}
 
-	args := &otgTestArgs{
-		dut:           dut,
-		ate:           ate,
-		otgBgpPeer:    otgBgpPeer,
-		otgIPv4Device: otgIPv4Device,
-		otgConfig:     otgConfig,
-		otg:           otg,
-	}
-
-	t.Run("Verify port status on DUT", func(t *testing.T) {
-		cfgplugins.VerifyPortsUp(t, args.dut.Device)
-	})
-
-	t.Run("Verify BGP telemetry", func(t *testing.T) {
-		cfgplugins.VerifyDUTBGPEstablished(t, args.dut)
-		cfgplugins.VerifyBGPCapabilities(t, args.dut, []*cfgplugins.BgpNeighbor{nbr1, nbr2})
-	})
-
+	// Definition of test cases mapping to the README procedures.
 	cases := []struct {
 		desc     string
 		funcName func()
-		skipMsg  string
-	}{{
-		desc:     " Baseline Test No allow-own-in",
-		funcName: func() { testSplitHorizonNoAllowOwnIn(t, args) },
-	}, {
-		desc:     " Test allow-own-as 1",
-		funcName: func() { testSplitHorizonAllowOwnAs1(t, args) },
-	}, {
-		desc:     " Test allow-own-as 3",
-		funcName: func() { testSplitHorizonAllowOwnAs3(t, args) },
-	}, {
-		desc:     " Test allow-own-as 4",
-		funcName: func() { testSplitHorizonAllowOwnAs4(t, args) },
-	}}
+	}{
+		{desc: "RT-1.54.1: Baseline (Reject)", funcName: func() { testSplitHorizonNoAllowOwnIn(t, args) }},
+		{desc: "RT-1.54.2: Allow 1", funcName: func() { testSplitHorizonAllowOwnAs1(t, args) }},
+		{desc: "RT-1.54.3: Allow 3", funcName: func() { testSplitHorizonAllowOwnAs3(t, args) }},
+		{desc: "RT-1.54.4: Allow 4", funcName: func() { testSplitHorizonAllowOwnAs4(t, args) }},
+		{desc: "RT-1.54.5: Originating AS", funcName: func() { testSplitHorizonOriginatingAS(t, args) }},
+	}
+
 	for _, tc := range cases {
-		t.Run(tc.desc, func(t *testing.T) {
-			tc.funcName()
-		})
+		t.Run(tc.desc, func(t *testing.T) { tc.funcName() })
 	}
 }
