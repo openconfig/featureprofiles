@@ -747,6 +747,7 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			loadBalanceCliConfig := `
 			load-balance policies
          load-balance sand profile default
+		 	fields ipv4 outer dst-ip protocol src-ip
             fields ipv6 outer dst-ip flow-label next-header src-ip
             fields l4 outer dst-port src-port
             no fields mpls
