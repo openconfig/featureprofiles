@@ -39,5 +39,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    qos_get_state_path_unsupported: true
   }
 }
