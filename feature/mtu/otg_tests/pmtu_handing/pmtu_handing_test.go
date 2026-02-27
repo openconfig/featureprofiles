@@ -65,12 +65,13 @@ type testDefinition struct {
 }
 
 type testData struct {
-	name      string
-	flowProto string
-	otg       *otg.OTG
-	dut       *ondatra.DUTDevice
-	ate       *ondatra.ATEDevice
-	otgConfig gosnappi.Config
+	name         string
+	flowProto    string
+	otg          *otg.OTG
+	dut          *ondatra.DUTDevice
+	ate          *ondatra.ATEDevice
+	otgConfig    gosnappi.Config
+	preConfigCPU map[string]uint8
 }
 
 type packetValidation struct {
@@ -407,6 +408,20 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	return outPkts
 }
 
+func getCPUUtilization(t *testing.T, dut *ondatra.DUTDevice) map[string]uint8 {
+	cpuUtilizationQuery := gnmi.OC().ComponentAny().Cpu().Utilization().State()
+	cpuUtilizations := gnmi.LookupAll(t, dut, cpuUtilizationQuery)
+	res := make(map[string]uint8)
+	for _, cpuUtilization := range cpuUtilizations {
+		component := cpuUtilization.Path.GetElem()[1].GetKey()["name"]
+		if isCompNameExpected(t, component, dut.Vendor(), controlCPUPattern) {
+			val, _ := cpuUtilization.Val()
+			res[component] = uint8(val.GetAvg())
+		}
+	}
+	return res
+}
+
 func initializeBaselineDropCounters(t *testing.T, dut *ondatra.DUTDevice) {
 	// Initialize packet-processing-aggregate baseline
 	if !deviations.PacketProcessingAggregateDropsUnsupported(dut) {
@@ -473,21 +488,21 @@ func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, outPkts uin
 
 func verifyControllerCardCPUUtilization(t *testing.T, td testData) {
 	if !deviations.ControllerCardCPUUtilizationUnsupported(td.dut) {
-		cpuUtilizationQuery := gnmi.OC().ComponentAny().Cpu().Utilization().State()
-		cpuUtilizations := gnmi.LookupAll(t, td.dut, cpuUtilizationQuery)
-		for _, cpuUtilization := range cpuUtilizations {
-			component := cpuUtilization.Path.GetElem()[1].GetKey()["name"]
-			if isCompNameExpected(t, component, td.dut.Vendor(), controlCPUPattern) {
-				val, _ := cpuUtilization.Val()
-				if val.GetAvg() < 20 {
-					t.Logf("PASS: %v: cpuUtilization: %v is as expected", component, val.GetAvg())
-				} else {
-					t.Errorf("FAIL: %v: cpuUtilization: %v is not as expected", component, val.GetAvg())
-				}
+		currentCPU := getCPUUtilization(t, td.dut)
+		for component, postVal := range currentCPU {
+			preVal, ok := td.preConfigCPU[component]
+			if !ok {
+				t.Errorf("FAIL: %v: pre-config cpuUtilization not found", component)
+				continue
+			}
+			if postVal > preVal+10 {
+				t.Errorf("FAIL: %v: cpuUtilization increased by more than 10%%, pre: %v, post: %v", component, preVal, postVal)
+			} else {
+				t.Logf("PASS: %v: cpuUtilization increase within 10%%, pre: %v, post: %v", component, preVal, postVal)
 			}
 		}
 	} else {
-		t.Errorf("FAIL: controller card cpu utilization is not supported on %v", td.dut.Vendor())
+		t.Logf("Telemetry path for controller card cpu utilization is not supported due to deviation ControllerCardCPUUtilizationUnsupported.")
 	}
 }
 
@@ -525,6 +540,9 @@ func TestPMTUHanding(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	otg := ate.OTG()
+	// Capture baseline CPU utilization before configuration
+	preConfigCPU := getCPUUtilization(t, dut)
+
 	configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
 
@@ -563,12 +581,13 @@ func TestPMTUHanding(t *testing.T) {
 	for _, flow := range [][]string{{"MTU-1.5.1-", ipv4}, {"MTU-1.5.2-", ipv6}} {
 		for _, tt := range testCases {
 			td := testData{
-				name:      flow[0] + tt.name + "-" + flow[1],
-				flowProto: flow[1],
-				otg:       otg,
-				dut:       dut,
-				ate:       ate,
-				otgConfig: otgConfig,
+				name:         flow[0] + tt.name + "-" + flow[1],
+				flowProto:    flow[1],
+				otg:          otg,
+				dut:          dut,
+				ate:          ate,
+				otgConfig:    otgConfig,
+				preConfigCPU: preConfigCPU,
 			}
 
 			t.Logf("%s%s-%s Path MTU", flow[0], flow[1], tt.name)
