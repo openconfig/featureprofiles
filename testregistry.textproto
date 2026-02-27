@@ -857,6 +857,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.54"
+  description: "BGP Override AS-path split-horizon"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_override_as_path_split_horizon_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.55"
   description: "BGP session mode (active/passive)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
