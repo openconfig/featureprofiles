@@ -134,7 +134,7 @@ func TestTunnelEncapsulationByGREOverIPv6WithLoadBalance(t *testing.T) {
 			step = step + 2
 		}
 		t.Logf("Configure routing instance on dut")
-		configureNetworkInstance(t, dut)
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
 		t.Logf("Configure IPv6 tunnel destination address reachable via ECMP link")
 		underlayIpv6Nh := []string{otgIntf2.IPv6, otgIntf3.IPv6}
 		for i, nextHop := range underlayIpv6Nh {
@@ -433,12 +433,6 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 		}},
 	}
 	return gpbSetRequest
-}
-
-func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Logf("Configure routing instance on dut")
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 }
 
 func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCount int64, sharingIntfCont int64, firstintf int, wantLoss bool, lbTolerance int) {
