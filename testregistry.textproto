@@ -1323,6 +1323,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-14.3"
+  description: "gRIBI to BGP Redistribution"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_to_bgp_redistribution/README.md"
+  exec: " "
+}
+test: {
   id: "TE-15.1"
   description: "gRIBI Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribigo_compliance_test/README.md"
