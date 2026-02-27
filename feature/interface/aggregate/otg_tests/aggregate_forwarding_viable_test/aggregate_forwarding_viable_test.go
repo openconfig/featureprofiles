@@ -29,7 +29,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -409,15 +408,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
-}
-
 // normalize normalizes the input values so that the output values sum
 // to 1.0 but reflect the proportions of the input.  For example,
 // input [1, 2, 3, 4] is normalized to [0.1, 0.2, 0.3, 0.4].
@@ -548,7 +538,8 @@ func (tc *testArgs) testAggregateForwardingFlow(t *testing.T, forwardingViable b
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
 	tcp := flow.Packet().Add().Tcp()
-	tcp.SrcPort().SetValues(generateRandomPortList(65534))
+	tcpSrcPortRand := tcp.SrcPort().Random()
+	tcpSrcPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
