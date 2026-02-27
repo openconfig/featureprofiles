@@ -72,13 +72,9 @@ func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 			}
 			if term.Protocol != 0 {
 				ipv4.SetProtocol(oc.UnionUint8(uint8(term.Protocol)))
-			}
-			if term.ICMPType != 0 {
-				icmp := ipv4.GetOrCreateIcmpv4()
-				if term.ICMPCode != 0 {
+				if term.Protocol == ICMPv4ProtocolNum {
+					icmp := ipv4.GetOrCreateIcmpv4()
 					icmp.Code = oc.E_Icmpv4Types_CODE(term.ICMPCode)
-				}
-				if term.ICMPType != 0 {
 					icmp.Type = oc.E_Icmpv4Types_TYPE(term.ICMPType)
 				}
 			}
@@ -92,18 +88,15 @@ func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 			}
 			if term.Protocol != 0 {
 				ipv6.SetProtocol(oc.UnionUint8(uint8(term.Protocol)))
-			}
-			if term.ICMPType != 0 {
-				icmp := ipv6.GetOrCreateIcmpv6()
-				if term.ICMPCode != 0 {
+				if term.Protocol == ICMPv6ProtocolNum {
+					icmp := ipv6.GetOrCreateIcmpv6()
 					icmp.Code = oc.E_Icmpv6Types_CODE(term.ICMPCode)
-				}
-				if term.ICMPType != 0 {
 					icmp.Type = oc.E_Icmpv6Types_TYPE(term.ICMPType)
 				}
 			}
 		}
-		if term.L4SrcPort != 0 || term.L4SrcPortRange != "" || term.L4DstPort != 0 || term.L4DstPortRange != "" {
+
+		if term.Protocol == TCPProtocolNum || term.Protocol == UDPProtocolNum {
 			transport := entry.GetOrCreateTransport()
 			if term.L4SrcPort != 0 {
 				transport.SourcePort = oc.UnionUint16(term.L4SrcPort)
@@ -164,7 +157,7 @@ func DeleteACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 	t.Helper()
 
 	if params.Name == "" || params.ACLType == oc.Acl_ACL_TYPE_UNSET || params.Intf == "" {
-		t.Error("unable to delete ACL, missing required parameters")
+		t.Fatal("unable to delete ACL, missing required parameters")
 		return
 	}
 
