@@ -1323,6 +1323,18 @@ test: {
   exec: " "
 }
 test: {
+  id: "TE-14.3"
+  description: "TE-14.3: gRIBI Scaling - full scale setup, target T1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-14.4"
+  description: "TE-14.4: gRIBI Scaling - full scale setup, target T2"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
+  exec: " "
+}
+test: {
   id: "TE-15.1"
   description: "gRIBI Compliance"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribigo_compliance_test/README.md"

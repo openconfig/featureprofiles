@@ -1,4 +1,4 @@
-# TE-14.3.1: gRIBI Scaling - full scale setup, target T1
+# TE-14.3: gRIBI Scaling - full scale setup, target T1
 
 ## Summary
 
@@ -10,8 +10,17 @@ Use the same topology as TE-14.2 but in increased scale:
 
 - DUT [port1] <-> ATE [port1]
 - DUT [port2] <-> ATE [port2]
-- DUT [port1] -> 1 L3 sub-interface <-> ATE [port1] 1 L3 sub-interface
-- DUT [port2] -> 1K L3 sub-interfaces <-> ATE [port2] 1K L3 sub-interfaces
+- DUT [port1] -> 1 L3 sub-interface <-> ATE [port1] 1 L3 sub-interface , subnet `192.0.2.0/30`
+- DUT [port2] -> 640 L3 sub-interfaces <-> ATE [port2] 640 L3 sub-interfaces, Use Vlan tagging for differentiation - `198.51.100.0/22` subdivided into `/30` chunks
+
+## Variables
+```
+# Magic source IP addresses used in this test
+  * ipv4_outer_src_111 = 198.51.100.111
+  * ipv4_outer_src_222 = 198.51.100.222
+  * magic_mac = 02:00:00:00:00:01
+  * magic_ip = 192.168.1.1
+```
 
 gRIBI client is established with DUT.
 
@@ -29,7 +38,7 @@ network-instances {
         policy-forwarding {
             policies {
                 policy {
-                    policy-id: "vrf_selection_policy_w"
+                    policy-id: "vrf_selection_policy_c"
                     rules {
                         rule {
                             sequence-id: 1
@@ -139,6 +148,27 @@ network-instances {
                         }
                         rule {
                             sequence-id: 69
+                            ipv4 {
+                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+                            }
+                            action {
+                                network-instance: "ENCAP_TE_VRF_A"
+                            }
+                        }
+                        rule {
+                            sequence-id: 70
+                            ipv6 {
+                                dscp-set: [dscp_encap_a_1, dscp_encap_a_2]
+                            }
+                            action {
+                                network-instance: "ENCAP_TE_VRF_A"
+                            }
+                        }
+# Rules 69-70 are repeated for the range ENCAP_TE_VRF_B through ENCAP_TE_VRF_P, 
+# using the corresponding DSCP sets (dscp_encap_b_1/2 through dscp_encap_p_1/2). 
+# This generates 30 additional rule stanzas (ommitted here).
+                        rule {
+                            sequence-id: 101
                             action {
                                 network-instance: "DEFAULT"
                             }
@@ -158,11 +188,11 @@ _Default (fictitious level) VRF setup:_
 - A) Install 1000 NextHops, egressing out different interfaces.
 - B) Install 1000 NextHopGroups. Each points to 64 NextHops from A): the weights
 specified in the NextHopGroup should be co-prime and the sum of the weights
-should be 1/granularity:
+should be at granularity:
 
   - T1)
-      - 80% (800) NHGs should have granularity 512
-      - 20% (200) NHGs should have granularity 1K
+      - 80% (800) NHGs should have granularity 1/512
+      - 20% (200) NHGs should have granularity 1/1K
 
 - C) Install 1000 IPv4 Entries, each pointing at a unique NHG from B).
 
@@ -186,10 +216,10 @@ _Transit VRFs setup:_
     weights 1 and 1 NextHop from D.1 with weight 63. The backup NextHopGroup
     should be S2).
 - `TE_VRF_111`:
-     - Install 200K IPv4Entries. Each points to a NextHopGroup from E.1).
+     - Install 200K `/32` IPv4Entries (no IPv6Entries). Each points to a NextHopGroup from E.1).
 
 - `TE_VRF_222`:
-     - Install 200K IPv4Entries. Each points to a NextHopGroup from E.2).
+     - Install 200K `/32` IPv4Entries (no IPv6Entries). Each points to a NextHopGroup from E.2).
 
 - Default VRF setup for `REPAIR_VRF`:
      - F) Install X NextHopGroup. 50% of the NHG should point to 1 NH, and 50%
@@ -225,9 +255,13 @@ prefix lengths `/22`, `/24`, `/26`, and `/28`.
 ## Test cases
 
 - Validate that each entry is installed as `FIB_PROGRAMMED`
+- Validate the correct recursive routes installation:
+  - using `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`,  `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group`, `	/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops`, `/network-instances/network-instance/afts/next-hops/next-hop/state/` verify correctness of a few installed prefixes 
 - Validate the traffic follows the programmed paths. For all the use-cases send
-the traffic for 1 minute, ensuring a traffic drop tolerance of no more than
-_0.1%_.
+the traffic in 2 tests, each for 5 minutes of total 30 Mpps across interfaces
+with _0%_ traffic drop tolerance:
+  - packet size of 64 bytes
+  - IMIX traffic as a mix of 7:4:1 to 3K:1.5K:0.5K
 
 - _Encap_
     - Send un-encapsulated traffic to all IPv4 and IPv6 entries in all the
@@ -265,7 +299,7 @@ _0.1%_.
         - For all the `ENCAP_TE_VRF_A` - `ENCAP_TE_VRF_P` (here `VRF_X`), the flows are:
             - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[all IPv4s from Repaired], outer_dscp=`encap_vrf_dscp_x_1`, inner_src_ip=DUT-1, inner_dst_ip=DUT-2,inner_dscp=`encap_vrf_dscp_x_1`
             - outer_src_ip=`ipv4_outer_src_111`, outer_dst_ip=[all IPv4s from Repaired], outer_dscp=`encap_vrf_dscp_x_2`, inner_src_ip=DUT-1,inner_dst_ip=DUT-2,inner_dscp=`encap_vrf_dscp_x_2`
-    - Verify  that traffic received by ATE stays encapsulated with the outer headerhaving the same source IP and destination IP is from the Transit VRF IPv4 entry set.
+    - Verify  that traffic received by ATE stays encapsulated with the outer header having the same source IP and destination IP is from the Transit VRF IPv4 entry set.
 
 - _Repaired (incoming after FRR)_:
     - Send encapsulated traffic to all the IPv4 Entries from `TE_VRF_222`:
@@ -281,6 +315,27 @@ _0.1%_.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/port-speed:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id:
+  /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+
 rpcs:
   gnmi:
     gNMI.Get:
