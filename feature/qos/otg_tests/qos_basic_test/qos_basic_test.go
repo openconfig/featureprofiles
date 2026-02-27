@@ -425,31 +425,32 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			// Get QoS egress packet counters before the traffic.
 			const timeout = time.Minute
 			isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
-			for _, data := range trafficFlows {
-				count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
-				if !ok {
-					t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
-				}
-				counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+			if !deviations.QosGetStatePathUnsupported(dut) {
+				for _, data := range trafficFlows {
+					count, ok := gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
-				if !ok {
-					t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
-				}
-				counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
 
-				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
-				if !ok {
-					t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
-				}
-				counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
-				count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-				if !ok {
-					t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					count, ok = gnmi.Watch(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
+					if !ok {
+						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", dp3.Name(), data.queue, timeout)
+					}
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 				}
-				counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
-
 			}
 
 			t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp3.Name())
@@ -466,10 +467,12 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 				counters["ateOutPkts"][data.queue] += ateTxPkts
 				counters["ateInPkts"][data.queue] += ateRxPkts
 
-				counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
-				counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
-				counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
-				counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				if !deviations.QosGetStatePathUnsupported(dut) {
+					counters["dutQosPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State())
+					counters["dutQosOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State())
+					counters["dutQosDroppedPktsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State())
+					counters["dutQosDroppedOctetsAfterTraffic"][data.queue] = gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State())
+				}
 
 				t.Logf("ateInPkts: %v, txPkts %v, Queue: %v", counters["ateInPkts"][data.queue], counters["dutQosPktsAfterTraffic"][data.queue], data.queue)
 
@@ -484,41 +487,43 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			}
 
 			// Check QoS egress packet counters are updated correctly.
-			for _, name := range counterNames {
-				t.Logf("QoS %s: %v", name, counters[name])
-			}
-
-			for _, data := range trafficFlows {
-				dutPktCounterDiff := counters["dutQosPktsAfterTraffic"][data.queue] - counters["dutQosPktsBeforeTraffic"][data.queue]
-				atePktCounterDiff := counters["ateInPkts"][data.queue]
-				t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
-				if dutPktCounterDiff < atePktCounterDiff {
-					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
+			if !deviations.QosGetStatePathUnsupported(dut) {
+				for _, name := range counterNames {
+					t.Logf("QoS %s: %v", name, counters[name])
 				}
 
-				dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
-				t.Logf("Queue %q: dutDropPktCounterDiff: %v", data.queue, dutDropPktCounterDiff)
-				if dutDropPktCounterDiff != 0 {
-					t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want 0", data.queue, dutDropPktCounterDiff)
-				}
-
-				dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
-				ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
-				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
-				if !deviations.QOSOctets(dut) {
-					if dutOctetCounterDiff < ateOctetCounterDiff {
-						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+				for _, data := range trafficFlows {
+					dutPktCounterDiff := counters["dutQosPktsAfterTraffic"][data.queue] - counters["dutQosPktsBeforeTraffic"][data.queue]
+					atePktCounterDiff := counters["ateInPkts"][data.queue]
+					t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
+					if dutPktCounterDiff < atePktCounterDiff {
+						t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
 					}
-				}
 
-				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
-				t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
-				if dutDropOctetCounterDiff != 0 {
-					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
-				}
+					dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
+					t.Logf("Queue %q: dutDropPktCounterDiff: %v", data.queue, dutDropPktCounterDiff)
+					if dutDropPktCounterDiff != 0 {
+						t.Errorf("Get dutDropPktCounterDiff for queue %q: got %v, want 0", data.queue, dutDropPktCounterDiff)
+					}
 
+					dutOctetCounterDiff := counters["dutQosOctetsAfterTraffic"][data.queue] - counters["dutQosOctetsBeforeTraffic"][data.queue]
+					ateOctetCounterDiff := counters["ateInPkts"][data.queue] * uint64(data.frameSize)
+					t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
+					if !deviations.QOSOctets(dut) {
+						if dutOctetCounterDiff < ateOctetCounterDiff {
+							t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+						}
+					}
+
+					dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
+					t.Logf("Queue %q: dutDropOctetCounterDiff: %v", data.queue, dutDropOctetCounterDiff)
+					if dutDropOctetCounterDiff != 0 {
+						t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want 0", data.queue, dutDropOctetCounterDiff)
+					}
+
+				}
 			}
-			if !deviations.SkipSamplingQosCounters(dut) {
+			if !deviations.SkipSamplingQosCounters(dut) && !deviations.QosGetStatePathUnsupported(dut) {
 				// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
 				subscribeTimeout := 30 * time.Second
 				for _, sampleInterval := range []time.Duration{10 * time.Second, 15 * time.Second} {
