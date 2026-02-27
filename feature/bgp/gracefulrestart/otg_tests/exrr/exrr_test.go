@@ -403,32 +403,6 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		})
 	}
 
-	// STALE-ROUTE-POLICY
-	pd := rp.GetOrCreatePolicyDefinition("STALE-ROUTE-POLICY")
-	stmt10, err := pd.AppendNewStatement("10")
-	if err != nil {
-		t.Errorf("error while creating new statement %v", err)
-	}
-	stmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
-	matchCommunitySet := stmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-	matchCommunitySet.SetCommunitySet("NO-ERR")
-
-	stmt20, err := pd.AppendNewStatement("20")
-	if err != nil {
-		t.Errorf("error while creating new statement %v", err)
-	}
-	stmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	matchCommunitySet2 := stmt20.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
-	matchCommunitySet2.SetCommunitySet("ERR-NO-DEPREF")
-
-	stmt30, err := pd.AppendNewStatement("30")
-	if err != nil {
-		t.Errorf("error while creating new statement %v", err)
-	}
-	stmt30.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	matchCommunitySet3 := stmt30.GetOrCreateActions().GetOrCreateBgpActions()
-	matchCommunitySet3.SetSetLocalPref(0)
-
 	// Export-EBGP Policy
 	exportEBGP := rp.GetOrCreatePolicyDefinition("EXPORT-EBGP")
 	exportEBGPstmt10, err := exportEBGP.AppendNewStatement("10")
@@ -440,6 +414,11 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	exportEBGPstmtCommunitySet.SetCommunitySet("TEST-IBGP")
 	exportEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(100)
 	exportEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(2)
+
+	sc := exportEBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity()
+	sc.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+	sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
+	sc.GetOrCreateReference().SetCommunitySetRefs([]string{"NEW-EBGP", "TEST-IBGP"})
 
 	exportEBGPstmt20, err := exportEBGP.AppendNewStatement("20")
 	if err != nil {
@@ -454,6 +433,12 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("error while creating new statement %v", err)
 	}
 	exportIBGPstmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	sc = exportIBGPstmt10.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity()
+	sc.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+	sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
+	sc.GetOrCreateReference().SetCommunitySetRefs([]string{"TEST-EBGP", "NEW-IBGP"})
+
+	exportIBGPstmt10.GetOrCreateConditions().GetOrCreateBgpConditions().SetMedEq(50)
 
 	exportIBGPstmt20, err := exportIBGP.AppendNewStatement("20")
 	if err != nil {
@@ -500,51 +485,58 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
-	// TODO: update the constants to variables
-	var communitySetCLIConfig string
-	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			communitySetCLIConfig = fmt.Sprintf(
-				"route-map STALE-ROUTE-POLICY statement 20 permit 20\n"+
-					" set community community-list %[1]s\n"+
-					"route-map STALE-ROUTE-POLICY statement 30 permit 30\n"+
-					" set community community-list %[1]s",
-				"STALE",
-			)
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+	if deviations.ExtendedRouteRetentionOcUnsupported(dut) {
+		staleRoutePolicyMap := (`
+		route-map STALE-ROUTE-POLICY statement 10 deny 10
+		match community NO-ERR
+		!
+		route-map STALE-ROUTE-POLICY statement 20 permit 20
+		match community ERR-NO-DEPREF
+		set community community-list STALE
+		!
+		route-map STALE-ROUTE-POLICY statement 30 permit 30
+		set community community-list STALE
+		set local-preference 0
+		!
+	`)
+		helpers.GnmiCLIConfig(t, dut, staleRoutePolicyMap)
+	} else {
+		pd := rp.GetOrCreatePolicyDefinition("STALE-ROUTE-POLICY")
+		stmt10, err := pd.AppendNewStatement("10")
+		if err != nil {
+			t.Errorf("error while creating new statement %v", err)
 		}
-		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
-	}
+		stmt10.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+		matchCommunitySet := stmt10.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		matchCommunitySet.SetCommunitySet("NO-ERR")
 
-	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			communitySetCLIConfig = fmt.Sprintf(
-				"route-map EXPORT-IBGP statement 10 permit 10\n"+
-					" match metric 50\n"+
-					"set community community-list %s %s",
-				"TEST-EBGP", "NEW-IBGP",
-			)
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+		stmt20, err := pd.AppendNewStatement("20")
+		if err != nil {
+			t.Errorf("error while creating new statement %v", err)
 		}
-		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
-	}
+		stmt20.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		matchCommunitySet2 := stmt20.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet()
+		matchCommunitySet2.SetCommunitySet("ERR-NO-DEPREF")
 
-	if deviations.BgpActionsSetCommunityMethodUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			communitySetCLIConfig = fmt.Sprintf(
-				"route-map EXPORT-EBGP statement 10 permit 10\n"+
-					"set community community-list %s %s",
-				"TEST-IBGP", "NEW-EBGP",
-			)
-		default:
-			t.Fatalf("Unsupported vendor %s for deviation 'SetCommunityNotSupporte'", dut.Vendor())
+		sc := stmt20.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity()
+		sc.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
+		sc.GetOrCreateReference().SetCommunitySetRefs([]string{"STALE"})
+
+		stmt30, err := pd.AppendNewStatement("30")
+		if err != nil {
+			t.Errorf("error while creating new statement %v", err)
 		}
-		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
+		stmt30.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		matchCommunitySet3 := stmt30.GetOrCreateActions().GetOrCreateBgpActions()
+		matchCommunitySet3.SetSetLocalPref(0)
+
+		sc = stmt30.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetCommunity()
+		sc.SetOptions(oc.BgpPolicy_BgpSetCommunityOptionType_ADD)
+		sc.SetMethod(oc.SetCommunity_Method_REFERENCE)
+		sc.GetOrCreateReference().SetCommunitySetRefs([]string{"STALE"})
+
+		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 	}
 }
 
@@ -1690,7 +1682,7 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 
 				mustCheckBgpStatusDown(t, dut)
 
-				time.Sleep(triggerGrTimer)
+				time.Sleep(triggerGrTimer * time.Second)
 
 				sendTraffic(t, ate)
 				confirmPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
@@ -1714,13 +1706,14 @@ func TestBGPPGracefulRestartExtendedRouteRetention(t *testing.T) {
 				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, false, bgpGracefulRestartConfigParams)
 				b.Set(t, dut)
 
-				ate.OTG().StartTraffic(t)
-
 				for i := 0; i < 3; i++ {
 					ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
 					time.Sleep(60 * time.Second)
 				}
 
+				mustCheckBgpStatus(t, dut, routeCount)
+
+				ate.OTG().StartTraffic(t)
 				t.Log("Stop BGP on the ATE Peer")
 				stopBgp := gosnappi.NewControlState()
 				stopBgp.Protocol().Bgp().Peers().SetPeerNames(peers).
@@ -2028,7 +2021,7 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 
 				mustCheckBgpStatusDown(t, dut)
 
-				time.Sleep(triggerGrTimer)
+				time.Sleep(triggerGrTimer * time.Second)
 
 				sendTraffic(t, ate)
 				confirmPacketLoss(t, ate, append(flowsWithNoERR, flowsWithNoLoss...))
@@ -2052,12 +2045,14 @@ func TestBGPPGracefulRestartExtendedRouteRetentionOnPeerGroup(t *testing.T) {
 				cfgplugins.ApplyExtendedRouteRetention(t, dut, b, true, bgpGracefulRestartConfigParams)
 				b.Set(t, dut)
 
-				ate.OTG().StartTraffic(t)
-
 				for i := 0; i < 3; i++ {
 					ate.OTG().SetControlAction(t, createGracefulRestartAction(t, peers, triggerGrTimer, "soft"))
 					time.Sleep(60 * time.Second)
 				}
+
+				mustCheckBgpStatus(t, dut, routeCount)
+
+				ate.OTG().StartTraffic(t)
 
 				t.Log("Stop BGP on the ATE Peer")
 				stopBgp := gosnappi.NewControlState()
