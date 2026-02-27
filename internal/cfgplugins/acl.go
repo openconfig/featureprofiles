@@ -62,6 +62,14 @@ var (
 		IPSrc: matchAllV6,
 		IPDst: matchAllV6,
 	}
+
+	ndpPermitTerm = AclTerm{
+		SeqID:    DefaultEntryID - 10,
+		Permit:   true,
+		Protocol: ICMPv6ProtocolNum,
+		IPSrc:    matchAllV6,
+		IPDst:    matchAllV6,
+	}
 )
 
 func createACLEntry(aclSet *oc.Acl_AclSet, term AclTerm, aclType oc.E_Acl_ACL_TYPE) {
@@ -138,6 +146,10 @@ func ConfigureACL(t *testing.T, batch *gnmi.SetBatch, params AclParams) {
 	defaultTerm := defaultRuleV4
 	if params.ACLType == oc.Acl_ACL_TYPE_ACL_IPV6 {
 		defaultTerm = defaultRuleV6
+
+		if !params.DefaultPermit {
+			createACLEntry(aclSet, ndpPermitTerm, params.ACLType)
+		}
 	}
 	defaultTerm.Permit = params.DefaultPermit
 
