@@ -1162,6 +1162,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/485515097
     bool acl_counters_enable_oc_unsupported = 381;
 
+    // Device does not report ACL counters accurately during ACL update
+    // Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+    bool skip_acl_counters_verification_during_update = 382;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

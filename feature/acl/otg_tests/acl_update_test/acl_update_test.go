@@ -655,8 +655,11 @@ func sendAndVerifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	if err := verifyFlowStatistics(t, ate, config, flowConfig.name, expectPass, maxDroppedPackets); err != nil {
 		validationErrors = append(validationErrors, err)
 	}
-	if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclParams, maxDroppedPackets); err != nil {
-		validationErrors = append(validationErrors, err)
+
+	if !deviations.SkipACLCountersVerificationDuringUpdate(dut) {
+		if err := verifyACLCounters(t, dut, flowConfig, expectPass, aclParams, maxDroppedPackets); err != nil {
+			validationErrors = append(validationErrors, err)
+		}
 	}
 
 	return errors.Join(validationErrors...)

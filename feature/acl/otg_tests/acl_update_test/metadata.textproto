@@ -14,5 +14,6 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     acl_counters_enable_oc_unsupported: true
+    skip_acl_counters_verification_during_update: true
   }
 }

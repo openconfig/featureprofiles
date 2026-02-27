@@ -1946,3 +1946,9 @@ func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
 func ACLCountersEnableOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAclCountersEnableOcUnsupported()
 }
+
+// SkipACLCountersVerificationDuringUpdate returns true if ACL counter verification should be skipped during ACL updates.
+// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+func SkipACLCountersVerificationDuringUpdate(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAclCountersVerificationDuringUpdate()
+}
