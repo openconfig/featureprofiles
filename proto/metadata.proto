@@ -1158,6 +1158,15 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
     bool bgp_rib_streaming_config_required = 380;
 
+    // https://partnerissuetracker.corp.google.com/issues/443044887
+    bool extended_route_retention_oc_unsupported = 381;
+
+    // https://partnerissuetracker.corp.google.com/issues/439825838
+    bool exrr_stale_route_time_unsupported = 382;
+
+    // https://partnerissuetracker.corp.google.com/issues/446376446
+    bool gnoi_bgp_graceful_restart_unsupported = 383;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

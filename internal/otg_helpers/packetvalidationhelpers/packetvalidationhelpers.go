@@ -79,6 +79,8 @@ const (
 	ValidateTCPHeader ValidationType = "ValidateTCPHeader"
 	// ValidateUDPHeader validates the UDP header.
 	ValidateUDPHeader ValidationType = "ValidateUDPHeader"
+	// ValidateBGPHeader validates the BGP header.
+	ValidateBGPHeader ValidationType = "ValidateBGPHeader"
 )
 
 // PacketValidation is a struct to hold the packet validation parameters.
@@ -94,6 +96,7 @@ type PacketValidation struct {
 	UDPLayer         *UDPLayer
 	InnerIPLayerIPv4 *IPv4Layer
 	InnerIPLayerIPv6 *IPv6Layer
+	BGPLayer         *BGPLayer
 	// Validations is a list of validations to perform on the captured packets.
 	Validations []ValidationType
 }
@@ -136,6 +139,13 @@ type TCPLayer struct {
 type UDPLayer struct {
 	SrcPort uint32
 	DstPort uint32
+}
+
+// BGPLayer holds the BGP Layer parameters.
+type BGPLayer struct {
+	TYPE         uint8
+	ErrorCode    uint8
+	ErrorSubCode uint8
 }
 
 // StartCapture starts the capture on the port.
@@ -208,6 +218,10 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 			}
 		case ValidateUDPHeader:
 			if err := validateUDPHeader(t, packetSource, packetVal); err != nil {
+				return err
+			}
+		case ValidateBGPHeader:
+			if err := validateBGPHeader(t, packetSource, packetVal); err != nil {
 				return err
 			}
 		default:
@@ -418,6 +432,48 @@ func validateUDPHeader(t *testing.T, packetSource *gopacket.PacketSource, packet
 		}
 	}
 	return fmt.Errorf("no UDP packets found")
+}
+
+func validateBGPHeader(t *testing.T, packetSource *gopacket.PacketSource, packetVal *PacketValidation) error {
+	t.Helper()
+	t.Log("Validating BGP header")
+	for packet := range packetSource.Packets() {
+		// Get the TCP layer safely
+		tcpLayer := packet.Layer(layers.LayerTypeTCP)
+		if tcpLayer == nil {
+			// No TCP layer; skip
+			continue
+		}
+
+		payload := tcpLayer.LayerPayload()
+		// We need at least 21 bytes to access indices 0..20
+		if len(payload) < 21 {
+			continue
+		}
+
+		// Validate marker: payload[0:16] must be 0xFF
+		if !isAllFF(payload[:16]) {
+			continue
+		}
+
+		// Validate the Type, ErrorCode and ErrorSubCode
+		if payload[18] != packetVal.BGPLayer.TYPE && payload[19] != packetVal.BGPLayer.ErrorCode && payload[20] != packetVal.BGPLayer.ErrorSubCode {
+			continue
+		}
+		return nil
+	}
+
+	// If we iterated all packets with no match:
+	return fmt.Errorf("BGP Notification not found")
+}
+
+func isAllFF(b []byte) bool {
+	for _, v := range b {
+		if v != 0xFF {
+			return false
+		}
+	}
+	return true
 }
 
 // ConfigurePacketCapture configures the packet capture on the port.
