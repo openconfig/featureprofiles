@@ -439,3 +439,24 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
 	}
 }
+
+// BGPPolicyConfig defines the policy name and statement ID to be used for constructing a routing policy.
+type BGPPolicyConfig struct {
+	PolicyName  string
+	StatementID string
+}
+
+// ConfigureBGPRoutePolicy creates a simple BGP routing policy in OpenConfig that unconditionally accepts routes. It constructs a RoutingPolicy object, adds a policy definition with the configured name, creates a statement with the configured ID, and sets its action to ACCEPT_ROUTE.
+func ConfigureBGPRoutePolicy(t *testing.T, batch *gnmi.SetBatch, cfg BGPPolicyConfig) (*oc.RoutingPolicy, error) {
+	t.Helper()
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	stmt, err := pdef.AppendNewStatement(cfg.StatementID)
+	if err != nil {
+		return nil, err
+	}
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	gnmi.BatchUpdate(batch, gnmi.OC().RoutingPolicy().PolicyDefinition(cfg.PolicyName).Config(), pdef)
+	return rp, nil
+}
