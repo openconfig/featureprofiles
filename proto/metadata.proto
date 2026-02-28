@@ -1158,6 +1158,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
     bool bgp_rib_streaming_config_required = 380;
 
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+    // Functional Translator name for devices with mount point state paths unsupported.
+    string system_mount_point_state_ft = 381;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
