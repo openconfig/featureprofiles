@@ -197,6 +197,30 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 			t.Errorf("Controller card redundant role is not returning a valid value for %s", redundantRole.State())
 		}
 		t.Logf("The value of redundant role is %v", redundantRoleCard)
+		// Validate controller card last switchover time
+		lastSwitchoverTime := gnmi.OC().Component(controllerCard).LastSwitchoverTime()
+		lastSwitchoverTimeCard := gnmi.Get(t, dut, lastSwitchoverTime.State())
+		if !(gnmi.Lookup(t, dut, lastSwitchoverTime.State()).IsPresent()) {
+			t.Errorf("Controller card last switchover time is not returning a valid value for %s", lastSwitchoverTime.State())
+		}
+		t.Logf("The value of last switchover time is %v", lastSwitchoverTimeCard)
+		// Validate controller card last switchover reason trigger
+		// trigger will not be exported before any switchover, so this below check
+		if lastSwitchoverTimeCard != 0 {
+			lastSwitchoverReasonTrigger := gnmi.OC().Component(controllerCard).LastSwitchoverReason().Trigger()
+			lastSwitchoverReasonTriggerCard := gnmi.Get(t, dut, lastSwitchoverReasonTrigger.State())
+			if !(gnmi.Lookup(t, dut, lastSwitchoverReasonTrigger.State()).IsPresent()) {
+				t.Errorf("Controller card last switchover reason trigger is not returning a valid value for %s", lastSwitchoverReasonTrigger.State())
+			}
+			t.Logf("The value of last switchover reason trigger is %v", lastSwitchoverReasonTriggerCard)
+		}
+		// Validate controller card last switchover reason details
+		lastSwitchoverReasonDetails := gnmi.OC().Component(controllerCard).LastSwitchoverReason().Details()
+		lastSwitchoverReasonDetailsCard := gnmi.Get(t, dut, lastSwitchoverReasonDetails.State())
+		if !(gnmi.Lookup(t, dut, lastSwitchoverReasonDetails.State()).IsPresent()) {
+			t.Errorf("Controller card last switchover reason details is not returning a valid value for %s", lastSwitchoverReasonDetails.State())
+		}
+		t.Logf("The value of last switchover reason details is %v", lastSwitchoverReasonDetailsCard)
 		// Validate controller card last reboot time
 		lastRebootTime := gnmi.OC().Component(controllerCard).LastRebootTime()
 		lastRebootTimeCard := gnmi.Get(t, dut, lastRebootTime.State())
@@ -342,8 +366,8 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	}
 	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
 
-	t.Logf("Wait for 5 seconds to allow the sub component's reboot process to start")
-	time.Sleep(5 * time.Second)
+	t.Logf("Wait for 120 seconds to allow the sub component's reboot process to start")
+	time.Sleep(120 * time.Second)
 
 	// Iterate through the controller cards and check if the state is expected after standby RP powerdown
 	for _, controllerCard := range controllerCards {
