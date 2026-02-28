@@ -16,6 +16,7 @@ package cfgplugins
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -23,9 +24,16 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 type FeatureType int
+
+// VRFConfig holds input parameters for creating VRFs in a batched way.
+type VRFConfig struct {
+	VRFCount int
+}
 
 const (
 	FeatureMplsTracking FeatureType = iota
@@ -761,4 +769,28 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
+}
+
+// CreateVRFs creates multiple VRFs on the DUT in a single GNMI SetBatch. Returns a slice of all created VRF names (including the default NI).
+func CreateVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch, cfg VRFConfig) []string {
+	t.Helper()
+	droot := new(oc.Root)
+	vrfs := []string{deviations.DefaultNetworkInstance(dut)}
+
+	// DEFAULT NI
+	ni := droot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
+
+	gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
+
+	// VRFs
+	for i := 1; i <= cfg.VRFCount; i++ {
+		name := fmt.Sprintf("VRF_%04d", i)
+		vrfs = append(vrfs, name)
+		ni := droot.GetOrCreateNetworkInstance(name)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+		gnmi.BatchReplace(vrfBatch, gnmi.OC().NetworkInstance(name).Config(), ni)
+	}
+
+	return vrfs
 }
