@@ -58,6 +58,7 @@ const (
 	localASN                        = 65501
 	IPv4PrefixLen                   = 30
 	IPv6PrefixLen                   = 126
+	isisInstance                    = "DEFAULT"
 )
 
 type activeStandByControllerCards struct {
@@ -153,8 +154,8 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	for i := 1; i <= params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
 			Desc:    fmt.Sprintf("LAG Interface %d", i),
-			IPv4:    "192.0.2.5",
-			IPv6:    "2001:db8::5",
+			IPv4:    fmt.Sprintf("192.0.2.%d", i),
+			IPv6:    fmt.Sprintf("2001:db8::%d", i),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
 		}
@@ -174,14 +175,14 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 
 	networkInterface := device.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
-	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS")
+	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	isisProto.Enabled = ygot.Bool(true)
 	isis := isisProto.GetOrCreateIsis()
 	for _, agg := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(agg)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	}
-	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS").Config(), isisProto)
+	gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProto)
 
 	bgpProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := bgpProto.GetOrCreateBgp()
