@@ -4,7 +4,7 @@
 uuid:  "f7622128-5fb5-4a9a-95b4-d66a6e59934e"
 plan_id:  "TE-18.4"
 description:  "ECMP hashing on outer and inner packets with MPLSoUDP encapsulation"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
@@ -15,5 +15,6 @@ platform_exceptions:  {
     interface_enabled:  true
     default_network_instance:  "default"
     gribi_encap_header_unsupported:  true
+    disable_hardware_nexthop_proxy: true
   }
 }
