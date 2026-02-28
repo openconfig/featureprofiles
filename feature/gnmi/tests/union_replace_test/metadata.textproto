@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "ac092ed2-0383-4eeb-b7ed-624b0c7f8477"
+plan_id:  "gNMI-3"
+description:  "union_replace"
+testbed:  TESTBED_DUT_ATE_2LINKS
