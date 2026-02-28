@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -133,13 +134,20 @@ func configureDUTLAG(t *testing.T, dut *ondatra.DUTDevice, aggPorts []*ondatra.P
 }
 
 // validateLastChangeIncrease verifies that the final last-change timestamp is greater than the initial one.
-func validateLastChangeIncrease(t *testing.T, desc, intfName string, initialLC, finalLC uint64) {
+func validateLastChangeIncrease(t *testing.T, dut *ondatra.DUTDevice, q ygnmi.SingletonQuery[uint64], desc, intfName string, initialLC uint64) uint64 {
 	t.Helper()
-	if finalLC <= initialLC {
+	got, ok := gnmi.Watch(t, dut, q, awaitTimeout, func(val *ygnmi.Value[uint64]) bool {
+		currLC, _ := val.Val()
+		return currLC > initialLC
+	}).Await(t)
+
+	finalLC, _ := got.Val()
+	if !ok {
 		t.Errorf("%s: LastChange timestamp did not increase, initial: %d, final: %d for interface/sub-interface: %s", desc, initialLC, finalLC, intfName)
 	} else {
 		t.Logf("%s: LastChange timestamp increased as expected, initial: %d, final: %d for interface/sub-interface: %s", desc, initialLC, finalLC, intfName)
 	}
+	return finalLC
 }
 
 // performLAGFlapTest is a helper function that flaps a LAG interface multiple times and
@@ -154,6 +162,7 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 	t.Logf("[%s] Ensuring LAG %s is UP", testName, aggID)
 	flapFunc(t, true) // Set admin state to UP to ensure the interface is active.
 	gnmi.Await(t, dut, aggIntfPath.OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, aggIntfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 	// Get initial last-change values when the interface is UP.
 	initialIntfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
@@ -193,27 +202,31 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 		flapFunc(t, enabledState)
 
 		gnmi.Await(t, dut, aggIntfPath.OperStatus().State(), awaitTimeout, targetOperStatus)
+		gnmi.Await(t, dut, aggIntfPath.Subinterface(0).OperStatus().State(), awaitTimeout, targetOperStatus)
 
 		// Get last-change values after the state change.
-		currentIntfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
+		_, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
 		if !present {
 			t.Errorf("[%s] Failed to lookup LastChange for interface %s after %s (state change %d)", testName, aggID, action, i)
 			continue
 		}
-		currentSubintfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
+		_, present = gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
 		if !present {
 			t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, aggID, action, i)
 			continue
 		}
-		t.Logf("[%s] LastChange values after %s: Interface %s: %d, Subinterface %s:0: %d", testName, action, aggID, currentIntfLCVal, aggID, currentSubintfLCVal)
 
 		// Verify that last-change increased for both the LAG interface and its subinterface.
-		validateLastChangeIncrease(t, fmt.Sprintf("%s after %s (state change %d)", testName, action, i), aggID, prevIntfLC, currentIntfLCVal)
-		validateLastChangeIncrease(t, fmt.Sprintf("%s after %s (state change %d)", testName, action, i), fmt.Sprintf("%s:%d", aggID, 0), prevSubintfLC, currentSubintfLCVal)
+		desc := fmt.Sprintf("%s after %s (state change %d)", testName, action, i)
+		currentIntfLCVal := validateLastChangeIncrease(t, dut, aggIntfPath.LastChange().State(), desc, aggID, prevIntfLC)
+		currentSubintfLCVal := validateLastChangeIncrease(t, dut, aggIntfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", aggID, 0), prevSubintfLC)
+
+		t.Logf("[%s] LastChange values after %s: Interface %s: %d, Subinterface %s:0: %d", testName, action, aggID, currentIntfLCVal, aggID, currentSubintfLCVal)
 
 		// Store current timestamps for comparison in the next iteration.
 		prevIntfLC = currentIntfLCVal
 		prevSubintfLC = currentSubintfLCVal
+		time.Sleep(500 * time.Millisecond)
 	}
 }
 
@@ -339,6 +352,7 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 		// Ensure the interface is UP before starting the test.
 		gnmi.Update(t, dut, intfPath.Enabled().Config(), true)
 		gnmi.Await(t, dut, intfPath.OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, intfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 		// Get initial last-change values when the interface is UP.
 		initialIntfLCVal, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
@@ -375,36 +389,29 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 			flapFunc(t, enabledState)
 
 			gnmi.Await(t, dut, intfPath.OperStatus().State(), awaitTimeout, targetOperStatus)
+			gnmi.Await(t, dut, intfPath.Subinterface(0).OperStatus().State(), awaitTimeout, targetOperStatus)
 
 			// Get last-change values after the state change.
-			currentIntfLCVal, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
+			_, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
 			if !present {
 				t.Errorf("[%s] Failed to lookup LastChange for interface %s after %s (state change %d)", testName, port.Name(), action, i)
 				continue
 			}
-			currentSubintfLCVal, present := gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
+			_, present = gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
 			if !present {
 				t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, port.Name(), action, i)
 				continue
 			}
 
 			// Verify that last-change increased.
-			subIntfName := fmt.Sprintf("%s:%d", port.Name(), 0)
-			if currentIntfLCVal <= prevIntfLC {
-				t.Errorf("[%s] State Change %d (%s): Interface %s LastChange timestamp did not increase, initial: %d, final: %d", testName, i, action, port.Name(), prevIntfLC, currentIntfLCVal)
-			} else {
-				t.Logf("[%s] State Change %d (%s): Interface %s LastChange timestamp increased as expected, initial: %d, final: %d", testName, i, action, port.Name(), prevIntfLC, currentIntfLCVal)
-			}
-
-			if currentSubintfLCVal <= prevSubintfLC {
-				t.Errorf("[%s] State Change %d (%s): Subinterface %s LastChange timestamp did not increase, initial: %d, final: %d", testName, i, action, subIntfName, prevSubintfLC, currentSubintfLCVal)
-			} else {
-				t.Logf("[%s] State Change %d (%s): Subinterface %s LastChange timestamp increased as expected, initial: %d, final: %d", testName, i, action, subIntfName, prevSubintfLC, currentSubintfLCVal)
-			}
+			desc := fmt.Sprintf("%s after %s (state change %d)", testName, action, i)
+			currentIntfLCVal := validateLastChangeIncrease(t, dut, intfPath.LastChange().State(), desc, port.Name(), prevIntfLC)
+			currentSubintfLCVal := validateLastChangeIncrease(t, dut, intfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", port.Name(), 0), prevSubintfLC)
 
 			// Store current timestamps for the next iteration's comparison.
 			prevIntfLC = currentIntfLCVal
 			prevSubintfLC = currentSubintfLCVal
+			time.Sleep(500 * time.Millisecond)
 		}
 	}
 
