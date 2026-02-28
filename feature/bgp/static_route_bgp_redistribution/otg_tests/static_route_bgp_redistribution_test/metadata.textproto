@@ -60,6 +60,5 @@ platform_exceptions:  {
     skip_bgp_send_community_type: true
     routing_policy_tag_set_embedded: true
     bgp_community_set_refs_unsupported: true
-    bgp_set_med_action_unsupported: true
   }
 }

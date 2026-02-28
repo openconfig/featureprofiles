@@ -914,6 +914,18 @@ func redistributeStaticRoutePolicyWithASN(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction := policyStatement.GetOrCreateActions()
 	policyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(64512)
+
+	// Repeat-n configuration is required for both v6 or v4 policies. validatePrefixASN for v6 policy is
+	// expecting AS number has to be prepended once along with local as number.
+	// Hence repeat-n is set to 1 here.
+
+	// Below is the description from openconfig model for repeat-n leaf:
+	//     Number of times to prepend the value specified in the asn leaf to the AS path.
+	//     If no value is specified by the asn leaf, the local AS number of the system is used.
+	//     The value should be between 1 and the maximum supported by the implementation.
+
+	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
+
 	if isV4 {
 		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(65499)
 		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(3)
