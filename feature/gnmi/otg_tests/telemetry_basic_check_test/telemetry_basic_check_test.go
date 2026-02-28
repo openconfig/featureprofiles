@@ -34,6 +34,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
+	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"golang.org/x/exp/slices"
@@ -151,6 +152,9 @@ func TestEthernetMacAddress(t *testing.T) {
 
 func TestLagMacAddress(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	setupLACPConfig(t, dut)
+	defer teardownLACPConfig(t, dut)
+
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
 		t.Fatalf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
@@ -700,6 +704,9 @@ func TestLacpMember(t *testing.T) {
 		t.Skipf("Test is skipped, since the related base config for LACP is not present")
 	}
 	dut := ondatra.DUT(t, "dut")
+	setupLACPConfig(t, dut)
+	defer teardownLACPConfig(t, dut)
+
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
 		t.Logf("Lacp().InterfaceAny().Name().Get(t) for %q: got 0, want > 0", dut.Name())
@@ -1090,4 +1097,82 @@ func P4RTNodesByPort(t testing.TB, dut *ondatra.DUTDevice) map[string]string {
 		}
 	}
 	return res
+}
+
+// setupLACPConfig sets up a basic LACP configuration on the DUT using ports port1 and port2.
+func setupLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+
+	if dp1 == nil || dp2 == nil {
+		t.Fatalf("Could not get required ports")
+	}
+
+	if deviations.ExplicitPortSpeed(dut) {
+		fptest.SetPortSpeed(t, dp1)
+		fptest.SetPortSpeed(t, dp2)
+	}
+
+	// Use netutil to get the correct aggregate interface name for the vendor
+	aggID := netutil.NextAggregateInterface(t, dut)
+
+	// Create root config to apply atomically
+	d := &oc.Root{}
+
+	// Configure LACP interface with FAST interval
+	lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(aggID)
+	lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
+
+	// Create LAG interface with LACP aggregation type
+	agg := d.GetOrCreateInterface(aggID)
+	agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_LACP
+	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+
+	// Add member ports to LAG
+	for _, port := range []*ondatra.Port{dp1, dp2} {
+		i := d.GetOrCreateInterface(port.Name())
+		i.GetOrCreateEthernet().AggregateId = ygot.String(aggID)
+		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+		if deviations.InterfaceEnabled(dut) {
+			i.Enabled = ygot.Bool(true)
+		}
+	}
+
+	// Apply all configurations atomically
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	t.Logf("Configured LACP LAG interface %s with ports %s and %s", aggID, dp1.Name(), dp2.Name())
+	// Wait for the aggregate interface to become operationally UP using gNMI Watch
+	gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 30*time.Second, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		v, ok := val.Val()
+		return ok && v == operStatusUp
+	}).Await(t)
+}
+
+// teardownLACPConfig removes the LACP configuration from the DUT.
+func teardownLACPConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	// Get the same aggregate interface name
+	aggID := netutil.NextAggregateInterface(t, dut)
+
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+
+	b := &gnmi.SetBatch{}
+	for _, port := range []*ondatra.Port{dp1, dp2} {
+		gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
+	}
+
+	// Remove LAG interface
+	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Config())
+
+	// Remove LACP interface configuration
+	gnmi.BatchDelete(b, gnmi.OC().Lacp().Interface(aggID).Config())
+
+	b.Set(t, dut)
+
+	t.Logf("LACP configuration removed from DUT")
 }
