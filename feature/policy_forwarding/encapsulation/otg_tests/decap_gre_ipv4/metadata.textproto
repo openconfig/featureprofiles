@@ -17,3 +17,11 @@ platform_exceptions: {
     gre_decapsulation_oc_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    gre_decapsulation_oc_unsupported: true
+  }
+}
