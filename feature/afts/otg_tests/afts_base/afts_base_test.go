@@ -45,7 +45,7 @@ func TestMain(m *testing.M) {
 
 const (
 	advertisedRoutesV4Prefix  = 32
-	advertisedRoutesV6Prefix  = 128
+	advertisedRoutesV6Prefix  = 64
 	dutAS                     = 65501
 	ateAS                     = 200
 	v4PrefixLen               = 30
@@ -63,12 +63,12 @@ const (
 	bgpRoute                  = "200.0.0.0"
 	bgpRoutev6                = "3001:1::0"
 	startingBGPRouteIPv4      = "200.0.0.0/32"
-	startingBGPRouteIPv6      = "3001:1::0/128"
+	startingBGPRouteIPv6      = "3001:1::0/64"
 	isisRouteCount            = 100
 	isisRoute                 = "199.0.0.1"
 	isisRoutev6               = "2001:db8::203:0:113:1"
 	startingISISRouteIPv4     = "199.0.0.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
+	startingISISRouteIPv6     = "2001:db8::203:0:113:1/64"
 	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 10 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
