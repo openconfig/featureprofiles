@@ -1,0 +1,42 @@
+run:
+  timeout: 10m
+  modules-download-mode: readonly
+  # If the runner is hitting "no space left", 
+  # this ensures we don't generate unnecessary object files.
+  build-tags:
+    - custom
+
+linters-settings:
+  staticcheck:
+    # Enables all non-experimental checks
+    checks: ["all"]
+  govet:
+    check-shadowing: true
+    enable-all: true
+  revive:
+    # Provides fast, configurable linting
+    rules:
+      - name: exported
+        severity: warning
+      - name: blank-imports
+      - name: context-as-first-argument
+
+linters:
+  disable-all: true
+  enable:
+    - staticcheck # Your primary requirement
+    - govet       # Standard library analysis
+    - revive      # Fast replacement for golint
+    - errcheck    # Ensures you don't ignore returned errors
+    - ineffassign # Detects unused assignments
+    - typecheck   # Standard Go type checking
+
+issues:
+  # Exclude certain files like generated code from being checked
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+  # Maximum issues per linter. 0 is unlimited.
+  max-issues-per-linter: 0
+  max-same-issues: 0
