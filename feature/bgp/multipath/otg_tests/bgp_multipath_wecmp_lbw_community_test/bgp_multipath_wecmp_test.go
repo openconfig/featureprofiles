@@ -198,15 +198,17 @@ func TestBGPSetup(t *testing.T) {
 		gEBGP := bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 		gEBGPMP := bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 		gEBGPMP.MaximumPaths = ygot.Uint32(maxPaths)
+
+		gEBGP.AllowMultipleAs = ygot.Bool(true)
+		switch bs.DUT.Vendor() {
+		case ondatra.CISCO:
+			communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
+		default:
+			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", bs.DUT.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
 		if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 			gEBGP.AllowMultipleAs = ygot.Bool(false)
-			switch bs.DUT.Vendor() {
-			case ondatra.CISCO:
-				communitySetCLIConfig = fmt.Sprintf("router bgp %v instance BGP neighbor-group %v \n ebgp-recv-extcommunity-dmz \n ebgp-send-extcommunity-dmz\n", cfgplugins.DutAS, cfgplugins.BGPPeerGroup1)
-			default:
-				t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", bs.DUT.Vendor())
-			}
-			helpers.GnmiCLIConfig(t, bs.DUT, communitySetCLIConfig)
 		}
 	} else if deviations.SkipSettingAllowMultipleAS(bs.DUT) {
 		bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetMaximumPaths(maxPaths)
