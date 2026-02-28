@@ -262,8 +262,8 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateNetPrefix)
 	v6.Dst().Increment().SetStart(prefixesStart).SetCount(1)
-	icmp1 := v6Flow.Packet().Add().Icmp()
-	icmp1.SetEcho(gosnappi.NewFlowIcmpEcho())
+	icmpv6 := v6Flow.Packet().Add().Icmpv6()
+	icmpv6.SetEcho(gosnappi.NewFlowIcmpv6Echo())
 
 	bs.ATE.OTG().PushConfig(t, bs.ATETop)
 	bs.ATE.OTG().StartProtocols(t)
