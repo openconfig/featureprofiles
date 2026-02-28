@@ -37,6 +37,7 @@ import (
 	"github.com/openconfig/gnmi/metadata"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygot/ygot"
+	"google.golang.org/protobuf/proto"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
@@ -129,6 +130,49 @@ type AFTData struct {
 	NextHopGroups map[uint64]*aftNextHopGroup
 	// NextHops contains a map of next hop IDs to their corresponding next hop data.
 	NextHops map[uint64]*aftNextHop
+}
+
+// FilterByPrefixes returns a new AFTData containing only the specified prefixes
+// and their associated NextHopGroups and NextHops.
+func (a *AFTData) FilterByPrefixes(wantPrefixes map[string]bool) *AFTData {
+	// Track which prefixes and NHG IDs we want to keep
+	filteredPrefixes := make(map[string]uint64)
+	usedNHGIDs := make(map[uint64]bool)
+
+	// Copy only wanted prefixes and track which NHGs are used
+	for prefix := range wantPrefixes {
+		if nhgID, ok := a.Prefixes[prefix]; ok {
+			filteredPrefixes[prefix] = nhgID
+			usedNHGIDs[nhgID] = true
+		}
+	}
+
+	// Filter NextHopGroups to only include those referenced by wantPrefixes
+	filteredNHGs := make(map[uint64]*aftNextHopGroup)
+	usedNHIDs := make(map[uint64]bool)
+	for nhgID := range usedNHGIDs {
+		if nhg, ok := a.NextHopGroups[nhgID]; ok {
+			filteredNHGs[nhgID] = nhg
+			// Collect all NH IDs from this NHG
+			for _, nhID := range nhg.NHIDs {
+				usedNHIDs[nhID] = true
+			}
+		}
+	}
+
+	// Filter NextHops to only include those referenced by the filtered NextHopGroups
+	filteredNHs := make(map[uint64]*aftNextHop)
+	for nhID := range usedNHIDs {
+		if nh, ok := a.NextHops[nhID]; ok {
+			filteredNHs[nhID] = nh
+		}
+	}
+
+	return &AFTData{
+		Prefixes:      filteredPrefixes,
+		NextHopGroups: filteredNHGs,
+		NextHops:      filteredNHs,
+	}
 }
 
 // aftCache is the AFT streaming cache.
@@ -473,6 +517,19 @@ type AFTStreamSession struct {
 	notifications     []*gnmipb.SubscribeResponse
 	missingPrefixes   map[string]bool
 	failingNHPrefixes map[string]bool
+	streamStats       []streamStatsRow
+}
+
+type streamStatsRow struct {
+	streamID        string
+	timestamp       time.Time
+	messageCount    int64
+	totalMB         float64
+	avgMsgBytes     int64
+	overallMsgRate  float64
+	overallKBrate   float64
+	intervalMsgRate float64
+	intervalKBrate  float64
 }
 
 func (ss *AFTStreamSession) sessionPrefix() string {
@@ -487,6 +544,7 @@ func NewAFTStreamSession(ctx context.Context, t *testing.T, c gnmipb.GNMIClient,
 		notifications:     []*gnmipb.SubscribeResponse{},
 		missingPrefixes:   make(map[string]bool),
 		failingNHPrefixes: make(map[string]bool),
+		streamStats:       []streamStatsRow{},
 	}
 }
 
@@ -519,6 +577,25 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 	prefix := ss.sessionPrefix()
 	ss.Cache.logMetadata(t, ss.start, prefix)
 	t.Logf("%s After %v: Finished streaming.", prefix, time.Since(ss.start).Truncate(time.Millisecond))
+	// if len(ss.streamStats) > 0 {
+	// 	var b strings.Builder
+	// 	b.WriteString("gNMI Stream Stats Summary\n")
+	// 	b.WriteString("stream_id | timestamp | messages | total_mb | avg_msg_bytes | overall_msg_s | overall_kb_s | interval_msg_s | interval_kb_s\n")
+	// 	b.WriteString("----------|-----------|----------|----------|---------------|---------------|--------------|----------------|---------------\n")
+	// 	for _, row := range ss.streamStats {
+	// 		b.WriteString(fmt.Sprintf("%s | %s | %d | %.2f | %d | %.2f | %.2f | %.2f | %.2f\n",
+	// 			row.streamID,
+	// 			row.timestamp.Format(time.RFC3339Nano),
+	// 			row.messageCount,
+	// 			row.totalMB,
+	// 			row.avgMsgBytes,
+	// 			row.overallMsgRate,
+	// 			row.overallKBrate,
+	// 			row.intervalMsgRate,
+	// 			row.intervalKBrate))
+	// 	}
+	// 	t.Log(b.String())
+	// }
 	if len(ss.missingPrefixes) > 0 {
 		filename, err := writeMissingPrefixes(t, ss.missingPrefixes, ss.Cache.target, ss.start)
 		if err != nil {
@@ -536,6 +613,7 @@ func (ss *AFTStreamSession) loggingFinal(t *testing.T) {
 		}
 	}
 	if len(ss.notifications) > 0 {
+		// if (len(ss.missingPrefixes) > 0 || len(ss.failingNHPrefixes) > 0) && len(ss.notifications) > 0 {
 		filename, err := writeNotifications(t, ss.notifications, ss.Cache.target, ss.start)
 		if err != nil {
 			t.Errorf("%s error writing notifications: %v", prefix, err)
@@ -561,6 +639,18 @@ func (ss *AFTStreamSession) ListenUntilPreUpdateHook(ctx context.Context, t *tes
 	defer ss.loggingFinal(t) // Print stats one more time before exiting even in case of fatal error.
 	phs := []PeriodicHook{loggingPeriodicHook(t, ss.start), stoppingCondition}
 	ss.listenUntil(ctx, t, timeout, preUpdateHooks, phs)
+}
+
+// ListenUntilWithError is like ListenUntil but returns error instead of calling t.Fatalf on stream failure.
+func (ss *AFTStreamSession) ListenUntilWithError(ctx context.Context, t *testing.T, timeout time.Duration, stoppingCondition PeriodicHook) error {
+	return ss.ListenUntilPreUpdateHookWithError(ctx, t, timeout, nil, stoppingCondition)
+}
+
+// ListenUntilPreUpdateHookWithError is like ListenUntilPreUpdateHook but returns error instead of calling t.Fatalf on stream failure.
+func (ss *AFTStreamSession) ListenUntilPreUpdateHookWithError(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, stoppingCondition PeriodicHook) error {
+	ss.start = time.Now()
+	phs := []PeriodicHook{stoppingCondition}
+	return ss.listenUntilWithError(ctx, t, timeout, preUpdateHooks, phs)
 }
 
 func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) {
@@ -611,6 +701,140 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 		case <-ctx.Done():
 			t.Fatalf("context cancelled: %v", ctx.Err())
 			return
+		}
+	}
+}
+
+// listenUntilWithError is like listenUntil but returns error on stream failure instead of calling t.Fatalf.
+func (ss *AFTStreamSession) listenUntilWithError(ctx context.Context, t *testing.T, timeout time.Duration, preUpdateHooks []NotificationHook, periodicHooks []PeriodicHook) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	periodicTicker := time.NewTicker(periodicInterval)
+	defer periodicTicker.Stop()
+
+	// Variables for tracking message size and rate
+	var messageCount int64
+	var totalBytes int64
+	startTime := time.Now()
+	lastLogTime := startTime
+	var lastMessageCount int64
+	var lastTotalBytes int64
+	stoppingConditionMet := false
+
+	for {
+		select {
+		case resp := <-ss.buffer:
+			if resp.err != nil {
+				// Return error instead of fataling - allows caller to handle stream failure
+				return fmt.Errorf("gNMI stream error: %w", resp.err)
+			}
+			ss.notifications = append(ss.notifications, resp.notification)
+
+			// Calculate message size
+			messageSize := proto.Size(resp.notification)
+			messageCount++
+			totalBytes += int64(messageSize)
+
+			// Log size and rate every 10,000 messages or 60 seconds
+			currentTime := time.Now()
+			timeSinceLastLog := currentTime.Sub(lastLogTime)
+			if messageCount%10000 == 0 || timeSinceLastLog >= 60*time.Second {
+				elapsedTotal := currentTime.Sub(startTime)
+				elapsedSinceLog := timeSinceLastLog
+
+				// Calculate overall stats
+				overallMsgRate := float64(messageCount) / elapsedTotal.Seconds()
+				overallByteRate := float64(totalBytes) / elapsedTotal.Seconds()
+
+				// Calculate interval stats
+				intervalMessages := messageCount - lastMessageCount
+				intervalBytes := totalBytes - lastTotalBytes
+				intervalMsgRate := float64(intervalMessages) / elapsedSinceLog.Seconds()
+				intervalByteRate := float64(intervalBytes) / elapsedSinceLog.Seconds()
+
+				prefix := ss.sessionPrefix()
+				totalMB := float64(totalBytes) / (1024 * 1024)
+				avgMsgBytes := totalBytes / messageCount
+				overallKBrate := overallByteRate / 1024
+				intervalKBrate := intervalByteRate / 1024
+				t.Logf("%s [%s] gNMI Stream Stats - Messages: %d, Total Size: %.2f MB, Avg Msg Size: %d bytes, Overall Rate: %.2f msg/s, %.2f KB/s, Interval Rate: %.2f msg/s, %.2f KB/s",
+					prefix,
+					currentTime.Format(time.RFC3339Nano),
+					messageCount,
+					totalMB,
+					avgMsgBytes,
+					overallMsgRate,
+					overallKBrate,
+					intervalMsgRate,
+					intervalKBrate)
+				ss.streamStats = append(ss.streamStats, streamStatsRow{
+					streamID:        prefix,
+					timestamp:       currentTime,
+					messageCount:    messageCount,
+					totalMB:         totalMB,
+					avgMsgBytes:     avgMsgBytes,
+					overallMsgRate:  overallMsgRate,
+					overallKBrate:   overallKBrate,
+					intervalMsgRate: intervalMsgRate,
+					intervalKBrate:  intervalKBrate,
+				})
+
+				lastLogTime = currentTime
+				lastMessageCount = messageCount
+				lastTotalBytes = totalBytes
+			}
+
+			for _, hook := range preUpdateHooks {
+				err := hook.NotificationFunc(ss.Cache, resp.notification)
+				if err != nil {
+					return fmt.Errorf("error in notificationHook %q: %w", hook.Description, err)
+				}
+			}
+			err := ss.Cache.addAFTNotification(resp.notification)
+			switch {
+			case errors.Is(err, cache.ErrStale):
+				t.Logf("Received stale notification with timestamp %v (current time: %v)", time.Unix(0, resp.notification.GetUpdate().GetTimestamp()), time.Now())
+			case err != nil:
+				return fmt.Errorf("error updating AFT cache: %w", err)
+			}
+			// Check if buffer is drained after stopping condition was met
+			if stoppingConditionMet && len(ss.buffer) == 0 {
+				t.Logf("%s Buffer drained. Processed all remaining notifications.", ss.sessionPrefix())
+				return nil
+			}
+		case <-periodicTicker.C:
+			if stoppingConditionMet {
+				// Stop running periodic hooks after stopping condition is met
+				continue
+			}
+			s := time.Now()
+			for _, hook := range periodicHooks {
+				done, err := hook.PeriodicFunc(ss)
+				if err != nil {
+					return fmt.Errorf("error in PeriodicHook %q: %w", hook.Description, err)
+				}
+				if done {
+					t.Logf("%s Stopping condition met. Remaining notifications in buffer: %d", ss.sessionPrefix(), len(ss.buffer))
+					stoppingConditionMet = true
+					periodicTicker.Stop()
+					// Check if buffer is already empty
+					if len(ss.buffer) == 0 {
+						t.Logf("%s Buffer empty, stopping stream", ss.sessionPrefix())
+						return nil
+					}
+					t.Logf("%s Draining remaining %d notifications from buffer...", ss.sessionPrefix(), len(ss.buffer))
+					break
+				}
+			}
+			if stoppingConditionMet {
+				continue
+			}
+			d := time.Since(s)
+			if d > periodicDeadline {
+				return fmt.Errorf("periodic hooks took %v, exceeding deadline of %v", d.Truncate(time.Millisecond), periodicDeadline)
+			}
+		case <-ctx.Done():
+			return fmt.Errorf("context timeout/cancellation: %w", ctx.Err())
 		}
 	}
 }
@@ -917,6 +1141,8 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
 	}
+	nhidSeen := make(map[uint64]struct{})
+
 	for _, u := range updates {
 		p, err = ygot.PathToSchemaPath(u.Path)
 		if strings.HasPrefix(p, nextHopGroupConditionPath) {
@@ -933,7 +1159,11 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		// Match for the path of the form:
 		// /network-instances/network-instance/DEFAULT/afts/next-hop-groups/next-hop-group[id=<id>]/state/index
 		case strings.HasSuffix(p, "state/index"):
-			nhg.NHIDs = append(nhg.NHIDs, u.Val.GetUintVal())
+			id := u.Val.GetUintVal()
+			if _, exists := nhidSeen[id]; !exists {
+				nhidSeen[id] = struct{}{}
+				nhg.NHIDs = append(nhg.NHIDs, id)
+			}
 		case p == nextHopWeightPath:
 			nhID, err := strconv.ParseUint(u.Path.GetElem()[6].GetKey()["index"], 10, 64)
 			if err != nil {
