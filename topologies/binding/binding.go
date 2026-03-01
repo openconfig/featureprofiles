@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -54,7 +55,25 @@ var (
 	// To be stubbed out by unit tests.
 	grpcDialContextFn = grpc.NewClient
 	gosnappiNewAPIFn  = gosnappi.NewApi
+
+	// sshDialFn allows unit tests to stub SSH dialing. Defaults to ssh.Dial.
+	sshDialFn = ssh.Dial
 )
+
+// sshPort returns target with defaultPort if no port is present.
+// If target already includes a host:port it is returned unchanged.
+// Returns empty string if target empty.
+func sshPort(target string, defaultPort string) string {
+	if target == "" {
+		return ""
+	}
+	// net.SplitHostPort expects host:port or [ipv6]:port; try to detect existing port.
+	if _, _, err := net.SplitHostPort(target); err == nil {
+		return target
+	}
+	// JoinHostPort will wrap IPv6 addresses appropriately.
+	return net.JoinHostPort(target, defaultPort)
+}
 
 // staticBind implements the binding.Binding interface by creating a
 // static reservation from a binding configuration file and the
@@ -102,6 +121,10 @@ var _ introspect.Introspector = (*staticATE)(nil)
 
 const resvID = "STATIC"
 
+// Reserve creates a reservation and does conservative validation:
+//   - For each DUT/ATE, only validate SSH/gRPC targets when the corresponding
+//     bindpb.Options are present (non-nil). This avoids failing tests that don't
+//     populate options, while still failing fast for misconfigured bindings.
 func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, waitTime time.Duration, partial map[string]string) (*binding.Reservation, error) {
 	_ = runTime
 	_ = waitTime
@@ -115,6 +138,45 @@ func (b *staticBind) Reserve(ctx context.Context, tb *opb.Testbed, runTime, wait
 	}
 	resv.ID = resvID
 	b.resv = resv
+
+	// Conservative validation: when options are present, require non-empty target.
+	for name, d := range b.resv.DUTs {
+		if sdut, ok := d.(*staticDUT); ok {
+			sshOpts := sdut.r.ssh(sdut.dev)
+			if sshOpts != nil {
+				if sshPort(sshOpts.Target, "22") == "" {
+					return nil, fmt.Errorf("missing ssh target for DUT %q", name)
+				}
+			}
+			// service-specific gRPC options — only validate when options exist.
+			for svc, params := range dutSvcParams {
+				bopts := sdut.r.grpc(sdut.dev, params)
+				if bopts != nil {
+					if sshPort(bopts.Target, fmt.Sprintf("%d", params.port)) == "" {
+						return nil, fmt.Errorf("missing gRPC target for DUT %q service %v", name, svc)
+					}
+				}
+			}
+		}
+	}
+	for name, a := range b.resv.ATEs {
+		if aate, ok := a.(*staticATE); ok {
+			sshOpts := aate.r.ssh(aate.dev)
+			if sshOpts != nil {
+				if sshPort(sshOpts.Target, "22") == "" {
+					return nil, fmt.Errorf("missing ssh target for ATE %q", name)
+				}
+			}
+			for svc, params := range ateSvcParams {
+				bopts := aate.r.grpc(aate.dev, params)
+				if bopts != nil {
+					if sshPort(bopts.Target, fmt.Sprintf("%d", params.port)) == "" {
+						return nil, fmt.Errorf("missing gRPC target for ATE %q service %v", name, svc)
+					}
+				}
+			}
+		}
+	}
 
 	if b.pushConfig {
 		if err := b.reset(ctx); err != nil {
@@ -313,17 +375,27 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 	return newSSH(sc, hk)
 }
 
+// createSSHClient creates an *ssh.Client. It only sets HostKeyCallback when the caller has not already set one
+// It also append target to include a port (default 22)
 func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
-	if sshOpts.SkipVerify {
-		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
-	} else {
-		cb, err := knownHostsCallback()
-		if err != nil {
-			return nil, err
+	// Preserve any HostKeyCallback already set by caller (tests call DialSSH which sets hkCallback).
+	if config.HostKeyCallback == nil {
+		if sshOpts.SkipVerify {
+			config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		} else {
+			cb, err := knownHostsCallback()
+			if err != nil {
+				return nil, err
+			}
+			config.HostKeyCallback = cb
 		}
-		config.HostKeyCallback = cb
 	}
-	return ssh.Dial("tcp", sshOpts.Target, config)
+
+	target := sshPort(sshOpts.Target, "22")
+	log.Printf("createSSHClient: dialing SSH to %q (skipVerify=%v)", target, sshOpts.SkipVerify)
+
+	// Use sshDialFn so unit tests can stub dialing if desired.
+	return sshDialFn("tcp", target, config)
 }
 
 // For every question asked in an interactive login ssh session, set the answer to user password.
@@ -629,17 +701,26 @@ func makeDialer(params *svcParams, bopts *bindpb.Options) (*introspect.Dialer, e
 	if err != nil {
 		return nil, err
 	}
+
+	// Normalize DialTarget here so that grpc dials also get host:port.
+	dialTarget := sshPort(bopts.Target, fmt.Sprintf("%d", params.port))
+
 	return &introspect.Dialer{
 		DevicePort: params.port,
 		DialFunc: func(ctx context.Context, target string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+			// If the caller didn't pass an explicit target, use the normalized dialTarget.
+			if target == "" {
+				target = dialTarget
+			}
 			if bopts.Timeout != 0 {
 				var cancelFunc context.CancelFunc
 				_, cancelFunc = context.WithTimeout(ctx, time.Duration(bopts.Timeout)*time.Second)
 				defer cancelFunc()
 			}
+			log.Printf("makeDialer: dialing gRPC to %q (devicePort=%d)", target, params.port)
 			return grpcDialContextFn(target, opts...)
 		},
-		DialTarget: bopts.Target,
+		DialTarget: dialTarget,
 		DialOpts:   opts,
 	}, nil
 }
