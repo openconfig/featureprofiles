@@ -1171,7 +1171,7 @@ message Metadata {
     bool acl_icmp_type_code_configuration_unsupported = 383;
 
     // Devices that do not support suppress router advertisement.
-    // Nokia: https://github.com/openconfig/featureprofiles/issues/3043
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
     bool ipv6_router_advertisement_suppress_unsupported = 384;
 
     // Reserved field numbers and identifiers.

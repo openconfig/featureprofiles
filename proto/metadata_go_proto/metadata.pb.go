@@ -1335,7 +1335,7 @@ type Metadata_Deviations struct {
 	// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
 	AclIcmpTypeCodeConfigurationUnsupported bool `protobuf:"varint,383,opt,name=acl_icmp_type_code_configuration_unsupported,json=aclIcmpTypeCodeConfigurationUnsupported,proto3" json:"acl_icmp_type_code_configuration_unsupported,omitempty"`
 	// Devices that do not support suppress router advertisement.
-	// Nokia: https://github.com/openconfig/featureprofiles/issues/3043
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
 	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
 }
 
