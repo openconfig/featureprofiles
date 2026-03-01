@@ -56,6 +56,34 @@ Validate link operational status of Static LAG and LACP.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /lacp/interfaces/interface/config/interval:
+  /lacp/interfaces/interface/config/lacp-mode:
+  /lacp/interfaces/interface/members/member/state/collecting:
+  /lacp/interfaces/interface/members/member/state/distributing:
+  /lacp/interfaces/interface/members/member/state/interface:
+  /lacp/interfaces/interface/members/member/state/oper-key:
+  /lacp/interfaces/interface/members/member/state/partner-id:
+  /lacp/interfaces/interface/members/member/state/partner-key:
+  /lacp/interfaces/interface/members/member/state/partner-port-num:
+  /lacp/interfaces/interface/members/member/state/port-num:
+  /lacp/interfaces/interface/members/member/state/system-id:
+  /lacp/interfaces/interface/state/name:
 rpcs:
   gnmi:
     gNMI.Set:
