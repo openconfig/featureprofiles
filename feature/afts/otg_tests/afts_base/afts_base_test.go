@@ -711,6 +711,7 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("failed to configure DUT: %v", err)
 	}
 	tc.configureATE(t)
+	defer ate.OTG().StopProtocols(t)
 
 	t.Log("Waiting for BGP neighbor to establish...")
 	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
