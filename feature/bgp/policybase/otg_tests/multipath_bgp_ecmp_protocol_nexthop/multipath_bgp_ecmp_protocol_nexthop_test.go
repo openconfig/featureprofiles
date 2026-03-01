@@ -228,8 +228,9 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// Configure DUT and ATE with ISIS and BGP.
-	configureDUT(t, dut)
 	configureRoutePolicy(t, dut, rplName, rplType)
+	configureDUT(t, dut)
+
 	otg := ate.OTG()
 	top := configureOTG(t, otg)
 
@@ -539,13 +540,13 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 		iBgp := iDev.Bgp().SetRouterId(p.loopbackAddrV4)
 		iBgp4Peer := iBgp.Ipv4Interfaces().Add().SetIpv4Name(iLoopV4.Name()).Peers().Add().SetName(devName + ".BGP4.peer")
 		iBgp4Peer.SetPeerAddress(dutlo0Attrs.IPv4).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV4PeerAsType.IBGP)
-		iBgp4Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-		iBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		iBgp4Peer.Capability().SetIpv4UnicastAddPath(true)
+		iBgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 		// iBGP - v6 session.
 		iBgp6Peer := iBgp.Ipv6Interfaces().Add().SetIpv6Name(iLoopV6.Name()).Peers().Add().SetName(devName + ".BGP6.peer")
 		iBgp6Peer.SetPeerAddress(dutlo0Attrs.IPv6).SetAsNumber(dutAS).SetAsType(gosnappi.BgpV6PeerAsType.IBGP)
-		iBgp6Peer.Capability().SetIpv4UnicastAddPath(true).SetIpv6UnicastAddPath(true)
-		iBgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
+		iBgp6Peer.Capability().SetIpv6UnicastAddPath(true)
+		iBgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
 		// iBGP V4 routes.
 		bgpNetiBgp4PeerRoutes := iBgp4Peer.V4Routes().Add().SetName(devName + ".BGP4.Route")
