@@ -1,0 +1,12 @@
+whitelisted_master {
+  master {
+    scope: MDB_USER
+    mdb_user { user_name: "signer-role" }
+  }
+  whitelisted_role {
+    scope: MDB_USER
+    mdb_user { user_name: "leaf-role" }
+  }
+}
+serial_no: 2
+last_update_timestamp_secs: 2
