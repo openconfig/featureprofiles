@@ -917,6 +917,8 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		NHIDs:     []uint64{},
 		NHWeights: map[uint64]uint64{},
 	}
+	nhidSeen := make(map[uint64]struct{})
+
 	for _, u := range updates {
 		p, err = ygot.PathToSchemaPath(u.Path)
 		if strings.HasPrefix(p, nextHopGroupConditionPath) {
@@ -933,7 +935,11 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 		// Match for the path of the form:
 		// /network-instances/network-instance/DEFAULT/afts/next-hop-groups/next-hop-group[id=<id>]/state/index
 		case strings.HasSuffix(p, "state/index"):
-			nhg.NHIDs = append(nhg.NHIDs, u.Val.GetUintVal())
+			id := u.Val.GetUintVal()
+			if _, exists := nhidSeen[id]; !exists {
+				nhidSeen[id] = struct{}{}
+				nhg.NHIDs = append(nhg.NHIDs, id)
+			}
 		case p == nextHopWeightPath:
 			nhID, err := strconv.ParseUint(u.Path.GetElem()[6].GetKey()["index"], 10, 64)
 			if err != nil {
