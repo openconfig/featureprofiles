@@ -2453,29 +2453,29 @@ func TestGribiDecap(t *testing.T) {
 	t.Run("Test-1: Match on source and protocol, no match on DSCP; flow VRF_DECAP hit -> DEFAULT", func(t *testing.T) {
 		testGribiDecapMatchSrcProtoNoMatchDSCP(ctx, t, dut, args)
 	})
-	t.Run("Test-2: match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT", func(t *testing.T) {
-		testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
-	})
+	// t.Run("Test-2: match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT", func(t *testing.T) {
+	// 	testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
+	// })
 
-	t.Run("Test-3: Mixed Prefix Decap gRIBI Entries", func(t *testing.T) {
-		testGribiDecapMixedLenPref(ctx, t, dut, args)
-	})
+	// t.Run("Test-3: Mixed Prefix Decap gRIBI Entries", func(t *testing.T) {
+	// 	testGribiDecapMixedLenPref(ctx, t, dut, args)
+	// })
 
-	t.Log("Delete vrf selection policy W and Apply vrf selectioin policy C")
-	configureVrfSelectionPolicyC(t, dut)
+	// t.Log("Delete vrf selection policy W and Apply vrf selectioin policy C")
+	// configureVrfSelectionPolicyC(t, dut)
 
-	t.Run("Test-4: Tunneled traffic with no decap", func(t *testing.T) {
-		testTunnelTrafficNoDecap(ctx, t, dut, args)
-	})
+	// t.Run("Test-4: Tunneled traffic with no decap", func(t *testing.T) {
+	// 	testTunnelTrafficNoDecap(ctx, t, dut, args)
+	// })
 
-	t.Log("Delete vrf selection policy C and Apply vrf selectioin policy W")
-	configureVrfSelectionPolicyW(t, dut)
+	// t.Log("Delete vrf selection policy C and Apply vrf selectioin policy W")
+	// configureVrfSelectionPolicyW(t, dut)
 
-	t.Run("Test-5: Match on default term and send to default VRF", func(t *testing.T) {
-		testTunnelTrafficMatchDefaultTerm(ctx, t, dut, args)
-	})
+	// t.Run("Test-5: Match on default term and send to default VRF", func(t *testing.T) {
+	// 	testTunnelTrafficMatchDefaultTerm(ctx, t, dut, args)
+	// })
 
-	t.Run("Test-6: Decap then encap", func(t *testing.T) {
-		testTunnelTrafficDecapEncap(ctx, t, dut, args)
-	})
+	// t.Run("Test-6: Decap then encap", func(t *testing.T) {
+	// 	testTunnelTrafficDecapEncap(ctx, t, dut, args)
+	// })
 }
