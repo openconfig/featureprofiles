@@ -665,7 +665,7 @@ func (ss *AFTStreamSession) listenUntil(ctx context.Context, t *testing.T, timeo
 				// Context cancellation can hit this code path from the stream sending a context cancellation error.
 				t.Fatalf("error from gNMI stream: %v", resp.err)
 			}
-			ss.notifications = append(ss.notifications, resp.notification)
+			// ss.notifications = append(ss.notifications, resp.notification)
 
 			for _, hook := range preUpdateHooks {
 				err := hook.NotificationFunc(ss.Cache, resp.notification)
