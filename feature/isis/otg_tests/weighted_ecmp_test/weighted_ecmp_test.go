@@ -3,6 +3,7 @@ package weighted_ecmp_test
 import (
 	"fmt"
 	"math/rand"
+	"net"
 	"testing"
 	"time"
 
@@ -208,6 +209,11 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
+
+	// Wait for ISIS routes to be added to the FIB table
+	waitForRoutes(t, dut, []*aggPortData{agg1, agg2, agg3})
+	// Wait for 5s so that the routes are programmed in hardware
+	time.Sleep(5 * time.Second)
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
@@ -609,4 +615,41 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
+}
+
+func waitForRoutes(t *testing.T, dut *ondatra.DUTDevice, aggs []*aggPortData) {
+	t.Helper()
+	t.Log("Waiting for ISIS routes to be programmed in the DUT's FIB")
+
+	// Wait for IPv4 route
+	for _, agg := range aggs {
+		// Parse and mask the IPv4 address to get the network prefix
+		_, ipNet, err := net.ParseCIDR(agg.v4Route + "/24")
+		if err != nil {
+			t.Fatalf("Failed to parse IPv4 route %s: %v", agg.v4Route, err)
+		}
+		v4Prefix := ipNet.String() // This gives us the properly masked network address
+		t.Logf("Waiting for IPv4 route %s to be present in FIB", v4Prefix)
+		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			entry, present := val.Val()
+			return present && entry != nil
+		}).Await(t)
+	}
+
+	// Wait for IPv6 route
+	for _, agg := range aggs {
+		// Parse and mask the IPv6 address to get the network prefix
+		_, ipNet, err := net.ParseCIDR(agg.v6Route + "/64")
+		if err != nil {
+			t.Fatalf("Failed to parse IPv6 route %s: %v", agg.v6Route, err)
+		}
+		v6Prefix := ipNet.String() // This gives us the properly masked network address
+		t.Logf("Waiting for IPv6 route %s to be present in FIB", v6Prefix)
+		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			entry, present := val.Val()
+			return present && entry != nil
+		}).Await(t)
+	}
+
+	t.Log("All ISIS routes are programmed in the DUT's FIB")
 }
