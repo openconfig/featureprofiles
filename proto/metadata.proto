@@ -1174,6 +1174,15 @@ message Metadata {
     // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
     bool ipv6_router_advertisement_suppress_unsupported = 384;
 
+    // https://partnerissuetracker.corp.google.com/issues/443044887
+    bool extended_route_retention_oc_unsupported = 385;
+
+    // https://partnerissuetracker.corp.google.com/issues/439825838
+    bool exrr_stale_route_time_unsupported = 386;
+
+    // https://partnerissuetracker.corp.google.com/issues/446376446
+    bool gnoi_bgp_graceful_restart_unsupported = 387;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

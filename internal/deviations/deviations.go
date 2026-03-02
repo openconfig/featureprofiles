@@ -1966,3 +1966,18 @@ func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
 }
+
+// ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+// ExrrStaleRouteTimeUnsupported returns true if devices do not support exrr stale route time configuration.
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+// GnoiBgpGracefulRestartUnsupported returns true if gNMI/gNOI support for BGP graceful restart is not available.
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}

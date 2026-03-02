@@ -5,3 +5,22 @@ uuid:  "79d56e4a-19af-4006-8920-a2ee0073f51c"
 plan_id:  "RT-1.35"
 description:  "BGP Graceful Restart Extended route retention (ExRR)"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model: "DCS-7280CR3K-32D4"
+    hardware_model: "DCS-7808"
+    hardware_model: "DCS-7804-CH"
+    hardware_model: "ceos"
+  }
+  deviations: {
+    route_policy_under_afi_unsupported: true
+    interface_enabled: true
+    default_network_instance: "default"
+    bgp_set_med_action_unsupported: true
+    extended_route_retention_oc_unsupported: true
+    exrr_stale_route_time_unsupported: true
+    gnoi_bgp_graceful_restart_unsupported: true
+    bgp_actions_set_community_method_unsupported:  true
+  }
+}
