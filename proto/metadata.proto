@@ -1170,6 +1170,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/487324495
     bool acl_icmp_type_code_configuration_unsupported = 383;
 
+    // Devices that do not support suppress router advertisement.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+    bool ipv6_router_advertisement_suppress_unsupported = 384;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }
@@ -1199,3 +1203,4 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
+

@@ -1961,3 +1961,8 @@ func SkipACLCountersVerificationDuringUpdate(dut *ondatra.DUTDevice) bool {
 func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAclIcmpTypeCodeConfigurationUnsupported()
 }
+
+// Ipv6RouterAdvertisementSuppressUnsupported returns true if devices do not support suppress router advertisement.
+func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
+}
