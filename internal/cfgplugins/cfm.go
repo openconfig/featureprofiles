@@ -480,9 +480,6 @@ func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []M
 			slmReceived1 := gnmi.Get(t, dutData[0], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[0].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
 			slmReceived2 := gnmi.Get(t, dutData[1], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[1].ProfileName).LossMeasurementState().Counters().SlmReceived().State())
 			if slmReceived1 > 0 && slmReceived2 > 0 {
-				lastMeasurement1 = int(slmReceived1)
-				lastMeasurement2 = int(slmReceived2)
-
 				if slmReceived1 > uint64(lastMeasurement1) {
 					lastMeasurement1 = int(slmReceived1)
 				} else {
@@ -496,27 +493,27 @@ func ValidateLossMeasurement(t *testing.T, dutData []*ondatra.DUTDevice, cfg []M
 			} else {
 				t.Errorf("slm measurement not found, got: %d, %d, expected > 1", slmReceived1, slmReceived2)
 			}
-		}
-		for i := range dutData {
-			max := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMaxFrameLossRatio().State())
-			min := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMinFrameLossRatio().State())
-			avg := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndAverageFrameLossRatio().State())
+			for i := range dutData {
+				max := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMaxFrameLossRatio().State())
+				min := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndMinFrameLossRatio().State())
+				avg := gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().FarEndAverageFrameLossRatio().State())
 
-			if max == 0 || min == 0 || avg == 0 {
-				t.Fatal("Could not retrieve one or more farend loss measurement values")
+				if max == 0 || min == 0 || avg == 0 {
+					t.Fatal("Could not retrieve one or more farend loss measurement values")
+				}
+
+				t.Logf("Farend loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
+
+				max = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMaxFrameLossRatio().State())
+				min = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMinFrameLossRatio().State())
+				avg = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndAverageFrameLossRatio().State())
+
+				if max == 0 || min == 0 || avg == 0 {
+					t.Fatal("Could not retrieve one or more near-end loss measurement values")
+				}
+
+				t.Logf("near end loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 			}
-
-			t.Logf("Farend loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
-
-			max = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMaxFrameLossRatio().State())
-			min = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndMinFrameLossRatio().State())
-			avg = gnmi.Get(t, dutData[i], gnmi.OC().Oam().Cfm().PerformanceMeasurementProfile(cfg[i].ProfileName).LossMeasurementState().NearEndAverageFrameLossRatio().State())
-
-			if max == 0 || min == 0 || avg == 0 {
-				t.Fatal("Could not retrieve one or more near-end loss measurement values")
-			}
-
-			t.Logf("near end loss ratio - Min: %d, Max: %d, Avg: %d\n", min, max, avg)
 		}
 	}
 }

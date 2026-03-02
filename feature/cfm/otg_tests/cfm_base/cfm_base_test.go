@@ -826,7 +826,7 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 		}
 	}
 
-	interval, _ := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
+	interval := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
 	if err := validateCfmPacket(t, interval, false); err != nil {
 		t.Errorf("error: validation of cfm packets failed: %q", err)
 	}
@@ -876,7 +876,7 @@ func testCFMAlarm(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 		}
 	}
 
-	interval, _ := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
+	interval := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
 	if err := validateCfmPacket(t, interval, false); err != nil {
 		t.Errorf("error: validation of cfm packets failed: %q", err)
 	}
