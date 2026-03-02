@@ -1966,3 +1966,8 @@ func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
 }
+
+// SystemMountPointStateFt returns the functional translator name for devices with mount point state paths unsupported.
+func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
+}
