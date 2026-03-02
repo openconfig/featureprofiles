@@ -857,6 +857,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.54"
+  description: "BGP Override AS-path split-horizon"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_override_as_path_split_horizon_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.55"
   description: "BGP session mode (active/passive)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
@@ -1529,9 +1535,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/fib_failed_due_to_hw_res_exhaust_test/README.md"
 }
 test: {
-  id: "TE-9.2"
+  id: "PF-1.25"
   description: "MPLS based forwarding Static LSP"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/mpls_compliance/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_lsp_test/README.md"
 }
 test: {
   id: "TR-6.1"
@@ -2245,4 +2251,22 @@ test: {
   description: "Carrier Transitions Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/otg_tests/telemetry_interface_carrier_transitions_test/carrier_transitions_test.go"
+}
+test: {
+  id: "TE-13.1"
+  description: "gRIBI route ADD during Failover"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_addition_during_failover_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_addition_during_failover_test/route_addition_during_failover_test.go"
+}
+test: {
+  id: "TE-13.2"
+  description: "gRIBI route DELETE during Failover "
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_removal_during_failover_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/route_removal_during_failover_test/route_removal_during_failover_test.go"
+}
+test: {
+  id: "SR-1.1"
+  description: "Transit forwarding to Node-SID via ISIS"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/isis_node_sid_forward_test.go"
 }
