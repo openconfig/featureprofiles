@@ -1317,9 +1317,21 @@ type Metadata_Deviations struct {
 	// Device that requires explicit config to support BGP RIB streaming
 	// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
 	BgpRibStreamingConfigRequired bool `protobuf:"varint,380,opt,name=bgp_rib_streaming_config_required,json=bgpRibStreamingConfigRequired,proto3" json:"bgp_rib_streaming_config_required,omitempty"`
+	// Device does not support enabling ACL counters through OC
+	// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+	AclCountersEnableOcUnsupported bool `protobuf:"varint,381,opt,name=acl_counters_enable_oc_unsupported,json=aclCountersEnableOcUnsupported,proto3" json:"acl_counters_enable_oc_unsupported,omitempty"`
+	// Device does not report ACL counters accurately during ACL update
+	// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+	SkipAclCountersVerificationDuringUpdate bool `protobuf:"varint,382,opt,name=skip_acl_counters_verification_during_update,json=skipAclCountersVerificationDuringUpdate,proto3" json:"skip_acl_counters_verification_during_update,omitempty"`
+	// Device does not support configuring ICMP type and code fields for ACL
+	// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+	AclIcmpTypeCodeConfigurationUnsupported bool `protobuf:"varint,383,opt,name=acl_icmp_type_code_configuration_unsupported,json=aclIcmpTypeCodeConfigurationUnsupported,proto3" json:"acl_icmp_type_code_configuration_unsupported,omitempty"`
+	// Devices that do not support suppress router advertisement.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
 	// Functional Translator name for devices with mount point state paths unsupported.
-	SystemMountPointStateFt string `protobuf:"bytes,381,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
+	SystemMountPointStateFt string `protobuf:"bytes,385,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
 	unknownFields           protoimpl.UnknownFields
 	sizeCache               protoimpl.SizeCache
 }
@@ -3783,6 +3795,34 @@ func (x *Metadata_Deviations) GetBgpRibStreamingConfigRequired() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetAclCountersEnableOcUnsupported() bool {
+	if x != nil {
+		return x.AclCountersEnableOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipAclCountersVerificationDuringUpdate() bool {
+	if x != nil {
+		return x.SkipAclCountersVerificationDuringUpdate
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAclIcmpTypeCodeConfigurationUnsupported() bool {
+	if x != nil {
+		return x.AclIcmpTypeCodeConfigurationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIpv6RouterAdvertisementSuppressUnsupported() bool {
+	if x != nil {
+		return x.Ipv6RouterAdvertisementSuppressUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetSystemMountPointStateFt() string {
 	if x != nil {
 		return x.SystemMountPointStateFt
@@ -3846,7 +3886,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x91\xd4\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x83\xd7\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3858,7 +3898,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xfd\xc9\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xef\xcc\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4210,8 +4250,12 @@ const file_metadata_proto_rawDesc = "" +
 	"(bgp_default_policy_behavior_accept_route\x18\xf9\x02 \x01(\bR#bgpDefaultPolicyBehaviorAcceptRoute\x12T\n" +
 	"(reduced_ecmp_set_on_mixed_encap_decap_nh\x18\xfa\x02 \x01(\bR!reducedEcmpSetOnMixedEncapDecapNh\x12d\n" +
 	"/terminal_device_channel_admin_state_unsupported\x18\xfb\x02 \x01(\bR*terminalDeviceChannelAdminStateUnsupported\x12I\n" +
-	"!bgp_rib_streaming_config_required\x18\xfc\x02 \x01(\bR\x1dbgpRibStreamingConfigRequired\x12=\n" +
-	"\x1bsystem_mount_point_state_ft\x18\xfd\x02 \x01(\tR\x17systemMountPointStateFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"!bgp_rib_streaming_config_required\x18\xfc\x02 \x01(\bR\x1dbgpRibStreamingConfigRequired\x12K\n" +
+	"\"acl_counters_enable_oc_unsupported\x18\xfd\x02 \x01(\bR\x1eaclCountersEnableOcUnsupported\x12^\n" +
+	",skip_acl_counters_verification_during_update\x18\xfe\x02 \x01(\bR'skipAclCountersVerificationDuringUpdate\x12^\n" +
+	",acl_icmp_type_code_configuration_unsupported\x18\xff\x02 \x01(\bR'aclIcmpTypeCodeConfigurationUnsupported\x12c\n" +
+	".ipv6_router_advertisement_suppress_unsupported\x18\x80\x03 \x01(\bR*ipv6RouterAdvertisementSuppressUnsupported\x12=\n" +
+	"\x1bsystem_mount_point_state_ft\x18\x81\x03 \x01(\tR\x17systemMountPointStateFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
