@@ -1158,14 +1158,30 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
     bool bgp_rib_streaming_config_required = 380;
 
+    // Device does not support enabling ACL counters through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+    bool acl_counters_enable_oc_unsupported = 381;
+
+    // Device does not report ACL counters accurately during ACL update
+    // Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+    bool skip_acl_counters_verification_during_update = 382;
+
+    // Device does not support configuring ICMP type and code fields for ACL
+    // Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+    bool acl_icmp_type_code_configuration_unsupported = 383;
+
+    // Devices that do not support suppress router advertisement.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+    bool ipv6_router_advertisement_suppress_unsupported = 384;
+
     // https://partnerissuetracker.corp.google.com/issues/443044887
-    bool extended_route_retention_oc_unsupported = 381;
+    bool extended_route_retention_oc_unsupported = 385;
 
     // https://partnerissuetracker.corp.google.com/issues/439825838
-    bool exrr_stale_route_time_unsupported = 382;
+    bool exrr_stale_route_time_unsupported = 386;
 
     // https://partnerissuetracker.corp.google.com/issues/446376446
-    bool gnoi_bgp_graceful_restart_unsupported = 383;
+    bool gnoi_bgp_graceful_restart_unsupported = 387;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
@@ -1196,3 +1212,4 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
+
