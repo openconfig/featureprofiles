@@ -816,7 +816,7 @@ func replaceWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.Confi
 		t.Logf("Replace failed, retrying... Attempt %d/3. Error: %v", i+1, err)
 		time.Sleep(30 * time.Second)
 	}
-	t.Fatalf("Replace failed after 10 attempts")
+	t.Fatalf("Replace failed after 3 attempts")
 }
 
 func updateWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {
@@ -835,7 +835,7 @@ func updateWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.Config
 		t.Logf("Update failed, retrying... Attempt %d/3. Error: %v", i+1, err)
 		time.Sleep(30 * time.Second)
 	}
-	t.Fatalf("Update failed after 10 attempts")
+	t.Fatalf("Update failed after 3 attempts")
 }
 
 func deleteWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T]) {
