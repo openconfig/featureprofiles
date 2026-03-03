@@ -116,7 +116,6 @@ var (
 		IPv6:    "2001:db8::1",
 		IPv4Len: 30,
 		IPv6Len: 126,
-		MAC:     "02:01:00:00:00:01",
 	}
 
 	atePort1 = &attrs.Attributes{
@@ -131,7 +130,6 @@ var (
 
 	dutPort2 = &attrs.Attributes{
 		Desc:    "DUT to ATE Port2",
-		MAC:     "02:02:00:00:00:01",
 		IPv4:    "192.168.1.5",
 		IPv6:    "2001:db8::5",
 		IPv4Len: 30,
@@ -150,7 +148,6 @@ var (
 
 	dutPort3 = &attrs.Attributes{
 		Desc:    "DUT to ATE Port3",
-		MAC:     "02:03:00:00:00:01",
 		IPv4:    "192.168.1.9",
 		IPv6:    "2001:db8::9",
 		IPv4Len: 30,
@@ -169,7 +166,6 @@ var (
 
 	dutPort4 = &attrs.Attributes{
 		Desc:    "DUT to ATE Port4",
-		MAC:     "02:04:00:00:00:01",
 		IPv4:    "192.168.1.13",
 		IPv6:    "2001:db8::c",
 		IPv4Len: 30,
@@ -206,6 +202,7 @@ type bgpNeighbor struct {
 	neighborip string
 	isV4       bool
 	name       string
+	device     gosnappi.Device
 }
 
 type aclConfig struct {
@@ -613,7 +610,6 @@ func createBGPNeighbor(localAs uint32, bgpNbrs []*bgpNeighbor, dut *ondatra.DUTD
 }
 
 func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosnappi.Config {
-
 	otgConfig := gosnappi.NewConfig()
 
 	for portName, portAttrs := range otgPorts {
@@ -622,18 +618,24 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 		portAttrs.AddToOTG(otgConfig, port, dutPort)
 	}
 
+	devices := otgConfig.Devices().Items()
+	devMap := make(map[string]gosnappi.Device)
+	for _, dev := range devices {
+		devMap[dev.Name()] = dev
+	}
+
 	bgpv4Devices := []*bgpNeighbor{
-		{neighborip: atePort1.IPv4, as: atePort1AS, name: atePort1.Name, isV4: true},
-		{neighborip: atePort2.IPv4, as: atePort2AS, name: atePort2.Name, isV4: true},
-		{neighborip: atePort3.IPv4, as: atePort3AS, name: atePort3.Name, isV4: true},
-		{neighborip: atePort4.IPv4, as: atePort4AS, name: atePort4.Name, isV4: true},
+		{neighborip: atePort1.IPv4, as: atePort1AS, name: atePort1.Name, isV4: true, device: devMap[atePort1.Name]},
+		{neighborip: atePort2.IPv4, as: atePort2AS, name: atePort2.Name, isV4: true, device: devMap[atePort2.Name]},
+		{neighborip: atePort3.IPv4, as: atePort3AS, name: atePort3.Name, isV4: true, device: devMap[atePort3.Name]},
+		{neighborip: atePort4.IPv4, as: atePort4AS, name: atePort4.Name, isV4: true, device: devMap[atePort4.Name]},
 	}
 
 	bgpv6Devices := []*bgpNeighbor{
-		{neighborip: atePort1.IPv6, as: atePort1AS, name: atePort1.Name, isV4: false},
-		{neighborip: atePort2.IPv6, as: atePort2AS, name: atePort2.Name, isV4: false},
-		{neighborip: atePort3.IPv6, as: atePort3AS, name: atePort3.Name, isV4: false},
-		{neighborip: atePort4.IPv6, as: atePort4AS, name: atePort4.Name, isV4: false},
+		{neighborip: atePort1.IPv6, as: atePort1AS, name: atePort1.Name, isV4: false, device: devMap[atePort1.Name]},
+		{neighborip: atePort2.IPv6, as: atePort2AS, name: atePort2.Name, isV4: false, device: devMap[atePort2.Name]},
+		{neighborip: atePort3.IPv6, as: atePort3AS, name: atePort3.Name, isV4: false, device: devMap[atePort3.Name]},
+		{neighborip: atePort4.IPv6, as: atePort4AS, name: atePort4.Name, isV4: false, device: devMap[atePort4.Name]},
 	}
 
 	multiplePrefixV4IPs := []struct {
@@ -660,20 +662,18 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 		{prefixV6Address4, prefixV6_4, true, pfxvLen128},
 	}
 
-	devices := otgConfig.Devices().Items()
+	for i, peer := range bgpv4Devices {
+		bgp := peer.device.Bgp().SetRouterId(peer.neighborip)
+		iDut1Ipv4 := peer.device.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+		iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
 
-	// PrefixConfig flag is set to test the testcases using prefix-list, it will create routes used for prefix-list
-	if prefixConfig {
-		for i, peer := range bgpv4Devices {
-			bgp := devices[i].Bgp().SetRouterId(peer.neighborip)
-			iDut1Ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-			iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
+		iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(peer.name + ".BGP4.peer")
+		iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+		// configure Ipv4 Network Group
+		bgp4Peer := peer.device.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 
-			iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(peer.name + ".BGP4.peer")
-			iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-			// configure Ipv4 Network Group
-			bgp4Peer := devices[i].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
-
+		// PrefixConfig flag is set to test the testcases using prefix-list, it will create routes used for prefix-list
+		if prefixConfig {
 			// Configure IPv4 Network group with Source Prefix List
 			netV4_2 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNetSrc-devSrc%d-2", i+1))
 			netV4_2.Addresses().Add().SetAddress(prfxListSrcIpv4List[i]).SetPrefix(uint32(prfxListSrcSubnetList[i])).SetCount(peerCountSrcPrefix)
@@ -681,22 +681,29 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 			// Configure IPv4 Network group with Destination Prefix List
 			netV4_3 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNetDst-devDst%d-3", i+1))
 			netV4_3.Addresses().Add().SetAddress(prfxListDstIpv4List[i]).SetPrefix(uint32(prfxListDstSubnet)).SetCount(peerCountDstPrefix)
+		} else {
+			for index, prefixIPs := range multiplePrefixV4IPs {
+				// Configure IPv4 Network group with multiple prefixes
+				netV4_1 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-dev%d-1-prfx%d", i+1, index+1))
+				netV4_1.Addresses().Add().SetAddress(prefixIPs.startIP).SetPrefix(prefixIPs.subnet).SetCount(uint32(prefixIPs.count))
+			}
 		}
+	}
 
-		for i, peer := range bgpv6Devices {
-			bgp := devices[i].Bgp().SetRouterId(peer.neighborip)
-			iDut1Ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-			iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
+	for i, peer := range bgpv6Devices {
+		bgp := peer.device.Bgp().SetRouterId(peer.neighborip)
+		iDut1Ipv4 := peer.device.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
+		iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
 
-			// eBGP v6 session on OTG Port.
-			iDut1Ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-			iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(peer.name + ".BGP6.peer")
-			iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-			iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
+		// eBGP v6 session on OTG Port.
+		iDut1Ipv6 := peer.device.Ethernets().Items()[0].Ipv6Addresses().Items()[0]
+		iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(peer.name + ".BGP6.peer")
+		iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+		iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 
-			// configure Ipv6 Network Group
-			bgp6Peer := devices[i].Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
-
+		// configure Ipv6 Network Group
+		bgp6Peer := peer.device.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+		if prefixConfig {
 			// Configure IPv6 Network group with Source Prefix List
 			netV6_2 := bgp6Peer.V6Routes().Add().SetName(fmt.Sprintf("v6-bgpNetSrc-devSrc%d-2", i+1))
 			netV6_2.Addresses().Add().SetAddress(prfxListSrcIpv6List[i]).SetPrefix(prfxListSrcV6SubnetList[i]).SetCount(peerCountSrcPrefix)
@@ -704,47 +711,13 @@ func configureOTG(t *testing.T, otg *ondatra.ATEDevice, prefixConfig bool) gosna
 			// Configure IPv6 Network group with Destination Prefix List
 			netV6_3 := bgp6Peer.V6Routes().Add().SetName(fmt.Sprintf("v6-bgpNetDst-devDst%d-3", i+1))
 			netV6_3.Addresses().Add().SetAddress(prfxListDstIpv6List[i]).SetPrefix(uint32(prfxListDstV6Subnet)).SetCount(peerCountDstPrefix)
-		}
-	} else {
-		for i, peer := range bgpv4Devices {
-			bgp := devices[i].Bgp().SetRouterId(peer.neighborip)
-			iDut1Ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-			iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
-
-			iDut1Bgp4Peer := iDut1Bgp.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(peer.name + ".BGP4.peer")
-			iDut1Bgp4Peer.SetPeerAddress(iDut1Ipv4.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
-			// configure Ipv4 Network Group
-			bgp4Peer := devices[i].Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
-
-			for index, prefixIPs := range multiplePrefixV4IPs {
-				// Configure IPv4 Network group with multiple prefixes
-				netV4_1 := bgp4Peer.V4Routes().Add().SetName(fmt.Sprintf("v4-bgpNet-dev%d-1-prfx%d", i+1, index+1))
-				netV4_1.Addresses().Add().SetAddress(prefixIPs.startIP).SetPrefix(prefixIPs.subnet).SetCount(uint32(prefixIPs.count))
-			}
-
-		}
-
-		for i, peer := range bgpv6Devices {
-			bgp := devices[i].Bgp().SetRouterId(peer.neighborip)
-			iDut1Ipv4 := devices[i].Ethernets().Items()[0].Ipv4Addresses().Items()[0]
-			iDut1Bgp := bgp.SetRouterId(iDut1Ipv4.Address())
-
-			// eBGP v6 session on OTG Port.
-			iDut1Ipv6 := devices[i].Ethernets().Items()[0].Ipv6Addresses().Items()[0]
-			iDut1Bgp6Peer := iDut1Bgp.Ipv6Interfaces().Add().SetIpv6Name(iDut1Ipv6.Name()).Peers().Add().SetName(peer.name + ".BGP6.peer")
-			iDut1Bgp6Peer.SetPeerAddress(iDut1Ipv6.Gateway()).SetAsNumber(peer.as).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
-			iDut1Bgp6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
-
-			// configure Ipv6 Network Group
-			bgp6Peer := devices[i].Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
-
+		} else {
 			for index, prefixIPs := range multiplePrefixV6IPs {
 				// Configure IPv6 Network group with multiple prefixes
 				netV6 := bgp6Peer.V6Routes().Add().SetName(fmt.Sprintf("v6-bgpNet-dev%d-1-prfx%d", i+1, index+1))
 				netV6.Addresses().Add().SetAddress(prefixIPs.startIP).SetPrefix(prefixIPs.subnet).SetCount(uint32(prefixIPs.count))
 			}
 		}
-
 	}
 
 	return otgConfig
@@ -1086,7 +1059,7 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 300)
+		time.Sleep(time.Second * 30)
 
 		t.Logf("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
@@ -1318,7 +1291,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 		otgConfig.PushConfig(t, config)
 		otgConfig.StartProtocols(t)
-		time.Sleep(time.Second * 120)
+		time.Sleep(time.Second * 30)
 
 		t.Logf("Verify OTG BGP sessions up")
 		cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)
@@ -1626,7 +1599,7 @@ func testv6PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 	otgConfig.PushConfig(t, configV6)
 
 	otgConfig.StartProtocols(t)
-	time.Sleep(time.Second * 120)
+	time.Sleep(time.Second * 30)
 
 	t.Logf("Verify OTG BGP sessions up")
 	cfgplugins.VerifyOTGBGPEstablished(t, ate, 6*time.Minute)

@@ -1474,6 +1474,12 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
@@ -1612,7 +1618,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
@@ -1810,8 +1816,19 @@ func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
+// BgpRibStreamingConfigRequired returns true for devices that require an
+// an explicit config to support BGP RIB streaming through YANG path:
+//
+//	/network-instances/network-instance/protocols/protocol/bgp/rib
+//
+// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+func BgpRibStreamingConfigRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRibStreamingConfigRequired()
+}
+
 // InterfaceCountersInUnknownProtosUnsupported returns if the device does not support interface counters in unknown protos.
 // https://issuetracker.google.com/issues/461368936
+// Arista: https://issuetracker.google.com/456175795
 func InterfaceCountersInUnknownProtosUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInUnknownProtosUnsupported()
 }
@@ -1880,11 +1897,13 @@ func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) boo
 }
 
 // NoQueueDropUnsupported returns true if device does not support no-queue drops
+// Arista: https://issuetracker.google.com/456220916
 func NoQueueDropUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNoQueueDropUnsupported()
 }
 
 // InterfaceEthernetInblockErrorsUnsupported returns true if device does not support interface ethernet in-block errors
+// Arista: https://issuetracker.google.com/456175793
 func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
@@ -1904,4 +1923,46 @@ func TransceiverStateUnsupported(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
 func SubnetMaskChangeRequired(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubnetMaskChangeRequired()
+}
+
+// Ciscoxr8000IntegratedCircuitResourceFt returns the functional translator to be used for translating
+// integrated circuit resource leaves.
+func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
+}
+
+// BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
+// there is no routing policy or default policy configured.
+func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpDefaultPolicyBehaviorAcceptRoute()
+}
+
+// TerminalDeviceChannelAdminStateUnsupported returns true if setting admin-state on
+// TerminalDevice Channel is unsupported.
+// Arista: https://issuetracker.google.com/482191638
+func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
+}
+
+// ACLCountersEnableOCUnsupported returns true if enabling ACL counters via OpenConfig is unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+func ACLCountersEnableOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclCountersEnableOcUnsupported()
+}
+
+// SkipACLCountersVerificationDuringUpdate returns true if ACL counter verification should be skipped during ACL updates.
+// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+func SkipACLCountersVerificationDuringUpdate(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAclCountersVerificationDuringUpdate()
+}
+
+// ACLIcmpTypeCodeConfigurationUnsupported returns true if device does not support configuring ICMP type and code fields for ACL.
+// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclIcmpTypeCodeConfigurationUnsupported()
+}
+
+// Ipv6RouterAdvertisementSuppressUnsupported returns true if devices do not support suppress router advertisement.
+func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
 }
