@@ -1159,4 +1159,3 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 }
-
