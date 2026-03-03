@@ -193,9 +193,6 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, intBatch *gnmi.SetBa
 }
 
 // configureHardwareInit sets up the initial hardware configuration on the DUT.
-// It pushes hardware initialization configs for:
-//  1. VRF Selection Extended feature.
-//  2. Policy Forwarding feature.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	features := []cfgplugins.FeatureType{
