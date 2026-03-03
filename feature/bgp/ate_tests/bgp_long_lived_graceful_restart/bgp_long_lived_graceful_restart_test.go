@@ -88,6 +88,9 @@ const (
 	setALLOWPolicy           = "ALLOW"
 	bgpMED                   = 25
 	aclStatement3            = "30"
+	gnmiRetryCount           = 3
+	gnmiDeleteRetryCount     = 10
+	gnmiSleepDuration        = 30 * time.Second
 )
 
 var (
@@ -756,8 +759,10 @@ func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, grRestartTime)
 	}
 
-	if llgrTimer := gnmi.Get(t, dut, nbrPath.GracefulRestart().StaleRoutesTime().State()); llgrTimer != grStaleRouteTime {
-		t.Errorf("LLGR timer is incorrect, want %v, got %v", grStaleRouteTime, llgrTimer)
+	if !deviations.BgpLlgrOcUndefined(dut) {
+		if llgrTimer := gnmi.Get(t, dut, nbrPath.GracefulRestart().StaleRoutesTime().State()); llgrTimer != grStaleRouteTime {
+			t.Errorf("LLGR timer is incorrect, want %v, got %v", grStaleRouteTime, llgrTimer)
+		}
 	}
 	if grState := gnmi.Get(t, dut, nbrPath.GracefulRestart().Enabled().State()); grState != true {
 		t.Errorf("Graceful restart enabled state is incorrect, want true, got %v", grState)
@@ -802,59 +807,54 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 
 func replaceWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {
 	t.Helper()
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("Failed to create ygnmi client: %v", err)
-	}
-
-	for i := 0; i < 3; i++ {
-		_, err := ygnmi.Replace(context.Background(), c, q, val)
-		if err == nil {
-			return
+	gnmiOperationWithRetry(t, "Replace", gnmiRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
 		}
-		t.Logf("Replace failed, retrying... Attempt %d/3. Error: %v", i+1, err)
-		time.Sleep(30 * time.Second)
-	}
-	t.Fatalf("Replace failed after 3 attempts")
+		_, err = ygnmi.Replace(context.Background(), c, q, val)
+		return err
+	})
 }
 
 func updateWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {
 	t.Helper()
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("Failed to create ygnmi client: %v", err)
-	}
-
-	for i := 0; i < 3; i++ {
-		_, err := ygnmi.Update(context.Background(), c, q, val)
-		if err == nil {
-			return
+	gnmiOperationWithRetry(t, "Update", gnmiRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
 		}
-		t.Logf("Update failed, retrying... Attempt %d/3. Error: %v", i+1, err)
-		time.Sleep(30 * time.Second)
-	}
-	t.Fatalf("Update failed after 3 attempts")
+		_, err = ygnmi.Update(context.Background(), c, q, val)
+		return err
+	})
 }
 
 func deleteWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T]) {
 	t.Helper()
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
-	if err != nil {
-		t.Fatalf("Failed to create ygnmi client: %v", err)
-	}
+	gnmiOperationWithRetry(t, "Delete", gnmiDeleteRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
+		}
+		_, err = ygnmi.Delete(context.Background(), c, q)
+		return err
+	})
+}
 
-	for i := 0; i < 10; i++ {
-		_, err := ygnmi.Delete(context.Background(), c, q)
+func gnmiOperationWithRetry(t *testing.T, opName string, retryCount int, op func() error) {
+	t.Helper()
+	for i := 0; i < retryCount; i++ {
+		err := op()
 		if err == nil {
 			return
 		}
-		t.Logf("Delete failed, retrying... Attempt %d/10. Error: %v", i+1, err)
-		time.Sleep(30 * time.Second)
+		t.Logf("%s failed, retrying... Attempt %d/%d. Error: %v", opName, i+1, retryCount, err)
+		time.Sleep(gnmiSleepDuration)
 	}
-	t.Fatalf("Delete failed after 10 attempts")
+	t.Fatalf("%s failed after %d attempts", opName, retryCount)
 }
 
 func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
@@ -953,6 +953,9 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
+			if deviations.RoutingRestartViaGnoiUnsupported(dut) {
+				t.Skip("Skipping routing restart via gNOI due to deviation")
+			}
 			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
 
@@ -1156,3 +1159,4 @@ func TestTrafficWithGracefulRestart(t *testing.T) {
 		verifyNoPacketLoss(t, ate, allFlows)
 	})
 }
+

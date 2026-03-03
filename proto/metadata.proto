@@ -1178,6 +1178,10 @@ message Metadata {
     // Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
     bool bgp_config_during_graceful_restart_unsupported = 385;
 
+    // Device does not support restarting the routing process via gNOI.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+    bool routing_restart_via_gnoi_unsupported = 386;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
   }

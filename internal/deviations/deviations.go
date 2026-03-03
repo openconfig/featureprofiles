@@ -1972,3 +1972,9 @@ func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpConfigDuringGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpConfigDuringGracefulRestartUnsupported()
 }
+
+// RoutingRestartViaGnoiUnsupported returns true if the device does not support restarting the routing process via gNOI.
+// Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingRestartViaGnoiUnsupported()
+}
