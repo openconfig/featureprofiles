@@ -945,9 +945,6 @@ type Metadata_Deviations struct {
 	IsisDisSysidUnsupported bool `protobuf:"varint,239,opt,name=isis_dis_sysid_unsupported,json=isisDisSysidUnsupported,proto3" json:"isis_dis_sysid_unsupported,omitempty"`
 	// Cisco: b/378616912
 	IsisDatabaseOverloadsUnsupported bool `protobuf:"varint,240,opt,name=isis_database_overloads_unsupported,json=isisDatabaseOverloadsUnsupported,proto3" json:"isis_database_overloads_unsupported,omitempty"`
-	// Juniper: b/358534837
-	// Devices that do not support setting med value using union type in OC.
-	BgpSetMedV7Unsupported bool `protobuf:"varint,241,opt,name=bgp_set_med_v7_unsupported,json=bgpSetMedV7Unsupported,proto3" json:"bgp_set_med_v7_unsupported,omitempty"`
 	// Cisco: b/388980373
 	// default import policy for table connection unsupported is set to true for devices that do not support default import policy.
 	TcDefaultImportPolicyUnsupported bool `protobuf:"varint,242,opt,name=tc_default_import_policy_unsupported,json=tcDefaultImportPolicyUnsupported,proto3" json:"tc_default_import_policy_unsupported,omitempty"`
@@ -2830,13 +2827,6 @@ func (x *Metadata_Deviations) GetIsisDisSysidUnsupported() bool {
 func (x *Metadata_Deviations) GetIsisDatabaseOverloadsUnsupported() bool {
 	if x != nil {
 		return x.IsisDatabaseOverloadsUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetBgpSetMedV7Unsupported() bool {
-	if x != nil {
-		return x.BgpSetMedV7Unsupported
 	}
 	return false
 }
