@@ -1210,12 +1210,6 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
 
-// BgpSetMedV7Unsupported returns true if devices which are not
-// supporting bgp set med union type in OC.
-func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
-}
-
 // EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
@@ -1965,4 +1959,16 @@ func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 // Ipv6RouterAdvertisementSuppressUnsupported returns true if devices do not support suppress router advertisement.
 func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
+}
+
+// BgpConfigDuringGracefulRestartUnsupported returns true if the device does not support BGP configuration during graceful restart.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+func BgpConfigDuringGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpConfigDuringGracefulRestartUnsupported()
+}
+
+// RoutingRestartViaGnoiUnsupported returns true if the device does not support restarting the routing process via gNOI.
+// Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingRestartViaGnoiUnsupported()
 }
