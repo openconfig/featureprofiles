@@ -1960,3 +1960,8 @@ func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
 }
+
+// QosFt returns the functional translator to be used for translating QoS leaves.
+func QosFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetQosFt()
+}
