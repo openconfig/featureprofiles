@@ -1248,12 +1248,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-9"
-  description: "Interface IPv6 ND RA disable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
-  exec: " "
-}
-test: {
   id: "RT-9.1"
   description: "Equal distribution of traffic"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/weighted_ECMP/README.md"
