@@ -1210,12 +1210,6 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
 
-// BgpSetMedV7Unsupported returns true if devices which are not
-// supporting bgp set med union type in OC.
-func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
-}
-
 // EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
@@ -1942,4 +1936,39 @@ func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
 // Arista: https://issuetracker.google.com/482191638
 func TerminalDeviceChannelAdminStateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTerminalDeviceChannelAdminStateUnsupported()
+}
+
+// ACLCountersEnableOCUnsupported returns true if enabling ACL counters via OpenConfig is unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+func ACLCountersEnableOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclCountersEnableOcUnsupported()
+}
+
+// SkipACLCountersVerificationDuringUpdate returns true if ACL counter verification should be skipped during ACL updates.
+// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+func SkipACLCountersVerificationDuringUpdate(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipAclCountersVerificationDuringUpdate()
+}
+
+// ACLIcmpTypeCodeConfigurationUnsupported returns true if device does not support configuring ICMP type and code fields for ACL.
+// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclIcmpTypeCodeConfigurationUnsupported()
+}
+
+// Ipv6RouterAdvertisementSuppressUnsupported returns true if devices do not support suppress router advertisement.
+func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()
+}
+
+// BgpConfigDuringGracefulRestartUnsupported returns true if the device does not support BGP configuration during graceful restart.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+func BgpConfigDuringGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpConfigDuringGracefulRestartUnsupported()
+}
+
+// RoutingRestartViaGnoiUnsupported returns true if the device does not support restarting the routing process via gNOI.
+// Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRoutingRestartViaGnoiUnsupported()
 }
