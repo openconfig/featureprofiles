@@ -112,9 +112,16 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	tunnelLoadblanceDiff := tunnelCount * 3
 	interfaceLoadblanceDiff := tolerance
 	config := &oc.Root{}
-	dutIntf1.ConfigOCInterface(config.GetOrCreateInterface(dutPort1.Name()), dut)
-	dutIntf2.ConfigOCInterface(config.GetOrCreateInterface(dutPort2.Name()), dut)
-	dutIntf3.ConfigOCInterface(config.GetOrCreateInterface(dutPort3.Name()), dut)
+	conf1 := dutIntf1.ConfigOCInterface(config.GetOrCreateInterface(dutPort1.Name()), dut)
+	conf2 := dutIntf2.ConfigOCInterface(config.GetOrCreateInterface(dutPort2.Name()), dut)
+	conf3 := dutIntf3.ConfigOCInterface(config.GetOrCreateInterface(dutPort3.Name()), dut)
+
+	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort1.Name(), dutIntf1.IPv4, dutIntf1.MAC)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf1.IPv4).Config(), conf1)
+	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort2.Name(), dutIntf2.IPv4, dutIntf2.MAC)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf2.IPv4).Config(), conf2)
+	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort3.Name(), dutIntf3.IPv4, dutIntf3.MAC)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf3.IPv4).Config(), conf3)
 
 	step := 0
 	var overlayIPv4Nh []string
