@@ -935,6 +935,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.67"
+  description: "IPv4 and IPv6 Static Route using Vlan Interface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_with_vlan_interface/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -1146,6 +1152,12 @@ test: {
   id: "RT-5.14"
   description: "Aggregate Subinterface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/aggregate/otg_tests/aggregate_subinterface/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-5.15"
+  description: "LACP Fallback Support"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_fallback_test/README.md"
   exec: " "
 }
 test: {
