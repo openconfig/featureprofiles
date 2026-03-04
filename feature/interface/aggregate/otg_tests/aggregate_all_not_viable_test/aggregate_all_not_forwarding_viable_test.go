@@ -526,7 +526,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		aggPath := d.Interface(aggID)
 		fptest.LogQuery(t, aggID, aggPath.Config(), aggInt)
 		gnmi.Replace(t, dut, aggPath.Config(), aggInt)
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
 		for _, port := range portList {
@@ -763,6 +763,9 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	}
 	for _, aggID := range aggIDs {
 		isisIntf := isis.GetOrCreateInterface(aggID)
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			isisIntf = isis.GetOrCreateInterface(aggID + ".0")
+		}
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -805,6 +808,9 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
 	isisIntfLevel := isis.GetOrCreateInterface(intf).GetOrCreateLevel(2)
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfLevel = isis.GetOrCreateInterface(intf + ".0").GetOrCreateLevel(2)
+	}
 	isisIntfLevelAfiv4 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
 	isisIntfLevelAfiv4.Metric = ygot.Uint32(metric)
 	isisIntfLevelAfiv6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
