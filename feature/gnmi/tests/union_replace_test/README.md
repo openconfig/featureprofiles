@@ -26,13 +26,13 @@ to be in a down operational state as the result of such a configuration commit.
 
 Generic test steps
 
-* Generate a configuration baseline_cfg + D.1 where D1. contains a port-speed in
+* Generate a configuration baseline_cfg + D.1 where D1 contains a port-speed in
   which does not match the DUT hardware.
 * Push the configuration to the DUT
 * Verify the gnmi.Set is accepted
 * Get configuration D.2
 * Verify  D.1 == D.2.  That is, verify only the interface speed is changed
-between baseline_cfg and D.3.  The remaining CLI and all OC must be unchanged.
+between baseline_cfg and D.2.  The remaining CLI and all OC must be unchanged.
 
 #### gnmi3.6.1  verify configuration with OC with warning is accepted
 
