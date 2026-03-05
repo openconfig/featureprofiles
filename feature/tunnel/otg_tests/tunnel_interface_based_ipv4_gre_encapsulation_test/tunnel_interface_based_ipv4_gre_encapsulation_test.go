@@ -111,17 +111,16 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
 	interfaceLoadblanceDiff := tolerance
-	config := &oc.Root{}
-	conf1 := dutIntf1.ConfigOCInterface(config.GetOrCreateInterface(dutPort1.Name()), dut)
-	conf2 := dutIntf2.ConfigOCInterface(config.GetOrCreateInterface(dutPort2.Name()), dut)
-	conf3 := dutIntf3.ConfigOCInterface(config.GetOrCreateInterface(dutPort3.Name()), dut)
-
-	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort1.Name(), dutIntf1.IPv4, dutIntf1.MAC)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf1.IPv4).Config(), conf1)
-	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort2.Name(), dutIntf2.IPv4, dutIntf2.MAC)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf2.IPv4).Config(), conf2)
-	t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", dutPort3.Name(), dutIntf3.IPv4, dutIntf3.MAC)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutIntf3.IPv4).Config(), conf3)
+	batch := &gnmi.SetBatch{}
+	dutPorts := []*ondatra.Port{dutPort1, dutPort2, dutPort3}
+	dutIntfs := []*attrs.Attributes{&dutIntf1, &dutIntf2, &dutIntf3}
+	for i, port := range dutPorts {
+		intf := dutIntfs[i]
+		ocIntf := intf.NewOCInterface(port.Name(), dut)
+		t.Logf("Configure DUT Interface %s with attributes IP address %s MAC address %s", port.Name(), intf.IPv4, intf.MAC)
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), ocIntf)
+	}
+	batch.Set(t, dut)
 
 	step := 0
 	var overlayIPv4Nh []string
