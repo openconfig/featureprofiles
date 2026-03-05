@@ -329,27 +329,39 @@ B7 <-- EBGP --> N4;
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
-  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/name:
-  /defined-sets/ipv6-prefix-sets/ipv6-prefix-set/config/prefix:
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address-prefix-set:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
-
-# telemetry
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
+  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
+    platform_type: [INTEGRATED_CIRCUIT]
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/ethernet/state/mac-address:
   /interfaces/interface/state/counters/out-pkts:
   /interfaces/interface/state/counters/out-unicast-pkts:
-  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-bytes-aggregate:
-    platform_type: ["INTEGRATED_CIRCUIT"]
-  /components/component/integrated-circuit/pipeline-counters/control-plane-traffic/state/dropped-aggregate:
-    platform_type: ["INTEGRATED_CIRCUIT"]
-
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/global/use-multiple-paths/ebgp/config/allow-multiple-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/afi-safi-name:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/local-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 rpcs:
   gnmi:
     gNMI.Set:
-      union_replace: true
       replace: true
+      union_replace: true
     gNMI.Subscribe:
       on_change: true
 ```
