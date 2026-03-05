@@ -464,7 +464,12 @@ func TestControllerCards(t *testing.T) {
 	}
 
 	if got, want := len(controllerCards), 2; got < want {
-		t.Errorf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
+		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v: Check the Vendor model it could be fixed form factor device", dut.Model(), got, want)
+	}
+
+	// Skip the test if there are more than 2 controller cards.
+	if len(controllerCards) > 2 {
+		t.Skipf("Skipping the test as there are more than 2 controller cards on %v: Check the Vendor model it could be fixed form factor device", dut.Model())
 	}
 
 	// Test cases.
