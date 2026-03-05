@@ -111,6 +111,7 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	initialTunnelOutPkts := make([]uint64, tunnelCount)
 	tunnelLoadblanceDiff := tunnelCount * 3
 	interfaceLoadblanceDiff := tolerance
+
 	batch := &gnmi.SetBatch{}
 	dutPorts := []*ondatra.Port{dutPort1, dutPort2, dutPort3}
 	dutIntfs := []*attrs.Attributes{&dutIntf1, &dutIntf2, &dutIntf3}
