@@ -289,6 +289,8 @@ func flapOTGInterface(t *testing.T,
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
+			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			expectedStatus = oc.Interface_OperStatus_DOWN
 		}
@@ -368,6 +370,8 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 	} else {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
 			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			want = oc.Interface_OperStatus_DOWN
