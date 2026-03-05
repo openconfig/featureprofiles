@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -774,6 +775,21 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfList []string, dutA
 			intfName = intfName + ".0"
 		}
 		isisIntf := isis.GetOrCreateInterface(intfName)
+		// Always populate interface-ref with base interface and subinterface index.
+		baseIntf := intfName
+		subIdx := uint32(0)
+		if strings.Contains(intfName, ".") {
+			parts := strings.SplitN(intfName, ".", 2)
+			baseIntf = parts[0]
+			if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+				subIdx = uint32(v)
+			}
+		}
+		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			isisIntf.InterfaceRef = nil
+		}
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
