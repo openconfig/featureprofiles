@@ -52,7 +52,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
-  * Configure eBGP with ATE in network-instance 'TEST_VRF and apply import/export policies.
+  * Configure eBGP with ATE in network-instance 'TEST_VRF' and apply import/export policies.
   * Configure gRIBI to BGP redistribution policy and table connection.
 
 #### Canonical OC
