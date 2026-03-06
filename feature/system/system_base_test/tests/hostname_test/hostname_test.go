@@ -41,7 +41,7 @@ func TestHostname(t *testing.T) {
 		description string
 		hostname    string
 	}{
-		{"15 Letters", "abcdefghijkmnop"},
+		{"15 Letters", "zbcdefghijkmnop"},
 		{"15 Numbers", "123456789012345"},
 		{"Single Character", "x"},
 		{"Periods", "test.name.example"},
