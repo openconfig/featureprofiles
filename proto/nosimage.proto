@@ -74,10 +74,10 @@ message FeatureProfileTestResult {
 
   // result identifies if the test was executed and its outcome
   enum Result {
-    bool UNKNOWN = 3;
-    bool PASSED = 4;
-    bool FAILED = 5;
-    bool NOT_EXECUTED = 6;
+    UNKNOWN = 3;
+    PASSED = 4;
+    FAILED = 5;
+    NOT_EXECUTED = 6;
   }
   Result result = 3;
 }
