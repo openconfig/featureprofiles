@@ -1,0 +1,39 @@
+# .github/workflows/test_gap_analysis.yaml
+name: FNT Gap Analysis
+
+on:
+  pull_request:
+    # No paths filter for testing triggers.
+
+permissions: {}
+
+jobs:
+  gap_analysis_test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for changed-files action to diff against base branch
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Get changed files
+        id: changed-files-pr
+        uses: tj-actions/changed-files@v44
+        with:
+          separator: ','
+
+      - name: Run Gap Analysis Script
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          echo "--- Building and Running FNT Gap Analysis ---"
+          go build -o gap-analyzer tools/gap-analyzer/read_fnttests.go
+          ./gap-analyzer --changed-files="${{ steps.changed-files-pr.outputs.all_changed_files }}"
