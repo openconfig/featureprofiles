@@ -6,27 +6,25 @@ Ensures the device can be booted via bootz with various initial configurations.
 
 ## Prerequisite
 
-The test assumes a DHCP server is running and configured to redirect the DUT to the bootz server URL specified via the `-bootz_addr` flag. The test launches a bootz server listening on the same URL.
+The test assumes a DHCP server is running and configured to redirect the DUT to the bootz server. The test launches a bootz server to handle bootstrap requests.
 
 ## General Procedure
 
 1. The test initializes the bootz server with a bootstrap response based on the test scenario.
-2. The test initiates bootz via a gNOI factory reset request (zero fill?).
+2. The test initiates bootz via a gNOI factory reset request.
 3. The test validates that the device has sent a BootStrapRequest to the server.
 4. The test validates that the server has received ReportStatusRequest(s) with BOOTSTRAP_STATUS_INITIATED and CONTROL_CARD_STATUS_UNINITIALIZED for each controller card.
 5. The test validates that the server has received ReportStatusRequest(s) with BOOTSTRAP_STATUS_FAILURE for a negative test, or BOOTSTRAP_STATUS_SUCCESS for a positive test. In addition, a ReportStatusRequest with CONTROL_CARD_STATUS_INITIALIZED for each controller card is expected for a positive test.
 6. The test validates the telemetry:
-    * `/system/bootz/state/last-boot-attempt` is in the expected state
+    * `/system/bootz/state/last-boot-attempt` is greater than the timestamp captured before initiating bootz
     * `/system/bootz/state/error-count` is incremented in the failure case
     * `/system/bootz/state/status` is in the expected state
     * `/system/bootz/state/checksum` matches the sent proto
 7. The test validates the software image version against the expected version.
 
-For negative tests, the device should exit with a clear message and immediately go back into
-bootz mode. At the end of the negative test cycle, the test must provide a valid initial configuration
-to allow the device to be restored to a valid state.
-
-### Test Setup
+For negative tests, the device should immediately go back into bootz mode based on the status reports
+sent to the server. At the end of the negative test cycle, the test must provide a valid bootstrap
+configuration by updating the server's BootConfig to allow the device to be restored to a valid state.
 
 ### bootz-1: Validate minimum necessary bootz configuration
 
@@ -38,7 +36,13 @@ This test validates that the device can bootstrap using a minimal vendor configu
 | bootz-1.2 | Invalid configuration  | BOOTZ_CONFIGURATION_INVALID  |
 | bootz-1.3 | Valid configuration  | BOOTZ_OK  |
 
-For each case, validate whether the configuration is loaded/rejected as expected.
+1. Provide bootstrap response configured as prescribed for each test case.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. Validate server receives ReportStatusRequest with expected status.
+5. For positive test (bootz-1.3), validate telemetry and device configuration is loaded as expected.
+6. For negative tests (bootz-1.1, bootz-1.2), validate device returns to bootz mode.
+7. At the end of negative test cycle, provide valid configuration to restore device.
 
 ### bootz-2: Validate OC configuration
 
@@ -50,10 +54,16 @@ to vendor config.
 | bootz-2.1 | Invalid OC config  | BOOTZ_CONFIGURATION_INVALID  |
 | bootz-2.2 | Valid OC config  | BOOTZ_OK  |
 
-For each case, validate whether the configuration is loaded or rejected as expected. Verify
-that the OC config is present.
+1. Provide bootstrap response with vendor config and OpenConfig configuration as prescribed.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. Validate server receives ReportStatusRequest with expected status.
+5. For positive test (bootz-2.2), validate telemetry and verify OC configuration is present via gNMI.
+6. For negative test (bootz-2.1), validate device returns to bootz mode.
+7. At the end of negative test cycle, provide valid configuration to restore device.
 
 ### bootz-3: Validate basic gNSI artifacts
+
 This test validates that the device properly handles basic gNSI artifacts.
 
 | ID        | Case  | Result |
@@ -67,24 +77,34 @@ This test validates that the device properly handles basic gNSI artifacts.
 | bootz-3.7 | Invalid CertZ config  | BOOTZ_CONFIGURATION_INVALID  |
 | bootz-3.8 | Valid CertZ config  | BOOTZ_OK  |
 
-
-For each case, validate whether the configuration is loaded or rejected as expected using the appropriate probe request.
+1. Provide bootstrap response with vendor config and gNSI artifacts (AuthZ, PathZ, CredZ, or CertZ) as prescribed.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. Validate server receives ReportStatusRequest with expected status.
+5. For positive tests, validate telemetry and verify artifacts are loaded using the appropriate gNSI probe request.
+6. For negative tests, validate device returns to bootz mode.
+7. At the end of negative test cycle, provide valid configuration to restore device.
 
 ### bootz-4: Validate Ownership Voucher in bootz configuration
+
 The purpose of this test is to validate that the device properly handles ownership voucher
 validation. Note that for negative test cases, we do not expect a ReportStatusRequest.
 
 | ID        |Case  | Result |
 | --------- | ------------- | --- |
 | bootz-4.1 | No OV  | BOOTZ_OV_INVALID  |
-| bootz-4.2 | No Standby OV  | BOOTZ_OV_INVALID  |
-| bootz-4.3 | Invalid OV | BOOTZ_OV_INVALID |
-| bootz-4.4 | Invalid Standby OV | BOOTZ_OV_INVALID |
-| bootz-4.5 | Wrong OV | BOOTZ_OV_INVALID |
-| bootz-4.6 | Wrong Standby OV | BOOTZ_OV_INVALID |
-| bootz-4.7 | Invalid OV Bundle | BOOTZ_OV_INVALID |
-| bootz-4.8 | Valid OV | BOOTZ_OK |
-| bootz-4.9 | Valid OV Bundle | BOOTZ_OK |
+| bootz-4.2 | Invalid OV | BOOTZ_OV_INVALID |
+| bootz-4.3 | Wrong OV | BOOTZ_OV_INVALID |
+| bootz-4.4 | Invalid OV Bundle | BOOTZ_OV_INVALID |
+| bootz-4.5 | Valid OV | BOOTZ_OK |
+| bootz-4.6 | Valid OV Bundle | BOOTZ_OK |
+
+1. Provide bootstrap response with ownership voucher configuration as prescribed.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. For positive tests, validate server receives ReportStatusRequest with BOOTSTRAP_STATUS_SUCCESS.
+5. For positive tests, validate telemetry and device configuration.
+6. For negative tests, validate that no ReportStatusRequest is received (OV validation fails before status report).
 
 
 ### bootz-5: Validate Software image in bootz configuration
@@ -101,6 +121,15 @@ This test validates the bootz behavior based on changes to the software version.
 | bootz-5.6 | Image version matching installed  | BOOTZ_OK  |
 | bootz-5.7 | Image version differs from installed  | BOOTZ_OK  |
 
+1. Provide bootstrap response with software image configuration as prescribed.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. Validate server receives ReportStatusRequest with expected status.
+5. For positive tests, validate telemetry and verify software version matches expected version.
+6. For bootz-5.7, verify device successfully upgrades to new version.
+7. For negative tests, validate device returns to bootz mode with BOOTZ_OS_INVALID_IMAGE status.
+8. At the end of negative test cycle, provide valid image configuration to restore device.
+
 ### bootz-6: Validate credz credentials
 
 This test validates that login is possible with configured CredZ credentials.
@@ -114,7 +143,13 @@ This test validates that login is possible with configured CredZ credentials.
 | bootz-6.5 | Credz with sha2 password | BOOTZ_OK  |
 | bootz-6.6 | Credz key | BOOTZ_OK  |
 
-Validate that the user can login with specified password/key.
+1. Provide bootstrap response with CredZ credentials configuration as prescribed.
+2. Initiate bootz via gNOI factory reset request.
+3. Validate device sends BootstrapRequest to bootserver.
+4. Validate server receives ReportStatusRequest with expected status.
+5. For positive tests, validate telemetry and verify user can successfully login with specified password/key.
+6. For negative tests, validate device returns to bootz mode.
+7. At the end of negative test cycle, provide valid CredZ configuration to restore device.
 
 ### bootz-7: Validate gNSI artifacts persistence
 
@@ -133,8 +168,9 @@ triggers.
 
 After each trigger, make sure the CredZ passwords/keys can be used to authenticate.
 
-### bootz-9: Validate Config immutability
-This test ensures that vendor config loaded during bootz cannot be overridden except through credz.
+### bootz-9: Validate Configuration immutability
+
+This test ensures that vendor configuration loaded during bootz cannot be overridden except through CredZ.
 
 1. Prepare a bootstrap response with:
     * Vendor config with a user "user1" and password "pass1"
