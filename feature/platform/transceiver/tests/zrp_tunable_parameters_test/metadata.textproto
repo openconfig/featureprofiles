@@ -32,3 +32,12 @@ platform_exceptions: {
     terminal_device_channel_admin_state_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+  }
+}
