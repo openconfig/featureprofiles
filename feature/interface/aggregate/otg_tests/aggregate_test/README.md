@@ -6,11 +6,11 @@ Validate link operational status of Static LAG and LACP.
 
 ## Procedure
 
-*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 9 to DUT ports
-    2-9. Configure ATE and DUT ports 2-9 to be part of a LAG.
+*   Connect ATE port-1 to DUT port-1, and ATE ports 2 through 8 to DUT ports
+    2-8. Configure ATE and DUT ports 2-8 to be part of a LAG.
 *   For both static LAG and LACP:
     *   Ensure that LAG is successfully negotiated, verifying port status for
-        each of DUT ports 2-9 reflects expected LAG state via ATE and DUT
+        each of DUT ports 2-8 reflects expected LAG state via ATE and DUT
         telemetry.
     *   Ensure that configuring a minimum links setting for the LAG the entire
         interface is marked:
