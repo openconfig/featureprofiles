@@ -1329,6 +1329,7 @@ type Metadata_Deviations struct {
 	// Devices that do not support suppress router advertisement.
 	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
 	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
 	// Functional translator to be used for QoS paths
 	QosFt         string `protobuf:"bytes,385,opt,name=qos_ft,json=qosFt,proto3" json:"qos_ft,omitempty"`
 	unknownFields protoimpl.UnknownFields

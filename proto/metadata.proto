@@ -1174,6 +1174,7 @@ message Metadata {
     // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
     bool ipv6_router_advertisement_suppress_unsupported = 384;
 
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
     // Functional translator to be used for QoS paths
     string qos_ft = 385;
 
