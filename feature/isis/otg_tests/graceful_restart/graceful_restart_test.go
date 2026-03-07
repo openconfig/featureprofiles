@@ -144,7 +144,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	isisGracefulRestart := globalISIS.GetOrCreateGracefulRestart()
 	isisGracefulRestart.SetEnabled(true)
-	isisGracefulRestart.SetHelperOnly(true)
+	isisGracefulRestart.SetHelperOnly(false)  // facing error when Enabled and HelperOnly are both true. might be invalid config. TODO
 	isisGracefulRestart.SetRestartTime(gracefulRestartTime)
 
 	isisConf := []*isisConfig{
@@ -173,6 +173,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	// Push ISIS configuration to DUT
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	gnmi.Replace(t, dut, dc.NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), isisProtocol)
 }
 
