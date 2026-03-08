@@ -241,7 +241,6 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	}
 
 	dutPort := tc.dut.Port(t, port1Name).Name()
-	// if deviation do the below change
 	if deviations.InterfaceRefInterfaceIDFormat(tc.dut) {
 		dutPort = dutPort + ".0"
 	}
