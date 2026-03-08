@@ -1972,3 +1972,9 @@ func BgpConfigDuringGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
 func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutingRestartViaGnoiUnsupported()
 }
+
+// BgpRplDirectlyUnderPeerGroupUnsupported returns true if the device does not support BGP RPL under peer-group directly
+// Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+func BgpRplDirectlyUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRplDirectlyUnderPeerGroupUnsupported()
+}

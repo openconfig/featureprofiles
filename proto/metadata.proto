@@ -1179,6 +1179,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/489304077
     bool routing_restart_via_gnoi_unsupported = 386;
 
+    // Device does not support BGP RPL under peer-group directly
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+    bool bgp_rpl_directly_under_peer_group_unsupported = 387;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
