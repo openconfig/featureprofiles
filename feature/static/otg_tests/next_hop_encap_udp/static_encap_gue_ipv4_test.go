@@ -25,17 +25,16 @@ import (
 
 const (
 	plenIPv4 = 30
+	plenIPv6 = 127
 
 	// Static and GUE address
 	nexthopGroupName   = "GUE-NHG"
 	nexthopGroupNameV6 = "GUE-NHGv6"
 	GuePolicyName      = "GUE-Policy"
 	pnhIPv6            = "fc00:10::1"
-	pnhIPv6NGv6        = "fc00:10::2"
 	staticpnhIPv6      = "fc00:10::1/128"
-	staticpngv6IPv6    = "fc00:10::2/128"
-	gueDstIPv4         = "10.50.50.1"
-	staticgueDstIPv4   = "10.50.50.1/32"
+	gueDstIPv6         = "2001:DB8:C0FE:AFFE::1"
+	staticgueDstIPv6   = "2001:DB8:C0FE:AFFE::1/128"
 	trafficDstNetIPv4  = "10.1.1.1"
 	trafficDstNetIPv6  = "2001:DB8::10:1:1:1"
 
@@ -53,16 +52,25 @@ const (
 )
 
 var (
+	dutPort1 = &attrs.Attributes{
+		IPv6:    "2001:DB8::192:168:10:0",
+		IPv6Len: plenIPv6,
+	}
+
 	dutLAG1 = attrs.Attributes{
 		Desc:    "DUT to ATE LAG1",
 		IPv4:    "192.0.2.5",
+		IPv6:    "2001:DB8:20::",
 		IPv4Len: plenIPv4,
+		IPv6Len: plenIPv6,
 	}
 
 	dutLAG2 = attrs.Attributes{
 		Desc:    "DUT to ATE LAG2",
 		IPv4:    "192.0.2.9",
 		IPv4Len: plenIPv4,
+		IPv6:    "2001:DB8:30::",
+		IPv6Len: plenIPv6,
 	}
 
 	activity = oc.Lacp_LacpActivityType_ACTIVE
@@ -88,6 +96,11 @@ var (
 		},
 	}
 
+	atePort1 = &attrs.Attributes{
+		IPv6:    "2001:DB8::192:168:10:1",
+		IPv6Len: plenIPv6,
+	}
+
 	agg2 = &otgconfighelpers.Port{
 		Name:        "Port-Channel2",
 		AggMAC:      "02:00:01:01:01:03",
@@ -108,6 +121,9 @@ var (
 
 	otgIntf2 = &otgconfighelpers.InterfaceProperties{
 		Name:        "ateLag1",
+		IPv6:        "2001:DB8:20::1",
+		IPv6Gateway: "2001:DB8:20::",
+		IPv6Len:     plenIPv6,
 		IPv4:        "192.0.2.6",
 		IPv4Gateway: "192.0.2.5",
 		IPv4Len:     plenIPv4,
@@ -116,6 +132,9 @@ var (
 
 	otgIntf3 = &otgconfighelpers.InterfaceProperties{
 		Name:        "ateLag2",
+		IPv6:        "2001:DB8:30::1",
+		IPv6Gateway: "2001:DB8:30::",
+		IPv6Len:     plenIPv6,
 		IPv4:        "192.0.2.10",
 		IPv4Gateway: "192.0.2.9",
 		IPv4Len:     plenIPv4,
@@ -141,7 +160,7 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		b.Set(t, dut)
 	}
 	// Configure GUE Encap
-	configureGueEncap(t, dut, []string{gueDstIPv4}, 0)
+	configureGueEncap(t, dut, []string{gueDstIPv6}, 0)
 
 	t.Log("Configuring Static Routes")
 
@@ -149,10 +168,10 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          staticgueDstIPv4,
+		Prefix:          staticgueDstIPv6,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(otgIntf2.IPv4),
-			"1": oc.UnionString(otgIntf3.IPv4),
+			"0": oc.UnionString(otgIntf2.IPv6),
+			"1": oc.UnionString(otgIntf3.IPv6),
 		},
 		NexthopGroup: false,
 		T:            t,
@@ -182,7 +201,7 @@ func mustConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 	sV4 = &cfgplugins.StaticRouteCfg{
 		NetworkInstance:  deviations.DefaultNetworkInstance(dut),
-		Prefix:           staticpngv6IPv6,
+		Prefix:           staticpnhIPv6,
 		NexthopGroup:     true,
 		NexthopGroupName: nexthopGroupNameV6,
 		T:                t,
@@ -304,7 +323,7 @@ func configureATE(t *testing.T, bs *cfgplugins.BGPSession) {
 
 	v6Route := bgp6Peer.V6Routes().Add().SetName("v6Net")
 	v6Route.Addresses().Add().SetAddress(trafficDstNetIPv6).SetPrefix(128).SetCount(1)
-	v6Route.SetNextHopIpv6Address(pnhIPv6NGv6).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
+	v6Route.SetNextHopIpv6Address(pnhIPv6).SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 
 	// Create a slice of aggPortData for easier iteration
 	aggs := []*otgconfighelpers.Port{agg2, agg3}
@@ -320,8 +339,8 @@ func createFlow(otgConfig gosnappi.Config, flowName string, flowtype string, ipA
 	otgConfig.Flows().Clear()
 	flow := otgConfig.Flows().Add().SetName(flowName)
 	flow.TxRx().Device().
-		SetTxNames([]string{otgConfig.Ports().Items()[0].Name() + ".IPv4"}).
-		SetRxNames([]string{agg2.Interfaces[0].Name + ".IPv4", agg3.Interfaces[0].Name + ".IPv4"})
+		SetTxNames([]string{otgConfig.Ports().Items()[0].Name() + ".IPv6"}).
+		SetRxNames([]string{agg2.Interfaces[0].Name + ".IPv6", agg3.Interfaces[0].Name + ".IPv6"})
 
 	flow.Metrics().SetEnable(true)
 	flow.Size().SetFixed(frameSize)
@@ -337,9 +356,15 @@ func createFlow(otgConfig gosnappi.Config, flowName string, flowtype string, ipA
 		if singleFlow {
 			v4.Src().SetValue(trafficSrcNetIPv4)
 			v4.Dst().SetValue(ipAddr)
+			udp := flow.Packet().Add().Udp()
+			udp.DstPort().SetValue(dstport)
+			udp.SrcPort().SetValue(srcPort)
 		} else {
 			v4.Src().Increment().SetStart(trafficSrcNetIPv4).SetCount(256)
 			v4.Dst().Increment().SetStart(ipAddr).SetCount(256)
+			udp := flow.Packet().Add().Udp()
+			udp.DstPort().SetValue(dstport)
+			udp.SrcPort().SetValue(srcPort)
 		}
 		v4.Priority().Tos().Precedence().SetValue(uint32(tos >> 5))
 		v4.TimeToLive().SetValue(ttl)
@@ -482,12 +507,12 @@ func validatePackets(t *testing.T, filename string, protocolType string, outerto
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	for packet := range packetSource.Packets() {
-		ipLayer := packet.Layer(layers.LayerTypeIPv4)
+		ipLayer := packet.Layer(layers.LayerTypeIPv6)
 		if ipLayer == nil {
 			continue
 		}
 		packetCount += 1
-		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
+		ipOuterLayer, ok := ipLayer.(*layers.IPv6)
 		if !ok || ipOuterLayer == nil {
 			t.Errorf("outer IP layer not found %d", ipLayer)
 			return
@@ -556,12 +581,12 @@ func validatePackets(t *testing.T, filename string, protocolType string, outerto
 
 }
 
-func validateOuterPacket(t *testing.T, outerPacket *layers.IPv4, tos string, ttl uint8) {
+func validateOuterPacket(t *testing.T, outerPacket *layers.IPv6, tos string, ttl uint8) {
 	var outerTOS, outerttl uint8
 	outerDSCP := ""
 
-	outerttl = outerPacket.TTL
-	outerTOS = outerPacket.TOS
+	outerttl = outerPacket.HopLimit
+	outerTOS = outerPacket.TrafficClass
 	outerDSCP = fmt.Sprintf("0x%X", outerTOS)
 
 	if ttl != 0 {
@@ -680,6 +705,7 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func TestGUEEncap(t *testing.T) {
+	cfgplugins.SetPortAttr([]string{"port1"}, dutPort1, atePort1)
 	bs := cfgplugins.NewBGPSession(t, cfgplugins.PortCount1, nil)
 	bs.WithEBGP(t, []oc.E_BgpTypes_AFI_SAFI_TYPE{oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST}, []string{"port1"}, true, true)
 

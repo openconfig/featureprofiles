@@ -1740,3 +1740,66 @@ func ConfigureBMPAccessList(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Se
 		helpers.GnmiCLIConfig(t, dut, bmpAclConfig.String())
 	}
 }
+
+// SetPortAttr sets port attributes for specified DUT and ATE ports.
+func SetPortAttr(ports []string, dutAttr *attrs.Attributes, ateAttr *attrs.Attributes) {
+	if dutAttr == nil && ateAttr == nil {
+		return
+	}
+
+	dutPortMap := map[string]*attrs.Attributes{
+		"port1": dutPort1,
+		"port2": dutPort2,
+		"port3": dutPort3,
+		"port4": dutPort4,
+	}
+	atePortMap := map[string]*attrs.Attributes{
+		"port1": atePort1,
+		"port2": atePort2,
+		"port3": atePort3,
+		"port4": atePort4,
+	}
+
+	// Update DUT ports if dutAttr is provided
+	if dutAttr != nil {
+		for _, port := range ports {
+			if p, ok := dutPortMap[port]; ok {
+				updateAttributes(p, dutAttr)
+			}
+		}
+	}
+
+	// Update ATE ports if ateAttr is provided
+	if ateAttr != nil {
+		for _, port := range ports {
+			if p, ok := atePortMap[port]; ok {
+				updateAttributes(p, ateAttr)
+			}
+		}
+	}
+}
+
+// updateAttributes update attribute values
+func updateAttributes(oldAttr, newAttr *attrs.Attributes) {
+	if newAttr.Name != "" {
+		oldAttr.Name = newAttr.Name
+	}
+	if newAttr.IPv4 != "" {
+		oldAttr.IPv4 = newAttr.IPv4
+	}
+	if newAttr.IPv6 != "" {
+		oldAttr.IPv6 = newAttr.IPv6
+	}
+	if newAttr.IPv4Len != 0 {
+		oldAttr.IPv4Len = newAttr.IPv4Len
+	}
+	if newAttr.IPv6Len != 0 {
+		oldAttr.IPv6Len = newAttr.IPv6Len
+	}
+	if newAttr.MAC != "" {
+		oldAttr.MAC = newAttr.MAC
+	}
+	if newAttr.Desc != "" {
+		oldAttr.Desc = newAttr.Desc
+	}
+}
