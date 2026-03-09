@@ -1,4 +1,3 @@
-# .github/workflows/test_gap_analysis.yaml
 name: FNT Gap Analysis
 
 on:
@@ -10,29 +9,36 @@ permissions: {}
 jobs:
   gap_analysis_test:
     runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     permissions:
       contents: read
       pull-requests: read
     steps:
+      - name: Show skip message
+        if: ${{ env.GEMINI_API_KEY == '' }}
+        run: echo "No access to Gemini, skipping test."
       - name: Checkout code
+        if: ${{ env.GEMINI_API_KEY != '' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # Needed for changed-files action to diff against base branch
 
       - name: Set up Go
+        if: ${{ env.GEMINI_API_KEY != '' }}
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
 
       - name: Get changed files
+        if: ${{ env.GEMINI_API_KEY != '' }}
         id: changed-files-pr
         uses: tj-actions/changed-files@v44
         with:
           separator: ','
 
       - name: Run Gap Analysis Script
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        if: ${{ env.GEMINI_API_KEY != '' }}
         run: |
           echo "--- Building and Running FNT Gap Analysis ---"
           go build -o gap-analyzer tools/gap-analyzer/read_fnttests.go
