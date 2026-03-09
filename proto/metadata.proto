@@ -810,7 +810,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-
+    
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -1133,7 +1133,7 @@ message Metadata {
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
-
+    
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
