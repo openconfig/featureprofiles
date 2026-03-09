@@ -1,58 +1,59 @@
 # PF-1.25: Double GUEv1 Decapsulation for Overlay Probing
 
-## Summary
+## Objective
 
-This test verifies the functionality of double decapsulation for Generic UDP Encapsulation traffic: `[Outer_IP_header][UDP][Middle_IP_header][UDP][Inner_IP_header][PAYLOAD]`.
+This test validates the router's (DUT) capability to perform double-decapsulation using a soft-loopback mechanism in the DUT. It ensures that overlay probe traffic, dual-encapsulated with GUE headers, can be correctly decapsulated in two stages:
 
-The test validates that the DUT performs the following actions:
-* Decapsulate the outer (UDPoIPv6) headers of GUE packets matching the configured decap criteria (destination IP range and UDP port).
-* Decapsulate the middle (UDPoIPv6) headers of the resulting packet.
-* Perform a Longest Prefix Match (LPM) lookup on the inner IP header and forward the packet towards the destination.
-* Ensure the packet arrives at the destination as `[Inner_IP_header][PAYLOAD]`.
-* Support these operations potentially via sequential VRF lookups or a single pipeline operation if supported by the vendor.
-* Performance caveats are acceptable as this is for probing traffic.
+* Stage 1: Decapsulation of the outermost GUE header (H1) and redirection to a loopback interface via LPM lookup.
+* Stage 2: Recirculation through the soft-loop and decapsulation of the middle GUE header (H2), exposing the inner payload (H3) for final forwarding.
 
-## Procedure
+The test specifically verifies this behavior for both IPv4 and IPv6 middle headers (H2) `[Outer_IP_header][UDP][Middle_IP_header][UDP][Inner_IP_header][PAYLOAD]`
 
-### Test environment setup
+## Topology
 
-* ATE Port 1 is connected to the DUT ingress port.
-* ATE Port 2 is connected to the DUT egress port.
+* ATE Port 1: Connected to DUT Port 1 (Ingress). Senders of double-encapsulated probe traffic.
+* ATE Port 2: Connected to DUT Port 2 (Egress). Receiver of final decapsulated traffic.
+* DUT Port 3: Configured in soft-loop mode. This port serves as the recirculation point for the double-decap process.
 
-```mermaid
+ ```mermaid
 graph LR;
 A[ATE:Port1] --Ingress (Double Encap)--> B[DUT];
 B --Egress (Decapped)--> C[ATE:Port2];
 ```
 
-### ATE Configuration
+## Procedure
 
-* **ATE Port 1**: Generates double-GUE-encapsulated traffic.
-* **ATE Port 2**: Receives decapped inner traffic.
+### DUT Configuration
+* Decap Aggregates: Configure DUT:Port3 with an aggregate IPv4 /28 and IPv6 /60 block address.
+* Soft-Loop: Enable software loopback on DUT Port 3.
+* Forwarding Rules:
+** Configure dual decap policies on the DUT to facilitate the decapsulation of Header 1 and Header 2 (UDP 6080). The decap policies for Header 1 (IPv6) and Header 2 (IPv4 and IPv6) must target specified aggregates: for Header 2, utilize the IPv4 /28 and IPv6 /60 blocks assigned to DUT Port 3; for Header 1, use a /60 subnet of the destination address.
+** The destination IP for Header 2 must resolve to the IP address assigned to the soft-loop interface (DUT Port 3) post decapsulation of Header 1 to facilitate recirculation.
+** Configure the DUT to decapsulate Header 2 upon re-entry from the soft-loop on DUT Port 3 and then do a LPM lookup on Header 3 that resolves to ATE:Port2 address.
+
+### ATE Configuration
 
 | Flow Type | Header Layer | Source IP | Destination IP | UDP Port | DSCP | TTL |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Flow Type #1 (IPv6/IPv6/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6081 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6081 | 32 | 60 |
+| **Flow Type #1 (IPv6/IPv6/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
+| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
 | | Inner IP | IPV6-SRC-HOST | IPV4-DST-HOST | N/A | 20 | 50 |
-| **Flow Type #2 (IPv6/IPv6/IPv6)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6081 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6081 | 32 | 60 |
+| **Flow Type #2 (IPv6/IPv6/IPv6)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
+| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
 | | Inner IP | IPV6-SRC-HOST | IPV6-DST-HOST | N/A | 20 | 50 |
 
-### DUT Configuration
+### Traffic Generation:
 
-1. **Interfaces**: Configure DUT ports as singleton IP interfaces.
-2. **GUE Decapsulation (Double)**:
-    * Configure a policy to match packets destined to `DECAP-DST-OUTER` on UDP port `6081` and perform decapsulation.
-    * Configure a secondary policy (or the same policy applied to a resulting VRF/pipeline stage) to match packets destined to `DECAP-DST-INNER` on UDP port `6081` and perform decapsulation.
-    * Configure BGP for `IPV4-DST-HOST` and `IPV6-DST-HOST` towards ATE Port 2.
-    * **Optional**: Configure a "Double Decap" VRF if the vendor implementation requires sequential decap across VRFs.
-
-### Test Procedure
+* Flow #1 (IPv4 H2): ATE Port 1 sends a packet with [H1: GUE][H2: IPv4 GUE][H3: Payload].
+** H1 destination = IPv6 address from the configured decap aggregate for Header 1.
+** H2 destination = DUT Port 3 IP (IPv4).
+* Flow #2 (IPv6 H2): ATE Port 1 sends a packet with [H1: GUE][H2: IPv6 GUE][H3: Payload].
+** H1 destination = IPv6 address from the configured decap aggregate for Header 1.
+** H2 destination = DUT Port 3 IP (IPv6).
 
 #### PF-1.25.1: Double GUE Decapsulation of IPv4 Traffic
-* Push DUT configuration.
-* Initiate **Flow Type #1** from ATE Port 1.
+* Configure Flow Type #1 with an IPv4 inner header.
+* Initiate traffic.
 * **Verification**:
     * DUT decapsulates the outer header.
     * DUT decapsulates the middle header.
@@ -65,13 +66,32 @@ B --Egress (Decapped)--> C[ATE:Port2];
 * Configure Flow Type #2 with an IPv6 inner header.
 * Initiate traffic.
 * **Verification**:
-    * DUT successfully decapsulates both GUE layers and forwards the inner IPv6 packet.
+    * DUT decapsulates the outer header.
+    * DUT decapsulates the middle header.
+    * DUT performs LPM on the inner destination `IPV6-DST-HOST`.
+    * ATE Port 2 receives the packet as `[Inner_IP][Payload]`.
+    * Verify that the inner TTL is decremented by 1 (or as per forwarding logic) and inner DSCP is preserved.
+    * No packet loss observed.
 
 #### PF-1.25.3: Negative - Middle Header UDP Port Mismatch
 * Initiate traffic where the outer header matches but the middle header has an unconfigured UDP port (e.g., 6085).
 * **Verification**:
     * DUT may decapsulate the outer header but should drop the packet (or forward as-is if no other rules match) after failing to match the middle decap criteria.
     * 100% packet loss (or failed decap) on ATE Port 2.
+ 
+#### PF-1.25.4: Negative - Middle Header no IPv4 destination available
+* Configure Flow Type #1 with an IPv4 inner header that is not reachable from the DUT.
+* Initiate traffic.
+* **Verification**:
+    * DUT may decapsulate the outer header but should drop the packet (or forward as-is if no other rules match) after failing to match the middle decap criteria.
+    * 100% packet loss on ATE Port 2.
+
+#### PF-1.25.5: Negative - Middle Header no IPv6 destination available
+* Configure Flow Type #2 with an IPv6 inner header that is not reachable from the DUT.
+* Initiate traffic.
+* **Verification**:
+    * DUT may decapsulate the outer header but should drop the packet (or forward as-is if no other rules match) after failing to match the middle decap criteria.
+    * 100% packet loss on ATE Port 2.
 
 ## Canonical OC
 
