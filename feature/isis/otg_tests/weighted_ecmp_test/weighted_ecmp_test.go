@@ -173,10 +173,12 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		// isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 		gnmi.BatchReplace(b, isisPath.Global().WeightedEcmp().Config(), true)
-		for _, aggID := range aggIDs {
-			gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
-				LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
-			})
+		if !deviations.WecmpSetWeightUnsupported(dut) {
+			for _, aggID := range aggIDs {
+				gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
+					LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
+				})
+			}
 		}
 		b.Set(t, dut)
 	}
@@ -550,7 +552,11 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	}
 	// Add other ISIS interfaces
 	for _, aggID := range aggIDs {
-		isisIntf := isis.GetOrCreateInterface(aggID)
+		aggIDName := aggID
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			aggIDName = aggID + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(aggIDName)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(dut) {
@@ -589,6 +595,9 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, dutIntf := range dutIntfs {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			dutIntf += ".0"
+		}
 		nbrPath := statePath.Interface(dutIntf)
 		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 		_, ok := gnmi.WatchAll(t, dut, query, 3*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
