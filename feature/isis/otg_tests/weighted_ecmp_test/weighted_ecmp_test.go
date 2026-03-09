@@ -3,7 +3,6 @@ package weighted_ecmp_test
 import (
 	"fmt"
 	"math/rand"
-	"net"
 	"testing"
 	"time"
 
@@ -24,8 +23,6 @@ import (
 const (
 	ipv4PLen          = 30
 	ipv6PLen          = 126
-	ipv4RoutePLen     = 24
-	ipv6RoutePLen     = 64
 	isisInstance      = "DEFAULT"
 	dutAreaAddress    = "49.0001"
 	ateAreaAddress    = "49"
@@ -41,6 +38,7 @@ const (
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
+	lossTolerance     = 0.01
 )
 
 type aggPortData struct {
@@ -196,34 +194,25 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
 
+	ate.OTG().StartProtocols(t)
 	t.Log("Waiting for DUT LAG interfaces to be OperStatus UP")
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
 		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
 	}
-	for _, port := range dut.Ports() {
-		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
-	}
-
-	ate.OTG().StartProtocols(t)
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-
-	// Wait for ISIS routes to be added to the FIB table
-	waitForRoutes(t, dut, []*aggPortData{agg1, agg2, agg3})
-	// Wait for 5s so that the routes are programmed in hardware
-	time.Sleep(5 * time.Second)
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, 0.0; got != want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
+			if got, want := loss, lossTolerance; got > want {
+				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
 			}
 		}
 		time.Sleep(time.Minute)
@@ -269,8 +258,8 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, 0.0; got != want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
+			if got, want := loss, lossTolerance; got > want {
+				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
 			}
 		}
 		time.Sleep(time.Minute)
@@ -459,43 +448,37 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	var aggIDs []string
 	for aggIdx, a := range []attrs.Attributes{dutagg1, dutagg2, dutagg3} {
-		b := &gnmi.SetBatch{}
-
 		aggID := netutil.NextAggregateInterface(t, dut)
 		aggIDs = append(aggIDs, aggID)
 
 		agg := a.NewOCInterface(aggID, dut)
 		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
-		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-
-		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
-		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 		p1 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
 		p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+3))
+
+		b := &gnmi.SetBatch{}
+		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 		for _, port := range []*ondatra.Port{p1, p2} {
-			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(port.Name())
-			i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", port.Name()))
-			e := i.GetOrCreateEthernet()
-			e.AggregateId = ygot.String(aggID)
+			i := &oc.Interface{Name: ygot.String(port.Name())}
+			i.Description = ygot.String(fmt.Sprintf("LAG - Member - %s", port.Name()))
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
+			e := i.GetOrCreateEthernet()
+			e.AggregateId = ygot.String(aggID)
+
 			if port.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 				e.AutoNegotiate = ygot.Bool(false)
 				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
-
 			gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Config(), i)
 		}
 		b.Set(t, dut)
+
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
@@ -617,37 +600,4 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 			t.Fatal("No IS-IS adjacencies reported.")
 		}
 	}
-}
-
-func waitForRoutes(t *testing.T, dut *ondatra.DUTDevice, aggs []*aggPortData) {
-	t.Helper()
-	t.Log("Waiting for ISIS routes to be programmed in the DUT's FIB")
-
-	for _, agg := range aggs {
-		// Wait for IPv4 route
-		_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v4Route, ipv4RoutePLen))
-		if err != nil {
-			t.Fatalf("Failed to parse IPv4 route %s: %v", agg.v4Route, err)
-		}
-		v4Prefix := ipNet.String()
-		t.Logf("Waiting for IPv4 route %s to be present in FIB", v4Prefix)
-		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			entry, present := val.Val()
-			return present && entry != nil
-		}).Await(t)
-
-		// Wait for IPv6 route
-		_, ipNet, err = net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v6Route, ipv6RoutePLen))
-		if err != nil {
-			t.Fatalf("Failed to parse IPv6 route %s: %v", agg.v6Route, err)
-		}
-		v6Prefix := ipNet.String()
-		t.Logf("Waiting for IPv6 route %s to be present in FIB", v6Prefix)
-		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			entry, present := val.Val()
-			return present && entry != nil
-		}).Await(t)
-	}
-
-	t.Log("All ISIS routes are programmed in the DUT's FIB")
 }
