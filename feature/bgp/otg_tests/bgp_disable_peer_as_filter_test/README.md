@@ -61,7 +61,33 @@ flowchart LR
 4. Verify that ATE Port 2 **receives** the route.
 5. Validate session state and capabilities received on DUT using telemetry.
 
-### RT-1.71.4: Test "Peer-group and Neighbor level"
+
+### RT-1.71.4: Private AS Number Scenario
+
+```mermaid
+graph LR
+    subgraph ATE ["ATE"]
+        direction TB
+        ATE1["Port 1<br/>(AS 64496)"]
+        ATE2["Port 2<br/>(AS 64512)"]
+    end
+
+    subgraph DUT_Domain ["DUT"]
+        DUT["DUT<br/>(AS 64498)"]
+    end
+
+    %% Advertisement Flow for RT-1.71.4
+    ATE1 -- "Advertise Prefix<br/>(AS-PATH: 64496 64499 64512)" --> DUT
+    DUT -- "Propagate to Peer with<br/>AS 64512 in PATH" --> ATE2
+```
+
+1. Configure **ATE Port 2** with a private AS number (e.g., `64512`).
+2. Configure the **DUT** (AS `64498`) with `disable-peer-as-filter = TRUE` on the neighbor configuration towards ATE Port 2.
+3. Advertise a prefix from **ATE Port 1** with an AS-PATH that includes ATE Port 2's AS (e.g., AS-PATH: `64496 64499 64512`).
+4. Verify that the DUT **advertises** the route to ATE Port 2 (AS 64512).
+5. Verify that ATE Port 2 **receives** the route.
+
+### RT-1.71.5: Test "Peer-group and Neighbor level"
 
 Ensure the tests are performed for BGP configuration at the Peer-group as well as at the Neighbor levels
 
