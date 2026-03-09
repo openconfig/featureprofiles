@@ -1978,3 +1978,8 @@ func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpRplDirectlyUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpRplDirectlyUnderPeerGroupUnsupported()
 }
+
+// WecmpSetWeightUnsupported returns if device doesnt support setting weight for wecmp.
+func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpSetWeightUnsupported()
+}
