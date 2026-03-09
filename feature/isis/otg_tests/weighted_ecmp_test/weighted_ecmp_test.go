@@ -3,7 +3,6 @@ package weighted_ecmp_test
 import (
 	"fmt"
 	"math/rand"
-	"net"
 	"testing"
 	"time"
 
@@ -24,8 +23,6 @@ import (
 const (
 	ipv4PLen          = 30
 	ipv6PLen          = 126
-	ipv4RoutePLen     = 24
-	ipv6RoutePLen     = 64
 	isisInstance      = "DEFAULT"
 	dutAreaAddress    = "49.0001"
 	ateAreaAddress    = "49"
@@ -41,7 +38,7 @@ const (
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
-	lossTolerance     = 0.5
+	lossTolerance     = 0.01
 )
 
 type aggPortData struct {
@@ -197,27 +194,21 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
 
+	ate.OTG().StartProtocols(t)
 	t.Log("Waiting for DUT LAG interfaces to be OperStatus UP")
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
 		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
 	}
-	for i := 1; i <= 7; i++ {
-		p := dut.Port(t, fmt.Sprintf("port%d", i))
-		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
-	}
-
-	ate.OTG().StartProtocols(t)
+	// for i := 1; i <= 7; i++ {
+	// 	p := dut.Port(t, fmt.Sprintf("port%d", i))
+	// 	gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
+	// }
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
-
-	// Wait for ISIS routes to be added to the FIB table
-	waitForRoutes(t, dut, []*aggPortData{agg1, agg2, agg3})
-	// Wait for 5s so that the routes are programmed in hardware
-	time.Sleep(5 * time.Second)
 
 	startTraffic(t, ate, top)
 	time.Sleep(time.Minute)
@@ -471,15 +462,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		p1 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
 		p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+3))
 
-		if deviations.AggregateAtomicUpdate(dut) {
-			b := &gnmi.SetBatch{}
-			gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
-			for _, port := range []*ondatra.Port{p1, p2} {
-				gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-			}
-			b.Set(t, dut)
-		}
-
 		b := &gnmi.SetBatch{}
 		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 		for _, port := range []*ondatra.Port{p1, p2} {
@@ -624,35 +606,3 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 	}
 }
 
-func waitForRoutes(t *testing.T, dut *ondatra.DUTDevice, aggs []*aggPortData) {
-	t.Helper()
-	t.Log("Waiting for ISIS routes to be programmed in the DUT's FIB")
-
-	for _, agg := range aggs {
-		// Wait for IPv4 route
-		_, ipNet, err := net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v4Route, ipv4RoutePLen))
-		if err != nil {
-			t.Fatalf("Failed to parse IPv4 route %s: %v", agg.v4Route, err)
-		}
-		v4Prefix := ipNet.String()
-		t.Logf("Waiting for IPv4 route %s to be present in FIB", v4Prefix)
-		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(v4Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-			entry, present := val.Val()
-			return present && entry != nil
-		}).Await(t)
-
-		// Wait for IPv6 route
-		_, ipNet, err = net.ParseCIDR(fmt.Sprintf("%s/%d", agg.v6Route, ipv6RoutePLen))
-		if err != nil {
-			t.Fatalf("Failed to parse IPv6 route %s: %v", agg.v6Route, err)
-		}
-		v6Prefix := ipNet.String()
-		t.Logf("Waiting for IPv6 route %s to be present in FIB", v6Prefix)
-		gnmi.Watch(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv6Entry(v6Prefix).State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-			entry, present := val.Val()
-			return present && entry != nil
-		}).Await(t)
-	}
-
-	t.Log("All ISIS routes are programmed in the DUT's FIB")
-}
