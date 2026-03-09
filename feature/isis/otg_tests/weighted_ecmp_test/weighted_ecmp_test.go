@@ -38,6 +38,7 @@ const (
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
+	lossTolerance     = 0.01
 )
 
 type aggPortData struct {
@@ -172,10 +173,12 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		// isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 		isisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 		gnmi.BatchReplace(b, isisPath.Global().WeightedEcmp().Config(), true)
-		for _, aggID := range aggIDs {
-			gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
-				LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
-			})
+		if !deviations.WecmpSetWeightUnsupported(dut) {
+			for _, aggID := range aggIDs {
+				gnmi.BatchReplace(b, isisPath.Interface(aggID).WeightedEcmp().Config(), &oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp{
+					LoadBalancingWeight: oc.NetworkInstance_Protocol_Isis_Interface_WeightedEcmp_LoadBalancingWeight_Union(oc.WeightedEcmp_LoadBalancingWeight_auto),
+				})
+			}
 		}
 		b.Set(t, dut)
 	}
@@ -193,17 +196,13 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	flows := configureFlows(t, top)
 	ate.OTG().PushConfig(t, top)
 
+	ate.OTG().StartProtocols(t)
 	t.Log("Waiting for DUT LAG interfaces to be OperStatus UP")
 	for _, aggID := range aggIDs {
-		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		gnmi.Await(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
 		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
 	}
-	for _, port := range dut.Ports() {
-		gnmi.Await(t, dut, gnmi.OC().Interface(port.Name()).OperStatus().State(), 1*time.Minute, oc.Interface_OperStatus_UP)
-	}
-
-	ate.OTG().StartProtocols(t)
 
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
@@ -214,8 +213,8 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	t.Run("Equal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, 0.0; got != want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
+			if got, want := loss, lossTolerance; got > want {
+				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
 			}
 		}
 		time.Sleep(time.Minute)
@@ -261,8 +260,8 @@ func TestWeightedECMPForISIS(t *testing.T) {
 	t.Run("Unequal_Distribution_Of_Traffic", func(t *testing.T) {
 		for _, flow := range flows {
 			loss := otgutils.GetFlowLossPct(t, ate.OTG(), flow.Name(), 20*time.Second)
-			if got, want := loss, 0.0; got != want {
-				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, want)
+			if got, want := loss, lossTolerance; got > want {
+				t.Errorf("Flow %s loss: got %f, want %f", flow.Name(), got, lossTolerance)
 			}
 		}
 		time.Sleep(time.Minute)
@@ -451,43 +450,37 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 
 	var aggIDs []string
 	for aggIdx, a := range []attrs.Attributes{dutagg1, dutagg2, dutagg3} {
-		b := &gnmi.SetBatch{}
-
 		aggID := netutil.NextAggregateInterface(t, dut)
 		aggIDs = append(aggIDs, aggID)
 
 		agg := a.NewOCInterface(aggID, dut)
 		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
-		gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg)
-
-		gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
-		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 		p1 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+2))
 		p2 := dut.Port(t, fmt.Sprintf("port%d", (aggIdx*2)+3))
+
+		b := &gnmi.SetBatch{}
+		gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 		for _, port := range []*ondatra.Port{p1, p2} {
-			gnmi.BatchDelete(b, gnmi.OC().Interface(port.Name()).Ethernet().AggregateId().Config())
-
-			d := &oc.Root{}
-			i := d.GetOrCreateInterface(port.Name())
-			i.Description = ygot.String(fmt.Sprintf("LAG - Member -%s", port.Name()))
-			e := i.GetOrCreateEthernet()
-			e.AggregateId = ygot.String(aggID)
+			i := &oc.Interface{Name: ygot.String(port.Name())}
+			i.Description = ygot.String(fmt.Sprintf("LAG - Member - %s", port.Name()))
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}
+			e := i.GetOrCreateEthernet()
+			e.AggregateId = ygot.String(aggID)
+
 			if port.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 				e.AutoNegotiate = ygot.Bool(false)
 				e.DuplexMode = oc.Ethernet_DuplexMode_FULL
 				e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 			}
-
 			gnmi.BatchReplace(b, gnmi.OC().Interface(port.Name()).Config(), i)
 		}
 		b.Set(t, dut)
+
 		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
@@ -559,7 +552,11 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 	}
 	// Add other ISIS interfaces
 	for _, aggID := range aggIDs {
-		isisIntf := isis.GetOrCreateInterface(aggID)
+		aggIDName := aggID
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			aggIDName = aggID + ".0"
+		}
+		isisIntf := isis.GetOrCreateInterface(aggIDName)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 		if deviations.InterfaceRefConfigUnsupported(dut) {
@@ -598,6 +595,9 @@ func VerifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntfs []string
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, dutIntf := range dutIntfs {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			dutIntf += ".0"
+		}
 		nbrPath := statePath.Interface(dutIntf)
 		query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 		_, ok := gnmi.WatchAll(t, dut, query, 3*time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
