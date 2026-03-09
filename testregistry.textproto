@@ -857,6 +857,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.54"
+  description: "BGP Override AS-path split-horizon"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_override_as_path_split_horizon_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.55"
   description: "BGP session mode (active/passive)"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_session_mode_configuration_test/README.md"
@@ -926,6 +932,12 @@ test: {
   id: "RT-1.66"
   description: "IPv4 Static Route with IPv6 Next-Hop"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/v4_static_route_with_v6_nh/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.67"
+  description: "IPv4 and IPv6 Static Route using Vlan Interface"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_with_vlan_interface/README.md"
   exec: " "
 }
 test: {
@@ -1143,6 +1155,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-5.15"
+  description: "LACP Fallback Support"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/lacp/otg_tests/lacp_fallback_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-6.1"
   description: "Core LLDP TLV Population"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/lldp/otg_tests/core_lldp_tlv_population_test/README.md"
@@ -1227,12 +1245,6 @@ test: {
   id: "RT-8"
   description: "Singleton with breakouts"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/singleton/tests/singleton_with_breakouts/README.md"
-  exec: " "
-}
-test: {
-  id: "RT-9"
-  description: "Interface IPv6 ND RA disable"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/holdtime/otg_tests/holdtime_test/README.md"
   exec: " "
 }
 test: {
