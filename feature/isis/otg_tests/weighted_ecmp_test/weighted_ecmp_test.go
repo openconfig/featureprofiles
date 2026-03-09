@@ -201,11 +201,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		state := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).Aggregation().State())
 		t.Logf("LAG %s: MemberPorts=%v", aggID, state.GetMember())
 	}
-	// for i := 1; i <= 7; i++ {
-	// 	p := dut.Port(t, fmt.Sprintf("port%d", i))
-	// 	gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, oc.Interface_OperStatus_UP)
-	// }
-
+	
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 	VerifyISISTelemetry(t, dut, aggIDs, []*aggPortData{agg1, agg2})
