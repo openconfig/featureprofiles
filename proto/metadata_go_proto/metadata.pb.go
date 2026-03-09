@@ -1318,7 +1318,7 @@ type Metadata_Deviations struct {
 	BgpRibStreamingConfigRequired bool `protobuf:"varint,380,opt,name=bgp_rib_streaming_config_required,json=bgpRibStreamingConfigRequired,proto3" json:"bgp_rib_streaming_config_required,omitempty"`
 	// Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
 	// Devices that do not support oc path for static route to nexthop
-	StaticRouteToNhgOcUnsupported bool `protobuf:"varint,381,opt,name=static_route_to_nhg_oc_unsupported,json=staticRouteToNhgOcUnsupported,proto3" json:"static_route_to_nhg_oc_unsupported,omitempty"`
+	StaticRouteToNhgOcUnsupported bool `protobuf:"varint,389,opt,name=static_route_to_nhg_oc_unsupported,json=staticRouteToNhgOcUnsupported,proto3" json:"static_route_to_nhg_oc_unsupported,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -4210,7 +4210,7 @@ const file_metadata_proto_rawDesc = "" +
 	"(reduced_ecmp_set_on_mixed_encap_decap_nh\x18\xfa\x02 \x01(\bR!reducedEcmpSetOnMixedEncapDecapNh\x12d\n" +
 	"/terminal_device_channel_admin_state_unsupported\x18\xfb\x02 \x01(\bR*terminalDeviceChannelAdminStateUnsupported\x12I\n" +
 	"!bgp_rib_streaming_config_required\x18\xfc\x02 \x01(\bR\x1dbgpRibStreamingConfigRequired\x12J\n" +
-	"\"static_route_to_nhg_oc_unsupported\x18\xfd\x02 \x01(\bR\x1dstaticRouteToNhgOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\"static_route_to_nhg_oc_unsupported\x18\x85\x03 \x01(\bR\x1dstaticRouteToNhgOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
