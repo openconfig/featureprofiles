@@ -599,13 +599,6 @@ func verifyContainerState(ctx context.Context, t *testing.T, cli *client.Client,
 	return nil
 }
 
-// verifyVolumeDoesNotExistEventually polls for the volume to not exist.
-func verifyVolumeDoesNotExistEventually(ctx context.Context, t *testing.T, cli *client.Client, name string, timeout time.Duration) error {
-	t.Helper()
-	desc := fmt.Sprintf("volume %q to not exist", name)
-	return poll(t, desc, timeout, func() error { return verifyVolumeDoesNotExist(ctx, t, cli, name) })
-}
-
 // verifyImageExists checks if an image exists.
 func verifyImageExists(ctx context.Context, t *testing.T, cli *client.Client, name, tag string) error {
 	t.Helper()
@@ -722,25 +715,6 @@ func verifyVolumeExists(ctx context.Context, t *testing.T, cli *client.Client, n
 	}
 	if !found {
 		return fmt.Errorf("volume %s not found", name)
-	}
-	return nil
-}
-
-// verifyVolumeDoesNotExist checks if a volume does not exist.
-func verifyVolumeDoesNotExist(ctx context.Context, t *testing.T, cli *client.Client, name string) error {
-	t.Helper()
-	volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {name}})
-	if err != nil {
-		return fmt.Errorf("ListVolume failed: %w", err)
-	}
-
-	for vol := range volCh {
-		if vol.Error != nil {
-			return fmt.Errorf("error listing volumes: %w", vol.Error)
-		}
-		if vol.Name == name {
-			return fmt.Errorf("volume %s found, but it should not exist", name)
-		}
 	}
 	return nil
 }
