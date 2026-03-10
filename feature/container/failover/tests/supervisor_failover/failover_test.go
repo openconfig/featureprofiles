@@ -39,7 +39,7 @@ const (
 	containerName = "cntrsrv"
 	volName       = "test-failover-vol" // Used in TestContainerAndVolumePersistence
 
-	switchoverWait = 30 * time.Second
+	verifyTimeout = 30 * time.Second
 	pollInterval   = 1 * time.Second
 )
 
@@ -111,7 +111,7 @@ func TestImagePersistence(t *testing.T) {
 		}
 
 		t.Log("Verifying image persistence...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
 			t.Errorf("Image persistence failed: %v", err)
 		}
 	})
@@ -226,7 +226,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 		}
 
 		t.Log("Verifying container recovery...")
-		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, switchoverWait); err != nil {
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
 			t.Errorf("Container recovery failed: %v", err)
 		}
 
@@ -282,7 +282,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
 		t.Log("Verifying image removal persistence...")
-		if err := verifyImageDoesNotExistEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageDoesNotExistEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
 			t.Errorf("Image removal persistence failed, image reappeared: %v", err)
 		}
 	})
@@ -339,7 +339,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
 		t.Log("Verifying container removal persistence...")
-		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, switchoverWait); err != nil {
+		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeout); err != nil {
 			t.Errorf("Container removal persistence failed, container reappeared: %v", err)
 		}
 	})
@@ -387,7 +387,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after first switchover...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
 			t.Fatalf("Image persistence failed after first switchover: %v", err)
 		}
 	})
@@ -411,7 +411,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after second switchover...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
 			t.Errorf("Image persistence failed after second switchover: %v", err)
 		}
 	})
