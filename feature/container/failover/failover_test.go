@@ -21,7 +21,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 
 	cpb "github.com/openconfig/gnoi/containerz"
-	gnoisystem "github.com/openconfig/gnoi/system"
+	gspb "github.com/openconfig/gnoi/system"
 )
 
 var (
@@ -38,9 +38,6 @@ const (
 	tag           = "latest"
 	containerName = "cntrsrv"
 	volName       = "test-failover-vol" // Used in TestContainerAndVolumePersistence
-
-	// Constants for interruption tests
-	interruptedVolName = "test-interrupted-vol"
 
 	switchoverWait = 30 * time.Second
 	pollInterval   = 1 * time.Second
@@ -80,12 +77,12 @@ func TestImagePersistence(t *testing.T) {
 	})
 
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(t, ctx, cli, imageName, tag, containerTarPath(t))
+		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
 		t.Logf("Switching control processor to %s...", standbyRPBefore)
-		switchReq := &gnoisystem.SwitchControlProcessorRequest{
+		switchReq := &gspb.SwitchControlProcessorRequest{
 			ControlProcessor: components.GetSubcomponentPath(standbyRPBefore, deviations.GNOISubcomponentPath(dut)),
 		}
 
@@ -113,7 +110,7 @@ func TestImagePersistence(t *testing.T) {
 		}
 
 		t.Log("Verifying image persistence...")
-		if err := verifyImageExistsEventually(t, ctx, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
 			t.Errorf("Image persistence failed: %v", err)
 		}
 	})
@@ -168,11 +165,11 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
 			t.Fatalf("Failed to create volume: %v", err)
 		}
-		if err := verifyVolumeExists(t, ctx, cli, volName); err != nil {
+		if err := verifyVolumeExists(ctx, t, cli, volName); err != nil {
 			t.Fatalf("Volume not found after creation: %v", err)
 		}
 
-		loadImage(t, ctx, cli, imageName, tag, containerTarPath(t))
+		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
 
 		t.Logf("Deploying and starting container %s...", containerName)
 		startOpts := []client.StartOption{
@@ -197,7 +194,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 
 	t.Run("Switchover", func(t *testing.T) {
 		t.Logf("Switching control processor to %s...", standbyRPBefore)
-		switchReq := &gnoisystem.SwitchControlProcessorRequest{
+		switchReq := &gspb.SwitchControlProcessorRequest{
 			ControlProcessor: components.GetSubcomponentPath(standbyRPBefore, deviations.GNOISubcomponentPath(dut)),
 		}
 
@@ -228,12 +225,12 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 		}
 
 		t.Log("Verifying container recovery...")
-		if err := verifyContainerStateEventually(t, ctx, cli, containerName, cpb.ListContainerResponse_RUNNING, switchoverWait); err != nil {
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, switchoverWait); err != nil {
 			t.Errorf("Container recovery failed: %v", err)
 		}
 
 		t.Log("Verifying volume persistence...")
-		if err := verifyVolumeExists(t, ctx, cli, volName); err != nil {
+		if err := verifyVolumeExists(ctx, t, cli, volName); err != nil {
 			t.Errorf("Volume persistence failed: %v", err)
 		}
 	})
@@ -252,7 +249,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 
 	// 1. Load the image initially.
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(t, ctx, cli, imageName, tag, containerTarPath(t))
+		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
 	})
 
 	// 2. Remove the image.
@@ -260,7 +257,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 		if err := cli.RemoveImage(ctx, imageName, tag, false); err != nil {
 			t.Fatalf("Failed to remove image %s:%s: %v", imageName, tag, err)
 		}
-		if err := verifyImageDoesNotExist(t, ctx, cli, imageName, tag); err != nil {
+		if err := verifyImageDoesNotExist(ctx, t, cli, imageName, tag); err != nil {
 			t.Fatalf("Image still found after removal: %v", err)
 		}
 	})
@@ -283,7 +280,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
 		t.Log("Verifying image removal persistence...")
-		if err := verifyImageDoesNotExistEventually(t, ctx, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageDoesNotExistEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
 			t.Errorf("Image removal persistence failed, image reappeared: %v", err)
 		}
 	})
@@ -318,7 +315,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 		if err := cli.RemoveContainer(ctx, containerName, true); err != nil {
 			t.Fatalf("Failed to remove container %s: %v", containerName, err)
 		}
-		if err := verifyContainerDoesNotExist(t, ctx, cli, containerName); err != nil {
+		if err := verifyContainerDoesNotExist(ctx, t, cli, containerName); err != nil {
 			t.Fatalf("Container still found after removal: %v", err)
 		}
 	})
@@ -341,7 +338,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
 		t.Log("Verifying container removal persistence...")
-		if err := verifyContainerDoesNotExistEventually(t, ctx, cli, containerName, switchoverWait); err != nil {
+		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, switchoverWait); err != nil {
 			t.Errorf("Container removal persistence failed, container reappeared: %v", err)
 		}
 	})
@@ -368,7 +365,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(t, ctx, cli, imageName, tag, containerTarPath(t))
+		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
 	})
 
 	// First Switchover.
@@ -388,7 +385,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after first switchover...")
-		if err := verifyImageExistsEventually(t, ctx, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
 			t.Fatalf("Image persistence failed after first switchover: %v", err)
 		}
 	})
@@ -413,8 +410,99 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after second switchover...")
-		if err := verifyImageExistsEventually(t, ctx, cli, imageName, tag, switchoverWait); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, switchoverWait); err != nil {
 			t.Errorf("Image persistence failed after second switchover: %v", err)
+		}
+	})
+}
+
+// TestContainerPersistenceAfterColdReboot implements CNTR-3.8 checking container persistence after a chassis cold reboot.
+func TestContainerPersistenceAfterColdReboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	sysClient := dut.RawAPIs().GNOI(t).System()
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		// Re-initialize client in case of connection loss
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound {
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+
+		t.Logf("Starting container %s...", containerName)
+		startOpts := []client.StartOption{
+			client.WithPorts([]string{"60061:60061"}),
+			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
+		}
+		// Ensure container is removed before starting.
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
+			t.Fatalf("Failed to start container: %v", err)
+		}
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
+			t.Fatalf("Container did not start: %v", err)
+		}
+	})
+
+	t.Run("ColdReboot", func(t *testing.T) {
+		t.Log("Rebooting chassis (cold reboot)...")
+		rebootReq := &gspb.RebootRequest{
+			Method:  gspb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Container persistence test reboot",
+			Force:   true,
+		}
+		// We expect the connection to drop.
+		if _, err := sysClient.Reboot(ctx, rebootReq); err != nil {
+			t.Logf("Reboot returned error (expected): %v", err)
+		}
+	})
+
+	t.Run("VerifyPersistence", func(t *testing.T) {
+		t.Log("Waiting for DUT to reboot and reconnect...")
+		// Wait for reboot.
+		time.Sleep(10 * time.Minute)
+
+		// Poll for container state.
+		cli = containerztest.Client(t, dut)
+
+		// Use a generous timeout for the device to come back up and the container to start.
+		timeout := 5 * time.Minute
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, timeout); err != nil {
+			t.Errorf("Container persistence failed: %v", err)
+		}
+
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, timeout); err != nil {
+			t.Errorf("Volume persistence failed: %v", err)
 		}
 	})
 }
@@ -424,11 +512,10 @@ func doSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 	t.Helper()
 	t.Logf("Switching control processor to %s...", standby)
 	sysClient := dut.RawAPIs().GNOI(t).System()
-	switchReq := &gnoisystem.SwitchControlProcessorRequest{
+	switchReq := &gspb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
 	}
 	if _, err := sysClient.SwitchControlProcessor(context.Background(), switchReq); err != nil {
-		// Don't fail the test, as the connection is expected to be broken.
 		t.Logf("SwitchControlProcessor returned error (this is often expected): %v", err)
 	}
 }
@@ -455,7 +542,7 @@ func findRPs(t *testing.T, dut *ondatra.DUTDevice) (string, string, error) {
 }
 
 // verifyContainerState checks if a container exists and is in the expected state.
-func verifyContainerState(t *testing.T, ctx context.Context, cli *client.Client, name string, want cpb.ListContainerResponse_Status) error {
+func verifyContainerState(ctx context.Context, t *testing.T, cli *client.Client, name string, want cpb.ListContainerResponse_Status) error {
 	// Use the client's ListContainer with filter.
 	t.Helper()
 	listCh, err := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {name}})
@@ -482,8 +569,39 @@ func verifyContainerState(t *testing.T, ctx context.Context, cli *client.Client,
 	return nil
 }
 
+// verifyVolumeDoesNotExistEventually polls for the volume to not exist.
+func verifyVolumeDoesNotExistEventually(ctx context.Context, t *testing.T, cli *client.Client, name string, timeout time.Duration) error {
+	t.Helper()
+	desc := fmt.Sprintf("volume %q to not exist", name)
+	return poll(t, desc, timeout, func() error { return verifyVolumeDoesNotExist(ctx, t, cli, name) })
+}
+
+// verifyImageExists checks if an image exists.
+func verifyImageExists(ctx context.Context, t *testing.T, cli *client.Client, name, tag string) error {
+	t.Helper()
+	imgCh, err := cli.ListImage(ctx, 0, map[string][]string{"name": {name}, "tag": {tag}})
+	if err != nil {
+		return fmt.Errorf("ListImage failed: %w", err)
+	}
+
+	foundImage := false
+	for img := range imgCh {
+		if img.Error != nil {
+			return fmt.Errorf("error listing images: %w", img.Error)
+		}
+		if img.ImageName == name && img.ImageTag == tag {
+			foundImage = true
+			break
+		}
+	}
+	if !foundImage {
+		return fmt.Errorf("image %s:%s not found", name, tag)
+	}
+	return nil
+}
+
 // verifyImageDoesNotExist checks if an image does not exist.
-func verifyImageDoesNotExist(t *testing.T, ctx context.Context, cli *client.Client, name, tag string) error {
+func verifyImageDoesNotExist(ctx context.Context, t *testing.T, cli *client.Client, name, tag string) error {
 	t.Helper()
 	imgCh, err := cli.ListImage(ctx, 0, map[string][]string{"name": {name}, "tag": {tag}})
 	if err != nil {
@@ -502,28 +620,28 @@ func verifyImageDoesNotExist(t *testing.T, ctx context.Context, cli *client.Clie
 }
 
 // verifyImageExistsEventually polls for the image to exist.
-func verifyImageExistsEventually(t *testing.T, ctx context.Context, cli *client.Client, name, tag string, timeout time.Duration) error {
+func verifyImageExistsEventually(ctx context.Context, t *testing.T, cli *client.Client, name, tag string, timeout time.Duration) error {
 	t.Helper()
 	desc := fmt.Sprintf("image %s:%s to exist", name, tag)
-	return poll(t, desc, timeout, func() error { return verifyImageExists(t, ctx, cli, name, tag) })
+	return poll(t, desc, timeout, func() error { return verifyImageExists(ctx, t, cli, name, tag) })
 }
 
 // verifyImageDoesNotExistEventually polls for the image to not exist.
-func verifyImageDoesNotExistEventually(t *testing.T, ctx context.Context, cli *client.Client, name, tag string, timeout time.Duration) error {
+func verifyImageDoesNotExistEventually(ctx context.Context, t *testing.T, cli *client.Client, name, tag string, timeout time.Duration) error {
 	t.Helper()
 	desc := fmt.Sprintf("image %s:%s to not exist", name, tag)
-	return poll(t, desc, timeout, func() error { return verifyImageDoesNotExist(t, ctx, cli, name, tag) })
+	return poll(t, desc, timeout, func() error { return verifyImageDoesNotExist(ctx, t, cli, name, tag) })
 }
 
 // verifyContainerStateEventually polls for the container to reach the expected state.
-func verifyContainerStateEventually(t *testing.T, ctx context.Context, cli *client.Client, name string, want cpb.ListContainerResponse_Status, timeout time.Duration) error {
+func verifyContainerStateEventually(ctx context.Context, t *testing.T, cli *client.Client, name string, want cpb.ListContainerResponse_Status, timeout time.Duration) error {
 	t.Helper()
 	desc := fmt.Sprintf("container %s to be in state %s", name, want)
-	return poll(t, desc, timeout, func() error { return verifyContainerState(t, ctx, cli, name, want) })
+	return poll(t, desc, timeout, func() error { return verifyContainerState(ctx, t, cli, name, want) })
 }
 
 // verifyContainerDoesNotExist checks if a container does not exist.
-func verifyContainerDoesNotExist(t *testing.T, ctx context.Context, cli *client.Client, name string) error {
+func verifyContainerDoesNotExist(ctx context.Context, t *testing.T, cli *client.Client, name string) error {
 	t.Helper()
 	listCh, err := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {name}})
 	if err != nil {
@@ -542,14 +660,21 @@ func verifyContainerDoesNotExist(t *testing.T, ctx context.Context, cli *client.
 }
 
 // verifyContainerDoesNotExistEventually polls for the container to not exist.
-func verifyContainerDoesNotExistEventually(t *testing.T, ctx context.Context, cli *client.Client, name string, timeout time.Duration) error {
+func verifyContainerDoesNotExistEventually(ctx context.Context, t *testing.T, cli *client.Client, name string, timeout time.Duration) error {
 	t.Helper()
 	desc := fmt.Sprintf("container %q to not exist", name)
-	return poll(t, desc, timeout, func() error { return verifyContainerDoesNotExist(t, ctx, cli, name) })
+	return poll(t, desc, timeout, func() error { return verifyContainerDoesNotExist(ctx, t, cli, name) })
+}
+
+// verifyVolumeExistsEventually polls for the volume to exist.
+func verifyVolumeExistsEventually(ctx context.Context, t *testing.T, cli *client.Client, name string, timeout time.Duration) error {
+	t.Helper()
+	desc := fmt.Sprintf("volume %s to exist", name)
+	return poll(t, desc, timeout, func() error { return verifyVolumeExists(ctx, t, cli, name) })
 }
 
 // verifyVolumeExists checks if a volume exists.
-func verifyVolumeExists(t *testing.T, ctx context.Context, cli *client.Client, name string) error {
+func verifyVolumeExists(ctx context.Context, t *testing.T, cli *client.Client, name string) error {
 	t.Helper()
 	volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {name}})
 	if err != nil {
@@ -567,6 +692,25 @@ func verifyVolumeExists(t *testing.T, ctx context.Context, cli *client.Client, n
 	}
 	if !found {
 		return fmt.Errorf("volume %s not found", name)
+	}
+	return nil
+}
+
+// verifyVolumeDoesNotExist checks if a volume does not exist.
+func verifyVolumeDoesNotExist(ctx context.Context, t *testing.T, cli *client.Client, name string) error {
+	t.Helper()
+	volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {name}})
+	if err != nil {
+		return fmt.Errorf("ListVolume failed: %w", err)
+	}
+
+	for vol := range volCh {
+		if vol.Error != nil {
+			return fmt.Errorf("error listing volumes: %w", vol.Error)
+		}
+		if vol.Name == name {
+			return fmt.Errorf("volume %s found, but it should not exist", name)
+		}
 	}
 	return nil
 }
@@ -591,7 +735,7 @@ func poll(t *testing.T, desc string, timeout time.Duration, check func() error) 
 }
 
 // loadImage pushes a container image to the DUT and verifies it exists.
-func loadImage(t *testing.T, ctx context.Context, cli *client.Client, imageName, tag, tarPath string) {
+func loadImage(ctx context.Context, t *testing.T, cli *client.Client, imageName, tag, tarPath string) {
 	t.Helper()
 	t.Logf("Pushing image %s:%s from %s.", imageName, tag, tarPath)
 	progCh, err := cli.PushImage(ctx, imageName, tag, tarPath, false)
@@ -602,11 +746,13 @@ func loadImage(t *testing.T, ctx context.Context, cli *client.Client, imageName,
 		if prog.Error != nil {
 			t.Fatalf("Error during push of image %s:%s: %w", imageName, tag, prog.Error)
 		}
-		if !prog.Finished {
+		if prog.Finished {
+			t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
+		} else {
 			t.Logf("Push progress for %s:%s: %d bytes received.", imageName, tag, prog.BytesReceived)
 		}
 	}
-	if err := verifyImageExists(t, ctx, cli, imageName, tag); err != nil {
+	if err := verifyImageExists(ctx, t, cli, imageName, tag); err != nil {
 		t.Fatalf("Image not found after loading: %v", err)
 	}
 	t.Logf("Successfully loaded image %s:%s.", imageName, tag)

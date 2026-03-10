@@ -53,8 +53,8 @@ This is the tarball that will be used during tests.
     *   Using `gnoi.Containerz.Deploy`, load a container image.
     *   Using `gnoi.Containerz.Start`, start a container that mounts the created volume.
 2.  **Verify Setup**: Verify the container is in a `RUNNING` state and the volume exists.
-2.  **Trigger Failover**: Identify the standby control processor using gNMI. Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-3.  **Verify Recovery**: After the switchover, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
+3.  **Trigger Failover**: Identify the standby control processor using gNMI. Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
+4.  **Verify Recovery**: After the switchover, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
 
 ## CNTR-3.5: Image Removal Persistence
 
@@ -77,6 +77,18 @@ This is the tarball that will be used during tests.
 3.  **Verify Persistence**: After the first switchover, verify the image is still available on the new primary.
 4.  **Second Failover**: Trigger another control processor switchover, returning to the original primary.
 5.  **Verify Final Persistence**: After the second switchover, verify the image is still available.
+
+## CNTR-3.8: Container Persistence On Cold Reboot
+
+1.  **Setup**:
+    *   Using `gnoi.Containerz.CreateVolume`, create a volume.
+    *   Using `gnoi.Containerz.Deploy`, load a container image.
+    *   Using `gnoi.Containerz.Start`, start a container that mounts the created volume.
+2.  **Verify Setup**: Verify the container is in a `RUNNING` state and the volume exists.
+2.  **Cold Reboot**: Trigger a cold reboot using `gnoi.System.Reboot`.
+3.  **Verify Recovery**: After the cold reboot, verify that the container is still `RUNNING` and the volume still exists using `gnoi.Containerz`.
+
+
 ## Canonical OC
 
 <!-- This test does not require any specific OpenConfig configuration, so this section is empty to satisfy the validator. -->
@@ -97,6 +109,7 @@ rpcs:
     containerz.Containerz.CreateVolume:
     containerz.Containerz.ListVolume:
     system.System.SwitchControlProcessor:
+    sytem.System.Reboot:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
