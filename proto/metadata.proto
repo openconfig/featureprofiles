@@ -1188,13 +1188,13 @@ message Metadata {
     bool wecmp_set_weight_unsupported = 388;
 
     // Devices that do not support mpls static pseudowire OC
-    bool mpls_static_pseudowire_oc_unsupported = 352;
+    bool mpls_static_pseudowire_oc_unsupported = 389;
 
     // Devices that do not support vlan client encapsulation OC
-    bool vlan_client_encapsulation_oc_unsupported = 353;
+    bool vlan_client_encapsulation_oc_unsupported = 390;
 
     // Devices that do not support nexthp-group counters OC
-    bool nexthop_group_pseudowire_counters_oc_unsupported = 354;
+    bool nexthop_group_pseudowire_counters_oc_unsupported = 391;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
