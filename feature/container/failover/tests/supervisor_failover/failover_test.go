@@ -39,8 +39,9 @@ const (
 	containerName = "cntrsrv"
 	volName       = "test-failover-vol" // Used in TestContainerAndVolumePersistence
 
-	verifyTimeout = 30 * time.Second
-	pollInterval   = 1 * time.Second
+	verifyTimeout     = 30 * time.Second
+	pollInterval      = 1 * time.Second
+	maxSwitchoverTime = 15 * time.Minute
 )
 
 func TestMain(m *testing.M) { fptest.RunTests(m) }
