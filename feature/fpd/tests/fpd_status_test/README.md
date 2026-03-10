@@ -64,10 +64,6 @@ The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
 paths:
-  # Telemetry Parameter coverage
-  /components/component/properties/property/state/value:
-    platform_type: ["FPD"]
-
 rpcs:
   gnmi:
     gNMI.Get:
