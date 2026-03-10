@@ -68,3 +68,7 @@ paths:
   /components/component/properties/property/state/value:
     platform_type: ["FPD"]
 ```
+
+## Required DUT platform
+
+* FFF - fixed form factor
