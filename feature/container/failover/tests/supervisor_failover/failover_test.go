@@ -35,14 +35,13 @@ var (
 )
 
 const (
-	imageName     = "cntrsrv_image"
-	tag           = "latest"
-	containerName = "cntrsrv"
-	volName       = "test-failover-vol" // Used in TestContainerAndVolumePersistence
-
+	imageName         = "cntrsrv_image"
+	tag               = "latest"
+	containerName     = "cntrsrv"
+	volName           = "test-failover-vol" // Used in TestContainerAndVolumePersistence
+	maxSwitchoverTime = 900
 	verifyTimeout     = 30 * time.Second
 	pollInterval      = 1 * time.Second
-	maxSwitchoverTime = 15 * time.Minute
 )
 
 func TestMain(m *testing.M) { fptest.RunTests(m) }
@@ -516,25 +515,24 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	startSwitchover := time.Now()
-	t.Logf("Waiting for switchover completion by polling telemetry.")
-
+	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
 	for {
-		if time.Since(startSwitchover) > maxSwitchoverTime {
-			t.Fatalf("Switchover did not complete within %v", maxSwitchoverTime)
-		}
-
 		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+		time.Sleep(30 * time.Second)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg == nil {
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
 			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
 			break
-		} else {
-			t.Logf("Switchover not complete after %.2f seconds: %s. Waiting 30 seconds...", time.Since(startSwitchover).Seconds(), *errMsg)
 		}
-		time.Sleep(30 * time.Second)
+		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
+			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		}
 	}
-	t.Logf("Controller switchover took %.2f seconds.", time.Since(startSwitchover).Seconds())
+	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 }
 
 // doSwitchover triggers a control processor switchover to the specified standby.
