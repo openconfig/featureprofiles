@@ -784,4 +784,5 @@ func loadImage(ctx context.Context, t *testing.T, cli *client.Client, imageName,
 		return fmt.Errorf("Image not found after loading: %v", err)
 	}
 	t.Logf("Successfully loaded image %s:%s.", imageName, tag)
+	return nil
 }
