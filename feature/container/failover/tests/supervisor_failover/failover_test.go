@@ -1,4 +1,4 @@
-package failover
+package failover_test
 
 import (
 	"context"
@@ -77,7 +77,9 @@ func TestImagePersistence(t *testing.T) {
 	})
 
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
@@ -169,7 +171,9 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 			t.Fatalf("Volume not found after creation: %v", err)
 		}
 
-		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
 
 		t.Logf("Deploying and starting container %s...", containerName)
 		startOpts := []client.StartOption{
@@ -249,7 +253,9 @@ func TestImageRemovalPersistence(t *testing.T) {
 
 	// 1. Load the image initially.
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
 	})
 
 	// 2. Remove the image.
@@ -365,7 +371,9 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 
 	t.Run("LoadImage", func(t *testing.T) {
-		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
 	})
 
 	// First Switchover.
@@ -454,7 +462,9 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
 			t.Fatalf("Failed to create volume: %v", err)
 		}
-		loadImage(ctx, t, cli, imageName, tag, containerTarPath(t))
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
 
 		t.Logf("Starting container %s...", containerName)
 		startOpts := []client.StartOption{
@@ -735,16 +745,16 @@ func poll(t *testing.T, desc string, timeout time.Duration, check func() error) 
 }
 
 // loadImage pushes a container image to the DUT and verifies it exists.
-func loadImage(ctx context.Context, t *testing.T, cli *client.Client, imageName, tag, tarPath string) {
+func loadImage(ctx context.Context, t *testing.T, cli *client.Client, imageName, tag, tarPath string) error {
 	t.Helper()
 	t.Logf("Pushing image %s:%s from %s.", imageName, tag, tarPath)
 	progCh, err := cli.PushImage(ctx, imageName, tag, tarPath, false)
 	if err != nil {
-		t.Fatalf("Initial call to PushImage for %s:%s failed: %w", imageName, tag, err)
+		return fmt.Errorf("Initial call to PushImage for %s:%s failed: %w", imageName, tag, err)
 	}
 	for prog := range progCh {
 		if prog.Error != nil {
-			t.Fatalf("Error during push of image %s:%s: %w", imageName, tag, prog.Error)
+			return fmt.Errorf("Error during push of image %s:%s: %w", imageName, tag, prog.Error)
 		}
 		if prog.Finished {
 			t.Logf("Successfully pushed image %s:%s.", prog.Image, prog.Tag)
@@ -753,7 +763,7 @@ func loadImage(ctx context.Context, t *testing.T, cli *client.Client, imageName,
 		}
 	}
 	if err := verifyImageExists(ctx, t, cli, imageName, tag); err != nil {
-		t.Fatalf("Image not found after loading: %v", err)
+		return fmt.Errorf("Image not found after loading: %v", err)
 	}
 	t.Logf("Successfully loaded image %s:%s.", imageName, tag)
 }
