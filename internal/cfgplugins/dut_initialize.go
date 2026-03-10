@@ -862,6 +862,12 @@ hardware tcam
    `
 
 	aristaAnPF = `
+   management api models
+   provider smash
+      path flexCounters/counterTable/Nexthop 
+      path routing/nexthopgroup/entrystatus
+      path tunnel/nexthop
+      
    hardware tcam
   
    !
@@ -1200,4 +1206,17 @@ func CreateVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch, c
 	}
 
 	return vrfs
+}
+
+func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		counterCli := fmt.Sprintf(`
+         hardware counter feature %s
+         clear counters`, feature)
+		helpers.GnmiCLIConfig(t, dut, counterCli)
+	default:
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	}
 }

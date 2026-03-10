@@ -1,6 +1,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 var (
@@ -430,4 +433,43 @@ func NextHopGroupConfigForMultipleIP(t *testing.T, batch *gnmi.SetBatch, dut *on
 			ueh1.GetOrCreateUdpV4().SetDscp(params.Dscp)
 		}
 	}
+}
+
+func GetNextHopGroupCounters(t *testing.T, dut *ondatra.DUTDevice) *gpb.GetResponse {
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			req := &gpb.GetRequest{
+				Prefix: &gpb.Path{
+					Origin: "eos_native",
+				},
+				Path: []*gpb.Path{{
+					Elem: []*gpb.PathElem{
+						{Name: "Smash"},
+						{Name: "flexCounters"},
+						{Name: "counterTable"},
+						{Name: "Nexthop"},
+						{Name: "4294967295"},
+						{Name: "counter"},
+					},
+				},
+				},
+				Type:     gpb.GetRequest_CONFIG,
+				Encoding: gpb.Encoding_JSON_IETF,
+			}
+
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			if getResponse, err := gnmiClient.Get(context.Background(), req); err != nil {
+				t.Fatalf("Unexpected error getting counters: %v", err)
+			} else {
+				return getResponse
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group counters'", dut.Vendor())
+			return nil
+		}
+	} else {
+		t.Log("OC path is not available for next-hop-group counters")
+	}
+	return nil
 }

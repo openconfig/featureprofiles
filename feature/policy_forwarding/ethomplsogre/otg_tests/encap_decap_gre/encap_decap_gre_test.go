@@ -19,12 +19,12 @@ import (
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygot/ygot"
 )
 
 // TestMain calls main function.
@@ -46,22 +46,25 @@ const (
 	localLabel          = 100
 	remoteLabel         = 100
 	dutAS               = 65501
-	ateAS               = 65502
+	ateAS1              = 65502
+	ateAS2              = 65503
 	bgpPeerGroupName1   = "BGP-Peer1"
 	bgpPeerGroupName2   = "BGP-Peer2"
 	greProtocol         = 47
 	decapDesIpv4IP      = "192.168.80.0/24"
 	decapGrpName        = "Decap1"
 	dscp                = 96 >> 2
+	tolerance           = 0.10
 )
 
 var (
-	sfBatch      *gnmi.SetBatch
-	ni           *oc.NetworkInstance
-	custAggID    string
-	tunnelSrcIPs = []string{}
-	custPort     = "port1"
-	packetSource = []*gopacket.PacketSource{}
+	sfBatch       *gnmi.SetBatch
+	ni            *oc.NetworkInstance
+	custAggID     string
+	tunnelSrcIPs  = []string{}
+	dutPortRxPkts = make(map[string]uint64)
+	custPort      = "port1"
+	packetSource  = []*gopacket.PacketSource{}
 
 	activity = oc.Lacp_LacpActivityType_ACTIVE
 	period   = oc.Lacp_LacpPeriodType_FAST
@@ -203,7 +206,7 @@ var (
 	}
 
 	jumboWeightProfile = []otgconfighelpers.SizeWeightPair{
-		{Size: 9000, Weight: 2},
+		{Size: 9000, Weight: 100},
 	}
 
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
@@ -280,6 +283,7 @@ type BGPNeighbor struct {
 	neighborip string
 	deviceName string
 	peerGroup  string
+	as         uint32
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
@@ -288,7 +292,6 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 		return
 	}
 	cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
-
 }
 
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams) {
@@ -339,20 +342,21 @@ func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	bgpProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := bgpProtocol.GetOrCreateBgp()
 	g := bgp.GetOrCreateGlobal()
-	g.As = ygot.Uint32(dutAS)
+	g.SetAs(dutAS)
+	g.SetRouterId("192.168.10.2")
 
 	nbrs := []*BGPNeighbor{
-		{neighborip: otgIntf2.IPv4, deviceName: "", peerGroup: bgpPeerGroupName1},
-		{neighborip: otgIntf3.IPv4, deviceName: "", peerGroup: bgpPeerGroupName2},
+		{neighborip: otgIntf2.IPv4, deviceName: "", peerGroup: bgpPeerGroupName1, as: ateAS1},
+		{neighborip: otgIntf3.IPv4, deviceName: "", peerGroup: bgpPeerGroupName2, as: ateAS2},
 	}
 	for _, coreInterface := range nbrs {
 		pg := bgp.GetOrCreatePeerGroup(coreInterface.peerGroup)
-		pg.PeerAs = ygot.Uint32(ateAS)
+		pg.SetPeerAs(coreInterface.as)
 		ipv4Nbr := bgp.GetOrCreateNeighbor(coreInterface.neighborip)
-		ipv4Nbr.PeerGroup = ygot.String(coreInterface.peerGroup)
-		ipv4Nbr.PeerAs = ygot.Uint32(ateAS)
-		ipv4Nbr.Enabled = ygot.Bool(true)
-		ipv4Nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
+		ipv4Nbr.SetPeerGroup(coreInterface.peerGroup)
+		ipv4Nbr.SetPeerAs(coreInterface.as)
+		ipv4Nbr.SetEnabled(true)
+		ipv4Nbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
 	}
 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), bgpProtocol)
@@ -426,8 +430,8 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	}
 
 	nbrs := []*BGPNeighbor{
-		{neighborip: coreIntf1.IPv4, deviceName: "ateLag2.Dev", peerGroup: ""},
-		{neighborip: coreIntf2.IPv4, deviceName: "ateLag3.Dev", peerGroup: ""},
+		{neighborip: coreIntf1.IPv4, deviceName: "ateLag2.Dev", peerGroup: "", as: ateAS1},
+		{neighborip: coreIntf2.IPv4, deviceName: "ateLag3.Dev", peerGroup: "", as: ateAS2},
 	}
 	// Configure BGP on lag2 and lag3
 	for _, device := range otgConfig.Devices().Items() {
@@ -437,7 +441,7 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 				iDut1Ipv4 := device.Ethernets().Items()[0].Ipv4Addresses().Items()[0]
 				bgp4Nbr := bgpD.Ipv4Interfaces().Add().SetIpv4Name(iDut1Ipv4.Name()).Peers().Add().SetName(nbr.deviceName + ".BGP.peer")
-				bgp4Nbr.SetPeerAddress(nbr.neighborip).SetAsNumber(uint32(ateAS)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+				bgp4Nbr.SetPeerAddress(nbr.neighborip).SetAsNumber(uint32(nbr.as)).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 			}
 		}
 
@@ -510,8 +514,8 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi
 
 func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string, jmtu bool) error {
 	t.Log("Validating traffic equally distributed equally across 2 egress ports")
-	var totalEgressPkts uint64
-	tolerance := 0.10
+	var totalEgressPkts, totalRxPkts, lag2RxPkts, lag3RxPkts uint64
+	portRxPkts := make(map[string]uint64)
 
 	for _, egressPort := range []string{"port2", "port3", "port4", "port5"} {
 		port := dut.Port(t, egressPort)
@@ -537,21 +541,11 @@ func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 	}
 
 	rxPortNames := []string{"port2", "port3", "port4", "port5"}
-	var totalRxPkts, lag2RxPkts, lag3RxPkts uint64
-	portRxPkts := make(map[string]uint64)
 
 	for _, portName := range rxPortNames {
 		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, portName).ID()).Counters().InFrames().State())
 		portRxPkts[portName] = rxPkts
 		totalRxPkts += rxPkts
-	}
-
-	if jmtu {
-		for _, portName := range []string{"port2", "port3"} {
-			rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, portName).ID()).Counters().InFrames().State())
-			portRxPkts[portName] = rxPkts
-			totalRxPkts += rxPkts
-		}
 	}
 
 	lag2RxPkts = portRxPkts["port2"] + portRxPkts["port3"]
@@ -605,6 +599,55 @@ func verifyLoadBalanceAcrossGre(t *testing.T, singlePath bool, packetSource []*g
 	}
 
 	t.Logf("PASS: Traffic was load-balanced across %d GRE sources", uniqueCount)
+}
+
+func verifyLoadBalanceUsingNexthopCounters(t *testing.T, response *gnmipb.GetResponse) error {
+	pktsValues := []uint64{}
+
+	for _, notif := range response.Notification {
+		for _, update := range notif.Update {
+			if len(update.Path.Elem) > 0 && update.Path.Elem[len(update.Path.Elem)-1].Name == "pkts" {
+				if v, ok := update.Val.Value.(*gnmipb.TypedValue_UintVal); ok {
+					pktsValues = append(pktsValues, v.UintVal)
+				}
+			}
+		}
+	}
+
+	// Verify we have exactly 16 GRE tunnel entries
+	if len(pktsValues) != tunnelCount {
+		return fmt.Errorf("expected %d GRE tunnels, got %d", tunnelCount, len(pktsValues))
+	}
+
+	// Calculate average and verify all values are within 1% threshold
+	var totalPkts uint64
+	for _, pkt := range pktsValues {
+		totalPkts += pkt
+	}
+	avgPkts := float64(totalPkts) / float64(len(pktsValues))
+	// Verify load balance passed
+	if len(pktsValues) > 0 {
+		allWithinThreshold := true
+		for _, pkt := range pktsValues {
+			deviation := (float64(pkt) - avgPkts) / avgPkts
+			if deviation < 0 {
+				deviation = -deviation
+			}
+			if deviation > tolerance {
+				allWithinThreshold = false
+				break
+			}
+		}
+
+		if allWithinThreshold {
+			t.Logf("traffic equally load-balanced across 16 GRE destinations")
+		} else {
+			return fmt.Errorf("traffic not equally load-balanced across 16 GRE destinationsone or more tunnels deviate beyond %.2f%% threshold", tolerance*100)
+		}
+	} else {
+		return fmt.Errorf("No packet values available for load balance verification")
+	}
+	return nil
 }
 
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, otg *otg.OTG, flowName string) {
@@ -697,6 +740,21 @@ func TestEncapDecapGre(t *testing.T) {
 			testFunc: testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy,
 		},
 		{
+			name:        "PF1.23.4 : EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
+			description: "Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
+			flow: otgconfighelpers.Flow{
+				TxPort:     otgConfig.Lags().Items()[0].Name(),
+				RxPorts:    []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
+				IsTxRxPort: true,
+				FlowName:   "EthoMPLSoGREJumboMTU",
+				FrameSize:  9000,
+				EthFlow:    &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
+				VLANFlow:   &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
+				IPv4Flow:   &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
+			},
+			testFunc: testEthoCWoMPLSoGREEncapJumboMTU,
+		},
+		{
 			name:        "PF1.23.3 : EthoCWoMPLSoGRE encapsulate action for MACSec",
 			description: "Verify PF EthoCWoMPLSoGRE encapsulate action for MACSec encrytped IPv4, IPv6 traffic",
 			flow: otgconfighelpers.Flow{
@@ -710,21 +768,6 @@ func TestEncapDecapGre(t *testing.T) {
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testEthoCWoMPLSoGREEncapMACSec,
-		},
-		{
-			name:        "PF1.23.4 : EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
-			description: "Verify PF EthoCWoMPLSoGRE encapsulate action with Jumbo MTU",
-			flow: otgconfighelpers.Flow{
-				TxPort:            otgConfig.Lags().Items()[0].Name(),
-				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
-				IsTxRxPort:        true,
-				FlowName:          "EthoMPLSoGREJumboMTU",
-				SizeWeightProfile: &jumboWeightProfile,
-				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, SrcMACCount: 1000, DstMAC: "01:01:01:01:01:01", DstMACCount: 1000},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
-				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
-			},
-			testFunc: testEthoCWoMPLSoGREEncapJumboMTU,
 		},
 		{
 			name:        "PF1.23.5 : Verify Control word for unencrypted traffic flow",
@@ -900,6 +943,17 @@ func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *o
 
 func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	// Generate 1000 different traffic flows on ATE Port 1
+	var resp *gnmipb.GetResponse
+
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cfgplugins.EnableHardwareCounters(t, dut, "nexthop")
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+		}
+	}
+
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
@@ -917,7 +971,27 @@ func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate 
 		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
 	}
 
-	verifyLoadBalanceAcrossGre(t, false, packetSource)
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			resp = cfgplugins.GetNextHopGroupCounters(t, dut)
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+		}
+	}
+
+	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if err := verifyLoadBalanceUsingNexthopCounters(t, resp); err != nil {
+				t.Errorf("failed %v", err)
+			}
+		default:
+			t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+		}
+	} else {
+		verifyLoadBalanceAcrossGre(t, false, packetSource)
+	}
 }
 
 func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {

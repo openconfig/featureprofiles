@@ -24,6 +24,7 @@ platform_exceptions:  {
     mpls_static_pseudowire_oc_unsupported: true
     vlan_client_encapsulation_oc_unsupported: true
     gre_decapsulation_oc_unsupported: true
-    macsec_unsupported: true 
+    macsec_unsupported: true
+    nexthop_group_pseudowire_counters_oc_unsupported: true
   }
 }

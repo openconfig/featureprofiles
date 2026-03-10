@@ -1993,3 +1993,7 @@ func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
 func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
 }
+
+func NexthopGroupPseudowireCountersOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNexthopGroupPseudowireCountersOcUnsupported()
+}

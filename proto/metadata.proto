@@ -1193,6 +1193,9 @@ message Metadata {
     // Devices that do not support vlan client encapsulation OC
     bool vlan_client_encapsulation_oc_unsupported = 353;
 
+    // Devices that do not support nexthp-group counters OC
+    bool nexthop_group_pseudowire_counters_oc_unsupported = 354;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }

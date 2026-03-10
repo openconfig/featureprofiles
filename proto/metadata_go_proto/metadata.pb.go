@@ -1344,8 +1344,10 @@ type Metadata_Deviations struct {
 	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,352,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
 	// Devices that do not support vlan client encapsulation OC
 	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,353,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
-	unknownFields                        protoimpl.UnknownFields
-	sizeCache                            protoimpl.SizeCache
+	// Devices that do not support nexthp-group counters OC
+	NexthopGroupPseudowireCountersOcUnsupported bool `protobuf:"varint,354,opt,name=nexthop_group_pseudowire_counters_oc_unsupported,json=nexthopGroupPseudowireCountersOcUnsupported,proto3" json:"nexthop_group_pseudowire_counters_oc_unsupported,omitempty"`
+	unknownFields                               protoimpl.UnknownFields
+	sizeCache                                   protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3870,6 +3872,13 @@ func (x *Metadata_Deviations) GetVlanClientEncapsulationOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetNexthopGroupPseudowireCountersOcUnsupported() bool {
+	if x != nil {
+		return x.NexthopGroupPseudowireCountersOcUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4301,7 +4310,8 @@ const file_metadata_proto_rawDesc = "" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\"syslog_non_default_vrf_unsupported\x18\xdf\x02 \x01(\bR\x1esyslogNonDefaultVrfUnsupported\x12Q\n" +
 	"%mpls_static_pseudowire_oc_unsupported\x18\xe0\x02 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
-	"(vlan_client_encapsulation_oc_unsupported\x18\xe1\x02 \x01(\bR$vlanClientEncapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"(vlan_client_encapsulation_oc_unsupported\x18\xe1\x02 \x01(\bR$vlanClientEncapsulationOcUnsupported\x12f\n" +
+	"0nexthop_group_pseudowire_counters_oc_unsupported\x18\xe2\x02 \x01(\bR+nexthopGroupPseudowireCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
