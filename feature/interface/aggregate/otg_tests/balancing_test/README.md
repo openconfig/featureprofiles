@@ -77,7 +77,6 @@ distribution of traffic, but all the links should get traffic
                   "partner-key": 55,
                   "partner-port-num": 44,
                   "port-num": 175,
-                  "arista-lacp-augments:selected": "selected",
                   "synchronization": "IN_SYNC",
                   "system-id": "38:38:a6:a2:f7:30",
                   "timeout": "LONG"
