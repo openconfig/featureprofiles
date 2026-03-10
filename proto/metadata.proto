@@ -409,7 +409,7 @@ message Metadata {
     // Skip setting isis-actions set-metric-style-type while configuring
     // routing-policy statement action
     // Cisco b/456075095
-    bool skip_isis_set_metric_style_type = 145;    
+    bool skip_isis_set_metric_style_type = 145;
     // Skip setting disable-metric-propagation while configuring
     // table-connection
     bool skip_setting_disable_metric_propagation = 147;
@@ -666,7 +666,7 @@ message Metadata {
     // Arista does not support ETHChannel rate-class
     bool channel_assignment_rate_class_parameters_unsupported = 247;
 
-    // Arista: b/346557012  
+    // Arista: b/346557012
     // Devices that do not support qos scheduler ingress policer.
     bool qos_scheduler_ingress_policer_unsupported = 248;
 
@@ -715,14 +715,14 @@ message Metadata {
     bool sr_igp_config_unsupported = 260;
 
     // Cisco: b/404301960
-    // Devices that block one IS-IS level specific authentication config attribute for P2P links. 
+    // Devices that block one IS-IS level specific authentication config attribute for P2P links.
     // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
     bool set_isis_auth_with_interface_authentication_container = 261;
 
     // Devices that do not support GRE/GUE tunnel interface oc.
     // Juniper b/398171114
     bool gre_gue_tunnel_interface_oc_unsupported = 262;
-    
+
     // Devices that do not support load-interval configuration
     bool load_interval_not_supported = 263;
 
@@ -815,7 +815,7 @@ message Metadata {
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
 
-    // Create/Replace config leaf required 
+    // Create/Replace config leaf required
     // Juniper b/419536104
     bool config_leaf_create_required = 291;
 
@@ -845,7 +845,7 @@ message Metadata {
 
     // Skip setting send-community-type in bgp peer-group config
     bool skip_bgp_peer_group_send_community_type = 299;
-    
+
     // Devices that need explicit swap_src_dst_mac set with loopback_mode
     // Nokia b/430183279
     bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
@@ -856,7 +856,7 @@ message Metadata {
 
     // low_scale_aft returns true if device requires low scale AFT.
     bool low_scale_aft = 303;
-    
+
     // Devices that do not support system-description config path
     // Nokia b/431929861
     bool missing_system_description_config_path = 304;
@@ -897,7 +897,7 @@ message Metadata {
     // Devices that do not support policy forwarding encapsulate gre action
     // Arista: b/409347274
     bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
-  
+
     // policy rule based counters unsupported
     // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
     bool policy_rule_counters_oc_unsupported = 316;
@@ -905,7 +905,7 @@ message Metadata {
     // Devices that must have OTN to ETH assignment.
     // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
     bool otn_to_eth_assignment = 317;
-    
+
     // Devices that do not support import export policies configured in network instance
     bool network_instance_import_export_policy_oc_unsupported = 318;
 
@@ -937,14 +937,14 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/442749011
     bool qos_two_rate_three_color_policer_oc_unsupported = 325;
 
-    // Devices that do not support load balance policies 
+    // Devices that do not support load balance policies
     // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
     bool load_balance_policy_oc_unsupported = 326;
 
     // Devices that do not support gribi records
     // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
     bool gribi_records_unsupported = 327;
-  
+
     // Devices without breakout mode support for full rate.
     // Nokia: b/435502032
     bool breakout_mode_unsupported_for_eight_hundred_gb = 328;
@@ -983,7 +983,7 @@ message Metadata {
     // Devices that do not support transceiver config enable leaf
     // Nokia b/414842051
     bool transceiver_config_enable_unsupported = 336;
-    
+
     // Devices that do not support aft summary oc path
     // Cisco: https://issuetracker.google.com/450898206
     bool aft_summary_oc_unsupported = 337;
@@ -1003,7 +1003,7 @@ message Metadata {
     //  Juniper does not support localhost yet
     //  b/448173472
     bool localhost_for_containerz = 341;
-    
+
     // Juniper: b/434633267
     // Devices that do not support oc path for aggregate bandwidth policy
     // action.
@@ -1108,7 +1108,7 @@ message Metadata {
     // Check if transceiver subcomponent should look for the temperature sensor
     // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
     bool temperature_sensor_check = 367;
- 
+
     // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
     // Devices that report controller CPU utilization against base controller card component
     bool cpu_utilization_query_against_base_controller_card_component = 368;
@@ -1152,7 +1152,7 @@ message Metadata {
     bool terminal_device_channel_admin_state_unsupported = 379;
 
     // Device that requires explicit config to support BGP RIB streaming
-    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235 
+    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235
     bool bgp_rib_streaming_config_required = 380;
 
     // Device does not support enabling ACL counters through OC
@@ -1187,15 +1187,19 @@ message Metadata {
     // Juniper b/450154047
     bool wecmp_set_weight_unsupported = 388;
 
+    // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+    bool explicitly_apply_allow_all_import_policy = 389;
+    
     // Devices that do not support mpls static pseudowire OC
-    bool mpls_static_pseudowire_oc_unsupported = 389;
+    bool mpls_static_pseudowire_oc_unsupported = 390;
 
     // Devices that do not support vlan client encapsulation OC
-    bool vlan_client_encapsulation_oc_unsupported = 390;
+    bool vlan_client_encapsulation_oc_unsupported = 391;
 
     // Devices that do not support nexthp-group counters OC
-    bool nexthop_group_pseudowire_counters_oc_unsupported = 391;
-    
+    bool nexthop_group_pseudowire_counters_oc_unsupported = 392;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }

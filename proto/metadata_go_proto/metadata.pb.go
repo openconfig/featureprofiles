@@ -1337,12 +1337,15 @@ type Metadata_Deviations struct {
 	// Devices that do not support configuring weight for wecmp
 	// Juniper b/450154047
 	WecmpSetWeightUnsupported bool `protobuf:"varint,388,opt,name=wecmp_set_weight_unsupported,json=wecmpSetWeightUnsupported,proto3" json:"wecmp_set_weight_unsupported,omitempty"`
+	// Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+	ExplicitlyApplyAllowAllImportPolicy bool `protobuf:"varint,389,opt,name=explicitly_apply_allow_all_import_policy,json=explicitlyApplyAllowAllImportPolicy,proto3" json:"explicitly_apply_allow_all_import_policy,omitempty"`
 	// Devices that do not support mpls static pseudowire OC
-	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,389,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
+	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,390,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
 	// Devices that do not support vlan client encapsulation OC
-	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,390,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
+	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,391,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
 	// Devices that do not support nexthp-group counters OC
-	NexthopGroupPseudowireCountersOcUnsupported bool `protobuf:"varint,391,opt,name=nexthop_group_pseudowire_counters_oc_unsupported,json=nexthopGroupPseudowireCountersOcUnsupported,proto3" json:"nexthop_group_pseudowire_counters_oc_unsupported,omitempty"`
+	NexthopGroupPseudowireCountersOcUnsupported bool `protobuf:"varint,392,opt,name=nexthop_group_pseudowire_counters_oc_unsupported,json=nexthopGroupPseudowireCountersOcUnsupported,proto3" json:"nexthop_group_pseudowire_counters_oc_unsupported,omitempty"`
 	unknownFields                               protoimpl.UnknownFields
 	sizeCache                                   protoimpl.SizeCache
 }
@@ -3855,6 +3858,13 @@ func (x *Metadata_Deviations) GetWecmpSetWeightUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetExplicitlyApplyAllowAllImportPolicy() bool {
+	if x != nil {
+		return x.ExplicitlyApplyAllowAllImportPolicy
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetMplsStaticPseudowireOcUnsupported() bool {
 	if x != nil {
 		return x.MplsStaticPseudowireOcUnsupported
@@ -3932,7 +3942,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfb\xda\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xd3\xdb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3944,7 +3954,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe7\xd0\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xbf\xd1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4303,10 +4313,11 @@ const file_metadata_proto_rawDesc = "" +
 	".bgp_config_during_graceful_restart_unsupported\x18\x81\x03 \x01(\bR)bgpConfigDuringGracefulRestartUnsupported\x12O\n" +
 	"$routing_restart_via_gnoi_unsupported\x18\x82\x03 \x01(\bR routingRestartViaGnoiUnsupported\x12_\n" +
 	"-bgp_rpl_directly_under_peer_group_unsupported\x18\x83\x03 \x01(\bR'bgpRplDirectlyUnderPeerGroupUnsupported\x12@\n" +
-	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12Q\n" +
-	"%mpls_static_pseudowire_oc_unsupported\x18\x85\x03 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
-	"(vlan_client_encapsulation_oc_unsupported\x18\x86\x03 \x01(\bR$vlanClientEncapsulationOcUnsupported\x12f\n" +
-	"0nexthop_group_pseudowire_counters_oc_unsupported\x18\x87\x03 \x01(\bR+nexthopGroupPseudowireCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12V\n" +
+	"(explicitly_apply_allow_all_import_policy\x18\x85\x03 \x01(\bR#explicitlyApplyAllowAllImportPolicy\x12Q\n" +
+	"%mpls_static_pseudowire_oc_unsupported\x18\x86\x03 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
+	"(vlan_client_encapsulation_oc_unsupported\x18\x87\x03 \x01(\bR$vlanClientEncapsulationOcUnsupported\x12f\n" +
+	"0nexthop_group_pseudowire_counters_oc_unsupported\x18\x88\x03 \x01(\bR+nexthopGroupPseudowireCountersOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
