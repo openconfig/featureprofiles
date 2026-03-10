@@ -44,6 +44,22 @@ distribution of traffic, but all the links should get traffic
 
 ```json
 {
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "Port-Channel1",
+        "config": {
+          "name": "Port-Channel1"
+        }
+      },
+      {
+        "name": "Ethernet29/1",
+        "config": {
+          "name": "Ethernet29/1"
+        }
+      }
+    ]
+  },
   "openconfig-lacp:lacp": {
     "interfaces": {
       "interface": [
