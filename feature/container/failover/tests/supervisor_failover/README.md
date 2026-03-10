@@ -109,7 +109,7 @@ rpcs:
     containerz.Containerz.CreateVolume:
     containerz.Containerz.ListVolume:
     system.System.SwitchControlProcessor:
-    sytem.System.Reboot:
+    system.System.Reboot:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
