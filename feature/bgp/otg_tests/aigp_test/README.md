@@ -15,19 +15,19 @@ policy in a default and non default network instance simultaneously.
 #### Test Topology
 
 ```text
-+---------+      LAG1[eBGP]         +---------+      LAG2 [iBGP]        +---------+
++---------+      Lag1[eBGP]         +---------+      LAG2 [iBGP]        +---------+
 |   ATE   |=========================|  DUT 1  |=========================|  DUT 2  |
 +---------+                         +---------+                         +---------+
 
 ```
-#### IPV4 Addresses LAG 1 (Table 1)
+#### IPV4 Addresses Lag1 (Table 1)
 
 Device | vlan 10 | vlan 20 | vlan 30 | vlan 40
 :------| :----------| :-------- | :---------| :-------:
 DUT 1  | 198.51.100.1/30 | 198.51.100.5/30 | 198.51.100.9/30 | 198.51.100.13/30
 ATE    | 198.51.100.2/30 | 198.51.100.6/30 | 198.51.100.10/30 | 198.51.100.14/30
 
-#### IPV6 Addesses LAG 1 (Table 2)
+#### IPV6 Addesses Lag1 (Table 2)
 
 Device | vlan 10 | vlan 20 | vlan 30 | vlan 40
 :------| :----------| :-------- | :---------| :-------:
@@ -74,16 +74,16 @@ DUT 2 test-originate NI   | 49.0001.1980.5110.0100.00
 
 #### Interface Configuration
 
-*  Create two lags named lag1 and lag2 with both running LACP
-*  Configure both lag1 and lag2 as the LACP active end
+*  Create two lags named Lag1 and lag2 with both running LACP
+*  Configure both Lag1 and lag2 as the LACP active end
 *  Configure port 1 as a Lag1 member
 *  Configure Port 2 as a Lag 2 member
 *  Create a non-default network instance and name it test-instance
-*  On lag 1, create subinterfaces in vlan 10 and 20
+*  On Lag1, create subinterfaces in vlan 10 and 20
       * Add these subinterfaces to the DEFAULT network instance
       * Configure IPV4 on the subinterfaces as specified on table 1
       * Configure IPV6 on the subinterfaces as specified on Table 2
-*  On lag 1, create subinterfaces in vlan 30 and 40
+*  On Lag1, create subinterfaces in vlan 30 and 40
       * Add these subinterfaces to test-instance network instance
       * Configure IPV4 on the subinterfaces as specified on table 1
       * Configure IPV6 on the subinterfaces as specified on Table 2
@@ -122,7 +122,7 @@ be the ASN on the test-instance as specified on Table 5.
       * peer-group: downlink6; peer-as: 64497
 *  Configure peers in peer-group downlink and downlink6 as route-reflector clients with cluster-id 1.1.1.1
 *  Create the following bgp peers with their peer-group, these BGP peers will be
-    established over vlan 10 and vlan 20 respectively on LAG 1 towards the ATE
+    established over vlan 10 and vlan 20 respectively on Lag1 towards the ATE
       * Peer address: 198.51.100.2; peer-group: uplink
       * Peer address: 198.51.100.6; peer-group: uplink
       * Peer address: 2001:db8::2; peer-group: uplink6
@@ -150,7 +150,7 @@ be the ASN on the test-instance as specified on Table 5.
       * peer-group: downlink6; peer-as: 64498
 *  Configure peers in peer-group downlink and downlink6 as route-reflector clients with cluster-id 1.1.1.1
 *  Create the following bgp peers with their respective peer-groups, these BGP
-   peers will be established over vlan 30 and vlan 40 respectively on LAG 1
+   peers will be established over vlan 30 and vlan 40 respectively on Lag1
    towards the ATE
       * Peer address: 198.51.100.10; peer-group: uplink
       * Peer address: 198.51.100.14; peer-group: uplink
@@ -218,8 +218,8 @@ be the ASN on the test-instance as specified on Table 5.
 
 ### ATE - Generate Configuration
 
-1. Create an aggregate interface with LACP named lag1
-2. Add port 1 to lag1
+1. Create an aggregate interface with LACP named Lag1
+2. Add port 1 to Lag1
 3. Create emulated router
 4. Create 4 ethernet interfaces on the router, the ethernet interfaces
     named eth1.10, eth1.20, eth1.30, eth1.40 respectively
@@ -313,10 +313,10 @@ be the ASN on the test-instance as specified on Table 5.
 5. In test-instance NI, routes received from the BGP peers 198.51.100.21 and
    2001:db8::21 must have a AIGP value of 200
 6. In test-instance NI, IPV4 route received from the peer 198.51.100.21 must have
-   a next-hop address of 198.51.100.2 while ipv6 routes received from 2001:db8::21
+   a next-hop address of 198.51.100.21 while ipv6 routes received from 2001:db8::21
    must have a next-hop address of 2001:db8::21
 7. In test-instance NI, AIGP propagation must be true for the peers 198.51.100.21
-   and 2001:db8::21 in the default NI
+   and 2001:db8::21
     
 ### Canonical OC
 
@@ -645,7 +645,6 @@ be the ASN on the test-instance as specified on Table 5.
 +-------------------------+      ISIS                      +-------------+             ISIS              +---------+
 
 ```
-Dut 3 in this topology is a network instance on Dut 2 named test-originate
 
 ### DUT 1 - Generate Configuration
 
