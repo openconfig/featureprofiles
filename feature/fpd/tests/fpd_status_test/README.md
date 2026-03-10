@@ -67,6 +67,11 @@ paths:
   # Telemetry Parameter coverage
   /components/component/properties/property/state/value:
     platform_type: ["FPD"]
+
+rpcs:
+  gnmi:
+    gNMI.Get:
+    gNMI.Subscribe:
 ```
 
 ## Required DUT platform
