@@ -30,4 +30,14 @@ platform_exceptions: {
     fabric_drop_counter_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_ethernet_inblock_errors_unsupported: true
+    interface_counters_in_unknown_protos_unsupported: true
+    no_queue_drop_unsupported: true
+  }
+}
 tags: TAGS_AGGREGATION
