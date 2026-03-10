@@ -94,8 +94,7 @@ func TestImagePersistence(t *testing.T) {
 	})
 
 	t.Run("VerifyImagePersistence", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect...")
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 
 		cli = containerztest.Client(t, dut)
 
@@ -209,9 +208,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 	})
 
 	t.Run("VerifyRecovery", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect...")
-		// Allow some time for the switchover to initiate and the connection to drop.
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 
 		// Refresh clients after reconnection.
 		cli = containerztest.Client(t, dut)
@@ -280,8 +277,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 
 	// 4. Verify image does not exist after switchover.
 	t.Run("VerifyImageRemovalPersistence", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect...")
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
@@ -338,8 +334,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 
 	// 4. Verify container does not exist after switchover.
 	t.Run("VerifyContainerRemovalPersistence", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect...")
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
@@ -388,8 +383,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 
 	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect after first switchover...")
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after first switchover...")
@@ -413,8 +407,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 
 	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
-		t.Log("Waiting for DUT to reconnect after second switchover...")
-		time.Sleep(switchoverWait)
+		waitForSwitchover(t, dut)
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying image persistence after second switchover...")
@@ -515,6 +508,31 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			t.Errorf("Volume persistence failed: %v", err)
 		}
 	})
+}
+
+// waitForSwitchover waits for the switchover to complete by polling telemetry.
+func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	startSwitchover := time.Now()
+	t.Logf("Waiting for switchover completion by polling telemetry.")
+
+	for {
+		if time.Since(startSwitchover) > maxSwitchoverTime {
+			t.Fatalf("Switchover did not complete within %v", maxSwitchoverTime)
+		}
+
+		var currentTime string
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg == nil {
+			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
+			break
+		} else {
+			t.Logf("Switchover not complete after %.2f seconds: %s. Waiting 30 seconds...", time.Since(startSwitchover).Seconds(), *errMsg)
+		}
+		time.Sleep(30 * time.Second)
+	}
+	t.Logf("Controller switchover took %.2f seconds.", time.Since(startSwitchover).Seconds())
 }
 
 // doSwitchover triggers a control processor switchover to the specified standby.
