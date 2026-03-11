@@ -1989,3 +1989,8 @@ func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
 func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetExplicitlyApplyAllowAllImportPolicy()
 }
+
+// QosFt returns the functional translator to be used for translating QoS leaves.
+func QosFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetQosFt()
+}
