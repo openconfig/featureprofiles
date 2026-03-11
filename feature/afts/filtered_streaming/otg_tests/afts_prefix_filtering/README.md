@@ -150,11 +150,11 @@ subscribe: {
 
 ### Validate Dynamic Updates
 
-- Add a new prefix (`203.0.113.64/28`) to the DUT that matches
+- Add a new prefix (`198.51.100.1/32`) to the DUT that matches
   `POLICY-PREFIX-SET-A`. Verify receipt of an update notification for this
   prefix and its associated next-hop-groups and next-hops.
 
-- Remove `203.0.113.64/28` from the DUT. Verify receipt of a delete
+- Remove `198.51.100.1/32` from the DUT. Verify receipt of a delete
   notification for the prefix and its associated next-hop-groups and
   next-hops.
 
@@ -366,8 +366,8 @@ respective filters.
 ```yaml
 paths:
   # Proposed paths for the new filter mechanism (not yet in openconfig/public)
-  /network-instances/network-instance/afts/global-filter/config/policy-name:
-  /network-instances/network-instance/afts/global-filter/state/policy-name:
+  # /network-instances/network-instance/afts/global-filter/config/policy-name:
+  # /network-instances/network-instance/afts/global-filter/state/policy-name:
 
   # Standard AFT state paths
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
@@ -403,8 +403,7 @@ rpcs:
       UPDATE: true
       DELETE: true
   gnoi:
-    System:
-      Reboot: true
+    system.System.Reboot: true
 ```
 
 ## Canonical OC
