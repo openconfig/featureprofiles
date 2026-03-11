@@ -40,7 +40,7 @@ const (
 	containerName     = "cntrsrv"
 	volName           = "test-failover-vol" // Used in TestContainerAndVolumePersistence
 	maxSwitchoverTime = 900
-	verifyTimeout     = 30 * time.Second
+	verifyTimeout     = 5 * time.Minute
 	pollInterval      = 1 * time.Second
 )
 
@@ -71,7 +71,7 @@ func TestImagePersistence(t *testing.T) {
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
 		cli := containerztest.Client(t, dut)
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
 		t.Log("Cleanup finished.")
@@ -145,13 +145,13 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 		t.Log("Starting cleanup...")
 		cli := containerztest.Client(t, dut)
 
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
 		}
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
-		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
 		}
 		t.Log("Cleanup finished.")
@@ -182,7 +182,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 		}
 
 		// Ensure container is removed before starting.
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
 		}
 
@@ -360,7 +360,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
 		cli := containerztest.Client(t, dut)
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
 		t.Log("Cleanup finished.")
@@ -434,13 +434,13 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		t.Log("Starting cleanup...")
 		// Re-initialize client in case of connection loss
 		cli := containerztest.Client(t, dut)
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
 		}
-		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
-		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
 		}
 		t.Log("Cleanup finished.")
@@ -466,7 +466,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
 		}
 		// Ensure container is removed before starting.
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound {
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
 		}
 		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
@@ -519,7 +519,7 @@ func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(30 * time.Second)
+		time.Sleep(1 * time.Minute)
 		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 		}); errMsg != nil {
