@@ -452,7 +452,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                             11
                           ],
                           "protocol": 4,
-                          "source-address": "198.51.100.222"
+                          "source-address": "198.51.100.222/32"
                         }
                       },
                       "sequence-id": 1
@@ -486,7 +486,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                             11
                           ],
                           "protocol": 41,
-                          "source-address": "198.51.100.222"
+                          "source-address": "198.51.100.222/32"
                         }
                       },
                       "sequence-id": 2
@@ -509,7 +509,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                             11
                           ],
                           "protocol": 4,
-                          "source-address": "198.51.100.111"
+                          "source-address": "198.51.100.111/32"
                         }
                       },
                       "sequence-id": 3
@@ -532,7 +532,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                             11
                           ],
                           "protocol": 41,
-                          "source-address": "198.51.100.111"
+                          "source-address": "198.51.100.111/32"
                         }
                       },
                       "sequence-id": 4
@@ -551,7 +551,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                       "ipv4": {
                         "config": {
                           "protocol": 4,
-                          "source-address": "198.51.100.222"
+                          "source-address": "198.51.100.222/32"
                         }
                       },
                       "sequence-id": 65
@@ -570,7 +570,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                       "ipv4": {
                         "config": {
                           "protocol": 41,
-                          "source-address": "198.51.100.222"
+                          "source-address": "198.51.100.222/32"
                         }
                       },
                       "sequence-id": 66
@@ -589,7 +589,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                       "ipv4": {
                         "config": {
                           "protocol": 4,
-                          "source-address": "198.51.100.111"
+                          "source-address": "198.51.100.111/32"
                         }
                       },
                       "sequence-id": 67
@@ -608,7 +608,7 @@ Note: the Canonical OC path section only has description for one sub-interface o
                       "ipv4": {
                         "config": {
                           "protocol": 41,
-                          "source-address": "198.51.100.111"
+                          "source-address": "198.51.100.111/32"
                         }
                       },
                       "sequence-id": 68
