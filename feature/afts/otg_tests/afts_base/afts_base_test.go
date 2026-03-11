@@ -15,7 +15,7 @@
 package afts_base_test
 
 import (
-	"context"
+	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -36,11 +36,9 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
-	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
-	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -85,7 +83,6 @@ const (
 	bgpRouteCountIPv4Default     = 2000000
 	bgpRouteCountIPv6Default64   = 900000
 	bgpRouteCountIPv6Default128  = 100000
-	maxRebootTime                = 20
 )
 
 var (
@@ -120,6 +117,7 @@ var (
 	port2Name            = "port2"
 	prevNHGIDIPv4        = uint64(0)
 	prevNHGIDIPv6        = uint64(0)
+	debugNotifications   = flag.Bool("debug_notifications", false, "Enable full AFT notification recording")
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -590,12 +588,10 @@ func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AF
 	go func() {
 		defer wg.Done()
 		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-		//streamErr1 = aftSession1.ListenUntilWithError(sharedCtx, t, aftConvergenceTime, stoppingCondition)
 	}()
 	go func() {
 		defer wg.Done()
 		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-		//streamErr2 = aftSession2.ListenUntilWithError(sharedCtx, t, aftConvergenceTime, stoppingCondition)
 	}()
 	wg.Wait()
 
@@ -663,7 +659,7 @@ func TestBGP(t *testing.T) {
 	// TODO: - Add  deviation if any HW profile change is required
 	if tc.dut.Vendor() == ondatra.CISCO {
 		t.Log("Configuring DUT HW profile for Cisco and rebooting DUT")
-		if err := tc.configureHwProfile(t); err != nil {
+		if err := helpers.ConfigureHwProfile(t, tc.dut); err != nil {
 			t.Fatalf("failed to configure DUT HW profile: %v", err)
 		}
 	}
@@ -672,7 +668,7 @@ func TestBGP(t *testing.T) {
 	defer func() {
 		if tc.dut.Vendor() == ondatra.CISCO {
 			t.Log("Restoring DUT HW profile for Cisco and rebooting DUT")
-			if err := tc.configureDefaultHwProfile(t); err != nil {
+			if err := helpers.ConfigureDefaultHwProfile(t, tc.dut); err != nil {
 				t.Fatalf("failed to restore DUT HW profile: %v", err)
 			}
 		}
@@ -684,6 +680,13 @@ func TestBGP(t *testing.T) {
 	// Create an AFTStreamSession per gnmiClient
 	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
 	aftSession2 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient2, tc.dut)
+
+	// Enable debug mode if the flag is set, which will record all gNMI notifications to memory for later analysis. Requires a bigger RAM allocation for the test process, so it's disabled by default.
+	if *debugNotifications {
+		aftSession1.WithDebug()
+		aftSession2.WithDebug()
+		t.Log("DEBUG MODE ENABLED: Recording all gNMI notifications to memory.")
+	}
 
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
@@ -763,105 +766,4 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
-}
-
-// configureHwProfile configures all the interfaces and BGP on the DUT.
-func (tc *testCase) configureHwProfile(t *testing.T) error {
-	ciscoConfig := `
-		hw-module profile route scale lpm tcam-banks
-		customshowtech GRPC_CUSTOM
-		command show health gsp
-		command show health sysdb
-		command show tech-support gsp
-		command show tech-support cfgmgr
-		command show tech-support ofa
-		command show tech-support pfi
-		command show tech-support spi
-		command show tech-support mgbl
-		command show tech-support sysdb
-		command show tech-support appmgr
-		command show tech-support fabric
-		command show tech-support yserver
-		command show tech-support interface
-		command show tech-support platform-fwd
-		command show tech-support linux networking
-		command show tech-support ethernet interfaces
-		command show tech-support fabric link-include
-		command show tech-support p2p-ipc process appmgr
-		command show tech-support insight include-database
-		command show tech-support lpts
-		command show tech-support parser
-		command show tech-support telemetry model-driven
-		lpts pifib hardware police flow tpa rate 20000 
-		`
-	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	tc.rebootDUT(t)
-	return nil
-}
-
-// configureDefaultHwProfile configures all the interfaces and BGP on the DUT.
-func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
-	ciscoConfig := `
-	    no hw-module profile route scale lpm tcam-banks
-		`
-	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
-	tc.rebootDUT(t)
-	return nil
-}
-
-func (tc *testCase) rebootDUT(t *testing.T) {
-	t.Helper()
-	rebootRequest := &spb.RebootRequest{
-		Method:  spb.RebootMethod_COLD,
-		Delay:   0,
-		Message: "Reboot chassis without delay",
-		Force:   true,
-	}
-	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
-	if err != nil {
-		t.Fatalf("Error dialing gNOI: %v", err)
-	}
-	bootTimeBeforeReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
-	t.Logf("DUT boot time before reboot: %v %v", bootTimeBeforeReboot, time.Now())
-	t.Log("Sending reboot request to DUT")
-
-	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
-	defer cancel()
-	_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
-	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
-	if err != nil {
-		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
-	}
-
-	// Wait for the device to become reachable again.
-	dut := ondatra.DUT(t, "dut")
-	deviceBootStatus(t, dut)
-	t.Logf("Device is reachable, waiting for boot time to update.")
-
-	bootTimeAfterReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
-	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
-}
-
-func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
-	startReboot := time.Now()
-	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
-	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
-
-		time.Sleep(3 * time.Minute)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Device rebooted successfully with received time: %v", currentTime)
-			break
-		}
-
-		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
-		}
-	}
-	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
