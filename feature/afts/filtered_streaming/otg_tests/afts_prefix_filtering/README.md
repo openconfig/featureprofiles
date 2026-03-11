@@ -35,10 +35,13 @@ and per-network-instance filter isolation with multiple collectors.
     `198.51.100.0/24` and `2001:DB8:2::/64`.
 
   - `POLICY-PREFIX-SET-A`: Matches a specific set of IPv4 prefixes:
-    `198.51.100.0/24` and `203.0.113.0/28`.
+    `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
   - `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes:
     `2001:DB8:2::/64` and `2001:DB8:2::1/128`.
+
+  - `POLICY-PREFIX-SET-VRF-A`: Matches any IPv4 prefix within `100.64.1.0/24`
+    with a masklength range of `/24` to `/32`.
 
   - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.113.0/24` with a
     masklength range of `/25` to `/32` (i.e., any subnet of that block).
@@ -56,7 +59,7 @@ the policy under test before subscribing.
 ### Configure Routing Policy and Prefixes
 
 - Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
-  `198.51.100.0/24` and `203.0.113.0/28`.
+  `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
 - Ensure the DUT's AFT contains entries for `198.51.100.0/24`,
   `203.0.113.0/28`, and at least one non-matching prefix (`100.64.0.0/24`).
@@ -128,7 +131,7 @@ subscribe: {
   received.
 
 - Verify that Notifications are received **only** for prefixes matching
-  `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`), plus any
+  `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`, `198.51.100.1/32`), plus any
   necessary recursive resolution prefixes.
 
 - Verify that the non-matching prefix (`100.64.0.0/24`) is **not** received.
@@ -296,8 +299,8 @@ respective filters.
 
 - Configure the following routing policies:
 
-  - `POLICY-PREFIX-SET-A`: Matches `198.51.100.0/24` and `203.0.113.0/28`.
-  - `POLICY-PREFIX-SET-B`: Matches `100.64.1.0/24`.
+  - `POLICY-PREFIX-SET-A`: Matches `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
+  - `POLICY-PREFIX-SET-VRF-A`: Matches `100.64.1.0/24` and subnets up to `/32`.
   - `POLICY-MATCH-ALL`: Matches all routes.
 
 - Configure AFT filters:
@@ -307,7 +310,7 @@ respective filters.
     = `POLICY-PREFIX-SET-A`
   - `VRF-A`:
     `/network-instances/network-instance[name=VRF-A]/afts/global-filter/config/policy-name`
-    = `POLICY-PREFIX-SET-B`
+    = `POLICY-PREFIX-SET-VRF-A`
 
 ### Validation
 
@@ -331,11 +334,11 @@ respective filters.
 - Add `203.0.113.64/28` to `DEFAULT`. Verify **neither** collector receives
   an update (not matched by either collector's active policy).
 
-- Add `198.51.100.1/32` (matched by `POLICY-PREFIX-SET-A` via prefix range)
+- Add `198.51.100.1/32` (matched by `POLICY-PREFIX-SET-A` via exact match)
   to `DEFAULT`. Verify **Collector 1** receives an update and **Collector 2**
   does not.
 
-- Add `100.64.1.128/25` (matched by `POLICY-PREFIX-SET-B` via prefix range)
+- Add `100.64.1.128/25` (matched by `POLICY-PREFIX-SET-VRF-A` via prefix range)
   to `VRF-A`. Verify **Collector 2** receives an update and **Collector 1**
   does not.
 
@@ -439,6 +442,14 @@ above).
                     "ip-prefix": "203.0.113.0/28",
                     "masklength-range": "exact"
                   }
+                },
+                {
+                  "ip-prefix": "198.51.100.1/32",
+                  "masklength-range": "exact",
+                  "config": {
+                    "ip-prefix": "198.51.100.1/32",
+                    "masklength-range": "exact"
+                  }
                 }
               ]
             }
@@ -464,6 +475,24 @@ above).
                   "config": {
                     "ip-prefix": "2001:DB8:2::1/128",
                     "masklength-range": "exact"
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "name": "PREFIX-SET-VRF-A",
+            "config": {
+              "name": "PREFIX-SET-VRF-A"
+            },
+            "prefixes": {
+              "prefix": [
+                {
+                  "ip-prefix": "100.64.1.0/24",
+                  "masklength-range": "24..32",
+                  "config": {
+                    "ip-prefix": "100.64.1.0/24",
+                    "masklength-range": "24..32"
                   }
                 }
               ]
@@ -548,6 +577,31 @@ above).
                   "match-prefix-set": {
                     "config": {
                       "prefix-set": "PREFIX-SET-B",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": { "policy-result": "ACCEPT_ROUTE" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "POLICY-PREFIX-SET-VRF-A",
+          "config": {
+            "name": "POLICY-PREFIX-SET-VRF-A"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "config": { "name": "10" },
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "PREFIX-SET-VRF-A",
                       "match-set-options": "ANY"
                     }
                   }
