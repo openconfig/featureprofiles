@@ -255,8 +255,8 @@ prefix lengths `/22`, `/24`, `/26`, and `/28`.
 ## Test cases
 
 - Validate that each entry is installed as `FIB_PROGRAMMED`
-- Validate the correct recursive routes installation:
-  - using `/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group`,  `/network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/backup-next-hop-group`, `	/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops`, `/network-instances/network-instance/afts/next-hops/next-hop/state/` verify correctness of a few installed prefixes 
+- Validate The Hierarchical route structure was installed correctly:
+  - Check 10 random addressess from `TE_VRF_111` and using gRIBI client ensure they recursively resolve to expected interfaces.   
 - Validate the traffic follows the programmed paths. For all the use-cases send
 the traffic in 2 tests, each for 5 minutes of total 30 Mpps across interfaces
 with _0%_ traffic drop tolerance:
@@ -308,9 +308,387 @@ with _0%_ traffic drop tolerance:
         - outer_src_ip=`ipv4_outer_src_222`, outer_dst_ip=[all IPv4s from Repaired], outer_dscp=`encap_vrf_dscp_x_2`, inner_src_ip=DUT-1,inner_dst_ip=DUT-2, inner_dscp=`encap_vrf_dscp_x_2`
     - Verify that traffic received by ATE stays encapsulated with the outer header having the same source IP and destination IP is from the Repaired VRF IPv4 entry set.
 
+Note: the Canonical OC path section only has description for one sub-interface of DUT[port2] and only considers a single VRF `ENCAP_TE_VRF_A` to keep it brief.
+
 ## Canonical OC
 ```json
-{}
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "DUT port1",
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 1
+              },
+              "index": 1,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "DUT port2 with 640 sub-interfaces",
+          "name": "port2",
+          "type": "ethernetCsmacd"
+        },
+        "name": "port2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "index": 1
+              },
+              "index": 1,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "198.18.0.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "198.18.0.1"
+                    }
+                  ]
+                }
+              },
+              "vlan": {
+                "config": {
+                  "vlan-id": 1
+                },
+                "match": {
+                  "single-tagged": {
+                    "config": {
+                      "vlan-id": 1
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DECAP_TE_VRF",
+          "type": "L3VRF"
+        },
+        "name": "DECAP_TE_VRF"
+      },
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "DEFAULT_INSTANCE"
+        },
+        "name": "DEFAULT",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-vrf-selection-policy": "vrf_selection_policy_c",
+                  "interface-id": "port1"
+                },
+                "interface-id": "port1",
+                "interface-ref": {
+                  "config": {
+                    "interface": "port1",
+                    "subinterface": 1
+                  }
+                }
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "vrf_selection_policy_c",
+                  "type": "PBR_POLICY"
+                },
+                "policy-id": "vrf_selection_policy_c",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_222",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 1
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ],
+                          "protocol": 4,
+                          "source-address": "198.51.100.222"
+                        }
+                      },
+                      "sequence-id": 1
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 101
+                      },
+                      "sequence-id": 101
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_222",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 2
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ],
+                          "protocol": 41,
+                          "source-address": "198.51.100.222"
+                        }
+                      },
+                      "sequence-id": 2
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_111",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 3
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ],
+                          "protocol": 4,
+                          "source-address": "198.51.100.111"
+                        }
+                      },
+                      "sequence-id": 3
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_111",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 4
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ],
+                          "protocol": 41,
+                          "source-address": "198.51.100.111"
+                        }
+                      },
+                      "sequence-id": 4
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_222",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 65
+                      },
+                      "ipv4": {
+                        "config": {
+                          "protocol": 4,
+                          "source-address": "198.51.100.222"
+                        }
+                      },
+                      "sequence-id": 65
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_222",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 66
+                      },
+                      "ipv4": {
+                        "config": {
+                          "protocol": 41,
+                          "source-address": "198.51.100.222"
+                        }
+                      },
+                      "sequence-id": 66
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_111",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 67
+                      },
+                      "ipv4": {
+                        "config": {
+                          "protocol": 4,
+                          "source-address": "198.51.100.111"
+                        }
+                      },
+                      "sequence-id": 67
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "decap-fallback-network-instance": "TE_VRF_111",
+                          "decap-network-instance": "DECAP_TE_VRF",
+                          "post-decap-network-instance": "DEFAULT"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 68
+                      },
+                      "ipv4": {
+                        "config": {
+                          "protocol": 41,
+                          "source-address": "198.51.100.111"
+                        }
+                      },
+                      "sequence-id": 68
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 69
+                      },
+                      "ipv4": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ]
+                        }
+                      },
+                      "sequence-id": 69
+                    },
+                    {
+                      "action": {
+                        "config": {
+                          "network-instance": "ENCAP_TE_VRF_A"
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 70
+                      },
+                      "ipv6": {
+                        "config": {
+                          "dscp-set": [
+                            10,
+                            11
+                          ]
+                        }
+                      },
+                      "sequence-id": 70
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "config": {
+          "name": "ENCAP_TE_VRF_A",
+          "type": "L3VRF"
+        },
+        "name": "ENCAP_TE_VRF_A"
+      },
+      {
+        "config": {
+          "name": "REPAIR_VRF",
+          "type": "L3VRF"
+        },
+        "name": "REPAIR_VRF"
+      },
+      {
+        "config": {
+          "name": "TE_VRF_111",
+          "type": "L3VRF"
+        },
+        "name": "TE_VRF_111"
+      },
+      {
+        "config": {
+          "name": "TE_VRF_222",
+          "type": "L3VRF"
+        },
+        "name": "TE_VRF_222"
+      }
+    ]
+  }
+}
 ```
 
 ## OpenConfig Path and RPC Coverage
@@ -324,6 +702,11 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /interfaces/interface/subinterfaces/subinterface/vlan/config/vlan-id:
   /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+  /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
   /network-instances/network-instance/config/type:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-vrf-selection-policy:
   /network-instances/network-instance/policy-forwarding/interfaces/interface/interface-ref/config/interface:
