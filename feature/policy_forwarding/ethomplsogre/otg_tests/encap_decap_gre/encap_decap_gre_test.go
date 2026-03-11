@@ -58,13 +58,12 @@ const (
 )
 
 var (
-	sfBatch       *gnmi.SetBatch
-	ni            *oc.NetworkInstance
-	custAggID     string
-	tunnelSrcIPs  = []string{}
-	dutPortRxPkts = make(map[string]uint64)
-	custPort      = "port1"
-	packetSource  = []*gopacket.PacketSource{}
+	sfBatch      *gnmi.SetBatch
+	ni           *oc.NetworkInstance
+	custAggID    string
+	tunnelSrcIPs = []string{}
+	custPort     = "port1"
+	packetSource = []*gopacket.PacketSource{}
 
 	activity = oc.Lacp_LacpActivityType_ACTIVE
 	period   = oc.Lacp_LacpPeriodType_FAST
@@ -203,10 +202,6 @@ var (
 		{Size: 256},
 		{Size: 512, Weight: 48},
 		{Size: 1024, Weight: 48},
-	}
-
-	jumboWeightProfile = []otgconfighelpers.SizeWeightPair{
-		{Size: 9000, Weight: 100},
 	}
 
 	FlowIPv4Validation = &otgvalidationhelpers.OTGValidation{
@@ -512,7 +507,7 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice, otgConfig gosnappi
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
-func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string, jmtu bool) error {
+func verifyECMPLagBalance(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, flowName string) error {
 	t.Log("Validating traffic equally distributed equally across 2 egress ports")
 	var totalEgressPkts, totalRxPkts, lag2RxPkts, lag3RxPkts uint64
 	portRxPkts := make(map[string]uint64)
@@ -882,7 +877,7 @@ func testEthoCWoMPLSoGREEncapIPv4WithEntropy(t *testing.T, dut *ondatra.DUTDevic
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	verifyECMPLagBalance(t, dut, ate, flow.FlowName, false)
+	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
 	for _, v := range encapValidation {
 		if err := validateEncapPacket(t, ate, v); err != nil {
@@ -900,7 +895,7 @@ func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDev
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	verifyECMPLagBalance(t, dut, ate, flow.FlowName, false)
+	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
 	for _, v := range encapValidation {
 		if err := validateEncapPacket(t, ate, v); err == nil {
@@ -923,7 +918,7 @@ func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *o
 		sendTrafficCapture(t, ate, otgConfig)
 		verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-		if err := verifyECMPLagBalance(t, dut, ate, flow.FlowName, false); err != nil {
+		if err := verifyECMPLagBalance(t, dut, ate, flow.FlowName); err != nil {
 			t.Logf("ecmp hashing between LAG2 and LAG3 is unbalanced as expected")
 		} else {
 			t.Errorf("ecmp hashing between LAG2 and LAG3 is balanced which is unexpected")
@@ -958,7 +953,7 @@ func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate 
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	if err := verifyECMPLagBalance(t, dut, ate, flow.FlowName, true); err != nil {
+	if err := verifyECMPLagBalance(t, dut, ate, flow.FlowName); err != nil {
 		t.Errorf("%s", err)
 	} else {
 		t.Log("ecmp hashing between LAG2 and LAG3 is balanced which is expected")
@@ -999,7 +994,7 @@ func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	verifyECMPLagBalance(t, dut, ate, flow.FlowName, false)
+	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
 	for _, v := range encapValidation {
 		if err := validateEncapPacket(t, ate, v); err != nil {
@@ -1070,7 +1065,7 @@ func testEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
 
-	verifyECMPLagBalance(t, dut, ate, flow.FlowName, false)
+	verifyECMPLagBalance(t, dut, ate, flow.FlowName)
 
 	for _, v := range encapValidation {
 		if err := validateEncapPacket(t, ate, v); err != nil {
