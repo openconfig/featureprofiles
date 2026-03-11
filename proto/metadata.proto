@@ -46,6 +46,7 @@ message Metadata {
     TESTBED_DUT_800ZR_PLUS = 14;
     TESTBED_DUT_2LINKS = 15;
     TESTBED_DUT_ATE_34LINKS = 16;
+    TESTBED_DUT_ATE_8LINKS_LAG = 17;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;

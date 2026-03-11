@@ -13,14 +13,14 @@ Load balancing across members of a LACP-controlled LAG
 ```mermaid
 graph LR;
 A[ATE] <-- (Port 1) --> B[DUT];
-B[DUT] <-- LACP LAG (Port 2-9) --> C[ATE];
+B[DUT] <-- LACP LAG (Port 2-8) --> C[ATE];
 ```
 
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1
-*   Connect ATE ports 2 through 9 to DUT ports 2-9
-*   Configure ATE and DUT ports 2-9 to be part of a LACP-controlled LAG
+*   Connect ATE ports 2 through 8 to DUT ports 2-8
+*   Configure ATE and DUT ports 2-8 to be part of a LACP-controlled LAG
 *   Configure a default static route on DUT with the next hop to ATE LAG
 *   Send at least 1000 flows from ATE port-1 towards the DUT with the following
     parameters
