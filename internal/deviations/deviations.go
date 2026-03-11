@@ -1805,8 +1805,8 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
 }
 
-// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
-func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+// ConfigACLOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigACLOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
@@ -1878,15 +1878,15 @@ func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
 }
 
-// CpuUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
+// CPUUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
 // example: against "0/RP0/CPU0" and not "0/RP00/CPU0-Broadwell-DE (D-1573N)"
-func CpuUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
+func CPUUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseControllerCardComponent()
 }
 
-// CpuUtilizationQueryAgainstBaseLinecardComponent returns true if the device reports linecard CPU utilization against the base linecard component
+// CPUUtilizationQueryAgainstBaseLinecardComponent returns true if the device reports linecard CPU utilization against the base linecard component
 // example: against "0/0/CPU0" and not "0/0/CPU0-Broadwell-DE (D-1573N)"
-func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
+func CPUUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseLinecardComponent()
 }
 
@@ -1971,4 +1971,21 @@ func BgpConfigDuringGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/489304077
 func RoutingRestartViaGnoiUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRoutingRestartViaGnoiUnsupported()
+}
+
+// BgpRplDirectlyUnderPeerGroupUnsupported returns true if the device does not support BGP RPL under peer-group directly
+// Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+func BgpRplDirectlyUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpRplDirectlyUnderPeerGroupUnsupported()
+}
+
+// WecmpSetWeightUnsupported returns if device doesnt support setting weight for wecmp.
+func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetWecmpSetWeightUnsupported()
+}
+
+// ExplicitlyApplyAllowAllImportPolicy returns true if we need to explicitly apply "allow-all" import policy on the device
+// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitlyApplyAllowAllImportPolicy()
 }
