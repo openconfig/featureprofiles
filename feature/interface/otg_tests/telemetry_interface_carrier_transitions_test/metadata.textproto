@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid: "f43d95b6-438c-4128-801e-043e426b55cd"
-plan_id: "FNT"
+plan_id: "gNMI-1.26"
 description: "Carrier Transitions Test"
 testbed: TESTBED_DUT_ATE_2LINKS
