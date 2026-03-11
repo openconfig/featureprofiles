@@ -19,22 +19,10 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
-func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
-	if functionalTranslatorName == "" {
-		return nil
-	}
-	ft, ok := registrar.FunctionalTranslatorRegistry[functionalTranslatorName]
-	if !ok {
-		t.Fatalf("Functional translator %s is not registered", functionalTranslatorName)
-	}
-	return []ygnmi.Option{ygnmi.WithFT(ft)}
-}
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -43,7 +31,7 @@ func TestMain(m *testing.M) {
 func TestSystemMountPointState(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	opts := getOptsForFunctionalTranslator(t, dut, deviations.SystemMountPointStateFt(dut))
+	opts := fptest.GetOptsForFunctionalTranslator(t, deviations.SystemMountPointStateFt(dut))
 	mountPointNames := gnmi.GetAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPointAny().Name().State())
 
 	if len(mountPointNames) == 0 {
@@ -63,6 +51,9 @@ func TestSystemMountPointState(t *testing.T) {
 			available := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Available().State())
 			if available > size {
 				t.Errorf("Mount point %q has available space %d greater than size %d", mountPointName, available, size)
+			}
+			if utilized+available > size {
+				t.Errorf("Mount point %q has size %d less than the total of utilized %d and available space %d", mountPointName, size, utilized, available)
 			}
 		})
 	}
