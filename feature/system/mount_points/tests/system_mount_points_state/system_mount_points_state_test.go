@@ -43,6 +43,9 @@ func TestSystemMountPointState(t *testing.T) {
 				t.Errorf("Mount point missing name")
 			}
 			size := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Size().State())
+			if size < 0 {
+				t.Errorf("Mount point %q has negative size %d", mountPointName, size)
+			}
 			utilized := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Utilized().State())
 			if utilized > size {
 				t.Errorf("Mount point %q has utilization %d greater than size %d", mountPointName, utilized, size)
