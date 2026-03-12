@@ -43,9 +43,7 @@ func TestSystemMountPointState(t *testing.T) {
 				t.Errorf("Mount point missing name")
 			}
 			size := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Size().State())
-			if size < 0 {
-				t.Errorf("Mount point %q has negative size %d", mountPointName, size)
-			}
+			// NOTE: We need not check size < 0 since no value of type uint64 is less than 0
 			utilized := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().System().MountPoint(mountPointName).Utilized().State())
 			if utilized > size {
 				t.Errorf("Mount point %q has utilization %d greater than size %d", mountPointName, utilized, size)
