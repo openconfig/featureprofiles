@@ -3,5 +3,5 @@
 
 uuid: "ae0affb7-4367-4a91-a963-f90701cacf58"
 plan_id: "FPD-1.1"
-description: "This test verifies the status of FPD on the DUT."
+description: "FPD Status Test"
 testbed: TESTBED_DUT
