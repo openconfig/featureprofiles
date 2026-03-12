@@ -135,4 +135,3 @@ func TestCredentialz(t *testing.T) {
 		credz.RotateAuthorizedKey(t, dut, "", username, authorizedKeysListVersion, uint64(authorizedKeysListCreatedOn))
 	})
 }
-
