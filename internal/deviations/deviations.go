@@ -1994,3 +1994,8 @@ func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
 func QosFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetQosFt()
 }
+
+// SystemMountPointStateFt returns the functional translator name for devices with mount point state paths unsupported.
+func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
+}
