@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 )
 
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
