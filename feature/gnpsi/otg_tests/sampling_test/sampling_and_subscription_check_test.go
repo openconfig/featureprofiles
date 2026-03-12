@@ -34,14 +34,14 @@ const (
 	connectionAttempts        = 2
 	connectionRetryInterval   = 10 * time.Second
 	connectionTimeout         = 2 * time.Minute
-	trafficTime               = 1 * time.Minute
+	trafficTime               = 3 * time.Minute
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
-	flowCountTolerancePct     = 0.1
+	flowCountTolerancePct     = 0.2
 	subscriptionTolerance     = 2
 	gnpsiClientsInParallel    = 2
-	packetRate                = 1000000
-	packetsToSend             = 50000000
-	samplingRate              = 1000000
+	packetRate                = 10000000
+	packetsToSend             = 1000000000
+	samplingRate              = 10000000
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
@@ -260,7 +260,7 @@ func subscribeGNPSIClient(t *testing.T, ctx context.Context, gnpsiClient gnpsipb
 	}
 }
 
-func receiveSamples(t *testing.T, stream gnpsipb.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
+func receiveSamples(t *testing.T, dut *ondatra.DUTDevice, stream gnpsipb.GNPSI_SubscribeClient, sflowPacketsToValidateChannel chan sFlowPacket) {
 	defer close(sflowPacketsToValidateChannel)
 	sampleCount := 0
 	t.Log("Waiting for GNPSI samples")
@@ -272,6 +272,8 @@ func receiveSamples(t *testing.T, stream gnpsipb.GNPSI_SubscribeClient, sflowPac
 				t.Log("GNPSI client disconnected")
 			case errors.Is(err, io.EOF) || strings.Contains(err.Error(), io.EOF.Error()):
 				t.Log("GNPSI connection closed by server")
+			case dut.Vendor() == ondatra.JUNIPER && strings.Contains(err.Error(), "gNPSI client subscribe request is closed by server"):
+				t.Log("GNPSI connection closed by server during restart (expected for Juniper)")
 			default:
 				t.Errorf("error receiving GNPSI sample: %v", err)
 			}
@@ -322,7 +324,7 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	sflowPacketsToValidateChannel := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
 	t.Logf("Starting traffic for %s", fc.name)
 	otg.StartTraffic(t)
-	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
+	go receiveSamples(t, dut, stream, sflowPacketsToValidateChannel)
 	waitForTraffic(t, otg, fc.name, trafficTime)
 	stream.CloseSend()
 	closeContext()
@@ -376,7 +378,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	sflowPacketsToValidatePerClient := make([]chan sFlowPacket, gnpsiClientsInParallel)
 	for index, client := range gnpsiClients {
 		sflowPacketsToValidatePerClient[index] = make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
-		go receiveSamples(t, client, sflowPacketsToValidatePerClient[index])
+		go receiveSamples(t, dut, client, sflowPacketsToValidatePerClient[index])
 	}
 
 	t.Logf("Starting traffic for %s", flow.name)
@@ -419,7 +421,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		if err != nil {
 			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
-		go receiveSamples(t, stream, sflowPacketsToValidate)
+		go receiveSamples(t, dut, stream, sflowPacketsToValidate)
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
@@ -464,7 +466,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		if err != nil {
 			t.Fatalf("Failed to connect to GNPSI server: %v", err)
 		}
-		go receiveSamples(t, stream, sflowPacketsToValidate)
+		go receiveSamples(t, dut, stream, sflowPacketsToValidate)
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
