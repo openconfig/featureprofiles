@@ -118,10 +118,16 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		gotAuthorizedKeysListCreatedOn := int64(userState.GetAuthorizedKeysListCreatedOn())
-		if got, want := gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn; got != want {
+		wantAuthorizedKeysListCreatedOn := authorizedKeysListCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantAuthorizedKeysListCreatedOn *= 1e9
+		default:
+			t.Logf("Vendor %s, does not need support nanosecond conversion for authorized keys list created on", dut.Vendor())
+		}
+		if got, want := gotAuthorizedKeysListCreatedOn, wantAuthorizedKeysListCreatedOn; got != want {
 			t.Errorf("Telemetry reports authorized keys list created on is not correct, got: %d, want: %d", got, want)
 		}
-
 	})
 
 	t.Cleanup(func() {
@@ -129,3 +135,4 @@ func TestCredentialz(t *testing.T) {
 		credz.RotateAuthorizedKey(t, dut, "", username, authorizedKeysListVersion, uint64(authorizedKeysListCreatedOn))
 	})
 }
+
