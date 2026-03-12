@@ -39,11 +39,6 @@ type recordRequestResult struct {
 	err    error
 }
 
-const (
-	queueSize     = 10
-	historyMemory = 10
-)
-
 func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// Perhaps other vendors will need a different payload/size/etc., for now we'll just send a
 	// giant set of network instances + static routes which should hopefully work for everyone.
