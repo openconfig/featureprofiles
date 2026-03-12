@@ -464,9 +464,6 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		t.Logf("Before rebooting, standby is %s, active is %s", standbyRP1, activeRP1)
 		switchoverReady := gnmi.OC().Component(standbyRP1).SwitchoverReady()
 		gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
-		if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-			t.Fatalf("supervisors not synchronized before cold reboot: switchoverReady got %v, want %v", got, want)
-		}
 		t.Logf("Supervisors synchronized, proceeding with cold reboot")
 	})
 
@@ -534,9 +531,6 @@ func awaitSwitchoverReadyAndSwitch(t *testing.T, dut *ondatra.DUTDevice, standby
 	switchoverReady := gnmi.OC().Component(standby).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
 	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
-	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
-		t.Errorf("switchoverReady: got %v, want %v", got, want)
-	}
 	doSwitchover(t, dut, standby)
 }
 
