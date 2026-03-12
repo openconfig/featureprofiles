@@ -14,6 +14,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_port_to_optical_channel_component_mapping: true
     channel_assignment_rate_class_parameters_unsupported: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -24,6 +25,7 @@ platform_exceptions: {
     otn_channel_trib_unsupported: true
     eth_channel_ingress_parameters_unsupported: true
     eth_channel_assignment_cisco_numbering: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {

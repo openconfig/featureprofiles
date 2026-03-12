@@ -44,24 +44,20 @@ Validate ZR optics module reports telemetry data for all leaves in
     during and after flap. For leaves with stats, ensure min <= avg/instant <= max.
 
     *   platform/components/component/state/name
-    *   platform/components/component/state/location
-    *   platform/components/component/state/type
-    *   platform/components/component/port/breakout-mode/groups/group/state/index
-    *   platform/components/component/port/breakout-mode/groups/group/state/breakout-speed
-    *   platform/components/component/port/breakout-mode/groups/group/state/num-breakouts
-    *   platform/components/component/port/breakout-mode/groups/group/state/num-physical-channels
-    *   platform/components/component/state/name
     *   platform/components/component/state/parent
     *   platform/components/component/state/location
     *   platform/components/component/state/type
-    *   platform/components/component/state/oper-status
-    *   platform/components/component/state/temperature/instant
     *   platform/components/component/state/firmware-version
     *   platform/components/component/state/hardware-version
     *   platform/components/component/state/serial-no
     *   platform/components/component/state/part-no
     *   platform/components/component/state/mfg-name
     *   platform/components/component/state/mfg-date
+    *   platform/components/component/state/temperature/instant
+    *   platform/components/component/port/breakout-mode/groups/group/state/index
+    *   platform/components/component/port/breakout-mode/groups/group/state/breakout-speed
+    *   platform/components/component/port/breakout-mode/groups/group/state/num-breakouts
+    *   platform/components/component/port/breakout-mode/groups/group/state/num-physical-channels
     *   platform/components/component/transceiver/state/form-factor
     *   platform/components/component/transceiver/state/connector-type
     *   platform/components/component/transceiver/state/supply-voltage/instant
@@ -71,9 +67,6 @@ Validate ZR optics module reports telemetry data for all leaves in
     *   platform/components/component/transceiver/physical-channels/channel/state/input-power/avg
     *   platform/components/component/transceiver/physical-channels/channel/state/input-power/min
     *   platform/components/component/transceiver/physical-channels/channel/state/input-power/max
-    *   platform/components/component/state/name
-    *   platform/components/component/state/parent
-    *   platform/components/component/state/type
     *   platform/components/component/optical-channel/state/operational-mode
     *   platform/components/component/optical-channel/state/frequency
     *   platform/components/component/optical-channel/state/target-output-power

@@ -289,6 +289,8 @@ func flapOTGInterface(t *testing.T,
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
+			expectedStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			expectedStatus = oc.Interface_OperStatus_DOWN
 		}
@@ -363,18 +365,20 @@ func verifyPortsStatus(t *testing.T, dut *ondatra.DUTDevice, portState string, w
 		want = oc.Interface_OperStatus_UP
 		gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
-			time.Second*waitTime,
+			waitTime,
 			oc.Interface_OperStatus_UP)
 	} else {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
+			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
+		case ondatra.JUNIPER:
 			want = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 		default:
 			want = oc.Interface_OperStatus_DOWN
 		}
 		gnmi.Await(t, dut,
 			gnmi.OC().Interface(aggID).OperStatus().State(),
-			time.Second*waitTime,
+			waitTime,
 			want)
 	}
 
@@ -431,7 +435,7 @@ func TestHoldTimeConfig(t *testing.T) {
 			}
 			return present
 		}).Await(t)
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 20*time.Second)
 	})
 
 }
@@ -495,7 +499,7 @@ func TestTC2LongDown(t *testing.T) {
 	t.Run("Bring back UP OTG Interface", func(t *testing.T) {
 		OTGInterfaceUP(t, ate)
 		t.Logf("Verifying port status for %s", aggID)
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 	})
 
 	t.Run("Verify test results", func(t *testing.T) {
@@ -515,7 +519,7 @@ func TestTC3ShortUP(t *testing.T) {
 
 		// shutting down OTG interface to emulate the RF
 		OTGInterfaceDOWN(t, ate, dut)
-		verifyPortsStatus(t, dut, "DOWN", 2)
+		verifyPortsStatus(t, dut, "DOWN", 15*time.Second)
 		oper1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).OperStatus().State())
 		change1 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 		t.Log(oper1)
@@ -531,7 +535,7 @@ func TestTC3ShortUP(t *testing.T) {
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
 
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "DOWN", 4)
+		verifyPortsStatus(t, dut, "DOWN", 15*time.Second)
 		t.Log(oper2)
 
 		change1Time := time.Unix(0, int64(change1)).UTC()
@@ -547,7 +551,7 @@ func TestTC3ShortUP(t *testing.T) {
 		// bring OTG port back up
 		OTGInterfaceUP(t, ate)
 		// verify interface is up for next test case
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
 	})
 
@@ -569,7 +573,7 @@ func TestTC4SLongUP(t *testing.T) {
 		// bring port back up for 4 seconds below the 5000 ms hold up timer
 		OTGInterfaceUP(t, ate)
 		// ensure the LAG interface is still down
-		verifyPortsStatus(t, dut, "UP", 45)
+		verifyPortsStatus(t, dut, "UP", 45*time.Second)
 
 		// Collecting time stamp of interface up
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).LastChange().State())
@@ -617,7 +621,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 	t.Run("Flap OTG Interfaces", func(t *testing.T) {
 
 		t.Log("Verify Interface State before TC Start")
-		verifyPortsStatus(t, dut, "UP", 10)
+		verifyPortsStatus(t, dut, "UP", 10*time.Second)
 		// shutting down OTG interface to emulate the RF
 		t.Log("Shutdown OTG Interface")
 		change1 = gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
@@ -671,7 +675,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 	t.Run("Verify port status UP", func(t *testing.T) {
 		t.Log("re-verify that the interface state is still up")
-		verifyPortsStatus(t, dut, "UP", 30)
+		verifyPortsStatus(t, dut, "UP", 30*time.Second)
 
 	})
 }
