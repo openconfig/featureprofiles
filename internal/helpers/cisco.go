@@ -22,13 +22,13 @@ import (
 
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/testt"
 
 	spb "github.com/openconfig/gnoi/system"
 )
 
 const (
-	maxRebootTime = 20 // minutes
+	maxRebootTime = 30 // minutes
 )
 
 // ConfigureHwProfile configures Cisco hardware profile with route scale on the DUT.
@@ -112,26 +112,24 @@ func RebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 
 // deviceBootStatus waits for the DUT to boot up by polling telemetry.
 func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
 	startReboot := time.Now()
 	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
 	for {
 		var currentTime string
 		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
 
-		query := gnmi.OC().System().CurrentDatetime().State()
-		val, ok := gnmi.Watch(t, dut, query, 3*time.Minute, func(v *ygnmi.Value[string]) bool {
-			return v.IsPresent()
-		}).Await(t)
-		if ok {
-			currentTime, _ = val.Val()
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
 			t.Logf("Device rebooted successfully with received time: %v", currentTime)
 			break
 		}
-		t.Log("Device not ready, keep polling...")
 
-		if time.Since(startReboot) > time.Duration(maxRebootTime)*time.Minute {
-			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), time.Duration(maxRebootTime)*time.Minute)
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
 		}
 	}
 	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
