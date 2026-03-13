@@ -1196,6 +1196,10 @@ message Metadata {
     // Functional translator to be used for QoS paths
     string qos_ft = 390;
 
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+    // Functional Translator name for devices with mount point state paths unsupported.
+    string system_mount_point_state_ft = 391;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
