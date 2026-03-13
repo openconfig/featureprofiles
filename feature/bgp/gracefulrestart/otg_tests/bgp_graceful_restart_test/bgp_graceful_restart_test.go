@@ -55,9 +55,7 @@ func TestMain(m *testing.M) {
 
 const (
 	trafficDuration          = 30 * time.Second
-	grTimer                  = 2 * time.Minute
 	triggerGrTimer           = 180
-	stopDuration             = 45 * time.Second
 	grRestartTime            = 120
 	grStaleRouteTime         = 120
 	ebgpV4AdvStartRoute      = "203.0.113.1"
@@ -71,13 +69,10 @@ const (
 	ateAS                    = 64501
 	plenIPv4                 = 30
 	plenIPv6                 = 126
-	bgpPort                  = 179
 	peerv4GrpName            = "BGP-PEER-GROUP-V4"
 	peerv6GrpName            = "BGP-PEER-GROUP-V6"
 	aclNullPrefix            = "0.0.0.0/0"
-	aclv6NullPrefix          = "::/0"
 	aclName                  = "BGP-ACL"
-	aclv6Name                = "ipv6-policy-acl"
 )
 
 var (
@@ -186,19 +181,17 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 	g.RouterId = ygot.String(dutEBGP.IPv4)
 	bgpgr := g.GetOrCreateGracefulRestart()
 	bgpgr.Enabled = ygot.Bool(true)
+	bgpgr.RestartTime = ygot.Uint16(grRestartTime)
+	bgpgr.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 
 	pg := bgp.GetOrCreatePeerGroup(peerv4GrpName)
 	pgGrV4 := pg.GetOrCreateGracefulRestart()
 	pgGrV4.Enabled = ygot.Bool(true)
-	pgGrV4.RestartTime = ygot.Uint16(grRestartTime)
-	pgGrV4.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 	pg.PeerGroupName = ygot.String(peerv4GrpName)
 
 	pgV6 := bgp.GetOrCreatePeerGroup(peerv6GrpName)
 	pgGrV6 := pgV6.GetOrCreateGracefulRestart()
 	pgGrV6.Enabled = ygot.Bool(true)
-	pgGrV6.RestartTime = ygot.Uint16(grRestartTime)
-	pgGrV6.StaleRoutesTime = ygot.Uint16(grStaleRouteTime)
 	pgV6.PeerGroupName = ygot.String(peerv6GrpName)
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
@@ -256,10 +249,9 @@ func bgpWithNbr(as uint32, keepaliveTimer uint16, nbrs []*bgpNeighbor, dut *onda
 func checkBgpGRConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Verifying BGP configuration")
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateIBGP.IPv4)
-	nbrPathv6 := statePath.Neighbor(ateIBGP.IPv6)
+	globalPath := statePath.Global()
 
-	isGrEnabled := gnmi.Get(t, dut, statePath.Global().GracefulRestart().Enabled().State())
+	isGrEnabled := gnmi.Get(t, dut, globalPath.GracefulRestart().Enabled().State())
 	t.Logf("isGrEnabled %v", isGrEnabled)
 	if isGrEnabled {
 		t.Logf("Graceful restart on neighbor %v enabled as Expected", ateEBGP.IPv4)
@@ -267,21 +259,20 @@ func checkBgpGRConfig(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Expected Graceful restart status on neighbor: got %v, want Enabled", isGrEnabled)
 	}
 
-	grTimerVal := gnmi.Get(t, dut, nbrPath.GracefulRestart().RestartTime().State())
-	t.Logf("grTimerVal %v", grTimerVal)
-	if grTimerVal == uint16(grRestartTime) {
-		t.Logf("Graceful restart timer enabled as expected to be %v", grRestartTime)
+	globalRestartTime := gnmi.Get(t, dut, globalPath.GracefulRestart().RestartTime().State())
+	if globalRestartTime == uint16(grRestartTime) {
+		t.Logf("Global Graceful restart timer is as expected %v", grRestartTime)
 	} else {
-		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, grRestartTime)
+		t.Errorf("Global Graceful restart timer: got %v, want %v", globalRestartTime, grRestartTime)
 	}
 
-	grTimerValV6 := gnmi.Get(t, dut, nbrPathv6.GracefulRestart().RestartTime().State())
-	t.Logf("grTimerVal %v", grTimerValV6)
-	if grTimerValV6 == uint16(grRestartTime) {
-		t.Logf("Graceful restart timer enabled as expected to be %v", grRestartTime)
+	globalStaleRoutesTime := gnmi.Get(t, dut, globalPath.GracefulRestart().StaleRoutesTime().State())
+	if globalStaleRoutesTime == uint16(grStaleRouteTime) {
+		t.Logf("Global Graceful restart stale routes timer is as expected %v", grStaleRouteTime)
 	} else {
-		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerValV6, grRestartTime)
+		t.Errorf("Global Graceful restart stale routes timer: got %v, want %v", globalStaleRoutesTime, grStaleRouteTime)
 	}
+
 }
 
 func checkBgpStatus(t *testing.T, dut *ondatra.DUTDevice) {
@@ -606,7 +597,7 @@ func blockBGPTCP(t *testing.T, dst attrs.Attributes, dutIfName string) *oc.Acl_I
 
 func unblockBGPTCP(t *testing.T, iface *oc.Acl_Interface, dutIfName string) {
 	dut := ondatra.DUT(t, "dut")
-	aclPath := configACLInterface(iface, dutIfName)
+	aclPath := configACLInterface(iface, dutIfName).IngressAclSet(aclName, oc.Acl_ACL_TYPE_ACL_IPV4)
 	gnmi.Delete(t, dut, aclPath.Config())
 }
 
@@ -887,12 +878,12 @@ func TestBGPPGracefulRestart(t *testing.T) {
 	}, {
 		name:         "RT-1.4.8 Receive Soft Notification",
 		direction:    "receive",
-		notification: "hard",
+		notification: "soft",
 		desc:         "RT-1.4.8 Test support for RFC8538 compliance by receiving a BGP Notification message from the peer",
 	}, {
 		name:         "RT-1.4.9 Send Hard Notification",
 		direction:    "send",
-		notification: "soft",
+		notification: "hard",
 		desc:         "RT-1.4.9 Test support for RFC8538 compliance by sending a BGP Hard Notification message to the peer",
 		skipReason:   "Not yet implemented",
 	}, {
