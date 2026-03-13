@@ -514,7 +514,7 @@ test: {
 test: {
   id: "PF-1.4"
   description: "GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test"
-  readme: "https://github.com/open-traffic-generator/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ip_guev1_static_decap_subnet_range/README.md
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ip_guev1_static_decap_subnet_range/README.md"
   exec: " "
 }
 test: {
