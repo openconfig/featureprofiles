@@ -941,6 +941,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.71"
+  description: "BGP Disable Peer AS Filter (disable-peer-as-filter)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_disable_peer_as_filter_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-2.10"
   description: "IS-IS change LSP lifetime"
   readme: ""
@@ -1326,6 +1332,18 @@ test: {
   id: "TE-14.2"
   description: "gRIBI encap and decap scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-14.3"
+  description: "TE-14.3: gRIBI Scaling - full scale setup, target T1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-14.4"
+  description: "TE-14.4: gRIBI Scaling - full scale setup, target T2"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
   exec: " "
 }
 test: {
