@@ -312,6 +312,22 @@ func TestStaticARP(t *testing.T) {
 		})
 	})
 
+	t.Run("TelemetryCheck", func(t *testing.T) {
+		dut := ondatra.DUT(t, "dut")
+		port1 := dut.Port(t, "port1")
+
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.ArpFT(dut))
+		actualMAC4 := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv4().Neighbor(ateSrc.IPv4).LinkLayerAddress().State())
+		actualMAC6 := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State())
+
+		if !strings.EqualFold(actualMAC4, poisonedMAC) {
+			t.Errorf("Actual MAC4 got %q, want %q", actualMAC4, poisonedMAC)
+		}
+		if !strings.EqualFold(actualMAC6, poisonedMAC) {
+			t.Errorf("Actual MAC6 got %q, want %q", actualMAC6, poisonedMAC)
+		}
+	})
+
 	// Reconfigure the DUT with static MAC.
 	configureDUT(t, poisonedMAC)
 
