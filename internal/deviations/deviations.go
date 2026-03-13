@@ -1999,3 +1999,8 @@ func QosFt(dut *ondatra.DUTDevice) string {
 func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
 }
+
+// ArpFT returns the functional translator name for devices with neighbor link-layer-address paths unsupported.
+func ArpFT(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetArpFt()
+}
