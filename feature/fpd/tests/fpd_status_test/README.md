@@ -4,8 +4,6 @@
 
 This test verifies the status of FPD on the DUT. 
 
-> **NOTE**: There is no OpenConfig component for FPD. The test assumes that FPD Statuses are available at `/openconfig/components/component/properties/property/state/value`.
-
 ## Testbed type
 
 * [dut.testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/dut.testbed)
@@ -19,8 +17,6 @@ This test verifies the status of FPD on the DUT.
 ### FPD-1.1.1: FPD Status Test
 
 1. Get a list of all FPD components on the DUT.
-
-> **NOTE**: As FPD is not a standard OpenConfig component, the test queries vendor-specific paths to retrieve FPD information. Component names are formatted as `{location}_{fpd-name}`.
 
 2. For each FPD component, query the FPD status using the OpenConfig path `/openconfig/components/component/properties/property/state/value`.
 
@@ -64,6 +60,8 @@ The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
 paths:
+  /components/component/properties/property/state/value:
+    platform_type: [FPGA]
 rpcs:
   gnmi:
     gNMI.Get:
