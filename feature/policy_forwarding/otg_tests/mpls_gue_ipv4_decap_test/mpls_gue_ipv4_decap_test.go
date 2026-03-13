@@ -258,6 +258,10 @@ func ConfigureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.Oc
 	configureInterfaces(t, dut, corePorts, []*attrs.Attributes{&coreIntf}, aggID)
 	configureStaticRoute(t, dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(ocPFParams.NetworkInstanceName)
+	// TODO: Once the OpenConfig ygot bindings are updated to OpenConfig PR #1395, 
+	// update cfgplugins.MPLSStaticLSPConfig (and corresponding methods) to use 
+	// the new `lsp-next-hops` container and `nh-network-instance` leaf instead of 
+	// the deprecated `next-hop` under `egress`.
 	DecapMPLSInGUE(t, dut, pf, ni, ocPFParams)
 }
 

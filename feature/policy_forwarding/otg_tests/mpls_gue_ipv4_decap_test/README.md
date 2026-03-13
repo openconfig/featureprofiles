@@ -1,7 +1,7 @@
 # PF-1.19: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
-This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
+This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop, which can reside in a non-default VRF (network instance).
 
 ## Testbed type
 * [`featureprofiles/topologies/atedut_8.testbed`](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_8.testbed)
@@ -65,7 +65,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 
 * MPLSoGUE decapsulation prefix range must be configurable on the device.  MPLSoGUE traffic within prefix ranges must be processed by the device.
 
-* Static mapping of MPLS label to an egress nexthop must be configurable. Egress nexthop is based on the MPLS label/ static LSP.
+* Static mapping of MPLS label to an egress nexthop must be configurable. Egress nexthop is based on the MPLS label/ static LSP. The nexthop IP address can reside in a non-default VRF (network-instance).
 
 * MPLS label for a single egress VLAN interface must be unique for decapsulated traffic:
     * IPV4 traffic
@@ -187,8 +187,19 @@ Verify:
                   },
                   "egress": {
                     "config": {
-                      "incoming-label": 40571,
-                      "next-hop": "169.254.1.138"
+                      "incoming-label": 40571
+                    },
+                    "lsp-next-hops": {
+                      "lsp-next-hop": [
+                        {
+                          "index": 1,
+                          "config": {
+                            "index": 1,
+                            "ip-address": "169.254.1.138",
+                            "nh-network-instance": "non-default-vrf"
+                          }
+                        }
+                      ]
                     }
                   },
                   "name": "Customer IPV4 in:40571 out:pop"
@@ -199,8 +210,19 @@ Verify:
                   },
                   "egress": {
                     "config": {
-                      "incoming-label": 40572,
-                      "next-hop": "2600:2d00:0:1:4000:15:69:2072"
+                      "incoming-label": 40572
+                    },
+                    "lsp-next-hops": {
+                      "lsp-next-hop": [
+                        {
+                          "index": 1,
+                          "config": {
+                            "index": 1,
+                            "ip-address": "2600:2d00:0:1:4000:15:69:2072",
+                            "nh-network-instance": "non-default-vrf"
+                          }
+                        }
+                      ]
                     }
                   },
                   "name": "Customer IPV6 in:40572 out:pop"
