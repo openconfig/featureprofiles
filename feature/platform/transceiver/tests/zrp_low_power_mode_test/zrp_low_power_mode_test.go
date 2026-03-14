@@ -40,7 +40,6 @@ const (
 )
 
 var (
-	samplingInterval    = 10 * time.Second
 	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
@@ -95,6 +94,7 @@ func TestLowPowerMode(t *testing.T) {
 	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	samplingInterval := 10 * time.Second
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -130,17 +130,24 @@ func TestLowPowerMode(t *testing.T) {
 				"hwVersion":       streamHwVersion,
 				"firmwareVersion": streamFirmwareVersion,
 			}
+
+			if !deviations.SkipTransceiverDescription(dut) {
+				streamDescription := samplestream.New(t, dut, gnmi.OC().Component(tr).Description().State(), samplingInterval)
+				defer streamDescription.Close()
+				allStream["description"] = streamDescription
+			}
+
 			validateStreamOutput(t, allStream)
 
 			// Disable interface
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
-			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
+
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
