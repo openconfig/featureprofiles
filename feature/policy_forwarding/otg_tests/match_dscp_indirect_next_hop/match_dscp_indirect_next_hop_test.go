@@ -182,33 +182,33 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 	} else {
 		d := &oc.Root{}
 		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 		npf := ni.GetOrCreatePolicyForwarding()
 		np := npf.GetOrCreatePolicy(name)
 		np.SetPolicyId(name)
 		np.Type = oc.Policy_Type_PBR_POLICY
 
-		for i, dscp := range pfMatchingDscpValues {
-			npRule := np.GetOrCreateRule(uint32(i + 1))
-			ip := npRule.GetOrCreateIpv4()
-			ip.SetSourceAddress(fmt.Sprintf("%s/32", ateP1.IPv4))
-			ip.SetDestinationAddress(fmt.Sprintf("%s/32", ipv4Dst))
-			ip.SetDscp(uint8(dscp))
-			npRuleAction := npRule.GetOrCreateAction()
-			npRuleAction.SetNextHop(ipvNHv4)
-		}
+		npRule := np.GetOrCreateRule(uint32(1))
+		ip := npRule.GetOrCreateIpv4()
+		ip.SetSourceAddress(fmt.Sprintf("%s/32", ateP1.IPv4))
+		ip.SetDestinationAddress(fmt.Sprintf("%s/32", ipv4Dst))
+		ip.SetDscpSet(pfMatchingDscpValues)
+		npRuleAction := npRule.GetOrCreateAction()
+		npRuleAction.SetNextHop(ipvNHv4)
 
-		for i, dscp := range pfMatchingDscpValues {
-			npRule := np.GetOrCreateRule(uint32(i+1) + uint32(len(pfMatchingDscpValues)))
-			ip := npRule.GetOrCreateIpv6()
-			ip.SetSourceAddress(fmt.Sprintf("%s/128", ateP1.IPv6))
-			ip.SetDestinationAddress(fmt.Sprintf("%s/128", ipv6Dst))
-			ip.SetDscp(uint8(dscp))
-			npRuleAction := npRule.GetOrCreateAction()
-			npRuleAction.SetNextHop(ipvNHv6)
-		}
+		npRule1 := np.GetOrCreateRule(uint32(1) + uint32(len(pfMatchingDscpValues)))
+		ip1 := npRule1.GetOrCreateIpv6()
+		ip1.SetSourceAddress(fmt.Sprintf("%s/128", ateP1.IPv6))
+		ip1.SetDestinationAddress(fmt.Sprintf("%s/128", ipv6Dst))
+		ip1.SetDscpSet(pfMatchingDscpValues)
+		npRuleAction1 := npRule1.GetOrCreateAction()
+		npRuleAction1.SetNextHop(ipvNHv6)
 
 		interfaceName := dut.Port(t, "port1").Name()
 		npi := npf.GetOrCreateInterface(interfaceName)
+		npri := npi.GetOrCreateInterfaceRef()
+		npri.SetInterface(interfaceName)
+		npri.SetSubinterface(uint32(0))
 		npi.ApplyForwardingPolicy = np.PolicyId
 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 
@@ -326,6 +326,7 @@ func createBGPNeighbor(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.Netwo
 
 	d := &oc.Root{}
 	ni1 := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	ni1.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 	bgp := niProto.GetOrCreateBgp()
 
