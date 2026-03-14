@@ -15,6 +15,7 @@
 package afts_base_test
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
@@ -28,15 +29,18 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/isissession"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 func TestMain(m *testing.M) {
@@ -44,38 +48,44 @@ func TestMain(m *testing.M) {
 }
 
 const (
-	advertisedRoutesV4Prefix  = 32
-	advertisedRoutesV6Prefix  = 128
-	dutAS                     = 65501
-	ateAS                     = 200
-	v4PrefixLen               = 30
-	v6PrefixLen               = 126
-	mtu                       = 1500
-	isisSystemID              = "650000000001"
-	applyPolicyType           = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	applyPolicyName           = "ALLOW"
-	peerGrpNameV4P1           = "BGP-PEER-GROUP-V4-P1"
-	peerGrpNameV6P1           = "BGP-PEER-GROUP-V6-P1"
-	peerGrpNameV4P2           = "BGP-PEER-GROUP-V4-P2"
-	peerGrpNameV6P2           = "BGP-PEER-GROUP-V6-P2"
-	port1MAC                  = "00:00:02:02:02:02"
-	port2MAC                  = "00:00:03:03:03:03"
-	bgpRoute                  = "200.0.0.0"
-	bgpRoutev6                = "3001:1::0"
-	startingBGPRouteIPv4      = "200.0.0.0/32"
-	startingBGPRouteIPv6      = "3001:1::0/128"
-	isisRouteCount            = 100
-	isisRoute                 = "199.0.0.1"
-	isisRoutev6               = "2001:db8::203:0:113:1"
-	startingISISRouteIPv4     = "199.0.0.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime        = 20 * time.Minute
-	bgpTimeout                = 10 * time.Minute
-	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 1500000
-	bgpRouteCountIPv6LowScale = 512000
-	bgpRouteCountIPv4Default  = 2000000
-	bgpRouteCountIPv6Default  = 1000000
+	advertisedRoutesV4Prefix     = 32
+	advertisedRoutesV6Prefix128  = 128
+	advertisedRoutesV6Prefix64   = 64
+	dutAS                        = 65501
+	ateAS                        = 200
+	v4PrefixLen                  = 30
+	v6PrefixLen                  = 126
+	mtu                          = 1500
+	isisSystemID                 = "650000000001"
+	applyPolicyType              = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	applyPolicyName              = "ALLOW"
+	peerGrpNameV4P1              = "BGP-PEER-GROUP-V4-P1"
+	peerGrpNameV6P1              = "BGP-PEER-GROUP-V6-P1"
+	peerGrpNameV4P2              = "BGP-PEER-GROUP-V4-P2"
+	peerGrpNameV6P2              = "BGP-PEER-GROUP-V6-P2"
+	port1MAC                     = "00:00:02:02:02:02"
+	port2MAC                     = "00:00:03:03:03:03"
+	bgpRoute                     = "200.0.0.0"
+	bgpRoutev664                 = "3001:1::0"
+	bgpRoutev6128                = "4001:1::0"
+	startingBGPRouteIPv4         = "200.0.0.0/32"
+	startingBGPRouteIPv6128      = "4001:1::0/128"
+	startingBGPRouteIPv664       = "3001:1::0/64"
+	isisRouteCount               = 100
+	isisRoute                    = "199.0.0.1"
+	isisRoutev6                  = "2001:db8::203:0:113:1"
+	startingISISRouteIPv4        = "199.0.0.1/32"
+	startingISISRouteIPv6        = "2001:db8::203:0:113:1/128"
+	aftConvergenceTime           = 30 * time.Minute
+	bgpTimeout                   = 10 * time.Minute
+	linkLocalAddress             = "fe80::200:2ff:fe02:202"
+	bgpRouteCountIPv4LowScale    = 1500000
+	bgpRouteCountIPv6LowScale64  = 460800
+	bgpRouteCountIPv6LowScale128 = 51200
+	bgpRouteCountIPv4Default     = 2000000
+	bgpRouteCountIPv6Default64   = 900000
+	bgpRouteCountIPv6Default128  = 100000
+	maxRebootTime                = 20
 )
 
 var (
@@ -118,12 +128,12 @@ func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
 		if afi == IPv4 {
 			return bgpRouteCountIPv4LowScale
 		}
-		return bgpRouteCountIPv6LowScale
+		return bgpRouteCountIPv6LowScale64 + bgpRouteCountIPv6LowScale128
 	}
 	if afi == IPv4 {
 		return bgpRouteCountIPv4Default
 	}
-	return bgpRouteCountIPv6Default
+	return bgpRouteCountIPv6Default64 + bgpRouteCountIPv6Default128
 }
 
 // getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
@@ -389,7 +399,11 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d1ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).SetCount(isisRouteCount)
+		SetPrefix(advertisedRoutesV6Prefix128).SetCount(isisRouteCount)
+	d1ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix64).SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d1, d1IPv4, d1IPv6)
 
@@ -445,7 +459,12 @@ func (tc *testCase) configureATE(t *testing.T) {
 	d2ISISRouteV6.Addresses().
 		Add().
 		SetAddress(isisRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).
+		SetPrefix(advertisedRoutesV6Prefix128).
+		SetCount(isisRouteCount)
+	d2ISISRouteV6.Addresses().
+		Add().
+		SetAddress(isisRoutev6).
+		SetPrefix(advertisedRoutesV6Prefix64).
 		SetCount(isisRouteCount)
 
 	tc.configureBGPDev(d2, d2IPv4, d2IPv6)
@@ -475,9 +494,13 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
 		SetNextHopMode(gosnappi.BgpV6RouteRangeNextHopMode.MANUAL)
 	routesV6.Addresses().Add().
-		SetAddress(bgpRoutev6).
-		SetPrefix(advertisedRoutesV6Prefix).
-		SetCount(getRouteCount(tc.dut, IPv6))
+		SetAddress(bgpRoutev6128).
+		SetPrefix(advertisedRoutesV6Prefix128).
+		SetCount(bgpRouteCountIPv6Default128)
+	routesV6.Addresses().Add().
+		SetAddress(bgpRoutev664).
+		SetPrefix(advertisedRoutesV6Prefix64).
+		SetCount(bgpRouteCountIPv6Default64)
 }
 
 func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
@@ -485,8 +508,11 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
 		wantPrefixes[pfix] = true
 	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6))) {
-		wantPrefixes[pfix6] = true
+	for pfix6128 := range netutil.GenCIDRs(t, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128)) {
+		wantPrefixes[pfix6128] = true
+	}
+	for pfix664 := range netutil.GenCIDRs(t, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64)) {
+		wantPrefixes[pfix664] = true
 	}
 	return wantPrefixes
 }
@@ -619,6 +645,24 @@ func TestBGP(t *testing.T) {
 		gnmiClient2: gnmiClient2,
 	}
 
+	// TODO: - Add  deviation if any HW profile change is required
+	if tc.dut.Vendor() == ondatra.CISCO {
+		t.Log("Configuring DUT HW profile for Cisco and rebooting DUT")
+		if err := tc.configureHwProfile(t); err != nil {
+			t.Fatalf("failed to configure DUT HW profile: %v", err)
+		}
+	}
+
+	// Defer cleanup to ensure it runs at the end of the test
+	defer func() {
+		if tc.dut.Vendor() == ondatra.CISCO {
+			t.Log("Restoring DUT HW profile for Cisco and rebooting DUT")
+			if err := tc.configureDefaultHwProfile(t); err != nil {
+				t.Fatalf("failed to restore DUT HW profile: %v", err)
+			}
+		}
+	}()
+
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
 
@@ -638,7 +682,10 @@ func TestBGP(t *testing.T) {
 		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount, true); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6128, int(bgpRouteCountIPv6Default128), wantNHCount, true); err != nil {
+			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
+		}
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv664, int(bgpRouteCountIPv6Default64), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
@@ -699,4 +746,79 @@ func TestBGP(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
+}
+
+// configureHwProfile configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureHwProfile(t *testing.T) error {
+	ciscoConfig := `hw-module profile route scale lpm tcam-banks
+		hw-module profile cef iptunnel scale`
+	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
+	tc.rebootDUT(t)
+	return nil
+}
+
+// configureDefaultHwProfile configures all the interfaces and BGP on the DUT.
+func (tc *testCase) configureDefaultHwProfile(t *testing.T) error {
+	ciscoConfig := `no hw-module profile route scale lpm tcam-banks
+		no hw-module profile cef iptunnel scale`
+	helpers.GnmiCLIConfig(t, tc.dut, ciscoConfig)
+	tc.rebootDUT(t)
+	return nil
+}
+
+func (tc *testCase) rebootDUT(t *testing.T) {
+	t.Helper()
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   0,
+		Message: "Reboot chassis without delay",
+		Force:   true,
+	}
+	gnoiClient, err := tc.dut.RawAPIs().BindingDUT().DialGNOI(t.Context())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v %v", bootTimeBeforeReboot, time.Now())
+	t.Log("Sending reboot request to DUT")
+
+	ctxWithTimeout, cancel := context.WithTimeout(t.Context(), 8*time.Minute)
+	defer cancel()
+	_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
+	defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	// Wait for the device to become reachable again.
+	dut := ondatra.DUT(t, "dut")
+	deviceBootStatus(t, dut)
+	t.Logf("Device is reachable, waiting for boot time to update.")
+
+	bootTimeAfterReboot := gnmi.Get(t, tc.dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+}
+
+func deviceBootStatus(t *testing.T, dut *ondatra.DUTDevice) {
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f minutes since reboot started.", time.Since(startReboot).Minutes())
+
+		time.Sleep(3 * time.Minute)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Minutes()) > maxRebootTime {
+			t.Fatalf("Check boot time: got %v, want < %v", time.Since(startReboot), maxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f minutes", time.Since(startReboot).Minutes())
 }
