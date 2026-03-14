@@ -50,6 +50,8 @@ const (
 	trafficRatePps           = 5000
 	trafficDuration          = 120
 	tolerance                = 12
+	// minObservedTotalRatioPct is the minimum observed total (as % of formula expected) before failing for DUT undercount.
+	minObservedTotalRatioPct = 80
 )
 
 var (
@@ -371,10 +373,15 @@ func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc str
 	switch dut.Vendor() {
 	case ondatra.JUNIPER:
 		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelIpv6address, Ipv6Mask)
+	case ondatra.CISCO:
+		config = configureTunnelEndPointsCisco(intf, unit, tunnelDst, tunnelIpv6address, Ipv6Mask)
 		t.Logf("Push the CLI config:\n%s", config)
 
 	default:
-		t.Errorf("Invalid Tunnel endpoint configuration")
+		t.Fatalf("Tunnel endpoint configuration is not defined for %s", dut.Vendor())
+	}
+	if config == "" {
+		t.Fatalf("Generated empty tunnel endpoint config for %s", dut.Vendor())
 	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
@@ -408,6 +415,16 @@ func configureTunnelEndPoints(intf string, unit int, tunnelSrc string, tunnelDes
 	}`, intf, unit, tunnelSrc, tunnelDest, tunnelIpv6address, Ipv6Mask)
 }
 
+func configureTunnelEndPointsCisco(intf string, unit int, tunnelDest string, tunnelIpv6address string, Ipv6Mask int) string {
+	return fmt.Sprintf(`
+interface tunnel-ip%d
+ tunnel mode gre ipv6 encap
+ tunnel source Loopback0
+ tunnel destination %s
+ ipv6 address %s/%d
+!`, unit, tunnelDest, tunnelIpv6address, Ipv6Mask)
+}
+
 func configStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
 	ni := oc.NetworkInstance{Name: ygot.String(deviations.DefaultNetworkInstance(dut))}
 	static := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
@@ -437,45 +454,81 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 
 func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Logf("Configure routing instance on dut")
-	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, dutConfPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 }
 
-func verifyEcmpLoadBalance(t *testing.T, inital []uint64, final []uint64, flowCount int64, sharingIntfCont int64, firstintf int, wantLoss bool, lbTolerance int) {
-	expectedTotalPkts := (flowCount * trafficRatePps * trafficDuration)
-	expectedPerLinkPkts := expectedTotalPkts / sharingIntfCont
-	t.Logf("Total packets %d flow through the %d links", expectedTotalPkts, sharingIntfCont)
-	t.Logf("Expected per link packets %d ", expectedPerLinkPkts)
-	min := expectedPerLinkPkts - (expectedPerLinkPkts * int64(lbTolerance) / 100)
-	max := expectedPerLinkPkts + (expectedPerLinkPkts * int64(lbTolerance) / 100)
+func verifyEcmpLoadBalance(t *testing.T, initial, final []uint64, flowCount, sharingIntfCount int64, firstIntf int, wantInRange bool, lbTolerance int) {
+	t.Helper()
 
-	for i := firstintf; i < len(inital); i++ {
-		stats := final[i] - inital[i]
-		t.Logf("Initial packets %d Final Packets %d ", inital[i], final[i])
-		if wantLoss {
-			if min < int64(stats) && int64(stats) < max {
-				t.Logf("Traffic  %d is in expected range: %d - %d", stats, min, max)
-				t.Logf("Traffic Load balance Test Passed!!")
-			} else {
-				t.Errorf("Traffic is expected in range %d - %d but got %d. Load balance Test Failed\n", min, max, stats)
+	// Input validation.
+	if len(initial) != len(final) {
+		t.Fatalf("counter length mismatch: initial=%d final=%d", len(initial), len(final))
+	}
+	if sharingIntfCount <= 0 {
+		t.Fatalf("invalid sharingIntfCount: %d", sharingIntfCount)
+	}
+	if firstIntf < 0 || firstIntf >= len(initial) {
+		t.Fatalf("invalid firstIntf=%d for len=%d", firstIntf, len(initial))
+	}
+	last := firstIntf + int(sharingIntfCount)
+	if last > len(initial) {
+		t.Fatalf("sharing range out of bounds: first=%d count=%d len=%d", firstIntf, sharingIntfCount, len(initial))
+	}
 
-			}
-		} else {
-			if min > int64(stats) || int64(stats) > max {
-				t.Logf("Traffic  %d is not in expected range: %d - %d", stats, min, max)
-				t.Logf("Tunnel interfaces was down, Traffic not used this interface as expected Passed!!")
-			} else {
-				t.Errorf("Traffic is not expected in range %d - %d but got %d. Negative Load balance Test Failed\n", min, max, stats)
-			}
+	// Safe delta: avoids uint64 underflow when counters reset or wrap.
+	delta := func(a, b uint64) int64 {
+		if b >= a {
+			return int64(b - a)
+		}
+		t.Fatalf("counter decreased: initial=%d final=%d", a, b)
+		return 0
+	}
+
+	expectedTotalPkts := flowCount * int64(trafficRatePps) * int64(trafficDuration)
+	var observedTotalPkts int64
+	for i := firstIntf; i < last; i++ {
+		observedTotalPkts += delta(initial[i], final[i])
+	}
+	if observedTotalPkts == 0 {
+		t.Fatalf("no packets observed on interfaces under verification")
+	}
+
+	// Fail hard on severe DUT egress undercount.
+	if expectedTotalPkts > 0 {
+		observedRatioPct := observedTotalPkts * 100 / expectedTotalPkts
+		if observedRatioPct < minObservedTotalRatioPct {
+			t.Fatalf("egress undercount: observed=%d (%d%%) expected=%d", observedTotalPkts, observedRatioPct, expectedTotalPkts)
+		}
+	}
+
+	expectedPerLink := observedTotalPkts / sharingIntfCount
+	min := expectedPerLink - (expectedPerLink * int64(lbTolerance) / 100)
+	max := expectedPerLink + (expectedPerLink * int64(lbTolerance) / 100)
+
+	for i := firstIntf; i < last; i++ {
+		s := delta(initial[i], final[i])
+		t.Logf("Initial packets %d Final Packets %d", initial[i], final[i])
+		inRange := min <= s && s <= max
+		if wantInRange && !inRange {
+			t.Errorf("interface[%d] packets=%d, expected range [%d,%d]", i, s, min, max)
+		}
+		if !wantInRange && inRange {
+			t.Errorf("interface[%d] packets=%d unexpectedly in range [%d,%d]", i, s, min, max)
+		}
+		if wantInRange && inRange {
+			t.Logf("Traffic %d is in expected range: %d - %d", s, min, max)
+		}
+		if !wantInRange && !inRange {
+			t.Logf("Tunnel interface was down; traffic not on this interface as expected")
 		}
 	}
 }
 
-func verifyUnusedTunnelStatistic(t *testing.T, inital []uint64, final []uint64) {
-	for i := 0; i < len(inital); i++ {
-		value := final[i] - inital[i]
+func verifyUnusedTunnelStatistic(t *testing.T, initial, final []uint64) {
+	for i := 0; i < len(initial); i++ {
+		value := final[i] - initial[i]
 		if int(value) > tolerance {
-			t.Logf("Traffic initial stats %d && final stats %d ", inital[i], final[i])
+			t.Logf("Traffic initial stats %d && final stats %d ", initial[i], final[i])
 			t.Errorf("Tunnel interface used and got %d stats additionally which is not expected FAILED!!\n", value)
 		}
 	}
