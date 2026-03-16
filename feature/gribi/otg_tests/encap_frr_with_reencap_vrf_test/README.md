@@ -254,6 +254,16 @@ network-instances {
     behavior.
 
 ```
+IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#1003 (DEFAULT VRF) -> {
+  {NH#1003, DEFAULT VRF},
+} // fallback route to redirect to DEFAULT VRF
+NHG#1003 (DEFAULT VRF) {
+  {NH#1003, DEFAULT VRF}
+}
+NH#1003 -> {
+  network_instance: "DEFAULT"
+}
+
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
   {NH#101, DEFAULT VRF, weight:1},
   {NH#102, DEFAULT VRF, weight:3},
@@ -576,6 +586,10 @@ NH#102 -> {
 1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
+  #### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
@@ -608,15 +622,23 @@ NH#102 -> {
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform

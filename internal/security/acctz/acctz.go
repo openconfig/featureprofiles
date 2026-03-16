@@ -50,7 +50,6 @@ const (
 	successPassword = "verysecurepassword"
 	// FailUsername is the username for a failed test.
 	FailUsername         = "bilbo"
-	failPassword         = "baggins"
 	failRoleName         = "acctz-fp-test-fail"
 	successCliCommand    = "show version"
 	failCliCommand       = "show version"
@@ -64,8 +63,11 @@ const (
 	ipProto              = 6
 )
 
-// TestPaths is the list of paths to be tested for acctz.
-var TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+var (
+	failPassword = "baggins"
+	// TestPaths is the list of paths to be tested for acctz.
+	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+)
 
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
@@ -184,7 +186,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		failUser.SetRole(oc.UnionString(failRoleName))
 	}
 	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
-	failPassword := failPassword + fmt.Sprintf("%d", rand.Intn(1000000000))
+	failPassword = failPassword + fmt.Sprintf("%d", rand.Intn(1000000000))
 	setupUserPassword(t, dut, SuccessUsername, successPassword)
 	setupUserPassword(t, dut, FailUsername, failPassword)
 }

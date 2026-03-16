@@ -15,11 +15,14 @@
 package afts_base_test
 
 import (
-	"context"
 	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -67,9 +70,9 @@ const (
 	startingISISRouteIPv4     = "199.0.0.1/32"
 	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
 	aftConvergenceTime        = 20 * time.Minute
-	bgpTimeout                = 2 * time.Minute
+	bgpTimeout                = 10 * time.Minute
 	linkLocalAddress          = "fe80::200:2ff:fe02:202"
-	bgpRouteCountIPv4LowScale = 1200000
+	bgpRouteCountIPv4LowScale = 1500000
 	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
 	bgpRouteCountIPv6Default  = 1000000
@@ -105,6 +108,8 @@ var (
 	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
 	port1Name            = "port1"
 	port2Name            = "port2"
+	prevNHGIDIPv4        = uint64(0)
+	prevNHGIDIPv6        = uint64(0)
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -288,11 +293,8 @@ func updateNeighborMaxPrefix(t *testing.T, dut *ondatra.DUTDevice, neighbors []*
 		cfgplugins.DeviationAristaBGPNeighborMaxPrefixes(t, dut, nbr.neighborip, 0)
 	}
 }
-
-func (tc *testCase) waitForBGPSession(t *testing.T) error {
+func (tc *testCase) waitForBGPSessions(t *testing.T, ipv4nbrs []string, ipv6nbrs []string) error {
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(tc.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
-	nbrPath := statePath.Neighbor(ateP2.IPv4)
-	nbrPathv6 := statePath.Neighbor(ateP2.IPv6)
 	verifySessionState := func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok {
@@ -303,15 +305,21 @@ func (tc *testCase) waitForBGPSession(t *testing.T) error {
 		return state == oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}
 
-	_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
-	if !ok {
-		fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
-		return fmt.Errorf("BGP session with %s not established", ateP2.IPv4)
+	for _, nbr := range ipv4nbrs {
+		nbrPath := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPath.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGP reported state", nbrPath.State(), gnmi.Get(t, tc.dut, nbrPath.State()))
+			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
 	}
-	_, ok = gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
-	if !ok {
-		fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
-		return fmt.Errorf("BGP session with %s not established", ateP2.IPv6)
+	for _, nbr := range ipv6nbrs {
+		nbrPathv6 := statePath.Neighbor(nbr)
+		_, ok := gnmi.Watch(t, tc.dut, nbrPathv6.SessionState().State(), bgpTimeout, verifySessionState).Await(t)
+		if !ok {
+			fptest.LogQuery(t, "BGPv6 reported state", nbrPathv6.State(), gnmi.Get(t, tc.dut, nbrPathv6.State()))
+			return fmt.Errorf("BGP session with %s not established", nbr)
+		}
 	}
 	return nil
 }
@@ -483,10 +491,9 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	return wantPrefixes
 }
 
-func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int) error {
+func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int, cacheNHGID bool) error {
 	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
 		nhgID, ok := aft.Prefixes[pfix]
-
 		if !ok {
 			return fmt.Errorf("prefix %s not found in AFT", pfix)
 		}
@@ -508,7 +515,16 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			}
 			// TODO: - Add check for exact interface name
 			// TODO: - Remove deviation and add recursive check for interface
-			if !deviations.SkipInterfaceNameCheck(tc.dut) {
+			if deviations.SkipInterfaceNameCheck(tc.dut) {
+				isAddrIPv6 := strings.Contains(pfix, ":")
+				// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
+				if cacheNHGID {
+					prevNHGIDIPv4 = nhgID
+					if isAddrIPv6 {
+						prevNHGIDIPv6 = nhgID
+					}
+				}
+			} else {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 				}
@@ -534,18 +550,40 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 	return nil
 }
 
-func (tc *testCase) cache(t *testing.T, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
+// fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
+// It waits until both collectors satisfy the provided stoppingCondition.
+// After the stopping condition is met, it compares the AFT data collected by both sessions.
+// If the data is identical, it returns a single copy of the collected AFT data.
+// Otherwise, it returns an error indicating the inconsistency.
+func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
 	t.Helper()
-	streamContext, streamCancel := context.WithCancel(t.Context())
-	aftSession := aftcache.NewAFTStreamSession(streamContext, t, tc.gnmiClient, tc.dut)
-	aftSession.ListenUntil(streamContext, t, aftConvergenceTime, stoppingCondition)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+	}()
+	go func() {
+		defer wg.Done()
+		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
+	}()
+	wg.Wait()
+
 	// Get the AFT from the cache.
-	streamCancel()
-	aft, err := aftSession.Cache.ToAFT(t, tc.dut)
+	aft1, err := aftSession1.ToAFT(t, tc.dut)
 	if err != nil {
-		return nil, fmt.Errorf("error getting AFT: %v", err)
+		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
 	}
-	return aft, nil
+	aft2, err := aftSession2.ToAFT(t, tc.dut)
+	if err != nil {
+		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
+	}
+	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
+	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
+		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
+	}
+	return aft1, nil
 }
 
 func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
@@ -555,42 +593,52 @@ func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosna
 }
 
 type testCase struct {
-	name       string
-	dut        *ondatra.DUTDevice
-	ate        *ondatra.ATEDevice
-	gnmiClient gnmipb.GNMIClient
+	name        string
+	dut         *ondatra.DUTDevice
+	ate         *ondatra.ATEDevice
+	gnmiClient1 gnmipb.GNMIClient
+	gnmiClient2 gnmipb.GNMIClient
 }
 
 func TestBGP(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI: %v", err)
+	}
+	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
 	}
 	tc := &testCase{
-		name:       "AFT Churn Test With Scale",
-		dut:        dut,
-		ate:        ate,
-		gnmiClient: gnmiClient,
+		name:        "AFT Churn Test With Scale",
+		dut:         dut,
+		ate:         ate,
+		gnmiClient1: gnmiClient1,
+		gnmiClient2: gnmiClient2,
 	}
 
 	// Pre-generate all expected prefixes once for efficiency
 	wantPrefixes := tc.generateWantPrefixes(t)
+
+	// Create an AFTStreamSession per gnmiClient
+	aftSession1 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient1, tc.dut)
+	aftSession2 := aftcache.NewAFTStreamSession(t.Context(), t, tc.gnmiClient2, tc.dut)
 
 	// Helper function for verifying AFT state when given prefixes and expected next hops.
 	verifyAFTState := func(desc string, wantNHCount int, wantV4NHs, wantV6NHs map[string]bool) *aftcache.AFTData {
 		t.Helper()
 		t.Log(desc)
 		stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantV4NHs, wantV6NHs)
-		aft, err := tc.cache(t, stoppingCondition)
+		aft, err := tc.fetchAFT(t, aftSession1, aftSession2, stoppingCondition)
 		if err != nil {
 			t.Fatalf("failed to get AFT Cache: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(getRouteCount(dut, IPv4)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv4 BGP prefixes: %v", err)
 		}
-		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount); err != nil {
+		if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(getRouteCount(dut, IPv6)), wantNHCount, true); err != nil {
 			t.Errorf("failed to verify IPv6 BGP prefixes: %v", err)
 		}
 		return aft
@@ -603,7 +651,7 @@ func TestBGP(t *testing.T) {
 	tc.configureATE(t)
 
 	t.Log("Waiting for BGP neighbor to establish...")
-	if err := tc.waitForBGPSession(t); err != nil {
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
@@ -611,33 +659,44 @@ func TestBGP(t *testing.T) {
 	aft := verifyAFTState("Initial AFT verification", 2, wantIPv4NHs, wantIPv6NHs)
 
 	// Verify ISIS prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1, false); err != nil {
 		t.Errorf("failed to verify IPv4 ISIS prefixes: %v", err)
 	}
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1, false); err != nil {
 		t.Errorf("failed to verify IPv6 ISIS prefixes: %v", err)
 	}
 	t.Log("ISIS verification completed")
 
 	// Step 2: Stop Port2 interface to create Churn (BGP: 1 NH)
-	t.Log("Stopping Port2 interface to create Churn")
+	t.Log("SubTest 2: Stopping Port2 interface to create Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.DOWN)
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 2 churn", 1, wantIPv4NHsPostChurn, getPostChurnIPv6NH(tc.dut))
 
 	// Step 3: Stop Port1 interface to create full Churn (BGP: deletion expected)
-	t.Log("Stopping Port1 interface to create Churn")
+	t.Log("SubTest 3: Stopping Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.DOWN)
-	if _, err := tc.cache(t, aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)); err != nil {
+	sc := aftcache.DeletionStoppingCondition(t, dut, wantPrefixes)
+	if _, err := tc.fetchAFT(t, aftSession1, aftSession2, sc); err != nil {
 		t.Fatalf("failed to get AFT Cache after deletion: %v", err)
 	}
 
 	// Step 4: Start Port1 interface to remove Churn (BGP: 1 NH - Port2 still down)
-	t.Log("Starting Port1 interface to remove Churn")
+	t.Log("SubTest 4: Starting Port1 interface to remove Churn")
 	tc.otgInterfaceState(t, port1Name, gosnappi.StatePortLinkState.UP)
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4}, []string{ateP1.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 1 up", 1, wantIPv4NHsPostChurn, getPostChurnIPv6NH(tc.dut))
 
 	// Step 5: Start Port2 interface to remove Churn (BGP: 2 NHs - full recovery)
-	t.Log("Starting Port2 interface to remove Churn")
+	t.Log("SubTest 5: Starting Port2 interface and recheck Churn")
 	tc.otgInterfaceState(t, port2Name, gosnappi.StatePortLinkState.UP)
+	t.Log("Waiting for BGP neighbor to establish...")
+	if err := tc.waitForBGPSessions(t, []string{ateP1.IPv4, ateP2.IPv4}, []string{ateP1.IPv6, ateP2.IPv6}); err != nil {
+		t.Fatalf("Unable to establish BGP session: %v", err)
+	}
 	verifyAFTState("AFT verification after port 2 up", 2, wantIPv4NHs, wantIPv6NHs)
 }

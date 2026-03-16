@@ -36,7 +36,6 @@ func TestMain(m *testing.M) {
 
 const (
 	trafficDuration           = 1 * time.Minute
-	sleepOnChange             = 10 * time.Second
 	plen4                     = 30
 	plen6                     = 126
 	vlan10                    = 10
@@ -281,12 +280,6 @@ func applyForwardingPolicy(t *testing.T, ate *ondatra.ATEDevice, ingressPort, ma
 	// Configure default NI and forwarding policy.
 	intfConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
 	gnmi.Replace(t, dut, intfConfPath.Config(), intf)
-
-	// Restart Protocols after policy change
-	ate.OTG().StopProtocols(t)
-	time.Sleep(sleepOnChange)
-	ate.OTG().StartProtocols(t)
-	time.Sleep(sleepOnChange)
 }
 
 type trafficFlows struct {
@@ -355,8 +348,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) *trafficFlows {
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return &trafficFlows{ipInIPFlow1, ipInIPFlow2, ipInIPFlow3, ipInIPFlow4, ipv6InIPFlow5, ipv6InIPFlow6, ipv6InIPFlow7, ipv6InIPFlow8, nativeIPv4, nativeIPv6}
 }
 
@@ -382,6 +373,8 @@ func createIPv4Flow(name string, top gosnappi.Config, dst attrs.Attributes, srcI
 
 func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	t.Logf("*** Starting traffic ...")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), ate.OTG().GetConfig(t), "IPv6")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
