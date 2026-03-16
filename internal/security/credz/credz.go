@@ -655,12 +655,13 @@ func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 // GetConfiguredHostKey returns the configured host key on the DUT for the given algorithm.
 // This is used to verify if the host key is correctly configured on the DUT before rotating the
 // keys.
-func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string) string {
+func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqdn string) string {
+	dutTarget := fmt.Sprintf("%s.%s", dut.Name(), fqdn)
 	cmd := exec.Command(
 		"ssh-keyscan",
 		"-t",
 		algo,
-		dut.Name())
+		dutTarget)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("Failed to run ssh-keyscan cmd:%v error:%v out:%s", cmd, err, string(out))

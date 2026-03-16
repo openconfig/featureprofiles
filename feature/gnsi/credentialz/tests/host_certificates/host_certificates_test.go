@@ -24,6 +24,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/ondatra/gnmi"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
@@ -81,7 +82,7 @@ func TestCredentialz(t *testing.T) {
 			t.Fatalf("Failed to get SSH certificate")
 		}
 		wantHostKey := strings.Trim(string(ssh.MarshalAuthorizedKey(cert.Key)), "\n")
-		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519")
+		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519", *args.Fqdn)
 		if err != nil {
 			t.Fatalf("Failed parsing host certificate from device: %s", err)
 		}

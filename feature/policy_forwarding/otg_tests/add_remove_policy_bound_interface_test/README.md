@@ -17,6 +17,7 @@ For an interface that is bound to a PBF policy
 graph LR;
 A[ATE] <-- Port1(IPv4/6) --> B[DUT];
 A[ATE] <-- Port2(IPv4/6) --> B[DUT];
+A[ATE] <-- Port3(IPv4/6) --> B[DUT];
 ```
 
 ## Procedure
@@ -42,53 +43,53 @@ A[ATE] <-- Port2(IPv4/6) --> B[DUT];
     *   DUT port-3 IPv4 address ```dp1-v4 = 192.168.100.9/30```
     *   ATE port-3 IPv4 address ```ap1-v4 = 192.168.100.10/30```
 
-*   Create a vrf on DUT `VRF-100` with no ports assigned to it.
+*   Create a vrf `VRF-100` on DUT ports 1 and assign the IP address.
 
 *   Configure two IPv6 and two IPv4 static routes on DUT in VRF `VRF-100` towards ATE
     *   NOTE: It is not necessary for these networks to be configured on ATE. They are just used for traffic destinations
         *   Destination: `ipv6-net-a = 3008:DB8::/126` with next-hop `ap1-v6 = 2001:DB2::2/126` in vrf `VRF-100`
         *   Destination: `ipv6-net-b = 3009:DB9::/126` with next-hop `ap2-v6 = 2001:DB2::6/126` in vrf `VRF-100`
         *   Destination: `ipv4-net-a = 192.168.200.0/24` with next-hop `ap1-v4 = 192.168.100.2/30` in vrf `VRF-100`
-        *   Destination: `ipv4-net-b = 192.168.300.0/24` with next-hop `ap1-v4 = 192.168.100.6/30` in vrf `VRF-100`
+        *   Destination: `ipv4-net-b = 192.168.201.0/24` with next-hop `ap1-v4 = 192.168.100.6/30` in vrf `VRF-100`
     *   NOTE: Default network instance should not have any static routes configured, above static routes should only be configured in `VRF-100`
 
 *   Configure a forwarding policy type 'VRF_SELECTION_POLICY'
     *   Rule with sequence `10` to match:
-        *   All IPv6 and IPv4 traffic
-            *   source and destination is set to`ipv6 = ::/0` and `ipv4 = 0.0.0.0/0` 
-        *   Set the action to match network instance `VRF-10`
-    *   Apply the policy to DUT Port1 and Port2
-        *   NOTE: DUT Port1, Port2 and Port3 are in `default vrf`
+        *   All IPv4 traffic that match source address '192.168.100.6/32' and '192.168.100.10/32' only should be allowed.
+        *   All IPv6 traffic that match source address '2001:DB2::6/128' and '2001:DB2::a' only should be allowed.
+        *   Set the action to match network instance `VRF-100`
+    *   Apply the policy to DUT Port 2&3
+        *   NOTE: Port 2 and 3 are in `default vrf`
 
 ### PF-1.24.1 - Remove an interface bound to VRF Selection Policy
 
-*   Remove DUT Port2 from the VRF Selection Policy
+*   Remove DUT Port2 from the VRF Selection Policy.
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
     *   `ipv4-net-a = 192.168.200.0/24`
-    *   `ipv4-net-b = 192.168.300.0/24`
+    *   `ipv4-net-b = 192.168.201.0/24`
 *   Validate the traffic is received on ATE Port1 only
 
 ### PF-1.24.2 - Add an interface bound to VRF Selection Policy
 
-*   Add DUT Port2 to the VRF Selection Policy
+*   Apply the VRF selection policy to DUT Port2
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
     *   `ipv4-net-a = 192.168.200.0/24`
-    *   `ipv4-net-b = 192.168.300.0/24`
+    *   `ipv4-net-b = 192.168.201.0/24`
 *   Validate the traffic is received on ATE Port1 and Port2
 
 ### PF-1.24.3 - Remove an interface from both a policy and the device
 
 *   Use gnmi batch replace to:
-    *   Remove DUT Port2 from the VRF Selection Policy as well as from the device
+    *   Remove DUT Port2 from the VRF Selection policy as well as from the device
 *   Start traffic from ATE port-3 towards
     *   `ipv6-net-a = 3008:DB8::/126`
     *   `ipv6-net-b = 3009:DB9::/126`
     *   `ipv4-net-a = 192.168.200.0/24`
-    *   `ipv4-net-b = 192.168.300.0/24`
+    *   `ipv4-net-b = 192.168.201.0/24`
 *   Validate the traffic is received on ATE Port1 only
 
 ### Canonical OC

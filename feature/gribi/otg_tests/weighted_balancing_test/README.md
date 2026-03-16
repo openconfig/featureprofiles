@@ -1,13 +1,19 @@
 # TE-3.2: Traffic Balancing According to Weights
 
+## Canonical OC
+
+```json
+{}
+```
+
 # Summary
 
 Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 
 # Procedure
 
-*   Configure ATE port-1 connected to DUT port-1, and ATE port 2-9 connected to
-    DUT port 2-9. Connect to gRIBI with persistence `PRESERVE`, make it become
+*   Configure ATE port-1 connected to DUT port-1, and ATE port 2-8 connected to
+    DUT port 2-8. Connect to gRIBI with persistence `PRESERVE`, make it become
     leader and flush all entries before each case.
 
 *   Via gRIBI, install an `IPv4Entry` for 203.0.113.0/24 pointing to a
@@ -22,8 +28,8 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
         installed next-hop.
     *   With NHG 10 containing 2 next hops with no associated weights assigned,
         50% of traffic is forwarded to each next-hop.
-    *   With NHG 10 containing 8 next hops, with no associated weights assigned,
-        12.5% of traffic is forwarded to each next-hop.
+    *   With NHG 10 containing 7 next hops, with no associated weights assigned,
+        14.29% of traffic is forwarded to each next-hop.
     *   With NHG 10 containing 2 next-hops, specify and validate the following
         ratios:
 
@@ -38,7 +44,7 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
     *   <64K are supported
     *   \>64K are correctly balanced if the device supports it.
 
-*   With NHG10 containing 8 next-hops, with a weight of 1 assigned to each,
+*   With NHG10 containing 7 next-hops, with a weight of 1 assigned to each,
     sequentially remove each next-hop by turning down the port at the ATE
     (invalidates nexthop), ensure that traffic is rebalanced across remaining
     NHs until only one NH remains.
@@ -63,6 +69,8 @@ Ensure that traffic splits within a `NextHopGroup` are correctly honoured.
 The below yaml defines the OC paths intended to be covered by this test.
 
 ```yaml
+paths:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
 rpcs:
   gnmi:
     gNMI.Set:
