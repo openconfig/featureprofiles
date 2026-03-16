@@ -4,9 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"testing"
-	"time"
 
-	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -14,23 +12,7 @@ import (
 	"github.com/openconfig/ondatra"
 )
 
-const (
-	samplingInterval   = 10 * time.Second
-	frequencyTolerance = 1800
-	timeout            = 10 * time.Minute
-)
-
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-	}
 	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
