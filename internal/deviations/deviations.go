@@ -2001,6 +2001,7 @@ func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
 }
 
 // ArpFT returns the functional translator name for devices with neighbor link-layer-address paths unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
 func ArpFT(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetArpFt()
 }

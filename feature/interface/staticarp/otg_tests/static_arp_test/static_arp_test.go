@@ -315,16 +315,32 @@ func TestStaticARP(t *testing.T) {
 	t.Run("TelemetryCheck", func(t *testing.T) {
 		dut := ondatra.DUT(t, "dut")
 		port1 := dut.Port(t, "port1")
-
 		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.ArpFT(dut))
-		actualMAC4 := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv4().Neighbor(ateSrc.IPv4).LinkLayerAddress().State())
-		actualMAC6 := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State())
 
-		if !strings.EqualFold(actualMAC4, poisonedMAC) {
-			t.Errorf("Actual MAC4 got %q, want %q", actualMAC4, poisonedMAC)
+		cases := []struct {
+			desc      string
+			ip        string
+			telemetry ygnmi.SingletonQuery[string]
+		}{
+			{
+				desc:      "IPv4",
+				ip:        ateSrc.IPv4,
+				telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv4().Neighbor(ateSrc.IPv4).LinkLayerAddress().State(),
+			},
+			{
+				desc:      "IPv6",
+				ip:        ateSrc.IPv6,
+				telemetry: gnmi.OC().Interface(port1.Name()).Subinterface(0).Ipv6().Neighbor(ateSrc.IPv6).LinkLayerAddress().State(),
+			},
 		}
-		if !strings.EqualFold(actualMAC6, poisonedMAC) {
-			t.Errorf("Actual MAC6 got %q, want %q", actualMAC6, poisonedMAC)
+
+		for _, tc := range cases {
+			t.Run(tc.desc, func(t *testing.T) {
+				actualMAC := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), tc.telemetry)
+				if !strings.EqualFold(actualMAC, poisonedMAC) {
+					t.Errorf("Actual MAC for %s got %q, want %q", tc.ip, actualMAC, poisonedMAC)
+				}
+			})
 		}
 	})
 
