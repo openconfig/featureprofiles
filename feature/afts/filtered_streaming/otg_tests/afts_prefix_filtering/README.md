@@ -456,11 +456,12 @@ underlying prefix sets without requiring a re-binding of the policy itself.
 
 > **TODO:** The `global-filter` container and its `config/ipv4-policy`,
 > `config/ipv6-policy`, `state/ipv4-policy` and `state/ipv6-policy` leaves are
-> proposed extensions to the OpenConfig AFT model and are not yet present model
-> and are not yet present in the master branch of
-> [openconfig/public](https://github.com/openconfig/public). This README may be
-> merged before the TODO is resolved. Link to the openconfig/public pull request
-> here when available.
+> proposed extensions to the OpenConfig AFT model and are not yet present in the
+> master branch of [openconfig/public](https://github.com/openconfig/public).
+> This README may be merged before the TODO is resolved.
+>
+> The OpenConfig pull request is
+> [#1441](https://github.com/openconfig/public/pull/1441).
 
 ```yaml
 paths:
