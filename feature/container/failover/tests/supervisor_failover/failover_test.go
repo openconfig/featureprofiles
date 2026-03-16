@@ -65,8 +65,6 @@ func TestImagePersistence(t *testing.T) {
 
 	// Initialize clients.
 	cli := containerztest.Client(t, dut)
-	// Raw system client for switchover.
-	sysClient := dut.RawAPIs().GNOI(t).System()
 
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
@@ -84,14 +82,7 @@ func TestImagePersistence(t *testing.T) {
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
-		t.Logf("Switching control processor to %s...", standbyRPBefore)
-		switchReq := &gspb.SwitchControlProcessorRequest{
-			ControlProcessor: components.GetSubcomponentPath(standbyRPBefore, deviations.GNOISubcomponentPath(dut)),
-		}
-
-		if _, err := sysClient.SwitchControlProcessor(ctx, switchReq); err != nil {
-			t.Logf("SwitchControlProcessor returned error: %v", err)
-		}
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
 	})
 
 	t.Run("VerifyImagePersistence", func(t *testing.T) {
@@ -138,8 +129,6 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 
 	// Initialize clients.
 	cli := containerztest.Client(t, dut)
-	// Raw system client for switchover.
-	sysClient := dut.RawAPIs().GNOI(t).System()
 
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
@@ -197,15 +186,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
-		t.Logf("Switching control processor to %s...", standbyRPBefore)
-		switchReq := &gspb.SwitchControlProcessorRequest{
-			ControlProcessor: components.GetSubcomponentPath(standbyRPBefore, deviations.GNOISubcomponentPath(dut)),
-		}
-
-		// Log the error but proceed to wait for the system to come back.
-		if _, err := sysClient.SwitchControlProcessor(ctx, switchReq); err != nil {
-			t.Logf("SwitchControlProcessor returned error: %v", err)
-		}
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
 	})
 
 	t.Run("VerifyRecovery", func(t *testing.T) {
@@ -273,7 +254,7 @@ func TestImageRemovalPersistence(t *testing.T) {
 	}
 
 	t.Run("Switchover", func(t *testing.T) {
-		doSwitchover(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
 	})
 
 	// 4. Verify image does not exist after switchover.
@@ -330,7 +311,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 	}
 
 	t.Run("Switchover", func(t *testing.T) {
-		doSwitchover(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
 	})
 
 	// 4. Verify container does not exist after switchover.
@@ -380,7 +361,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	t.Logf("Before first switchover, standby is %s, active is %s", standbyRP1, activeRP1)
 
 	t.Run("FirstSwitchover", func(t *testing.T) {
-		doSwitchover(t, dut, standbyRP1)
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
 	})
 
 	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
@@ -404,7 +385,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	t.Logf("Before second switchover, standby is %s, active is %s", standbyRP2, activeRP2)
 
 	t.Run("SecondSwitchover", func(t *testing.T) {
-		doSwitchover(t, dut, standbyRP2)
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
 	})
 
 	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
@@ -475,6 +456,15 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
 			t.Fatalf("Container did not start: %v", err)
 		}
+		// Wait for supervisors to sync before cold reboot.
+		standbyRP1, activeRP1, err := findRPs(t, dut)
+		if err != nil {
+			t.Fatalf("Failed to find RPs before cold reboot: %v", err)
+		}
+		t.Logf("Before rebooting, standby is %s, active is %s", standbyRP1, activeRP1)
+		switchoverReady := gnmi.OC().Component(standbyRP1).SwitchoverReady()
+		gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+		t.Logf("Supervisors synchronized, proceeding with cold reboot")
 	})
 
 	t.Run("ColdReboot", func(t *testing.T) {
@@ -533,6 +523,15 @@ func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 	}
 	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+}
+
+// awaitSwitchoverReadyAndSwitch waits for the standby to be switchover-ready, then triggers the switchover.
+func awaitSwitchoverReadyAndSwitch(t *testing.T, dut *ondatra.DUTDevice, standby string) {
+	t.Helper()
+	switchoverReady := gnmi.OC().Component(standby).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
+	doSwitchover(t, dut, standby)
 }
 
 // doSwitchover triggers a control processor switchover to the specified standby.
