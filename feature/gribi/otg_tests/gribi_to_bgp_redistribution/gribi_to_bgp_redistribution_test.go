@@ -234,7 +234,9 @@ func configureRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("AppendNewStatement failed: %v", err)
 	}
 	stmtExport.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(efAggIPv4)
-	stmtExport.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(efAllComm)
+	if !deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+		stmtExport.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(efAllComm)
+	}
 	stmtExport.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// Push routing policy config
@@ -243,11 +245,10 @@ func configureRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 	// ----------------------------
 	// ATTACH EXPORT POLICY TO BGP
 	// ----------------------------
-	dni := deviations.DefaultNetworkInstance(dut)
-	policy := root.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policy := root.GetOrCreateNetworkInstance(vrfName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{bgpExportPol})
 	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
 	gnmi.BatchReplace(batch, path.Config(), policy)
 
@@ -404,7 +405,7 @@ func createFlow(t *testing.T, cfg gosnappi.Config, ate *ondatra.ATEDevice) gosna
 	eth.Src().SetValue(atePort2.MAC)
 	eth.Dst().SetValue(dutPort2.MAC)
 	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(dutPort2.IPv4)
+	v4.Src().SetValue(atePort2.IPv4)
 	v4.Dst().SetValue(strings.Split(routePrefix, "/")[0])
 	ate.OTG().PushConfig(t, cfg)
 	ate.OTG().StartProtocols(t)
@@ -506,14 +507,13 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort2.BGP4.peer").UnicastIpv4PrefixAny().State())
 	found := false
 	var errMsg string
-
+	parts := strings.Split(routePrefix, "/")
+	prefixAddr := parts[0]
+	prefixLen, _ := strconv.Atoi(parts[1])
 	for _, bgpPrefix := range bgpPrefixes {
 		t.Logf("Received prefix %s/%d", bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength())
-
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v4RoutePrefix && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v4RoutePrefixLen {
-
+		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == prefixAddr && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == uint32(prefixLen) {
 			found = true
-
 			// ----------------------------
 			// MED VERIFICATION
 			// ----------------------------
@@ -547,7 +547,7 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	if !found {
-		msg := fmt.Sprintf("prefix %s/%d not received on OTG", v4RoutePrefix, v4RoutePrefixLen)
+		msg := fmt.Sprintf("prefix %s/%d not received on OTG", prefixAddr, prefixLen)
 		errMsg += msg
 	}
 
@@ -646,8 +646,10 @@ func TestGRIBIBGPRedistribution(t *testing.T) {
 		}
 		c.FlushAll(t)
 		t.Logf("Verifying traffic fails after entries deleted for Profile.")
-		if err := validateTrafficFlows(t, ate, topo, flow); err != nil {
-			t.Log("Expected result : Traffic validation failed")
+		if err := validateTrafficFlows(t, ate, topo, flow); err == nil {
+			t.Error("Traffic validation succeeded unexpectedly, expected failure.")
+		} else {
+			t.Logf("Traffic validation failed as expected: %v", err)
 		}
 	})
 	// TestID-16.4.2 - Drain Policy Validation
@@ -682,8 +684,10 @@ func TestGRIBIBGPRedistribution(t *testing.T) {
 		t.Log("Delete gRIBI route")
 		c.FlushAll(t)
 		rerr := validateRoutingPolicyV4(t, dut, ate)
-		if rerr != nil {
-			t.Logf("Route policy validation failure is expected : %v", rerr)
+		if rerr == nil {
+			t.Error("Route policy validation succeeded unexpectedly, expected failure.")
+		} else {
+			t.Logf("Route policy validation failure is expected: %v", rerr)
 		}
 	})
 	// TestID-16.4.3 - Disable BGP session with drain policy
@@ -725,8 +729,10 @@ func TestGRIBIBGPRedistribution(t *testing.T) {
 		t.Log("Delete gRIBI route")
 		c.FlushAll(t)
 		rerr := validateRoutingPolicyV4(t, dut, ate)
-		if rerr != nil {
-			t.Logf("Route policy validation failure is expected : %v", rerr)
+		if rerr == nil {
+			t.Error("Route policy validation succeeded unexpectedly, expected failure.")
+		} else {
+			t.Logf("Route policy validation failure is expected: %v", rerr)
 		}
 	})
 }
