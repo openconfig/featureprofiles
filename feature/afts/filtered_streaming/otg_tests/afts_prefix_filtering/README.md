@@ -465,10 +465,10 @@ underlying prefix sets without requiring a re-binding of the policy itself.
 ```yaml
 paths:
   # Proposed paths for the new filter mechanism (not yet in openconfig/public)
-  /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
-  /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
-  /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
-  /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
+  # /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
+  # /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
+  # /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
+  # /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
 
   # Standard AFT state paths
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
