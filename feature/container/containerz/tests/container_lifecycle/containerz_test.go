@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -27,11 +29,21 @@ var (
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
 	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
+	// These can be overridden for internal testing behavior using init().
+	containerTarPath = func(t *testing.T) string {
+		return *containerTar
+	}
+	containerUpgradeTarPath = func(t *testing.T) string {
+		return *containerUpgradeTar
+	}
+	pluginTarPath = func(t *testing.T) string {
+		return *pluginTar
+	}
 )
 
 const (
 	instanceName = "test-instance"
-	imageName    = "cntrsrv"
+	imageName    = "cntrsrv_image"
 )
 
 func TestMain(m *testing.M) {
@@ -44,7 +56,7 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	opts := containerztest.StartContainerOptions{
-		TarPath:             *containerTar,
+		TarPath:             containerTarPath(t),
 		RemoveExistingImage: false,
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
@@ -64,7 +76,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 			InstanceName:        instanceName,
 			ImageName:           imageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60061:60061"},
 			RemoveExistingImage: true,
@@ -225,7 +237,7 @@ func TestRetrieveLogs(t *testing.T) {
 			InstanceName:        stoppedInstanceName,
 			ImageName:           localImageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60062:60062"},
 			RemoveExistingImage: false,
@@ -479,7 +491,12 @@ func TestVolumes(t *testing.T) {
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
 
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, nil)
+		mountOpts := map[string]string{
+			"options":    "bind",
+			"mountpoint": "/some-path",
+		}
+
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
 		if err != nil {
 			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
 		}
@@ -508,6 +525,18 @@ func TestVolumes(t *testing.T) {
 				if vol.Driver != "local" {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
+
+				// check options
+				wantOptions := map[string]string{
+					"device": "/some-path",
+					"o":      "bind",
+					"type":   "none",
+				}
+
+				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
+					t.Errorf("Volume %q returned a diff(-got, +want):\n%s", vol.Name, diff)
+				}
+
 				break
 			}
 		}
@@ -577,7 +606,7 @@ func TestUpgrade(t *testing.T) {
 		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
-		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
+		progCh, err := cli.PushImage(ctx, imageName, "upgrade", containerUpgradeTarPath(t), false)
 		if err != nil {
 			t.Fatalf("unable to push image %s:upgrade: %v", imageName, err)
 		}
@@ -717,6 +746,11 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.ContainerzPluginRPCUnsupported(dut) {
+		t.Skip("Skipping Containerz plugin tests as Containerz plugin RPCs are unsupported on this device")
+	}
+
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (
@@ -727,8 +761,8 @@ func TestPlugins(t *testing.T) {
 	)
 
 	// Check if the plugin tarball exists (as it's needed for config extraction).
-	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
-		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	if _, err := os.Stat(pluginTarPath(t)); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", pluginTarPath(t))
 	}
 
 	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
@@ -751,7 +785,7 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, pluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
@@ -849,7 +883,7 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, pluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s for StartAlreadyStartedInstance: %v", pluginName, pluginImageTag, err)
 		}
 

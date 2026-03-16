@@ -30,6 +30,7 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
 	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
@@ -43,6 +44,10 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	gnmiRecvMsgSizeDefault = 100 * 1024 * 1024 // 100 MB
 )
 
 var (
@@ -176,6 +181,14 @@ func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.
 		return nil, err
 	}
 	return gpb.NewGNMIClient(conn), nil
+}
+
+func (d *staticDUT) DialGNPSI(ctx context.Context, opts ...grpc.DialOption) (gnpsipb.GNPSIClient, error) {
+	conn, err := dialConn(ctx, d, introspect.GNPSI, opts)
+	if err != nil {
+		return nil, err
+	}
+	return gnpsipb.NewGNPSIClient(conn), nil
 }
 
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
@@ -330,6 +343,11 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
+	// For scale tests, ATE gNMI might receive large data. Set a larger default
+	// max receive message size if not already configured.
+	if bopts.MaxRecvMsgSize == 0 {
+		bopts.MaxRecvMsgSize = gnmiRecvMsgSizeDefault
+	}
 	return makeDialer(params, bopts)
 }
 

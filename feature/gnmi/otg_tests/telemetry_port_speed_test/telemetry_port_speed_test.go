@@ -320,7 +320,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 func (tc *testCase) verifyDUT(t *testing.T, numPort int) {
 	dutPort := tc.dut.Port(t, "port1")
 	want := int(dutPort.Speed()) * numPort * 1000
-	val, ok := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	val, ok := gnmi.Watch(t, tc.dut, gnmi.OC().Interface(tc.aggID).Aggregation().LagSpeed().State(), 2*time.Minute, func(val *ygnmi.Value[uint32]) bool {
 		speed, ok := val.Val()
 		return ok && speed == uint32(want)
 	}).Await(t)
@@ -434,7 +434,7 @@ func TestGNMIReducedLACPSpeed(t *testing.T) {
 					break
 				}
 				if deviations.ATEPortLinkStateOperationsUnsupported(ate) {
-					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), false)
+					gnmi.Replace(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).Enabled().Config(), true)
 					gnmi.Await(t, dut, gnmi.OC().Interface(tc.dutPorts[index].Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 				} else {
 					portStateAction := gosnappi.NewControlState()

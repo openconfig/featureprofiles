@@ -73,8 +73,11 @@ const (
 	ipProto                  = 6
 )
 
-// TestPaths is the list of paths to be tested for acctz.
-var TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+var (
+	failPassword = "baggins"
+	// TestPaths is the list of paths to be tested for acctz.
+	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+)
 
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
@@ -197,7 +200,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		}
 	}
 	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
-	failPassword := failAuthenticatePassword + fmt.Sprintf("%d", rand.Intn(1000000000))
+	failPassword = failAuthenticatePassword + fmt.Sprintf("%d", rand.Intn(1000000000))
 	setupUserPassword(t, dut, SuccessUsername, successPassword)
 	setupUserPassword(t, dut, FailAuthenticateUsername, failPassword)
 	if configureFailCliRole {

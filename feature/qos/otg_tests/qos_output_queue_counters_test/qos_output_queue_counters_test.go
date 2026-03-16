@@ -231,7 +231,7 @@ func TestQoSCounters(t *testing.T) {
 	t.Logf("Running traffic 1 on DUT interfaces: %s => %s ", dp1.Name(), dp2.Name())
 	t.Logf("Sending traffic flows: \n%v\n\n", trafficFlows)
 	ate.OTG().StartTraffic(t)
-	time.Sleep(2 * time.Second)
+	time.Sleep(5 * time.Second)
 	outputQosPerSecoundCounterOK := validateoutputQosPerSecoundCounter(t, dut, dp1, dp2, trafficFlows)
 	ate.OTG().StopTraffic(t)
 	if !outputQosPerSecoundCounterOK {

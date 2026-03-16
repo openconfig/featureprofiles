@@ -2,93 +2,108 @@
 
 ## Summary
 
-Check the atomic flag in the notification.
+This test verifies that the `atomic` flag is correctly set in gNMI subscription
+notifications for the AFT (Abstract Forwarding Table) paths during network churn
+events. The `atomic` flag is expected to be `true` for the initial
+synchronization and for updates that occur after a link comes back up, and
+`false` for delete notifications when a link goes down.
 
 ## Testbed
 
-* featureprofiles/topologies/atedut_2.testbed
+*   featureprofiles/topologies/atedut_2.testbed
 
 ## Test Setup
 
 ### Generate DUT and ATE Configuration
 
-Variables
+#### Variables
 
-* Let `X` be the number of IPv4 prefixes to be advertised by eBGP. **(User Adjustable Value)**
-* Let `Y` be the number of IPv6 prefixes to be advertised by eBGP. **(User Adjustable Value)**
-* Let `Z` be the number of IPv4 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
-* Let `Z1` be the number of IPv6 prefixes to be advertised by IS-IS. **(User Adjustable Value)**
+*   Let `X` be the number of IPv4 prefixes to be advertised by eBGP. **(User
+    Adjustable Value)**
+*   Let `Y` be the number of IPv6 prefixes to be advertised by eBGP. **(User
+    Adjustable Value)**
+*   Let `Z` be the number of IPv4 prefixes to be advertised by IS-IS. **(User
+    Adjustable Value)**
+*   Let `Z1` be the number of IPv6 prefixes to be advertised by IS-IS. **(User
+    Adjustable Value)**
 
-Configure IS-IS session.
+The default value is 200 for all BGP variables, and 100 for all ISIS variables.
 
-* Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
-* IS-IS must be level 2 only with wide metric.
-* IS-IS must be point to point.
-* Send `Z` IPv4 and `Z1` IPv6 prefixes from ATE:port1 to DUT:port1.
-* Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
+#### Configure IS-IS session.
 
-Configure eBGP multipath sessions.
+*   Configure DUT:port1,port2 for IS-IS session with ATE:port1,port2.
+*   IS-IS must be level 2 only with wide metric.
+*   IS-IS must be point to point.
+*   Send `Z` IPv4 and `Z1` IPv6 prefixes from ATE:port1 to DUT:port1.
+*   Each prefix advertised by ISIS must have one next hop pointing to ATE port1.
 
-* Configure eBGP over the interface IP between ATE:port1,port2 and DUT:port1,port2.
-* eBGP DUT AS is 65501 and peer AS is 200.
-* eBGP is enabled for address family IPv4 and IPv6.
-* Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
-* Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1 and ATE port2.
+#### Configure eBGP multipath sessions.
+
+*   Configure eBGP over the interface IP between ATE:port1,port2 and
+    DUT:port1,port2.
+*   eBGP DUT AS is 65501 and peer AS is 200.
+*   eBGP is enabled for address family IPv4 and IPv6.
+*   Advertise `X` IPv4 and `Y` IPv6 prefixes from ATE port1,port2.
+*   Each prefix advertised by eBGP must have 2 next hops pointing to ATE port1
+    and ATE port2.
 
 ### Procedure
 
-* Use gNMI.UPDATE option to push the Test Setup configuration to the DUT.
-* ATE configuration must be pushed.
+*   Use gNMI.UPDATE option to push the Test Setup configuration to the DUT.
+*   ATE configuration must be pushed.
+*   After configuration, establish a gNMI `Subscribe` stream for the
+    `/network-instances/network-instance/afts` path with `ON_CHANGE` mode.
 
 ### Verifications
 
-* eBGP must be established state.
-* Use gNMI Subscribe with `ON_CHANGE` option to `/network-instances/network-instance/afts`.
-* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
-
+*   **Initial Synchronization:**
+    *   Verify that eBGP sessions are in the `ESTABLISHED` state.
+    *   The first set of gNMI notifications received on the subscription stream
+        represents the initial synchronization of the AFT state.
+    *   Verify that these are all `update` notifications.
+    *   Verify that **every** `update` notification in this initial batch has
+        the `atomic` flag set to `true`.
+    *   Ensure all expected BGP and ISIS routes are present in the AFT once the
+        initial sync is complete.
 
 ## AFT-3.1.1: AFT Atomic Flag check scenario 1
 
-### Procedure
+## Procedure
 
 Bring down the link between ATE:port2 and DUT:port2 using OTG API.
 
 ### Verifications
 
-* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
+*   Verify all the notifications sent from the DUT for the paths mentioned in
+    the path section have atomic flag set to true for updates, and not present
+    for deletes.
 
 ## AFT-3.1.2: AFT Atomic Flag Check Link Down and Up scenario 2
 
 ### Procedure
 
-Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG API and bring up using OTG API.
+1.  Bring down both links between ATE:port1,port2 and DUT:port1,port2 using OTG
+    API.
+2.  After verifications, bring up both links using OTG API.
 
 ### Verifications
 
-* eBGP routes advertised from ATE:port1,port2 must be removed from RIB and FIB of the DUT (query results should be nil).
-* ISIS routes advertised from ATE:port1 must be removed from RIB and FIB of the DUT (query result should be nil).
-* Bring up the both links using OTG API.
-* Verify eBGP must be in established state for both peers.
-* Verify all the notifcations send from the DUT for the paths mentioned in the path section must have atomic flag set to true.
+*   **After Bringing Links Down:**
+    *   Verify that `delete` notifications are received on the gNMI stream
+        remove all previously learned BGP and ISIS routes.
+    *   Verify that the `atomic` flag is **not present** for all `delete`
+        notifications.
+    *   Confirm that the eBGP and ISIS routes are removed from the DUT's RIB and
+        FIB (query results should be nil).
+*   **After Bringing Links Up:**
+    *   Verify that eBGP sessions are re-established.
+    *   A new set of `update` notifications should be received for all BGP and
+        ISIS routes.
+    *   Verify that the `atomic` flag is set to `true` on these `update`
+        notifications.
+    *   Confirm that all routes are correctly re-installed in the RIB and FIB
+        with their respective next-hops.
 
-## OpenConfig Path and RPC Coverage
-
-The below YAML defines the OC paths intended to be covered by this test.
-OC paths used for test setup are not listed here.
-
-```yaml
-paths:
-  ## State Paths ##
-
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
-  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
-  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
-
-rpcs:
-  gnmi:
-    gNMI.Subscribe:
-```
 ## Canonical OC
 
 ```json
@@ -437,4 +452,29 @@ rpcs:
     }
   }
 }
+```
+
+## OpenConfig Path and RPC Coverage
+
+The below YAML defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+
+  ## State Paths ##
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hops/next-hop/interface-ref/state/interface:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
 ```

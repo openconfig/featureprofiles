@@ -30,7 +30,8 @@ type AteEmulatedRouterData struct {
 	V6RouteCount           int
 	VlanID                 int
 	ISISBlocks             []*ISISOTGBlock
-	ISISLspRefreshInterval int
+	ISISLSPRefreshInterval int
+	ISISSPLifetime         int
 }
 
 // ATEPortData is the data structure for a port in the ATE.
@@ -114,9 +115,7 @@ func createAppendIPV4Flow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	flow.Size().SetFixed(1400)
 	flow.Metrics().SetEnable(true)
 	flow.Rate().SetPercentage(0.1)
-
-	ethHeader := flow.Packet().Add().Ethernet()
-	ethHeader.Src().SetValue(top.Devices().Items()[0].Ethernets().Items()[0].Mac())
+	flow.Packet().Add().Ethernet()
 	if srcVlanID != 0 {
 		flow.Packet().Add().Vlan().SetId(gosnappi.NewPatternFlowVlanId().SetValue(srcVlanID))
 	}
@@ -234,8 +233,11 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 	isis.Advanced().SetAreaAddresses([]string{eRouter.ISISAreaAddress})
 	isis.Advanced().SetEnableHelloPadding(false)
 	isis.Basic().SetEnableWideMetric(true)
-	if eRouter.ISISLspRefreshInterval != 0 {
-		isis.Advanced().SetLspRefreshRate(uint32(eRouter.ISISLspRefreshInterval))
+	if eRouter.ISISLSPRefreshInterval != 0 {
+		isis.Advanced().SetLspRefreshRate(uint32(eRouter.ISISLSPRefreshInterval))
+	}
+	if eRouter.ISISSPLifetime != 0 {
+		isis.Advanced().SetLspLifetime(uint32(eRouter.ISISSPLifetime))
 	}
 	isisInt := isis.Interfaces().Add().
 		SetEthName(dev.Ethernets().Items()[0].Name()).SetName(eRouter.Name + ".ISISInt").

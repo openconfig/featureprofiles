@@ -1,10 +1,11 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "93de65a7-8566-4106-96c2-91d3ea82545e"
+
+uuid:  "ffd2b1d2-382f-46e2-81ee-d68466439804"
 plan_id:  "PF-1.24"
 description:  "Add and remove interface bound to PBF"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
 platform_exceptions:  {
   platform:  {
     vendor:  NOKIA
@@ -12,6 +13,8 @@ platform_exceptions:  {
   deviations:  {
     static_protocol_name:  "static"
     interface_enabled:  true
+    explicit_interface_in_default_vrf: true
+    require_routed_subinterface_0: true
   }
 }
 platform_exceptions:  {
@@ -22,6 +25,7 @@ platform_exceptions:  {
     static_protocol_name:  "STATIC"
     interface_enabled:  true
     default_network_instance:  "default"
+    interface_config_vrf_before_address: true
   }
 }
 platform_exceptions:  {
@@ -29,6 +33,17 @@ platform_exceptions:  {
     vendor:  CISCO
   }
   deviations:  {
-    interface_enabled:  true
+    ipv4_missing_enabled: true
+    interface_ref_interface_id_format: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    interface_ref_interface_id_format: true
   }
 }

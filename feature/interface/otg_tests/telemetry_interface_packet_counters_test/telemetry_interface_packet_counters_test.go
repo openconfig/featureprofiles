@@ -183,30 +183,37 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "SubinterfaceOutBroadcastPkts",
 		path:    subinterfaceCounterPath + "out-broadcast-pkts",
 		counter: subinterfaceCounters.OutBroadcastPkts().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceCarrierTransitions",
 		path:    subinterfaceCounterPath + "carrier-transitions",
 		counter: subinterfaceCounters.CarrierTransitions().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceOutErrors",
 		path:    subinterfaceCounterPath + "out-errors",
 		counter: subinterfaceCounters.OutErrors().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceLastClear",
 		path:    subinterfaceCounterPath + "last-clear",
 		counter: subinterfaceCounters.LastClear().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceInErrors",
 		path:    subinterfaceCounterPath + "in-errors",
 		counter: subinterfaceCounters.InErrors().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceInUnknownProtos",
 		path:    subinterfaceCounterPath + "in-unknown-protos",
 		counter: subinterfaceCounters.InUnknownProtos().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "SubinterfaceInBroadcastPkts",
 		path:    subinterfaceCounterPath + "in-broadcast-pkts",
 		counter: subinterfaceCounters.InBroadcastPkts().State(),
+		skip:    skipSubinterfacePacketCountersMissing,
 	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",

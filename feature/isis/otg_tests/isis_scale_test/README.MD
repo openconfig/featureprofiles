@@ -1,4 +1,4 @@
-# RT-2.14: IS-IS scale test
+# RT-2.17: IS-IS scale test
 
 ## Summary
 
@@ -7,16 +7,16 @@ scale:
     
 *   3200 IS Node
 *   3200 x /32 IPv4 prefix
-*   3200 x /25 IPv4 prefix
-*   4600 x /64 IPv6 prefix
-*   53600 x ISIS link
+*   6400 x /26 IPv4 prefix
+*   6400 x /64 IPv6 prefix
+*   66200 x ISIS link
 
 Every test in this test suite should be able to test the router perfomance under
 different circumstances e.g static static (with no route flaps) dynamic state
 (with route flaps).. etc.
 
 
-## RT-2.14.1: IS-IS scale test with static routes (no churn and no new LSPs)
+## RT-2.17.1: IS-IS scale test with static LSPs (no route churn and no new LSPs)
 
 ### Testbed type
 
@@ -58,14 +58,14 @@ Block1 | 20x20 | 20 | 2 | 21.0.0.0/8
 Block2 | 20x20 | 23 | 2 | 24.0.0.0/8
 Block3 | 20x20 | 26 | 2 | 27.0.0.0/8
 Block4 | 20x20 | 29 | 2 | 30.0.0.0/8
-Block5 | 12x12 | 32 | 20 | 33.0.0.0/8
-Block6 | 12x12 | 35 | 20 | 36.0.0.0/8
-Block7 | 12x12 | 38 | 20 | 39.0.0.0/8
-Block8 | 12x12 | 41 | 20 | 42.0.0.0/8
-Block9 | 16x16 | 44 | 20 | 45.0.0.0/8
-Block10 | 16x16 | 47 | 20 | 48.0.0.0/8
-Block11 | 16x16 | 50 | 20 | 51.0.0.0/8
-Block12 | 16x16 | 53 | 20 | 54.0.0.0/8
+Block5 | 12x12 | 32 | 17 | 33.0.0.0/8
+Block6 | 12x12 | 35 | 17 | 36.0.0.0/8
+Block7 | 12x12 | 38 | 17 | 39.0.0.0/8
+Block8 | 12x12 | 41 | 17 | 42.0.0.0/8
+Block9 | 16x16 | 44 | 17 | 45.0.0.0/8
+Block10 | 16x16 | 47 | 17 | 48.0.0.0/8
+Block11 | 16x16 | 50 | 17 | 51.0.0.0/8
+Block12 | 16x16 | 53 | 17 | 54.0.0.0/8
 
 
 
@@ -121,17 +121,18 @@ Block12 | 16x16 | 53 | 20 | 54.0.0.0/8
             *   Enable ISIS on the Loopback and the 2 LAG interfaces.
             *   Set Loopback to passive mode and the LAG interface circuit type to point to point.
             *   Push the configuration to the DUT.
-*   Wait for 1 min than confirm that DUT has 2 ISIS adjacencies up.
+*   Confirm that DUT has 2 aggregate ports are up.
+*   Confirm that DUT has 2 ISIS adjacencies up.
 
 #### Testing steps
 
-*   Start traffic flows
-*   Wait for 2 mins
+*   Wait for 5 mins
 *   Collect the below metrics form the DUT :
-    1.  Count of ISIS Nodes
-    2.  Count of LSPs
-    3.  Count of ISIS IPv4 routes
-    4.  Count of ISIS IPv6 routes
+    1.  Count of LSPs
+    2.  Count of ISIS IPv4 routes
+    3.  Count of ISIS IPv6 routes
+*   Start traffic flows
+*   Wait for 30 seconds
 *   Stop traffic flows
 *   Collect the number of RX and TX traffic flows packets
 
@@ -140,11 +141,147 @@ Block12 | 16x16 | 53 | 20 | 54.0.0.0/8
 *   If any of the below conditions are not meet test should be declared as a "FAIL"
     1.  Count of ISIS adjacencies in the "UP" state is less than 2
     2.  Count of any of the below metrics was not equal to the below values :
-        a.  ISIS nodes = 3200
-        b.  ISIS LSPs = 8000
-        c.  ISIS IPv4 routes = 9216
-        d.  ISIS IPv6 routes = 3200
+        a.  ISIS LSPs = 9150
+        b.  ISIS IPv4 routes = 66200
+        c.  ISIS IPv6 routes = 6400
     3.  Number of TX packets is not equal to RX packets.
+
+
+
+## RT-2.17.2: IS-IS scale test with dynamic LSPs (no route churn but new LSPs with a higher sequance number)
+
+### Testbed type
+
+[TESTBED_DUT_ATE_2LINKS](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
+### Topology
+
+```mermaid
+graph LR
+    Block1[ISIS Block1 20x20] <--> R1[ATE router R1]
+    Block3[ISIS Block3 20x20] <--> R1
+    Block5[ISIS Block5 12x12] <--> R1
+    Block7[ISIS Block7 12x12] <--> R1
+    Block9[ISIS Block9 16x16] <--> R1
+    Block11[ISIS Block11 16x16] <--> R1
+    R1 <--> |IS-IS |DUT[DUT]
+    DUT <--> | IS-IS | R2[ATE router R2]
+    DUT <--> | IS-IS | R3[ATE router R3]
+    R2 <--> Block2[ISIS Block2 20x20]
+    R2 <--> Block4[ISIS Block4 20x20]
+    R2 <--> Block6[ISIS Block6 12x12]
+    R2 <--> Block8[ISIS Block8 12x12]
+    R2 <--> Block10[ISIS Block10 16x16]
+    R2 <--> Block12[ISIS Block12 16x16]
+    R3 <--> Dynamic1[ISIS Block12 12x12]
+```
+### DUT and OTG properties
+
+
+Device  |  Port1 IPv4 | Port1 IPv6 | Port2 IPv4 | Port2 IPv4 | Port3 IPv4 | Port3 IPv4| ISIS AREA | ISIS ID
+:------ | :-------------- | :------------- | :--------- | :-------- | :-------- | :--------:
+DUT     | 192.168.0.13/30 | 2003:db8::1/126  | 192.168.0.17/30 | 2004:db8::1/126 |192.168.0.21/30 | 2005:db8::1/126 | 49001| 640000000002
+ATE R1  | 192.168.0.6/30| 2001:db8::2/126 |N/A|N/A|N/A|N/A| 49001| 640000000003
+ATE R2  | N/A|N/A| 192.168.0.10/30 | 2002:db8::2/126|N/A|N/A| 49001| 640000000004
+ATE R3  | N/A|N/A| N/A|N/A|192.168.0.22/30 | 2005:db8::2/126| 49001| 640000000005
+
+All Simulated ISIS blocks on OTG will have a grid topology with the below specs
+
+Block Name | Dimension | Lo0 IPv4,IPv6 and ISIS sys ID first octet | Count of paralle links between 2 nodes | Link IPv4 range 
+:------ | :-------- | :-------- | :-------- | :--------:
+Block1 | 20x20 | 20 | 2 | 21.0.0.0/8
+Block2 | 20x20 | 23 | 2 | 24.0.0.0/8
+Block3 | 20x20 | 26 | 2 | 27.0.0.0/8
+Block4 | 20x20 | 29 | 2 | 30.0.0.0/8
+Block5 | 12x12 | 32 | 17 | 33.0.0.0/8
+Block6 | 12x12 | 35 | 17 | 36.0.0.0/8
+Block7 | 12x12 | 38 | 17 | 39.0.0.0/8
+Block8 | 12x12 | 41 | 17 | 42.0.0.0/8
+Block9 | 16x16 | 44 | 17 | 45.0.0.0/8
+Block10 | 16x16 | 47 | 17 | 48.0.0.0/8
+Block11 | 16x16 | 50 | 17 | 51.0.0.0/8
+Block12 | 16x16 | 53 | 17 | 54.0.0.0/8
+Dynamic1 | 12x12 | 56 | 4 | 57.0.0.0/8
+
+
+
+
+### Procedure
+
+#### Initial Setup:
+*   Connect DUT port-1 , port-2 to OTG port-1 and port-2 respectively
+*   Configure OTG :
+    1.   Create an agg interface "Agg1" with LACP
+    2.   Create emulated router R1 with an ethernet interface
+    3.   Connect the ethernet to the created Agg interface
+    4.   Create vlan 100 under Agg1 and configure IPv4 and IPv6 on R1 for this vlan
+    5.   Configure ISIS on R1
+            *   Set ISIS System ID 
+            *   Set ISIS area ID
+            *   Disable "Hello Padding"
+            *   Enable wide metrics
+            *   Enable ISIS on the ethernet interface with Level 2 only and circuite type of point to point
+            *   Enable ISIS 3 way handshaking
+    6. Repeat steps 1 to 5 for Agg2 and R2 , R3 (note that R2 and R3 will be connecred via vlan 101 and vlan 102 configured on Agg2 )
+    7. Create IP Flows from Agg1 to the below ranges
+        *   24.0.0.0 - 24.0.0.100
+        *   30.0.0.0 - 30.0.0.100
+        *   36.0.0.0 - 36.0.0.100
+        *   42.0.0.0 - 42.0.0.100
+        *   48.0.0.0 - 48.0.0.100
+        *   54.0.0.0 - 54.0.0.100
+        *   57.0.0.0 - 58.0.0.100
+
+    8. Create IP Flows from Agg2 to the below ranges
+        *   21.0.0.0 - 24.0.0.100
+        *   27.0.0.0 - 30.0.0.100
+        *   33.0.0.0 - 36.0.0.100
+        *   39.0.0.0 - 42.0.0.100
+        *   45.0.0.0 - 48.0.0.100
+        *   51.0.0.0 - 51.0.0.100
+    9. Push configuration to OTG
+*   Start protocols on OTG
+*   Configure DUT:
+    1.  Configure the default network instance and push path to DUT
+    2.  Create an LAG interface set the interface IP address and LACP and push path to DUT
+    3.  Create a physical interface and attach it to the LAG . 
+    4.  Repeat steps 1 to 3 for the second LAG .
+    5.  Configure ISIS for DUT :
+            *   Create ISIS instance under the default routing instance
+            *   Set ISIS net address (area ID + System ID)
+            *   Set ISIS level capability to level 2 only
+            *   Disable "Hello Padding"
+            *   Set "LSP Refresh Timer" and "LSP Lifetime Timer" to 65218 and 65535 respectively.
+            *   Set "SPF First Interval" and "SPF Hold Interval" to 200 and 2000 respectively.
+            *   Set metric style to wide
+            *   Enable IPv4-unicast and IPv6-unicast address families.
+            *   Enable ISIS on the Loopback and the 2 LAG interfaces.
+            *   Set Loopback to passive mode and the LAG interface circuit type to point to point.
+            *   Push the configuration to the DUT.
+*   Confirm that DUT has 2 aggregate ports are up.
+*   Confirm that DUT has 3 ISIS adjacencies up.
+
+#### Testing steps
+
+*   Wait for 5 mins
+*   Collect the below metrics form the DUT :
+    1.  Count of LSPs
+    2.  Count of ISIS IPv4 routes
+    3.  Count of ISIS IPv6 routes
+*   Start traffic flows
+*   Wait for 30 seconds
+*   Stop traffic flows
+*   Collect the number of RX and TX traffic flows packets
+
+#### Test pass fail criteria
+
+*   If any of the below conditions are not meet test should be declared as a "FAIL"
+    1.  Count of ISIS adjacencies in the "UP" state is less than 2
+    2.  Count of any of the below metrics was not equal to the below values :
+        a.  ISIS LSPs = 9300
+        b.  ISIS IPv4 routes = 68000
+        c.  ISIS IPv6 routes = 6680
+    3.  Number of TX packets is not equal to RX packets
 
 ## Canonical OC
 
@@ -552,3 +689,4 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
 ```
+
