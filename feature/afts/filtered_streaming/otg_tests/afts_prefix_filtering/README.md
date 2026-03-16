@@ -370,10 +370,9 @@ respective filters.
 -   **Collector 1**: Verify its received AFT set for `DEFAULT` remains unchanged
     and the connection remains stable throughout.
 
--   **Collector 2**: Verify the stream is terminated. Upon resubscription,
-    verify it receives all AFT entries from `VRF-A`: `198.51.100.0/24`,
-    `100.64.1.0/24`, `203.0.113.128/28`, and the dynamically added
-    `100.64.1.128/25`.
+-   **Collector 2**: Verify that it receives necessary updates and deletes for
+    all expected routes from `VRF-A`: `198.51.100.0/24`, `100.64.1.0/24`,
+    `203.0.113.128/28`, and the dynamically added `100.64.1.128/25`.
 
 ## AFT-6.1.7 - Simultaneous Independent IPv4 and IPv6 Policy Application
 
@@ -414,8 +413,7 @@ concurrently using different routing policies.
     -   `ipv4-policy` = `POLICY-PREFIX-SET-B` (Matches nothing for IPv4)
     -   `ipv6-policy` = `POLICY-PREFIX-SET-A` (Matches nothing for IPv6)
 
--   Verify the stream is terminated. Upon resubscription, verify that **no**
-    IPv4 or IPv6 entries from the prefix sets are received, as the cross-family
+-   Verify that deletes are received, deleting all prefixes, as the cross-family
     matching results in an empty set.
 
 ## AFT-6.1.8 - Dynamic Prefix-Set Updates
