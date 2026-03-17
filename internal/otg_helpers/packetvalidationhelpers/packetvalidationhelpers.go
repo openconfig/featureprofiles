@@ -342,30 +342,40 @@ func validateInnerIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, 
 	t.Helper()
 	t.Log("Validating inner IPv6 header")
 
-	for packet := range packetSource.Packets() {
-		if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
-			gre := greLayer.(*layers.GRE)
-			encapPacket := gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
+	var encapPacket gopacket.Packet
+	innerLayer := *packetVal.InnerIPLayerIPv6
+	protocol := innerLayer.NextHeader
 
-			if ipv6Layer := encapPacket.Layer(layers.LayerTypeIPv6); ipv6Layer != nil {
-				ipv6, _ := ipv6Layer.(*layers.IPv6)
-				if ipv6.DstIP.String() != packetVal.InnerIPLayerIPv6.DstIP {
-					return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv6.DstIP, ipv6.DstIP)
-				}
-				if ipv6.HopLimit != packetVal.InnerIPLayerIPv6.HopLimit {
-					return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.InnerIPLayerIPv6.HopLimit)
-				}
-				if ipv6.TrafficClass != packetVal.InnerIPLayerIPv6.TrafficClass {
-					return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
-				}
-				if packetVal.InnerIPLayerIPv6.NextHeader != 0 {
-					if uint32(ipv6.NextHeader) != packetVal.InnerIPLayerIPv6.NextHeader {
-						return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
-					}
-				}
-				// If validation is successful for one packet, we can return.
-				return nil
+	for packet := range packetSource.Packets() {
+		if protocol == packetVal.UDPLayer.DstPort {
+			udpLayer := packet.Layer(layers.LayerTypeUDP)
+			udp, _ := udpLayer.(*layers.UDP)
+			encapPacket = gopacket.NewPacket(udp.Payload, layers.LayerTypeIPv6, gopacket.Default)
+			innerLayer.NextHeader = 0
+		} else {
+			if greLayer := packet.Layer(layers.LayerTypeGRE); greLayer != nil {
+				gre := greLayer.(*layers.GRE)
+				encapPacket = gopacket.NewPacket(gre.Payload, gre.NextLayerType(), gopacket.Default)
 			}
+		}
+		if ipv6Layer := encapPacket.Layer(layers.LayerTypeIPv6); ipv6Layer != nil {
+			ipv6, _ := ipv6Layer.(*layers.IPv6)
+			if ipv6.DstIP.String() != packetVal.InnerIPLayerIPv6.DstIP {
+				return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.InnerIPLayerIPv6.DstIP, ipv6.DstIP)
+			}
+			if ipv6.HopLimit != packetVal.InnerIPLayerIPv6.HopLimit {
+				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.InnerIPLayerIPv6.HopLimit)
+			}
+			if ipv6.TrafficClass != packetVal.InnerIPLayerIPv6.TrafficClass {
+				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.InnerIPLayerIPv6.TrafficClass)
+			}
+			if packetVal.InnerIPLayerIPv6.NextHeader != 0 {
+				if uint32(ipv6.NextHeader) != packetVal.InnerIPLayerIPv6.NextHeader {
+					return fmt.Errorf("next header value is altered to: %d. expected: %d", ipv6.NextHeader, packetVal.InnerIPLayerIPv6.NextHeader)
+				}
+			}
+			// If validation is successful for one packet, we can return.
+			return nil
 		}
 	}
 	return fmt.Errorf("no inner IPv6 packets found")
