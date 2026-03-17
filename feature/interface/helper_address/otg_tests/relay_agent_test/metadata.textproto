@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "b67ccb9a-205f-4663-801b-e8fa5fda9920"
+uuid:  "4f1bebd9-c0af-4d28-a041-f95b3816f354"
 plan_id: "RELAY-1.1"
 description:  "DHCP Relay functionality"
 testbed:  TESTBED_DUT_ATE_4LINKS
