@@ -454,18 +454,18 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 		}
 	}
 
-	if !foundICMPv4Reply {
-		t.Errorf("Did not find IPv4 ICMP echo reply from DUT in ATE capture")
-	}
-	if !foundTCPSynAckV4 {
-		t.Errorf("Did not find IPv4 TCP SYN-ACK from 198.51.100.1 to 192.0.2.100 in ATE capture")
-	}
-	if !foundICMPv6Reply {
-		t.Errorf("Did not find IPv6 ICMP echo reply from DUT in ATE capture")
-	}
-	if !foundTCPSynAckV6 {
-		t.Errorf("Did not find IPv6 TCP SYN-ACK from 2001:db8::1 to 2001:db8::100 in ATE capture")
-	}
+ 	if !foundICMPv4Reply {
+ 		t.Errorf("Did not find IPv4 ICMP echo reply from DUT in ATE capture")
+ 	}
+ 	if !foundTCPSynAckV4 {
+ 		t.Errorf("Did not find IPv4 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv4, mgmtSrcIPv4)
+ 	}
+ 	if !foundICMPv6Reply {
+ 		t.Errorf("Did not find IPv6 ICMP echo reply from DUT in ATE capture")
+ 	}
+ 	if !foundTCPSynAckV6 {
+ 		t.Errorf("Did not find IPv6 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv6, mgmtSrcIPv6)
+ 	}
 }
 
 // TestControlPlaneACL is the main test function.
