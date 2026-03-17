@@ -628,6 +628,67 @@
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/mtu:
+  /interfaces/interface/config/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/send-community-type:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/metric:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/preference:
+  /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/config/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/address-family:
+  /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
+  /network-instances/network-instance/table-connections/table-connection/state/dst-protocol:
+  /network-instances/network-instance/table-connections/table-connection/state/import-policy:
+  /network-instances/network-instance/table-connections/table-connection/state/src-protocol:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-member:
+  /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/config/community-set-name:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/state/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/tag-value:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/state/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/repeat-n:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-community/reference/config/community-set-ref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/state/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/state/prefix-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/state/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/config/name:
 rpcs:
   gnmi:
     gNMI.Get:

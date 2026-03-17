@@ -65,6 +65,7 @@ type C struct {
 
 // Ping implements the Ping RPC. It responds with a PingResponse corresponding to the timeFn timestamp.
 func (c *C) Ping(_ context.Context, _ *cpb.PingRequest) (*cpb.PingResponse, error) {
+	klog.Infof("Ping request received!")
 	return &cpb.PingResponse{
 		Timestamp: timeFn(),
 	}, nil
@@ -89,7 +90,8 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 
 // Dial connects to the remote gRPC CNTR server hosted at the address in the request proto.
 func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, error) {
-	conn, err := grpc.DialContext(ctx, req.GetAddr(),
+	klog.Infof("Dial request received!")
+	conn, err := grpc.NewClient(req.GetAddr(),
 		grpc.WithPerRPCCredentials(&rpcCredentials{Username: req.GetUsername(), Password: req.GetPassword()}),
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
 			InsecureSkipVerify: true, // NOLINT
@@ -110,12 +112,12 @@ func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, 
 			Response: &cpb.DialResponse_Pong{Pong: pr},
 		}, nil
 	}
-
 	switch req.GetSrv() {
 	case cpb.Service_ST_GNMI:
 		cl := gpb.NewGNMIClient(conn)
 		cr, err := cl.Capabilities(ctx, &gpb.CapabilityRequest{})
 		if err != nil {
+			klog.Infof("error getting capabilities, %v", err)
 			return nil, err
 		}
 		a, err := anypb.New(cr)
@@ -136,6 +138,7 @@ func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, 
 			Aft: spb.AFTType_ALL,
 		})
 		if err != nil {
+			klog.Infof("error getting gRIBI entries, %v", err)
 			return nil, err
 		}
 		msg, err := gr.Recv()

@@ -15,6 +15,7 @@ platform_exceptions: {
     missing_port_to_optical_channel_component_mapping: true
     otn_channel_trib_unsupported: true
     otn_to_eth_assignment: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -28,5 +29,25 @@ platform_exceptions: {
     breakout_mode_unsupported_for_eight_hundred_gb: true
     port_speed_duplex_mode_unsupported_for_interface_config: true
     explicit_breakout_interface_config: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    otn_channel_trib_unsupported: true
+    eth_channel_ingress_parameters_unsupported: true
+    eth_channel_assignment_cisco_numbering: true
+    otn_channel_assignment_cisco_numbering: true
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    eth_channel_ingress_parameters_unsupported: true
   }
 }

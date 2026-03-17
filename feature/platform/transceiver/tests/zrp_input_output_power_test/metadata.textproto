@@ -11,5 +11,23 @@ platform_exceptions: {
   }
   deviations: {
     default_network_instance: "default"
+    terminal_device_channel_admin_state_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
+    explicit_dco_config: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
