@@ -217,11 +217,14 @@ type NexthopGroupUDPParams struct {
 	NexthopGrpName     string
 	DstIp              []string
 	SrcIp              string
+	SrcInterface       string
 	DstUdpPort         uint16
 	SrcUdpPort         uint16
 	TTL                uint8
 	DSCP               uint8
 	NetworkInstanceObj *oc.NetworkInstance
+	Index              string
+	DeleteTtl          bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -293,11 +296,17 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
 				}
 				cli = fmt.Sprintf(`
+					qos rewrite ipv4-over-udp inner dscp disabled
+					qos rewrite ipv6-over-udp inner dscp disabled
 					nexthop-group %s type %s
-					tunnel-source %s
 					fec hierarchical
    					%s
-					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
+					`, params.NexthopGrpName, groupType, tunnelDst)
+				if params.SrcInterface != "" {
+					cli += fmt.Sprintf("tunnel-source intf %s", params.SrcInterface)
+				} else {
+					cli += fmt.Sprintf("tunnel-source %s", params.SrcIp)
+				}
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 			if params.TTL != 0 {
@@ -316,6 +325,14 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
+			if params.DeleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
 			if params.DstUdpPort != 0 {
 				// Select and apply the appropriate CLI snippet based on 'traffictype'.
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
@@ -325,17 +342,15 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
 	} else {
-		t.Helper()
 		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
-		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
+		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
 
-		// Set the encap header for each next-hop
-		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
-			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
 		}
 		if params.TTL != 0 {
-			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(params.TTL)
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
 		}
 		ueh1.GetOrCreateUdpV4().SetSrcIp(params.SrcIp)
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)

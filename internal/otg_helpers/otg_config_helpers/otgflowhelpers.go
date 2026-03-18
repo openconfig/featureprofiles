@@ -323,3 +323,8 @@ func (f *Flow) AddUDPHeader() {
 		udpHdr.DstPort().SetValue(f.UDPFlow.UDPDstPort)
 	}
 }
+
+// GetFlow will return the flow object
+func (f *Flow) GetFlow() gosnappi.Flow {
+	return f.flow
+}
