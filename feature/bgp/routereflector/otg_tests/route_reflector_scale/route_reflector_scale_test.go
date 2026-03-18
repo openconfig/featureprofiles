@@ -35,7 +35,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 const (
 	dutAreaAddress     = "49.0001"
 	dutSysID           = "1920.0000.2001"
@@ -539,4 +538,3 @@ func verifyPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, w
 		t.Logf("Installed prefixes mismatch: got %v, want %v", gotSent, wantSent)
 	}
 }
-
