@@ -156,7 +156,7 @@ func configureDUT(t *testing.T, bs *cfgplugins.BGPSession) *cfgplugins.BGPSessio
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(dni).GetOrCreateProtocol(cfgplugins.PTBGP, deviations.DefaultBgpInstanceName(bs.DUT)).GetOrCreateBgp()
 
 	// Increase the received and accepted prefix limits.
-	if !deviations.PrefixLimitUnsupported(bs.DUT) {
+	if !deviations.PrefixLimitConfigUnsupported(bs.DUT) {
 		afiSafiV4 := bgp.GetOrCreatePeerGroup(cfgplugins.BGPPeerGroup1).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived().MaxPrefixes = ygot.Uint32(10000000)
 		afiSafiV4.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit().MaxPrefixes = ygot.Uint32(2000000)
