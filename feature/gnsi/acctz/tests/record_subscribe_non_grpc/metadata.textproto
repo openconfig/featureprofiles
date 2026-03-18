@@ -5,3 +5,14 @@ uuid:  "036d3d49-00dd-46ff-abe6-afc20768db6f"
 plan_id:  "ACCTZ-3.1"
 description:  "Record Subscribe Non-gRPC"
 testbed:  TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    oc_aaa_user_role_leaf_string_type_unsupported: true
+    acctz_shell_cmd_accounting_unsupported: true
+    acctz_records_authz_status_deny_unsupported: true
+  }
+}

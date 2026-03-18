@@ -1999,3 +1999,18 @@ func QosFt(dut *ondatra.DUTDevice) string {
 func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
 }
+
+// OCAAAYUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
+func OCAAAYUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOcAaaUserRoleLeafStringTypeUnsupported()
+}
+
+// AcctzShellCmdAccountingUnsupported returns true if the device does not support shell cmd accounting records.
+func AcctzShellCmdAccountingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzShellCmdAccountingUnsupported()
+}
+
+// AcctzRecordsAuthzStatusDenyUnsupported returns true if the device does not support AuthZ status field with 'Deny' in CMD service in AcctZ records.
+func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordsAuthzStatusDenyUnsupported()
+}

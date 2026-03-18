@@ -811,7 +811,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-    
+
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -1134,7 +1134,7 @@ message Metadata {
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
-    
+
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
@@ -1199,6 +1199,15 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
     // Functional Translator name for devices with mount point state paths unsupported.
     string system_mount_point_state_ft = 391;
+
+    // Devices that do not support role leaf of string type for OC system/aaa username configuration.
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 392;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    bool acctz_shell_cmd_accounting_unsupported = 393;
+
+    // Devices that do not support AuthZ status field with deny in CMD service in AcctZ records.
+    bool acctz_records_authz_status_deny_unsupported = 394;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
