@@ -1350,8 +1350,11 @@ type Metadata_Deviations struct {
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
 	// Functional Translator name for devices with mount point state paths unsupported.
 	SystemMountPointStateFt string `protobuf:"bytes,391,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+	// Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+	ArpFt         string `protobuf:"bytes,392,opt,name=arp_ft,json=arpFt,proto3" json:"arp_ft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3883,6 +3886,13 @@ func (x *Metadata_Deviations) GetSystemMountPointStateFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetArpFt() string {
+	if x != nil {
+		return x.ArpFt
+	}
+	return ""
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3939,7 +3949,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb6\xda\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xce\xda\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3951,7 +3961,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x82\xd0\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x9a\xd0\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4313,7 +4323,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12V\n" +
 	"(explicitly_apply_allow_all_import_policy\x18\x85\x03 \x01(\bR#explicitlyApplyAllowAllImportPolicy\x12\x16\n" +
 	"\x06qos_ft\x18\x86\x03 \x01(\tR\x05qosFt\x12=\n" +
-	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12\x16\n" +
+	"\x06arp_ft\x18\x88\x03 \x01(\tR\x05arpFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
