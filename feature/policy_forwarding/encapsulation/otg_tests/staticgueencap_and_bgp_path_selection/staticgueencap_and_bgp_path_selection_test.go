@@ -204,18 +204,18 @@ var (
 	}
 
 	// ATE Port1 user prefixes
-	ate1UserPrefixesV4     = "198.61.100.1"
-	ate1UserPrefixesV6     = "2001:db8:100:1::"
-	ate1UserPrefixesCount  = uint32(5)
-	ate1UserPrefixesV4List = iputil.GenerateIPs(ate1UserPrefixesV4+"/24", int(ate1UserPrefixesCount))
-	ate1UserPrefixesV6List = iputil.GenerateIPv6(ate1UserPrefixesV6+"/64", uint64(ate1UserPrefixesCount))
+	ate1UserPrefixesV4        = "198.61.100.1"
+	ate1UserPrefixesV6        = "2001:db8:100:1::"
+	ate1UserPrefixesCount     = uint32(5)
+	ate1UserPrefixesV4List    = iputil.GenerateIPs(ate1UserPrefixesV4+"/24", int(ate1UserPrefixesCount))
+	ate1UserPrefixesV6List, _ = iputil.GenerateIPv6(ate1UserPrefixesV6+"/64", uint64(ate1UserPrefixesCount))
 
 	// $ATE2_INTERNAL - Prefixes to be advertised by ATE Port2 IBGP/ ATE2_C
-	ate2InternalPrefixesV4     = "198.71.100.1"
-	ate2InternalPrefixesV6     = "2001:db8:200:1::"
-	ate2InternalPrefixCount    = uint32(5)
-	ate2InternalPrefixesV4List = iputil.GenerateIPs(ate2InternalPrefixesV4+"/24", int(ate2InternalPrefixCount))
-	ate2InternalPrefixesV6List = iputil.GenerateIPv6(ate2InternalPrefixesV6+"/64", uint64(ate2InternalPrefixCount))
+	ate2InternalPrefixesV4        = "198.71.100.1"
+	ate2InternalPrefixesV6        = "2001:db8:200:1::"
+	ate2InternalPrefixCount       = uint32(5)
+	ate2InternalPrefixesV4List    = iputil.GenerateIPs(ate2InternalPrefixesV4+"/24", int(ate2InternalPrefixCount))
+	ate2InternalPrefixesV6List, _ = iputil.GenerateIPv6(ate2InternalPrefixesV6+"/64", uint64(ate2InternalPrefixCount))
 
 	// ATE Port3 or ATE2 Port3 bgp prefixes
 	bgpInternalTE11 = &attrs.Attributes{

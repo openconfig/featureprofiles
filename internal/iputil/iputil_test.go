@@ -342,43 +342,48 @@ func TestGenerateIPv6(t *testing.T) {
 		wantErr bool
 	}{{
 		name:   "Generate single IPv6",
-		prefix: "2001:db8::1",
+		prefix: "2001:db8::1/64",
 		count:  1,
 		want:   []string{"2001:db8::1"},
 	}, {
 		name:   "Increment across boundary",
-		prefix: "2001:db8::ff",
+		prefix: "2001:db8::ff/64",
 		count:  2,
 		want: []string{
-			"2001:db8::ff",
-			"2001:db8::100",
+			"2001:db8::1",
+			"2001:db8:0:1::1",
 		},
 	}, {
 		name:   "Zero count",
-		prefix: "2001:db8::abcd",
+		prefix: "2001:db8::1/64",
 		count:  0,
-		want:   []string{},
-	},
-		{
-			name:    "Invalid IPv6 address",
-			prefix:  "invalid",
-			count:   5,
-			want:    []string{},
-			wantErr: true,
-		},
-		{
-			name:    "IPv4 address given",
-			prefix:  "192.168.1.1",
-			count:   1,
-			want:    []string{},
-			wantErr: true,
-		}}
+		want:   []string{"2001:db8::1"},
+	}, {
+		name:    "Invalid IPv6 address",
+		prefix:  "invalid",
+		count:   5,
+		want:    []string{},
+		wantErr: true,
+	}, {
+		name:    "IPv4 address given",
+		prefix:  "192.168.1.1/24",
+		count:   1,
+		want:    []string{},
+		wantErr: true,
+	}}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := GenerateIPv6(tt.prefix, tt.count)
-			if diff := cmp.Diff(tt.want, got); diff != "" {
-				t.Errorf("GenerateIPv6() returned diff (-want +got):\n%s", diff)
+			got, err := GenerateIPv6(tt.prefix, tt.count)
+
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GenerateIPv6() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr {
+				if diff := cmp.Diff(tt.want, got); diff != "" {
+					t.Errorf("GenerateIPv6() mismatch (-want +got):\n%s", diff)
+				}
 			}
 		})
 	}
