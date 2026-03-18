@@ -27,9 +27,9 @@ B --Egress (Decapped)--> C[ATE:Port2];
 * Decap Aggregates: Configure DUT:Port3 with an aggregate IPv4 /28 and IPv6 /60 block address.
 * Soft-Loop: Enable software loopback on DUT Port 3.
 * Forwarding Rules:
-** Configure dual decap policies on the DUT to facilitate the decapsulation of Header 1 and Header 2 (UDP 6080). The decap policies for Header 1 (IPv6) and Header 2 (IPv4 and IPv6) must target specified aggregates: for Header 2, utilize the IPv4 /28 and IPv6 /60 blocks assigned to DUT Port 3; for Header 1, use a /60 subnet of the destination address.
-** The destination IP for Header 2 must resolve to the IP address assigned to the soft-loop interface (DUT Port 3) post decapsulation of Header 1 to facilitate recirculation.
-** Configure the DUT to decapsulate Header 2 upon re-entry from the soft-loop on DUT Port 3 and then do a LPM lookup on Header 3 that resolves to ATE:Port2 address.
+ - Configure dual decap policies on the DUT to facilitate the decapsulation of Header 1 and Header 2 (both UDP 6080). The decap policies for Header 2 (IPv4 or IPv6 | UDP) and Header 1 (IPv6|UDP) must target specified aggregates: for Header 2, utilize the IPv4 /28 and IPv6 /60 blocks assigned to DUT Port 3; for Header 1, use a /60 subnet of the destination address.
+- The destination IP for Header 2 must resolve to the IP address assigned to the soft-loop interface (DUT Port 3) post decapsulation of Header 1 to facilitate recirculation.
+- Configure the DUT to decapsulate Header 2 upon re-entry from the soft-loop on DUT Port 3 and then do a LPM lookup on Header 3 that resolves to ATE:Port2 address.
 
 ### ATE Configuration
 
@@ -182,10 +182,11 @@ B --Egress (Decapped)--> C[ATE:Port2];
 
 ```yaml
 paths:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
-  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/network-instance:
+/network-instances/network-instance/policy-forwarding/config/global-decap-policy:
+/network-instances/network-instance/policy-forwarding/policies/policy/config:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/config/destination-address:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue:
+/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 
 rpcs:
   gnmi:
