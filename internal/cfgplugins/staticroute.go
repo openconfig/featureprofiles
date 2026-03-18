@@ -29,11 +29,20 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance string
-	Prefix          string
-	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	IPType          string
-	NextHopAddr     string
+	NetworkInstance   string
+	Prefix            string
+	NextHops          map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType            string
+	NextHopAddr       string
+	NexthopGroup      bool
+	NexthopGroupName  string
+	Metric            uint32
+	Recurse           bool
+	T                 *testing.T
+	TrafficType       oc.E_Aft_EncapsulationHeaderType
+	PolicyName        string
+	Rule              string
+	RemoveStaticRoute bool
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -159,4 +168,32 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 
 	return s, nil
+}
+
+// staticRouteToNextHopGroupCLI configures routes to a next-hop-group for gue encapsulation
+func staticRouteToNextHopGroupCLI(t *testing.T, dut *ondatra.DUTDevice, params StaticRouteCfg) {
+	t.Helper()
+	groupType := ""
+
+	switch params.TrafficType {
+	case oc.Aft_EncapsulationHeaderType_UDPV4:
+		groupType = "ipv4"
+	case oc.Aft_EncapsulationHeaderType_UDPV6:
+		groupType = "ipv6"
+	}
+
+	// Configure traffic policy
+	cli := ""
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, params.PolicyName, params.Rule, groupType, params.NexthopGroupName)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
+	}
 }

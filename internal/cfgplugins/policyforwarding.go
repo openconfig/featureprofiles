@@ -688,8 +688,10 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, decapProto, params.IPType, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s", params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
@@ -707,28 +709,6 @@ func aristaGreDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 
-}
-
-func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, interfaceName string, policyName string, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
-	t.Helper()
-
-	// Check if the DUT requires CLI-based configuration due to an OpenConfig deviation.
-	if deviations.InterfacePolicyForwardingOCUnsupported(dut) {
-		// If deviations exist, apply configuration using vendor-specific CLI commands.
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			if params.RemovePolicyName {
-				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no traffic-policy input %s \n", interfaceName, policyName))
-			} else {
-				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n traffic-policy input %s \n", interfaceName, policyName))
-			}
-		default:
-			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
-		}
-	} else {
-		policyForward := ni.GetOrCreatePolicyForwarding()
-		ApplyPolicyToInterfaceOC(t, policyForward, params.InterfaceID, params.AppliedPolicyName)
-	}
 }
 
 // QosClassificationConfig configures the interface qos classification.
@@ -1244,9 +1224,13 @@ func InterfacePolicyForwardingApply(t *testing.T, dut *ondatra.DUTDevice, params
 		// If deviations exist, apply configuration using vendor-specific CLI commands.
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			pfa := fmt.Sprintf(`interface %s
+			if params.RemovePolicyName {
+				helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("interface %s \n no traffic-policy input %s \n", params.InterfaceName, params.PolicyName))
+			} else {
+				pfa := fmt.Sprintf(`interface %s
 				traffic-policy input %s`, params.InterfaceName, params.PolicyName)
-			helpers.GnmiCLIConfig(t, dut, pfa)
+				helpers.GnmiCLIConfig(t, dut, pfa)
+			}
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 		}

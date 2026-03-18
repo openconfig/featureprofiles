@@ -874,29 +874,29 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	_, ni, _ := cfgplugins.SetupPolicyForwardingInfraOC(deviations.DefaultNetworkInstance(dut))
 
 	v4NexthopUDPParams := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV6,
-		NexthopGrpName:  nexthopGroupName1,
-		Index:           "0",
-		SrcIp:           loopbackIntfName,
-		DstIp:           []string{bgpInternalTE10.IPv6},
-		TTL:             64,
-		DstUdpPort:      udpEncapPort,
-		NetworkInstance: ni,
-		DeleteTtl:       false,
+		IPFamily:           "V6Udp",
+		NexthopGrpName:     nexthopGroupName1,
+		Index:              "0",
+		SrcInterface:       loopbackIntfName,
+		DstIp:              []string{bgpInternalTE10.IPv6},
+		TTL:                64,
+		DstUdpPort:         udpEncapPort,
+		NetworkInstanceObj: ni,
+		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams)
 
 	v4NexthopUDPParams2 := cfgplugins.NexthopGroupUDPParams{
-		TrafficType:     oc.Aft_EncapsulationHeaderType_UDPV6,
-		NexthopGrpName:  nexthopGroupName2,
-		Index:           "1",
-		SrcIp:           loopbackIntfName,
-		DstIp:           []string{bgpInternalTE11.IPv6},
-		TTL:             64,
-		DstUdpPort:      udpEncapPort,
-		NetworkInstance: ni,
-		DeleteTtl:       false,
+		IPFamily:           "V6Udp",
+		NexthopGrpName:     nexthopGroupName2,
+		Index:              "1",
+		SrcInterface:       loopbackIntfName,
+		DstIp:              []string{bgpInternalTE11.IPv6},
+		TTL:                64,
+		DstUdpPort:         udpEncapPort,
+		NetworkInstanceObj: ni,
+		DeleteTtl:          false,
 	}
 	// Create nexthop group for v4
 	cfgplugins.NextHopGroupConfigForIpOverUdp(t, dut, v4NexthopUDPParams2)
@@ -904,10 +904,12 @@ func configureGueEncap(t *testing.T, dut *ondatra.DUTDevice) {
 	// Apply traffic policy on interface
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceID:       dut.Port(t, "port1").Name(),
-			AppliedPolicyName: guePolicyName,
+			InterfaceName:      dut.Port(t, "port1").Name(),
+			AppliedPolicyName:  guePolicyName,
+			NetworkInstanceObj: ni,
+			PolicyName:         guePolicyName,
 		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 	}
 }
 
@@ -1886,11 +1888,12 @@ func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *on
 
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceID:       dut.Port(t, "port1").Name(),
-			AppliedPolicyName: guePolicyName,
-			RemovePolicyName:  true,
+			InterfaceName:      dut.Port(t, "port1").Name(),
+			PolicyName:         guePolicyName,
+			RemovePolicyName:   true,
+			NetworkInstanceObj: ni,
 		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 	}
 
 	t.Log("Stop advertising tunnel endpoints on ATE Port2")
@@ -1952,10 +1955,11 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		interfacePolicyParams := cfgplugins.OcPolicyForwardingParams{
-			InterfaceID:       dut.Port(t, "port1").Name(),
-			AppliedPolicyName: guePolicyName,
+			InterfaceName:      dut.Port(t, "port1").Name(),
+			PolicyName:         guePolicyName,
+			NetworkInstanceObj: ni,
 		}
-		cfgplugins.InterfacePolicyForwardingApply(t, dut, dut.Port(t, "port1").Name(), guePolicyName, ni, interfacePolicyParams)
+		cfgplugins.InterfacePolicyForwardingApply(t, dut, interfacePolicyParams)
 	}
 
 	configureStaticRoute(t, dut)
