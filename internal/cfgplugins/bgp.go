@@ -330,6 +330,9 @@ func (bs *BGPSession) WithEBGP(t *testing.T, afiTypes []oc.E_BgpTypes_AFI_SAFI_T
 func (bs *BGPSession) configureRoutingPolicy() error {
 	rp := bs.DUTConf.GetOrCreateRoutingPolicy()
 	pdef := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
+	if stmt := pdef.GetStatement("20"); stmt != nil {
+		return nil
+	}
 	stmt, err := pdef.AppendNewStatement("20")
 	if err != nil {
 		return err
