@@ -36,7 +36,7 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    prefix_limit_unsupported: true
+    prefix_limit_config_unsupported: true
     default_bgp_instance_name: "default"
   }
 }
