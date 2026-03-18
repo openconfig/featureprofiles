@@ -2010,3 +2010,4 @@ func ArpFT(dut *ondatra.DUTDevice) string {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
 func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
+}
