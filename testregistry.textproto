@@ -513,8 +513,8 @@ test: {
 }
 test: {
   id: "PF-1.4"
-  description: "Interface based GUE Decapsulation to IPv4 tunnel"
-  readme: " "
+  description: "GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ip_guev1_static_decap_subnet_range/README.md"
   exec: " "
 }
 test: {
@@ -526,7 +526,7 @@ test: {
 test: {
   id: "PF-1.6"
   description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection/README.md"
   exec: " "
 }
 test: {
@@ -619,14 +619,20 @@ test: {
 }
 test: {
   id: "PF-1.22"
-  description: "ECMP hashing for GUE flows with IPv4|UDP outer header"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test/README.md"
+  description: "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ipv4_guev1_decap_and_hashing_test/README.md"
   exec: " "
 }
 test: {
   id: "PF-1.23"
   description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/ethomplsogre/otg_tests/encap_decap_gre/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-2.3"
+  description: "Multiple VRFs and GUE DECAP in Default VRF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/multiple_vrfs_and_gue_decap/README.md"
   exec: " "
 }
 test: {
@@ -639,6 +645,12 @@ test: {
   id: "PLT-1.2"
   description: "Interface parent component Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
+  exec: " "
+}
+test: {
+  id: "RELAY-1.1"
+  description: "DHCP Relay functionality"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/helper_address/otg_tests/relay_agent_test/README.md" 
   exec: " "
 }
 test: {
@@ -835,7 +847,7 @@ test: {
 test: {
   id: "RT-1.35"
   description: "Extended routes retention"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/exrr/README.md"
   exec: " "
 }
 test: {
@@ -1060,7 +1072,7 @@ test: {
 }
 test: {
   id: "RT-3.53"
-  description: "Static route based GUE Encapsulation to IPv4 tunnel"
+  description: "Static route based GUE Encapsulation to IPv6 tunnel"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
   exec: " "
 }
