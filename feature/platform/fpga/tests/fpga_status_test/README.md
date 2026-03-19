@@ -18,7 +18,7 @@ This test verifies the status of FPGA on the DUT.
 
 1. Get a list of all FPGA components on the DUT.
 
-2. For each FPGA component, query the FPGA status using the OpenConfig path `/openconfig/components/component/properties/property/state/value`.
+2. For each FPGA component, query the FPGA status using the OpenConfig path `/components/component/properties/property/state/value`.
 
 3. Verify that the FPGA status is valid and is one of the following:
    * `CURRENT`
