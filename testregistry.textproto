@@ -630,9 +630,9 @@ test: {
   exec: " "
 }
 test: {
-  id: "PF-2.3"
-  description: "Multiple VRFs and GUE DECAP in Default VRF"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/multiple_vrfs_and_gue_decap/README.md"
+  id: "PF-1.25"
+  description: "Double GUE Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
   exec: " "
 }
 test: {
