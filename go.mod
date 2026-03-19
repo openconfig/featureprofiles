@@ -6,8 +6,8 @@ require (
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/storage v1.49.0
 	github.com/cisco-open/go-p4 v0.1.2
-	github.com/go-git/go-billy/v5 v5.6.0
-	github.com/go-git/go-git/v5 v5.13.0
+	github.com/go-git/go-billy/v5 v5.6.2
+	github.com/go-git/go-git/v5 v5.16.5
 	github.com/golang/glog v1.2.5
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v50 v50.1.0
@@ -70,7 +70,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.48.1 // indirect
 	github.com/Masterminds/semver/v3 v3.4.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
-	github.com/ProtonMail/go-crypto v1.1.3 // indirect
+	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/aristanetworks/arista-ceoslab-operator/v2 v2.1.2 // indirect
 	github.com/carlmontanari/difflibgo v0.0.0-20210718194309-31b9e131c298 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
@@ -79,7 +79,7 @@ require (
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
 	github.com/creack/pty v1.1.18 // indirect
-	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
+	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/drivenets/cdnos-controller v1.7.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
@@ -99,7 +99,7 @@ require (
 	github.com/go-openapi/swag v0.22.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
+	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/gnostic v0.6.9 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
@@ -131,7 +131,7 @@ require (
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pjbgf/sha1cd v0.3.2 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
@@ -140,7 +140,7 @@ require (
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
-	github.com/skeema/knownhosts v1.3.0 // indirect
+	github.com/skeema/knownhosts v1.3.1 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
