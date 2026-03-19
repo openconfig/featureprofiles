@@ -22,4 +22,14 @@ platform_exceptions:  {
     isis_mpls_unsupported: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    isis_level_enabled:  true
+    interface_ref_interface_id_format: true
+    bgp_max_multipath_paths_unsupported: true
+  }
+}
 
