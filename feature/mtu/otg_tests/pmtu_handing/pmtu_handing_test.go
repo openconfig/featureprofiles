@@ -150,7 +150,7 @@ var (
 	icPattern = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "^SwitchChip",
 		ondatra.CISCO:   "^[0-9]/[0-9]/CPU[0-9]-NPU[0-9]",
-		ondatra.JUNIPER: "NPU[0-9]$",
+		ondatra.JUNIPER: "NPU[0-9]+$",
 		ondatra.NOKIA:   "^SwitchChip",
 	}
 
