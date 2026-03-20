@@ -99,7 +99,7 @@ var testFlows = []testFlow{
 	},
 }
 
-func getLAGCounters(t *testing.T, dut *ondatra.DUTDevice, lagName string) lagCounters {
+func retrieveLAGCounters(t *testing.T, dut *ondatra.DUTDevice, lagName string) lagCounters {
 	t.Helper()
 	c := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).State()).GetCounters()
 	return lagCounters{
@@ -247,9 +247,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, lag1Name, lag2Name strin
 	addLAGDevices := func(lag gosnappi.Lag, label string, macByte uint8, lagSubs []subifConfig) {
 		for _, sub := range lagSubs {
 			dev := top.Devices().Add().SetName(fmt.Sprintf("ate%sVlan%d", label, sub.vlanID))
-			eth := dev.Ethernets().Add().
-				SetName(fmt.Sprintf("eth%sVlan%d", label, sub.vlanID)).
-				SetMac(fmt.Sprintf("02:00:%02x:00:00:%02x", macByte, sub.vlanID))
+			eth := dev.Ethernets().Add().SetName(fmt.Sprintf("eth%sVlan%d", label, sub.vlanID)).SetMac(fmt.Sprintf("02:00:%02x:00:00:%02x", macByte, sub.vlanID))
 			eth.Connection().SetLagName(lag.Name())
 			eth.SetMtu(uint32(mtu))
 			eth.Vlans().Add().SetName(fmt.Sprintf("ate%s.vlan%d", label, sub.vlanID)).SetId(uint32(sub.vlanID))
@@ -348,11 +346,11 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			ateMemberPath := gnmi.OTG().Lacp().LagMember(atePort.ID())
 
 			// Watch DUT LACP member until collecting AND distributing are true.
-			dutVal, ok := gnmi.Watch(t, dut, dutMemberPath.State(), lacpConvergenceTimeout,
-				func(v *ygnmi.Value[*oc.Lacp_Interface_Member]) bool {
-					state, present := v.Val()
-					return present && state.GetCollecting() && state.GetDistributing()
-				}).Await(t)
+			lacpCheck := func(v *ygnmi.Value[*oc.Lacp_Interface_Member]) bool {
+				state, present := v.Val()
+				return present && state.GetCollecting() && state.GetDistributing()
+			}
+			dutVal, ok := gnmi.Watch(t, dut, dutMemberPath.State(), lacpConvergenceTimeout, lacpCheck).Await(t)
 			if !ok {
 				t.Errorf("LAG %s DUT port %s: not collecting/distributing within %v", lagName, dutPort.Name(), lacpConvergenceTimeout)
 				continue
@@ -360,11 +358,11 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			dutLACP, _ := dutVal.Val()
 
 			// Watch OTG LACP member until collecting AND distributing are true.
-			ateVal, ok := gnmi.Watch(t, otg, ateMemberPath.State(), lacpConvergenceTimeout,
-				func(v *ygnmi.Value[*otgtelemetry.Lacp_LagMember]) bool {
-					state, present := v.Val()
-					return present && state.GetCollecting() && state.GetDistributing()
-				}).Await(t)
+			ateLACPCheck := func(v *ygnmi.Value[*otgtelemetry.Lacp_LagMember]) bool {
+				state, present := v.Val()
+				return present && state.GetCollecting() && state.GetDistributing()
+			}
+			ateVal, ok := gnmi.Watch(t, otg, ateMemberPath.State(), lacpConvergenceTimeout, ateLACPCheck).Await(t)
 			if !ok {
 				t.Errorf("LAG %s ATE port %s: not collecting/distributing within %v", lagName, atePort.ID(), lacpConvergenceTimeout)
 				continue
@@ -447,12 +445,7 @@ func awaitLAGMembersCollectingDistributing(t *testing.T, dut *ondatra.DUTDevice,
 		gnmi.Await(t, dut, memberPath.Collecting().State(), lacpConvergenceTimeout, true)
 		gnmi.Await(t, dut, memberPath.Distributing().State(), lacpConvergenceTimeout, true)
 		state := gnmi.Get(t, dut, memberPath.State())
-		t.Logf("%s/%s collecting=%v distributing=%v sync=%v",
-			lagName, dutPort.Name(),
-			state.GetCollecting(),
-			state.GetDistributing(),
-			state.GetSynchronization(),
-		)
+		t.Logf("%s/%s collecting=%v distributing=%v sync=%v", lagName, dutPort.Name(), state.GetCollecting(), state.GetDistributing(), state.GetSynchronization())
 	}
 }
 
@@ -520,8 +513,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
 		verifyLACPState(t, dut, ate, lag1Name, lag2Name)
-		baselineIn := getLAGCounters(t, dut, lag1Name)
-		baselineOut := getLAGCounters(t, dut, lag2Name)
+		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
+		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
 		verifyTraffic(t, ate)
 
 		var totalTxPkts uint64
@@ -548,8 +541,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
-		baselineIn := getLAGCounters(t, dut, lag1Name)
-		baselineOut := getLAGCounters(t, dut, lag2Name)
+		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
+		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
 		otg.StartTraffic(t)
 		time.Sleep(trafficDuration)
 
@@ -602,8 +595,8 @@ func TestAggregateSubinterface(t *testing.T) {
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
-		baselineIn := getLAGCounters(t, dut, lag1Name)
-		baselineOut := getLAGCounters(t, dut, lag2Name)
+		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
+		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
 		otg.StartTraffic(t)
 		time.Sleep(trafficDuration)
 
