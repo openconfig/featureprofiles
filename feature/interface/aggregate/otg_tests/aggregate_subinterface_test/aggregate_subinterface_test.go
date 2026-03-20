@@ -334,8 +334,8 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 		members []string
 	}
 	lagOrder := []lagEntry{
-		{lag1Name, lag1Members},
-		{lag2Name, lag2Members},
+		{name: lag1Name, members: lag1Members},
+		{name: lag2Name, members: lag2Members},
 	}
 
 	for _, lag := range lagOrder {
