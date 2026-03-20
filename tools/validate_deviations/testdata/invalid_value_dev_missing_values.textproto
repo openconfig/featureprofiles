@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/deviations.proto
+# proto-message: DeviationRegistry
+deviations: {
+  name: "mismatched_hardware_resource_name_in_component"
+  type: DEVIATION_TYPE_VALUE
+  impacted_paths: {
+    ocpaths: {
+      name: "/components/component/integrated-circuit/utilization/resources/resource/name"
+    }
+  }
+  platforms: {
+    issue_url: "https://example.com/issue/2"
+    platform: {
+      vendor: ARISTA
+      software_version_regex: "*.*"
+    }
+  }
+}
