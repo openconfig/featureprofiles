@@ -215,7 +215,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	}
 	batch.Set(t, dut)
 
-	t.Log("Setting MTU for subinterfaces")
+	t.Logf("Setting MTU for Lag: %s", lag1Name)
 	mtuBatch := &gnmi.SetBatch{}
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
