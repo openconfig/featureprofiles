@@ -1208,6 +1208,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
     bool prefix_limit_config_unsupported = 393;
     
+    // Device does not support static route nexthop interface state
+    // Arista: https://partnerissuetracker.corp.google.com/issues/494493377
+    bool static_route_nexthop_interface_state_oc_unsupported = 394;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
