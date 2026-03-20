@@ -848,19 +848,39 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
+	intfCandidates := []string{dutIntf}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
-		dutIntf = dutIntf + ".0"
+		intfCandidates = append(intfCandidates, dutIntf+".0")
+	} else {
+		intfCandidates = append(intfCandidates, dutIntf+".0")
 	}
-	nbrPath := statePath.Interface(dutIntf)
-	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
-	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
-		state, present := val.Val()
-		return present && state == oc.Isis_IsisInterfaceAdjState_UP
-	}).Await(t)
-	if !ok {
-		t.Logf("IS-IS state on %v has no adjacencies", dutIntf)
-		t.Fatal("No IS-IS adjacencies reported")
+
+	hasUpAdj := func(intfName string) bool {
+		query := statePath.Interface(intfName).LevelAny().AdjacencyAny().AdjacencyState().State()
+		for _, stateVal := range gnmi.LookupAll(t, dut, query) {
+			state, present := stateVal.Val()
+			if present && state == oc.Isis_IsisInterfaceAdjState_UP {
+				return true
+			}
+		}
+		return false
 	}
+
+	deadline := time.Now().Add(1 * time.Minute)
+	for time.Now().Before(deadline) {
+		for _, intfName := range intfCandidates {
+			if hasUpAdj(intfName) {
+				t.Logf("IS-IS adjacency is up on %v", intfName)
+				return
+			}
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	for _, intfName := range intfCandidates {
+		t.Logf("IS-IS state on %v has no adjacencies", intfName)
+	}
+	t.Fatal("No IS-IS adjacencies reported")
 }
 
 func createFlow(flowValues *flowArgs) gosnappi.Flow {
