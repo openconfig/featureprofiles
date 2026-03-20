@@ -1,0 +1,129 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
+name: "juniper-ncptx-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+        env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth5"
+    z_node: "dut2"
+    z_int: "eth5"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth9"
+    z_node: "dut2"
+    z_int: "eth9"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth13"
+    z_node: "dut2"
+    z_int: "eth13"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth17"
+    z_node: "dut2"
+    z_int: "eth17"
+}
