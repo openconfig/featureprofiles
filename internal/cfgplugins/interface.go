@@ -42,6 +42,15 @@ const (
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
 	targetFrequencyToleranceMHz   = 100000
+
+	vlanInterfaceCLITemplate = `interface vlan %d
+   ip address %s/%d
+   ipv6 address %s/%d
+`
+	interfaceFallbackCLITemplate = `interface %s
+   port-channel lacp fallback individual
+   port-channel lacp fallback timeout %d
+`
 )
 
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
@@ -1358,4 +1367,50 @@ func IsIPv6InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg Addres
 		}
 	}
 	return nil
+}
+
+func CreateVlanFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, networkInstance string, vlan DUTSubInterfaceData) {
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	root := &oc.Root{}
+	vlanObj := root.GetOrCreateNetworkInstance(networkInstance).GetOrCreateVlan(uint16(vlan.VlanID))
+	vlanObj.Name = ygot.String(vlanName)
+	vlanObj.VlanId = ygot.Uint16(uint16(vlan.VlanID))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().NetworkInstance(networkInstance).Vlan(uint16(vlan.VlanID)).Config(), vlanObj)
+}
+
+func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DUTSubInterfaceData) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
+	}
+}
+
+func ConfigureVlanInterfaceFromOC(t *testing.T, dut *ondatra.DUTDevice, vlanBatch *gnmi.SetBatch, vlan DUTSubInterfaceData) {
+	root := &oc.Root{}
+	vlanName := fmt.Sprintf("vlan%d", vlan.VlanID)
+	vlanIntf := root.GetOrCreateInterface(vlanName)
+	vlanIntf.Type = oc.IETFInterfaces_InterfaceType_l3ipvlan
+	vlanIntf.Enabled = ygot.Bool(true)
+	vlanIPv4 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv4()
+	vlanIPv4.Enabled = ygot.Bool(true)
+	vlanIPv4.GetOrCreateAddress(vlan.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv4PrefixLen))
+	vlanIPv6 := vlanIntf.GetOrCreateSubinterface(0).GetOrCreateIpv6()
+	vlanIPv6.Enabled = ygot.Bool(true)
+	vlanIPv6.GetOrCreateAddress(vlan.IPv6Address.String()).PrefixLength = ygot.Uint8(uint8(vlan.IPv6PrefixLen))
+	gnmi.BatchReplace(vlanBatch, gnmi.OC().Interface(vlanName).Config(), vlanIntf)
+}
+
+func ConfigureLACPFallbackCLI(t *testing.T, dut *ondatra.DUTDevice, lagIntfName string, timeoutSecs uint16) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli := fmt.Sprintf(interfaceFallbackCLITemplate, lagIntfName, timeoutSecs)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Fatalf("configureLACPFallbackCLI: unsupported vendor %s", dut.Vendor())
+	}
 }

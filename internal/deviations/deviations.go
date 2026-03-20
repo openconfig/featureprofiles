@@ -2011,3 +2011,13 @@ func ArpFT(dut *ondatra.DUTDevice) string {
 func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
+
+// LacpInterfaceFallbackOCUnsupported returns true if the device does not support OC config for port channel fallback and timeout.
+func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
+}
+
+// VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
+func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
+}
