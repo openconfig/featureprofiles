@@ -1340,7 +1340,6 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
 		}
 	} else {
-		//t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
 		t.Log("Configuring VLAN using OpenConfig global VLAN model")
 
 		vi := &oc.NetworkInstance_Vlan{
