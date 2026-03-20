@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -39,7 +40,7 @@ func TestCiscoFPDStatus(t *testing.T) {
 		t.Skip("FPD Status is a Cisco-specific translation, skipping for other vendors.")
 	}
 
-	opts := fptest.GetOptsForFunctionalTranslator(t, "ciscoxr-fpd-ft")
+	opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FpdFt(dut))
 
 	// Since Functional Translators cannot process container lookups via GetAll(ComponentAny().State())
 	// or LookupAll(ComponentAny().PropertyAny().State()), we must first discover the synthetic
