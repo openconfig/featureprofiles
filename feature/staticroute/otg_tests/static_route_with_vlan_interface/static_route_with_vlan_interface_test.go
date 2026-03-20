@@ -126,6 +126,7 @@ var (
 
 	peerPort     *attrs.Attributes
 	flowPatterns []FlowPattern
+	gotIntf      string
 )
 
 type testCase struct {
@@ -267,7 +268,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		}
 
 		if i < numOfVlanAccessPorts { // Ports 1, 2, 3: Access with VLAN 10
-			cfgplugins.ConfigureAccessVlan(dut, iObj, vlanID)
+			cfgplugins.ConfigureAccessVlan(cfgplugins.AccessVlanParams{
+				Intf:   iObj,
+				VlanID: vlanID,
+			})
 		} else { // Port 4: Routed
 			s := iObj.GetOrCreateSubinterface(0)
 			cfgplugins.ConfigureSubinterfaceIPs(s, dut, a.IPv4, a.IPv4Len, a.IPv6, a.IPv6Len)
@@ -437,7 +441,16 @@ func validateAllStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) error {
 
 		// Resolution route validation
 		case r.intf != "":
-			gotIntf := gnmi.Get(t, dut, sp.Static(r.prefix).NextHop("0").InterfaceRef().Interface().Config())
+			if deviations.StaticRouteNexthopInterfaceStateOcUnsupported(dut) {
+				switch dut.Vendor() {
+				case ondatra.ARISTA:
+					gotIntf = gnmi.Get(t, dut, sp.Static(r.prefix).NextHop("0").InterfaceRef().Interface().Config())
+				default:
+					t.Logf("Unknown vendor: %v", dut.Vendor())
+				}
+			} else {
+				gotIntf = gnmi.Get(t, dut, sp.Static(r.prefix).NextHop("0").InterfaceRef().Interface().State())
+			}
 
 			if gotIntf != r.intf {
 				return fmt.Errorf("route %s interface mismatch: got %v, want %v", r.prefix, gotIntf, r.intf)
@@ -462,8 +475,8 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flowName string) er
 
 	if tx < packetPerSecond {
 		return fmt.Errorf("flow %s: expected traffic not transmitted", flowName)
-	} else if rx > packetPerSecond && rx != tx {
-		return fmt.Errorf("flow %s: packet loss detected! TX: %d, RX: %d", flowName, tx, rx)
+	} else if rx != tx {
+		return fmt.Errorf("flow %s: packet loss or duplication detected! TX: %d, RX: %d", flowName, tx, rx)
 	} else {
 		t.Logf("Flow %s: Success", flowName)
 	}
@@ -511,26 +524,26 @@ func validateDUTCounters(t *testing.T, before, after map[string]dutCounters, flo
 
 		case flowTypeForwarding:
 			if intf == "port1" || intf == "port2" || intf == "port3" {
-				if inDelta >= expectedPktsPerPort {
+				if inDelta < expectedPktsPerPort {
 					return fmt.Errorf("%s ingress packets mismatch: got %d want %d", strings.ToLower(intf), inDelta, expectedPktsPerPort)
 				}
 			}
 
 			if intf == "port4" {
-				if outDelta >= expectedTotalPktsPerPort {
+				if outDelta < expectedTotalPktsPerPort {
 					return fmt.Errorf("port4 egress packets mismatch: got %d want %d", outDelta, expectedTotalPktsPerPort)
 				}
 			}
 
 		case flowTypeStatic:
 			if intf == "port4" {
-				if inDelta >= expectedTotalPktsPerPort {
+				if inDelta < expectedTotalPktsPerPort {
 					return fmt.Errorf("port4 ingress packets mismatch: got %d want %d", inDelta, expectedTotalPktsPerPort)
 				}
 			}
 
 			if intf == "port1" || intf == "port2" || intf == "port3" {
-				if outDelta >= expectedPktsPerPort {
+				if outDelta < expectedPktsPerPort {
 					return fmt.Errorf("%s egress packets mismatch: got %d want %d", strings.ToLower(intf), outDelta, expectedPktsPerPort)
 				}
 			}

@@ -1098,8 +1098,15 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	}
 }
 
+type AccessVlanParams struct {
+	Intf   *oc.Interface
+	VlanID uint16
+}
+
 // ConfigureAccessVlan sets the interface to ACCESS mode with given VLAN ID.
-func ConfigureAccessVlan(dut *ondatra.DUTDevice, i *oc.Interface, vlanID uint16) {
+func ConfigureAccessVlan(p AccessVlanParams) {
+	i := p.Intf
+
 	// Remove L3 config (force L2 mode)
 	i.Subinterface = nil
 
@@ -1110,7 +1117,7 @@ func ConfigureAccessVlan(dut *ondatra.DUTDevice, i *oc.Interface, vlanID uint16)
 	// Configure switched VLAN
 	swVlan := eth.GetOrCreateSwitchedVlan()
 	swVlan.SetInterfaceMode(oc.Vlan_VlanModeType_ACCESS)
-	swVlan.SetAccessVlan(vlanID)
+	swVlan.SetAccessVlan(p.VlanID)
 }
 
 // assignSubifsToDefaultNetworkInstance assigns the subinterfaces to the default network instance.
@@ -1347,7 +1354,7 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 			Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
 		}
 
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Vlan(uint16(cfg.VlanID)).Config(), vi)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Vlan(uint16(cfg.VlanID)).Config(), vi)
 	}
 }
 
