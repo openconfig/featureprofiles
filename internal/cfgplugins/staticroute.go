@@ -34,6 +34,7 @@ type StaticRouteCfg struct {
 	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
 	IPType          string
 	NextHopAddr     string
+	NextHopIntf     string
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -60,10 +61,20 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
+
+	// Handle existing Map-based NextHops (Recursive/IP)
 	for k, v := range cfg.NextHops {
 		nh := s.GetOrCreateNextHop(k)
 		nh.NextHop = v
 	}
+
+	// Handle Interface-based NextHop (Resolution routes)
+	if cfg.NextHopIntf != "" {
+		// Usually "0" is used as the index if only one interface is provided
+		nh := s.GetOrCreateNextHop("0")
+		nh.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.NextHopIntf)
+	}
+
 	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
 	gnmi.BatchUpdate(batch, sp.Config(), c)
 	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)

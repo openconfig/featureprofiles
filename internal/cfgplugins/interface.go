@@ -1098,6 +1098,21 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	}
 }
 
+// ConfigureAccessVlan sets the interface to ACCESS mode with given VLAN ID.
+func ConfigureAccessVlan(dut *ondatra.DUTDevice, i *oc.Interface, vlanID uint16) {
+	// Remove L3 config (force L2 mode)
+	i.Subinterface = nil
+
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	eth := i.GetOrCreateEthernet()
+
+	// Configure switched VLAN
+	swVlan := eth.GetOrCreateSwitchedVlan()
+	swVlan.SetInterfaceMode(oc.Vlan_VlanModeType_ACCESS)
+	swVlan.SetAccessVlan(vlanID)
+}
+
 // assignSubifsToDefaultNetworkInstance assigns the subinterfaces to the default network instance.
 func (a *Attributes) assignSubifsToDefaultNetworkInstance(t *testing.T, d *ondatra.DUTDevice) {
 	if !deviations.ExplicitInterfaceInDefaultVRF(d) {
@@ -1325,8 +1340,59 @@ func ConfigureVlan(t *testing.T, dut *ondatra.DUTDevice, cfg VlanParams) {
 			t.Logf("Unsupported vendor %s for native command support for deviation 'Vlan ID'", dut.Vendor())
 		}
 	} else {
-		t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
+		//t.Log("Currently do not have support to configure VLAN and spanning-tree through OC, need to uncomment once implemented")
+		t.Log("Configuring VLAN using OpenConfig global VLAN model")
+
+		vi := &oc.NetworkInstance_Vlan{
+			VlanId: ygot.Uint16(uint16(cfg.VlanID)),
+			Name:   ygot.String(fmt.Sprintf("VLAN_%d", cfg.VlanID)),
+		}
+
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance("DEFAULT").Vlan(uint16(cfg.VlanID)).Config(), vi)
 	}
+}
+
+// SVIParams holds the addressing and naming details for the SVI.
+type SVIParams struct {
+	IntfName string
+	IPv4     string
+	IPv4Len  uint8
+	IPv6     string
+	IPv6Len  uint8
+}
+
+// ConfigureSVI configures an L3 VLAN interface with IPv4 and IPv6 addresses.
+func ConfigureSVI(t *testing.T, dut *ondatra.DUTDevice, params SVIParams) {
+	t.Helper()
+	t.Logf("Configuring SVI: %s", params.IntfName)
+
+	// Initialize the Interface object with the L3 VLAN type
+	svi := &oc.Interface{
+		Name: ygot.String(params.IntfName),
+		Type: oc.IETFInterfaces_InterfaceType_l3ipvlan,
+	}
+
+	// Handle vendor-specific interface enabled deviation
+	if deviations.InterfaceEnabled(dut) {
+		svi.Enabled = ygot.Bool(true)
+	}
+
+	// Navigate to the RoutedVlan container (subinterface-like layer for SVIs)
+	rv := svi.GetOrCreateRoutedVlan()
+
+	// IPv4 Configuration
+	v4 := rv.GetOrCreateIpv4()
+	v4Addr := v4.GetOrCreateAddress(params.IPv4)
+	v4Addr.PrefixLength = ygot.Uint8(params.IPv4Len)
+
+	// IPv6 Configuration
+	v6 := rv.GetOrCreateIpv6()
+	v6.Enabled = ygot.Bool(true)
+	v6Addr := v6.GetOrCreateAddress(params.IPv6)
+	v6Addr.PrefixLength = ygot.Uint8(params.IPv6Len)
+
+	// Apply the configuration via gNMI Replace
+	gnmi.Replace(t, dut, gnmi.OC().Interface(params.IntfName).Config(), svi)
 }
 
 // AddressFamilyParams defines parameters for IPv4/v6 interfaces.
