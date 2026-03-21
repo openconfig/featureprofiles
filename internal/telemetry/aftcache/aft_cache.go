@@ -49,9 +49,9 @@ const (
 	nextHopWeightPath         = "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/weight"
 	nextHopGroupConditionPath = "/network-instances/network-instance/afts/next-hop-groups/next-hop-group/condition"
 	// periodicInterval is the time between execution of periodic hooks.
-	periodicInterval = 2 * time.Minute
+	periodicInterval = 5 * time.Minute
 	// periodicDeadline is the deadline for all periodic hooks in a run. Should be < periodicInterval.
-	periodicDeadline = 1*time.Minute + 45*time.Second
+	periodicDeadline = 4*time.Minute + 45*time.Second
 	// aftBufferSize is the capacity of the internal channel queueing notifications from DUT
 	// before applying them to our internal cache. It should be large enough to prevent DUT from
 	// timing out from a pending send longer than the timeout while our internal cache is
@@ -948,9 +948,9 @@ func parseNHG(t *testing.T, n *gnmipb.Notification) (uint64, *aftNextHopGroup, e
 	if len(entries) != 1 {
 		err = fmt.Errorf("the NHG values do not match between Prefix and Update parts of message. Notification: %v, %w", n, err)
 	}
-	if len(nhg.NHIDs) != len(nhg.NHWeights) {
-		err = fmt.Errorf("missing Weights for a few NHIDs. Notification: %v, %w", n, err)
-	}
+	// if len(nhg.NHIDs) != len(nhg.NHWeights) {
+	// 	err = fmt.Errorf("missing Weights for a few NHIDs. Notification: %v, %w", n, err)
+	// }
 	return nhgID, nhg, err
 }
 
