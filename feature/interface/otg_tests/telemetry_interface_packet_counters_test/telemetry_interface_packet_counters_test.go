@@ -643,10 +643,10 @@ func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func TestInterfaceCPU(t *testing.T) {
-	// TODO: Enable interface CPU test case here after bug is fixed.
-	t.Skipf("Telemetry path /interfaces/interface/state/cpu is not supported.")
-
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() != ondatra.CISCO {
+		t.Skipf("Telemetry path /interfaces/interface/state/cpu is not supported on %s.", dut.Vendor())
+	}
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/cpu"
 	cpu, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Cpu().State()).Val()
@@ -658,10 +658,10 @@ func TestInterfaceCPU(t *testing.T) {
 }
 
 func TestInterfaceMgmt(t *testing.T) {
-	// TODO: Enable interface management test case here after bug is fixed.
-	t.Skipf("Telemetry path /interfaces/interface/state/management is not supported.")
-
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() != ondatra.CISCO && dut.Vendor() != ondatra.ARISTA {
+		t.Skipf("Telemetry path /interfaces/interface/state/management is not supported on %s.", dut.Vendor())
+	}
 	dp := dut.Port(t, "port2")
 	path := "/interfaces/interface/state/management"
 	mgmt, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(dp.Name()).Management().State()).Val()
