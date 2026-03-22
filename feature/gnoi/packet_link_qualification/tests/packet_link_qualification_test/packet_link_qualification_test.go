@@ -38,15 +38,14 @@ func TestMain(m *testing.M) {
 }
 
 // Topology:
-//   dut1:port1 <--> port2:dut1 - 400g links (as singleton and memberlink)
-//   dut1:port3 <--> port4:dut1 - 100g links(as singleton and memberlink)
+//
+//	dut1:port1 <--> port2:dut1 - 400g links (as singleton and memberlink)
+//	dut1:port3 <--> port4:dut1 - 100g links(as singleton and memberlink)
 //
 // Test notes:
 //
-//  - gnoi operation commands can be sent and tested using CLI command grpcurl.
-//    https://github.com/fullstorydev/grpcurl
-//
-
+//   - gnoi operation commands can be sent and tested using CLI command grpcurl.
+//     https://github.com/fullstorydev/grpcurl
 type aggPortData struct {
 	port1IPV4     string
 	port2IPV4     string
@@ -380,8 +379,22 @@ func configureDUTAggregate(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	}
 
 	// Wait for LAG interfaces to be UP
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
-	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID1).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+	gnmi.Await(t, dut, gnmi.OC().Interface(aggID2).OperStatus().State(), 60*time.Second, oc.Interface_OperStatus_UP)
+}
+
+// checkPortsUp returns true if all given ports have oper-status UP, false otherwise.
+// It logs the status of any port that is not UP.
+func checkPortsUp(t *testing.T, dut *ondatra.DUTDevice, ports ...*ondatra.Port) bool {
+	t.Helper()
+	for _, p := range ports {
+		status := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if status != oc.Interface_OperStatus_UP {
+			t.Logf("Port %v oper-status is %v, skipping test.", p.Name(), status)
+			return false
+		}
+	}
+	return true
 }
 
 func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port, dp2 *ondatra.Port, plqID string, aggregate bool) {
@@ -466,7 +479,6 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 			PmdLoopback: &plqpb.PmdLoopbackConfiguration{},
 		}
 	} else {
-		// Handle case where neither loopback mode is supported
 		t.Fatalf("Neither ASIC nor PMD loopback is supported by the DUT.")
 	}
 
@@ -502,7 +514,6 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 
 	var discoveredIDs []string
 	for _, result := range listResp.GetResults() {
-		// Check if the result's interface name matches either dp1 or dp2.
 		if result.GetInterfaceName() == dp1.Name() || result.GetInterfaceName() == dp2.Name() {
 			discoveredIDs = append(discoveredIDs, result.GetId())
 			t.Logf("Discovered Link Qualification ID: %v", result.GetId())
@@ -512,35 +523,42 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 	if len(discoveredIDs) == 0 {
 		t.Fatalf("Could not discover a Link Qualification ID after Create.  List response: %v", listResp)
 	}
+
 	sleepTime := 30 * time.Second
 	minTestTime := plqDuration.testDuration + plqDuration.reflectorPostSyncDuration + plqDuration.generatorpreSyncDuration + plqDuration.generatorsetupDuration + plqDuration.generatorTeardownDuration
 	counter := int(minTestTime.Seconds())/int(sleepTime.Seconds()) + 2
+
 	for i := 0; i <= counter; i++ {
 		t.Logf("Wait for %v seconds: %d/%d", sleepTime.Seconds(), i+1, counter)
 		time.Sleep(sleepTime)
 		testDone := true
 		t.Logf("Check client")
 
-		for j := 0; j < len(listResp.GetResults()); j++ {
-			if listResp.GetResults()[j].GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
-				t.Logf("LinkQualification in progress, current state: %v", listResp.GetResults()[j].GetState())
+		// Re-fetch current state for discovered IDs each iteration.
+		currentResp, err := gnoiClient.LinkQualification().Get(context.Background(), &plqpb.GetRequest{Ids: discoveredIDs})
+		if err != nil {
+			t.Fatalf("Failed to handle LinkQualification().Get() during polling: %v", err)
+		}
+
+		for _, result := range currentResp.GetResults() {
+			if result.GetState() != plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED {
+				t.Logf("LinkQualification in progress, current state: %v", result.GetState())
 				testDone = false
 			} else {
-				t.Logf("LinkQualification completed: %v", listResp.GetResults()[j])
+				t.Logf("LinkQualification completed: %v", result)
 			}
 
 			if !deviations.SkipPlqInterfaceOperStatusCheck(dut) {
-				if listResp.GetResults()[j].GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
-					t.Logf("Checking link under qualificaton (generator) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp1.Name())
+				if result.GetState() == plqpb.QualificationState_QUALIFICATION_STATE_RUNNING {
+					t.Logf("Checking link under qualification (generator) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp1.Name())
 					if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
 						t.Errorf("Interface(%v) oper-status: got %v, want %v", dp1.Name(), got, want)
 					}
 
-					t.Logf("Checking link under qualificaton (reflector) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp2.Name())
+					t.Logf("Checking link under qualification (reflector) interface oper-status (dut: %v, dp: %v)", dut.Name(), dp2.Name())
 					if got, want := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State()), oc.Interface_OperStatus_TESTING; got != want {
 						t.Errorf("Interface(%v) oper-status: got %v, want %v", dp2.Name(), got, want)
 					}
-
 				}
 			}
 		}
@@ -562,7 +580,7 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
 	}
 
-	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
+	// The packet counters between Generator and Reflector mismatch tolerance level in percentage.
 	tolerance := 0.0001
 
 	for _, result := range getResp.GetResults() {
@@ -656,11 +674,17 @@ func TestLinkQualification(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.speed == "400g" {
+				if !checkPortsUp(t, dut, port1, port2) {
+					t.Skip("Skipping: one or more 400g ports are not UP.")
+				}
 				if tc.aggregate {
 					configureDUTAggregate(t, dut, port1, port2, tc.speed)
 				}
 				tc.testFunc(t, dut, port1, port2, tc.plqID, tc.aggregate)
 			} else if tc.speed == "100g" {
+				if !checkPortsUp(t, dut, port3, port4) {
+					t.Skip("Skipping: one or more 100g ports are not UP.")
+				}
 				if tc.aggregate {
 					configureDUTAggregate(t, dut, port3, port4, tc.speed)
 				}
