@@ -154,6 +154,11 @@ func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request
 	time.Sleep(time.Second)
 }
 
+// GenerateVersion returns a unique version string for gNSI rotations.
+func GenerateVersion() string {
+	return fmt.Sprintf("v%d", time.Now().UnixNano())
+}
+
 // RotateUserPassword apply password for the specified username on the dut.
 func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password, version string, createdOn uint64) {
 	request := &cpb.RotateAccountCredentialsRequest{
@@ -193,7 +198,7 @@ func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, u
 								},
 							},
 						},
-						Version:   "v1.0",
+						Version:   GenerateVersion(),
 						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
@@ -257,7 +262,7 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		Request: &cpb.RotateHostParametersRequest_SshCaPublicKey{
 			SshCaPublicKey: &cpb.CaPublicKeyRequest{
 				SshCaPublicKeys: keyContents,
-				Version:         "v1.0",
+				Version:         GenerateVersion(),
 				CreatedOn:       uint64(time.Now().Unix()),
 			},
 		},
@@ -368,7 +373,7 @@ func GetDutTarget(t *testing.T, dut *ondatra.DUTDevice) string {
 }
 
 // GetDutPublicKey retrieve single host public key from the dut.
-func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
+func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice, targetAlgo string) []byte {
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
 	req := &cpb.GetPublicKeysRequest{}
 	response, err := credzClient.GetPublicKeys(context.Background(), req)
@@ -380,22 +385,39 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice) []byte {
 	}
 	t.Logf("Fetching gNSI public keys... total keys: %d keys: %+v", len(response.PublicKeys), response.PublicKeys)
 
-	// Form the key bytes from the proto message
-	key := response.PublicKeys[0]
-	algo := sshAlgo(t, key.KeyType)
-	if algo == "" {
-		// Attempt to find a supported key type if the first one is unsupported.
+	var key *cpb.PublicKey
+	var algo string
+
+	if targetAlgo != "" {
 		for _, k := range response.PublicKeys {
-			algo = sshAlgo(t, k.KeyType)
-			if algo != "" {
+			algo = sshAlgo(t, k)
+			if algo == targetAlgo {
 				key = k
 				break
 			}
 		}
+		if key == nil {
+			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", targetAlgo)
+		}
+	} else {
+		// Form the key bytes from the proto message
+		key = response.PublicKeys[0]
+		algo = sshAlgo(t, key)
 		if algo == "" {
-			t.Fatalf("No supported public keys found on DUT. Available keys and their types can be inspected via logs.")
+			// Attempt to find a supported key type if the first one is unsupported.
+			for _, k := range response.PublicKeys {
+				algo = sshAlgo(t, k)
+				if algo != "" {
+					key = k
+					break
+				}
+			}
+			if algo == "" {
+				t.Fatalf("No supported public keys found on DUT. Available keys and their types can be inspected via logs.")
+			}
 		}
 	}
+
 	keyData := sshKey(t, key)
 	keyLine := algo + " " + keyData + " " + key.Description
 	t.Logf("Found SSH public key on DUT: %s", keyLine)
@@ -678,7 +700,7 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 			continue
 		}
 		for _, pk := range response.PublicKeys {
-			keyAlgo := sshAlgo(t, pk.KeyType)
+			keyAlgo := sshAlgo(t, pk)
 			if keyAlgo == algo {
 				matchingKey = sshKey(t, pk)
 				break
@@ -695,17 +717,15 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if lastErr != nil {
 			t.Logf("Failed to get public keys from DUT: %v", lastErr)
 		}
-		if response != nil {
-			t.Logf("Available public keys: %+v", response.PublicKeys)
-		} else {
-			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
-		}
+		t.Logf("Available public keys: %+v", response.PublicKeys)
+		t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
 	}
 
 	return algo + " " + matchingKey
 }
 
-func sshAlgo(t *testing.T, keyType cpb.KeyType) string {
+func sshAlgo(t *testing.T, pk *cpb.PublicKey) string {
+	keyType := pk.KeyType
 	switch keyType {
 	case cpb.KeyType_KEY_TYPE_RSA_2048, cpb.KeyType_KEY_TYPE_RSA_4096, cpb.KeyType_KEY_TYPE_RSA_3072:
 		return "ssh-rsa"
@@ -717,6 +737,14 @@ func sshAlgo(t *testing.T, keyType cpb.KeyType) string {
 		return "ecdsa-sha2-nistp521"
 	case cpb.KeyType_KEY_TYPE_ED25519:
 		return "ssh-ed25519"
+	case cpb.KeyType_KEY_TYPE_UNSPECIFIED:
+		// Attempt to infer from public key content
+		keyData := string(pk.PublicKey)
+		parts := strings.Fields(keyData)
+		if len(parts) >= 1 && (strings.HasPrefix(parts[0], "ssh-") || strings.HasPrefix(parts[0], "ecdsa-")) {
+			return parts[0]
+		}
+		fallthrough
 	default:
 		t.Logf("unsupported key type: %v", keyType)
 		return ""
