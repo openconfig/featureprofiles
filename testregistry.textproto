@@ -370,6 +370,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
 }
 test: {
+  id: "FPGA-1.1"
+  description: "FPGA Component Status"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fpga/tests/fpga_status_test/README.md"
+}
+test: {
   id: "Health-1.1"
   description: "Generic Health Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/tests/system_generic_health_check/README.md"
@@ -645,6 +650,12 @@ test: {
   id: "PLT-1.2"
   description: "Interface parent component Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
+  exec: " "
+}
+test: {
+  id: "RELAY-1.1"
+  description: "DHCP Relay functionality"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/helper_address/otg_tests/relay_agent_test/README.md" 
   exec: " "
 }
 test: {
