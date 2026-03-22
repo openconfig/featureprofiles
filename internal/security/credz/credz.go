@@ -695,8 +695,11 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if lastErr != nil {
 			t.Logf("Failed to get public keys from DUT: %v", lastErr)
 		}
-		t.Logf("Available public keys: %+v", response.PublicKeys)
-		t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
+		if response != nil {
+			t.Logf("Available public keys: %+v", response.PublicKeys)
+		} else {
+			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
+		}
 	}
 
 	return algo + " " + matchingKey
