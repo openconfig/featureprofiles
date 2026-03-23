@@ -71,7 +71,7 @@ func TestCredentialz(t *testing.T) {
 	// Setup user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
-	credz.RotateUserPassword(t, dut, username, password, "v1.0", uint64(time.Now().Unix()))
+	credz.RotateUserPassword(t, dut, username, password, credz.GenerateVersion(), uint64(time.Now().Unix()))
 
 	credz.RotateTrustedUserCA(t, dut, dir)
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
