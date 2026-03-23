@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f7590954-4818-4d9b-9f98-574b1d40f52d"
+uuid: "44a81954-27a8-4fce-ab72-084564e05bd9"
 plan_id: "MTU-1.4"
 description: "Large IP Packet through GRE/GUE tunnel Transmission"
 testbed: TESTBED_DUT_ATE_4LINKS

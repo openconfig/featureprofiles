@@ -1,16 +1,18 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "74fd348e-8242-406b-96d5-c31667df7ac1"
-plan_id: "MTU-1.3"
-description: "Large IP Packet Transmission"
-testbed: TESTBED_DUT_ATE_4LINKS
+uuid: "9e521558-b454-4c99-9cdc-8285be7ec996"
+plan_id: "MTU-1.5"
+description: "Path MTU handing"
+testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: NOKIA
   }
   deviations: {
     explicit_interface_in_default_vrf: true
+    omit_l2_mtu: true
+    fragment_total_drops_unsupported: true
     aggregate_atomic_update: true
     interface_enabled: true
   }
@@ -21,8 +23,15 @@ platform_exceptions: {
   }
   deviations: {
     omit_l2_mtu: true
-    aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    fragment_total_drops_unsupported: true
   }
 }
