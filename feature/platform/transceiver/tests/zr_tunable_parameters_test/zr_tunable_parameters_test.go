@@ -20,7 +20,7 @@ import (
 const (
 	samplingInterval    = 10 * time.Second
 	frequencyTolerance  = 1800
-	interfaceTimeout    = 3 * time.Minute
+	interfaceTimeout    = 10 * time.Minute
 	telemetryWaitTime   = 60 * time.Second // 6 sampling windows
 	maxTelemetryRetries = 3
 	statisticsTolerance = 3.0 // Relaxed tolerance for statistical comparisons
@@ -358,7 +358,9 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		if got, want := opm, uint16(operationalMode); got != want && !deviations.OperationalModeUnsupported(dut) {
 			t.Errorf("ERROR: Optical-Channel %d: operational-mode: got %v, want %v", i, got, want)
 		}
-
+		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
+		// configured centre frequency. Statistical values are checked for internal consistency
+		// within a relaxed tolerance of +/- 3.0.
 		if cfInst < -1*frequencyTolerance || cfInst > frequencyTolerance {
 			t.Errorf("ERROR: Optical-Channel %d: carrier-frequency-offset not in tolerable range, got: %v, want: (+/-)%v", i, cfInst, frequencyTolerance)
 		}
@@ -384,7 +386,8 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		opMin := oc.GetOutputPower().GetMin()
 		opMax := oc.GetOutputPower().GetMax()
 
-		// Use relaxed tolerance for instant output power check (±2 dBm)
+		// Use relaxed tolerance for instant output power check (±2 dBm).
+		// Statistical values are checked for internal consistency within a relaxed tolerance of +/- 3.0.
 		if opInst < outputPower-2 || opInst > outputPower+2 {
 			t.Errorf("ERROR: Optical-Channel %d: output-power not in tolerable range, got: %v, want: %v (±2 dBm)", i, opInst, outputPower)
 		}

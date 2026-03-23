@@ -285,8 +285,8 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 			t.Errorf("ERROR: Optical-Channel %d: operational-mode: got %v, want %v", i, got, want)
 		}
 
-		// Laser frequency offset should not be more than +/- 1.8 GHz max from the
-		// configured centre frequency.
+		// Laser frequency offset should not be more than +/- 1.8 GHz max from the configured center frequency.
+		// Statistical values are checked for internal consistency within a relaxed tolerance of +/- 3.0.
 		if cfInst < -1*frequencyTolerance || cfInst > frequencyTolerance {
 			t.Errorf("ERROR: Optical-Channel %d: carrier-frequency-offset not in tolerable range, got: %v, want: (+/-)%v", i, cfInst, frequencyTolerance)
 		}
@@ -322,9 +322,9 @@ func validateOpticsTelemetry(t *testing.T, streams []*samplestream.SampleStream[
 		opMin := _oc.GetOutputPower().GetMin()
 		opMax := _oc.GetOutputPower().GetMax()
 
-		// When set to a specific target output power, transmit power control
-		// absolute accuracy should be within +/- 1 dBm of the target configured
-		// output power.
+		// When set to a specific target output power, transmit power control absolute accuracy should be
+		// within +/- 2 dBm of the target configured output power.
+		// Statistical values are checked for internal consistency within a relaxed tolerance of +/- 3.0.
 		switch operStatus {
 		case oc.Interface_OperStatus_UP:
 			// Use relaxed tolerance for instant output power check (±2 dBm)
