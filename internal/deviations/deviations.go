@@ -2011,3 +2011,13 @@ func ArpFT(dut *ondatra.DUTDevice) string {
 func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
