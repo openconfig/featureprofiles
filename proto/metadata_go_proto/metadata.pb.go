@@ -1329,9 +1329,11 @@ type Metadata_Deviations struct {
 	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
 	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
 	// Devices that do not support mpls static pseudowire OC
-	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,385,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
+	// Arista: b/495544007
+	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,395,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
 	// Devices that do not support vlan client encapsulation OC
-	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,386,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
+	// Arista: b/495549829
+	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,396,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
 	unknownFields                        protoimpl.UnknownFields
 	sizeCache                            protoimpl.SizeCache
 }
@@ -4262,8 +4264,8 @@ const file_metadata_proto_rawDesc = "" +
 	",skip_acl_counters_verification_during_update\x18\xfe\x02 \x01(\bR'skipAclCountersVerificationDuringUpdate\x12^\n" +
 	",acl_icmp_type_code_configuration_unsupported\x18\xff\x02 \x01(\bR'aclIcmpTypeCodeConfigurationUnsupported\x12c\n" +
 	".ipv6_router_advertisement_suppress_unsupported\x18\x80\x03 \x01(\bR*ipv6RouterAdvertisementSuppressUnsupported\x12Q\n" +
-	"%mpls_static_pseudowire_oc_unsupported\x18\x81\x03 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
-	"(vlan_client_encapsulation_oc_unsupported\x18\x82\x03 \x01(\bR$vlanClientEncapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"%mpls_static_pseudowire_oc_unsupported\x18\x8b\x03 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
+	"(vlan_client_encapsulation_oc_unsupported\x18\x8c\x03 \x01(\bR$vlanClientEncapsulationOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
