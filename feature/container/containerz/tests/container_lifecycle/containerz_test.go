@@ -492,8 +492,9 @@ func TestVolumes(t *testing.T) {
 		time.Sleep(5 * time.Second)
 
 		mountOpts := map[string]string{
+			"type":       "none",
 			"options":    "bind",
-			"mountpoint": "/some-path",
+			"mountpoint": "/tmp",
 		}
 
 		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
@@ -528,7 +529,7 @@ func TestVolumes(t *testing.T) {
 
 				// check options
 				wantOptions := map[string]string{
-					"device": "/some-path",
+					"device": "/tmp",
 					"o":      "bind",
 					"type":   "none",
 				}
