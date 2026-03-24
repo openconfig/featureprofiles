@@ -167,10 +167,10 @@ var (
 			},
 		},
 		{
-			port: "port4",
+			port: "port3",
 			otgPortData: []*attrs.Attributes{
 				{
-					Name:    "port4",
+					Name:    "port3",
 					IPv4:    "192.0.2.10",
 					IPv6:    "2001:db8:1::10",
 					MAC:     "02:03:03:03:03:03",
@@ -217,7 +217,7 @@ var (
 	ate2InternalPrefixesV4List    = iputil.GenerateIPs(ate2InternalPrefixesV4+"/24", int(ate2InternalPrefixCount))
 	ate2InternalPrefixesV6List, _ = iputil.GenerateIPv6(ate2InternalPrefixesV6+"/64", uint64(ate2InternalPrefixCount))
 
-	// ATE2 Port3 bgp prefixes
+	// ATE Port3 or ATE2 Port3 bgp prefixes
 	bgpInternalTE11 = &attrs.Attributes{
 		Name:    "ate2InternalTE11",
 		IPv6:    "2001:db8:c0fe:affe::1",
@@ -305,7 +305,7 @@ var (
 	}
 
 	encapValidation = &packetvalidationhelpers.PacketValidation{
-		PortName:         "port4",
+		PortName:         "port3",
 		Validations:      validations,
 		IPv6Layer:        outerGUEIPLayerIPv6,
 		UDPLayer:         udpLayer,
@@ -319,7 +319,7 @@ var (
 	}
 
 	encapValidationv6 = &packetvalidationhelpers.PacketValidation{
-		PortName:         "port4",
+		PortName:         "port3",
 		Validations:      validationsV6,
 		IPv6Layer:        outerv6GUEIPLayerIPv6,
 		UDPLayer:         udpLayer,
@@ -673,16 +673,16 @@ func configureOTG() {
 	ate2MBgpv6Peer.Capability().SetIpv4Unicast(true).SetIpv6Unicast(true)
 	ate2MBgpv6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
-	// Configure ATE2 Port3
-	port4Data := otgBGPConfig[2]
-	iDut4Dev := port4Data.otgDevice[0]
+	// Configure OTG Port3
+	port3Data := otgBGPConfig[2]
+	iDut3Dev := port3Data.otgDevice[0]
 
-	ate3Bgp := iDut4Dev.Bgp().SetRouterId(port4Data.otgPortData[0].IPv4)
+	ate3Bgp := iDut3Dev.Bgp().SetRouterId(port3Data.otgPortData[0].IPv4)
 
-	ate3Bgpv4Peer := ate3Bgp.Ipv4Interfaces().Add().SetIpv4Name(port4Data.otgPortData[0].Name + ".IPv4").Peers().Add().SetName("ate3.bgp4.peer")
+	ate3Bgpv4Peer := ate3Bgp.Ipv4Interfaces().Add().SetIpv4Name(port3Data.otgPortData[0].Name + ".IPv4").Peers().Add().SetName("ate3.bgp4.peer")
 	ate3Bgpv4Peer.SetPeerAddress(dutloopback0.IPv4).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
-	ate3Bgpv6Peer := ate3Bgp.Ipv6Interfaces().Add().SetIpv6Name(port4Data.otgPortData[0].Name + ".IPv6").Peers().Add().SetName("ate3.bgp6.peer")
+	ate3Bgpv6Peer := ate3Bgp.Ipv6Interfaces().Add().SetIpv6Name(port3Data.otgPortData[0].Name + ".IPv6").Peers().Add().SetName("ate3.bgp6.peer")
 	ate3Bgpv6Peer.SetPeerAddress(dutloopback0.IPv6).SetAsNumber(ateEBGPAS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP).LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 
 	ebgpRoutes := ate3Bgpv6Peer.V6Routes().Add().SetName("ebgp4-te10-routes")
@@ -1965,14 +1965,14 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	configureStaticRoute(t, dut)
 
 	// Active flows for Flow-Set #1 through Flow-Set #4.
-	port4Data := otgBGPConfig[2]
-	iDut4Dev := port4Data.otgDevice[0]
+	port3Data := otgBGPConfig[2]
+	iDut3Dev := port3Data.otgDevice[0]
 
-	bgpPeer := iDut4Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
+	bgpPeer := iDut3Dev.Bgp().Ipv4Interfaces().Items()[0].Peers().Items()[0]
 	v4routes := bgpPeer.V4Routes().Add().SetName("ATE2_C_IBGP_via_EBGP")
 	v4routes.Addresses().Add().SetAddress(ate2InternalPrefixesV4).SetPrefix(24).SetCount(5)
 
-	bgpPeerv6 := iDut4Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
+	bgpPeerv6 := iDut3Dev.Bgp().Ipv6Interfaces().Items()[0].Peers().Items()[0]
 	v6routes := bgpPeerv6.V6Routes().Add().SetName("ATE2_C_IBGP_via_EBGPv6")
 	v6routes.Addresses().Add().SetAddress(ate2InternalPrefixesV6).SetPrefix(64).SetCount(5)
 	ate.OTG().PushConfig(t, otgConfig)
@@ -1985,7 +1985,7 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	ate.OTG().StartProtocols(t)
 
-	// Validating one flow to be encapsulated when sent from Port1 -> ate 2 Port3
+	// Validating one flow to be encapsulated when sent from Port1 -> Port3
 	sendTrafficCapture(t, ate, []string{flowGroups["flowSet1"].Flows[0].Name()})
 
 	gueLayer := *outerGUEIPLayerIPv6

@@ -356,6 +356,5 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
 		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
-		// gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), params.NetworkInstanceObj)
 	}
 }
