@@ -1200,10 +1200,18 @@ message Metadata {
     // Functional Translator name for devices with mount point state paths unsupported.
     string system_mount_point_state_ft = 391;
 
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+    // Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+    string arp_ft = 392;
+
+    // Device does not support configuring prefix limit received paths through OC
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+    bool prefix_limit_config_unsupported = 393;
+    
     // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
     // Devices that do not support oc path for static route to nexthop
-    bool static_route_to_nhg_oc_unsupported = 392;
-
+    bool static_route_to_nhg_oc_unsupported = 394;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
