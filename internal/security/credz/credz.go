@@ -262,7 +262,7 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		dataTypes := bytes.Fields(data)
 		keyType := keyTypeFromAlgo(string(dataTypes[0]))
 		if keyType == cpb.KeyType_KEY_TYPE_UNSPECIFIED {
-			keyType = cpb.KeyType_KEY_TYPE_ED25519
+			t.Fatalf("Unrecognized key type: %s", dataTypes[0])
 		}
 		pubKey := dataTypes[1]
 		if dut.Vendor() == ondatra.JUNIPER {
