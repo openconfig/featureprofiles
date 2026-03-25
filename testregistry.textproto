@@ -912,18 +912,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "RT-2.18"
-  description: "Scale for IS-IS with multiple adjacencies"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_scale_multi_adjacency_test/README.md"
-  exec: "feature/isis/otg_tests/isis_scale_multi_adjacency_test/metadata.textproto"
-}
-test: {
-  id: "RT-10.2"
-  description: "Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/README.md"
-  exec: "feature/isis/policy/otg_tests/generate_route/metadata.textproto"
-}
-test: {
   id: "SR-1.2"
   description: "Egress Node Forwarding for MPLS traffic with Explicit Null label"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/README.md"
@@ -1696,12 +1684,6 @@ test: {
   description: "gRIBI to BGP Route Redistribution for IPv4"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_to_bgp_redistribution/README.md"
   exec: "feature/gribi/otg_tests/gribi_to_bgp_redistribution/metadata.textproto"
-}
-test: {
-  id: "TE-3.3"
-  description: "gRIBI Get RPC"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/ate_tests/get_rpc_test/README.md"
-  exec: " "
 }
 test: {
   id: "TE-6.1"
