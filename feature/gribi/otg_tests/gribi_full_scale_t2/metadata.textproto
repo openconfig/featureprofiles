@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f7bcfa59-dd84-4998-aa54-243dde4a99db"
-plan_id: "certz-1"
-description: "gNSI Client Certificate Tests"
+uuid: "401ea8f3-3aaa-4c98-919e-77f61de4e550"
+plan_id: "TE-14.4"
+description: "gRIBI Scaling - full scale setup, target T2"
 testbed: TESTBED_DUT_ATE_2LINKS
