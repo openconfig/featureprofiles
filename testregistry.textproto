@@ -2338,6 +2338,6 @@ test: {
 test: {
   id: "SR-1.2"
   description: "Egress Node Forwarding for MPLS traffic with Explicit Null label"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/README.md"
-  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/isis_extensions_segment_routing_test.go"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }
