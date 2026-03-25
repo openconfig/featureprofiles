@@ -2311,3 +2311,33 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/isis_node_sid_forward_test.go"
 }
+test: {
+  id: "MPLS-2.2"
+  description: "MPLS forwarding via static LSP to BGP next-hop."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_bgp_nexthop/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_bgp_nexthop/static_bgp_nexthop_test.go"
+}
+test: {
+  id: "PF-1.3"
+  description: "Policy-based IPv4 GRE Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/decap_gre_ipv4/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/decap_gre_ipv4/decap_gre_ipv4_test.go"
+}
+test: {
+  id: "BMP-1.1"
+  description: "BMP Session Establishment and Telemetry Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_base_session_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_base_session_test/bmp_base_session_test.go"
+}
+test: {
+  id: "RT-10.2"
+  description: "Route Retention Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/generate_route_test.go"
+}
+test: {
+  id: "SR-1.2"
+  description: "Egress Node Forwarding for MPLS traffic with Explicit Null label"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_extensions_segment_routing_test/isis_extensions_segment_routing_test.go"
+}
