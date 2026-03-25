@@ -129,6 +129,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTInterface(t, dut, batch, &dutPort2, p2)
 	// BGP neighbor should be in DEFAULT NI (since p2 is in DEFAULT)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS, "IPv4", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS, "IPv4", true)
 	// gRIBI → BGP redistribution (VRF side)
 	if deviations.TableConnectionsUnsupported(dut) {
 		switch dut.Vendor() {
