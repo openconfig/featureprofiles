@@ -31,13 +31,13 @@ import (
 )
 
 const (
-	username               = "testuser"
-	maxSSHRetryTime        = 30 // Unit is seconds.
-	hostCertificateVersion = "v1.0"
+	username        = "testuser"
+	maxSSHRetryTime = 30 // Unit is seconds.
 )
 
 var (
 	hostCertificateCreatedOn = time.Now().Unix()
+	hostCertificateVersion   = credz.GenerateVersion()
 )
 
 func TestMain(m *testing.M) {
