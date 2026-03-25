@@ -99,6 +99,15 @@ match as-path %s
 	helpers.GnmiCLIConfig(t, dut, config)
 }
 
+// DeviationAristaRoutingPolicyBGPAsPathMatchMode is used to enable POSIX regex matching for
+// AS Path Sets
+func DeviationAristaRoutingPolicyBGPAsPathMatchMode(t *testing.T, dut *ondatra.DUTDevice) {
+	helpers.GnmiCLIConfig(t, dut, "ip as-path regex-mode string")
+	t.Cleanup(func() {
+		helpers.GnmiCLIConfig(t, dut, "no ip as-path regex-mode")
+	})
+}
+
 // DeviationCiscoRoutingPolicyBGPToISIS is used as an alternative for DUTs that don't support
 // direct redistribution from BGP to ISIS using community match as condition.
 // This deviation implements CLI to perform the equivalent function.

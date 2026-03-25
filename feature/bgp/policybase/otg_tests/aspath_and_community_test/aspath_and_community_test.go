@@ -81,6 +81,15 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
 	}
 
+	if deviations.RoutingPolicyAsPathSetEnableRegexMode(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cfgplugins.DeviationAristaRoutingPolicyBGPAsPathMatchMode(t, dut)
+		default:
+			t.Errorf("RoutingPolicyAsPathSetEnableRegexMode deviation is not implemented for vendor %s", dut.Vendor())
+		}
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -104,9 +113,6 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			cs = append(cs, oc.UnionString(communityMatch))
 		}
 		communitySet.SetCommunityMember(cs)
-		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
-			communitySet.SetMatchSetOptions(commMatchSetOptions)
-		}
 	}
 
 	var communitySetCLIConfig string
