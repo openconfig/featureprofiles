@@ -140,10 +140,17 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 		t.Skipf("Get Fabric card list for %q: got 0, want > 0", dut.Model())
 	}
 	t.Logf("Fabric components count: %d", len(fabrics))
+	if len(fabrics) < 2 {
+		t.Skipf("Need at least 2 removable fabric cards to test backplane capacity degradation, got %d", len(fabrics))
+	}
 
 	ts1, tocs1, apct1 := getBackplaneCapacityCounters(t, dut, ics)
 
 	fc := (len(fabrics) / 2) + 1
+	if fc == len(fabrics) {
+		fc = len(fabrics) - 1
+		t.Logf("Capping fabric cards to disable at %d to keep at least 1 active", fc)
+	}
 	for _, f := range fabrics[:fc] {
 		empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
 		if ok && empty {
