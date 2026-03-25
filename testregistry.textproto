@@ -2331,7 +2331,7 @@ test: {
 }
 test: {
   id: "RT-10.2"
-  description: "Route Retention Test"
+  description: "Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/generate_route_test.go"
 }
