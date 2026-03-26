@@ -35,21 +35,15 @@ B --Egress (Decapped)--> C[ATE:Port2];
 
 | Flow Type | Header Layer | Source IP | Destination IP | UDP Port | DSCP | TTL |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Flow Type #1 (IPv6/IPv6/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
+| **Flow Type #1 (IPv6/IPv4/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
+| | Middle IP | IPV4-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
 | | Inner IP | IPV4-SRC-HOST | IPV4-DST-HOST | N/A | 20 | 50 |
 | **Flow Type #2 (IPv6/IPv6/IPv6)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
 | | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
 | | Inner IP | IPV6-SRC-HOST | IPV6-DST-HOST | N/A | 20 | 50 |
-| **Flow Type #3 (IPv6/IPv6/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6085 | 32 | 60 |
+| **Flow Type #3 (IPv6/IPv4/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
+| | Middle IP | IPV4-MID-SRC | DECAP-DST-INNER | 6085 | 32 | 60 |
 | | Inner IP | IPV4-SRC-HOST | IPV4-DST-HOST | N/A | 20 | 50 |
-| **Flow Type #4 (IPv6/IPv6/IPv4)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
-| | Inner IP | IPV4-SRC-HOST | IPV4-DST-HOST | N/A | 20 | 50 |
-| **Flow Type #5 (IPv6/IPv6/IPv6)** | Outer IP | ATE-P1-IP | DECAP-DST-OUTER | 6080 | 35 | 70 |
-| | Middle IP | IPV6-MID-SRC | DECAP-DST-INNER | 6080 | 32 | 60 |
-| | Inner IP | IPV6-SRC-HOST | IPV6-DST-HOST | N/A | 20 | 50 |
 
 ### Traffic Generation:
 
@@ -90,17 +84,21 @@ B --Egress (Decapped)--> C[ATE:Port2];
     * 100% packet loss (or failed decap) on ATE Port 2.
  
 #### PF-1.26.4: Negative - Middle Header no IPv4 destination available
-* Configure Flow Type #4 with an IPv4 inner header that is not reachable from the DUT.
+* Configure Flow Type #1 with an IPv4 inner header that has an unreachable destination IP.
 * Initiate traffic.
 * **Verification**:
-    * DUT decapsulates the outer and middle headers but should drop the packet due to a failed LPM lookup on the inner header.
+    * DUT decapsulates the outer header.
+    * DUT decapsulates the middle header.
+    * DUT performs LPM on the inner destination `IPV4-DST-HOST` and drops the packet due to no route.
     * 100% packet loss on ATE Port 2.
 
 #### PF-1.26.5: Negative - Middle Header no IPv6 destination available
-* Configure Flow Type #5 with an IPv6 inner header that is not reachable from the DUT.
+* Configure Flow Type #2 with an IPv6 inner header that has an unreachable destination IP.
 * Initiate traffic.
 * **Verification**:
-    * DUT decapsulates the outer and middle headers but should drop the packet due to a failed LPM lookup on the inner header.
+    * DUT decapsulates the outer header.
+    * DUT decapsulates the middle header.
+    * DUT performs LPM on the inner destination `IPV6-DST-HOST` and drops the packet due to no route.
     * 100% packet loss on ATE Port 2.
 
 ## Canonical OC
@@ -158,10 +156,10 @@ B --Egress (Decapped)--> C[ATE:Port2];
                   "rule": [
                     {
                       "sequence-id": 1,
-                      "ipv6": {
+                      "ipv4": {
                         "config": {
                           "protocol": "IP_UDP",
-                          "destination-address": "2001:db8::2/128"
+                          "destination-address": "192.0.2.2/32"
                         }
                       },
                       "transport": {
@@ -210,3 +208,5 @@ rpcs:
 
 * FFF 
 * MFF
+
+
