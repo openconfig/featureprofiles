@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"net/netip"
 )
 
 // GenerateIPs creates list of n IPs using ipBlock
@@ -247,4 +248,46 @@ func IncrementMAC(startMAC string, i int) (string, error) {
 		return "", fmt.Errorf("failed to generate MAC address")
 	}
 	return macs[0], nil
+}
+
+// generateIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
+func GenerateIPv6(startIP string, count uint64) ([]string, error) {
+	if startIP == "" {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+
+	_, netCIDR, _ := net.ParseCIDR(startIP)
+	fmt.Println(netCIDR)
+
+	if netCIDR == nil {
+		return nil, fmt.Errorf("parsed CIDR is nil for input: %s", startIP)
+	}
+
+	// Ensure it's IPv6
+	ipBytes := netCIDR.IP.To16()
+	if ipBytes == nil || netCIDR.IP.To4() != nil {
+		return nil, fmt.Errorf("IPv4 address given, expected IPv6: %s", startIP)
+	}
+
+	maskSize, bits := netCIDR.Mask.Size()
+	if bits != 128 {
+		return nil, fmt.Errorf("expected IPv6 mask, got %d bits", bits)
+	}
+
+	firstIP := binary.BigEndian.Uint64(netCIDR.IP)
+	netMask := binary.BigEndian.Uint64(netCIDR.Mask)
+	lastIP := (firstIP & netMask) | (netMask ^ 0xffffffff)
+	entries := []string{}
+
+	for i := firstIP; i <= lastIP; i++ {
+		ipv6 := make(net.IP, 16)
+		binary.BigEndian.PutUint64(ipv6, i)
+		// make last byte non-zero
+		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", ipv6, maskSize))
+		entries = append(entries, p.Addr().Next().String())
+		if uint64(len(entries)) >= count {
+			break
+		}
+	}
+	return entries, nil
 }
