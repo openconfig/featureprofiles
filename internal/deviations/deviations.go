@@ -2011,3 +2011,8 @@ func ArpFT(dut *ondatra.DUTDevice) string {
 func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
+}
