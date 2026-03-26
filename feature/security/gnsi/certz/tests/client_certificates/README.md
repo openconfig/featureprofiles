@@ -8,16 +8,6 @@ identification information. The client certificate should have a
 SPIFFE Idenitifier embedded in it to be used as the identifier of
 the client to the server.
 
-* SPIFFEE ID format
-```
-spiffe://<issuing role>.<context>.<security realm>.<domain>/role/<role>
-```
-
-* Example:
-
-```
-URI:spiffe://ca-issuer.sdn.wan.example.com/role/controller-role
-```
 
 ## Baseline Setup
 
@@ -53,9 +43,9 @@ gRPC service.
 
 Perform this for both RSA and ECDSA signed CA bundles and
 certificates.
-## TODO:Perform this for the permutations of 20000 CA (not enabled due to longer execution time)
+
+## TODO:Perform this for the permutations of 20000 CA
 ## TODO:trust_bundle configurations: ( 20000 CA testdata)
-##impacts runtime of the tests for certificate generation
 Perform this for the permutations of 1, 2, 10, 1000 CA
 trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
 
@@ -77,7 +67,7 @@ trust_bundle configurations: (## indicates the 1, 2, 10, 1000 CA testdata)
 
    4) Validate that the certificate is loaded and useful for outbound
       client connections.
-
+      
    5) Connect to the service on the DUT.
 
    6) Validate that the connection is established and that the client's
@@ -115,7 +105,7 @@ certificates:
       service on the DUT.
 
    5) Validate that the connection is properly torn down by the DUT.
-
+   
 
 ## OpenConfig Path and RPC Coverage
 
@@ -130,12 +120,14 @@ rpcs:
     certz.v1.Certz.AddProfile:
     certz.v1.Certz.Rotate:
 ```
+
 ## Canonical OC
 
 ```json
 {
-
 }
 ```
+
 ## Minimum DUT Platform Requirement
+
 vRX
