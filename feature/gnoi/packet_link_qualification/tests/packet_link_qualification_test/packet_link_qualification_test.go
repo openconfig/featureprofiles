@@ -562,7 +562,7 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		t.Fatalf("Failed to handle LinkQualification().Get(): %v", err)
 	}
 
-	// The packet counters between Generator and Reflector mismatch tolerance level in percentage.
+	// The packet counters between Generator and Reflector mismatch tolerance level in percentage
 	tolerance := 0.0001
 
 	for _, result := range getResp.GetResults() {
@@ -572,17 +572,14 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		if got, want := result.GetState(), plqpb.QualificationState_QUALIFICATION_STATE_COMPLETED; got != want {
 			t.Errorf("result.GetState(): got %v, want %v", got, want)
 		}
-
-		// Apply tolerance-based checks for packets error and dropped only when
-		// packets were sent, as reflector results report 0 packets sent.
+		if got, want := result.GetPacketsError(), uint64(0); got != want {
+			t.Errorf("result.GetPacketsError(): got %v, want %v", got, want)
+		}
 		if result.GetPacketsSent() > 0 {
-			if (float64(result.GetPacketsError())/float64(result.GetPacketsSent()))*100.00 > tolerance {
-				t.Errorf("result.GetPacketsError() greater than %0.4f percent: got %v, packetsSent %v",
-					tolerance, result.GetPacketsError(), result.GetPacketsSent())
-			}
-			if (float64(result.GetPacketsDropped())/float64(result.GetPacketsSent()))*100.00 > tolerance {
-				t.Errorf("result.GetPacketsDropped() greater than %0.4f percent: got %v, packetsSent %v",
-					tolerance, result.GetPacketsDropped(), result.GetPacketsSent())
+			droppedPct := (float64(result.GetPacketsDropped()) / float64(result.GetPacketsSent())) * 100.0
+			if droppedPct > tolerance {
+				t.Errorf("result.GetPacketsDropped(): got %v (%.6f%%), want <= %.4f%% of packets sent (%v)",
+					result.GetPacketsDropped(), droppedPct, tolerance, result.GetPacketsSent())
 			}
 		}
 
