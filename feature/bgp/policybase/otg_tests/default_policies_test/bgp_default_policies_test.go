@@ -179,7 +179,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		gnmi.Await(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
+		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
+		if want := oc.Interface_OperStatus_UP; status != want {
+			t.Errorf("%s Status: got %v, want %v", p, status, want)
+		}
 	}
 }
 

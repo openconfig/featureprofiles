@@ -32,12 +32,12 @@ import (
 )
 
 const (
-	username = "testuser"
+	hostCertificateVersion = "v1.0"
 )
 
 var (
-	passwordVersion          = credz.GenerateVersion()
-	hostCertificateVersion   = credz.GenerateVersion()
+	username                 = "testuser"
+	passwordVersion          = "v1.0"
 	hostCertificateCreatedOn = uint64(time.Now().Unix())
 	passwordCreatedOn        = uint64(time.Now().Unix())
 )
@@ -63,10 +63,8 @@ func TestCredentialz(t *testing.T) {
 	credz.CreateSSHKeyPair(t, dir, "ca")
 	credz.CreateSSHKeyPair(t, dir, dut.ID())
 	credz.RotateAuthenticationArtifacts(t, dut, dir, "", hostCertificateVersion, hostCertificateCreatedOn)
-	dutKey := credz.GetDutPublicKey(t, dut, "ssh-ed25519")
+	dutKey := credz.GetDutPublicKey(t, dut)
 	credz.CreateHostCertificate(t, dut, dir, dutKey)
-	hostCertificateVersion = credz.GenerateVersion()
-	hostCertificateCreatedOn = uint64(time.Now().Unix())
 	credz.RotateAuthenticationArtifacts(t, dut, "", dir, hostCertificateVersion, hostCertificateCreatedOn)
 
 	t.Run("dut should return signed host certificate", func(t *testing.T) {
@@ -85,6 +83,9 @@ func TestCredentialz(t *testing.T) {
 		}
 		wantHostKey := strings.Trim(string(ssh.MarshalAuthorizedKey(cert.Key)), "\n")
 		gotHostKey := credz.GetConfiguredHostKey(t, dut, "ssh-ed25519", *args.Fqdn)
+		if err != nil {
+			t.Fatalf("Failed parsing host certificate from device: %s", err)
+		}
 
 		// Verify correct host certificate is returned by the dut.
 		if diff := cmp.Diff(gotHostKey, wantHostKey); diff != "" {

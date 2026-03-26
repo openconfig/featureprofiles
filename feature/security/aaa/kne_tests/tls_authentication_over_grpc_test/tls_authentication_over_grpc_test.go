@@ -146,30 +146,6 @@ func TestAuthentication(t *testing.T) {
 					authentication protocol password
 				`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-	case ondatra.CISCO:
-		t.Logf("Cisco vendor, performing SSH configuration")
-		cliConfig := `
-				aaa authentication login default local
-				aaa authorization exec default local
-				ssh server vrf default
-				`
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-
-	case ondatra.JUNIPER:
-		t.Logf("Juniper vendor, performing SSH configuration")
-		cliConfig := `
-				system {
-					services {
-							ssh {
-									root-login allow;
-							}
-					}
-					authentication-order password;
-			}
-			`
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
 	}
@@ -208,23 +184,7 @@ func TestAuthentication(t *testing.T) {
 			t.Log("Trying SSH credentials")
 			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 			defer cancel()
-			var (
-				client any
-				err    error
-			)
-			if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
-				// Some vendors might be slow to process new users/AAA changes.
-				for i := 0; i < 5; i++ {
-					client, err = credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
-					if err == nil || (tc.wantErr && err.Error() != "ssh: handshake failed: EOF") {
-						break
-					}
-					t.Logf("SSH attempt %d failed: %v, retrying...", i+1, err)
-					time.Sleep(5 * time.Second)
-				}
-			} else {
-				client, err = credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
-			}
+			client, err := credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
@@ -234,7 +194,7 @@ func TestAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed dialing ssh, error: %s", err)
 			}
-			defer client.(interface{ Close() error }).Close()
+			defer client.Close()
 			if tc.wantErr != (err != nil) {
 				if tc.wantErr {
 					t.Errorf("ssh.Dial got nil error, want error for user %q, password %q", tc.user, tc.pass)

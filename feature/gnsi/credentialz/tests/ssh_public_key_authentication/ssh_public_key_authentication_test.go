@@ -29,13 +29,11 @@ import (
 )
 
 const (
-	username = "testuser"
+	username                  = "testuser"
+	authorizedKeysListVersion = "v1.0"
 )
 
-var (
-	authorizedKeysListCreatedOn int64
-	authorizedKeysListVersion   = credz.GenerateVersion()
-)
+var authorizedKeysListCreatedOn int64
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -120,16 +118,10 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		gotAuthorizedKeysListCreatedOn := int64(userState.GetAuthorizedKeysListCreatedOn())
-		wantAuthorizedKeysListCreatedOn := authorizedKeysListCreatedOn
-		switch dut.Vendor() {
-		case ondatra.NOKIA:
-			wantAuthorizedKeysListCreatedOn *= 1e9
-		default:
-			t.Logf("Vendor %s, does not need support nanosecond conversion for authorized keys list created on", dut.Vendor())
-		}
-		if got, want := gotAuthorizedKeysListCreatedOn, wantAuthorizedKeysListCreatedOn; got != want {
+		if got, want := gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn; got != want {
 			t.Errorf("Telemetry reports authorized keys list created on is not correct, got: %d, want: %d", got, want)
 		}
+
 	})
 
 	t.Cleanup(func() {

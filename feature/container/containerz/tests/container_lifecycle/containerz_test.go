@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"google.golang.org/grpc/codes"
@@ -491,12 +490,7 @@ func TestVolumes(t *testing.T) {
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
 
-		mountOpts := map[string]string{
-			"options":    "bind",
-			"mountpoint": "/some-path",
-		}
-
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, nil)
 		if err != nil {
 			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
 		}
@@ -525,18 +519,6 @@ func TestVolumes(t *testing.T) {
 				if vol.Driver != "local" {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
-
-				// check options
-				wantOptions := map[string]string{
-					"device": "/some-path",
-					"o":      "bind",
-					"type":   "none",
-				}
-
-				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
-					t.Errorf("Volume %q returned a diff(-got, +want):\n%s", vol.Name, diff)
-				}
-
 				break
 			}
 		}

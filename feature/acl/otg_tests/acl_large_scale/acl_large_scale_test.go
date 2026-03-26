@@ -918,7 +918,7 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	}
 
 	for _, acl := range aclConfigs {
-		if deviations.ConfigACLOcUnsupported(dut) {
+		if deviations.ConfigAclOcUnsupported(dut) {
 			switch dut.Vendor() {
 			case ondatra.ARISTA:
 				aclTarfficPolicy := cfgplugins.ACLTrafficPolicyParams{
@@ -945,7 +945,7 @@ func testv4AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	}
 
 	// Verification of ACL on interfaces as Ingress & Egress
-	if !deviations.ConfigACLOcUnsupported(dut) {
+	if !deviations.ConfigAclOcUnsupported(dut) {
 		var expectedACLs = []struct {
 			Name    string
 			Ingress bool
@@ -1152,7 +1152,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	}
 
 	for _, acl := range aclConfigs {
-		if deviations.ConfigACLOcUnsupported(dut) {
+		if deviations.ConfigAclOcUnsupported(dut) {
 			switch dut.Vendor() {
 			case ondatra.ARISTA:
 				aclTarfficPolicy := cfgplugins.ACLTrafficPolicyParams{
@@ -1179,7 +1179,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 	}
 
 	// Verify ACL is applied on the interfaces
-	if !deviations.ConfigACLOcUnsupported(dut) {
+	if !deviations.ConfigAclOcUnsupported(dut) {
 		var expectedACLs = []struct {
 			Name    string
 			Ingress bool
@@ -1317,7 +1317,7 @@ func testv6AddressScale(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 }
 
 func testv4PrefixList(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig *otg.OTG, config gosnappi.Config) {
-	if !deviations.ConfigACLOcUnsupported(dut) {
+	if !deviations.ConfigAclOcUnsupported(dut) {
 		// Remove the ACL configs from interface
 		removeAClOnInterface(t, dut, "port1")
 		removeAClOnInterface(t, dut, "port2")

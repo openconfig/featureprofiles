@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "401ea8f3-3aaa-4c98-919e-77f61de4e550"
-plan_id: "TE-14.4"
-description: "gRIBI Scaling - full scale setup, target T2"
+uuid: "7a174892-6dfa-4a16-9a21-e278551002e4"
+plan_id: "PF-1.26"
+description: "Double GUEv1 Decapsulation for Overlay Probing"
 testbed: TESTBED_DUT_ATE_2LINKS

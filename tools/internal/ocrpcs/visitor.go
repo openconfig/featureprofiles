@@ -2,7 +2,6 @@ package ocrpcs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/yoheimuta/go-protoparser/v4/parser"
 )
@@ -81,8 +80,7 @@ func (v *rpcServiceAccumulator) VisitReserved(*parser.Reserved) (next bool) {
 }
 
 func (v *rpcServiceAccumulator) VisitRPC(r *parser.RPC) (next bool) {
-	pkg := strings.TrimPrefix(v.packageName, "openconfig.")
-	v.rpcs = append(v.rpcs, fmt.Sprintf("%s.%s.%s", pkg, v.currentService, r.RPCName))
+	v.rpcs = append(v.rpcs, fmt.Sprintf("%s.%s.%s", v.packageName, v.currentService, r.RPCName))
 	return
 }
 

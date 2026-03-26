@@ -38,14 +38,7 @@ Verify:
 * DUT pipeline counters report fragment packet discards.
 * Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
   traffic is permitted.
-* Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
-
-#### Canonical OC
-```json
-{
-
-}
-```
+* Verify low CPU (<20%) utilization on control plane.
 
 ### MTU-1.5.2 IPv6 Path MTU 
 
@@ -58,14 +51,7 @@ Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
 * Verify that DUT pipeline counters report fragment packet discards.
 * Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
   traffic is permitted.
-* Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
-
-#### Canonical OC
-```json
-{
-
-}
-```
+* Verify low CPU (<20%) utilization on control plane.
 
 ## OpenConfig Path and RPC Coverage
 

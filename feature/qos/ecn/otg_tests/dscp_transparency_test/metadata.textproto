@@ -24,11 +24,3 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: JUNIPER
-  }
-  deviations: {
-    qos_queue_requires_id: true
-  }
-}

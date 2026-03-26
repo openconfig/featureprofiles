@@ -39,6 +39,11 @@ type recordRequestResult struct {
 	err    error
 }
 
+const (
+	queueSize     = 10
+	historyMemory = 10
+)
+
 func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 	// Perhaps other vendors will need a different payload/size/etc., for now we'll just send a
 	// giant set of network instances + static routes which should hopefully work for everyone.
@@ -61,34 +66,36 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-
-	const queueSize = 100
-	const historyMemory = 100
-
+	startTime := time.Now()
+	t.Logf("Vendor: %s", dut.Vendor())
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
-
-	startTime := time.Now()
-
+	sendOversizedPayload(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
+
 	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
 	})
 	if err != nil {
-		t.Fatalf("Failed to subscribe to acctz records: %v", err)
+		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
 	}
-
-	sendOversizedPayload(t, dut)
-
 	for {
 		r := make(chan recordRequestResult)
 		go func(r chan recordRequestResult) {
-			resp, err := acctzSubClient.Recv()
+			var response *acctzpb.RecordResponse
+			response, err = acctzSubClient.Recv()
+			if err != nil {
+				r <- recordRequestResult{
+					err: err,
+				}
+				return
+			}
+
 			r <- recordRequestResult{
-				record: resp,
+				record: response,
 				err:    err,
 			}
 		}(r)
@@ -98,10 +105,12 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		select {
 		case rr := <-r:
 			resp = rr
-		case <-time.After(60 * time.Second):
+			if resp.err != nil {
+				t.Fatalf("Failed receiving record response, error: %s", resp.err)
+			}
+		case <-time.After(30 * time.Second):
 			done = true
 		}
-
 		if done {
 			t.Fatal("Done receiving records and did not find our record...")
 		}
@@ -110,29 +119,20 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
-		t.Logf("Received record: %v", resp.record)
-
 		grpcServiceRecord := resp.record.GetGrpcService()
-		if grpcServiceRecord == nil {
-			continue
-		}
 
 		if grpcServiceRecord.GetServiceType() != acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI {
-			t.Logf("Not our gnmi set, service type: %v", grpcServiceRecord.GetServiceType())
+			// Not our gnmi set, nothing to see here.
 			continue
 		}
 
-		if grpcServiceRecord.GetRpcName() != "/gnmi.gNMI/Set" {
-			t.Logf("Not our gnmi set, rpc name: %v", grpcServiceRecord.GetRpcName())
+		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Set" {
 			continue
 		}
 
-		if !grpcServiceRecord.GetPayloadIstruncated() {
-			t.Log("Found our record, but it is not truncated...")
-			continue
+		if grpcServiceRecord.GetPayloadIstruncated() {
+			t.Log("Found truncated payload of gnmi.Set after start timestamp, success!")
+			break
 		}
-
-		t.Logf("Found truncated record: %v", resp.record)
-		break
 	}
 }
