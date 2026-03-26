@@ -31,13 +31,13 @@ import (
 )
 
 const (
-	username        = "testuser"
-	maxSSHRetryTime = 30 // Unit is seconds.
+	username               = "testuser"
+	maxSSHRetryTime        = 30 // Unit is seconds.
+	hostCertificateVersion = "v1.0"
 )
 
 var (
 	hostCertificateCreatedOn = time.Now().Unix()
-	hostCertificateVersion   = credz.GenerateVersion()
 )
 
 func TestMain(m *testing.M) {
@@ -134,21 +134,23 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify host certificate telemetry.
-		sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
-		gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
-		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
-			t.Fatalf(
-				"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
-				gotHostCertificateVersion, hostCertificateVersion,
-			)
-		}
-		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
-		if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(hostCertificateCreatedOn, 0)) {
-			t.Fatalf(
-				"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
-				gotHostCertificateCreatedOn, hostCertificateCreatedOn,
-			)
+		if !deviations.SSHServerHostCertificateTelemetryUnsupported(dut) {
+			sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
+			gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
+			if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
+				t.Fatalf(
+					"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
+					gotHostCertificateVersion, hostCertificateVersion,
+				)
+			}
+			gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
+			// if !cmp.Equal(time.Unix(0, int64(gotHostCertificateCreatedOn)), time.Unix(hostCertificateCreatedOn, 0)) {
+			if !cmp.Equal(time.Unix(int64(gotHostCertificateCreatedOn), 0), time.Unix(hostCertificateCreatedOn, 0)) {
+				t.Fatalf(
+					"Telemetry reports host certificate created on is not correct\n\tgot: %d\n\twant: %d",
+					gotHostCertificateCreatedOn, hostCertificateCreatedOn,
+				)
+			}
 		}
 	})
 

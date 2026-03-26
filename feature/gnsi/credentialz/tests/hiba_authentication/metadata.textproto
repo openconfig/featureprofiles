@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ssh_server_counters_unsupported: true
+    ssh_server_host_certificate_telemetry_unsupported: true
   }
 }
 
