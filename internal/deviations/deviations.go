@@ -2018,3 +2018,10 @@ func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
 }
+
+// KillProcessHasDifferentName returns true if gNOI KillProcess RPC expects a name
+// which differs from the name in /system/processes/process list
+// Arista https://partnerissuetracker.corp.google.com/issues/489304077
+func KillProcessHasDifferentName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetKillProcessDifferentYangName()
+}
