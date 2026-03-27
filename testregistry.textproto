@@ -370,6 +370,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/power_admin_down_up_test/README.md"
 }
 test: {
+  id: "FPGA-1.1"
+  description: "FPGA Component Status"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/fpga/tests/fpga_status_test/README.md"
+}
+test: {
   id: "Health-1.1"
   description: "Generic Health Check"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/health/tests/system_generic_health_check/README.md"
@@ -513,8 +518,8 @@ test: {
 }
 test: {
   id: "PF-1.4"
-  description: "Interface based GUE Decapsulation to IPv4 tunnel"
-  readme: " "
+  description: "GUEv1 Decapsulation rule using destination-address-prefix-set and TTL and DSCP behavior test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ip_guev1_static_decap_subnet_range/README.md"
   exec: " "
 }
 test: {
@@ -526,7 +531,7 @@ test: {
 test: {
   id: "PF-1.6"
   description: "IPv4 & IPV6 based traffic steering from Non-default VRF to Default VRF using Policy based VRF selection"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/vrf_selection/README.md"
   exec: " "
 }
 test: {
@@ -619,14 +624,20 @@ test: {
 }
 test: {
   id: "PF-1.22"
-  description: "ECMP hashing for GUE flows with IPv4|UDP outer header"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/ipv4_gue_hashing_test/README.md"
+  description: "GUEv1 Decapsulation and ECMP test for IPv4 and IPv6 payload"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/decapsulation/otg_tests/ipv4_guev1_decap_and_hashing_test/README.md"
   exec: " "
 }
 test: {
   id: "PF-1.23"
   description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/ethomplsogre/otg_tests/encap_decap_gre/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-2.3"
+  description: "Multiple VRFs and GUE DECAP in Default VRF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/vrf_selection/otg_tests/multiple_vrfs_and_gue_decap/README.md"
   exec: " "
 }
 test: {
@@ -639,6 +650,12 @@ test: {
   id: "PLT-1.2"
   description: "Interface parent component Test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/interface_parent_component/README.md"
+  exec: " "
+}
+test: {
+  id: "RELAY-1.1"
+  description: "DHCP Relay functionality"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/helper_address/otg_tests/relay_agent_test/README.md" 
   exec: " "
 }
 test: {
@@ -835,7 +852,7 @@ test: {
 test: {
   id: "RT-1.35"
   description: "Extended routes retention"
-  readme: ""
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/gracefulrestart/otg_tests/exrr/README.md"
   exec: " "
 }
 test: {
@@ -944,6 +961,12 @@ test: {
   id: "RT-1.67"
   description: "IPv4 and IPv6 Static Route using Vlan Interface"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/staticroute/otg_tests/static_route_with_vlan_interface/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-1.71"
+  description: "BGP Disable Peer AS Filter (disable-peer-as-filter)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bgp_disable_peer_as_filter_test/README.md"
   exec: " "
 }
 test: {
@@ -1060,7 +1083,7 @@ test: {
 }
 test: {
   id: "RT-3.53"
-  description: "Static route based GUE Encapsulation to IPv4 tunnel"
+  description: "Static route based GUE Encapsulation to IPv6 tunnel"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/static/otg_tests/next_hop_encap_udp/README.md"
   exec: " "
 }
@@ -1332,6 +1355,18 @@ test: {
   id: "TE-14.2"
   description: "gRIBI encap and decap scale"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/encap_decap_scale/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-14.3"
+  description: "TE-14.3: gRIBI Scaling - full scale setup, target T1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-14.4"
+  description: "TE-14.4: gRIBI Scaling - full scale setup, target T2"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_full_scale_t1/README.md"
   exec: " "
 }
 test: {
@@ -2281,4 +2316,34 @@ test: {
   description: "Transit forwarding to Node-SID via ISIS"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/isis_node_sid_forward/isis_node_sid_forward_test.go"
+}
+test: {
+  id: "MPLS-2.2"
+  description: "MPLS forwarding via static LSP to BGP next-hop."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_bgp_nexthop/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/otg_tests/static_bgp_nexthop/static_bgp_nexthop_test.go"
+}
+test: {
+  id: "PF-1.3"
+  description: "Policy-based IPv4 GRE Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/decap_gre_ipv4/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/encapsulation/otg_tests/decap_gre_ipv4/decap_gre_ipv4_test.go"
+}
+test: {
+  id: "BMP-1.1"
+  description: "BMP Session Establishment and Telemetry Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_base_session_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/bmp/otg_tests/bmp_base_session_test/bmp_base_session_test.go"
+}
+test: {
+  id: "RT-10.2"
+  description: "Non-default Route Generation based on 192.168.2.2/32 Presence in ISIS"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/policy/otg_tests/generate_route/generate_route_test.go"
+}
+test: {
+  id: "SR-1.2"
+  description: "Egress Node Forwarding for MPLS traffic with Explicit Null label"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }

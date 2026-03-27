@@ -70,12 +70,12 @@ DUT 2 test-instance NI    | 49.0001.1980.5110.0030.00
 DUT 2 test-originate NI   | 49.0001.1980.5110.0100.00
 
 #### ATE Traffic Profile (Table 7)
-Flow name | Source | Destination | flow size |  flow rate(percent) | flow vlan | Flow Src MAC
-:------| :----------| :----------|:----------|:----------|:----------| :-------------:
-Flow 1  | 198.51.210.1 | 198.55.1.1 | 512 |  5 | 20 | 02:00:03:01:02:02
-Flow 2  | 198.51.210.1 | 198.55.2.1 | 512 |  5 | 40 | 02:00:03:01:04:04
-Flow 3  | 2001:db8:10::1 | 2001:db8:50::1 | 512 |  5 | 20 | 02:00:03:01:02:02
-Flow 4  | 2001:db8:10::1 | 2001:db8:60::1 | 512 |  5 | 40 | 02:00:03:01:04:04
+Flow name | Source | Destination | flow size |  flow rate(percent) | flow vlan | Flow Src MAC | source interface | Destination interface
+:------| :----------| :----------|:----------|:----------|:----------| :----------|:----------| :-------------:
+Flow 1  | 198.51.210.1 | 198.55.1.1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
+Flow 2  | 198.51.210.1 | 198.55.2.1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
+Flow 3  | 2001:db8:10::1 | 2001:db8:50::1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
+Flow 4  | 2001:db8:10::1 | 2001:db8:60::1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
 
 #### ATE Interfaces MAC Addresses (Table 8)
 Interface | MAC Address 
@@ -169,7 +169,6 @@ be the ASN on the test-instance as specified on Table 5.
     2001:db8::18
 *  Enable AIGP exchange on peers 198.51.100.2, 2001:db8::2, 198.51.100.18,
     2001:db8::18,198.51.100.6 and 2001:db8::6
-* redistribute connected Route into BGP
 
 ##### BGP Configuration - test-instance Network instance
 
@@ -200,7 +199,6 @@ be the ASN on the test-instance as specified on Table 5.
     2001:db8::22
 *  Enable AIGP exchange on 198.51.100.10, 2001:db8::10, 198.51.100.22,2001:db8::22,
     198.51.100.14 and 2001:db8::14
-* redistribute connected Route into BGP
 
 ### DUT 2 - Generate Configuration
 
@@ -256,22 +254,19 @@ be the ASN on the test-instance as specified on Table 5.
 1. Create an aggregate interface with LACP named Lag1
 2. Add port 1 to Lag1
 3. Create emulated router
-4. Create an Ethernet interface named loopback1 to emulate a loopback interface (not connected to the aggregate interface)
-5. Configure IPV4 and IPV6 addresses on the loopback interface as shown below
-      IPV4: 198.51.210.1/32 ; IPV6: 2001:db8:10::1/128
-6. Create 4 ethernet interfaces on the router, the ethernet interfaces
+4. Create 4 ethernet interfaces on the router, the ethernet interfaces
     named eth1.10, eth1.20, eth1.30, eth1.40 respectively
-7. Connect ethernet interfaces to the aggregate interface
-8. Configure Vlans 10,20,30 and 40 respectively on the ethernet interfaces
+5. Connect ethernet interfaces to the aggregate interface
+6. Configure Vlans 10,20,30 and 40 respectively on the ethernet interfaces
    according to the following mapping
       * eth1.10 - vlan 10
       * eth1.20 - vlan 20
       * eth1.30 - vlan 30
       * eth1.40 - vlan 40
-9. Configure IPV4 addresses and gateway on the subinterfaces according to table 1
-10. Configure IPV6 addresses on the subinterfaces according to table 2
-11. Wait for lag interface to come up
-12. Create the following ipv4 and ipv6 BGP peers of type EBGP on the emulated Router
+7. Configure IPV4 addresses and gateway on the subinterfaces according to table 1
+8. Configure IPV6 addresses on the subinterfaces according to table 2
+9. Wait for lag interface to come up
+10. Create the following ipv4 and ipv6 BGP peers of type EBGP on the emulated Router
      * Peer address: 198.51.100.1; remote AS: 64497
      * Peer address: 198.51.100.5; remote AS: 64497
      * Peer address: 198.51.100.9; remote AS: 64498
@@ -280,15 +275,15 @@ be the ASN on the test-instance as specified on Table 5.
      * Peer address: 2001:db8::5; remote AS: 64497
      * Peer address: 2001:db8::9; remote AS: 64498
      * Peer address: 2001:db8::13; remote AS: 64498
-13. Wait for the BGP peers to come up
-14. Create the following ipv4 and ipv6 Routes on the emulated router
+11. Wait for the BGP peers to come up
+12. Create the following ipv4 and ipv6 Routes on the emulated router
      * 198.51.210.0/24
      * 198.51.220.0/24
      * 2001:db8:10::/64
      * 2001:db8:20::/64
-15. Create Traffic flow according the the specification on Table 7
-16. Push config on to the OTG
-17. Start Protocol on the OTG
+13. Create Traffic flow according the the specification on Table 7
+14. Push config on to the OTG
+15. Start Protocol on the OTG
 
 ### Testing Steps
 
@@ -537,68 +532,6 @@ be the ASN on the test-instance as specified on Table 5.
                   ]
                 }
               }
-            },
-            {
-              "identifier": "DIRECTLY_CONNECTED",
-              "name": "DEFAULT",
-              "config": {
-                "identifier": "DIRECTLY_CONNECTED",
-                "name": "DEFAULT"
-              }
-            }
-          ]
-        },
-        "tables": {
-          "table": [
-            {
-              "address-family": "IPV4",
-              "protocol": "DIRECTLY_CONNECTED",
-              "config": {
-                "address-family": "IPV4",
-                "protocol": "DIRECTLY_CONNECTED"
-              }
-            },
-            {
-              "address-family": "IPV6",
-              "protocol": "DIRECTLY_CONNECTED",
-              "config": {
-                "address-family": "IPV6",
-                "protocol": "DIRECTLY_CONNECTED"
-              }
-            },
-            {
-              "address-family": "IPV4",
-              "protocol": "BGP",
-              "config": {
-                "address-family": "IPV4",
-                "protocol": "BGP"
-              }
-            },
-            {
-              "address-family": "IPV6",
-              "protocol": "BGP",
-              "config": {
-                "address-family": "IPV6",
-                "protocol": "BGP"
-              }
-            }
-          ]
-        },
-        "table-connections": {
-          "table-connection": [
-            {
-              "config": {
-                "src-protocol": "DIRECTLY_CONNECTED",
-                "dst-protocol": "BGP",
-                "address-family": "IPV4"
-              }
-            },
-            {
-              "config": {
-                "src-protocol": "DIRECTLY_CONNECTED",
-                "dst-protocol": "BGP",
-                "address-family": "IPV6"
-              }
             }
           ]
         }
@@ -746,68 +679,6 @@ be the ASN on the test-instance as specified on Table 5.
                     }
                   ]
                 }
-              }
-            },
-            {
-              "identifier": "DIRECTLY_CONNECTED",
-              "name": "DEFAULT",
-              "config": {
-                "identifier": "DIRECTLY_CONNECTED",
-                "name": "DEFAULT"
-              }
-            }
-          ]
-        },
-        "table-connections": {
-          "table-connection": [
-            {
-              "config": {
-                "src-protocol": "DIRECTLY_CONNECTED",
-                "dst-protocol": "BGP",
-                "address-family": "IPV4"
-              }
-            },
-            {
-              "config": {
-                "src-protocol": "DIRECTLY_CONNECTED",
-                "dst-protocol": "BGP",
-                "address-family": "IPV6"
-              }
-            }
-          ]
-        },
-        "tables": {
-          "table": [
-            {
-              "address-family": "IPV4",
-              "protocol": "DIRECTLY_CONNECTED",
-              "config": {
-                "address-family": "IPV4",
-                "protocol": "DIRECTLY_CONNECTED"
-              }
-            },
-            {
-              "address-family": "IPV6",
-              "protocol": "DIRECTLY_CONNECTED",
-              "config": {
-                "address-family": "IPV6",
-                "protocol": "DIRECTLY_CONNECTED"
-              }
-            },
-            {
-              "address-family": "IPV4",
-              "protocol": "BGP",
-              "config": {
-                "address-family": "IPV4",
-                "protocol": "BGP"
-              }
-            },
-            {
-              "address-family": "IPV6",
-              "protocol": "BGP",
-              "config": {
-                "address-family": "IPV6",
-                "protocol": "BGP"
               }
             }
           ]
@@ -1132,7 +1003,6 @@ Test-case RT-1.36.2 above.
 
 ##### BGP Configuration - Default Network instance
 
-* Undo the connect route to BGP redistribution that was done on test-case RT-1.36.1
 * Remove test-export-policy in the export direction on both 198.51.100.18 and
   2001:db8::18 which is in their export direction
 * Configure the route-policy default-export-v4 in the export
@@ -2155,7 +2025,7 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/config/address-family:
   /network-instances/network-instance/table-connections/table-connection/config/src-protocol:
   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
-  # TODO: Create path for enabling AIGP on neighbor and peer-group basis an also bgp action for AIGP. See [PR/1451](https://github.com/openconfig/public/pull/1451)
+  # TODO: Create path for enabling AIGP on neighbor and peer-group basis an also bgp action for AIGP. see [PR/1451](https://github.com/openconfig/public/pull/1451)
   # TODO: /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enable-aigp
   # TODO: /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-aigp
   # TODO: /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enable-aigp
