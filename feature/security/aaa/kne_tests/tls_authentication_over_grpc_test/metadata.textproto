@@ -29,4 +29,12 @@ platform_exceptions: {
     set_native_user: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+    deviations: {
+      set_native_user: true
+    }
+}
 
