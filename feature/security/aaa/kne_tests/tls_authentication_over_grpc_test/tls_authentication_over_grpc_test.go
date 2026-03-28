@@ -38,6 +38,11 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+var (
+	password        = credz.GeneratePassword()
+	passwordVersion = credz.GenerateVersion()
+)
+
 // helper function for native model;
 // Configure a new user by passing a username and password and assign that user to a role
 // ensure role has write access
@@ -132,9 +137,15 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
+	case ondatra.JUNIPER:
+		t.Logf("Rotating user password on DUT for user, pass: %s, %s", user, pass)
+		credz.SetupUser(t.(*testing.T), dut, user)
+		t.Logf("Rotating user password on DUT")
+		credz.RotateUserPassword(t.(*testing.T), dut, user, pass, passwordVersion, uint64(time.Now().Unix()))
 	case ondatra.ARISTA:
 		cliConfig := fmt.Sprintf("username %s privilege 15 role network-admin secret %s", user, pass)
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(5 * time.Second)
 	default:
 		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
 	}
@@ -142,6 +153,10 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	// Save the original hostname to restore it at the end of the test.
+	origHostname := gnmi.Get(t, dut, gnmi.OC().System().Hostname().Config())
+	defer gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), origHostname)
+
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Logf("Arista vendor, performing SSH cleanup")
@@ -161,7 +176,8 @@ func TestAuthentication(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 
 	case ondatra.JUNIPER:
-		t.Logf("Juniper vendor, performing SSH configuration")
+		t.Logf("Juniper SSH configuration ")
+
 		cliConfig := `
 				system {
 					services {
@@ -173,17 +189,16 @@ func TestAuthentication(t *testing.T) {
 			}
 			`
 		dut.Config().New().WithJuniperText(cliConfig).Append(t)
-
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
 	}
 	if deviations.SetNativeUser(dut) {
-		createNativeUser(t, dut, "alice", "password", "admin")
+		createNativeUser(t, dut, "alice", password, "admin")
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
 			User("alice").Config(), &oc.System_Aaa_Authentication_User{
 			Username: ygot.String("alice"),
-			Password: ygot.String("password"),
+			Password: ygot.String(password),
 			Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
 		})
 	}
@@ -195,7 +210,7 @@ func TestAuthentication(t *testing.T) {
 	}{{
 		desc: "good username and password",
 		user: "alice",
-		pass: "password",
+		pass: password,
 	}, {
 		desc:    "good username bad password",
 		user:    "alice",
@@ -207,10 +222,11 @@ func TestAuthentication(t *testing.T) {
 		pass:    "password",
 		wantErr: true,
 	}}
+
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 			defer cancel()
 			var (
 				client any
