@@ -2012,6 +2012,13 @@ func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
 
+// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+// is not supported.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
+}
+
 // FpgaFt returns the functional translator name for devices with FPD paths unsupported.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
 func FpgaFt(dut *ondatra.DUTDevice) string {

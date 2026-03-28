@@ -1356,9 +1356,13 @@ type Metadata_Deviations struct {
 	// Device does not support configuring prefix limit received paths through OC
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
 	PrefixLimitConfigUnsupported bool `protobuf:"varint,393,opt,name=prefix_limit_config_unsupported,json=prefixLimitConfigUnsupported,proto3" json:"prefix_limit_config_unsupported,omitempty"`
+	// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+	// is not supported.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+	SshServerHostCertificateTelemetryUnsupported bool `protobuf:"varint,394,opt,name=ssh_server_host_certificate_telemetry_unsupported,json=sshServerHostCertificateTelemetryUnsupported,proto3" json:"ssh_server_host_certificate_telemetry_unsupported,omitempty"`
 	// Functional Translator name for devices with FPD paths unsupported.
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
-	FpgaFt        string `protobuf:"bytes,394,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
+	FpgaFt        string `protobuf:"bytes,395,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3906,6 +3910,13 @@ func (x *Metadata_Deviations) GetPrefixLimitConfigUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() bool {
+	if x != nil {
+		return x.SshServerHostCertificateTelemetryUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetFpgaFt() string {
 	if x != nil {
 		return x.FpgaFt
@@ -3969,7 +3980,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb0\xdb\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x9a\xdc\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3981,7 +3992,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xfc\xd0\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe6\xd1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4345,8 +4356,9 @@ const file_metadata_proto_rawDesc = "" +
 	"\x06qos_ft\x18\x86\x03 \x01(\tR\x05qosFt\x12=\n" +
 	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12\x16\n" +
 	"\x06arp_ft\x18\x88\x03 \x01(\tR\x05arpFt\x12F\n" +
-	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12\x18\n" +
-	"\afpga_ft\x18\x8a\x03 \x01(\tR\x06fpgaFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12h\n" +
+	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x12\x18\n" +
+	"\afpga_ft\x18\x8b\x03 \x01(\tR\x06fpgaFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

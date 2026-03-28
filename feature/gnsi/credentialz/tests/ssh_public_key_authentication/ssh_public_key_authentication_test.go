@@ -29,11 +29,13 @@ import (
 )
 
 const (
-	username                  = "testuser"
-	authorizedKeysListVersion = "v1.0"
+	username = "testuser"
 )
 
-var authorizedKeysListCreatedOn int64
+var (
+	authorizedKeysListCreatedOn int64
+	authorizedKeysListVersion   = credz.GenerateVersion()
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
