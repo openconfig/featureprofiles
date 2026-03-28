@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package fpd_status_test
+package fpga_status_test
 
 import (
 	"context"
@@ -33,14 +33,14 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func TestCiscoFPDStatus(t *testing.T) {
+func TestCiscoFpgaStatus(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
 	if dut.Vendor() != ondatra.CISCO {
 		t.Skip("FPD Status is a Cisco-specific translation, skipping for other vendors.")
 	}
 
-	opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FpdFt(dut))
+	opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FpgaFt(dut))
 
 	// Since Functional Translators cannot process container lookups via GetAll(ComponentAny().State())
 	// or LookupAll(ComponentAny().PropertyAny().State()), we must first discover the synthetic

@@ -2012,8 +2012,8 @@ func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
 
-// FpdFt returns the functional translator name for devices with FPD paths unsupported.
+// FpgaFt returns the functional translator name for devices with FPD paths unsupported.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
-func FpdFt(dut *ondatra.DUTDevice) string {
-	return lookupDUTDeviations(dut).GetFpdFt()
+func FpgaFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFpgaFt()
 }
