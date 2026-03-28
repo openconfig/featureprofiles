@@ -131,6 +131,20 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
+	case ondatra.JUNIPER:
+		cliConfig := fmt.Sprintf(`
+			system {
+				login {
+					user %s {
+						class super-user;
+						authentication {
+							plain-text-password "%s";
+						}
+					}
+				}
+			}
+			`, user, pass)
+		dut.Config().New().WithJuniperText(cliConfig).Append(t)
 	case ondatra.ARISTA:
 		cliConfig := fmt.Sprintf("username %s privilege 15 role network-admin secret %s", user, pass)
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
@@ -171,7 +185,7 @@ func TestAuthentication(t *testing.T) {
 					authentication-order password;
 			}
 			`
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		dut.Config().New().WithJuniperText(cliConfig).Append(t)
 
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
