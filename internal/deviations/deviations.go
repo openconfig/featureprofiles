@@ -2011,3 +2011,10 @@ func ArpFT(dut *ondatra.DUTDevice) string {
 func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
 }
+
+// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+// is not supported.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
+}
