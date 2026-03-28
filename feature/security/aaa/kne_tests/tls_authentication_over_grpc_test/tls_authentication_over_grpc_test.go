@@ -154,8 +154,28 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	// Save the original hostname to restore it at the end of the test.
-	origHostname := gnmi.Get(t, dut, gnmi.OC().System().Hostname().Config())
-	defer gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), origHostname)
+	hostnamePath := gnmi.OC().System().Hostname().Config()
+	if origHostname, present := gnmi.Lookup(t, dut, hostnamePath).Val(); present {
+		defer func() {
+			var dev gnmi.DeviceOrOpts = dut
+			if dut.Vendor() == ondatra.CISCO {
+				dev = dut.GNMIOpts().WithMetadata(metadata.Pairs("username", "alice", "password", password))
+			}
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dev, hostnamePath, origHostname)
+			})
+		}()
+	} else {
+		defer func() {
+			var dev gnmi.DeviceOrOpts = dut
+			if dut.Vendor() == ondatra.CISCO {
+				dev = dut.GNMIOpts().WithMetadata(metadata.Pairs("username", "alice", "password", password))
+			}
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Delete(t, dev, hostnamePath)
+			})
+		}()
+	}
 
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
