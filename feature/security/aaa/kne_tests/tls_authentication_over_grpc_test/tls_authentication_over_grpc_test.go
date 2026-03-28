@@ -131,6 +131,9 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
+	case ondatra.ARISTA:
+		cliConfig := fmt.Sprintf("username %s privilege 15 role network-admin secret %s", user, pass)
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	default:
 		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
 	}
