@@ -13,6 +13,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     missing_zr_optical_channel_tunable_parameters_telemetry: true
+    terminal_device_channel_admin_state_unsupported: true
   }
 }
 platform_exceptions: {
@@ -21,5 +22,13 @@ platform_exceptions: {
   }
   deviations: {
     operational_mode_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    terminal_device_channel_admin_state_unsupported: true
   }
 }

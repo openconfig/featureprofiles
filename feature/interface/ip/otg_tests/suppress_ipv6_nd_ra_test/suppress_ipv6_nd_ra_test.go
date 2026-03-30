@@ -65,7 +65,9 @@ func configureDUT(t *testing.T, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	}
 	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
-	routerAdvert.SetSuppress(true)
+	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
+		routerAdvert.SetSuppress(true)
+	}
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), i)
 
@@ -102,9 +104,11 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
 
-	deviceRASuppressQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config()
-	raSuppressOnDevice := gnmi.Get(t, dut, deviceRASuppressQuery)
-	t.Logf("Router Advertisement Suppress State = %v", raSuppressOnDevice)
+	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
+		deviceRASuppressQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config()
+		raSuppressOnDevice := gnmi.Get(t, dut, deviceRASuppressQuery)
+		t.Logf("Router Advertisement Suppress State = %v", raSuppressOnDevice)
+	}
 
 	deviceRAConfigQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Enable().Config()
 	raConfigOnDevice := gnmi.Get(t, dut, deviceRAConfigQuery)
@@ -180,6 +184,9 @@ func TestIpv6NDRA(t *testing.T) {
 	configureDUT(t, &dutPort, dut)
 	otgConfig := configureOTG(t, ate)
 	t.Run("RT-5.11.1: No periodical Router Advertisement are sent", func(t *testing.T) {
+		if deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
+			t.Skip("Testing RT-5.11.1: Skipping test due to Ipv6RouterAdvertisementSuppressUnsupported deviation")
+		}
 		verifyRATelemetry(t, dut)
 		verifyOTGPacketCaptureForRA(t, ate, otgConfig, false, 10)
 	})
