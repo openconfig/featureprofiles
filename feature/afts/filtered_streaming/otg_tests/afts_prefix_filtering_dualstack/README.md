@@ -1,0 +1,109 @@
+# AFT-6.2: AFT Prefix Filtering Dual-Stack
+
+## Summary
+
+This test validates that IPv4 and IPv6 AFT filters can be applied independently
+and concurrently using different routing policies on the same network instance.
+
+See [AFT-6.1](../afts_prefix_filtering/README.md) for common test setup and
+policy definitions.
+
+## Testbed type
+
+[atedut_2.testbed](https://github.com/openconfig/featureprofiles/blob/main/topologies/atedut_2.testbed)
+
+## Test Setup
+
+Use the test environment and routing policies described in
+[AFT-6.1](../afts_prefix_filtering/README.md#test-setup). In particular, ensure
+the following policies and prefixes are configured:
+
+-   `POLICY-PREFIX-SET-A`: Matches IPv4 prefixes `198.51.100.0/24`,
+    `203.0.113.0/28`, and `198.51.100.1/32`.
+
+-   `POLICY-PREFIX-SET-B`: Matches IPv6 prefixes `2001:DB8:2::/64` and
+    `2001:DB8:2::1/128`.
+
+-   The DUT's AFT contains entries for both matching and non-matching prefixes in
+    each address family (e.g., `100.64.0.0/24` for IPv4, `2001:DB8:1::/64` for
+    IPv6).
+
+## AFT-6.2.1 - Simultaneous Independent IPv4 and IPv6 Policy Application
+
+### Setup
+
+-   Configure the global filter such that different address families use
+    different policies:
+
+    -   `/network-instances/network-instance[name=DEFAULT]/afts/global-filter/config/ipv4-policy` =
+        `POLICY-PREFIX-SET-A`
+    -   `/network-instances/network-instance[name=DEFAULT]/afts/global-filter/config/ipv6-policy` =
+        `POLICY-PREFIX-SET-B`
+
+### Validation
+
+-   Establish a gNMI STREAM subscription (ON_CHANGE) to the AFT of the `DEFAULT`
+    network instance as described in
+    [AFT-6.1.1](../afts_prefix_filtering/README.md#aft-611---validation-of-subscription-with-prefix-set-policy).
+
+-   Wait for `SYNC`.
+
+-   Verify that the received IPv4 entries match `POLICY-PREFIX-SET-A`
+    (`198.51.100.0/24`, `203.0.113.0/28`, `198.51.100.1/32`).
+
+-   Verify that the received IPv6 entries match `POLICY-PREFIX-SET-B`
+    (`2001:DB8:2::/64`, `2001:DB8:2::1/128`).
+
+-   Verify that prefixes NOT covered by their respective policies are barred
+    from the stream (e.g., IPv4 prefix `100.64.0.0/24`).
+
+-   Update the configuration to swap the policies:
+
+    -   `ipv4-policy` = `POLICY-PREFIX-SET-B` (Matches nothing for IPv4)
+    -   `ipv6-policy` = `POLICY-PREFIX-SET-A` (Matches nothing for IPv6)
+
+-   Verify that deletes are received, deleting all prefixes, as the cross-family
+    matching results in an empty set.
+
+## OpenConfig Path and RPC Coverage
+
+> **TODO:** The `global-filter` container and its `config/ipv4-policy`,
+> `config/ipv6-policy`, `state/ipv4-policy` and `state/ipv6-policy` leaves are
+> proposed extensions to the OpenConfig AFT model and are not yet present in the
+> master branch of [openconfig/public](https://github.com/openconfig/public).
+> This README may be merged before the TODO is resolved.
+>
+> The OpenConfig pull request is
+> [#1441](https://github.com/openconfig/public/pull/1441).
+
+```yaml
+paths:
+  # Proposed paths for the new filter mechanism (not yet in openconfig/public)
+  # /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
+  # /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
+  # /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
+  # /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
+
+  # Standard AFT state paths
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/next-hop-group:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
+  /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/index:
+  /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+      STREAM: true
+      ON_CHANGE: true
+    gNMI.Set:
+      REPLACE: true
+      UPDATE: true
+```
+
+## Required DUT platform
+
+FFF (Fixed Form Factor) or MFF (Modular Form Factor).
