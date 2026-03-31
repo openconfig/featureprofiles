@@ -86,7 +86,7 @@ var (
 		IPv4:    "203.0.113.2",
 		IPv4Len: 30,
 	}
-	advertisedIPv4 = Prefix{address: v4RoutePrefix, prefix: v4RoutePrefixLen}
+	routePolicyPfxSet = Prefix{address: v4RoutePrefix, prefix: v4RoutePrefixLen}
 )
 
 func TestMain(m *testing.M) {
@@ -120,21 +120,17 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
-	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut), true)
-	// Create VRF (non-default NI)
 	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, vrfName, false)
-	// Enable BGP in DEFAULT NI
 	cfgplugins.EnableDefaultNetworkInstanceBgp(t, dut, dutAS)
 	configureDUTInterface(t, dut, batch, &dutPort1, p1)
 	configureDUTInterface(t, dut, batch, &dutPort2, p2)
-	// BGP neighbor should be in DEFAULT NI (since p2 is in DEFAULT)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS, "IPv4", true)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS, "IPv4", true)
-	// gRIBI → BGP redistribution (VRF side)
+	// BGP and Redistribution Configuration
+	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS, "IPv4", true)
+
 	if deviations.TableConnectionsUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			t.Log("Currently, gRIBI redistribution is not supported on Arista.")
+			t.Logf("Currently, gRIBI redistribution is not supported on %v.", dut.Vendor())
 		}
 	} else {
 		// Configure gRIBI to BGP redistribution
@@ -143,9 +139,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		tc.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
 	}
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, vrfName, nonDefaultNI)
-	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, deviations.DefaultNetworkInstance(dut), defaultNI)
-	configureDUTPort(t, dut, batch, &dutPort1, p1, vrfName)
-	configureDUTPort(t, dut, batch, &dutPort2, p2, deviations.DefaultNetworkInstance(dut))
+	configureDUTPort(t, dut, batch, &dutPort1, p1, deviations.DefaultNetworkInstance(dut))
+	configureDUTPort(t, dut, batch, &dutPort2, p2, vrfName)
 	batch.Set(t, dut)
 }
 
@@ -199,7 +194,7 @@ func configureRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 	// ----------------------------
 	prefixSet := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(efAggIPv4)
 	prefixSet.SetMode(oc.PrefixSet_Mode_IPV4)
-	prefixSet.GetOrCreatePrefix(advertisedIPv4.cidr(t), maskLenExact)
+	prefixSet.GetOrCreatePrefix(routePolicyPfxSet.cidr(t), maskLenExact)
 
 	// ----------------------------
 	// COMMUNITY SETS
@@ -319,7 +314,7 @@ func configureDrainPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 // appendDrainPolicyToExport appends the drain policy to the BGP export policy list applied to the neighbor connected to ATE port2.
 func appendDrainPolicyToExport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	nbrPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	nbrPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	exportPolicies := []string{drainPolicy, bgpExportPol}
 	gnmi.Update(t, dut, nbrPath.ExportPolicy().Config(), exportPolicies)
 }
@@ -327,7 +322,7 @@ func appendDrainPolicyToExport(t *testing.T, dut *ondatra.DUTDevice) {
 // removeDrainPolicyFromExport removes the drain policy from the BGP export chain.
 func removeDrainPolicyFromExport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ni := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	ni := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	nbr := ni.Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	exportPolicies := []string{bgpExportPol}
 	gnmi.Update(t, dut, nbr.ExportPolicy().Config(), exportPolicies)
@@ -460,7 +455,7 @@ func checkOTGBGP4Prefix(t *testing.T, otg *otg.OTG, config gosnappi.Config, expe
 // verifyDUTBGPEstablished verifies on dut for BGP peer establishment.
 func verifyDUTBGPEstablished(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	sp := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().SessionState().State()
+	sp := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().SessionState().State()
 	watch := gnmi.WatchAll(t, dut, sp, 2*time.Minute, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		if !ok || state != oc.Bgp_Neighbor_SessionState_ESTABLISHED {
@@ -512,13 +507,14 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort2.BGP4.peer").UnicastIpv4PrefixAny().State())
 	found := false
 	var errMsg string
-	parts := strings.Split(routePrefix, "/")
-	prefixAddr := parts[0]
-	prefixLen, _ := strconv.Atoi(parts[1])
+
 	for _, bgpPrefix := range bgpPrefixes {
 		t.Logf("Received prefix %s/%d", bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength())
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == prefixAddr && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == uint32(prefixLen) {
+
+		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v4RoutePrefix && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v4RoutePrefixLen {
+
 			found = true
+
 			// ----------------------------
 			// MED VERIFICATION
 			// ----------------------------
@@ -552,7 +548,7 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	if !found {
-		msg := fmt.Sprintf("prefix %s/%d not received on OTG", prefixAddr, prefixLen)
+		msg := fmt.Sprintf("prefix %s/%d not received on OTG", v4RoutePrefix, v4RoutePrefixLen)
 		errMsg += msg
 	}
 
@@ -566,7 +562,7 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 // disableBGPSession disables the BGP session between DUT and ATE Port2 by setting the neighbor "enabled" field to false using OpenConfig via gNMI.
 func disableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
 	gnmi.Replace(t, dut, path.Config(), false)
 	verifyBGPSessionDown(t, dut)
 }
@@ -574,7 +570,7 @@ func disableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 // verifyBGPSessionDown verifies that the BGP session between the DUT and the specified neighbor is in the IDLE state, indicating that the session is administratively disabled or not established.
 func verifyBGPSessionDown(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
+	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
 
 	state := gnmi.Get(t, dut, statePath.State())
 	if state != oc.Bgp_Neighbor_SessionState_IDLE {
@@ -587,7 +583,7 @@ func verifyBGPSessionDown(t *testing.T, dut *ondatra.DUTDevice) {
 // enableBGPSession enables the BGP session between DUT and ATE Port2 by setting the neighbor "enabled" field to true using OpenConfig via gNMI.
 func enableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).Enabled()
 	gnmi.Replace(t, dut, path.Config(), true)
 	verifyBGPSessionUp(t, dut)
 }
@@ -596,7 +592,7 @@ func enableBGPSession(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyBGPSessionUp(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
+	statePath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).SessionState()
 
 	// Wait until BGP session becomes ESTABLISHED
 	state, ok := gnmi.Await(t, dut, statePath.State(), 60*time.Second, oc.Bgp_Neighbor_SessionState_ESTABLISHED).Val()
@@ -650,7 +646,7 @@ func TestGRIBIBGPRedistribution(t *testing.T) {
 			t.Errorf("traffic validation failed: %v", err)
 		}
 		c.FlushAll(t)
-		t.Logf("Verifying traffic fails after entries deleted for Profile.")
+		t.Logf("Verifying traffic fails after entries deleted.")
 		if err := validateTrafficFlows(t, ate, topo, flow); err == nil {
 			t.Error("Traffic validation succeeded unexpectedly, expected failure.")
 		} else {
