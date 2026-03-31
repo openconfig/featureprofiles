@@ -43,6 +43,7 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	ondatragnmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/metadata"
@@ -208,10 +209,9 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
                 `, SuccessUsername, userConfig)
 	helpers.GnmiCLIConfig(t, dut, config)
 	ondatragnmi.Replace(t, dut, ondatragnmi.OC().System().Aaa().Authentication().
-		User(string(FailUsername)).Config(), &oc.System_Aaa_Authentication_User{
+		User(FailUsername).Config(), &oc.System_Aaa_Authentication_User{
 		Username: ygot.String(FailUsername),
 		Password: &failPassword,
-		// Role:  oc.UnionString(denyCliRoleName),
 	})
 	t.Logf("config on device: %s\nconfig: %s", dut.Name(), config)
 	time.Sleep(60 * time.Second)
@@ -457,9 +457,9 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err1 != nil {
-		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err)
+		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err)
+		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{

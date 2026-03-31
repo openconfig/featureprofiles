@@ -2019,9 +2019,9 @@ func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
 }
 
-// OCAAAYUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
+// OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
-func OCAAAYUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
+func OcAaaUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetOcAaaUserRoleLeafStringTypeUnsupported()
 }
 
