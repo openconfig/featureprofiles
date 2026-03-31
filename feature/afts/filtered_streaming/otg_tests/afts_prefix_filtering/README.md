@@ -20,37 +20,37 @@ See also:
 
 ### Test environment setup
 
--   The `DUT` and `ATE` are connected via two links (`port1` and `port2`).
+- The `DUT` and `ATE` are connected via two links (`port1` and `port2`).
 
--   Basic interface configuration is applied to the `DUT` and `ATE`.
+- Basic interface configuration is applied to the `DUT` and `ATE`.
 
--   The DUT is pre-configured with static routes to populate the AFT. Routes
-    include a mix of IPv4 and IPv6 prefixes drawn from RFC 5737 test address
-    space (see IP address conventions in `CONTRIBUTING.md`). At minimum the
-    following prefixes are installed in the `DEFAULT` network instance:
-    `198.51.100.0/24`, `203.0.113.0/28`, `100.64.0.0/24`, `2001:DB8:1::/64`, and
-    `2001:DB8:3::/64`.
+- The DUT is pre-configured with static routes to populate the AFT. Routes
+  include a mix of IPv4 and IPv6 prefixes drawn from RFC 5737 test address
+  space (see IP address conventions in `CONTRIBUTING.md`). At minimum the
+  following prefixes are installed in the `DEFAULT` network instance:
+  `198.51.100.0/24`, `203.0.113.0/28`, `100.64.0.0/24`, `2001:DB8:1::/64`, and
+  `2001:DB8:3::/64`.
 
--   The DUT is pre-configured with the following routing policies under
-    `/routing-policy/policy-definitions/`:
+- The DUT is pre-configured with the following routing policies under
+  `/routing-policy/policy-definitions/`:
 
-    -   `POLICY-MATCH-ALL`: Matches all routes (unconditional accept).
+  - `POLICY-MATCH-ALL`: Matches all routes (unconditional accept).
 
-    -   `POLICY-PREFIX-SET-A`: Matches a specific set of IPv4 prefixes:
-        `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
+  - `POLICY-PREFIX-SET-A`: Matches a specific set of IPv4 prefixes:
+    `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
-    -   `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes:
-        `2001:DB8:2::/64` and `2001:DB8:2::1/128`.
+  - `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes:
+    `2001:DB8:2::/64` and `2001:DB8:2::1/128`.
 
-    -   `POLICY-PREFIX-SET-VRF-A`: Matches any IPv4 prefix within
-        `100.64.1.0/24` with a masklength range of `/24` to `/32`.
+  - `POLICY-PREFIX-SET-VRF-A`: Matches any IPv4 prefix within
+    `100.64.1.0/24` with a masklength range of `/24` to `/32`.
 
-    -   `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.113.0/24` with a
-        masklength range of `/25` to `/32` (i.e., any subnet of that block).
+  - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.113.0/24` with a
+    masklength range of `/25` to `/32` (i.e., any subnet of that block).
 
-    -   `POLICY-SUBNET-V6`: Matches any IPv6 prefix within `2001:DB8:3::/64`
-        with a masklength range of `/65` to `/128` (i.e., any subnet of that
-        block).
+  - `POLICY-SUBNET-V6`: Matches any IPv6 prefix within `2001:DB8:3::/64`
+    with a masklength range of `/65` to `/128` (i.e., any subnet of that
+    block).
 
 ### Test Case Iteration
 
@@ -68,21 +68,21 @@ both policies is covered in
 
 ### Configure Routing Policy and Prefixes
 
--   Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
-    `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
+- Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
+  `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
--   Ensure the DUT's AFT contains entries for `198.51.100.0/24`,
-    `203.0.113.0/28`, and at least one non-matching prefix (`100.64.0.0/24`).
+- Ensure the DUT's AFT contains entries for `198.51.100.0/24`,
+  `203.0.113.0/28`, and at least one non-matching prefix (`100.64.0.0/24`).
 
--   Configure the global-filter leaf for the address family under test to the
-    selected policy. For example, when testing `POLICY-PREFIX-SET-A`:
+- Configure the global-filter leaf for the address family under test to the
+  selected policy. For example, when testing `POLICY-PREFIX-SET-A`:
 
-    -   Set
-        `/network-instances/network-instance/afts/global-filter/config/ipv4-policy`
-        to `POLICY-PREFIX-SET-A`.
-    -   Ensure
-        `/network-instances/network-instance/afts/global-filter/config/ipv6-policy`
-        is NOT set (or set to an empty/matching-none policy).
+  - Set
+    `/network-instances/network-instance/afts/global-filter/config/ipv4-policy`
+    to `POLICY-PREFIX-SET-A`.
+  - Ensure
+    `/network-instances/network-instance/afts/global-filter/config/ipv6-policy`
+    is NOT set (or set to an empty/matching-none policy).
 
 ### Subscribe
 
@@ -142,109 +142,109 @@ subscribe: {
 
 ### Validate Initial Synced Data
 
--   Wait for the initial set of gNMI Notifications and verify `SYNC` is
-    received.
+- Wait for the initial set of gNMI Notifications and verify `SYNC` is
+  received.
 
--   Verify that Notifications are received **only** for prefixes matching
-    `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`,
-    `198.51.100.1/32`), plus any necessary recursive resolution prefixes.
+- Verify that Notifications are received **only** for prefixes matching
+  `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`,
+  `198.51.100.1/32`), plus any necessary recursive resolution prefixes.
 
--   Verify that the non-matching prefix (`100.64.0.0/24`) is **not** received.
+- Verify that the non-matching prefix (`100.64.0.0/24`) is **not** received.
 
--   Verify that all next-hop-groups and next-hops referenced by matching
-    prefixes are received.
+- Verify that all next-hop-groups and next-hops referenced by matching
+  prefixes are received.
 
--   Verify that every received next-hop-group is referenced by at least one
-    received prefix.
+- Verify that every received next-hop-group is referenced by at least one
+  received prefix.
 
--   Verify that every received next-hop is referenced by at least one received
-    next-hop-group.
+- Verify that every received next-hop is referenced by at least one received
+  next-hop-group.
 
--   Verify that the `atomic` flag is set to `true` on all initial update
-    notifications. (See AFT-3.1 for complete atomic-flag behavior coverage.)
+- Verify that the `atomic` flag is set to `true` on all initial update
+  notifications. (See AFT-3.1 for complete atomic-flag behavior coverage.)
 
 ### Validate Dynamic Updates
 
--   Add a new prefix (`198.51.100.1/32`) to the DUT that matches
-    `POLICY-PREFIX-SET-A`. Verify receipt of an update notification for this
-    prefix and its associated next-hop-groups and next-hops.
+- Add a new prefix (`198.51.100.1/32`) to the DUT that matches
+  `POLICY-PREFIX-SET-A`. Verify receipt of an update notification for this
+  prefix and its associated next-hop-groups and next-hops.
 
--   Remove `198.51.100.1/32` from the DUT. Verify receipt of a delete
-    notification for the prefix. Verify that the next-hop-group and next-hop
-    shared with `198.51.100.0/24` are **not** deleted, since they are still
-    referenced by the remaining prefix.
+- Remove `198.51.100.1/32` from the DUT. Verify receipt of a delete
+  notification for the prefix. Verify that the next-hop-group and next-hop
+  shared with `198.51.100.0/24` are **not** deleted, since they are still
+  referenced by the remaining prefix.
 
--   Add a new prefix (`100.64.1.0/24`) to the DUT that does **not** match the
-    routing policy. Verify that **no** gNMI update is received for this prefix.
+- Add a new prefix (`100.64.1.0/24`) to the DUT that does **not** match the
+  routing policy. Verify that **no** gNMI update is received for this prefix.
 
 ### Remove the Filtered View
 
--   Delete the `global-filter` configuration from the DUT.
+- Delete the `global-filter` configuration from the DUT.
 
--   Verify receipt of a delete notification for
-    `/network-instances/network-instance/afts/global-filter/state/ipv4-policy`
-    and
-    `/network-instances/network-instance/afts/global-filter/state/ipv6-policy`.
+- Verify receipt of a delete notification for
+  `/network-instances/network-instance/afts/global-filter/state/ipv4-policy`
+  and
+  `/network-instances/network-instance/afts/global-filter/state/ipv6-policy`.
 
--   Verify that the previously excluded prefix `100.64.0.0/24` is now received,
-    confirming the filter has been lifted.
+- Verify that the previously excluded prefix `100.64.0.0/24` is now received,
+  confirming the filter has been lifted.
 
 ## AFT-6.1.2 - Validation with Non-Existent Policy
 
--   Attempt to configure the AFT global filter `ipv4-policy` and `ipv6-policy`
-    with `POLICY-DOES-NOT-YET-EXIST`.
+- Attempt to configure the AFT global filter `ipv4-policy` and `ipv6-policy`
+  with `POLICY-DOES-NOT-YET-EXIST`.
 
-    -   Verify a `FAILED_PRECONDITION` error is returned.
+  - Verify a `FAILED_PRECONDITION` error is returned.
 
--   Apply a configuration to the DUT defining `POLICY-DOES-NOT-YET-EXIST` to
-    match prefix `198.51.100.128/25`.
+- Apply a configuration to the DUT defining `POLICY-DOES-NOT-YET-EXIST` to
+  match prefix `198.51.100.128/25`.
 
--   Again configure the AFT global filter `ipv4-policy` and `ipv6-policy` to
-    `POLICY-DOES-NOT-YET-EXIST`. Verify no error is returned.
+- Again configure the AFT global filter `ipv4-policy` and `ipv6-policy` to
+  `POLICY-DOES-NOT-YET-EXIST`. Verify no error is returned.
 
--   Subscribe to the AFT as in **AFT-6.1.1** and verify:
+- Subscribe to the AFT as in **AFT-6.1.1** and verify:
 
-    -   `SYNC` is received.
-    -   Notifications are received only for `198.51.100.128/25` and its
-        associated next-hops/groups.
-    -   Prefixes that do not match `POLICY-DOES-NOT-YET-EXIST` are **not**
-        received.
+  - `SYNC` is received.
+  - Notifications are received only for `198.51.100.128/25` and its
+    associated next-hops/groups.
+  - Prefixes that do not match `POLICY-DOES-NOT-YET-EXIST` are **not**
+    received.
 
 ## AFT-6.1.3 - Validation of Policy Deletion
 
--   Configure the device to filter AFT using `POLICY-PREFIX-SET-A`.
+- Configure the device to filter AFT using `POLICY-PREFIX-SET-A`.
 
--   Establish a gNMI Subscribe session and wait for `SYNC`.
+- Establish a gNMI Subscribe session and wait for `SYNC`.
 
--   Attempt to delete `POLICY-PREFIX-SET-A` from the DUT while the global filter
-    still references it.
+- Attempt to delete `POLICY-PREFIX-SET-A` from the DUT while the global filter
+  still references it.
 
-    -   Verify a `FAILED_PRECONDITION` error is returned, indicating the
-        global-filter reference must be removed first.
+  - Verify a `FAILED_PRECONDITION` error is returned, indicating the
+    global-filter reference must be removed first.
 
--   Delete both the global filter and `POLICY-PREFIX-SET-A` in a single atomic
-    gNMI.Set request.
+- Delete both the global filter and `POLICY-PREFIX-SET-A` in a single atomic
+  gNMI.Set request.
 
-    -   Verify no errors are returned.
+  - Verify no errors are returned.
 
--   Verify that the previously excluded prefix `100.64.0.0/24` is now received,
-    confirming the filter has been lifted.
+- Verify that the previously excluded prefix `100.64.0.0/24` is now received,
+  confirming the filter has been lifted.
 
--   Re-configure `POLICY-PREFIX-SET-A` and set the global filter to reference
-    it.
+- Re-configure `POLICY-PREFIX-SET-A` and set the global filter to reference
+  it.
 
--   Verify notifications match the expected filtered set as in **AFT-6.1.1**.
+- Verify notifications match the expected filtered set as in **AFT-6.1.1**.
 
 ### Multi-Step Policy Deletion
 
--   Delete the global filter reference in a first gNMI.Set request. Verify no
-    error is returned.
+- Delete the global filter reference in a first gNMI.Set request. Verify no
+  error is returned.
 
--   Delete `POLICY-PREFIX-SET-A` in a separate, second gNMI.Set request. Verify
-    no error is returned.
+- Delete `POLICY-PREFIX-SET-A` in a separate, second gNMI.Set request. Verify
+  no error is returned.
 
--   Verify that the previously excluded prefix `100.64.0.0/24` is now received,
-    confirming the filter has been lifted.
+- Verify that the previously excluded prefix `100.64.0.0/24` is now received,
+  confirming the filter has been lifted.
 
 ## OpenConfig Path and RPC Coverage
 

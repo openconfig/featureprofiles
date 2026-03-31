@@ -1,3 +1,6 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
 uuid: "0475e688-c645-43ef-a50c-6ed1f3606ed8"
 plan_id: "AFT-6.3"
 description: "AFT Prefix Filtering Resilience"
