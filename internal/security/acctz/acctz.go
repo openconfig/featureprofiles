@@ -254,7 +254,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 				t.Fatalf("Unexpected error configuring role: %v", err)
 			}
 
-			if !deviations.OCAAAYUserRoleLeafStringTypeUnsupported(dut) {
+			if !deviations.OcAaaAyUserRoleLeafStringTypeUnsupported(dut) {
 				failAuthorizeUser.SetRole(oc.UnionString(failRoleName))
 			}
 		}
@@ -265,7 +265,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 			setupUserPassword(t, dut, failAuthorizeUsername, failAuthorizePassword)
 		}
 		// Configuring as taskgroup which implicit denies all commands except show interface , which is attached to the failRoleName and then failUsername.
-		if deviations.OCAAAYUserRoleLeafStringTypeUnsupported(dut) && configureFailCliRole {
+		if deviations.OcAaaAyUserRoleLeafStringTypeUnsupported(dut) && configureFailCliRole {
 			taskUserGroupCLI := fmt.Sprintf("taskgroup %v \n task read interface \n task execute interface \n usergroup %v taskgroup %v \n username %v \n group %v \n no group root-lr \n no group cisco-support", failRoleName, failRoleName, failRoleName, failAuthorizeUsername, failRoleName)
 			helpers.GnmiCLIConfig(t, dut, taskUserGroupCLI)
 		}
