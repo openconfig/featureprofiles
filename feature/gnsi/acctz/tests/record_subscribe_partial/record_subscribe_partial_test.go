@@ -128,9 +128,9 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	// and compare them manually later.
 	popts := []cmp.Option{
 		protocmp.Transform(),
-		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
+		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids", "component_name"),
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
-		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn", "tty"),
 		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
 		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated"),
 	}
