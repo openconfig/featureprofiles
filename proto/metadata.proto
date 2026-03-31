@@ -1212,7 +1212,11 @@ message Metadata {
     // is not supported.
     // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
     bool ssh_server_host_certificate_telemetry_unsupported = 394;
-    
+
+    // SendMaxUnsupported returns true if device does not support send max-paths configuration for BGP.
+    // Cisco: b/498283710
+    bool send_max_unsupported = 395;
+
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;

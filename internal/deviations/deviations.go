@@ -2018,3 +2018,9 @@ func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
 }
+
+// SendMaxUnsupported returns true if the device does not support leaf send max.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
+func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
+}
