@@ -1212,6 +1212,8 @@ message Metadata {
     // is not supported.
     // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
     bool ssh_server_host_certificate_telemetry_unsupported = 394;
+    // Device is missing subinterface state packet counters.
+    bool default_subinterface_packet_counters_missing = 395;
     
 
     // Reserved field numbers and identifiers.
