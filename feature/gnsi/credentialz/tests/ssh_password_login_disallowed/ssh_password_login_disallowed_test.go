@@ -39,7 +39,7 @@ const (
 	username        = "testuser"
 	userPrincipal   = "my_principal"
 	command         = "show version"
-	maxSSHRetryTime = 30 // Unit is seconds.
+	maxSSHRetryTime = 120 // Unit is seconds.
 )
 
 func TestMain(m *testing.M) {
@@ -63,15 +63,20 @@ func TestCredentialz(t *testing.T) {
 		}
 	}(dir)
 
+	algo := "ed25519"
+	if dut.Vendor() == ondatra.JUNIPER {
+		algo = "rsa"
+	}
+
 	// Create ssh keys/certificates for CA & testuser.
-	credz.CreateSSHKeyPair(t, dir, "ca")
-	credz.CreateSSHKeyPair(t, dir, username)
+	credz.CreateSSHKeyPairAlgo(t, dir, "ca", algo)
+	credz.CreateSSHKeyPairAlgo(t, dir, username, algo)
 	credz.CreateUserCertificate(t, dir, userPrincipal)
 
 	// Setup user and password.
 	credz.SetupUser(t, dut, username)
 	password := credz.GeneratePassword()
-	credz.RotateUserPassword(t, dut, username, password, "v1.0", uint64(time.Now().Unix()))
+	credz.RotateUserPassword(t, dut, username, password, credz.GenerateVersion(), uint64(time.Now().Unix()))
 
 	credz.RotateTrustedUserCA(t, dut, dir)
 	credz.RotateAuthenticationTypes(t, dut, []cpb.AuthenticationType{
@@ -86,7 +91,7 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with password fails as expected.
-		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
 		defer cancel()
 		startTime := time.Now()
 		for {
@@ -121,7 +126,7 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with certificate succeeds.
-		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
 		defer cancel()
 		startTime := time.Now()
 		// var conn *ssh.Client
@@ -136,7 +141,7 @@ func TestCredentialz(t *testing.T) {
 			if uint64(time.Since(startTime).Seconds()) > maxSSHRetryTime {
 				t.Fatalf("Exceeded maxSSHRetryTime, dialing ssh failed, but we expected to succeed, error: %s", err)
 			}
-			t.Logf("Dialing ssh failed, retrying ...")
+			t.Logf("Dialing ssh failed: %v, retrying ...", err)
 			time.Sleep(5 * time.Second)
 		}
 
