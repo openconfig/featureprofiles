@@ -497,7 +497,7 @@ func TestVolumes(t *testing.T) {
 		}
 		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, volOpts)
 		if err != nil {
-			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
+			t.Fatalf("CreateVolume(%q, \"local\", nil, %v) failed: %v", volumeName, volOpts, err)
 		}
 		if createdVolumeName != volumeName {
 			t.Errorf("CreateVolume returned name %q, want %q", createdVolumeName, volumeName)
