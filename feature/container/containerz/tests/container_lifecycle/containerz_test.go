@@ -525,11 +525,11 @@ func TestVolumes(t *testing.T) {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
 
-				// check options
+				// check options.
 				wantOptions := map[string]string{
-					"device": "/some-path",
-					"o":      "bind",
-					"type":   "none",
+					"device":  "/tmp",
+					"options": "bind",
+					"type":    "none",
 				}
 
 				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
