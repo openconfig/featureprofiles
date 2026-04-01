@@ -87,6 +87,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 		TarPath:             containerTarPath(t),
 		Network:             "host",
 		PollForRunningState: true,
+		RemoveExistingImage: true,
 	}
 	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
 	t.Cleanup(cleanup)
