@@ -490,13 +490,12 @@ func TestVolumes(t *testing.T) {
 		}
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
-
-		mountOpts := map[string]string{
+		volOpts := map[string]string{
+			"type":       "none",
 			"options":    "bind",
-			"mountpoint": "/some-path",
+			"mountpoint": "/tmp",
 		}
-
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, volOpts)
 		if err != nil {
 			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
 		}
@@ -857,7 +856,7 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
-			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.FailedPrecondition) {
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.NotFound) {
 				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
 			}
 		}
