@@ -284,7 +284,7 @@ func configureATE(t *testing.T, ateParams *bgpTestParams, connectionType connTyp
 func createCeaseAction(t *testing.T) gosnappi.ControlAction {
 	t.Helper()
 	ceaseAction := gosnappi.NewControlAction()
-	ceaseAction.Protocol().Bgp().Notification().SetNames([]string{ateAttrs.Name + ".BGP4.peer"}).Custom().SetCode(6).SetSubcode(6)
+	ceaseAction.Protocol().Bgp().Notification().SetNames([]string{ateAttrs.Name + ".BGP4.peer"}).SetFinDelay(500).Custom().SetCode(6).SetSubcode(6)
 	return ceaseAction
 }
 
