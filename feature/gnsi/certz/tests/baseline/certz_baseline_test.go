@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal"
+	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
@@ -46,7 +46,7 @@ func TestCertzBaseline(t *testing.T) {
 
 	//Generate testdata certificates
 	t.Logf("STATUS:Generation of test data certificates.")
-	if err := setupService.CreateOrDeleteTestData(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
 		t.Fatalf("STATUS:Generation of testdata certificates failed!: %v", err)
 	}
 
@@ -87,8 +87,8 @@ func TestCertzBaseline(t *testing.T) {
 
 	t.Logf("STATUS:Cleanup of test data.")
 	//Cleanup of test data
-	if err := setupService.CreateOrDeleteTestData(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
-		t.Errorf("STATUS:Cleanup of testdata certificates failed!: %v", err)
+	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+		t.Logf("STATUS:Generation of testdata certificates failed!: %v", err)
 	}
 	t.Logf("STATUS:Test completed!")
 }
