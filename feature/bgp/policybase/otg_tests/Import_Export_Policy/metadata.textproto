@@ -25,6 +25,7 @@ platform_exceptions: {
     interface_enabled: true
     default_network_instance: "default"
     bgp_aspathset_unsupported: true
+    default_bgp_instance_name: "BGP"
   }
 }
 platform_exceptions: {
@@ -32,6 +33,6 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    interface_enabled: true
+    default_bgp_instance_name: "default"
   }
 }
