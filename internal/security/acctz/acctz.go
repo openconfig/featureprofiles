@@ -19,14 +19,19 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
-	"math/rand"
 	"net"
+	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	systempb "github.com/openconfig/gnoi/system"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -38,29 +43,38 @@ import (
 	"github.com/openconfig/ondatra/binding"
 	ondatragnmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
 const (
 	// SuccessUsername is the username for a successful test.
 	SuccessUsername = "acctztestuser"
-	successPassword = "verysecurepassword"
+	successPassword = "verysecurepasswordTest123!"
 	// FailUsername is the username for a failed test.
-	FailUsername         = "bilbo"
-	failRoleName         = "acctz-fp-test-fail"
-	successCliCommand    = "show version"
-	failCliCommand       = "show version"
-	shellCommand         = "uname -a"
-	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
-	gnoiPingPath         = "/gnoi.system.System/Ping"
-	gnsiGetPath          = "/gnsi.authz.v1.Authz/Get"
-	gribiGetPath         = "/gribi.gRIBI/Get"
-	p4rtCapabilitiesPath = "/p4.v1.P4Runtime/Capabilities"
-	defaultSSHPort       = 22
-	ipProto              = 6
+	FailUsername = "bilbo"
+	// FailAuthenticateUsername is the username for failed authentication.
+	FailAuthenticateUsername = "bilbo"
+	failAuthenticatePassword = "bagginsTest123!"
+	failAuthorizeUsername    = "failauthuser" // username for failed authorization
+	failAuthorizePassword    = "failauthpasswordTest123!"
+	failRoleName             = "acctz-fp-test-fail" // role for failed authorization
+	failDenyRoleName         = "acctz-fp-deny-fail" // role for failed deny authorization
+	successCliCommand        = "show version"
+	failCliCommand           = "show version"
+	failDenyCliCommand       = "/.*"
+	shellCommand             = "uname -a"
+	gnmiCapabilitiesPath     = "/gnmi.gNMI/Capabilities"
+	gnoiPingPath             = "/gnoi.system.System/Ping"
+	gnsiGetPath              = "/gnsi.authz.v1.Authz/Get"
+	gribiGetPath             = "/gribi.gRIBI/Get"
+	p4rtCapabilitiesPath     = "/p4.v1.P4Runtime/Capabilities"
+	defaultSSHPort           = 22
+	ipProto                  = 6
 )
 
 var (
@@ -153,42 +167,109 @@ func nokiaFailCliRole(t *testing.T) *gnmipb.SetRequest {
 	}
 }
 
+func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool) {
+	t.Logf("Juniper vendor, performing CLI configuration for users and roles")
+	var userConfig string
+	if configureFailCliRole {
+		userConfig = fmt.Sprintf(`
+                                        class %s {
+                                                permissions [ view ];
+                                                deny-commands "%s";
+                                        }
+                                        user %s {
+                                                class %s;
+                                        }
+                        `, failRoleName, failCliCommand, FailUsername, failRoleName)
+	}
+	if !configureFailCliRole {
+		userConfig = fmt.Sprintf(`
+                                        class %s {
+                                                deny-grpc-rpc-regexps "%s";
+                                        }
+                                        user %s {
+                                                class %s;
+                                        }
+                        `, failDenyRoleName, failDenyCliCommand, FailUsername, failDenyRoleName)
+	}
+	config := fmt.Sprintf(`
+                        system {
+                                services {
+                                        ssh {
+                                                root-login allow;
+                                        }
+                                }
+                                authentication-order password;
+                                login {
+                                        user %s {
+                                                class super-user;
+                                        }
+                                        %s
+                                }
+                        }
+                `, SuccessUsername, userConfig)
+	helpers.GnmiCLIConfig(t, dut, config)
+	ondatragnmi.Replace(t, dut, ondatragnmi.OC().System().Aaa().Authentication().
+		User(FailUsername).Config(), &oc.System_Aaa_Authentication_User{
+		Username: ygot.String(FailUsername),
+		Password: &failPassword,
+	})
+	t.Logf("config on device: %s\nconfig: %s", dut.Name(), config)
+	time.Sleep(60 * time.Second)
+
+}
+
 // SetupUsers Setup users for acctz tests and optionally configure cli role for denied commands.
 func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool) {
-	auth := &oc.System_Aaa_Authentication{}
-	successUser := auth.GetOrCreateUser(SuccessUsername)
-	successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-	failUser := auth.GetOrCreateUser(FailUsername)
-	if configureFailCliRole {
-		var SetRequest *gnmipb.SetRequest
+	if dut.Vendor() == ondatra.JUNIPER {
+		juniperSetup(t, dut, configureFailCliRole)
+		setupUserPassword(t, dut, SuccessUsername, successPassword)
+	} else {
+		auth := &oc.System_Aaa_Authentication{}
+		successUser := auth.GetOrCreateUser(SuccessUsername)
+		successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		failAuthenticateUser := auth.GetOrCreateUser(FailAuthenticateUsername)
+		failAuthenticateUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		failAuthorizeUser := auth.GetOrCreateUser(failAuthorizeUsername)
+		if configureFailCliRole {
+			var SetRequest *gnmipb.SetRequest
 
-		// Create failure cli role in native.
-		switch dut.Vendor() {
-		case ondatra.NOKIA:
-			SetRequest = nokiaFailCliRole(t)
+			// Create failure cli role in native.
+			switch dut.Vendor() {
+			case ondatra.NOKIA:
+				SetRequest = nokiaFailCliRole(t)
+			}
+			// _, policyBefore := authz.Get(t, dut)
+			// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+			// defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+			// newpolicy := &authz.AuthorizationPolicy{
+			// 	Name:       policyBefore.Name,
+			// 	DenyRules:  policyBefore.DenyRules,
+			// 	AllowRules: policyBefore.AllowRules,
+			// }
+			// newpolicy.AddDenyRules(failRoleName, []string{FailUsername}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+			// newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), true)
+
+			gnmiClient := dut.RawAPIs().GNMI(t)
+			if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
+				t.Fatalf("Unexpected error configuring role: %v", err)
+			}
+
+			if !deviations.OcAaaUserRoleLeafStringTypeUnsupported(dut) {
+				failAuthorizeUser.SetRole(oc.UnionString(failRoleName))
+			}
 		}
-		// _, policyBefore := authz.Get(t, dut)
-		// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
-		// defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
-		// newpolicy := &authz.AuthorizationPolicy{
-		// 	Name:       policyBefore.Name,
-		// 	DenyRules:  policyBefore.DenyRules,
-		// 	AllowRules: policyBefore.AllowRules,
-		// }
-		// newpolicy.AddDenyRules(failRoleName, []string{FailUsername}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
-		// newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), true)
-
-		gnmiClient := dut.RawAPIs().GNMI(t)
-		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
-			t.Fatalf("Unexpected error configuring role: %v", err)
+		ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+		setupUserPassword(t, dut, SuccessUsername, successPassword)
+		setupUserPassword(t, dut, FailAuthenticateUsername, failPassword)
+		if configureFailCliRole {
+			setupUserPassword(t, dut, failAuthorizeUsername, failAuthorizePassword)
 		}
-
-		failUser.SetRole(oc.UnionString(failRoleName))
+		// Configuring as taskgroup which implicit denies all commands except show interface , which is attached to the failRoleName and then failUsername.
+		if deviations.OcAaaUserRoleLeafStringTypeUnsupported(dut) && configureFailCliRole {
+			taskUserGroupCLI := fmt.Sprintf("taskgroup %v \n task read interface \n task execute interface \n usergroup %v taskgroup %v \n username %v \n group %v \n no group root-lr \n no group cisco-support", failRoleName, failRoleName, failRoleName, failAuthorizeUsername, failRoleName)
+			helpers.GnmiCLIConfig(t, dut, taskUserGroupCLI)
+		}
 	}
-	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
-	failPassword = failPassword + fmt.Sprintf("%d", rand.Intn(1000000000))
-	setupUserPassword(t, dut, SuccessUsername, successPassword)
-	setupUserPassword(t, dut, FailUsername, failPassword)
 }
 
 // func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
@@ -201,33 +282,56 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 // 	return resolvedTarget.String()
 // }
 
-func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice) string {
-	var serviceDUT interface {
-		Service(string) (*tpb.Service, error)
-	}
+func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
 
-	var target string
-	err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
-	if err != nil {
-		t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
-
-		// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
-		dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
-		resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
-		if err != nil {
-			t.Fatalf("Failed resolving ssh target %s", dialTarget)
+	if staticBinding {
+		bindingFile := flag.Lookup("binding").Value.String()
+		in, _ := os.ReadFile(bindingFile)
+		b := &bindpb.Binding{}
+		if err := prototext.Unmarshal(in, b); err != nil {
+			t.Fatalf("unable to parse binding file")
 		}
-		target = resolvedTarget.String()
+		var target string
+		for _, dut := range b.Duts {
+			sshTarget := strings.Split(dut.Ssh.Target, ":")
+			sshIp := sshTarget[0]
+			sshPort := "22"
+			if len(sshTarget) > 1 {
+				sshPort = sshTarget[1]
+			}
+			target = fmt.Sprintf("%s:%s", sshIp, sshPort)
+			t.Logf("Target for ssh service: %s", target)
+		}
+		return target
+
 	} else {
-		dutSSHService, err := serviceDUT.Service("ssh")
-		if err != nil {
-			t.Fatal(err)
+		var serviceDUT interface {
+			Service(string) (*tpb.Service, error)
 		}
-		target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
-	}
 
-	t.Logf("Target for ssh service: %s", target)
-	return target
+		var target string
+		err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &serviceDUT)
+		if err != nil {
+			t.Log("DUT does not support `Service` function, will attempt to resolve dut name field.")
+
+			// Suppose ssh could be not 22 in some cases but don't think this is exposed by introspect.
+			dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
+			resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
+			if err != nil {
+				t.Fatalf("Failed resolving ssh target %s", dialTarget)
+			}
+			target = resolvedTarget.String()
+		} else {
+			dutSSHService, err := serviceDUT.Service("ssh")
+			if err != nil {
+				t.Fatal(err)
+			}
+			target = fmt.Sprintf("%s:%d", dutSSHService.GetOutsideIp(), dutSSHService.GetOutside())
+		}
+
+		t.Logf("Target for ssh service: %s", target)
+		return target
+	}
 }
 
 // func dialGrpc(t *testing.T, target string) *grpc.ClientConn {
@@ -329,6 +433,10 @@ func getHostPortInfo(t *testing.T, address string) (string, uint32) {
 	return ip, uint32(portNumber)
 }
 
+func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
+	return "username", "password"
+}
+
 // SendGnmiRPCs Setup gNMI test RPCs (successful and failed) to be used in the acctz client tests.
 func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
@@ -339,20 +447,19 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
+	userKey, passKey := getMetadataKeys(dut)
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed dialing GNMI: %v", err)
 	}
 	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
-	_, err = gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err != nil {
-		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err)
+	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
+	if err1 != nil {
+		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err)
+		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -372,7 +479,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: FailAuthenticateUsername,
 			},
 		},
 	})
@@ -448,10 +555,8 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// grpcConn := dialGrpc(t, target)
 	gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
-
+	userKey, passKey := getMetadataKeys(dut)
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
 	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
@@ -484,7 +589,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: FailAuthenticateUsername,
 			},
 		},
 	})
@@ -559,9 +664,8 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	authzClient := dut.RawAPIs().GNSI(t).Authz()
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
+	userKey, passKey := getMetadataKeys(dut)
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
 
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
@@ -589,7 +693,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: FailAuthenticateUsername,
 			},
 		},
 	})
@@ -659,10 +763,9 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// grpcConn := dialGrpc(t, target)
 	// gribiClient := gribi.NewGRIBIClient(grpcConn)
 	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
+	userKey, passKey := getMetadataKeys(dut)
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
 
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
 	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
 	if err != nil {
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
@@ -702,7 +805,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: FailAuthenticateUsername,
 			},
 		},
 	})
@@ -779,10 +882,9 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
-	ctx := context.Background()
-	ctx = metadata.AppendToOutgoingContext(ctx, "username", FailUsername)
-	ctx = metadata.AppendToOutgoingContext(ctx, "password", failPassword)
-	// p4rtclient := p4pb.NewP4RuntimeClient(grpcConn)
+	userKey, passKey := getMetadataKeys(dut)
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+
 	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
@@ -811,7 +913,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: FailAuthenticateUsername,
 			},
 		},
 	})
@@ -868,11 +970,11 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 }
 
 // SendSuccessCliCommand Setup test CLI command (successful) to be used in the acctz client tests.
-func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -895,6 +997,28 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
 	localIP, localPort := getHostPortInfo(t, target)
 
+	var authnField *acctzpb.AuthnDetail
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Authn field popoulated for Cisco only for Login/Once/Enable records.
+		authnField = nil
+	default:
+		authnField = &acctzpb.AuthnDetail{
+			Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+			Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+			Cause:  "authentication_method: local",
+		}
+	}
+
+	var userRole string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		userRole = "root-lr, cisco-support"
+	default:
+		userRole = ""
+	}
+
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
 			CmdService: &acctzpb.CommandService{
@@ -912,13 +1036,10 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 			RemoteAddress: remoteIP,
 			RemotePort:    remotePort,
 			IpProto:       ipProto,
-			Authn: &acctzpb.AuthnDetail{
-				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
-				Cause:  "authentication_method: local",
-			},
+			Authn:         authnField,
 			User: &acctzpb.UserDetail{
 				Identity: SuccessUsername,
+				Role:     userRole,
 			},
 		},
 	})
@@ -927,14 +1048,14 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.Reco
 }
 
 // SendFailCliCommand Setup test CLI command (failed) to be used in the acctz client tests.
-func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
-	sshConn, w := dialSSH(t, FailUsername, failPassword, target)
+	sshConn, w := dialSSH(t, failAuthorizeUsername, failAuthorizePassword, target)
 
 	defer func() {
 		// Give things a second to percolate then close the connection.
@@ -954,14 +1075,37 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
 	localIP, localPort := getHostPortInfo(t, target)
 
+	var authnField *acctzpb.AuthnDetail
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Authn field popoulated for Cisco only for Login/Once/Enable records.
+		authnField = nil
+	default:
+		authnField = &acctzpb.AuthnDetail{
+			Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
+			Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+			Cause:  "authentication_method: local",
+		}
+	}
+
+	var authzStatusField *acctzpb.AuthzDetail
+	if deviations.AcctzRecordsAuthzStatusDenyUnsupported(dut) {
+		authzStatusField = &acctzpb.AuthzDetail{
+			Status: acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED,
+		}
+	} else {
+		authzStatusField = &acctzpb.AuthzDetail{
+			Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+		}
+	}
+
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
 			CmdService: &acctzpb.CommandService{
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
 				Cmd:         failCliCommand,
-				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
-				},
+				Authz:       authzStatusField,
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
@@ -971,13 +1115,9 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 			RemoteAddress: remoteIP,
 			RemotePort:    remotePort,
 			IpProto:       ipProto,
-			Authn: &acctzpb.AuthnDetail{
-				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
-				Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
-				Cause:  "authentication_method: local",
-			},
+			Authn:         authnField,
 			User: &acctzpb.UserDetail{
-				Identity: FailUsername,
+				Identity: failAuthorizeUsername,
 				Role:     failRoleName,
 			},
 		},
@@ -987,11 +1127,11 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordR
 }
 
 // SendShellCommand Setup test shell command (successful) to be used in the acctz client tests.
-func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordResponse {
+func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut)
+	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	shellUsername := SuccessUsername

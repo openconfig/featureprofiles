@@ -17,6 +17,7 @@ package recordsubscribenongrpc_test
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"testing"
 	"time"
 
@@ -24,6 +25,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -44,6 +46,10 @@ func prettyPrint(i any) string {
 	return string(s)
 }
 
+var (
+	staticBinding = flag.Bool("static_binding", false, "set this flag to true if test is run for testbed using static binding")
+)
+
 func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	acctz.SetupUsers(t, dut, true)
@@ -54,12 +60,14 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	startTime := time.Now()
-	newRecords := acctz.SendSuccessCliCommand(t, dut)
+	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendFailCliCommand(t, dut)
+	newRecords = acctz.SendFailCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendShellCommand(t, dut)
-	records = append(records, newRecords...)
+	if !deviations.AcctzShellCmdAccountingUnsupported(dut) {
+		newRecords = acctz.SendShellCommand(t, dut, *staticBinding)
+		records = append(records, newRecords...)
+	}
 
 	// Quick sleep to ensure all the records have been processed/ready for us.
 	time.Sleep(5 * time.Second)
@@ -123,6 +131,13 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
+		}
+
+		cmdServiceRecord := resp.record.GetCmdService()
+		//Skip records which are non CMD type (e.g. gNMI, gNSI, etc).
+		if cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI {
+			// Not a record of type command using SSH , continue with next record.
+			continue
 		}
 
 		if !resp.record.Timestamp.AsTime().After(startTime) {
