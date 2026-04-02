@@ -67,7 +67,6 @@ var (
 	serverAddr          string
 	dutCreds            DUTCredentialer
 	testProfile         = "rotationprofile"
-	logTime             = time.Now().String()
 	expectedResult      = true
 	prevClientCertFile  = ""
 	prevClientKeyFile   = ""
@@ -84,12 +83,12 @@ func mustConcatenatePEMFiles(t *testing.T, fileA, fileB string) []byte {
 	t.Helper()
 	dataA, err := os.ReadFile(fileA)
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to read PEM file %s: %v", logTime, fileA, err)
+		t.Fatalf("STATUS:Failed to read PEM file %s: %v", fileA, err)
 	}
 	dataA = bytes.TrimRight(dataA, "\n")
 	dataB, err := os.ReadFile(fileB)
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to read PEM file %s: %v", logTime, fileB, err)
+		t.Fatalf("STATUS:Failed to read PEM file %s: %v", fileB, err)
 	}
 	return bytes.Join([][]byte{dataA, dataB}, []byte("\n"))
 }
@@ -99,7 +98,7 @@ func mustBuildCertPool(t *testing.T, p7bFile string) (*x509.CertPool, []byte) {
 	t.Helper()
 	certs, rawData, err := setupsvc.Loadpkcs7TrustBundle(p7bFile)
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to load trust bundle %s: %v", logTime, p7bFile, err)
+		t.Fatalf("STATUS:Failed to load trust bundle %s: %v", p7bFile, err)
 	}
 	pool := x509.NewCertPool()
 	for _, c := range certs {
@@ -117,12 +116,12 @@ func mustBuildMergedP7b(t *testing.T, ca01PEMFile, ca02PEMFile string) (string, 
 	mergedPEMData := mustConcatenatePEMFiles(t, ca01PEMFile, ca02PEMFile)
 	tmpPEM, err := os.CreateTemp("", "merged_trust_bundle_*.pem")
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to create temp merged PEM file: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to create temp merged PEM file: %v", err)
 	}
 	if _, err := tmpPEM.Write(mergedPEMData); err != nil {
 		tmpPEM.Close()
 		os.Remove(tmpPEM.Name())
-		t.Fatalf("%s:STATUS:Failed to write merged PEM data: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to write merged PEM data: %v", err)
 	}
 	tmpPEM.Close()
 
@@ -134,7 +133,7 @@ func mustBuildMergedP7b(t *testing.T, ca01PEMFile, ca02PEMFile string) (string, 
 	)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		os.Remove(tmpPEM.Name())
-		t.Fatalf("%s:STATUS:Failed to generate merged p7b via openssl: %v\n%s", logTime, err, out)
+		t.Fatalf("STATUS:Failed to generate merged p7b via openssl: %v\n%s", err, out)
 	}
 
 	cleanup := func() {
@@ -193,11 +192,11 @@ func mustRunScript(t *testing.T, script string) string {
 
 	scriptCmd, fullPath, err := createPatchedScript(script, []string{"01", "02"})
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to create patched script: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to create patched script: %v", err)
 	}
 
 	if err := setupsvc.TestdataMakeCleanup(t, dirPath, scriptWaitTime, scriptCmd); err != nil {
-		t.Fatalf("%s:STATUS:Failed to execute patched script: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to execute patched script: %v", err)
 	}
 
 	return fullPath
@@ -209,7 +208,7 @@ func mustLoadTLSMaterial(t *testing.T, certFile, keyFile, bundleFile string) (*t
 
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to load cert/key: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to load cert/key: %v", err)
 	}
 
 	pool, _ := mustBuildCertPool(t, bundleFile)
@@ -225,7 +224,7 @@ func mustValidateServices(t *testing.T, pool *x509.CertPool, cert tls.Certificat
 		cfg.serverSAN, serverAddr, cfg.username, cfg.password,
 		cert, cfg.tc.mismatch,
 	); !result {
-		t.Fatalf("%s:STATUS:%s:Failed to validate services", logTime, cfg.tc.desc)
+		t.Fatalf("STATUS:%s:Failed to validate services", cfg.tc.desc)
 	}
 }
 
@@ -235,7 +234,7 @@ func mustRunPositiveRotation(t *testing.T, cfg rotationRunConfig) {
 	t.Helper()
 	tc := cfg.tc
 
-	t.Logf("%s:Starting positive test case: %s", logTime, tc.desc)
+	t.Logf("Starting positive test case: %s", tc.desc)
 
 	newCert, _ := mustLoadTLSMaterial(t, tc.clientCertFile, tc.clientKeyFile, tc.trustBundleFile)
 
@@ -274,7 +273,7 @@ func mustRunPositiveRotation(t *testing.T, cfg rotationRunConfig) {
 		tc.newTLScreds, tc.mismatch, tc.scale,
 		cfg.serverCertEntity, &tbEntity,
 	) {
-		t.Fatalf("%s:STATUS:%s:Failed to rotate trust bundle", logTime, tc.desc)
+		t.Fatalf("STATUS:%s:Failed to rotate trust bundle", tc.desc)
 	}
 
 	// Validate
@@ -294,7 +293,7 @@ func mustRunNegativeRotation(t *testing.T, cfg rotationRunConfig) {
 	t.Helper()
 	tc := cfg.tc
 
-	t.Logf("%s:Starting negative test case: %s", logTime, tc.desc)
+	t.Logf("Starting negative test case: %s", tc.desc)
 
 	prevCert, prevPool := mustLoadTLSMaterial(t, prevClientCertFile, prevClientKeyFile, prevTrustBundleFile)
 
@@ -303,7 +302,7 @@ func mustRunNegativeRotation(t *testing.T, cfg rotationRunConfig) {
 	// Build mismatch bundle
 	_, raw, err := setupsvc.Loadpkcs7TrustBundle(tc.mismatchTBFile)
 	if err != nil {
-		t.Fatalf("%s:STATUS:Failed to load mismatch bundle: %v", logTime, err)
+		t.Fatalf("STATUS:Failed to load mismatch bundle: %v", err)
 	}
 
 	tbEntity := setupsvc.CreateCertzEntity(
@@ -328,7 +327,7 @@ func mustRunNegativeRotation(t *testing.T, cfg rotationRunConfig) {
 		tc.newTLScreds, tc.mismatch, tc.scale,
 		cfg.serverCertEntity, &tbEntity,
 	) {
-		t.Fatalf("%s:STATUS:%s:Rotation unexpectedly succeeded", logTime, tc.desc)
+		t.Fatalf("STATUS:%s:Rotation unexpectedly succeeded", tc.desc)
 	}
 
 	t.Run("PostMismatchValidation", func(t *testing.T) {
@@ -344,16 +343,16 @@ func TestTrustBundleRotation(t *testing.T) {
 	serverAddr = dut.Name()
 
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &dutCreds); err != nil {
-		t.Fatalf("%s:STATUS:Failed to get DUT credentials: %v. The binding for %s must implement the DUTCredentialer interface.", logTime, err, dut.Name())
+		t.Fatalf("STATUS:Failed to get DUT credentials: %v. The binding for %s must implement the DUTCredentialer interface.", err, dut.Name())
 	}
 	username := dutCreds.RPCUsername()
 	password := dutCreds.RPCPassword()
 
-	t.Logf("%s:STATUS:Pre-init service validation before certz rotation.", logTime)
+	t.Logf("STATUS:Pre-init service validation before certz rotation.")
 	gnmiClient, gnsiC := setupsvc.PreInitCheck(context.Background(), t, dut)
 
 	// Generate test certificate data.
-	t.Logf("%s:STATUS:Generating test data certificates.", logTime)
+	t.Logf("STATUS:Generating test data certificates.")
 	patchedMkCas := mustRunScript(t, "mk_cas.sh")
 	defer os.Remove(patchedMkCas)
 
@@ -361,31 +360,31 @@ func TestTrustBundleRotation(t *testing.T) {
 	certzClient := gnsiC.Certz()
 
 	// Verify testProfile does not pre-exist.
-	t.Logf("%s:STATUS:Checking baseline SSL profile list.", logTime)
+	t.Logf("STATUS:Checking baseline SSL profile list.")
 	if getResp := setupsvc.GetSslProfilelist(
 		ctx, t, certzClient, &certzpb.GetProfileListRequest{},
 	); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:profileID %s already exists, cannot proceed.", logTime, testProfile)
+		t.Fatalf("STATUS:profileID %s already exists, cannot proceed.", testProfile)
 	}
 
 	// Add the new SSL profile.
-	t.Logf("%s:STATUS:Adding new SSL profile ID %s.", logTime, testProfile)
+	t.Logf("STATUS:Adding new SSL profile ID %s.", testProfile)
 	if addResp, err := certzClient.AddProfile(
 		ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile},
 	); err != nil {
-		t.Fatalf("%s:STATUS:AddProfile request failed: %v", logTime, err)
+		t.Fatalf("STATUS:AddProfile request failed: %v", err)
 	} else {
-		t.Logf("%s:STATUS:Received AddProfileResponse: %v", logTime, addResp)
+		t.Logf("STATUS:Received AddProfileResponse: %v", addResp)
 	}
 
 	// Confirm the new profile appears in the list.
 	if getResp := setupsvc.GetSslProfilelist(
 		ctx, t, certzClient, &certzpb.GetProfileListRequest{},
 	); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%s:STATUS:Newly added profileID %s is not present in SSL profile list.",
-			logTime, testProfile)
+		t.Fatalf("STATUS:Newly added profileID %s is not present in SSL profile list.",
+			testProfile)
 	}
-	t.Logf("%s:STATUS:New profileID %s confirmed in SSL profile list.", logTime, testProfile)
+	t.Logf("STATUS:New profileID %s confirmed in SSL profile list.", testProfile)
 
 	testCases := []rotationTestCase{
 		// ── Certz-5.1: Positive rotation ─────────────────────────────────────────
@@ -488,12 +487,9 @@ func TestTrustBundleRotation(t *testing.T) {
 	}
 
 	// Final cleanup of generated test data.
-	t.Logf("%s:STATUS:Cleaning up test data.", logTime)
+	t.Logf("STATUS:Cleaning up test data.")
 	patchedCleanup := mustRunScript(t, "cleanup.sh")
 	defer os.Remove(patchedCleanup)
 
-	if err := setupsvc.TestdataMakeCleanup(t, dirPath, scriptWaitTime, patchedCleanup); err != nil {
-		t.Logf("%s:STATUS:Cleanup of testdata certificates failed: %v", logTime, err)
-	}
-	t.Logf("%s:STATUS:TestTrustBundleRotation completed!", logTime)
+	t.Logf("STATUS:TestTrustBundleRotation completed!")
 }
