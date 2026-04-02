@@ -149,22 +149,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	var config oc.Root
 
 	batch := &gnmi.SetBatch{}
-	allMembers := append([]string{}, lag1Members...) // copy lag1Members
-	allMembers = append(allMembers, lag2Members...)  // append lag2Members
-	for i, portName := range allMembers {
-		dutPort := dut.Port(t, portName)
-		intf := config.GetOrCreateInterface(dutPort.Name())
-		intf.Enabled = ygot.Bool(true)
-		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-		e := intf.GetOrCreateEthernet()
-		lagName := lag1Name
-		if i >= len(lag1Members) {
-			lagName = lag2Name
-		}
-		e.AggregateId = ygot.String(lagName)
-		gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort.Name()).Config(), intf)
-	}
 
+	// First: Create LAGs with their configuration
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		lag := config.GetOrCreateInterface(lagName)
 		lag.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
@@ -212,6 +198,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 		}
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lag)
 		gnmi.BatchReplace(batch, gnmi.OC().Lacp().Interface(lagName).Config(), lacp)
+	}
+
+	// Then: Add member interfaces to the LAGs
+	allMembers := append([]string{}, lag1Members...) // copy lag1Members
+	allMembers = append(allMembers, lag2Members...)  // append lag2Members
+	for i, portName := range allMembers {
+		dutPort := dut.Port(t, portName)
+		intf := config.GetOrCreateInterface(dutPort.Name())
+		intf.Enabled = ygot.Bool(true)
+		intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+		e := intf.GetOrCreateEthernet()
+		lagName := lag1Name
+		if i >= len(lag1Members) {
+			lagName = lag2Name
+		}
+		e.AggregateId = ygot.String(lagName)
+		gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort.Name()).Config(), intf)
 	}
 	batch.Set(t, dut)
 
