@@ -106,7 +106,7 @@ func addTLSProfileTest(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		// If the profile already exists from a prior run, that is also acceptable.
 		if st, ok := status.FromError(err); ok && st.Code() == codes.AlreadyExists {
-			t.Errorf("profile %q already exists on DUT - skipping add", testProfile)
+			t.Logf("profile %q already exists on DUT", testProfile)
 			return
 		}
 		t.Errorf("AddProfile %s failed: %v", testProfile, err)
