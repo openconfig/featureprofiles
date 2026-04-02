@@ -1,8 +1,8 @@
-# FPD-1.1: FPD Status Test
+# FPGA-1.1: FPGA Status Test
 
 ## Summary
 
-This test verifies the status of FPD on the DUT. 
+This test verifies the status of FPGA on the DUT. 
 
 ## Testbed type
 
@@ -14,13 +14,13 @@ This test verifies the status of FPD on the DUT.
 
 * No special setup is required. Ensure the DUT is operational.
 
-### FPD-1.1.1: FPD Status Test
+### FPGA-1.1.1: FPGA Status Test
 
-1. Get a list of all FPD components on the DUT.
+1. Get a list of all FPGA components on the DUT.
 
-2. For each FPD component, query the FPD status using the OpenConfig path `/openconfig/components/component/properties/property/state/value`.
+2. For each FPGA component, query the FPGA status using the OpenConfig path `/components/component/properties/property/state/value`.
 
-3. Verify that the FPD status is valid and is one of the following:
+3. Verify that the FPGA status is valid and is one of the following:
    * `CURRENT`
    * `NEED UPGD`
    * `RLOAD REQ`
@@ -41,7 +41,7 @@ This test verifies the status of FPD on the DUT.
         "properties": {
           "property": [
             {
-              "name": "fpd-status",
+              "name": "fpga-status",
               "state": {
                 "value": "CURRENT"
               }
