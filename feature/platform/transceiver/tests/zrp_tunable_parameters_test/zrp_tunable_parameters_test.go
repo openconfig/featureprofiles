@@ -91,7 +91,7 @@ func Test400ZRPlusTunableOutputPower(t *testing.T) {
 	}{
 		{
 			// Validate adjustable range of transmit output power across -7 to 0 dBm
-			// range in steps of 1dB. So the module’s output power will be set to -7,
+			// range in steps of 1dB. So the module's output power will be set to -7,
 			// -6,-5, -4, -3, -2, -1, 0 dBm in each step.
 			description:            "adjustable range of transmit output power across -7 to 0 dBm range in steps of 1dB",
 			frequency:              193100000,

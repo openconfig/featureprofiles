@@ -382,21 +382,15 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 		t.Fatalf("invalid import policy")
 	}
 	// Validating if OTG has learnt 3 prefixes with subnet 203.0.0.0/16 on which policy applied
-	receivedPrefixes := map[string]bool{}
-	var bgpPrefixes []*otgtelemetry.BgpPeer_UnicastIpv4Prefix
 	_, pok := gnmi.WatchAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-		prefix, present := v.Val()
-		if !present {
-			return false
-		}
-		receivedPrefixes[prefix.GetAddress()] = true
-		bgpPrefixes = append(bgpPrefixes, prefix)
-		return len(receivedPrefixes) == 3
+		_, present := v.Val()
+		return present
 	}).Await(t)
 	if !pok {
-		t.Fatalf("Prefixes not installed on OTG port 2, got: %v", receivedPrefixes)
+		t.Fatalf("Prefixes not installed on OTG port 2")
 	}
 	found := 0
+	bgpPrefixes := gnmi.GetAll(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State())
 	for _, bgpPrefix := range bgpPrefixes {
 		_, ok := gnmi.Watch(t, td.ate.OTG(), gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(), bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State(), 10*time.Second, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			if !v.IsPresent() {
