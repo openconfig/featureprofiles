@@ -33,7 +33,7 @@ Verify A.1 == baseline + A
 
 ### gNMI-3.2 - union_replace add configuration
 Generate an interface configuration and add that to the baseline configuration using union_replace.  The interface should include description, MTU, ip address and hold-timer.  
-#### gnmi-3.2.1 - Add an interface configuration using OC to the baseline (CLI) configuration.  
+#### gNMI-3.2.1 - Add an interface configuration using OC to the baseline (CLI) configuration.
 
 1. Get the baseline configuration (A).
 1. Generate a configuration with a new interface using OC (A.1).
