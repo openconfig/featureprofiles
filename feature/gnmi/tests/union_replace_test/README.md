@@ -72,7 +72,7 @@ Steps
 
 ### gNMI-3.5 - union_replace move configuration
 In some scenarios it is observed that moving a configuration from one interface to another can trigger bugs. Particularly if there is some conflicting element in the configuration such as an IP address.  This test moves a an IP address from interface 1 to interface 2 using union replace.
-#### gnmi-3.5.1 move IP address between interfaces using OC
+#### gNMI-3.5.1 - Move IP address between interfaces using OC
 #### gnmi-3.5.2 move IP address between interfaces using CLI
 
 ### gNMI-3.6 - union_replace accepted with hardware mismatch
