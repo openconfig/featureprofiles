@@ -45,7 +45,7 @@ Generate an interface configuration and add that to the baseline configuration u
 Repeat steps in gnmi-3.2.1 but use CLI for the added interface configuration.
 
 ### gNMI-3.3 - union_replace change configuration
-#### gnmi-3.3.1 Change the interface description using OC.
+#### gNMI-3.3.1 - Change the interface description using OC.
 Steps
 1. Get baseline configuration (B).
 1. Change the description of an interface using OC. (B.1)
