@@ -41,7 +41,7 @@ Generate an interface configuration and add that to the baseline configuration u
 1. Get configuration as A.2
 1. Verify A.2 == A + A.1
 
-#### gnmi-3.2.2 - add the interface configuration using CLI
+#### gNMI-3.2.2 - Add the interface configuration using CLI
 Repeat steps in gnmi-3.2.1 but use CLI for the added interface configuration.
 
 ### gNMI-3.3 - union_replace change configuration
