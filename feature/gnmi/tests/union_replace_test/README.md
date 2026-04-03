@@ -68,7 +68,7 @@ Steps
 1. Get configuration as B.4
 1. Verify B.4 == B + B.3
 
-#### gnmi-3.4.2 - repeat gnmi 3.4.1 but instead remove the interface ip address by omitting it in CLI.
+#### gNMI-3.4.2 - Repeat gNMI-3.4.1 but remove the interface by omitting it in CLI.
 
 ### gNMI-3.5 - union_replace move configuration
 In some scenarios it is observed that moving a configuration from one interface to another can trigger bugs. Particularly if there is some conflicting element in the configuration such as an IP address. This test moves an IP address from interface 1 to interface 2 using union replace.
