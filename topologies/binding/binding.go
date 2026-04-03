@@ -605,7 +605,7 @@ func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
 	}
 	if bopts.Username != "" {
-		c := &creds{bopts.Username, bopts.Password, opb.Device_ARISTA, !bopts.secure}
+		c := &creds{bopts.Username, bopts.Password, opb.Device_ARISTA, !bopts.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
 	if bopts.MaxRecvMsgSize != 0 {
@@ -675,6 +675,7 @@ type creds struct {
 func (c *creds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	md, ok := metadata.FromOutgoingContext(ctx)
 	user, pass := c.username, c.password
+	returnMap := make(map[string]string)
 
 	// Track if these were overridden by the context
 	userOverride := false
