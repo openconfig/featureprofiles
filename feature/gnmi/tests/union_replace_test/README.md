@@ -86,7 +86,7 @@ Steps
 1. Get configuration D.3
 1. Verify  D.2 == D.3.  That is, verify only the interface speed is changed between D.1 and D.3.  The remaining CLI and all OC must be unchanged.
 
-#### gnmi3.6.1  verify configuration with OC hardware mismatch is accepted
+#### gNMI-3.6.1 - Verify configuration with OC hardware mismatch is accepted
 Generate a configuration D.2 with a port-speed mismatch in the OC which should be accepted and applied by the DUT.
 
 #### gNMI-3.6.2 - Verify configuration with CLI hardware mismatch is accepted
