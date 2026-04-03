@@ -55,7 +55,7 @@ Steps
 
 #### gNMI-3.3.2 - Repeat gNMI-3.3.1 but change only the interface description using CLI.
 ### gNMI-3.4 - union_replace delete configuration through omission
-#### gnmi-3.4.1 - Remove the interface ip address by omitting it in OC.
+#### gNMI-3.4.1 - Remove an interface by omitting it in OC.
 
 Steps
 1. Get baseline configuration (B).
