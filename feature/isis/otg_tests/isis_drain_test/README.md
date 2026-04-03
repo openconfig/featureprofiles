@@ -20,10 +20,41 @@ Ensure that IS-IS metric change can drain traffic from a DUT trunk interface
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/aggregation/config/lag-type:
+  /interfaces/interface/aggregation/config/min-links:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/config/enabled:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/next-hop-group:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/instance:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/max-ecmp-paths:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/net:
+  /network-instances/network-instance/protocols/protocol/isis/global/lsp-bit/overload-bit/config/set-bit:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/circuit-type:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/interface:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/interface-ref/config/subinterface:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/afi-safi/af/config/metric:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
 rpcs:
   gnmi:
-    gNMI.Subscribe:
     gNMI.Set:
+    gNMI.Subscribe:
 ```
 
 ## Minimum DUT Platform Requirement
