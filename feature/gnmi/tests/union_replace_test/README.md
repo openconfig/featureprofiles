@@ -89,7 +89,7 @@ Steps
 #### gnmi3.6.1  verify configuration with OC hardware mismatch is accepted
 Generate a configuration D.2 with a port-speed mismatch in the OC which should be accepted and applied by the DUT.
 
-#### gnmi3.6.2  verify configuration with CLI hardware mismatch is accepted
+#### gNMI-3.6.2 - Verify configuration with CLI hardware mismatch is accepted
 
 Generate a configuration D.2 with a port-speed mismatch in the CLI which should be accepted and applied by the DUT.
 
