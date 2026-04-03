@@ -500,8 +500,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		intfName = intfName + ".0"
+	}
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
 	}
 
 	isisIntf := isis.GetOrCreateInterface(intfName)
