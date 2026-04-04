@@ -21,6 +21,9 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    missing_value_for_defaults:  true
+    bgp_graceful_restart_under_afi_safi_unsupported: true
+    bgp_config_during_graceful_restart_unsupported: true
   }
 }
 platform_exceptions: {
@@ -43,6 +46,8 @@ platform_exceptions: {
     require_routed_subinterface_0: true
     default_network_instance: "default"
     bgp_llgr_oc_undefined: true
+    routing_restart_via_gnoi_unsupported: true
+    missing_value_for_defaults: true
   }
 }
 tags: TAGS_AGGREGATION

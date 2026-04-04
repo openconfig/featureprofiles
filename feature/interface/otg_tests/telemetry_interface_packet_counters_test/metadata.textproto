@@ -33,6 +33,7 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     load_interval_not_supported: true
+    subinterface_packet_counters_missing: true
   }
 }
 platform_exceptions: {
