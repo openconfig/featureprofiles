@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -66,7 +67,8 @@ func configureDUT(t *testing.T, a *attrs.Attributes, dut *ondatra.DUTDevice) {
 	s6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
 	routerAdvert := s6.GetOrCreateRouterAdvertisement()
 	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
-		routerAdvert.SetSuppress(true)
+		routerAdvert.SetEnable(true)
+		routerAdvert.SetMode(oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
 	}
 
 	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), i)
@@ -82,6 +84,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	t.Logf("Configuring OTG port1")
 	dstPort := topo.Ports().Add().SetName("port1")
+	topo.Ports().Add().SetName("port2")
 	dstDev := topo.Devices().Add().SetName(atePort.Name)
 	dstEth := dstDev.Ethernets().Add().SetName(atePort.Name + ".Eth").SetMac(atePort.MAC)
 	dstEth.Connection().SetPortName(dstPort.Name())
@@ -91,12 +94,22 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	topo.Captures().Add().SetName("raCapture").SetPortNames([]string{dstPort.Name()}).SetFormat(gosnappi.CaptureFormat.PCAP)
 	t.Logf("OTG configuration completed!")
 
-	topo.Flows().Clear().Items()
+	// IxNetwork skips port capture setup when no flows are configured. Keep a
+	// valid but unstarted flow in the config so capture can record DUT-originated
+	// router advertisements without generating traffic.
+	captureSetupFlow := topo.Flows().Add().SetName("captureSetupFlow")
+	captureSetupFlow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2"})
+	flowEth := captureSetupFlow.Packet().Add().Ethernet()
+	flowEth.Src().SetValue(atePort.MAC)
+	flowEth.Dst().SetValue(dutPort.MAC)
+	flowIPv6 := captureSetupFlow.Packet().Add().Ipv6()
+	flowIPv6.Src().SetValue(atePort.IPv6)
+	flowIPv6.Dst().SetValue(dutPort.IPv6)
+	captureSetupFlow.Size().SetFixed(128)
+	captureSetupFlow.Duration().FixedPackets().SetPackets(1)
+
 	ate.OTG().PushConfig(t, topo)
 	time.Sleep(10 * time.Second)
-	t.Logf("starting protocols... ")
-	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo
 }
 
@@ -105,20 +118,31 @@ func verifyRATelemetry(t *testing.T, dut *ondatra.DUTDevice) {
 	txPort := dut.Port(t, "port1")
 
 	if !deviations.Ipv6RouterAdvertisementSuppressUnsupported(dut) {
-		deviceRASuppressQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Suppress().Config()
-		raSuppressOnDevice := gnmi.Get(t, dut, deviceRASuppressQuery)
-		t.Logf("Router Advertisement Suppress State = %v", raSuppressOnDevice)
+		deviceRAModeQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Mode().State()
+		raMode := gnmi.Get(t, dut, deviceRAModeQuery)
+		t.Logf("Router Advertisement Mode = %v", raMode)
+		if raMode != oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA {
+			t.Errorf("Router Advertisement Mode: got %v, want %v", raMode, oc.RouterAdvertisement_Mode_DISABLE_UNSOLICITED_RA)
+		}
 	}
 
-	deviceRAConfigQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Enable().Config()
-	raConfigOnDevice := gnmi.Get(t, dut, deviceRAConfigQuery)
-	t.Logf("Router Advertisement Config State = %v", raConfigOnDevice)
+	deviceRAEnableQuery := gnmi.OC().Interface(txPort.Name()).Subinterface(0).Ipv6().RouterAdvertisement().Enable().State()
+	raEnable := gnmi.Get(t, dut, deviceRAEnableQuery)
+	t.Logf("Router Advertisement Enable State = %v", raEnable)
+	if !raEnable {
+		t.Errorf("Router Advertisement Enable: got %v, want true", raEnable)
+	}
 }
 
 // Captures traffic statistics and verifies for the loss.
 func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, ipv6Solicitation bool, waitTime uint8) {
 	otg := ate.OTG()
-	otg.StartProtocols(t)
+	// For the periodic-RA check, start protocols before capture so startup
+	// solicitation responses are not mistaken for unsolicited advertisements.
+	if !ipv6Solicitation {
+		t.Log("Starting protocols before capture to check for unsolicited RAs")
+		otg.StartProtocols(t)
+	}
 
 	// Explicitly stop any pre-existing captures.
 	t.Log("Stopping any existing captures to avoid any limitation in the number of active captures")
@@ -134,6 +158,13 @@ func verifyOTGPacketCaptureForRA(t *testing.T, ate *ondatra.ATEDevice, config go
 		cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 		otg.SetControlState(t, cs)
 	}()
+	if ipv6Solicitation {
+		// Starting protocols after capture begins triggers OTG's initial IPv6
+		// router solicitation while the response is being recorded.
+		t.Log("Starting protocols with capture active to record the solicited RA")
+		otg.StartProtocols(t)
+	}
+	defer otg.StopProtocols(t)
 	if ipv6Solicitation {
 		otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	}
@@ -158,12 +189,16 @@ func validatePackets(t *testing.T, fileName string, ipv6Solicitation bool) {
 	handle, err := pcap.OpenOffline(fileName)
 
 	if err != nil {
+		if ipv6Solicitation {
+			t.Fatalf("Could not read captured packets for router solicitation response: %v", err)
+		}
 		t.Logf("No Packets found in the file = %v !", fileName)
 		return
 	}
 
 	defer handle.Close()
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	foundRA := false
 
 	for packet := range packetSource.Packets() {
 		ipv6Layer := packet.Layer(layers.LayerTypeIPv6)
@@ -175,10 +210,14 @@ func validatePackets(t *testing.T, fileName string, ipv6Solicitation bool) {
 				if routerAdvert != nil && !ipv6Solicitation {
 					t.Fatalf("Error: Found a periodic router advertisement packet!")
 				} else if routerAdvert != nil && ipv6Solicitation {
+					foundRA = true
 					t.Logf("Router advertisement packet found in response to router solicitation!")
 				}
 			}
 		}
+	}
+	if ipv6Solicitation && !foundRA {
+		t.Errorf("No Router Advertisement packet found in response to router solicitation")
 	}
 }
 
