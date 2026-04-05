@@ -1249,7 +1249,7 @@ test: {
 }
 test: {
   id: "RT-5.12"
-  description: "Suppress IPv6 ND Router Advertisement [Depreciated]"
+  description: "Suppress IPv6 ND Router Advertisement"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/suppress_ipv6_nd_ra_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/interface/ip/otg_tests/suppress_ipv6_nd_ra_test/suppress_ipv6_nd_ra_test.go"
 }
