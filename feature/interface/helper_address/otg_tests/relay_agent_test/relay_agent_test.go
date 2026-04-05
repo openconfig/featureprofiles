@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -508,12 +509,55 @@ func (tc *testCase) verifyDHCPv6Address(t *testing.T) {
 	}
 }
 
+//getDUTLinkLocalAddress retrieves the link-local address from the DUT interface to verify against the DHCPv6 gateway received by the client.
+func (tc *testCase) getDUTLinkLocalAddress(t *testing.T) string {
+	t.Helper()
+
+	intfName := tc.dut.Port(t, "port1").Name()
+
+	if tc.isLag {
+		intfName = tc.aggID
+	}
+
+	addrs := gnmi.GetAll(t, tc.dut, gnmi.OC().Interface(intfName).Subinterface(1).Ipv6().AddressAny().State())
+
+	for _, addr := range addrs {
+		ip := addr.GetIp()
+		if strings.HasPrefix(ip, "fe80:") {
+			t.Logf("DHCPv6 Gateway address on %s.%d: %s", intfName, 1, ip)
+			return ip
+		}
+	}
+
+	t.Fatalf("No link-local address found on interface %s subinterface %d", intfName, 1)
+	return ""
+}
+
+// verifyDHCPv6Gateway verifies that the DHCPv6 client received the expected gateway address.
+func (tc *testCase) verifyDHCPv6Gateway(t *testing.T) {
+	t.Helper()
+
+	dutLinkLocal := tc.getDUTLinkLocalAddress(t)
+
+	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
+		dhcpV6ClientGateway, present := v.Val()
+		if !present {
+			return false
+		}
+		return dhcpV6ClientGateway.GetGateway() == dutLinkLocal
+	}).Await(t)
+	if !ok {
+		t.Fatalf("Did not receive expected DHCPv6 gateway address %s", dutLinkLocal)
+	}
+}
+
 // verifyDHCPDiscovery orchestrates all DHCP verification checks.
 func (tc *testCase) verifyDHCPDiscovery(t *testing.T) {
 	t.Helper()
 	tc.verifyDHCPv4Address(t)
 	tc.verifyDHCPv4Gateway(t)
 	tc.verifyDHCPv6Address(t)
+	tc.verifyDHCPv6Gateway(t)
 }
 
 // run executes the full test lifecycle for a single test case.
