@@ -1249,8 +1249,127 @@ type Metadata_Deviations struct {
 	ConfigAclValueAnyOcUnsupported bool `protobuf:"varint,356,opt,name=config_acl_value_any_oc_unsupported,json=configAclValueAnyOcUnsupported,proto3" json:"config_acl_value_any_oc_unsupported,omitempty"`
 	// Device doesnot support configuring ACL through oc
 	ConfigAclOcUnsupported bool `protobuf:"varint,357,opt,name=config_acl_oc_unsupported,json=configAclOcUnsupported,proto3" json:"config_acl_oc_unsupported,omitempty"`
+	// Device does not support interface counters in unknown protos
+	// Juniper: https://issuetracker.google.com/issues/461368936
+	InterfaceCountersInUnknownProtosUnsupported bool `protobuf:"varint,358,opt,name=interface_counters_in_unknown_protos_unsupported,json=interfaceCountersInUnknownProtosUnsupported,proto3" json:"interface_counters_in_unknown_protos_unsupported,omitempty"`
+	// Arista: b/449592554
+	// Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+	// /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+	AggregateSidCounterOutPktsUnsupported bool `protobuf:"varint,359,opt,name=aggregate_sid_counter_out_pkts_unsupported,json=aggregateSidCounterOutPktsUnsupported,proto3" json:"aggregate_sid_counter_out_pkts_unsupported,omitempty"`
+	// Devices that require no-php flag for ISIS SR prefix and node segments
+	// Arista: b/462580165 requires no-php for receiving packet with self advertised label
+	IsisSrNoPhpRequired bool `protobuf:"varint,360,opt,name=isis_sr_no_php_required,json=isisSrNoPhpRequired,proto3" json:"isis_sr_no_php_required,omitempty"`
+	// Device does not support match-set-options leaf with ALL for match-community-set
+	// Arista: b/335739231
+	MatchCommunitySetMatchSetOptionsAllUnsupported bool `protobuf:"varint,361,opt,name=match_community_set_match_set_options_all_unsupported,json=matchCommunitySetMatchSetOptionsAllUnsupported,proto3" json:"match_community_set_match_set_options_all_unsupported,omitempty"`
+	// Arista https://partnerissuetracker.corp.google.com/issues/452484903
+	BmpOcUnsupported bool `protobuf:"varint,362,opt,name=bmp_oc_unsupported,json=bmpOcUnsupported,proto3" json:"bmp_oc_unsupported,omitempty"`
+	// Device does not support slice input of BGP community type
+	BgpCommunityTypeSliceInputUnsupported bool `protobuf:"varint,363,opt,name=bgp_community_type_slice_input_unsupported,json=bgpCommunityTypeSliceInputUnsupported,proto3" json:"bgp_community_type_slice_input_unsupported,omitempty"`
+	// Device doesnot support configuring multipath path under ibgp
+	// b/470225281
+	IbgpMultipathPathUnsupported bool `protobuf:"varint,364,opt,name=ibgp_multipath_path_unsupported,json=ibgpMultipathPathUnsupported,proto3" json:"ibgp_multipath_path_unsupported,omitempty"`
+	// Device does not support ContainerZ Plugin RPC
+	// Arista: b/470225282
+	ContainerzPluginRpcUnsupported bool `protobuf:"varint,365,opt,name=containerz_plugin_rpc_unsupported,json=containerzPluginRpcUnsupported,proto3" json:"containerz_plugin_rpc_unsupported,omitempty"`
+	// Arista b/384040563
+	// Device does not  support the IANA assigned gRPC port for g* services
+	NonStandardGrpcPort bool `protobuf:"varint,366,opt,name=non_standard_grpc_port,json=nonStandardGrpcPort,proto3" json:"non_standard_grpc_port,omitempty"`
+	// Check if transceiver subcomponent should look for the temperature sensor
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+	TemperatureSensorCheck bool `protobuf:"varint,367,opt,name=temperature_sensor_check,json=temperatureSensorCheck,proto3" json:"temperature_sensor_check,omitempty"`
+	// Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+	// Devices that report controller CPU utilization against base controller card component
+	CpuUtilizationQueryAgainstBaseControllerCardComponent bool `protobuf:"varint,368,opt,name=cpu_utilization_query_against_base_controller_card_component,json=cpuUtilizationQueryAgainstBaseControllerCardComponent,proto3" json:"cpu_utilization_query_against_base_controller_card_component,omitempty"`
+	// Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+	// Devices that report linecard CPU utilization against base linecard component
+	CpuUtilizationQueryAgainstBaseLinecardComponent bool `protobuf:"varint,369,opt,name=cpu_utilization_query_against_base_linecard_component,json=cpuUtilizationQueryAgainstBaseLinecardComponent,proto3" json:"cpu_utilization_query_against_base_linecard_component,omitempty"`
+	// Device does not support no-queue drops
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+	NoQueueDropUnsupported bool `protobuf:"varint,370,opt,name=no_queue_drop_unsupported,json=noQueueDropUnsupported,proto3" json:"no_queue_drop_unsupported,omitempty"`
+	// Device does not support interface-ethernet in-block errors counters
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+	InterfaceEthernetInblockErrorsUnsupported bool `protobuf:"varint,371,opt,name=interface_ethernet_inblock_errors_unsupported,json=interfaceEthernetInblockErrorsUnsupported,proto3" json:"interface_ethernet_inblock_errors_unsupported,omitempty"`
+	// Arista https://partnerissuetracker.corp.google.com/476271160
+	RetainGnmiCfgAfterReboot bool `protobuf:"varint,372,opt,name=retain_gnmi_cfg_after_reboot,json=retainGnmiCfgAfterReboot,proto3" json:"retain_gnmi_cfg_after_reboot,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
+	CiscoxrTransceiverFt string `protobuf:"bytes,373,opt,name=ciscoxr_transceiver_ft,json=ciscoxrTransceiverFt,proto3" json:"ciscoxr_transceiver_ft,omitempty"`
+	// Device does not support transceiver state leaf.
+	TransceiverStateUnsupported bool `protobuf:"varint,374,opt,name=transceiver_state_unsupported,json=transceiverStateUnsupported,proto3" json:"transceiver_state_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+	SubnetMaskChangeRequired bool `protobuf:"varint,375,opt,name=subnet_mask_change_required,json=subnetMaskChangeRequired,proto3" json:"subnet_mask_change_required,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
+	Ciscoxr8000IntegratedCircuitResourceFt string `protobuf:"bytes,376,opt,name=ciscoxr8000_integrated_circuit_resource_ft,json=ciscoxr8000IntegratedCircuitResourceFt,proto3" json:"ciscoxr8000_integrated_circuit_resource_ft,omitempty"`
+	// The BGP routes are accepted by default when no policy or default policy is configured.
+	// b/479957749
+	BgpDefaultPolicyBehaviorAcceptRoute bool `protobuf:"varint,377,opt,name=bgp_default_policy_behavior_accept_route,json=bgpDefaultPolicyBehaviorAcceptRoute,proto3" json:"bgp_default_policy_behavior_accept_route,omitempty"`
+	// Nokia: b/459893133
+	// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+	ReducedEcmpSetOnMixedEncapDecapNh bool `protobuf:"varint,378,opt,name=reduced_ecmp_set_on_mixed_encap_decap_nh,json=reducedEcmpSetOnMixedEncapDecapNh,proto3" json:"reduced_ecmp_set_on_mixed_encap_decap_nh,omitempty"`
+	// Setting admin-state on TerminalDevice Channel is unsupported.
+	TerminalDeviceChannelAdminStateUnsupported bool `protobuf:"varint,379,opt,name=terminal_device_channel_admin_state_unsupported,json=terminalDeviceChannelAdminStateUnsupported,proto3" json:"terminal_device_channel_admin_state_unsupported,omitempty"`
+	// Device that requires explicit config to support BGP RIB streaming
+	// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+	BgpRibStreamingConfigRequired bool `protobuf:"varint,380,opt,name=bgp_rib_streaming_config_required,json=bgpRibStreamingConfigRequired,proto3" json:"bgp_rib_streaming_config_required,omitempty"`
+	// Device does not support enabling ACL counters through OC
+	// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+	AclCountersEnableOcUnsupported bool `protobuf:"varint,381,opt,name=acl_counters_enable_oc_unsupported,json=aclCountersEnableOcUnsupported,proto3" json:"acl_counters_enable_oc_unsupported,omitempty"`
+	// Device does not report ACL counters accurately during ACL update
+	// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+	SkipAclCountersVerificationDuringUpdate bool `protobuf:"varint,382,opt,name=skip_acl_counters_verification_during_update,json=skipAclCountersVerificationDuringUpdate,proto3" json:"skip_acl_counters_verification_during_update,omitempty"`
+	// Device does not support configuring ICMP type and code fields for ACL
+	// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+	AclIcmpTypeCodeConfigurationUnsupported bool `protobuf:"varint,383,opt,name=acl_icmp_type_code_configuration_unsupported,json=aclIcmpTypeCodeConfigurationUnsupported,proto3" json:"acl_icmp_type_code_configuration_unsupported,omitempty"`
+	// Devices that do not support suppress router advertisement.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
+	// Device does not support BGP configuration during graceful restart.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+	BgpConfigDuringGracefulRestartUnsupported bool `protobuf:"varint,385,opt,name=bgp_config_during_graceful_restart_unsupported,json=bgpConfigDuringGracefulRestartUnsupported,proto3" json:"bgp_config_during_graceful_restart_unsupported,omitempty"`
+	// Device does not support restarting the routing process via gNOI.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+	RoutingRestartViaGnoiUnsupported bool `protobuf:"varint,386,opt,name=routing_restart_via_gnoi_unsupported,json=routingRestartViaGnoiUnsupported,proto3" json:"routing_restart_via_gnoi_unsupported,omitempty"`
+	// Device does not support BGP RPL under peer-group directly
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+	BgpRplDirectlyUnderPeerGroupUnsupported bool `protobuf:"varint,387,opt,name=bgp_rpl_directly_under_peer_group_unsupported,json=bgpRplDirectlyUnderPeerGroupUnsupported,proto3" json:"bgp_rpl_directly_under_peer_group_unsupported,omitempty"`
+	// Devices that do not support configuring weight for wecmp
+	// Juniper b/450154047
+	WecmpSetWeightUnsupported bool `protobuf:"varint,388,opt,name=wecmp_set_weight_unsupported,json=wecmpSetWeightUnsupported,proto3" json:"wecmp_set_weight_unsupported,omitempty"`
+	// Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+	ExplicitlyApplyAllowAllImportPolicy bool `protobuf:"varint,389,opt,name=explicitly_apply_allow_all_import_policy,json=explicitlyApplyAllowAllImportPolicy,proto3" json:"explicitly_apply_allow_all_import_policy,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
+	// Functional translator to be used for QoS paths
+	QosFt string `protobuf:"bytes,390,opt,name=qos_ft,json=qosFt,proto3" json:"qos_ft,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+	// Functional Translator name for devices with mount point state paths unsupported.
+	SystemMountPointStateFt string `protobuf:"bytes,391,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+	// Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+	ArpFt string `protobuf:"bytes,392,opt,name=arp_ft,json=arpFt,proto3" json:"arp_ft,omitempty"`
+	// Device does not support configuring prefix limit received paths through OC
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+	PrefixLimitConfigUnsupported bool `protobuf:"varint,393,opt,name=prefix_limit_config_unsupported,json=prefixLimitConfigUnsupported,proto3" json:"prefix_limit_config_unsupported,omitempty"`
+	// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+	// is not supported.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+	SshServerHostCertificateTelemetryUnsupported bool `protobuf:"varint,394,opt,name=ssh_server_host_certificate_telemetry_unsupported,json=sshServerHostCertificateTelemetryUnsupported,proto3" json:"ssh_server_host_certificate_telemetry_unsupported,omitempty"`
+	// Devices that do not support role leaf of string type for OC system/aaa
+	// username configuration.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	OcAaaUserRoleLeafStringTypeUnsupported bool `protobuf:"varint,395,opt,name=oc_aaa_user_role_leaf_string_type_unsupported,json=ocAaaUserRoleLeafStringTypeUnsupported,proto3" json:"oc_aaa_user_role_leaf_string_type_unsupported,omitempty"`
+	// Devices that do not support AcctZ shell CMD records accounting.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzShellCmdAccountingUnsupported bool `protobuf:"varint,396,opt,name=acctz_shell_cmd_accounting_unsupported,json=acctzShellCmdAccountingUnsupported,proto3" json:"acctz_shell_cmd_accounting_unsupported,omitempty"`
+	// Devices that do not support AuthZ status field with deny in CMD service
+	// in AcctZ records.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzRecordsAuthzStatusDenyUnsupported bool `protobuf:"varint,397,opt,name=acctz_records_authz_status_deny_unsupported,json=acctzRecordsAuthzStatusDenyUnsupported,proto3" json:"acctz_records_authz_status_deny_unsupported,omitempty"`
+	// Functional Translator name for devices with FPD paths unsupported.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+	FpgaFt string `protobuf:"bytes,398,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
 	// Devices that do not support BGP Graceful restart for Peer Group
-	BgpGracefulRestartPeerGroupUnsupported bool `protobuf:"varint,358,opt,name=bgp_graceful_restart_peer_group_unsupported,json=bgpGracefulRestartPeerGroupUnsupported,proto3" json:"bgp_graceful_restart_peer_group_unsupported,omitempty"`
+	BgpGracefulRestartPeerGroupUnsupported bool `protobuf:"varint,399,opt,name=bgp_graceful_restart_peer_group_unsupported,json=bgpGracefulRestartPeerGroupUnsupported,proto3" json:"bgp_graceful_restart_peer_group_unsupported,omitempty"`
 	unknownFields                          protoimpl.UnknownFields
 	sizeCache                              protoimpl.SizeCache
 }
@@ -3553,6 +3672,293 @@ func (x *Metadata_Deviations) GetConfigAclOcUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetInterfaceCountersInUnknownProtosUnsupported() bool {
+	if x != nil {
+		return x.InterfaceCountersInUnknownProtosUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAggregateSidCounterOutPktsUnsupported() bool {
+	if x != nil {
+		return x.AggregateSidCounterOutPktsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIsisSrNoPhpRequired() bool {
+	if x != nil {
+		return x.IsisSrNoPhpRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMatchCommunitySetMatchSetOptionsAllUnsupported() bool {
+	if x != nil {
+		return x.MatchCommunitySetMatchSetOptionsAllUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBmpOcUnsupported() bool {
+	if x != nil {
+		return x.BmpOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpCommunityTypeSliceInputUnsupported() bool {
+	if x != nil {
+		return x.BgpCommunityTypeSliceInputUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIbgpMultipathPathUnsupported() bool {
+	if x != nil {
+		return x.IbgpMultipathPathUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetContainerzPluginRpcUnsupported() bool {
+	if x != nil {
+		return x.ContainerzPluginRpcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetNonStandardGrpcPort() bool {
+	if x != nil {
+		return x.NonStandardGrpcPort
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTemperatureSensorCheck() bool {
+	if x != nil {
+		return x.TemperatureSensorCheck
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCpuUtilizationQueryAgainstBaseControllerCardComponent() bool {
+	if x != nil {
+		return x.CpuUtilizationQueryAgainstBaseControllerCardComponent
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCpuUtilizationQueryAgainstBaseLinecardComponent() bool {
+	if x != nil {
+		return x.CpuUtilizationQueryAgainstBaseLinecardComponent
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetNoQueueDropUnsupported() bool {
+	if x != nil {
+		return x.NoQueueDropUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceEthernetInblockErrorsUnsupported() bool {
+	if x != nil {
+		return x.InterfaceEthernetInblockErrorsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetRetainGnmiCfgAfterReboot() bool {
+	if x != nil {
+		return x.RetainGnmiCfgAfterReboot
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCiscoxrTransceiverFt() string {
+	if x != nil {
+		return x.CiscoxrTransceiverFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetTransceiverStateUnsupported() bool {
+	if x != nil {
+		return x.TransceiverStateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSubnetMaskChangeRequired() bool {
+	if x != nil {
+		return x.SubnetMaskChangeRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCiscoxr8000IntegratedCircuitResourceFt() string {
+	if x != nil {
+		return x.Ciscoxr8000IntegratedCircuitResourceFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetBgpDefaultPolicyBehaviorAcceptRoute() bool {
+	if x != nil {
+		return x.BgpDefaultPolicyBehaviorAcceptRoute
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetReducedEcmpSetOnMixedEncapDecapNh() bool {
+	if x != nil {
+		return x.ReducedEcmpSetOnMixedEncapDecapNh
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetTerminalDeviceChannelAdminStateUnsupported() bool {
+	if x != nil {
+		return x.TerminalDeviceChannelAdminStateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpRibStreamingConfigRequired() bool {
+	if x != nil {
+		return x.BgpRibStreamingConfigRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAclCountersEnableOcUnsupported() bool {
+	if x != nil {
+		return x.AclCountersEnableOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipAclCountersVerificationDuringUpdate() bool {
+	if x != nil {
+		return x.SkipAclCountersVerificationDuringUpdate
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAclIcmpTypeCodeConfigurationUnsupported() bool {
+	if x != nil {
+		return x.AclIcmpTypeCodeConfigurationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIpv6RouterAdvertisementSuppressUnsupported() bool {
+	if x != nil {
+		return x.Ipv6RouterAdvertisementSuppressUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpConfigDuringGracefulRestartUnsupported() bool {
+	if x != nil {
+		return x.BgpConfigDuringGracefulRestartUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetRoutingRestartViaGnoiUnsupported() bool {
+	if x != nil {
+		return x.RoutingRestartViaGnoiUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpRplDirectlyUnderPeerGroupUnsupported() bool {
+	if x != nil {
+		return x.BgpRplDirectlyUnderPeerGroupUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetWecmpSetWeightUnsupported() bool {
+	if x != nil {
+		return x.WecmpSetWeightUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetExplicitlyApplyAllowAllImportPolicy() bool {
+	if x != nil {
+		return x.ExplicitlyApplyAllowAllImportPolicy
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosFt() string {
+	if x != nil {
+		return x.QosFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetSystemMountPointStateFt() string {
+	if x != nil {
+		return x.SystemMountPointStateFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetArpFt() string {
+	if x != nil {
+		return x.ArpFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetPrefixLimitConfigUnsupported() bool {
+	if x != nil {
+		return x.PrefixLimitConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() bool {
+	if x != nil {
+		return x.SshServerHostCertificateTelemetryUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetOcAaaUserRoleLeafStringTypeUnsupported() bool {
+	if x != nil {
+		return x.OcAaaUserRoleLeafStringTypeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzShellCmdAccountingUnsupported() bool {
+	if x != nil {
+		return x.AcctzShellCmdAccountingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordsAuthzStatusDenyUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordsAuthzStatusDenyUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFpgaFt() string {
+	if x != nil {
+		return x.FpgaFt
+	}
+	return ""
+}
+
 func (x *Metadata_Deviations) GetBgpGracefulRestartPeerGroupUnsupported() bool {
 	if x != nil {
 		return x.BgpGracefulRestartPeerGroupUnsupported
@@ -3616,7 +4022,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xcf\xc5\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x81\xdf\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3628,7 +4034,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1aػ\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8a\xd5\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -3957,8 +4363,49 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1fbgp_local_aggregate_unsupported\x18\xe2\x02 \x01(\bR\x1cbgpLocalAggregateUnsupported\x12S\n" +
 	"&config_acl_with_prefixlist_unsupported\x18\xe3\x02 \x01(\bR\"configAclWithPrefixlistUnsupported\x12L\n" +
 	"#config_acl_value_any_oc_unsupported\x18\xe4\x02 \x01(\bR\x1econfigAclValueAnyOcUnsupported\x12:\n" +
-	"\x19config_acl_oc_unsupported\x18\xe5\x02 \x01(\bR\x16configAclOcUnsupported\x12\\\n" +
-	"+bgp_graceful_restart_peer_group_unsupported\x18\xe6\x02 \x01(\bR&bgpGracefulRestartPeerGroupUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x19config_acl_oc_unsupported\x18\xe5\x02 \x01(\bR\x16configAclOcUnsupported\x12f\n" +
+	"0interface_counters_in_unknown_protos_unsupported\x18\xe6\x02 \x01(\bR+interfaceCountersInUnknownProtosUnsupported\x12Z\n" +
+	"*aggregate_sid_counter_out_pkts_unsupported\x18\xe7\x02 \x01(\bR%aggregateSidCounterOutPktsUnsupported\x125\n" +
+	"\x17isis_sr_no_php_required\x18\xe8\x02 \x01(\bR\x13isisSrNoPhpRequired\x12n\n" +
+	"5match_community_set_match_set_options_all_unsupported\x18\xe9\x02 \x01(\bR.matchCommunitySetMatchSetOptionsAllUnsupported\x12-\n" +
+	"\x12bmp_oc_unsupported\x18\xea\x02 \x01(\bR\x10bmpOcUnsupported\x12Z\n" +
+	"*bgp_community_type_slice_input_unsupported\x18\xeb\x02 \x01(\bR%bgpCommunityTypeSliceInputUnsupported\x12F\n" +
+	"\x1fibgp_multipath_path_unsupported\x18\xec\x02 \x01(\bR\x1cibgpMultipathPathUnsupported\x12J\n" +
+	"!containerz_plugin_rpc_unsupported\x18\xed\x02 \x01(\bR\x1econtainerzPluginRpcUnsupported\x124\n" +
+	"\x16non_standard_grpc_port\x18\xee\x02 \x01(\bR\x13nonStandardGrpcPort\x129\n" +
+	"\x18temperature_sensor_check\x18\xef\x02 \x01(\bR\x16temperatureSensorCheck\x12|\n" +
+	"<cpu_utilization_query_against_base_controller_card_component\x18\xf0\x02 \x01(\bR5cpuUtilizationQueryAgainstBaseControllerCardComponent\x12o\n" +
+	"5cpu_utilization_query_against_base_linecard_component\x18\xf1\x02 \x01(\bR/cpuUtilizationQueryAgainstBaseLinecardComponent\x12:\n" +
+	"\x19no_queue_drop_unsupported\x18\xf2\x02 \x01(\bR\x16noQueueDropUnsupported\x12a\n" +
+	"-interface_ethernet_inblock_errors_unsupported\x18\xf3\x02 \x01(\bR)interfaceEthernetInblockErrorsUnsupported\x12?\n" +
+	"\x1cretain_gnmi_cfg_after_reboot\x18\xf4\x02 \x01(\bR\x18retainGnmiCfgAfterReboot\x125\n" +
+	"\x16ciscoxr_transceiver_ft\x18\xf5\x02 \x01(\tR\x14ciscoxrTransceiverFt\x12C\n" +
+	"\x1dtransceiver_state_unsupported\x18\xf6\x02 \x01(\bR\x1btransceiverStateUnsupported\x12>\n" +
+	"\x1bsubnet_mask_change_required\x18\xf7\x02 \x01(\bR\x18subnetMaskChangeRequired\x12[\n" +
+	"*ciscoxr8000_integrated_circuit_resource_ft\x18\xf8\x02 \x01(\tR&ciscoxr8000IntegratedCircuitResourceFt\x12V\n" +
+	"(bgp_default_policy_behavior_accept_route\x18\xf9\x02 \x01(\bR#bgpDefaultPolicyBehaviorAcceptRoute\x12T\n" +
+	"(reduced_ecmp_set_on_mixed_encap_decap_nh\x18\xfa\x02 \x01(\bR!reducedEcmpSetOnMixedEncapDecapNh\x12d\n" +
+	"/terminal_device_channel_admin_state_unsupported\x18\xfb\x02 \x01(\bR*terminalDeviceChannelAdminStateUnsupported\x12I\n" +
+	"!bgp_rib_streaming_config_required\x18\xfc\x02 \x01(\bR\x1dbgpRibStreamingConfigRequired\x12K\n" +
+	"\"acl_counters_enable_oc_unsupported\x18\xfd\x02 \x01(\bR\x1eaclCountersEnableOcUnsupported\x12^\n" +
+	",skip_acl_counters_verification_during_update\x18\xfe\x02 \x01(\bR'skipAclCountersVerificationDuringUpdate\x12^\n" +
+	",acl_icmp_type_code_configuration_unsupported\x18\xff\x02 \x01(\bR'aclIcmpTypeCodeConfigurationUnsupported\x12c\n" +
+	".ipv6_router_advertisement_suppress_unsupported\x18\x80\x03 \x01(\bR*ipv6RouterAdvertisementSuppressUnsupported\x12b\n" +
+	".bgp_config_during_graceful_restart_unsupported\x18\x81\x03 \x01(\bR)bgpConfigDuringGracefulRestartUnsupported\x12O\n" +
+	"$routing_restart_via_gnoi_unsupported\x18\x82\x03 \x01(\bR routingRestartViaGnoiUnsupported\x12_\n" +
+	"-bgp_rpl_directly_under_peer_group_unsupported\x18\x83\x03 \x01(\bR'bgpRplDirectlyUnderPeerGroupUnsupported\x12@\n" +
+	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12V\n" +
+	"(explicitly_apply_allow_all_import_policy\x18\x85\x03 \x01(\bR#explicitlyApplyAllowAllImportPolicy\x12\x16\n" +
+	"\x06qos_ft\x18\x86\x03 \x01(\tR\x05qosFt\x12=\n" +
+	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12\x16\n" +
+	"\x06arp_ft\x18\x88\x03 \x01(\tR\x05arpFt\x12F\n" +
+	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12h\n" +
+	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x12^\n" +
+	"-oc_aaa_user_role_leaf_string_type_unsupported\x18\x8b\x03 \x01(\bR&ocAaaUserRoleLeafStringTypeUnsupported\x12S\n" +
+	"&acctz_shell_cmd_accounting_unsupported\x18\x8c\x03 \x01(\bR\"acctzShellCmdAccountingUnsupported\x12\\\n" +
+	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
+	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFt\x12\\\n" +
+	"+bgp_graceful_restart_peer_group_unsupported\x18\x8f\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

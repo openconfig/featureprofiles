@@ -1069,8 +1069,168 @@ message Metadata {
     // Device doesnot support configuring ACL through oc
     bool config_acl_oc_unsupported = 357;
 
+    // Device does not support interface counters in unknown protos
+    // Juniper: https://issuetracker.google.com/issues/461368936
+    bool interface_counters_in_unknown_protos_unsupported = 358;
+
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
+
+    // Devices that require no-php flag for ISIS SR prefix and node segments
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
+    bool isis_sr_no_php_required = 360;
+
+    // Device does not support match-set-options leaf with ALL for match-community-set
+    // Arista: b/335739231
+    bool match_community_set_match_set_options_all_unsupported = 361;
+
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 362;
+
+    // Device does not support slice input of BGP community type
+    bool bgp_community_type_slice_input_unsupported = 363;
+
+    // Device doesnot support configuring multipath path under ibgp
+    // b/470225281
+    bool ibgp_multipath_path_unsupported = 364;
+
+    // Device does not support ContainerZ Plugin RPC
+    // Arista: b/470225282
+    bool containerz_plugin_rpc_unsupported = 365;
+
+    // Arista b/384040563
+    // Device does not  support the IANA assigned gRPC port for g* services
+    bool non_standard_grpc_port = 366;
+
+    // Check if transceiver subcomponent should look for the temperature sensor
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+    bool temperature_sensor_check = 367;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report controller CPU utilization against base controller card component
+    bool cpu_utilization_query_against_base_controller_card_component = 368;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report linecard CPU utilization against base linecard component
+    bool cpu_utilization_query_against_base_linecard_component = 369;
+
+    // Device does not support no-queue drops
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+    bool no_queue_drop_unsupported = 370;
+
+    // Device does not support interface-ethernet in-block errors counters
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+    bool interface_ethernet_inblock_errors_unsupported = 371;
+
+    // Arista https://partnerissuetracker.corp.google.com/476271160
+    bool retain_gnmi_cfg_after_reboot = 372;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
+    string ciscoxr_transceiver_ft = 373;
+
+    // Device does not support transceiver state leaf.
+    bool transceiver_state_unsupported = 374;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+    bool subnet_mask_change_required = 375;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
+    string ciscoxr8000_integrated_circuit_resource_ft = 376;
+
+    // The BGP routes are accepted by default when no policy or default policy is configured.
+    // b/479957749
+    bool bgp_default_policy_behavior_accept_route = 377;
+
+    // Nokia: b/459893133
+    // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+    bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
+
+    // Setting admin-state on TerminalDevice Channel is unsupported.
+    bool terminal_device_channel_admin_state_unsupported = 379;
+
+    // Device that requires explicit config to support BGP RIB streaming
+    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+    bool bgp_rib_streaming_config_required = 380;
+
+    // Device does not support enabling ACL counters through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+    bool acl_counters_enable_oc_unsupported = 381;
+
+    // Device does not report ACL counters accurately during ACL update
+    // Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+    bool skip_acl_counters_verification_during_update = 382;
+
+    // Device does not support configuring ICMP type and code fields for ACL
+    // Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+    bool acl_icmp_type_code_configuration_unsupported = 383;
+
+    // Devices that do not support suppress router advertisement.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+    bool ipv6_router_advertisement_suppress_unsupported = 384;
+
+    // Device does not support BGP configuration during graceful restart.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+    bool bgp_config_during_graceful_restart_unsupported = 385;
+
+    // Device does not support restarting the routing process via gNOI.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+    bool routing_restart_via_gnoi_unsupported = 386;
+
+    // Device does not support BGP RPL under peer-group directly
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+    bool bgp_rpl_directly_under_peer_group_unsupported = 387;
+
+    // Devices that do not support configuring weight for wecmp
+    // Juniper b/450154047
+    bool wecmp_set_weight_unsupported = 388;
+
+    // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+    bool explicitly_apply_allow_all_import_policy = 389;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
+    // Functional translator to be used for QoS paths
+    string qos_ft = 390;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+    // Functional Translator name for devices with mount point state paths unsupported.
+    string system_mount_point_state_ft = 391;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+    // Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+    string arp_ft = 392;
+
+    // Device does not support configuring prefix limit received paths through OC
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+    bool prefix_limit_config_unsupported = 393;
+
+    // SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+    // is not supported.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+    bool ssh_server_host_certificate_telemetry_unsupported = 394;
+
+    // Devices that do not support role leaf of string type for OC system/aaa
+    // username configuration.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 395;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_shell_cmd_accounting_unsupported = 396;
+
+    // Devices that do not support AuthZ status field with deny in CMD service
+    // in AcctZ records.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_records_authz_status_deny_unsupported = 397;
+
+    // Functional Translator name for devices with FPD paths unsupported.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+    string fpga_ft = 398;
+
     // Devices that do not support BGP Graceful restart for Peer Group
-    bool bgp_graceful_restart_peer_group_unsupported = 358;
+    bool bgp_graceful_restart_peer_group_unsupported = 399;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300;
