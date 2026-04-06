@@ -16,20 +16,15 @@ package afts_base_test
 
 import (
 	"fmt"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
-	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -67,11 +62,7 @@ const (
 	isisRouteCount            = 100
 	isisRoute                 = "199.0.0.1"
 	isisRoutev6               = "2001:db8::203:0:113:1"
-	startingISISRouteIPv4     = "199.0.0.1/32"
-	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime        = 20 * time.Minute
 	bgpTimeout                = 10 * time.Minute
-	linkLocalAddress          = "fe80::200:2ff:fe02:202"
 	bgpRouteCountIPv4LowScale = 1500000
 	bgpRouteCountIPv6LowScale = 512000
 	bgpRouteCountIPv4Default  = 2000000
@@ -105,13 +96,8 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs          = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs          = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	wantIPv4NHsPostChurn = map[string]bool{ateP1.IPv4: true}
-	port1Name            = "port1"
-	port2Name            = "port2"
-	prevNHGIDIPv4        = uint64(0)
-	prevNHGIDIPv6        = uint64(0)
+	port1Name = "port1"
+	port2Name = "port2"
 )
 
 // getRouteCount returns the expected route count for the given dut and IP family.
@@ -126,15 +112,6 @@ func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily) uint32 {
 		return bgpRouteCountIPv4Default
 	}
 	return bgpRouteCountIPv6Default
-}
-
-// getPostChurnIPv6NH returns the expected IPv6 next hops after a churn event.
-// It returns a map of IP addresses to a boolean indicating if the address is expected.
-func getPostChurnIPv6NH(dut *ondatra.DUTDevice) map[string]bool {
-	if deviations.LinkLocalInsteadOfNh(dut) {
-		return map[string]bool{linkLocalAddress: true}
-	}
-	return map[string]bool{ateP1.IPv6: true}
 }
 
 // configureDUT configures all the interfaces and BGP on the DUT.
@@ -480,118 +457,6 @@ func (tc *testCase) configureBGPDev(dev gosnappi.Device, ipv4 gosnappi.DeviceIpv
 		SetAddress(bgpRoutev6).
 		SetPrefix(advertisedRoutesV6Prefix).
 		SetCount(getRouteCount(tc.dut, IPv6))
-}
-
-func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
-	wantPrefixes := make(map[string]bool)
-	for pfix := range netutil.GenCIDRs(t, startingBGPRouteIPv4, int(getRouteCount(tc.dut, IPv4))) {
-		wantPrefixes[pfix] = true
-	}
-	for pfix6 := range netutil.GenCIDRs(t, startingBGPRouteIPv6, int(getRouteCount(tc.dut, IPv6))) {
-		wantPrefixes[pfix6] = true
-	}
-	return wantPrefixes
-}
-
-func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int, cacheNHGID bool) error {
-	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
-		nhgID, ok := aft.Prefixes[pfix]
-		if !ok {
-			return fmt.Errorf("prefix %s not found in AFT", pfix)
-		}
-		nhg, ok := aft.NextHopGroups[nhgID]
-		if !ok {
-			return fmt.Errorf("next hop group %d not found in AFT for prefix %s", nhgID, pfix)
-		}
-
-		if len(nhg.NHIDs) != wantNHCount {
-			return fmt.Errorf("prefix %s has %d next hops, want %d", pfix, len(nhg.NHIDs), wantNHCount)
-		}
-
-		var firstWeight uint64 = 0 // Initialize with a value that won't be a valid weight
-		for i := 0; i < wantNHCount; i++ {
-			nhID := nhg.NHIDs[i]
-			nh, ok := aft.NextHops[nhID]
-			if !ok {
-				return fmt.Errorf("next hop %d not found in AFT for next-hop group: %d for prefix: %s", nhID, nhgID, pfix)
-			}
-			// TODO: - Add check for exact interface name
-			// TODO: - Remove deviation and add recursive check for interface
-			if deviations.SkipInterfaceNameCheck(tc.dut) {
-				isAddrIPv6 := strings.Contains(pfix, ":")
-				// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
-				if cacheNHGID {
-					prevNHGIDIPv4 = nhgID
-					if isAddrIPv6 {
-						prevNHGIDIPv6 = nhgID
-					}
-				}
-			} else {
-				if nh.IntfName == "" {
-					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
-				}
-			}
-			if nh.IP == "" {
-				return fmt.Errorf("next hop IP not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
-			}
-			weight, ok := nhg.NHWeights[nhID]
-			if !ok {
-				return fmt.Errorf("next hop weight not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
-			}
-			if weight <= 0 {
-				return fmt.Errorf("next hop weight is %d, want > 0 for next-hop: %d for prefix: %s", weight, nhID, pfix)
-			}
-			// Check if weights are equal
-			if firstWeight == 0 { // This is the first next hop, set the reference weight
-				firstWeight = weight
-			} else if weight != firstWeight { // Compare with the first encountered weight
-				return fmt.Errorf("next hop group %d has unequal weights. Expected %d, got %d for next-hop %d for prefix %s", nhgID, firstWeight, weight, nhID, pfix)
-			}
-		}
-	}
-	return nil
-}
-
-// fetchAFT starts two independent gNMI collectors to stream AFT data from the DUT.
-// It waits until both collectors satisfy the provided stoppingCondition.
-// After the stopping condition is met, it compares the AFT data collected by both sessions.
-// If the data is identical, it returns a single copy of the collected AFT data.
-// Otherwise, it returns an error indicating the inconsistency.
-func (tc *testCase) fetchAFT(t *testing.T, aftSession1, aftSession2 *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook) (*aftcache.AFTData, error) {
-	t.Helper()
-
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-	}()
-	go func() {
-		defer wg.Done()
-		aftSession2.ListenUntil(t.Context(), t, aftConvergenceTime, stoppingCondition)
-	}()
-	wg.Wait()
-
-	// Get the AFT from the cache.
-	aft1, err := aftSession1.ToAFT(t, tc.dut)
-	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 1: %v", err)
-	}
-	aft2, err := aftSession2.ToAFT(t, tc.dut)
-	if err != nil {
-		return nil, fmt.Errorf("error getting AFT from session 2: %v", err)
-	}
-	sortSlices := cmpopts.SortSlices(func(a, b uint64) bool { return a < b })
-	if diff := cmp.Diff(aft1, aft2, sortSlices); diff != "" {
-		return nil, fmt.Errorf("afts from two sessions are not consistent: %s", diff)
-	}
-	return aft1, nil
-}
-
-func (tc *testCase) otgInterfaceState(t *testing.T, portName string, state gosnappi.StatePortLinkStateEnum) {
-	portStateAction := gosnappi.NewControlState()
-	portStateAction.Port().Link().SetPortNames([]string{portName}).SetState(state)
-	tc.ate.OTG().SetControlState(t, portStateAction)
 }
 
 func verifyAFT(t *testing.T, dut *ondatra.DUTDevice, ip string, routeCount int, ipFamily IPFamily) {
