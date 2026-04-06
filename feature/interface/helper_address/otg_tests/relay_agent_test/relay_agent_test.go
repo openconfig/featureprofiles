@@ -267,7 +267,7 @@ func configDUTInterface(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDe
 	if deviations.InterfaceEnabled(dut) {
 		b4.Enabled = ygot.Bool(true)
 	}
-	s := i.GetOrCreateSubinterface(1)
+	s := i.GetOrCreateSubinterface(a.ID)
 	s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(uint16(vlanID))
 	configureInterfaceAddress(dut, s, a)
 }
@@ -518,17 +518,17 @@ func (tc *testCase) verifyDHCPv6Address(t *testing.T) {
 	}
 }
 
-//getDUTLinkLocalAddress retrieves the link-local address from the DUT interface to verify against the DHCPv6 gateway received by the client.
+// getDUTLinkLocalAddress retrieves the link-local address from the DUT interface to verify against the DHCPv6 gateway received by the client.
 func (tc *testCase) getDUTLinkLocalAddress(t *testing.T) string {
 	t.Helper()
 
-	intfName := tc.dut.Port(t, "port1").Name()
+	intfName := tc.dutPorts[0].Name()
 
 	if tc.isLag {
 		intfName = tc.aggID
 	}
 
-	addrs := gnmi.GetAll(t, tc.dut, gnmi.OC().Interface(intfName).Subinterface(1).Ipv6().AddressAny().State())
+	addrs := gnmi.GetAll(t, tc.dut, gnmi.OC().Interface(intfName).Subinterface(dutP1.ID).Ipv6().AddressAny().State())
 
 	for _, addr := range addrs {
 		ip := addr.GetIp()
@@ -537,7 +537,7 @@ func (tc *testCase) getDUTLinkLocalAddress(t *testing.T) string {
 		}
 	}
 
-	t.Fatalf("No link-local address found on interface %s subinterface %d", intfName, 1)
+	t.Fatalf("No link-local address found on interface %s subinterface %d", intfName, dutP1.ID)
 	return ""
 }
 
