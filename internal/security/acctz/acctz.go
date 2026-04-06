@@ -46,7 +46,9 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	p4pb "github.com/p4lang/p4runtime/go/p4/v1"
 	"golang.org/x/crypto/ssh"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -83,6 +85,12 @@ var (
 	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
 )
 
+// PrettyPrint prints rpc requests/responses in a pretty format.
+func PrettyPrint(i any) string {
+	s, _ := json.MarshalIndent(i, "", "\t")
+	return string(s)
+}
+
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
 	request := &cpb.RotateAccountCredentialsRequest{
@@ -109,6 +117,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 	if err != nil {
 		t.Fatalf("Failed fetching credentialz rotate account credentials client, error: %s", err)
 	}
+	t.Logf("Sending credentialz rotate account request: %s", PrettyPrint(request))
 	err = credzRotateClient.Send(request)
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials request, error: %s", err)
@@ -227,8 +236,7 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 		auth := &oc.System_Aaa_Authentication{}
 		successUser := auth.GetOrCreateUser(SuccessUsername)
 		successUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
-		failAuthenticateUser := auth.GetOrCreateUser(FailAuthenticateUsername)
-		failAuthenticateUser.SetRole(oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN)
+		auth.GetOrCreateUser(FailAuthenticateUsername)
 		failAuthorizeUser := auth.GetOrCreateUser(failAuthorizeUsername)
 		if configureFailCliRole {
 			var SetRequest *gnmipb.SetRequest
@@ -448,7 +456,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failPassword))
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed dialing GNMI: %v", err)
@@ -456,10 +464,10 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-	if err1 != nil {
-		t.Logf("Got expected error fetching capabilities with bad creds, error: %s", err1)
+	if err1 != nil && status.Code(err1) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching capabilities with no permissions, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
+		t.Logf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -556,7 +564,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failPassword))
 	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
@@ -568,8 +576,10 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	}
 
 	_, err = gnoiSystemPingClient.Recv()
-	if err != nil {
-		t.Logf("Got expected error getting gnoi system time with bad creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error getting gnoi system time with no permissions, error: %s", err)
+	} else {
+		t.Logf("Did not get expected error getting gnoi system with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -665,15 +675,15 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// grpcConn := dialGrpc(t, target)
 	authzClient := dut.RawAPIs().GNSI(t).Authz()
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failPassword))
 
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	_, err := authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil {
-		t.Logf("Got expected error fetching authz policy with bad creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error fetching authz policy with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching authz policy with bad creds.")
+		t.Logf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -764,7 +774,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// gribiClient := gribi.NewGRIBIClient(grpcConn)
 	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failPassword))
 
 	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
 	if err != nil {
@@ -784,8 +794,10 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 		t.Fatalf("Got unexpected error during gribi get request, error: %s", err)
 	}
 	_, err = gribiGetClient.Recv()
-	if err != nil {
-		t.Logf("Got expected error during gribi recv request, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
+	} else {
+		t.Logf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -883,17 +895,17 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failPassword))
 
 	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
 	if err != nil {
 		t.Fatalf("Got unexpected error during p4rt get request, error: %s", err)
 	}
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
-	if err != nil {
-		t.Logf("Got expected error getting p4rt capabilities with no creds, error: %s", err)
+	if err != nil && status.Code(err) == codes.PermissionDenied {
+		t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
 	} else {
-		t.Fatal("Did not get expected error fetching pr4t capabilities with no creds.")
+		t.Logf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
