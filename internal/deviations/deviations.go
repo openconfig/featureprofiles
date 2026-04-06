@@ -323,6 +323,7 @@ func LLDPInterfaceConfigOverrideGlobal(dut *ondatra.DUTDevice) bool {
 // SubinterfacePacketCountersMissing returns if device is missing subinterface packet counters for IPv4/IPv6,
 // so the test will skip checking them.
 // Full OpenConfig compliant devices should pass both with and without this deviation.
+// Nokia https://b.corp.google.com/issues/4778051566
 func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
@@ -1209,12 +1210,6 @@ func IsisDatabaseOverloadsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisDatabaseOverloadsUnsupported()
 }
 
-// BgpSetMedV7Unsupported returns true if devices which are not
-// supporting bgp set med union type in OC.
-func BgpSetMedV7Unsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetBgpSetMedV7Unsupported()
-}
-
 // EnableTableConnections returns true if admin state of tableconnections needs to be enabled in SRL native model
 func EnableTableConnections(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableTableConnections()
@@ -1473,6 +1468,12 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
+// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// Nokia: b/459893133
+func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
+}
+
 // NumPhysyicalChannelsUnsupported returns true if there's no OC support for num-physical-channels
 func NumPhysyicalChannelsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNumPhysicalChannelsUnsupported()
@@ -1489,6 +1490,7 @@ func ConfigLeafCreateRequired(dut *ondatra.DUTDevice) bool {
 }
 
 // FrBreakoutFix returns true if the fix is needed
+// Arista: https://issuetracker.google.com/426375784
 func FrBreakoutFix(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFrBreakoutFix()
 }
@@ -1578,6 +1580,11 @@ func IsisSrNodeSegmentConfigUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisSrNodeSegmentConfigUnsupported()
 }
 
+// IsisSrNoPhpRequired returns true if the device requires the no-php flag for ISIS SR prefix and node segments
+func IsisSrNoPhpRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetIsisSrNoPhpRequired()
+}
+
 // SflowIngressMinSamplingRate returns the minimum sampling rate supported for sflow ingress on the device.
 func SflowIngressMinSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	return lookupDUTDeviations(dut).GetSflowIngressMinSamplingRate()
@@ -1605,7 +1612,7 @@ func OTNToETHAssignment(dut *ondatra.DUTDevice) bool {
 
 // NetworkInstanceImportExportPolicyOCUnsupported returns true if network instance import/export policy is not supported.
 func NetworkInstanceImportExportPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsuppored()
+	return lookupDUTDeviations(dut).GetNetworkInstanceImportExportPolicyOcUnsupported()
 }
 
 // SkipOrigin returns true if the device does not support the 'origin' field in gNMI/gNOI RPC paths.
@@ -1799,8 +1806,8 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
 }
 
-// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
-func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+// ConfigACLOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigACLOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 

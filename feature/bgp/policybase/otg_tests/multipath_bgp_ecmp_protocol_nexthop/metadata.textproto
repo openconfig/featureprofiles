@@ -12,11 +12,14 @@ platform_exceptions:  {
   deviations:  {
     interface_enabled:  true
     default_network_instance:  "default"
-    missing_isis_interface_afi_safi_enable: true
+    missing_isis_interface_afi_safi_enable: false
     isis_interface_afi_unsupported: true
     isis_instance_enabled_required: true
     default_import_export_policy_unsupported: true
     bgp_default_policy_unsupported: true
+    enable_multipath_under_afi_safi: true
+    ibgp_multipath_path_unsupported: true
+    isis_mpls_unsupported: true
   }
 }
 
