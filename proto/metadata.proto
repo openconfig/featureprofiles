@@ -692,6 +692,12 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/395567844
     bool fragment_total_drops_unsupported = 253;
 
+    // Device does not support fragment punt drops.
+    bool fragment_punt_unsupported = 392;
+
+    // Device does not support fragment punt pkts.
+    bool fragment_punt_pkts_unsupported = 393;
+
     // Juniper: b/383145521
     // Device needs route policy reference to stream prefix set info.
     bool bgp_prefixset_req_routepol_ref = 255;
