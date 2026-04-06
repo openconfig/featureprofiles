@@ -1468,7 +1468,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
-// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// ReducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
 // Nokia: b/459893133
 func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
