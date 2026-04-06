@@ -15,7 +15,6 @@
 package afts_base_test
 
 import (
-	"flag"
 	"fmt"
 	"strings"
 	"sync"
@@ -495,24 +494,19 @@ func (tc *testCase) generateWantPrefixes(t *testing.T) map[string]bool {
 	return wantPrefixes
 }
 
-func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int) error {
-	verifiedNHGs := map[uint64]bool{}
+func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip string, routeCount int, wantNHCount int, cacheNHGID bool) error {
 	for pfix := range netutil.GenCIDRs(t, ip, routeCount) {
 		nhgID, ok := aft.Prefixes[pfix]
 		if !ok {
 			return fmt.Errorf("prefix %s not found in AFT", pfix)
 		}
-		if verifiedNHGs[nhgID] {
-			continue
-		}
-
 		nhg, ok := aft.NextHopGroups[nhgID]
 		if !ok {
 			return fmt.Errorf("next hop group %d not found in AFT for prefix %s", nhgID, pfix)
 		}
 
 		if len(nhg.NHIDs) != wantNHCount {
-			return fmt.Errorf("prefix %s has %d next hops in NHG %d, want %d", pfix, len(nhg.NHIDs), nhgID, wantNHCount)
+			return fmt.Errorf("prefix %s has %d next hops, want %d", pfix, len(nhg.NHIDs), wantNHCount)
 		}
 
 		var firstWeight uint64 = 0 // Initialize with a value that won't be a valid weight
@@ -524,7 +518,16 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			}
 			// TODO: - Add check for exact interface name
 			// TODO: - Remove deviation and add recursive check for interface
-			if !deviations.SkipInterfaceNameCheck(tc.dut) {
+			if deviations.SkipInterfaceNameCheck(tc.dut) {
+				isAddrIPv6 := strings.Contains(pfix, ":")
+				// cache nhgIDs for BGP prefixes to verify whether the NHG has changed for next test.
+				if cacheNHGID {
+					prevNHGIDIPv4 = nhgID
+					if isAddrIPv6 {
+						prevNHGIDIPv6 = nhgID
+					}
+				}
+			} else {
 				if nh.IntfName == "" {
 					return fmt.Errorf("next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 				}
@@ -546,7 +549,6 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 				return fmt.Errorf("next hop group %d has unequal weights. Expected %d, got %d for next-hop %d for prefix %s", nhgID, firstWeight, weight, nhID, pfix)
 			}
 		}
-		verifiedNHGs[nhgID] = true
 	}
 	return nil
 }
