@@ -262,9 +262,6 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 			t.Fatalf("Unrecognized key type: %s", dataTypes[0])
 		}
 		pubKey := dataTypes[1]
-		if dut.Vendor() == ondatra.JUNIPER {
-			pubKey = bytes.Join(dataTypes[:2], []byte(" "))
-		}
 		keyContents = append(keyContents, &cpb.PublicKey{
 			PublicKey: pubKey,
 			KeyType:   keyType,
