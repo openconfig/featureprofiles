@@ -1365,6 +1365,22 @@ type Metadata_Deviations struct {
 	SendMaxUnsupported bool `protobuf:"varint,395,opt,name=send_max_unsupported,json=sendMaxUnsupported,proto3" json:"send_max_unsupported,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
+	// Devices that do not support role leaf of string type for OC system/aaa
+	// username configuration.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	OcAaaUserRoleLeafStringTypeUnsupported bool `protobuf:"varint,395,opt,name=oc_aaa_user_role_leaf_string_type_unsupported,json=ocAaaUserRoleLeafStringTypeUnsupported,proto3" json:"oc_aaa_user_role_leaf_string_type_unsupported,omitempty"`
+	// Devices that do not support AcctZ shell CMD records accounting.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzShellCmdAccountingUnsupported bool `protobuf:"varint,396,opt,name=acctz_shell_cmd_accounting_unsupported,json=acctzShellCmdAccountingUnsupported,proto3" json:"acctz_shell_cmd_accounting_unsupported,omitempty"`
+	// Devices that do not support AuthZ status field with deny in CMD service
+	// in AcctZ records.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzRecordsAuthzStatusDenyUnsupported bool `protobuf:"varint,397,opt,name=acctz_records_authz_status_deny_unsupported,json=acctzRecordsAuthzStatusDenyUnsupported,proto3" json:"acctz_records_authz_status_deny_unsupported,omitempty"`
+	// Functional Translator name for devices with FPD paths unsupported.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+	FpgaFt        string `protobuf:"bytes,398,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3920,8 +3936,32 @@ func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() 
 func (x *Metadata_Deviations) GetSendMaxUnsupported() bool {
 	if x != nil {
 		return x.SendMaxUnsupported
+func (x *Metadata_Deviations) GetOcAaaUserRoleLeafStringTypeUnsupported() bool {
+	if x != nil {
+		return x.OcAaaUserRoleLeafStringTypeUnsupported
 	}
 	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzShellCmdAccountingUnsupported() bool {
+	if x != nil {
+		return x.AcctzShellCmdAccountingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordsAuthzStatusDenyUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordsAuthzStatusDenyUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFpgaFt() string {
+	if x != nil {
+		return x.FpgaFt
+	}
+	return ""
 }
 
 type Metadata_PlatformExceptions struct {
@@ -3981,6 +4021,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
 	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb3\xdc\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xad\xde\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3993,6 +4034,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
 	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xff\xd1\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf9\xd3\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4359,6 +4401,11 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12h\n" +
 	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x121\n" +
 	"\x14send_max_unsupported\x18\x8b\x03 \x01(\bR\x12sendMaxUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x12^\n" +
+	"-oc_aaa_user_role_leaf_string_type_unsupported\x18\x8b\x03 \x01(\bR&ocAaaUserRoleLeafStringTypeUnsupported\x12S\n" +
+	"&acctz_shell_cmd_accounting_unsupported\x18\x8c\x03 \x01(\bR\"acctzShellCmdAccountingUnsupported\x12\\\n" +
+	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
+	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
