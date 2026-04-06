@@ -2019,6 +2019,11 @@ func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
 }
 
+// SendMaxUnsupported returns true if the device does not support leaf send max.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
+func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
+
 // OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
 func OcAaaUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2041,10 +2046,4 @@ func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
 func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
-}
-
-// SendMaxUnsupported returns true if the device does not support leaf send max.
-// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
-func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
 }
