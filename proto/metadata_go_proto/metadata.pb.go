@@ -1363,8 +1363,6 @@ type Metadata_Deviations struct {
 	// SendMaxUnsupported returns true if device does not support send max-paths configuration for BGP.
 	// Cisco: b/498283710
 	SendMaxUnsupported bool `protobuf:"varint,395,opt,name=send_max_unsupported,json=sendMaxUnsupported,proto3" json:"send_max_unsupported,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
 	// Devices that do not support role leaf of string type for OC system/aaa
 	// username configuration.
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
@@ -3936,6 +3934,10 @@ func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() 
 func (x *Metadata_Deviations) GetSendMaxUnsupported() bool {
 	if x != nil {
 		return x.SendMaxUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetOcAaaUserRoleLeafStringTypeUnsupported() bool {
 	if x != nil {
 		return x.OcAaaUserRoleLeafStringTypeUnsupported

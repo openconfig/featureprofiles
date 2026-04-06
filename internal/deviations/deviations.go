@@ -2023,6 +2023,7 @@ func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
 func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
+}
 
 // OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
