@@ -467,6 +467,7 @@ func (tc *testCase) deleteInterfaceConfig(t *testing.T) {
 // verifyDHCPv4Address verifies that the DHCPv4 client received the expected lease address.
 func (tc *testCase) verifyDHCPv4Address(t *testing.T) {
 	t.Helper()
+	t.Log(tc.name + ": Verifying DHCPv4 address lease")
 	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
 		dhcpV4ClientAddress, present := v.Val()
 		if !present {
@@ -476,12 +477,15 @@ func (tc *testCase) verifyDHCPv4Address(t *testing.T) {
 	}).Await(t)
 	if !ok {
 		t.Fatalf("Did not receive expected DHCPv4 address lease %s", dhcpLeaseStartAddress)
+	} else {
+		t.Logf("Received expected DHCPv4 address lease: %s", dhcpLeaseStartAddress)
 	}
 }
 
 // verifyDHCPv4Gateway verifies that the DHCPv4 client received the expected gateway address.
 func (tc *testCase) verifyDHCPv4Gateway(t *testing.T) {
 	t.Helper()
+	t.Log(tc.name + ": Verifying DHCPv4 gateway address")
 	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().GatewayAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
 		dhcpV4ClientGateway, present := v.Val()
 		if !present {
@@ -491,12 +495,15 @@ func (tc *testCase) verifyDHCPv4Gateway(t *testing.T) {
 	}).Await(t)
 	if !ok {
 		t.Fatalf("Did not receive expected DHCPv4 gateway address %s", dhcpLeaseGateway)
+	} else {
+		t.Logf("Received expected DHCPv4 gateway address: %s", dhcpLeaseGateway)
 	}
 }
 
 // verifyDHCPv6Address verifies that the DHCPv6 client received the expected lease address.
 func (tc *testCase) verifyDHCPv6Address(t *testing.T) {
 	t.Helper()
+	t.Log(tc.name + ": Verifying DHCPv6 address lease")
 	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
 		dhcpV6ClientAddress, present := v.Val()
 		if !present {
@@ -506,6 +513,8 @@ func (tc *testCase) verifyDHCPv6Address(t *testing.T) {
 	}).Await(t)
 	if !ok {
 		t.Fatalf("Did not receive expected DHCPv6 address lease %s", dhcpV6LeaseStartAddress)
+	} else {
+		t.Logf("Received expected DHCPv6 address lease: %s", dhcpV6LeaseStartAddress)
 	}
 }
 
@@ -524,7 +533,6 @@ func (tc *testCase) getDUTLinkLocalAddress(t *testing.T) string {
 	for _, addr := range addrs {
 		ip := addr.GetIp()
 		if strings.HasPrefix(ip, "fe80:") {
-			t.Logf("DHCPv6 Gateway address on %s.%d: %s", intfName, 1, ip)
 			return ip
 		}
 	}
@@ -536,7 +544,7 @@ func (tc *testCase) getDUTLinkLocalAddress(t *testing.T) string {
 // verifyDHCPv6Gateway verifies that the DHCPv6 client received the expected gateway address.
 func (tc *testCase) verifyDHCPv6Gateway(t *testing.T) {
 	t.Helper()
-
+	t.Log(tc.name + ": Verifying DHCPv6 gateway address")
 	dutLinkLocal := tc.getDUTLinkLocalAddress(t)
 
 	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
@@ -548,6 +556,8 @@ func (tc *testCase) verifyDHCPv6Gateway(t *testing.T) {
 	}).Await(t)
 	if !ok {
 		t.Fatalf("Did not receive expected DHCPv6 gateway address %s", dutLinkLocal)
+	} else {
+		t.Logf("Received expected DHCPv6 gateway address: %s", dutLinkLocal)
 	}
 }
 
