@@ -1,4 +1,4 @@
-# HA-1.0: Telemetry: Firewall High Availability.
+# gNMI-1.26: Telemetry: Firewall High Availability.
 
 ## Summary
 
@@ -26,7 +26,7 @@ Telemetry: Firewall High Availability
   - FW1 is configured with priority 90
   - FW2 is configured with priority 100
 
-### HA-1.0: Verify FW Cluster correctly reports active/primary state before and after event, verify config ha-enabled and ha-mode works as expected.
+### gNMI-1.26: Verify FW Cluster correctly reports active/primary state before and after event, verify config ha-enabled and ha-mode works as expected.
 
 * Verify FW Cluster correctly reports the active/primary state
   - Initially FW1 is expected to be in ACTIVE state
