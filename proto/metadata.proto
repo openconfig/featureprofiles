@@ -1212,7 +1212,24 @@ message Metadata {
     // is not supported.
     // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
     bool ssh_server_host_certificate_telemetry_unsupported = 394;
-    
+
+    // Devices that do not support role leaf of string type for OC system/aaa
+    // username configuration.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 395;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_shell_cmd_accounting_unsupported = 396;
+
+    // Devices that do not support AuthZ status field with deny in CMD service
+    // in AcctZ records.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_records_authz_status_deny_unsupported = 397;    
+
+    // Functional Translator name for devices with FPD paths unsupported.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+    string fpga_ft = 398;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
