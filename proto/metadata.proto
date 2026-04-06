@@ -1213,7 +1213,7 @@ message Metadata {
     // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
     bool ssh_server_host_certificate_telemetry_unsupported = 394;
 
-    // Set to true if the device does not support BGP add-path send-max configuration.
+    // SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
     // Cisco: b/498283710
     bool send_max_unsupported = 395;
 
