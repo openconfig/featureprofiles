@@ -224,9 +224,6 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 			keyType = cpb.KeyType_KEY_TYPE_ED25519
 		}
 		authKey := dataTypes[1]
-		if dut.Vendor() == ondatra.JUNIPER {
-			authKey = bytes.Join(dataTypes[:2], []byte(" "))
-		}
 		keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
 			AuthorizedKey: authKey,
 			KeyType:       keyType,
