@@ -1232,6 +1232,7 @@ message Metadata {
     string fpga_ft = 398;
 
     // Devices that do not support BGP Graceful restart for Peer Group
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
     bool bgp_graceful_restart_peer_group_unsupported = 399;
 
     // Reserved field numbers and identifiers.

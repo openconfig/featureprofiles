@@ -2043,3 +2043,9 @@ func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
 func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
+
+// BgpGracefulRestartPeerGroupUnsupported returns true for devices that do not support BGP Graceful restart for Peer Group
+// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
