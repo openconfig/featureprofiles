@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// Package telemetry_interfaces_test implements ""
+// Package telemetry_interfaces_test implements "gNMI-1.27"
 package telemetry_interfaces_test
 
 import (
@@ -339,8 +339,8 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 
                 if gnmi.Lookup(t, dut, subinterface.Description().State()).IsPresent() {
                         descriptionValue := gnmi.Get(t, dut, subinterface.Description().State())
-                        if descriptionValue == "test-description" {
-                                t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' description value: '%v' is as expected \n\n", port, subinterface, descriptionValue)
+                        if descriptionValue == description {
+                                t.Logf("\n\n [PASSED]: port: '%s' subinterface: '%v' description value: '%v' is as expected \n\n", port,subIntfIndex, descriptionValue)
                         } else {
                                 t.Errorf("\n\n [FAILED]: Subinterface description value got: '%v' expected: 'test-description' on port '%s' subinterface: '%v' \n\n", descriptionValue, port, subinterface)
                         }
@@ -348,7 +348,7 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
                         t.Errorf("\n\n [FAILED]: leaf: Subinterface description is not present on port %s subinterface: '%v' \n\n", port, subinterface)
                 }
 
-                gnmi.Delete(t, dut, subinterface.Index().Config())
+                gnmi.Delete(t, dut, subinterface.Config())
         }
 }
 
@@ -362,7 +362,7 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
                 t.Run("test_telemetry_interfaces_config_enabled", func(t *testing.T) {
                         i := &oc.Interface{Name: ygot.String(port)}
                         if deviations.ExplicitPortSpeed(dut) {
-                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index)))
+                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index+1)))
                         }
                         i.Enabled = ygot.Bool(true)
                         gnmi.Update(t, dut, p.Interface(port).Config(), i)
@@ -379,7 +379,7 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
                 t.Run("test_telemetry_interfaces_config_type", func(t *testing.T) {
                         i := &oc.Interface{Name: ygot.String(port)}
                         if deviations.ExplicitPortSpeed(dut) {
-                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index)))
+                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index+1)))
                         }
                         i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
                         gnmi.Update(t, dut, p.Interface(port).Config(), i)
@@ -399,7 +399,7 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 
                         i := &oc.Interface{Name: ygot.String(port)}
                         if deviations.ExplicitPortSpeed(dut) {
-                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index)))
+                                fptest.SetPortSpeed(t, dut.Port(t, "port"+strconv.Itoa(index+1)))
                         }
                         i.Ethernet.MacAddress = ygot.String(macAddressConfig)
                         gnmi.Update(t, dut, p.Interface(port).Config(), i)
