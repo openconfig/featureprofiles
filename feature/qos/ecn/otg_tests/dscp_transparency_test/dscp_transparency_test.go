@@ -184,6 +184,9 @@ func configureDUTQoS(
 			q1 := qosConfig.GetOrCreateQueue(string(queueName))
 			q1.Name = ygot.String(string(queueName))
 			queueID := len(allQueueNames) - i
+			if dut.Vendor() == ondatra.JUNIPER && queueName != entname.QoSNC1 {
+				queueID = queueID - 1
+			}
 			q1.QueueId = ygot.Uint8(uint8(queueID))
 		}
 	}
