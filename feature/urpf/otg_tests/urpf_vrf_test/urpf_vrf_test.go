@@ -130,7 +130,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 		Prefix:          ateAdvIPv4Prefix1 + "/" + strconv.Itoa(prefix1Len),
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 		}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV4, dut); err != nil {
 		t.Errorf("Failed to configure IPv4 static route in non-default vrf: %v", err)
 	}
 	sV6 := &cfgplugins.StaticRouteCfg{
@@ -138,7 +138,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 		Prefix:          ateAdvIPv6Prefix1 + "/" + strconv.Itoa(prefix1LenV6),
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 		}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV6, dut); err != nil {
 		t.Errorf("Failed to configure IPv6 static route in non-default vrf: %v", err)
 	}
 	cv4 := &cfgplugins.StaticRouteCfg{
@@ -146,7 +146,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 		Prefix:          "192.0.2.0/30",
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, cv4, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, cv4, dut); err != nil {
 		t.Errorf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
 	}
 	cv6 := &cfgplugins.StaticRouteCfg{
@@ -154,7 +154,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 		Prefix:          "2001:db8:1::0/126",
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 	}
-	if _, err := cfgplugins.NewStaticRouteCfg(b, cv6, dut); err != nil {
+	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, cv6, dut); err != nil {
 		t.Errorf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
 	}
 	
