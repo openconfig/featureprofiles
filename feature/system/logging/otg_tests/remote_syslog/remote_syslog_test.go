@@ -166,7 +166,6 @@ func TestRemoteSyslog(t *testing.T) {
 			t.Cleanup(func() {
 				gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Config())
 				gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
-				gnmi.Delete(t, dut, gnmi.OC().Interface(lb).Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
 				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
