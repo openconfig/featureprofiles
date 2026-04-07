@@ -103,6 +103,7 @@ func TestManagementHA1(t *testing.T) {
 		g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_L3VPN_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	}
 	bgp := bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).GetOrCreateProtocol(cfgplugins.PTBGP, "BGP").GetOrCreateBgp()
+	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp()
 
 	if deviations.SetNoPeerGroup(dut) || deviations.PeerGroupDefEbgpVrfUnsupported(dut) {
