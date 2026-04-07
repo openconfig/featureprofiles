@@ -17,6 +17,7 @@ graph LR;
 - Configure a non-default vrf to host routes learned from eBGP neighborship(ATE port1) and to constraint the uRPF lookup in the non-default vrf
 - Routes in non-default VRF:
     - Configure the static routes for `IPv4Prefix1/24` `IPv6Prefix1/64` in non-default VRF
+    - Connected interface subnet for DUT port1 should also be leaked to the non-default vrf. The interface subnet should be tagged with community 100:100 on the DUT and should be leaked to the non-default vrf. This aides in ATE port1 – DUT port1 eBGP peering to transition into establish state and stay functional. 
 - DUT has DUT:Port1 and DUT:Port2 in the default network-instance
 - DUT's IP sub-interfaces belong to Default VRF
 - DUT port1 has uRPF policy at the ingress DUT:PORT1
