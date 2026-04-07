@@ -11,7 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-// Package telemetry_interfaces_test implements "gNMI-1.27"
+// Package telemetry_interfaces_test implements "gNMI-1.28"
 package telemetry_interfaces_test
 
 import (

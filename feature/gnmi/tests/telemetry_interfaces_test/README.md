@@ -1,4 +1,4 @@
-# gNMI-1.27: Telemetry: Interface oc path validation.
+# gNMI-1.28: Telemetry: Interface openconfig validation.
 
 ## Summary
 
@@ -23,7 +23,7 @@ Telemetry: Interface oc path validation
 
 * We assume all counter values to be populated with non zero values.
 
-### gNMI-1.27.1: Validate Interfaces_State
+### gNMI-1.28.1: Validate Interfaces_State
 
 * Validate interface state leaves are streamed and holds expected value
  - last-change
@@ -31,7 +31,7 @@ Telemetry: Interface oc path validation
  - admin-status
  - description
 
-### gNMI-1.27.2: Validate Interfaces_State_Counters
+### gNMI-1.28.2: Validate Interfaces_State_Counters
 
 * Validate interface state counter leaves are streamed and holds expected value
  - in-octets, out-octets
@@ -41,32 +41,30 @@ Telemetry: Interface oc path validation
  - in-discards, out-discards
  - in-errors, out-errors
 
-### gNMI-1.27.3: Validate Interfaces_State_Rates
+### gNMI-1.28.3: Validate Interfaces_State_Rates
 
 * Validate interface state rate leaves are streamed and holds expected value
  - in-rate, out-rate
 
-### gNMI-1.27.4: Validate Interfaces_State_Subinterface
+### gNMI-1.28.4: Validate Interfaces_State_Subinterface
 
 * Validate interface state subinterface leaves are streamed with expected value
  - subinterface/state/oper-status
  - subinterface/config/description
  - subinterface/config/index
 
-### gNMI-1.27.5: Validate Interfaces_Config
+### gNMI-1.28.5: Validate Interfaces_Config
 
 * Validate interface config leaves are streamed with expected value
   - /interfaces/interface/config/enabled
   - /interfaces/interface/config/type
   - /interfaces/interface/ethernet/config/mac-address
 
-### gNMI-1.27.6: Validate Interfaces_Aggregation
+### gNMI-1.28.6: Validate Interfaces_Aggregation
 
 * Validate interface aggregation leaves are streamed with expected value
   - /interfaces/interface/aggregation/config/lag-type
   - /interfaces/interface/aggregation/state/member
-
-### TODO: validate /ha-groups/ha-group/state/ha-peer-state which is currently not supported in openconfig-fw-high-availability
 
 #### Canonical OC
 

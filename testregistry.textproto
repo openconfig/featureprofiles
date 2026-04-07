@@ -2348,8 +2348,8 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }
 test: {
-  id: "gNMI-1.27"
-  description: "gNMI-1.27: Telemetry: Interface oc validation."
+  id: "gNMI-1.28"
+  description: "Telemetry: Interface openconfig validation."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
 }
