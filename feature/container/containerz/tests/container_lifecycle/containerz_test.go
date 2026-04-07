@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -489,7 +491,12 @@ func TestVolumes(t *testing.T) {
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
 
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, nil)
+		mountOpts := map[string]string{
+			"options":    "bind",
+			"mountpoint": "/some-path",
+		}
+
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, mountOpts)
 		if err != nil {
 			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
 		}
@@ -518,6 +525,18 @@ func TestVolumes(t *testing.T) {
 				if vol.Driver != "local" {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
+
+				// check options
+				wantOptions := map[string]string{
+					"device": "/some-path",
+					"o":      "bind",
+					"type":   "none",
+				}
+
+				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
+					t.Errorf("Volume %q returned a diff(-got, +want):\n%s", vol.Name, diff)
+				}
+
 				break
 			}
 		}
@@ -727,6 +746,11 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.ContainerzPluginRPCUnsupported(dut) {
+		t.Skip("Skipping Containerz plugin tests as Containerz plugin RPCs are unsupported on this device")
+	}
+
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (

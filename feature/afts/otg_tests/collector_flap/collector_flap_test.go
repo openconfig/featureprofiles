@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"math"
+	"sort"
 	"sync"
 	"testing"
 	"time"
@@ -28,6 +28,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/isissession"
@@ -71,13 +72,16 @@ const (
 	isisRoutev6               = "2001:db8::203:0:113:1"
 	startingISISRouteIPv4     = "199.0.0.1/32"
 	startingISISRouteIPv6     = "2001:db8::203:0:113:1/128"
-	aftConvergenceTime        = 20 * time.Minute
+	aftConvergenceTime        = 40 * time.Minute
 	bgpTimeout                = 10 * time.Minute
-	bgpRouteCountIPv4LowScale = 1500
-	bgpRouteCountIPv6LowScale = 5000
-	bgpRouteCountIPv4Default  = 2000
-	bgpRouteCountIPv6Default  = 1000
+	bgpRouteCountIPv4LowScale = 1250000
+	bgpRouteCountIPv6LowScale = 500000
+	bgpRouteCountIPv4Default  = 2000000
+	bgpRouteCountIPv6Default  = 1000000
 	policyStatementID         = "id-1"
+	cpuPctThreshold           = 80.0
+	memPctThreshold           = 80.0
+	usagePollingInterval      = 5 * time.Second
 )
 
 var (
@@ -105,10 +109,11 @@ var (
 		IPv4Len: v4PrefixLen,
 		IPv6Len: v6PrefixLen,
 	}
-	wantIPv4NHs = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
-	wantIPv6NHs = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
-	port1Name   = "port1"
-	port2Name   = "port2"
+	wantIPv4NHs         = map[string]bool{ateP1.IPv4: true, ateP2.IPv4: true}
+	wantIPv6NHs         = map[string]bool{ateP1.IPv6: true, ateP2.IPv6: true}
+	port1Name           = "port1"
+	port2Name           = "port2"
+	ciscoProcsToMonitor = []string{"emsd", "rib_mgr", "bgp_epe", "fib_mgr"}
 )
 
 // routeCount returns the expected route count for the given dut and IP family.
@@ -529,7 +534,7 @@ func (tc *testCase) verifyPrefixes(t *testing.T, aft *aftcache.AFTData, ip strin
 			if !ok {
 				return fmt.Errorf("Next hop %d not found in AFT for next-hop group: %d for prefix: %s", nhID, nhgID, pfix)
 			}
-			if nh.IntfName == "" {
+			if !deviations.SkipInterfaceNameCheck(tc.dut) && nh.IntfName == "" {
 				return fmt.Errorf("Next hop interface not found in AFT for next-hop: %d for prefix: %s", nhID, pfix)
 			}
 			if nh.IP == "" {
@@ -571,31 +576,360 @@ func (tc *testCase) verifyAFTConsistency(t *testing.T, aftSession1, aftSession2 
 	return aft1
 }
 
+func (tc *testCase) verifyInitialAFT(t *testing.T, ctx1 context.Context, aftSession1 *aftcache.AFTStreamSession, ctx2 context.Context, aftSession2 *aftcache.AFTStreamSession, wantPrefixes map[string]bool) {
+	t.Helper()
+	t.Log("Initial AFT verification...")
+	initialStoppingCondition := aftcache.InitialSyncStoppingCondition(t, tc.dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		aftSession1.ListenUntil(ctx1, t, aftConvergenceTime, initialStoppingCondition)
+	}()
+	go func() {
+		defer wg.Done()
+		aftSession2.ListenUntil(ctx2, t, aftConvergenceTime, initialStoppingCondition)
+	}()
+	wg.Wait()
+
+	aft := tc.verifyAFTConsistency(t, aftSession1, aftSession2, "Initial AFT verification")
+	t.Log("AFT is consistent. Verifying prefixes...")
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4)), 2); err != nil {
+		t.Errorf("Failed to verify initial IPv4 BGP prefixes: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6)), 2); err != nil {
+		t.Errorf("Failed to verify initial IPv6 BGP prefixes: %v", err)
+	}
+
+	// Verify ISIS prefixes are present in AFT.
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
+		t.Errorf("Failed to verify IPv4 ISIS prefixes: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
+		t.Errorf("Failed to verify IPv6 ISIS prefixes: %v", err)
+	}
+	t.Log("ISIS verification completed.")
+}
+
+type usageRecord struct {
+	time    time.Time
+	process string
+	metric  string
+	before  float64
+	after   float64
+	usedPct float64
+	desc    string
+}
+
+type usageHistory struct {
+	mu      sync.Mutex
+	records []usageRecord
+}
+
+func (h *usageHistory) add(rec usageRecord) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.records = append(h.records, rec)
+}
+
+func (h *usageHistory) print(t *testing.T) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.records) == 0 {
+		return
+	}
+
+	sort.Slice(h.records, func(i, j int) bool {
+		if h.records[i].metric != h.records[j].metric {
+			return h.records[i].metric < h.records[j].metric
+		}
+		return h.records[i].time.Before(h.records[j].time)
+	})
+
+	t.Log("Usage Summary Table:")
+	t.Logf("%-25s | %-15s | %-10s | %-10s | %-10s | %-10s | %s", "Time", "Process", "Metric", "Before", "After", "Used(%)", "Description")
+	t.Log("-------------------------------------------------------------------------------------------------------------------------------------------------")
+	for _, r := range h.records {
+		t.Logf("%-25s | %-15s | %-10s | %-10.2f | %-10.2f | %-10.2f | %s",
+			r.time.Format("15:04:05.000"), r.process, r.metric, r.before, r.after, r.usedPct, r.desc)
+	}
+}
+
 // checkMemoryUsage checks for memory increase and logs an error if it's above the threshold.
 // It returns the current memory usage.
-func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, memBefore uint64, desc string) uint64 {
+func checkMemoryUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, memBefore uint64, desc string, procName ...string) uint64 {
 	t.Helper()
-	// TODO: Add memory usage check for Cisco, Juniper and Nokia device.
-	if dut.Vendor() != ondatra.ARISTA {
-		t.Logf("Skipping memory usage check for non-ARISTA device: %v.", dut.Vendor())
+	var memAfter uint64
+	var totalMem uint64
+	var usedMemPct float64
+	// TODO: Add memory usage check for Default case.
+	pName := "system"
+	if len(procName) > 0 && procName[0] != "" {
+		pName = procName[0]
+	}
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Checking memory usage %s.", desc)
+		memAfter = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		totalMem = gnmi.Get(t, dut, gnmi.OC().System().Memory().Physical().State())
+		usedMemPct = (float64(memAfter) / float64(totalMem)) * 100
+	case ondatra.CISCO:
+		if pName == "system" {
+			t.Fatal("Process name must be provided for Cisco memory check.")
+		}
+		pid := getProcessPid(t, dut, pName)
+		t.Logf("Checking memory usage for %s process (PID: %d) %s.", pName, pid, desc)
+		memAfter = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).MemoryUtilization().State()))
+		usedMemPct = float64(memAfter) // Cisco returns percentage directly
+	default:
+		t.Logf("Skipping memory usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
 		return memBefore // Return previous value to not break chaining.
 	}
 
-	t.Logf("Checking memory usage %s.", desc)
-	memAfter := gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
-
-	if memBefore == 0 {
-		t.Log("Skipping memory usage check as initial memory usage was 0.")
-		return memAfter
+	if usedMemPct > memPctThreshold {
+		t.Errorf("Memory usage for process %s is %.2f%% of total memory, which is more than the %.f%% threshold.", pName, usedMemPct, memPctThreshold)
+	} else {
+		t.Logf("Memory usage for process %s is %.2f%% of total memory, which is within the %.f%% threshold.", pName, usedMemPct, memPctThreshold)
 	}
 
-	increase := (float64(memAfter) - float64(memBefore)) / float64(memBefore) * 100
-	if increase > 2.0 {
-		t.Errorf("Memory usage increased by %.2f%%, which is more than the 2%% threshold.", increase)
-	} else {
-		t.Logf("Memory usage change is %.2f%%, which is within the 2%% threshold.", math.Max(0, increase))
+	if history != nil {
+		history.add(usageRecord{
+			time:    time.Now(),
+			process: pName,
+			metric:  "Memory",
+			before:  float64(memBefore),
+			after:   float64(memAfter),
+			usedPct: usedMemPct,
+			desc:    desc,
+		})
 	}
 	return memAfter
+}
+
+// getProcessPid returns the PID of the given process name.
+func getProcessPid(t *testing.T, dut *ondatra.DUTDevice, procName string) uint64 {
+	t.Helper()
+	procs := gnmi.GetAll(t, dut, gnmi.OC().System().ProcessAny().State())
+	for _, p := range procs {
+		if p.GetName() == procName {
+			pid := p.GetPid()
+			t.Logf("Found %q process with PID: %d", procName, pid)
+			return pid
+		}
+	}
+	t.Fatalf("No process named %q found", procName)
+	return 0
+}
+
+// getCPUComponents returns the names of CPU components.
+func getCPUComponents(t *testing.T, dut *ondatra.DUTDevice) []string {
+	t.Helper()
+	cpus := components.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CPU)
+	if len(cpus) == 0 {
+		t.Fatalf("No CPU component found")
+	}
+	sort.Strings(cpus)
+	if len(cpus) > 1 {
+		t.Logf("Found %d CPU components: %v.", len(cpus), cpus)
+	}
+	return cpus
+}
+
+// checkCPUUsage checks for CPU increase and logs an error if it's above the threshold.
+// It returns the current CPU usage.
+func checkCPUUsage(t *testing.T, dut *ondatra.DUTDevice, history *usageHistory, cpuBefore uint64, desc string, cpuComponent string, procName ...string) uint64 {
+	t.Helper()
+	var cpuAfter uint64
+	var usedCPUPct float64
+	var pName string // Identifier for logging: component name for Arista, process name for Cisco.
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		if cpuComponent == "" {
+			t.Fatal("cpuComponent must be provided for Arista CPU check.")
+		}
+		pName = cpuComponent
+		t.Logf("Checking CPU usage for component %s %s.", cpuComponent, desc)
+		cpuAfter = uint64(gnmi.Get(t, dut, gnmi.OC().Component(cpuComponent).Cpu().Utilization().Avg().State()))
+	case ondatra.CISCO:
+		if len(procName) == 0 || procName[0] == "" {
+			t.Fatal("Process name must be provided for Cisco CPU check.")
+		}
+		pName = procName[0]
+		pid := getProcessPid(t, dut, pName)
+		t.Logf("Checking CPU usage for %s process (PID: %d) %s.", pName, pid, desc)
+		cpuAfter = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).CpuUtilization().State()))
+	default:
+		t.Logf("Skipping CPU usage check for non-ARISTA and non-CISCO device: %v.", dut.Vendor())
+		return cpuBefore // Return previous value to not break chaining.
+	}
+	usedCPUPct = float64(cpuAfter)
+	if usedCPUPct > cpuPctThreshold {
+		t.Errorf("CPU usage for process %s increased by %.2f%%, which is more than the %.f%% threshold.", pName, usedCPUPct, cpuPctThreshold)
+	} else {
+		t.Logf("CPU usage change for process %s is %.2f%%, which is within the %.f%% threshold.", pName, usedCPUPct, cpuPctThreshold)
+	}
+	if history != nil {
+		history.add(usageRecord{
+			time:    time.Now(),
+			process: pName,
+			metric:  "CPU",
+			before:  float64(cpuBefore),
+			after:   float64(cpuAfter),
+			usedPct: float64(usedCPUPct),
+			desc:    desc,
+		})
+	}
+	return cpuAfter
+}
+
+type usageBaselines struct {
+	aristaMem     uint64
+	aristaCPU     map[string]uint64
+	ciscoMem      map[string]uint64
+	ciscoCPU      map[string]uint64
+	cpuComponents []string
+}
+
+func collectBaselines(t *testing.T, dut *ondatra.DUTDevice) *usageBaselines {
+	t.Helper()
+	b := &usageBaselines{}
+	if dut.Vendor() == ondatra.ARISTA {
+		b.aristaMem = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
+		b.cpuComponents = getCPUComponents(t, dut)
+		b.aristaCPU = make(map[string]uint64)
+		for _, comp := range b.cpuComponents {
+			b.aristaCPU[comp] = uint64(gnmi.Get(t, dut, gnmi.OC().Component(comp).Cpu().Utilization().Avg().State()))
+		}
+	} else if dut.Vendor() == ondatra.CISCO {
+		b.ciscoMem = make(map[string]uint64)
+		b.ciscoCPU = make(map[string]uint64)
+		for _, procName := range ciscoProcsToMonitor {
+			pid := getProcessPid(t, dut, procName)
+			b.ciscoMem[procName] = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).MemoryUtilization().State()))
+			b.ciscoCPU[procName] = uint64(gnmi.Get(t, dut, gnmi.OC().System().Process(pid).CpuUtilization().State()))
+		}
+	}
+	return b
+}
+
+func aristaMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, history *usageHistory, memBaseline *uint64, cpuBaselines map[string]uint64, cpuComponents []string) {
+	t.Helper()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	memDone := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		ticker := time.NewTicker(usagePollingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				checkMemoryUsage(t, dut, history, *memBaseline, "during collector 2 convergence")
+				for _, comp := range cpuComponents {
+					checkCPUUsage(t, dut, history, cpuBaselines[comp], "during collector 2 convergence", comp)
+				}
+			case <-memDone:
+				return
+			}
+		}
+	}()
+	aftSession.ListenUntil(ctx, t, aftConvergenceTime, stoppingCondition)
+	close(memDone)
+	wg.Wait()
+	*memBaseline = checkMemoryUsage(t, dut, history, *memBaseline, "after collector 2 convergence")
+	for _, comp := range cpuComponents {
+		cpuBaselines[comp] = checkCPUUsage(t, dut, history, cpuBaselines[comp], "after collector 2 convergence", comp)
+	}
+}
+
+func ciscoMonitorAndConverge(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, aftSession *aftcache.AFTStreamSession, stoppingCondition aftcache.PeriodicHook, history *usageHistory, memBaseline map[string]uint64, cpuBaseline map[string]uint64) {
+	t.Helper()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	memDone := make(chan struct{})
+	go func() {
+		defer wg.Done()
+		ticker := time.NewTicker(usagePollingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				for procName, memBase := range memBaseline {
+					checkMemoryUsage(t, dut, history, memBase, "during collector 2 convergence", procName)
+				}
+				for procName, cpuBase := range cpuBaseline {
+					checkCPUUsage(t, dut, history, cpuBase, "during collector 2 convergence", "", procName)
+				}
+			case <-memDone:
+				return
+			}
+		}
+	}()
+	aftSession.ListenUntil(ctx, t, aftConvergenceTime, stoppingCondition)
+	close(memDone)
+	wg.Wait()
+	for procName, memBase := range memBaseline {
+		memBaseline[procName] = checkMemoryUsage(t, dut, history, memBase, "after collector 2 convergence", procName)
+	}
+	for procName, cpuBase := range cpuBaseline {
+		cpuBaseline[procName] = checkCPUUsage(t, dut, history, cpuBase, "after collector 2 convergence", "", procName)
+	}
+}
+
+func (tc *testCase) restartCollector2(t *testing.T, cancelSession2 context.CancelFunc) (context.Context, context.CancelFunc, *aftcache.AFTStreamSession, *usageBaselines, time.Time) {
+	t.Helper()
+	// TODO: Add memory usage check for Juniper and Nokia device.
+	b := collectBaselines(t, tc.dut)
+	t.Log("Starting collector restart test, stopping collector 2 by canceling its context...")
+	cancelSession2() // This will cause the ListenUntil to stop.
+	// Explicitly close the underlying gNMI client connection.
+	if closer, ok := tc.gnmiClient2.(io.Closer); ok {
+		if err := closer.Close(); err != nil {
+			t.Logf("Failed to close gnmiClient2, proceeding anyway: %v", err)
+		}
+		tc.gnmiClient2 = nil
+	} else {
+		t.Logf("Warning: gnmiClient2 does not implement io.Closer.")
+	}
+
+	t.Log("Recreating collector 2...")
+	startTime := time.Now()
+	gnmiClient2, err := tc.dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI for collector 2: %v", err)
+	}
+	tc.gnmiClient2 = gnmiClient2 // Update the testCase struct.
+	sessionCtx2, newCancelSession2 := context.WithCancel(t.Context())
+	aftSession2 := aftcache.NewAFTStreamSession(sessionCtx2, t, tc.gnmiClient2, tc.dut)
+	return sessionCtx2, newCancelSession2, aftSession2, b, startTime
+}
+
+func (tc *testCase) verifyAFTConvergenceAfterFlap(t *testing.T, sessionCtx2 context.Context, aftSession1 *aftcache.AFTStreamSession, aftSession2 *aftcache.AFTStreamSession, b *usageBaselines, wantPrefixes map[string]bool, history *usageHistory) {
+	t.Helper()
+	t.Log("Waiting for restarted collector 2 to converge...")
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, tc.dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
+	switch tc.dut.Vendor() {
+	case ondatra.ARISTA:
+		aristaMonitorAndConverge(sessionCtx2, t, tc.dut, aftSession2, stoppingCondition, history, &b.aristaMem, b.aristaCPU, b.cpuComponents)
+	case ondatra.CISCO:
+		ciscoMonitorAndConverge(sessionCtx2, t, tc.dut, aftSession2, stoppingCondition, history, b.ciscoMem, b.ciscoCPU)
+	default:
+		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
+	}
+	t.Log("Verifying convergence for restarted collector 2...")
+
+	t.Log("Verifying AFT consistency after restarting collector 2...")
+	aftn := tc.verifyAFTConsistency(t, aftSession1, aftSession2, "post-flap")
+
+	t.Log("AFT is consistent. Verifying prefixes...")
+	if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv4, int(routeCount(tc.dut, IPv4)), 2); err != nil {
+		t.Errorf("Failed to verify IPv4 BGP prefixes after collector 2 flap: %v", err)
+	}
+	if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv6, int(routeCount(tc.dut, IPv6)), 2); err != nil {
+		t.Errorf("Failed to verify IPv6 BGP prefixes after collector 2 flap: %v", err)
+	}
 }
 
 type testCase struct {
@@ -609,7 +943,8 @@ type testCase struct {
 func TestCollectorFlap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
-	var memBaseline uint64 = 0
+	var history usageHistory
+
 	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
 	if err != nil {
 		t.Fatalf("Failed to dial GNMI: %v", err)
@@ -657,103 +992,13 @@ func TestCollectorFlap(t *testing.T) {
 		t.Fatalf("Unable to establish BGP session: %v", err)
 	}
 
-	// Initial state verification (BGP: 2 NHs, ISIS: 1 NH)
-	t.Log("Initial AFT verification...")
-	initialStoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		aftSession1.ListenUntil(t.Context(), t, aftConvergenceTime, initialStoppingCondition)
-	}()
-	go func() {
-		defer wg.Done()
-		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, initialStoppingCondition)
-	}()
-	wg.Wait()
+	tc.verifyInitialAFT(t, t.Context(), aftSession1, sessionCtx2, aftSession2, wantPrefixes)
 
-	aft := tc.verifyAFTConsistency(t, aftSession1, aftSession2, "Initial AFT verification")
-	t.Log("AFT is consistent. Verifying prefixes...")
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv4, int(routeCount(dut, IPv4)), 2); err != nil {
-		t.Errorf("Failed to verify initial IPv4 BGP prefixes: %v", err)
-	}
-	if err := tc.verifyPrefixes(t, aft, startingBGPRouteIPv6, int(routeCount(dut, IPv6)), 2); err != nil {
-		t.Errorf("Failed to verify initial IPv6 BGP prefixes: %v", err)
-	}
-
-	// Verify ISIS prefixes are present in AFT.
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv4, isisRouteCount, 1); err != nil {
-		t.Errorf("Failed to verify IPv4 ISIS prefixes: %v", err)
-	}
-	if err := tc.verifyPrefixes(t, aft, startingISISRouteIPv6, isisRouteCount, 1); err != nil {
-		t.Errorf("Failed to verify IPv6 ISIS prefixes: %v", err)
-	}
-	t.Log("ISIS verification completed.")
-	// TODO: Add memory usage check for Cisco, Juniper and Nokia device.
-	if dut.Vendor() == ondatra.ARISTA {
-		memBaseline = gnmi.Get(t, dut, gnmi.OC().System().Memory().Used().State())
-	}
-	t.Log("Starting collector restart test, stopping collector 2 by canceling its context...")
-	cancelSession2() // This will cause the ListenUntil to stop.
-	// Explicitly close the underlying gNMI client connection.
-	if closer, ok := tc.gnmiClient2.(io.Closer); ok {
-		if err := closer.Close(); err != nil {
-			t.Logf("Failed to close gnmiClient2, proceeding anyway: %v", err)
-		}
-		tc.gnmiClient2 = nil
-	} else {
-		t.Logf("Warning: gnmiClient2 does not implement io.Closer.")
-	}
-
-	t.Log("Recreating collector 2...")
-	startTime := time.Now()
-	gnmiClient2, err = dut.RawAPIs().BindingDUT().DialGNMI(t.Context())
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI for collector 2: %v", err)
-	}
-	tc.gnmiClient2 = gnmiClient2 // Update the testCase struct.
-	sessionCtx2, cancelSession2 = context.WithCancel(t.Context())
+	sessionCtx2, cancelSession2, aftSession2, b, startTime := tc.restartCollector2(t, cancelSession2)
 	defer cancelSession2()
-	aftSession2 = aftcache.NewAFTStreamSession(sessionCtx2, t, tc.gnmiClient2, dut)
 
-	t.Log("Waiting for restarted collector 2 to converge...")
-	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, wantIPv4NHs, wantIPv6NHs)
-	if dut.Vendor() == ondatra.ARISTA {
-		var memWg sync.WaitGroup
-		memWg.Add(1)
-		memDone := make(chan struct{})
-		go func() {
-			defer memWg.Done()
-			ticker := time.NewTicker(5 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					checkMemoryUsage(t, dut, memBaseline, "during collector 2 convergence")
-				case <-memDone:
-					return
-				}
-			}
-		}()
-		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
-		close(memDone)
-		memWg.Wait()
-		memBaseline = checkMemoryUsage(t, dut, memBaseline, "after collector 2 convergence")
-	} else {
-		aftSession2.ListenUntil(sessionCtx2, t, aftConvergenceTime, stoppingCondition)
-	}
-	t.Log("Verifying convergence for restarted collector 2...")
+	tc.verifyAFTConvergenceAfterFlap(t, sessionCtx2, aftSession1, aftSession2, b, wantPrefixes, &history)
 	convergenceTime := time.Since(startTime)
 	t.Logf("Collector 2 convergence time: %v", convergenceTime)
-
-	t.Log("Verifying AFT consistency after restarting collector 2...")
-	aftn := tc.verifyAFTConsistency(t, aftSession1, aftSession2, "post-flap")
-
-	t.Log("AFT is consistent. Verifying prefixes...")
-	if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv4, int(routeCount(dut, IPv4)), 2); err != nil {
-		t.Errorf("Failed to verify IPv4 BGP prefixes after collector 2 flap: %v", err)
-	}
-	if err := tc.verifyPrefixes(t, aftn, startingBGPRouteIPv6, int(routeCount(dut, IPv6)), 2); err != nil {
-		t.Errorf("Failed to verify IPv6 BGP prefixes after collector 2 flap: %v", err)
-	}
+	history.print(t)
 }
