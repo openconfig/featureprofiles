@@ -128,34 +128,41 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          ateAdvIPv4Prefix1 + "/" + strconv.Itoa(prefix1Len),
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},
 		}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
-		t.Fatalf("Failed to configure IPv4 static route in non-default vrf: %v", err)
+		t.Errorf("Failed to configure IPv4 static route in non-default vrf: %v", err)
 	}
 	sV6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          ateAdvIPv6Prefix1 + "/" + strconv.Itoa(prefix1LenV6),
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},
 		}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
-		t.Fatalf("Failed to configure IPv6 static route in non-default vrf: %v", err)
+		t.Errorf("Failed to configure IPv6 static route in non-default vrf: %v", err)
 	}
 	cv4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
-		Prefix:          "192.0.2.0/30","2001:db8:1::1"
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
-		}
+		Prefix:          "192.0.2.0/30",
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},		}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, cv4, dut); err != nil {
-		t.Fatalf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
+		t.Errorf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
 	}
 	cv6 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          "2001:db8:1::0/126",
-		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
-		}
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			"0": oc.LocalRouting_LOCAL_DEFINED_NEXT_HOP_DROP,
+		},
+	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, cv6, dut); err != nil {
-		t.Fatalf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
+		t.Errorf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
 	}
 	
 	intBatch.Set(t, dut)
