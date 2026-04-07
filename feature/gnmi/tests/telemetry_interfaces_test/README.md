@@ -78,7 +78,7 @@ Telemetry: Interface oc path validation
         "name": "ethernet-1/1",
         "config": {
           "type": "ethernetCsmacd",
-          "enabled": "true"
+          "enabled": true
         },
         "state": {
           "admin-status": "UP",
