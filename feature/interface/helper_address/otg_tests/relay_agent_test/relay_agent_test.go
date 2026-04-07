@@ -47,7 +47,7 @@ const (
 	dhcpLeaseStartAddress   = "192.0.2.34"
 	dhcpLeaseGateway        = "192.0.2.33"
 	dhcpLeasePrefixLen      = 27
-	dhcpV6LeaseStartAddress = "2001:db8:a:2::2"
+	dhcpV6LeaseStartAddress = "2001:db8:a:1::2"
 	dhcpV6LeasePrefixLen    = 64
 	vlanID                  = 10
 	lagTypeLACP             = oc.IfAggregate_AggregationType_LACP
@@ -59,7 +59,7 @@ var (
 		Name:    "dutP1",
 		Desc:    "dhcp-relay-port",
 		IPv4:    "192.0.2.33",
-		IPv6:    "2001:db8:a:2::1",
+		IPv6:    "2001:db8:a:1::1",
 		IPv4Len: dhcpLeasePrefixLen,
 		IPv6Len: dhcpV6LeasePrefixLen,
 		MTU:     1500,
@@ -76,7 +76,7 @@ var (
 		Name:    "dutP3",
 		Desc:    "dutate-2",
 		IPv4:    "192.0.2.253",
-		IPv6:    "2001:db8::2",
+		IPv6:    "2001:db8:a:2::2",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
@@ -85,7 +85,7 @@ var (
 		Name:    "ateP3",
 		MAC:     "02:00:02:01:01:02",
 		IPv4:    "192.0.2.254",
-		IPv6:    "2001:db8::1",
+		IPv6:    "2001:db8:a:2::1",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
 	}
