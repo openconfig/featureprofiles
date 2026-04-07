@@ -461,13 +461,12 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Fatalf("Failed dialing GNMI: %v", err)
 	}
-	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err1 != nil && status.Code(err1) == codes.PermissionDenied {
 		t.Logf("Got expected error fetching capabilities with no permissions, error: %s", err1)
 	} else {
-		t.Logf("Did not get expected error fetching capabilities with no permissions. %v", err1)
+		t.Errorf("Did not get expected error fetching capabilities with no permissions. %v", err1)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -579,7 +578,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil && status.Code(err) == codes.PermissionDenied {
 		t.Logf("Got expected error getting gnoi system time with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error getting gnoi system with no permissions. error: %s", err)
+		t.Errorf("Did not get expected error getting gnoi system time with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -683,7 +682,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil && status.Code(err) == codes.PermissionDenied {
 		t.Logf("Got expected error fetching authz policy with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
+		t.Errorf("Did not get expected error fetching authz policy with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -797,7 +796,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	if err != nil && status.Code(err) == codes.PermissionDenied {
 		t.Logf("Got expected error during gribi recv request with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
+		t.Errorf("Did not get expected error during gribi recv request with no permissions. error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -905,7 +904,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil && status.Code(err) == codes.PermissionDenied {
 		t.Logf("Got expected error getting p4rt capabilities with no permissions, error: %s", err)
 	} else {
-		t.Logf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
+		t.Errorf("Did not get expected error fetching pr4t capabilities with no permissions, error: %s", err)
 	}
 
 	records = append(records, &acctzpb.RecordResponse{

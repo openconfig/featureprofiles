@@ -59,11 +59,6 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	}
 	defer acctzSubClient.CloseSend()
 
-	_, err = deviceRecords(t, acctzSubClient, time.Minute)
-	if err != nil {
-		t.Fatalf("Failed receiving record response, error: %s", err)
-	}
-
 	var wantRecords []*acctzpb.RecordResponse
 	nr := acctz.SendGnmiRPCs(t, dut)
 	wantRecords = append(wantRecords, nr...)
