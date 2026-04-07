@@ -38,7 +38,6 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
-
 const (
 	pLen4         = 30
 	pLen6         = 126
@@ -117,7 +116,6 @@ func TestRemoteSyslog(t *testing.T) {
 	createFlow(t, top, false)
 	enableCapture(t, ate, top)
 	ate.OTG().PushConfig(t, top)
-	// ate.OTG().StartProtocols(t)
 
 	testCases := []struct {
 		name string
@@ -147,7 +145,6 @@ func TestRemoteSyslog(t *testing.T) {
 			configureSyslog(t, dut, tc.vrf)
 			ate.OTG().StartProtocols(t)
 			time.Sleep(30 * time.Second)
-			// ondatra.Debug().Breakpoint(t)
 
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
@@ -168,11 +165,6 @@ func TestRemoteSyslog(t *testing.T) {
 			processCapture(t, ate, top)
 
 			t.Cleanup(func() {
-				// gnmi.Delete(t, dut, gnmi.OC().Interface(p1.Name()).Config())
-				// gnmi.Delete(t, dut, gnmi.OC().Interface(p2.Name()).Config())
-
-				// gnmi.Delete(t, dut, gnmi.OC().Interface(lb).Config())
-				// gnmi.Delete(t, dut, gnmi.OC().Interface(lb).Subinterface(0).Ipv4().Address(dutLoopback.IPv4).Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
 				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
@@ -216,8 +208,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ateDst.AddToOTG(top, ap2, dutDst)
 
 	ate.OTG().PushConfig(t, top)
-	// ate.OTG().StartProtocols(t)
-
 	return top
 }
 
