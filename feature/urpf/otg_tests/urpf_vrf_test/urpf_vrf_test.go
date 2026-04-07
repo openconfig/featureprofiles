@@ -575,7 +575,7 @@ func routeInstallVerification(t *testing.T, dut *ondatra.DUTDevice) {
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefix1LenV6): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefix3LenV6): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 		fmt.Sprintf("192.0.2.0/30"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
-		fmt.Sprintf(""2001:db8:1::0/126"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
+fmt.Sprintf("2001:db8:1::0/126"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 	}
 
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
