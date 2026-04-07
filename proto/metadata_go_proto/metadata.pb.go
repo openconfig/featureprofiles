@@ -471,8 +471,6 @@ type Metadata_Deviations struct {
 	RoutePolicyUnderAfiUnsupported bool `protobuf:"varint,47,opt,name=route_policy_under_afi_unsupported,json=routePolicyUnderAfiUnsupported,proto3" json:"route_policy_under_afi_unsupported,omitempty"`
 	// Device does not support using gNOI to reboot the Fabric Component.
 	GnoiFabricComponentRebootUnsupported bool `protobuf:"varint,48,opt,name=gnoi_fabric_component_reboot_unsupported,json=gnoiFabricComponentRebootUnsupported,proto3" json:"gnoi_fabric_component_reboot_unsupported,omitempty"`
-	// Device does not support the ntp nondefault vrf case.
-	NtpNonDefaultVrfUnsupported bool `protobuf:"varint,49,opt,name=ntp_non_default_vrf_unsupported,json=ntpNonDefaultVrfUnsupported,proto3" json:"ntp_non_default_vrf_unsupported,omitempty"`
 	// Device does not support setting the L2 MTU. OpenConfig allows a device to
 	// enforce that L2 MTU, which has a default value of 1514, must be set to a
 	// higher value than L3 MTU.
@@ -1677,13 +1675,6 @@ func (x *Metadata_Deviations) GetRoutePolicyUnderAfiUnsupported() bool {
 func (x *Metadata_Deviations) GetGnoiFabricComponentRebootUnsupported() bool {
 	if x != nil {
 		return x.GnoiFabricComponentRebootUnsupported
-	}
-	return false
-}
-
-func (x *Metadata_Deviations) GetNtpNonDefaultVrfUnsupported() bool {
-	if x != nil {
-		return x.NtpNonDefaultVrfUnsupported
 	}
 	return false
 }
@@ -4012,7 +4003,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xad\xde\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xed\xdd\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4024,7 +4015,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf9\xd3\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb9\xd3\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4066,8 +4057,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\rconnect_retry\x18- \x01(\bR\fconnectRetry\x12I\n" +
 	"\"gribi_mac_override_with_static_arp\x18. \x01(\bR\x1dgribiMacOverrideWithStaticArp\x12J\n" +
 	"\"route_policy_under_afi_unsupported\x18/ \x01(\bR\x1eroutePolicyUnderAfiUnsupported\x12V\n" +
-	"(gnoi_fabric_component_reboot_unsupported\x180 \x01(\bR$gnoiFabricComponentRebootUnsupported\x12D\n" +
-	"\x1fntp_non_default_vrf_unsupported\x181 \x01(\bR\x1bntpNonDefaultVrfUnsupported\x12\x1e\n" +
+	"(gnoi_fabric_component_reboot_unsupported\x180 \x01(\bR$gnoiFabricComponentRebootUnsupported\x12\x1e\n" +
 	"\vomit_l2_mtu\x182 \x01(\bR\tomitL2Mtu\x12F\n" +
 	" skip_controller_card_power_admin\x183 \x01(\bR\x1cskipControllerCardPowerAdmin\x12)\n" +
 	"\x10banner_delimiter\x18< \x01(\tR\x0fbannerDelimiter\x12.\n" +
@@ -4394,7 +4384,7 @@ const file_metadata_proto_rawDesc = "" +
 	"&acctz_shell_cmd_accounting_unsupported\x18\x8c\x03 \x01(\bR\"acctzShellCmdAccountingUnsupported\x12\\\n" +
 	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
 	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
