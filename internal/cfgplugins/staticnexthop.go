@@ -133,16 +133,43 @@ entry 15 push label-stack 362143 tunnel-destination 10.99.1.3 tunnel-source 10.2
 
 // NextHopGroupConfig configures the interface next-hop-group config.
 func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string, ni *oc.NetworkInstance, params StaticNextHopGroupParams) {
+	t.Helper()
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			if traffictype == "v4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+				}
 			} else if traffictype == "dualstack" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
 			} else if traffictype == "v6" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				if params.DynamicVal {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else {
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				}
 			} else if traffictype == "multicloudv4" {
 				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 			}
@@ -152,24 +179,36 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	} else {
 		configureNextHopGroups(t, ni, params)
 	}
-
 }
 
 // StaticNextHopGroupParams holds parameters for generating the OC Static Next Hop Group config.
 type StaticNextHopGroupParams struct {
 
 	// For the "MPLS_in_GRE_Encap" Next-Hop Group definition from JSON's "static" block
-	StaticNHGName    string
-	NHIPAddr1        string
-	NHIPAddr2        string
+	StaticNHGName string
+	NHIPAddr1     string
+	NHIPAddr2     string
+	// OuterIpv4Src*Def / OuterIpv4DstDef are used only when DynamicVal == false.
+	// When DynamicVal == true, tunnel src/dst must be provided per-entry via DynamicStructParams and these fields are ignored.
 	OuterIpv4DstDef  string
 	OuterIpv4Src1Def string
 	OuterIpv4Src2Def string
 	OuterDscpDef     uint8
 	OuterTTLDef      uint8
-
+	DynamicValues    []DynamicStructParams
+	DynamicVal       bool
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
 
+}
+
+type DynamicStructParams struct {
+	NexthopGrpName string
+	NexthopType    string
+	TTL            int
+	TunnelSrc      string
+	TunnelDst      string
+	MplsLabel      int
+	EntryValue     int
 }
 
 // NexthopGroupUDPParams defines the parameters used to create or configure a Next Hop Group that performs UDP encapsulation for traffic forwarding.
