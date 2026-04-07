@@ -97,10 +97,8 @@ var (
 // configureDUT configures all the interfaces on the DUT.
 func configureDUT(t *testing.T) {
 	dc := gnmi.OC()
-
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
-
 	dutPortsMap := map[*ondatra.DUTDevice][]*attrs.Attributes{
 		dut1: {&dut1Port1, &dut1Port2},
 		dut2: {&dut2Port1},
@@ -118,6 +116,9 @@ func configureDUT(t *testing.T) {
 			}
 			dutInt.SetType(oc.IETFInterfaces_InterfaceType_ethernetCsmacd)
 			gnmi.Replace(t, dutx, dc.Interface(dutInt.GetName()).Config(), dutInt)
+			if deviations.ExplicitInterfaceInDefaultVRF(dutx) {
+				fptest.AssignToNetworkInstance(t, dutx, dutInt.GetName(), deviations.DefaultNetworkInstance(dutx), 0)
+			}
 		}
 	}
 }
@@ -201,7 +202,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
-		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intf += ".0"
 		}
 		isisIntf := isis.GetOrCreateInterface(intf)
@@ -215,12 +216,19 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 		}
 		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
 		isisIntfLevel.Enabled = ygot.Bool(true)
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(200)
-		isisIntfLevelAfi.Enabled = ygot.Bool(true)
+		if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = nil
+		}
+		if !deviations.ISISInterfaceAfiUnsupported(dut) {
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+			isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+		}
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
 			isisIntfLevel.Af = nil
 		}
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
+		isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Metric = ygot.Uint32(200)
 	}
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
 }
