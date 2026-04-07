@@ -56,6 +56,22 @@ The goal is to validate that packet sampling is working as expected, clients can
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /interfaces/interface/state/ifindex:
+  /interfaces/interface/subinterfaces/subinterface/config/index:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/state/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+  /sampling/sflow/config/enabled:
+  /sampling/sflow/interfaces/interface/config/enabled:
 rpcs:
   gnpsi:
     gNPSI.Subscribe:

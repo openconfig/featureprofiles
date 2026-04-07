@@ -179,10 +179,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyPortsUp(t *testing.T, dev *ondatra.Device) {
 	t.Helper()
 	for _, p := range dev.Ports() {
-		status := gnmi.Get(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if want := oc.Interface_OperStatus_UP; status != want {
-			t.Errorf("%s Status: got %v, want %v", p, status, want)
-		}
+		gnmi.Await(t, dev, gnmi.OC().Interface(p.Name()).OperStatus().State(), time.Minute, oc.Interface_OperStatus_UP)
 	}
 }
 
@@ -507,6 +504,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName []string, dutA
 	}
 
 	for _, intf := range intfName {
+		if deviations.InterfaceRefInterfaceIDFormat(dut) {
+			intf += ".0"
+		}
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -533,7 +533,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf []string)
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	for _, intfName := range dutIntf {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 			intfName = intfName + ".0"
 		}
 		nbrPath := statePath.Interface(intfName)
