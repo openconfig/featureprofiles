@@ -102,7 +102,12 @@ func TestCredentialz(t *testing.T) {
 				)
 			}
 			gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-			if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
+			wantHostCertificateCreatedOn := hostCertificateCreatedOn
+			switch dut.Vendor() {
+			case ondatra.NOKIA:
+				wantHostCertificateCreatedOn *= 1e9
+			}
+			if got, want := gotHostCertificateCreatedOn, wantHostCertificateCreatedOn; got != want {
 				t.Errorf(
 					"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
 					want, got,
