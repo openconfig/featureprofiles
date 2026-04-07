@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "e1888c8a-eaed-4496-88a2-9af7ffc32c49"
+plan_id: "TE-14.3"
+description: "gRIBI Scaling - full scale setup, target T1"
+testbed: TESTBED_DUT_ATE_2LINKS
