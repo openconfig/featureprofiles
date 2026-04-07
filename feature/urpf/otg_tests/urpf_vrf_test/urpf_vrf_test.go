@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"strconv"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
@@ -116,15 +117,49 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	t.Log("Configuring Network Instances")
 	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVRF)
 	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultVRF, !isDefaultVRF)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS1, "IPv4", true)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort1.IPv4, atePort1.IPv6, dutAS, ateAS1, "IPv6", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS1, "IPv4", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv6, atePort1.IPv6, dutAS, ateAS1, "IPv6", true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS2, "IPv4", true)
-	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv6, dutAS, ateAS2, "IPv6", true)
+	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv6, atePort2.IPv6, dutAS, ateAS2, "IPv6", true)
 
 	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
-	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, nonDefaultVRF, nonDefaultNI)
-	configureDUTPort(t, dut, intBatch, &dutPort1, p1, nonDefaultVRF)
+	configureDUTPort(t, dut, intBatch, &dutPort1, p1, defaultNIName)
+	configureDUTPort(t, dut, intBatch, &dutPort2, p2, defaultNIName)
+	sV4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          ateAdvIPv4Prefix1 + "/" + strconv.Itoa(prefix1Len),
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
+		t.Fatalf("Failed to configure IPv4 static route in non-default vrf: %v", err)
+	}
+	sV6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          ateAdvIPv6Prefix1 + "/" + strconv.Itoa(prefix1LenV6),
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {
+		t.Fatalf("Failed to configure IPv6 static route in non-default vrf: %v", err)
+	}
+	cv4 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          "192.0.2.0/30","2001:db8:1::1"
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, cv4, dut); err != nil {
+		t.Fatalf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
+	}
+	cv6 := &cfgplugins.StaticRouteCfg{
+		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		Prefix:          "2001:db8:1::0/126",
+		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_InterfaceRef{Interface: ygot.String("Null0")},
+		}
+	if _, err := cfgplugins.NewStaticRouteCfg(b, cv6, dut); err != nil {
+		t.Fatalf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
+	}
+	
 	intBatch.Set(t, dut)
+	
 	return intBatch
 }
 
@@ -368,8 +403,8 @@ func TestURPFNonDefaultNI(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
 
 	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort2.IPv4, atePort2.IPv6}})
-	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: nonDefaultVRF, NeighborIPs: []string{atePort1.IPv4, atePort1.IPv6}})
-	bgpRouteVerification(t, dut)
+	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort1.IPv4, atePort1.IPv6}})
+	routeInstallVerification(t, dut)
 
 	testCases := []struct {
 		desc           string
@@ -530,8 +565,8 @@ func verifyURPFCounters(t *testing.T, dut *ondatra.DUTDevice, initialDropCount u
 	}
 }
 
-// bgpRouteVerification build routes parameters and verify routes if advertised routes are installed in DUT AFT.
-func bgpRouteVerification(t *testing.T, dut *ondatra.DUTDevice) {
+// routeInstallVerification build routes parameters and verify routes if routes are installed in DUT AFT.
+func routeInstallVerification(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	// Build routes to advertise
 	routesToAdvertise := map[string]cfgplugins.RouteInfo{
@@ -539,6 +574,8 @@ func bgpRouteVerification(t *testing.T, dut *ondatra.DUTDevice) {
 		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix3, prefix3Len):   {VRF: defaultNIName, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefix1LenV6): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefix3LenV6): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
+		fmt.Sprintf("192.0.2.0/30"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
+		fmt.Sprintf(""2001:db8:1::0/126"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 	}
 
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
