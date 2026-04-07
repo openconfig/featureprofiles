@@ -19,6 +19,7 @@ graph LR;
     - Configure the route leaking from Default network-instance to non-default instance based on dynamic prefix-lists based on BGP community/tag
     - The below routes learned on DUT from ATE:Port1 EBGP neighborship needs to be leaked from default vrf to non-default vrf
         - IPv4Prefix1/24 IPv6Prefix1/64 community 200:200
+        - Connected interface subnet for DUT port1 should also be leaked to the non-default vrf. The interface subnet should be tagged with community 100:100 on the DUT and should be leaked to the non-default vrf. This aides in ATE port1 – DUT port1 eBGP peering to transition into establish state and stay functional. 
     - Routes learned on DUT from ATE:Port2 IBGP neighborship should not be leaked from default VRF to non-default VRF
 - DUT has DUT:Port1 and DUT:Port2 in the default network-instance
 - DUT's IP sub-interfaces belong to Default VRF
