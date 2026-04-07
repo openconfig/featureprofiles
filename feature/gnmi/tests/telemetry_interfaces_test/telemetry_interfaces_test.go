@@ -279,7 +279,7 @@ func testTelemetryInterfacesStateRate(t *testing.T, dut *ondatra.DUTDevice, port
 					intfStateRatePassed[leaf] = append(intfStateRatePassed[leaf], gnmi.Get(t, dut, inRate))
 				case outRateKey:
 					intfStateRatePassed[leaf] = append(intfStateRatePassed[leaf], gnmi.Get(t, dut, outRate))
-					}
+				}
 				// Check if the leaf value is present or not. nil, '', 0 or empty slice is considered as not present.
 				if intfStateRatePassed[leaf][1] == nil || reflect.ValueOf(intfStateRatePassed[leaf][1]).IsZero() || (reflect.ValueOf(intfStateRatePassed[leaf][1]).Kind() == reflect.Slice && reflect.ValueOf(intfStateRatePassed[leaf][1]).Len() == 0) {
 					intfStateRateFailed[leaf] = fmt.Sprintf("value: '%v' is not as expected", intfStateRatePassed[leaf][1])
