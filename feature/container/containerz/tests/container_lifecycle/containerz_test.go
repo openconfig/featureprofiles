@@ -22,7 +22,7 @@ import (
 	"github.com/openconfig/containerz/client"
 
 	cpb "github.com/openconfig/gnoi/containerz"
-	gspb "google3/third_party/openconfig/gnoi/system/system_go_proto"
+	gspb "github.com/openconfig/gnoi/system"
 )
 
 var (
