@@ -1237,12 +1237,15 @@ message Metadata {
 
     // Device that do not support acctz record for fail user cases
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-    bool acctz_record_fail_command_unsupported = 400;
+    bool acctz_record_fail_command_unsupported = 401;
 
     // Device that do not support acctz record for fail user cases
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-    bool acctz_record_fail_grpc_unsupported = 401;
+    bool acctz_record_fail_grpc_unsupported = 402;
 
+    // Devices that do not support BGP Graceful restart for Peer Group
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+    bool bgp_graceful_restart_peer_group_unsupported = 400;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
