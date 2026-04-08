@@ -62,8 +62,10 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	startTime := time.Now()
 	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendFailCliCommand(t, dut, *staticBinding)
-	records = append(records, newRecords...)
+        if !deviations.AcctzRecordFailCommandUnsupported(dut) {
+                 newRecords = acctz.SendFailCliCommand(t, dut)
+	         records = append(records, newRecords...)
+        }
 	if !deviations.AcctzShellCmdAccountingUnsupported(dut) {
 		newRecords = acctz.SendShellCommand(t, dut, *staticBinding)
 		records = append(records, newRecords...)
