@@ -119,34 +119,44 @@ func TestMain(m *testing.M) {
 
 func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	lb0 := netutil.LoopbackInterface(t, dut, 0)
-	_, lb0Present := gnmi.Lookup(t, dut, gnmi.OC().Interface(lb0).Name().State()).Val()
-	lb := lb0
-	if lb0Present {
-		lb = netutil.LoopbackInterface(t, dut, 1)
+	hasExpectedLoopbackIPs := func(loopback string) (bool, bool) {
+		lo := gnmi.OC().Interface(loopback).Subinterface(0)
+		ipv4Addrs := gnmi.LookupAll(t, dut, lo.Ipv4().AddressAny().State())
+		ipv6Addrs := gnmi.LookupAll(t, dut, lo.Ipv6().AddressAny().State())
+
+		foundV4 := false
+		for _, ip := range ipv4Addrs {
+			if v, ok := ip.Val(); ok && v.GetIp() == dutLoopbackIPv4 {
+				foundV4 = true
+				break
+			}
+		}
+		foundV6 := false
+		for _, ip := range ipv6Addrs {
+			if v, ok := ip.Val(); ok && v.GetIp() == dutLoopbackIPv6 {
+				foundV6 = true
+				break
+			}
+		}
+		return foundV4, foundV6
 	}
 
-	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	foundV4 := false
-	for _, ip := range ipv4Addrs {
-		if v, ok := ip.Val(); ok && v.GetIp() == dutLoopbackIPv4 {
-			foundV4 = true
-			break
-		}
-	}
-	foundV6 := false
-	for _, ip := range ipv6Addrs {
-		if v, ok := ip.Val(); ok && v.GetIp() == dutLoopbackIPv6 {
-			foundV6 = true
-			break
-		}
-	}
+	lb0 := netutil.LoopbackInterface(t, dut, 0)
+	lb := lb0
+	foundV4, foundV6 := hasExpectedLoopbackIPs(lb0)
+
 	if !foundV4 || !foundV6 {
-		lo1 := dutLoopback.NewOCInterface(lb, dut)
-		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
+		lb1 := netutil.LoopbackInterface(t, dut, 1)
+		if _, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(lb1).Name().State()).Val(); present {
+			lb = lb1
+			foundV4, foundV6 = hasExpectedLoopbackIPs(lb1)
+		}
+	}
+
+	if !foundV4 || !foundV6 {
+		lo := dutLoopback.NewOCInterface(lb, dut)
+		lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo)
 	}
 }
 
@@ -454,18 +464,18 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 		}
 	}
 
- 	if !foundICMPv4Reply {
- 		t.Errorf("Did not find IPv4 ICMP echo reply from DUT in ATE capture")
- 	}
- 	if !foundTCPSynAckV4 {
- 		t.Errorf("Did not find IPv4 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv4, mgmtSrcIPv4)
- 	}
- 	if !foundICMPv6Reply {
- 		t.Errorf("Did not find IPv6 ICMP echo reply from DUT in ATE capture")
- 	}
- 	if !foundTCPSynAckV6 {
- 		t.Errorf("Did not find IPv6 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv6, mgmtSrcIPv6)
- 	}
+	if !foundICMPv4Reply {
+		t.Errorf("Did not find IPv4 ICMP echo reply from %s to %s in ATE capture", dutLoopbackIPv4, mgmtSrcIPv4)
+	}
+	if !foundTCPSynAckV4 {
+		t.Errorf("Did not find IPv4 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv4, mgmtSrcIPv4)
+	}
+	if !foundICMPv6Reply {
+		t.Errorf("Did not find IPv6 ICMP echo reply from %s to %s in ATE capture", dutLoopbackIPv6, mgmtSrcIPv6)
+	}
+	if !foundTCPSynAckV6 {
+		t.Errorf("Did not find IPv6 TCP SYN-ACK from %s to %s in ATE capture", dutLoopbackIPv6, mgmtSrcIPv6)
+	}
 }
 
 // TestControlPlaneACL is the main test function.
@@ -491,7 +501,6 @@ func TestControlPlaneACL(t *testing.T) {
 	dutPort1Mac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1IPv4).LinkLayerAddress().State())
 	// dutPort1Macv6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv6Neighbor(dutPort1IPv6).LinkLayerAddress().State()) // Get IPv6 neighbor MAC if different/needed
 
-	p0 := sortPorts(ate.Ports())[0]
 	// === Test Case SYS-2.1.1: Verify ingress control-plane ACL permit ===
 	t.Run("SYS-2.1.1: Verify Permit", func(t *testing.T) {
 		// Get initial counters
@@ -576,7 +585,19 @@ func TestControlPlaneACL(t *testing.T) {
 
 		// Create OTG Traffic Flows
 		otgConfig := gosnappi.NewConfig()
+
+		// Keep SYS-2.1.2 self-contained with explicit OTG port/device config.
+		atePorts := sortPorts(ate.Ports())
+		p0 := atePorts[0]
 		otgConfig.Ports().Add().SetName(p0.ID())
+		srcDev := otgConfig.Devices().Add().SetName(atePort1.Name)
+		srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
+		srcEth.Connection().SetPortName(p0.ID())
+		srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
+		srcEth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
+
+		ate.OTG().PushConfig(t, otgConfig)
+		ate.OTG().StartProtocols(t)
 		// IPv4 ICMP from UNKNOWN_SRC
 		flowICMPv4Deny := createFlow(t, ate, "Deny_ICMPv4", atePort1.MAC, dutPort1Mac, unknownSrcIPv4, dutLoopbackIPv4, ipProtoICMP, 0, 0, false)
 		otgConfig.Flows().Append(flowICMPv4Deny)

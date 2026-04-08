@@ -1995,9 +1995,8 @@ func QosFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetQosFt()
 }
 
-// ACLDescriptionUnsupported returns true if ACL description is unsupported
-//
-//	/acl/acl-sets/acl-set/state/descriptionmake proto/metadata_go_proto/metadata.pb.go
+// ACLDescriptionUnsupported returns true if ACL description is unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/492342925
 func ACLDescriptionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAclDescriptionUnsupported()
 }
