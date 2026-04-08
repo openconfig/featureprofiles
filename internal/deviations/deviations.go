@@ -2042,3 +2042,9 @@ func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
 func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
+
+// DhcpRelayOcUnsupported returns true if DHCP relay configuration and state paths are unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/497757203
+func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
+}
