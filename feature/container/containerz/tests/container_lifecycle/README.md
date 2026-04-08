@@ -187,4 +187,5 @@ rpcs:
     containerz.Containerz.ListPlugins:
     containerz.Containerz.StopPlugin:
     containerz.Containerz.RemovePlugin:
+    system.System.Reboot:
 ```
