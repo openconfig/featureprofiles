@@ -1305,13 +1305,13 @@ func configureURPFNonDefaultNI(t *testing.T, dut *ondatra.DUTDevice, cfg URPFNon
    // Configure IPv4 uRPF
    	cfg.IPv4Obj.GetOrCreateUrpf()
 	cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
-	cfg.IPv4Obj.Urpf.Mode = oc.Urpf_UrpfMode_LOOSE
-	cfg.IPv4Obj.Urpf.UrpfLookupNetworkInstance = ygot.String(cfg.VrfName)
+	cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_LOOSE
+	cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
 	// Configure IPv6 uRPF	
 	cfg.IPv6Obj.GetOrCreateUrpf()
 	cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
-	cfg.IPv6Obj.Urpf.Mode = oc.Urpf_UrpfMode_LOOSE
-	cfg.IPv4Obj.Urpf.UrpfLookupNetworkInstance = ygot.String(cfg.VrfName)
+	cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_LOOSE
+	cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
 }
 
 
