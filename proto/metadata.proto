@@ -1236,7 +1236,7 @@ message Metadata {
     bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
 
     // Device needs LocalAddress that points to an interface name instead of IPv4 address for establishing BGP neighborship
-    // Cisco: TODO add issue ID here
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
     bool use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address = 400;
 
     // Reserved field numbers and identifiers.
