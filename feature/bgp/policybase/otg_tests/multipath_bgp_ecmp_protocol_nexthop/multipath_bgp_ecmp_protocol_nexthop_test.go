@@ -35,6 +35,7 @@ import (
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
