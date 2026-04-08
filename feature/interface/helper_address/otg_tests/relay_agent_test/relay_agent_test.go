@@ -52,6 +52,7 @@ const (
 	vlanID                  = 10
 	lagTypeLACP             = oc.IfAggregate_AggregationType_LACP
 	ieee8023adLag           = oc.IETFInterfaces_InterfaceType_ieee8023adLag
+	waitTime                = 2 * time.Minute
 )
 
 var (
@@ -468,7 +469,7 @@ func (tc *testCase) deleteInterfaceConfig(t *testing.T) {
 func (tc *testCase) verifyDHCPv4Address(t *testing.T) {
 	t.Helper()
 	t.Log(tc.name + ": Verifying DHCPv4 address lease")
-	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().Address().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().Address().State(), waitTime, func(v *ygnmi.Value[string]) bool {
 		dhcpV4ClientAddress, present := v.Val()
 		if !present {
 			return false
@@ -486,7 +487,7 @@ func (tc *testCase) verifyDHCPv4Address(t *testing.T) {
 func (tc *testCase) verifyDHCPv4Gateway(t *testing.T) {
 	t.Helper()
 	t.Log(tc.name + ": Verifying DHCPv4 gateway address")
-	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().GatewayAddress().State(), time.Minute, func(v *ygnmi.Value[string]) bool {
+	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv4ClientAny().Interface().GatewayAddress().State(), waitTime, func(v *ygnmi.Value[string]) bool {
 		dhcpV4ClientGateway, present := v.Val()
 		if !present {
 			return false
@@ -504,7 +505,7 @@ func (tc *testCase) verifyDHCPv4Gateway(t *testing.T) {
 func (tc *testCase) verifyDHCPv6Address(t *testing.T) {
 	t.Helper()
 	t.Log(tc.name + ": Verifying DHCPv6 address lease")
-	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
+	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), waitTime, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
 		dhcpV6ClientAddress, present := v.Val()
 		if !present {
 			return false
@@ -547,7 +548,7 @@ func (tc *testCase) verifyDHCPv6Gateway(t *testing.T) {
 	t.Log(tc.name + ": Verifying DHCPv6 gateway address")
 	dutLinkLocal := tc.getDUTLinkLocalAddress(t)
 
-	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), time.Minute, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
+	_, ok := gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Dhcpv6ClientAny().Interface().IaAddressAny().State(), waitTime, func(v *ygnmi.Value[*otgtelemetry.Dhcpv6Client_Interface_IaAddress]) bool {
 		dhcpV6ClientGateway, present := v.Val()
 		if !present {
 			return false
