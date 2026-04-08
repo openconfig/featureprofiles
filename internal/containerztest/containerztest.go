@@ -187,6 +187,10 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	if len(opts.Ports) > 0 {
 		startOpts = append(startOpts, client.WithPorts(opts.Ports))
 	}
+	if len(opts.Volumes) > 0 {
+		startOpts = append(startOpts, client.WithVolumes(opts.Volumes))
+	}
+	}
 	if opts.Network != "" {
 		startOpts = append(startOpts, client.WithNetwork(opts.Network))
 	}
