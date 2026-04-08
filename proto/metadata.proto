@@ -1134,7 +1134,7 @@ message Metadata {
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
-
+    
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
@@ -1213,10 +1213,9 @@ message Metadata {
     // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
     bool ssh_server_host_certificate_telemetry_unsupported = 394;
 
-    // Devices that do not support role leaf of string type for OC system/aaa
-    // username configuration.
-    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
-    bool oc_aaa_user_role_leaf_string_type_unsupported = 395;
+    // SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
+    // Cisco: b/498283710
+    bool send_max_unsupported = 395;
 
     // Devices that do not support AcctZ shell CMD records accounting.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
@@ -1231,9 +1230,14 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
     string fpga_ft = 398;
 
+    // Devices that do not support role leaf of string type for OC system/aaa
+    // username configuration.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
+
     // Devices that do not support BGP Graceful restart for Peer Group
     // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
-    bool bgp_graceful_restart_peer_group_unsupported = 399;
+    bool bgp_graceful_restart_peer_group_unsupported = 400;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;

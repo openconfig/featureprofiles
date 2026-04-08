@@ -1468,7 +1468,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
-// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// ReducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
 // Nokia: b/459893133
 func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
@@ -2018,6 +2018,12 @@ func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
 // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
 func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
+}
+
+// SendMaxUnsupported returns true if the device does not support leaf send max.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
+func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
 }
 
 // OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
