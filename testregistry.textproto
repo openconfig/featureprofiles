@@ -349,7 +349,7 @@ test: {
 }
 test: {
   id: "DP-2.2"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_nhg/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/qos/ingress_policer/otg_tests/ingress_police_nhg_match_action/README.md"
 }
 test: {
   id: "DP-2.4"
