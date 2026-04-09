@@ -105,7 +105,7 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
                   "config": {
                     "enabled": true,
                     "mode": "LOOSE",
-                    "lookup-network-instance": "NON-DEFAULT"
+                    "lookup-network-instance": "VRF-1"
                   }
                 },
                 "state": {
@@ -119,7 +119,7 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
                   "config": {
                     "enabled": true,
                     "mode": "LOOSE",
-                    "lookup-network-instance": "NON-DEFAULT"
+                    "lookup-network-instance": "VRF-1"
                   }
                 },
                 "state": {
