@@ -27,12 +27,12 @@ import (
 )
 
 const (
-	username        = "testuser"
-	passwordVersion = "v1.0"
+	username = "testuser"
 )
 
 var (
 	passwordCreatedOn = time.Now().Unix()
+	passwordVersion   = credz.GenerateVersion()
 )
 
 func TestMain(m *testing.M) {
@@ -51,6 +51,19 @@ func TestCredentialz(t *testing.T) {
 				management ssh
 			  	 authentication protocol password
 				 `
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	case ondatra.JUNIPER:
+		t.Logf("Juniper vendor, adding CLI config to enable ssh services and allow root login")
+		cliConfig := `
+			system {
+					services {
+							ssh {
+									root-login allow;
+							}
+					}
+					authentication-order password;
+			}
+			`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	default:
 		t.Logf("Vendor %s, does not need CLI configuration in this test", dut.Vendor())
@@ -112,7 +125,12 @@ func TestCredentialz(t *testing.T) {
 				t.Fatalf("Telemetry reports password version is not correct\n\tgot: %s\n\twant: %s", got, want)
 			}
 			gotPasswordCreatedOn := userState.GetPasswordCreatedOn()
-			if got, want := gotPasswordCreatedOn, uint64(passwordCreatedOn); got != want {
+			wantPasswordCreatedOn := uint64(passwordCreatedOn)
+			switch dut.Vendor() {
+			case ondatra.NOKIA:
+				wantPasswordCreatedOn *= 1e9
+			}
+			if got, want := gotPasswordCreatedOn, wantPasswordCreatedOn; got != want {
 				t.Fatalf("Telemetry reports password created on is not correct\n\tgot: %d\n\twant: %d", got, want)
 			}
 		})

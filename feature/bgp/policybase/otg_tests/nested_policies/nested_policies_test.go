@@ -379,6 +379,7 @@ func configureExportRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v4MedStatement)
@@ -600,6 +601,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 		stmt1.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	}
 	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetAsn(dutAS)
+	stmt1.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	pdef2 := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
 	stmt2, err := pdef2.AppendNewStatement(v6MedStatement)
