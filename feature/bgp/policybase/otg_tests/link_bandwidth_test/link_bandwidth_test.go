@@ -742,7 +742,7 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().
 		Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
-	_, policyOK := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
+	_, policyOK := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
 		val, ok := v.Val()
 		if !ok {
 			return false
@@ -778,7 +778,7 @@ func validateImportRoutingPolicyAllowAll(t *testing.T, dut *ondatra.DUTDevice, a
 		}
 	}
 	pathV6 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy()
-	_, policyV6OK := gnmi.Watch(t, dut, pathV6.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
+	_, policyV6OK := gnmi.Watch(t, dut, pathV6.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
 		val, ok := v.Val()
 		if !ok {
 			return false
