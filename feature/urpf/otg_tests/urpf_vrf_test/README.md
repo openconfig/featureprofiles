@@ -88,6 +88,17 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
 
 ```json
 {
+    "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "VRF-1",
+        "config": {
+          "name": "VRF-1",
+          "type": "L3VRF"
+        }
+      }
+    ]
+  },
   "openconfig-interfaces:interfaces": {
     "interface": [
       {
