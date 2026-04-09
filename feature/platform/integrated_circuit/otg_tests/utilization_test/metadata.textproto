@@ -24,4 +24,12 @@ platform_exceptions: {
     interface_enabled: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    ciscoxr8000_integrated_circuit_resource_ft: "ciscoxr-8000-integrated-circuit-resource-ft"
+  }
+}
 tags: TAGS_TRANSIT

@@ -35,7 +35,7 @@ const (
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 15 * time.Minute
 	// maxCompWaitTime is the maximum wait time for all components to be in a responsive state after reboot.
-	maxCompWaitTime = 10 * time.Minute
+	maxCompWaitTime = 15 * time.Minute
 	// componentPollInterval is the interval at which component status is polled.
 	componentPollInterval = 10 * time.Second
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
@@ -178,6 +178,7 @@ func TestChassisReboot(t *testing.T) {
 				ticker := time.NewTicker(rebootPollInterval)
 				defer ticker.Stop()
 				timeout := time.After(maxRebootTime)
+				var deviceWentDown bool
 
 			rebootLoop:
 				for {
@@ -186,13 +187,21 @@ func TestChassisReboot(t *testing.T) {
 						t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
 					case <-ticker.C:
 						var currentTime string
-						if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-						}); errMsg != nil {
+						})
+						if errMsg != nil {
+							if !deviceWentDown {
+								t.Logf("Device is now unreachable. Waiting for it to come back up.")
+								deviceWentDown = true
+							}
 							t.Logf("Time elapsed %.2f seconds, DUT not reachable yet: %s.", time.Since(startReboot).Seconds(), *errMsg)
 						} else {
-							t.Logf("Device rebooted successfully with received time: %v.", currentTime)
-							break rebootLoop
+							if deviceWentDown {
+								t.Logf("Device rebooted successfully with received time: %v.", currentTime)
+								break rebootLoop
+							}
+							t.Logf("Device is still reachable; reboot hasn't started yet.")
 						}
 					}
 				}

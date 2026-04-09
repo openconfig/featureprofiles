@@ -516,6 +516,10 @@ func TestFabricReboot(t *testing.T) {
 
 	var removableFabric string
 	for _, fabric := range fabrics {
+		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Empty().State()).Val(); ok && empty {
+			t.Logf("Skipping fabric: %v is empty", fabric)
+			continue
+		}
 		t.Logf("Check if %s is removable", fabric)
 		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok && removable {
 			t.Logf("Found removable fabric component: %v", fabric)
