@@ -150,6 +150,9 @@ func TestEthernetMacAddress(t *testing.T) {
 }
 
 func TestLagMacAddress(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("Test is skipped, since the related base config for LACP is not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -771,6 +774,9 @@ func TestLacpMember(t *testing.T) {
 
 func TestP4rtInterfaceID(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if regexp.MustCompile("(?i)PTX10003.*").MatchString(dut.Model()) {
+		t.Skipf("Skipping test for DUT model %q ", dut.Model())
+	}
 	dp := dut.Port(t, "port1")
 	d := &oc.Root{}
 	i := d.GetOrCreateInterface(dp.Name())
