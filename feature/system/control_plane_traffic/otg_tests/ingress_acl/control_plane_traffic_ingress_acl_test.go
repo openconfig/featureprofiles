@@ -439,7 +439,7 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 				}
 				if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 					tcp := tcpLayer.(*layers.TCP)
-					if tcp.SYN && tcp.ACK {
+					if tcp.SYN && tcp.ACK && tcp.SrcPort == layers.TCPPort(sshPort) {
 						foundTCPSynAckV4 = true
 					}
 				}
@@ -456,7 +456,7 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 				}
 				if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 					tcp := tcpLayer.(*layers.TCP)
-					if tcp.SYN && tcp.ACK {
+					if tcp.SYN && tcp.ACK && tcp.SrcPort == layers.TCPPort(sshPort) {
 						foundTCPSynAckV6 = true
 					}
 				}
