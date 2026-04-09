@@ -2050,14 +2050,14 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
 // AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user 
-// Arista: https://partnerissuetracker.corp.google.com/issues/494474526
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
 
 func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
         return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
 // AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user 
-// Arista: https://partnerissuetracker.corp.google.com/issues/494474526
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
 
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
         return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
