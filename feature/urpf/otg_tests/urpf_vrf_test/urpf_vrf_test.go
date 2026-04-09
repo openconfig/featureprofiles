@@ -55,7 +55,7 @@ const (
 	nexthopGroupNameV6 = "GUE-NHGv6"
 	GUEPolicyV4Name    = "GUE-Policy-V4"
 	GUEPolicyV6Name    = "GUE-Policy-V6"
-	GUEDstIPv4         = "198.50.100.1"
+	GUEDstIPv4         = "192.0.2.6"
 	isDefaultVRF       = true
 )
 
@@ -128,23 +128,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 	configureDUTPort(t, dut, intBatch, &dutPort1, p1, defaultNIName)
 	configureDUTPort(t, dut, intBatch, &dutPort2, p2, defaultNIName)
 	sV4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: nonDefaultVRF,
 		Prefix:          ateAdvIPv4Prefix1 + "/" + strconv.Itoa(prefix1Len),
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
-		}
+	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV4, dut); err != nil {
 		t.Errorf("Failed to configure IPv4 static route in non-default vrf: %v", err)
 	}
 	sV6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: nonDefaultVRF,
 		Prefix:          ateAdvIPv6Prefix1 + "/" + strconv.Itoa(prefix1LenV6),
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
-		}
+	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, sV6, dut); err != nil {
 		t.Errorf("Failed to configure IPv6 static route in non-default vrf: %v", err)
 	}
 	cv4 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: nonDefaultVRF,
 		Prefix:          "192.0.2.0/30",
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 	}
@@ -152,14 +152,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 		t.Errorf("Failed to configure DUT-PORT1 IPv4 static route in non-default vrf: %v", err)
 	}
 	cv6 := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: nonDefaultVRF,
 		Prefix:          "2001:db8:1::0/126",
 		NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString("Null0")},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(intBatch, cv6, dut); err != nil {
 		t.Errorf("Failed to configure DUT-PORT1 IPv6 static route in non-default vrf: %v", err)
 	}
-	
+
 	intBatch.Set(t, dut)
 	
 	return intBatch
@@ -315,7 +315,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	invalidNetV6 := bgp1PeerV6.V6Routes().Add().SetName("InvalidSrc_V6")
 	invalidNetV6.SetNextHopIpv6Address(atePort1.IPv6)
 	invalidNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix2).SetPrefix(uint32(prefix2LenV6)).SetCount(routeCount)
-
 
 	// ATE Port 2 (iBGP)
 	bgp2 := dev2.Bgp().SetRouterId(atePort2.IPv4)
@@ -529,26 +528,11 @@ func TestURPFNonDefaultNI(t *testing.T) {
 					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv4, GUEPolicyV6Name, dstAddr, udpDestPort)
 				}
 			}
-			if !tc.expectLoss {
-				if tc.gueEnabled {
-					cfgParams := &cfgplugins.StaticRouteCfg{
-						NetworkInstance: deviations.DefaultNetworkInstance(dut),
-						Prefix:          GUEDstIPv4 + "/32",
-						NextHops:        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{"0": oc.UnionString(atePort2.IPv4), "1": oc.UnionString(atePort2.IPv6)},
-					}
-					if _, err := cfgplugins.NewStaticRouteCfg(batch, cfgParams, dut); err != nil {
-						t.Fatalf("Failed to configure static route: %v", err)
-					}
-					batch.Set(t, dut)
-				} else {
-					cfgplugins.StaticRouteNextNetworkInstance(t, dut, &cfgplugins.StaticRouteCfg{IPType: tc.IPStr, NetworkInstance: nonDefaultVRF, Prefix: tc.pfxAddr, NextHopAddr: tc.dstIP + tc.staticRoutePfx})
-				}
-			}
 			var initialDropCount uint64
 			p1 := dut.Port(t, "port1")
 			if tc.verifyCounters {
 				// TODO: No support for UrpfDropPkts yet; validating drops using InUnicastPkts for now. Will update once support is added.
-				initialDropCount := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InUnicastPkts().State())
+				initialDropCount = gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Counters().InUnicastPkts().State())
 				t.Logf("Initial uRPF drop count: %d", initialDropCount)
 			}
 			flow := createFlow(t, dut, otgConfig, tc.flowName, tc.srcIP, tc.dstIP, tc.isV4)
@@ -585,8 +569,8 @@ func routeInstallVerification(t *testing.T, dut *ondatra.DUTDevice) {
 		fmt.Sprintf("%s/%d", ateAdvIPv4Prefix3, prefix3Len):   {VRF: defaultNIName, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix1, prefix1LenV6): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 		fmt.Sprintf("%s/%d", ateAdvIPv6Prefix3, prefix3LenV6): {VRF: defaultNIName, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
-		fmt.Sprintf("192.0.2.0/30"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
-fmt.Sprintf("2001:db8:1::0/126"): {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
+		fmt.Sprintf("192.0.2.0/30"):                           {VRF: nonDefaultVRF, IPType: cfgplugins.IPv4, DefaultName: defaultNIName},
+		fmt.Sprintf("2001:db8:1::0/126"):                      {VRF: nonDefaultVRF, IPType: cfgplugins.IPv6, DefaultName: defaultNIName},
 	}
 
 	cfgplugins.VerifyRoutes(t, dut, routesToAdvertise)
