@@ -453,7 +453,6 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Fatalf("Failed dialing GNMI: %v", err)
 	}
-	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err1 != nil {
