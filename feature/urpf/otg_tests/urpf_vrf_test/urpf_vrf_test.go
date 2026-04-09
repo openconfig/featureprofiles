@@ -80,6 +80,8 @@ var (
 	// Invalid source prefixes advertised from ATE Port 1 (but rejected by DUT policy)
 	ateAdvIPv4Prefix2 = "198.18.2.0"
 	ateAdvIPv6Prefix2 = "3001:db8:10::"
+	prefix2Len        = 24
+	prefix2LenV6      = 64
 
 	// Destination prefixes advertised from ATE Port 2
 	ateAdvIPv4Prefix3 = "198.18.3.0"
@@ -305,6 +307,15 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	validNetV6 := bgp1PeerV6.V6Routes().Add().SetName("ValidSrc_V6")
 	validNetV6.SetNextHopIpv6Address(atePort1.IPv6)
 	validNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix1).SetPrefix(uint32(prefix1LenV6)).SetCount(routeCount)
+
+	invalidNetV4 := bgp1Peer.V4Routes().Add().SetName("InvalidSrc_V4")
+	invalidNetV4.SetNextHopIpv4Address(atePort1.IPv4)
+	invalidNetV4.Addresses().Add().SetAddress(ateAdvIPv4Prefix2).SetPrefix(uint32(prefix2Len)).SetCount(routeCount)
+
+	invalidNetV6 := bgp1PeerV6.V6Routes().Add().SetName("InvalidSrc_V6")
+	invalidNetV6.SetNextHopIpv6Address(atePort1.IPv6)
+	invalidNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix2).SetPrefix(uint32(prefix2LenV6)).SetCount(routeCount)
+
 
 	// ATE Port 2 (iBGP)
 	bgp2 := dev2.Bgp().SetRouterId(atePort2.IPv4)
