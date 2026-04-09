@@ -17,6 +17,7 @@ graph LR;
 - Configure a non-default vrf to host routes learned from eBGP neighborship(ATE port1) and to constraint the uRPF lookup in the non-default vrf
 - Routes in non-default VRF:
     - Configure the static routes for `IPv4Prefix1/24` `IPv6Prefix1/64` in non-default VRF
+    - Configure a static route for the connected interface subnet for DUT port1 in non-deafult VRF. This aids the ATE port1 – DUT port1 eBGP peering in transitioning into the Established state and remaining functional.
 - DUT has DUT:Port1 and DUT:Port2 in the default network-instance
 - DUT's IP sub-interfaces belong to Default VRF
 - DUT port1 has uRPF policy at the ingress DUT:PORT1
@@ -24,7 +25,7 @@ graph LR;
 - Configure EBGP[ASN200] on ATE:Port1
 #### ATE Route Advertisements:
 - ATE:Port1 advertises following valid prefixes over EBGP to DUT:Port1
-    - IPv4Prefix1/24 IPv6Prefix1/64 community 200:200
+    - IPv4Prefix1/24 IPv6Prefix1/64
 - ATE:Port1 advertises following invalid prefixes over EBGP to DUT:Port1
     - IPv4prefix2/24 IPv6prefix2/64
 - ATE:Port2 advertises following prefixes over IBGP to DUT:Port2
@@ -87,45 +88,51 @@ TODO: URPF via instance OC path are being proposed by to be updated by [#1320](h
 
 ```json
 {
-  "openconfig-interfaces": {
-    "interfaces": {
-         "interface": [
-          {
-            "name": "example-interface-name",
-            "subinterfaces": {
-              "subinterface": [
-                {
-                  "index": 0,
-                  "ipv4": {
-                    "urpf": {
-                      "config": {
-                        "enabled": true,
-                        "mode": "LOOSE",
-                        "allow-default-route": false,
-                        "allow-drop-next-hop": false,
-                        "allow-feasible-path": false,
-                        "urpf-lookup-network-instance": "URPF-Instance"
-                      }
-                    }
-                  },
-                  "ipv6": {
-                    "urpf": {
-                      "config": {
-                        "enabled": true,
-                        "mode": "LOOSE",
-                        "allow-default-route": false,
-                        "allow-drop-next-hop": false,
-                        "allow-feasible-path": false,
-                        "urpf-lookup-network-instance": "URPF-Instance"
-                      }
-                    }
+  "openconfig-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "example-interface-name",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0,
+                "enabled": true
+              },
+              "openconfig-if-ip:ipv4": {
+                "urpf": {
+                  "config": {
+                    "enabled": true,
+                    "mode": "LOOSE",
+                    "lookup-network-instance": "NON-DEFAULT"
+                  }
+                },
+                "state": {
+                  "counters": {
+                    "urpf-drop-pkts": "0"
                   }
                 }
-              ]
+              },
+              "openconfig-if-ip:ipv6": {
+                "urpf": {
+                  "config": {
+                    "enabled": true,
+                    "mode": "LOOSE",
+                    "lookup-network-instance": "NON-DEFAULT"
+                  }
+                },
+                "state": {
+                  "counters": {
+                    "urpf-drop-pkts": "0"
+                  }
+                }
+              }
             }
-          }
-        ]
-    }
+          ]
+        }
+      }
+    ]
   }
 }
 ```
@@ -146,8 +153,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-default-route:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-drop-next-hop:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/allow-feasible-path:
-  # /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/urpf-lookup-network-instance:
-  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/urpf-lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/config/lookup-network-instance:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/config/lookup-network-instance:
   
   ## Telemetry Parameter Coverage
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/enabled:
@@ -158,8 +165,6 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/mode:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
   /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
-  # /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/urpf-lookup-network-instance:
-  # /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/urpf-lookup-network-instance:
 
 
 rpcs:
