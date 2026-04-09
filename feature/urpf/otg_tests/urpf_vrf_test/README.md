@@ -83,7 +83,7 @@ graph LR;
     - The uRPF drop packet counter should increment and should be equal to the packets sent by the sender tester
     - The packets sent by the sender tester are not equal to the packets on the receiving tester port and also the sum of packets seen by the Port2 should be zero packets.
 
-## Canonical OpenConfig for URPF through another instance
+## CCanonical OC for URPF through another instance
 TODO: URPF via instance OC path are being proposed by to be updated by [#1320](https://github.com/openconfig/public/pull/1320)
 
 ```json
