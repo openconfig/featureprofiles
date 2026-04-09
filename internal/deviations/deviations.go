@@ -2049,20 +2049,20 @@ func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
 func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user 
+
+// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
 
 func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
+	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user 
+// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
 
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
+	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
 }
-
 
 // BgpGracefulRestartPeerGroupUnsupported returns true for devices that do not support BGP Graceful restart for Peer Group
 // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935

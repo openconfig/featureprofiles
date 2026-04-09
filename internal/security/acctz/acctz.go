@@ -462,7 +462,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Logf("Did not get expected error fetching capabilities with bad creds. %v", err1)
 	}
 
-        if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
+	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
@@ -484,7 +484,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				},
 			},
 		})
-        }
+	}
 
 	// Send a successful gNMI capabilities request.
 	ctx = context.Background()
@@ -574,7 +574,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Logf("Got expected error getting gnoi system time with bad creds, error: %s", err)
 	}
 
-        if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
+	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
@@ -596,7 +596,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				},
 			},
 		})
-        }
+	}
 
 	// Send a successful gNOI ping request.
 	ctx = context.Background()
@@ -679,7 +679,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Logf("Did not get expected error fetching authz policy with bad creds.")
 	}
-        if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
+	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
@@ -701,7 +701,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				},
 			},
 		})
-        }
+	}
 	// Send a successful gNSI authz get request.
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
@@ -899,7 +899,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	} else {
 		t.Fatal("Did not get expected error fetching pr4t capabilities with no creds.")
 	}
-        if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
+	if !deviations.AcctzRecordFailGrpcUnsupported(dut) {
 		records = append(records, &acctzpb.RecordResponse{
 			ServiceRequest: &acctzpb.RecordResponse_GrpcService{
 				GrpcService: &acctzpb.GrpcService{
@@ -921,7 +921,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				},
 			},
 		})
-        }
+	}
 
 	ctx = context.Background()
 	ctx = metadata.AppendToOutgoingContext(ctx, "username", SuccessUsername)
