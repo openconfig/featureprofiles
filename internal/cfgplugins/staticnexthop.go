@@ -138,8 +138,19 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			if traffictype == "v4" {
-				if params.DynamicVal {
+			if params.DynamicVal {
+				if traffictype == string(TrafficTypeV4) {
+					for _, dynamicValues := range params.DynamicValues {
+						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
+						nexthop-group %s type %s
+						ttl %d
+						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
+						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
+							dynamicValues.EntryValue, dynamicValues.MplsLabel,
+							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
+					}
+				} else if traffictype == string(TrafficTypeV6) {
 					for _, dynamicValues := range params.DynamicValues {
 						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
 						nexthop-group %s type %s
@@ -151,28 +162,18 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
 					}
 				} else {
+				switch TrafficType(traffictype) {
+				case TrafficTypeV4:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-				}
-			} else if traffictype == "dualstack" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-			} else if traffictype == "v6" {
-				if params.DynamicVal {
-					for _, dynamicValues := range params.DynamicValues {
-						nextHopGroupConfigIPV4AristaDyn := fmt.Sprintf(`
-						nexthop-group %s type %s
-						ttl %d
-						entry  %d push label-stack %d tunnel-destination %s tunnel-source %s					
-						`, dynamicValues.NexthopGrpName, dynamicValues.NexthopType, dynamicValues.TTL,
-							dynamicValues.EntryValue, dynamicValues.MplsLabel,
-							dynamicValues.TunnelDst, dynamicValues.TunnelSrc)
-						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
-					}
-				} else {
+				case TrafficTypeDS:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
+				case TrafficTypeV6:
 					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+				case TrafficTypeMCV4:
+					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+					}
 				}
-			} else if traffictype == "multicloudv4" {
-				helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 			} else if params.StaticNHGName == "gre_encap" {
 				if traffictype == string(TrafficTypeDS) {
 					nextHopGreConfig := new(strings.Builder)
