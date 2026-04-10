@@ -2069,3 +2069,10 @@ func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
 }
+
+// GrpcServerServicesUnsupported returns true if the device does not support the services leaf
+// under grpc-server config (/system/grpc-servers/grpc-server/config/services).
+// Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+func GrpcServerServicesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGrpcServerServicesUnsupported()
+}
