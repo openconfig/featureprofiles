@@ -981,7 +981,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	sshConn, w := dialSSH(t, SuccessUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1059,7 +1059,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1148,7 +1148,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	sshConn, w := dialSSH(t, shellUsername, shellPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)

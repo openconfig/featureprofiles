@@ -135,7 +135,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 		cmdServiceRecord := resp.record.GetCmdService()
 		//Skip records which are non CMD type (e.g. gNMI, gNSI, etc).
-		if cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI {
+		if cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI && cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_SHELL {
 			// Not a record of type command using SSH , continue with next record.
 			continue
 		}
