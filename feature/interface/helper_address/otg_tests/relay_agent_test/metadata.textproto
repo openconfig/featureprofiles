@@ -1,0 +1,16 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4f1bebd9-c0af-4d28-a041-f95b3816f354"
+plan_id: "RELAY-1.1"
+description:  "DHCP Relay functionality"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+  }
+}
