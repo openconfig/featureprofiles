@@ -41,7 +41,7 @@ const (
 	gnpsiClientsInParallel    = 2
 	packetRate                = 10000000
 	packetsToSend             = 1000000000
-	samplingRate              = 10000000
+	samplingRate              = 8000000
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
