@@ -1380,8 +1380,11 @@ type Metadata_Deviations struct {
 	// Devices that do not support BGP Graceful restart for Peer Group
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
 	BgpGracefulRestartPeerGroupUnsupported bool `protobuf:"varint,400,opt,name=bgp_graceful_restart_peer_group_unsupported,json=bgpGracefulRestartPeerGroupUnsupported,proto3" json:"bgp_graceful_restart_peer_group_unsupported,omitempty"`
-	unknownFields                          protoimpl.UnknownFields
-	sizeCache                              protoimpl.SizeCache
+	// Device needs LocalAddress that points to an interface name instead of IPv4 address for establishing BGP neighborship
+	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+	UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress bool `protobuf:"varint,401,opt,name=use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,json=useInterfaceNameForIbgpNeighborTransportIpv4LocalAddress,proto3" json:"use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,omitempty"`
+	unknownFields                                            protoimpl.UnknownFields
+	sizeCache                                                protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3976,6 +3979,13 @@ func (x *Metadata_Deviations) GetBgpGracefulRestartPeerGroupUnsupported() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress() bool {
+	if x != nil {
+		return x.UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4032,7 +4042,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xbe\xdf\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xc5\xe0\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4044,7 +4054,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8a\xd5\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x91\xd6\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4415,7 +4425,8 @@ const file_metadata_proto_rawDesc = "" +
 	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
 	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFt\x12^\n" +
 	"-oc_aaa_user_role_leaf_string_type_unsupported\x18\x8f\x03 \x01(\bR&ocAaaUserRoleLeafStringTypeUnsupported\x12\\\n" +
-	"+bgp_graceful_restart_peer_group_unsupported\x18\x90\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"+bgp_graceful_restart_peer_group_unsupported\x18\x90\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupported\x12\x84\x01\n" +
+	"Ause_interface_name_for_ibgp_neighbor_transport_ipv4_local_address\x18\x91\x03 \x01(\bR8useInterfaceNameForIbgpNeighborTransportIpv4LocalAddressJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

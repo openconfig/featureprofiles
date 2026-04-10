@@ -2055,3 +2055,9 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
 }
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if device needs LocalAddress that points to an interface name instead of IPv4 address for establishing BGP neighborship
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}

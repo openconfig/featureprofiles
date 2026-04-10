@@ -816,7 +816,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
 	localAddressLeaf := dutlo0Attrs.IPv4
-	if dut.Vendor() == ondatra.CISCO {
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
 		localAddressLeaf = loopbackIntfName
 	}
 	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
@@ -2396,7 +2396,7 @@ func TestGribiDecap(t *testing.T) {
 		configureDUT(t, dut)
 	})
 
-	t.Run("Apply vrf selectioin policy W to DUT port-1", func(t *testing.T) {
+	t.Run("Apply vrf selection policy W to DUT port-1", func(t *testing.T) {
 		configureVrfSelectionPolicyW(t, dut)
 	})
 
