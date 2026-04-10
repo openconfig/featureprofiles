@@ -162,16 +162,16 @@ func NextHopGroupConfig(t *testing.T, dut *ondatra.DUTDevice, traffictype string
 						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4AristaDyn)
 					}
 				} else {
-				switch TrafficType(traffictype) {
-				case TrafficTypeV4:
-					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
-				case TrafficTypeDS:
-					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
-					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
-				case TrafficTypeV6:
-					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
-				case TrafficTypeMCV4:
-					helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
+					switch TrafficType(traffictype) {
+					case TrafficTypeV4:
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV4Arista)
+					case TrafficTypeDS:
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV4Arista)
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigDualStackIPV6Arista)
+					case TrafficTypeV6:
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigIPV6Arista)
+					case TrafficTypeMCV4:
+						helpers.GnmiCLIConfig(t, dut, nextHopGroupConfigMulticloudIPV4Arista)
 					}
 				}
 			} else if params.StaticNHGName == "gre_encap" {
@@ -225,7 +225,7 @@ type StaticNextHopGroupParams struct {
 	DynamicValues    []DynamicStructParams
 	DynamicVal       bool
 	// TODO: b/417988636 - Set the MplsLabel to the correct value.
-	NHIPAddrs        []string
+	NHIPAddrs []string
 }
 
 type DynamicStructParams struct {
