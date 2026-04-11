@@ -525,7 +525,7 @@ func TestURPFNonDefaultNI(t *testing.T) {
 				if tc.isV4 {
 					configureGUEEncap(t, dut, "V4Udp", nexthopGroupNameV4, dutLoopback.IPv4, GUEPolicyV4Name, dstAddr, udpDestPort)
 				} else {
-					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv4, GUEPolicyV6Name, dstAddr, udpDestPort)
+					configureGUEEncap(t, dut, "V6Udp", nexthopGroupNameV6, dutLoopback.IPv6, GUEPolicyV6Name, dstAddr, udpDestPort)
 				}
 			}
 			var initialDropCount uint64
