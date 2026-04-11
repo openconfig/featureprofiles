@@ -775,7 +775,7 @@ func TestLacpMember(t *testing.T) {
 func TestP4rtInterfaceID(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if regexp.MustCompile("(?i)PTX10003.*").MatchString(dut.Model()) {
-		t.Skipf("Skipping test for DUT model %q ", dut.Model())
+		t.Skipf("Skipping test for DUT model %q", dut.Model())
 	}
 	dp := dut.Port(t, "port1")
 	d := &oc.Root{}
