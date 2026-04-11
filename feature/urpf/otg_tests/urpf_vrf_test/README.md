@@ -47,7 +47,7 @@ graph LR;
   - IPv6prefix2/64 to IPv6prefix3/64 at a rate of 100 packets/sec
 - Success Criteria:
   - All traffic should be dropped by DUT since the non-default vrf couldn't validate the SIP
-  - Validation shouldn't happen against the default route present in non-default vrf
+  - Validation shouldn't happen against the default route present in non-default vrf, if it happens then the packets won't be dropped which is not the success criteria for this test.
   - The uRPF drop packet counter should increment and should be equal to the packets sent by the sender tester
   - The packets sent by the sender tester are not equal to the packets on the receiving tester port and also the sum of packets seen by the Port2 should be zero packets.
 ### URPF-1.1.3 - uRPF with valid source IP address and GUE encapsulation
@@ -79,7 +79,7 @@ graph LR;
     - IPv6prefix2/64 to IPv6prefix3/64 at a rate of 100 packets/sec
 - Success Criteria:
     - All traffic should be dropped by DUT since the non-default vrf couldn't validate the source IP address of the flow
-    - Validation shouldn't happen against the default route present in non-default vrf
+    - Validation shouldn't happen against the default route present in non-default vrf, if it happens then the packets won't be dropped which is not the success criteria for this test.
     - The uRPF drop packet counter should increment and should be equal to the packets sent by the sender tester
     - The packets sent by the sender tester are not equal to the packets on the receiving tester port and also the sum of packets seen by the Port2 should be zero packets.
 
