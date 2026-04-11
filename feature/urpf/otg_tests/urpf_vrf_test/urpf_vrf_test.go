@@ -118,7 +118,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 
 	t.Log("Configuring Network Instances")
 	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVRF)
-	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultVRF, !isDefaultVRF)
+	cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultVRF, !isDefaultVRF)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv4, atePort1.IPv4, dutAS, ateAS1, "IPv4", true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort1.IPv6, atePort1.IPv6, dutAS, ateAS1, "IPv6", true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, atePort2.IPv4, dutAS, ateAS2, "IPv4", true)
