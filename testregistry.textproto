@@ -1298,6 +1298,14 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
 }
 test: {
+  id: "Replay-1.0"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
+}
+test: {
+  id: "Replay-1.1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
@@ -1676,6 +1684,12 @@ test: {
   id: "TRANSCEIVER-6.1"
   description: "400ZR Optics performance metrics (pm) streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_pm_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-7.1"
+  description: "Telemetry: 400ZR Optics inventory info streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_inventory_test/README.md"
   exec: " "
 }
 test: {
@@ -2347,3 +2361,4 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }
+
