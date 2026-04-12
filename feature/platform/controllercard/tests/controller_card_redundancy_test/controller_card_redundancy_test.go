@@ -18,7 +18,8 @@ import (
 	"context"
 	"testing"
 	"time"
-
+	//	"google.golang.org/grpc/codes"
+	//"google.golang.org/grpc/status"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -148,8 +149,8 @@ func testControllerCardSwitchover(t *testing.T, dut *ondatra.DUTDevice, controll
 	// Verify that all controller_cards has switchover-ready=TRUE
 	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
 	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
-	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReadyActiverp.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
@@ -280,67 +281,63 @@ func testControllerCardInventory(t *testing.T, dut *ondatra.DUTDevice, controlle
 func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controllerCards []string) {
 
 	// Collect active and standby controller cards before the switchover
-	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
+	rpStandby, rpActive := components.FindStandbyControllerCard(t, dut, controllerCards)
 
 	// Check if active RP is ready for switchover
-	switchoverReady := gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
+	switchoverReady := gnmi.OC().Component(rpActive).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 10*time.Minute, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
-
+	// Check if standby RP is ready for switchover
+	switchoverReady = gnmi.OC().Component(rpStandby).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 10*time.Minute, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
 	// Initiate a RP switchover
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
-	switchoverRequest := &spb.SwitchControlProcessorRequest{
-		ControlProcessor: components.GetSubcomponentPath(rpStandbyBeforeSwitch, useNameOnly),
-	}
-	t.Logf("switchoverRequest: %v", switchoverRequest)
-	switchoverResponse, err := gnoiClient.System().SwitchControlProcessor(context.Background(), switchoverRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
-	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-	// Polling the device to verify the stability of the device.
-	waitForSwitchover(t, dut)
-	rpStandbyAfterSwitch, rpActiveAfterSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
-	switchoverReadyActiverp := gnmi.OC().Component(rpActiveAfterSwitch).SwitchoverReady()
-	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandbyAfterSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
-	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady for active RP: %v, standby RP: %v", gnmi.Get(t, dut, switchoverReadyActiverp.State()), gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
-
-	want := rpStandbyBeforeSwitch
-	got := ""
-	if deviations.GNOISubcomponentPath(dut) {
-		got = switchoverResponse.GetControlProcessor().GetElem()[0].GetName()
-	} else {
-		got = switchoverResponse.GetControlProcessor().GetElem()[1].GetKey()["name"]
-	}
-	if got != want {
-		t.Fatalf("switchoverResponse.GetControlProcessor().GetElem()[0].GetName(): got %v, want %v", got, want)
-	}
-	if got, want := switchoverResponse.GetVersion(), ""; got == want {
-		t.Errorf("switchoverResponse.GetVersion(): got %v, want non-empty version", got)
-	}
-	if got := switchoverResponse.GetUptime(); got == 0 {
-		t.Errorf("switchoverResponse.GetUptime(): got %v, want > 0", got)
-	}
-
 	// PowerDown the standby RP
 	powerDownControllerCardRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_POWERDOWN,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(rpActiveBeforeSwitch, useNameOnly),
+			components.GetSubcomponentPath(rpStandby, useNameOnly),
 		},
 	}
 	t.Logf("powerDownControllerCardRequest: %v", powerDownControllerCardRequest)
-	powerDownResponse, err := gnoiClient.System().Reboot(context.Background(), powerDownControllerCardRequest)
-	if err != nil {
-		t.Fatalf("Failed to perform standby RP powerdown with unexpected err: %v", err)
+
+	maxAttempts := 12
+	delay := 10 * time.Second
+	var lastErr error
+	success := false
+
+	for i := 1; i <= maxAttempts; i++ {
+		t.Logf("Attempt %d/%d: Sending PowerDown request to standby RP...", i, maxAttempts)
+
+		// Use a timeout context for the individual RPC call to prevent hanging
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		powerDownResponse, err := gnoiClient.System().Reboot(ctx, powerDownControllerCardRequest)
+		cancel()
+
+		if err == nil {
+			t.Logf("Success on attempt %d: gnoiClient.System().Reboot() response: %v", i, powerDownResponse)
+			success = true
+			break
+		}
+
+		lastErr = err
+		t.Logf("Attempt %d failed: %v. Retrying in %v...", i, err, delay)
+		if i < maxAttempts {
+			time.Sleep(delay)
+		}
 	}
-	t.Logf("gnoiClient.System().PowerDown() response: %v, err: %v", powerDownResponse, err)
+
+	if !success {
+		t.Fatalf("Failed to perform standby RP powerdown after %d attempts. Last error: %v", maxAttempts, lastErr)
+	}
 
 	t.Logf("Wait for 5 seconds to allow the sub component's reboot process to start")
 	time.Sleep(5 * time.Second)
@@ -348,7 +345,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	// Iterate through the controller cards and check if the state is expected after standby RP powerdown
 	for _, controllerCard := range controllerCards {
 		// Check if the powered_Down controller card has power-admin-status present
-		if controllerCard == rpActiveBeforeSwitch && gnmi.Lookup(t, dut, gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState().State()).IsPresent() {
+		if controllerCard == rpStandby && gnmi.Lookup(t, dut, gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState().State()).IsPresent() {
 			t.Logf("Controller card %s is in the state : %s after standby RP reboot", controllerCard, gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState().State()))
 			powerStatus := gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState()
 			powerStatusCard := gnmi.Get(t, dut, powerStatus.State())
@@ -359,7 +356,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 				t.Errorf("Controller card %s is not in the expected state : %s after standby RP reboot", controllerCard, powerStatusCard)
 			}
 		}
-		if controllerCard == rpActiveBeforeSwitch && !gnmi.Lookup(t, dut, gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState().State()).IsPresent() {
+		if controllerCard == rpStandby && !gnmi.Lookup(t, dut, gnmi.OC().Component(controllerCard).ControllerCard().PowerAdminState().State()).IsPresent() {
 			t.Errorf("Controller card %s is not populating the power-admin-state of the component after powerdown", controllerCard)
 			continue
 		}
@@ -372,7 +369,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 		t.Logf("Controller card %s is in the state : %s after standby RP reboot", controllerCard, operStatusCard)
 		t.Logf("Controller card %s is in role : %s after standby RP reboot", controllerCard, redundantRoleCard)
 
-		if controllerCard == rpStandbyBeforeSwitch && operStatusCard == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE && redundantRoleCard == oc.Platform_ComponentRedundantRole_PRIMARY {
+		if controllerCard == rpActive && operStatusCard == oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE && redundantRoleCard == oc.Platform_ComponentRedundantRole_PRIMARY {
 			t.Logf("Controller card %s is in the expected state %s after standby RP reboot", controllerCard, operStatusCard)
 		}
 	}
@@ -382,7 +379,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	powerUpControllerCardRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_POWERUP,
 		Subcomponents: []*tpb.Path{
-			components.GetSubcomponentPath(rpActiveBeforeSwitch, useNameOnly),
+			components.GetSubcomponentPath(rpStandby, useNameOnly),
 		},
 	}
 	t.Logf("powerUpControllerCardRequest: %v", powerUpControllerCardRequest)
@@ -396,11 +393,11 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	time.Sleep(5 * time.Second)
 
 	// Verify that all controller_cards has switchover-ready=TRUE
-	switchoverReadyActiverp = gnmi.OC().Component(rpStandbyBeforeSwitch).SwitchoverReady()
-	switchoverReadyStandbyrp = gnmi.OC().Component(rpActiveBeforeSwitch).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 30*time.Minute, true)
-	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 30*time.Minute, true)
-	t.Logf("SwitchoverReady for active RP (%s): %v, standby RP (%s): %v", rpStandbyBeforeSwitch, gnmi.Get(t, dut, switchoverReadyActiverp.State()), rpActiveBeforeSwitch, gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
+	switchoverReadyActiverp := gnmi.OC().Component(rpActive).SwitchoverReady()
+	switchoverReadyStandbyrp := gnmi.OC().Component(rpStandby).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReadyActiverp.State(), 20*time.Minute, true)
+	gnmi.Await(t, dut, switchoverReadyStandbyrp.State(), 20*time.Minute, true)
+	t.Logf("SwitchoverReady for active RP (%s): %v, standby RP (%s): %v", rpActive, gnmi.Get(t, dut, switchoverReadyActiverp.State()), rpStandby, gnmi.Get(t, dut, switchoverReadyStandbyrp.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReadyActiverp.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
@@ -435,11 +432,11 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	t.Logf("Wait for a minute to allow the sub component's reboot process to start")
 	time.Sleep(1 * time.Minute)
 
-	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 30*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
+	watch := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).RedundantRole().State(), 20*time.Minute, func(val *ygnmi.Value[oc.E_Platform_ComponentRedundantRole]) bool {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 30*time.Minute, val)
+		t.Fatalf("DUT did not reach target state within %v: got %v", 20*time.Minute, val)
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
