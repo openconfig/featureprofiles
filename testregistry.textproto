@@ -856,6 +856,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "RT-1.36"
+  description: "AIGP feature support test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/aigp_test/README.md"
+  exec: " "
+}
+test: {
   id: "RT-1.51"
   description: "BGP multipath ECMP"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/multipath/otg_tests/bgp_multipath_ecmp_test/README.md"
@@ -1292,6 +1298,14 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/generate_route/otg_tests/generate_default_route/README.md"
 }
 test: {
+  id: "Replay-1.0"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/presession_test/README.md"
+}
+test: {
+  id: "Replay-1.1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/diff_command_trees/README.md"
+}
+test: {
   id: "Replay-1.2"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/replay/tests/p4rt_replay/README.md"
 }
@@ -1670,6 +1684,12 @@ test: {
   id: "TRANSCEIVER-6.1"
   description: "400ZR Optics performance metrics (pm) streaming."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_pm_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TRANSCEIVER-7.1"
+  description: "Telemetry: 400ZR Optics inventory info streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_inventory_test/README.md"
   exec: " "
 }
 test: {
@@ -2346,4 +2366,10 @@ test: {
   description: "Double GUE Decapsulation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
   exec: " "
+}
+test: {
+  id: "gNMI-1.28"
+  description: "Telemetry: Interface openconfig validation."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
 }
