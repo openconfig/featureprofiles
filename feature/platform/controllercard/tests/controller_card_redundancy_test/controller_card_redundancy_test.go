@@ -16,8 +16,6 @@ package controller_card_redundancy_test
 
 import (
 	"context"
-	"testing"
-	"time"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -29,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
