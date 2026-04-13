@@ -96,7 +96,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 								Plaintext: password,
 							},
 						},
-						Version:   "v1.0",
+						Version:   fmt.Sprintf("v1.0.%x", rand.Uint32()),
 						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
@@ -712,7 +712,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 		t.Errorf("Failed creating anypb payload.")
 	}
 	msg, err := authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil && msg != nil{
+	if err != nil && msg != nil {
 		t.Errorf("Error fetching authz policy, error: %s", err)
 	}
 

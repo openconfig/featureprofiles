@@ -164,7 +164,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut){
+		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(record))
 		}
 
