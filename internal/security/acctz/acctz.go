@@ -90,6 +90,7 @@ var (
 
 // var gRPCClientAddr net.Addr
 func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password string) {
+	passwordversion := fmt.Sprintf("v%d", time.Now().UnixNano())
 	request := &cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_Password{
 			Password: &cpb.PasswordRequest{
@@ -101,7 +102,7 @@ func setupUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password 
 								Plaintext: password,
 							},
 						},
-						Version:   "v1.0",
+						Version:   passwordversion,
 						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
@@ -521,18 +522,6 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	}
 
 	return conn, w
-}
-
-func getHostPortInfo(t *testing.T, address string) (string, uint32) {
-	ip, port, err := net.SplitHostPort(address)
-	if err != nil {
-		t.Fatal(err)
-	}
-	portNumber, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return ip, uint32(portNumber)
 }
 
 func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
