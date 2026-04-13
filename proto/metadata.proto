@@ -1243,6 +1243,9 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
     bool grpc_server_services_unsupported = 401;
 
+    // Pattern to identify temperature sensors by name.
+    string temp_sensor_name_pattern = 402;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }

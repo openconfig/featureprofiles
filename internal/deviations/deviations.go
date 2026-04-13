@@ -2062,3 +2062,8 @@ func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 func GrpcServerServicesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGrpcServerServicesUnsupported()
 }
+
+// TempSensorNamePattern returns the pattern to identify temperature sensors for this DUT.
+func TempSensorNamePattern(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetTempSensorNamePattern()
+}
