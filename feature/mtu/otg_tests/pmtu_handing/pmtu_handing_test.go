@@ -282,6 +282,14 @@ func isCompNameExpected(t *testing.T, name string, vendor ondatra.Vendor, icPatt
 	return r.MatchString(name)
 }
 
+func getFTCompatibleComponentName(t *testing.T, vendor ondatra.Vendor, componentName string, useFT bool) string {
+	t.Helper()
+	if useFT && vendor == ondatra.CISCO {
+		return strings.Replace(componentName, "-NPU", ":", 1)
+	}
+	return componentName
+}
+
 func captureAndValidateICMPPacketsReceived(t *testing.T, td testData, packetVal *packetValidation) {
 	td.otgConfig.Captures().Clear()
 	bytes := td.otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(packetVal.portName))
