@@ -18,8 +18,6 @@ import (
 	"context"
 	"testing"
 	"time"
-	//	"google.golang.org/grpc/codes"
-	//"google.golang.org/grpc/status"
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
