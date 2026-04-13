@@ -859,7 +859,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failAuthorizeUsername,
+				Identity: failuser,
 			},
 		},
 	})
