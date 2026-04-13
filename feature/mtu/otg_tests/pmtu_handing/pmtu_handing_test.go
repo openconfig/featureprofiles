@@ -575,7 +575,7 @@ func verifyFragmentTotalDrops(t *testing.T, td testData, outPkts uint64) {
 func verifyFragmentPunt(t *testing.T, td testData, outPkts uint64) {
 	if !deviations.FragmentPuntUnsupported(td.dut) {
 		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
-		opts := fptest.GetOptsForFunctionalTranslator(t, ftconsts.CiscoXRFragmentTranslator)
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
 		fragmentPuntCount := uint64(0)
 		t.Logf("Querying fragment-punt drops for all components:")
 		for _, ic := range ics {
@@ -607,7 +607,7 @@ func verifyFragmentPuntPkts(t *testing.T, td testData, outPkts uint64) {
 	if !deviations.FragmentPuntPktsUnsupported(td.dut) {
 		ics := components.FindComponentsByType(t, td.dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
 
-		opts := fptest.GetOptsForFunctionalTranslator(t, ftconsts.CiscoXRFragmentTranslator)
+		opts := fptest.GetOptsForFunctionalTranslator(t, deviations.FragmentPuntFt(td.dut))
 
 		fragmentPuntPktsCount := uint64(0)
 		t.Logf("Querying fragment-punt-pkts for all components:")

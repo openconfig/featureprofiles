@@ -1278,16 +1278,6 @@ func FragmentTotalDropsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFragmentTotalDropsUnsupported()
 }
 
-// FragmentPuntUnsupported returns true if the device does not support fragment punt drops.
-func FragmentPuntUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetFragmentPuntUnsupported()
-}
-
-// FragmentPuntPktsUnsupported returns true if the device does not support fragment punt pkts.
-func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetFragmentPuntPktsUnsupported()
-}
-
 // BgpPrefixsetReqRoutepolRef returns true if devices needs route policy reference to stream prefix set info.
 func BgpPrefixsetReqRoutepolRef(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpPrefixsetReqRoutepolRef()
@@ -2008,4 +1998,19 @@ func QosFt(dut *ondatra.DUTDevice) string {
 // SystemMountPointStateFt returns the functional translator name for devices with mount point state paths unsupported.
 func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
+}
+
+// FragmentPuntUnsupported returns true if the device does not support fragment punt drops.
+func FragmentPuntUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentPuntUnsupported()
+}
+
+// FragmentPuntPktsUnsupported returns true if the device does not support fragment punt pkts.
+func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentPuntPktsUnsupported()
+}
+
+// FragmentPuntFt returns the functional translator to be used for translating Fragment Punt OC paths.
+func FragmentPuntFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFragmentPuntFt()
 }
