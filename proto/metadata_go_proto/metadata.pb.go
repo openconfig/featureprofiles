@@ -1350,15 +1350,15 @@ type Metadata_Deviations struct {
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
 	// Functional Translator name for devices with mount point state paths unsupported.
 	SystemMountPointStateFt string `protobuf:"bytes,391,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
-	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
-	// Functional Translator name for devices with fragment punt state paths unsupported.
-	FragmentPuntStateFt string `protobuf:"bytes,392,opt,name=fragment_punt_state_ft,json=fragmentPuntStateFt,proto3" json:"fragment_punt_state_ft,omitempty"`
 	// Device does not support fragment punt drops.
-	FragmentPuntUnsupported bool `protobuf:"varint,393,opt,name=fragment_punt_unsupported,json=fragmentPuntUnsupported,proto3" json:"fragment_punt_unsupported,omitempty"`
+	FragmentPuntUnsupported bool `protobuf:"varint,392,opt,name=fragment_punt_unsupported,json=fragmentPuntUnsupported,proto3" json:"fragment_punt_unsupported,omitempty"`
 	// Device does not support fragment punt pkts.
-	FragmentPuntPktsUnsupported bool `protobuf:"varint,394,opt,name=fragment_punt_pkts_unsupported,json=fragmentPuntPktsUnsupported,proto3" json:"fragment_punt_pkts_unsupported,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	FragmentPuntPktsUnsupported bool `protobuf:"varint,393,opt,name=fragment_punt_pkts_unsupported,json=fragmentPuntPktsUnsupported,proto3" json:"fragment_punt_pkts_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+	// Functional translator to be used for Fragment Punt OC paths
+	FragmentPuntFt string `protobuf:"bytes,394,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -3890,13 +3890,6 @@ func (x *Metadata_Deviations) GetSystemMountPointStateFt() string {
 	return ""
 }
 
-func (x *Metadata_Deviations) GetFragmentPuntStateFt() string {
-	if x != nil {
-		return x.FragmentPuntStateFt
-	}
-	return ""
-}
-
 func (x *Metadata_Deviations) GetFragmentPuntUnsupported() bool {
 	if x != nil {
 		return x.FragmentPuntUnsupported
@@ -3909,6 +3902,13 @@ func (x *Metadata_Deviations) GetFragmentPuntPktsUnsupported() bool {
 		return x.FragmentPuntPktsUnsupported
 	}
 	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntFt() string {
+	if x != nil {
+		return x.FragmentPuntFt
+	}
+	return ""
 }
 
 type Metadata_PlatformExceptions struct {
@@ -3967,7 +3967,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xef\xdb\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe4\xdb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3979,7 +3979,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xbb\xd1\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb0\xd1\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4341,10 +4341,10 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12V\n" +
 	"(explicitly_apply_allow_all_import_policy\x18\x85\x03 \x01(\bR#explicitlyApplyAllowAllImportPolicy\x12\x16\n" +
 	"\x06qos_ft\x18\x86\x03 \x01(\tR\x05qosFt\x12=\n" +
-	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x124\n" +
-	"\x16fragment_punt_state_ft\x18\x88\x03 \x01(\tR\x13fragmentPuntStateFt\x12;\n" +
-	"\x19fragment_punt_unsupported\x18\x89\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
-	"\x1efragment_punt_pkts_unsupported\x18\x8a\x03 \x01(\bR\x1bfragmentPuntPktsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12;\n" +
+	"\x19fragment_punt_unsupported\x18\x88\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
+	"\x1efragment_punt_pkts_unsupported\x18\x89\x03 \x01(\bR\x1bfragmentPuntPktsUnsupported\x12)\n" +
+	"\x10fragment_punt_ft\x18\x8a\x03 \x01(\tR\x0efragmentPuntFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
