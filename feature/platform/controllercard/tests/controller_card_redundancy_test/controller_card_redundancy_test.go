@@ -285,14 +285,14 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	// Check if active RP is ready for switchover
 	switchoverReady := gnmi.OC().Component(rpActive).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 10*time.Minute, true)
-        t.Logf("SwitchoverReady for active RP (%s): %v", rpActive, gnmi.Get(t, dut, switchoverReady.State()))
+	t.Logf("SwitchoverReady for active RP (%s): %v", rpActive, gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
 	// Check if standby RP is ready for switchover
 	switchoverReady = gnmi.OC().Component(rpStandby).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 10*time.Minute, true)
-        t.Logf("SwitchoverReady for standby RP (%s): %v", rpStandby, gnmi.Get(t, dut, switchoverReady.State()))
+	t.Logf("SwitchoverReady for standby RP (%s): %v", rpStandby, gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
 	}
