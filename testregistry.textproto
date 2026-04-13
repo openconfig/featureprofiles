@@ -1687,6 +1687,12 @@ test: {
   exec: " "
 }
 test: {
+  id: "TRANSCEIVER-7.1"
+  description: "Telemetry: 400ZR Optics inventory info streaming"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_inventory_test/README.md"
+  exec: " "
+}
+test: {
   id: "TRANSCEIVER-8.1"
   description: "400ZR Optics module temperature streaming"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/transceiver/tests/zr_temperature_test/README.md"
