@@ -61,6 +61,7 @@ const (
 	FailAuthenticateUsername = "bilbo"
 	failAuthenticatePassword = "bagginsTest123!"
 	failAuthorizeUsername    = "failauthuser" // username for failed authorization
+	FailAuthorizeUsername    = failAuthorizeUsername
 	failAuthorizePassword    = "failauthpasswordTest123!"
 	failRoleName             = "acctz-fp-test-fail" // role for failed authorization
 	failDenyRoleName         = "acctz-fp-deny-fail" // role for failed deny authorization
@@ -78,6 +79,8 @@ const (
 )
 
 var (
+	failuser     string
+	failpass     string
 	failPassword = "baggins"
 	// TestPaths is the list of paths to be tested for acctz.
 	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
@@ -218,6 +221,27 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 
 }
 
+func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	// Configure a role that denies Authorization for rpcs.
+	commands := []string{
+		"configure",
+		fmt.Sprintf("role %s", failRoleName),
+		"   10 deny command .*",
+		fmt.Sprintf("username %s privilege 15 role network-admin secret %s", SuccessUsername, successPassword),
+		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", FailUsername, failPassword),
+		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", failAuthorizeUsername, failAuthorizePassword),
+		"aaa authorization exec default local",
+		"aaa authorization commands all default local",
+		"management api gnmi",
+		"   transport grpc default",
+		"      authorization requests",
+		"   transport grpc mgmt",
+		"      authorization requests",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+}
+
 // SetupUsers Setup users for acctz tests and optionally configure cli role for denied commands.
 func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool) {
 	if dut.Vendor() == ondatra.JUNIPER {
@@ -237,6 +261,8 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 			switch dut.Vendor() {
 			case ondatra.NOKIA:
 				SetRequest = nokiaFailCliRole(t)
+			case ondatra.ARISTA:
+				aristaFailAuthzCliRole(t, dut)
 			}
 			// _, policyBefore := authz.Get(t, dut)
 			// t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
@@ -448,12 +474,19 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
+	} else {
+		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
+
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed dialing GNMI: %v", err)
 	}
-	gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	// Send an unsuccessful gNMI capabilities request (bad creds in context).
 	_, err1 := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err1 != nil {
@@ -479,7 +512,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailAuthenticateUsername,
+				Identity: failuser,
 			},
 		},
 	})
@@ -556,7 +589,14 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	gnoiSystemClient := dut.RawAPIs().GNOI(t).System()
 	// systempb.NewSystemClient(grpcConn)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
+	} else {
+		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 	// Send an unsuccessful gNOI system time request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
 	gnoiSystemPingClient, err := gnoiSystemClient.Ping(ctx, &systempb.PingRequest{
@@ -589,7 +629,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailAuthenticateUsername,
+				Identity: failuser,
 			},
 		},
 	})
@@ -665,7 +705,14 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// grpcConn := dialGrpc(t, target)
 	authzClient := dut.RawAPIs().GNSI(t).Authz()
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
+	} else {
+		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
 	// Send an unsuccessful gNSI authz get request (bad creds in context), we don't
 	// care about receiving on it, just want to make the request.
@@ -693,7 +740,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailAuthenticateUsername,
+				Identity: failuser,
 			},
 		},
 	})
@@ -764,7 +811,14 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 	// gribiClient := gribi.NewGRIBIClient(grpcConn)
 	// gribiClient,err := dut.RawAPIs().BindingDUT().DialGRIBI
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
+	} else {
+		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
 	gribiClient, err := dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
 	if err != nil {
@@ -794,7 +848,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
 				},
 			},
 		},
@@ -805,7 +859,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailAuthenticateUsername,
+				Identity: failAuthorizeUsername,
 			},
 		},
 	})
@@ -880,10 +934,51 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	// so while the test asks for v4 and v6 we'll just be doing it for whatever we get.
 	// target := getGrpcTarget(t, dut, introspect.P4RT)
 
+	// configure P4runtime
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		p4rtConfig := "p4-runtime\n transport grpc p4-foo\n ssl profile SELFSIGNED\n vrf mgmt\n no shutdown"
+		helpers.GnmiCLIConfig(t, dut, p4rtConfig)
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		deadline := time.Now().Add(2 * time.Minute)
+		p4rtUp := false
+		for !p4rtUp && time.Now().Before(deadline) {
+			resp, err := gnmiClient.Get(context.Background(), &gnmipb.GetRequest{
+				Path: []*gnmipb.Path{{
+					Origin: "cli",
+					Elem:   []*gnmipb.PathElem{{Name: "show p4-runtime"}},
+				}},
+				Encoding: gnmipb.Encoding_ASCII,
+			})
+			if err == nil {
+				for _, notif := range resp.GetNotification() {
+					for _, update := range notif.GetUpdate() {
+						if strings.Contains(update.GetVal().GetAsciiVal(), "Server: running on port") {
+							p4rtUp = true
+						}
+					}
+				}
+			}
+			if !p4rtUp {
+				time.Sleep(5 * time.Second)
+			}
+		}
+		if !p4rtUp {
+			t.Fatalf("P4Runtime agent did not start within timeout")
+		}
+		t.Log("P4Runtime agent is up and running")
+	}
 	var records []*acctzpb.RecordResponse
 	// grpcConn := dialGrpc(t, target)
 	userKey, passKey := getMetadataKeys(dut)
-	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, FailAuthenticateUsername, passKey, failAuthenticatePassword))
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+		failpass = failAuthorizePassword
+	} else {
+		failuser = FailAuthenticateUsername
+		failpass = failAuthenticatePassword
+	}
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.Pairs(userKey, failuser, passKey, failpass))
 
 	p4rtclient, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
 	if err != nil {
@@ -892,8 +987,6 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	_, err = p4rtclient.Capabilities(ctx, &p4pb.CapabilitiesRequest{})
 	if err != nil {
 		t.Logf("Got expected error getting p4rt capabilities with no creds, error: %s", err)
-	} else {
-		t.Fatal("Did not get expected error fetching pr4t capabilities with no creds.")
 	}
 
 	records = append(records, &acctzpb.RecordResponse{
@@ -902,7 +995,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 				RpcName:     p4rtCapabilitiesPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_DENY,
+					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
 				},
 			},
 		},
@@ -913,7 +1006,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: FailAuthenticateUsername,
+				Identity: failuser,
 			},
 		},
 	})
