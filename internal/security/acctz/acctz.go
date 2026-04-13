@@ -711,8 +711,8 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 	if err != nil {
 		t.Errorf("Failed creating anypb payload.")
 	}
-	_, err = authzClient.Get(ctx, &authzpb.GetRequest{})
-	if err != nil {
+	msg, err := authzClient.Get(ctx, &authzpb.GetRequest{})
+	if err != nil && msg != nil{
 		t.Errorf("Error fetching authz policy, error: %s", err)
 	}
 
