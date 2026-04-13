@@ -24,11 +24,13 @@ import (
 	"io"
 	"net"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
@@ -231,8 +233,11 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		fmt.Sprintf("username %s privilege 15 role network-admin secret %s", SuccessUsername, successPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", FailUsername, failPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", failAuthorizeUsername, failAuthorizePassword),
+		"aaa authentication login default local",
 		"aaa authorization exec default local",
 		"aaa authorization commands all default local",
+		"management ssh",
+		"   authentication protocol password",
 		"management api gnmi",
 		"   transport grpc default",
 		"      authorization requests",
@@ -308,28 +313,37 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 // 	return resolvedTarget.String()
 // }
 
+// getSSHTarget returns the target for the SSH service.
 func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
-
 	if staticBinding {
-		bindingFile := flag.Lookup("binding").Value.String()
-		in, _ := os.ReadFile(bindingFile)
+		f := flag.Lookup("binding")
+		if f == nil {
+			t.Fatal("'binding' flag not found. This is usually defined by Ondatra.")
+		}
+		bindingFile := f.Value.String()
+		in, err := os.ReadFile(bindingFile)
+		if err != nil {
+			t.Fatalf("failed to read binding file: %v", err)
+		}
 		b := &bindpb.Binding{}
 		if err := prototext.Unmarshal(in, b); err != nil {
-			t.Fatalf("unable to parse binding file")
+			t.Fatalf("unable to parse binding file: %v", err)
 		}
-		var target string
-		for _, dut := range b.Duts {
-			sshTarget := strings.Split(dut.Ssh.Target, ":")
-			sshIp := sshTarget[0]
-			sshPort := "22"
-			if len(sshTarget) > 1 {
-				sshPort = sshTarget[1]
+		for _, d := range b.Duts {
+			if d.Id == dut.ID() {
+				sshTarget := strings.Split(d.Ssh.Target, ":")
+				sshIp := sshTarget[0]
+				sshPort := "22"
+				if len(sshTarget) > 1 {
+					sshPort = sshTarget[1]
+				}
+				target := fmt.Sprintf("%s:%s", sshIp, sshPort)
+				t.Logf("Target for ssh service: %s", target)
+				return target
 			}
-			target = fmt.Sprintf("%s:%s", sshIp, sshPort)
-			t.Logf("Target for ssh service: %s", target)
 		}
-		return target
-
+		t.Fatalf("DUT %s not found in binding file", dut.ID())
+		return ""
 	} else {
 		var serviceDUT interface {
 			Service(string) (*tpb.Service, error)
@@ -344,7 +358,16 @@ func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) stri
 			dialTarget := fmt.Sprintf("%s:%d", dut.Name(), defaultSSHPort)
 			resolvedTarget, err := net.ResolveTCPAddr("tcp", dialTarget)
 			if err != nil {
-				t.Fatalf("Failed resolving ssh target %s", dialTarget)
+				t.Logf("Failed resolving ssh target %s, will try with fqdn", dialTarget)
+				domain := "net.google.com"
+				if args.Fqdn != nil {
+					domain = *args.Fqdn
+				}
+				dialTarget = fmt.Sprintf("%s.%s:%d", dut.Name(), domain, defaultSSHPort)
+				resolvedTarget, err = net.ResolveTCPAddr("tcp", dialTarget)
+				if err != nil {
+					t.Fatalf("Failed resolving ssh target %s", dialTarget)
+				}
 			}
 			target = resolvedTarget.String()
 		} else {
@@ -389,28 +412,81 @@ func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) stri
 // 	return conn
 // }
 
-func dialSSH(t *testing.T, username, password, target string) (*ssh.Client, io.WriteCloser) {
-	conn, err := ssh.Dial(
-		"tcp",
-		target,
-		&ssh.ClientConfig{
-			User: username,
-			Auth: []ssh.AuthMethod{
-				ssh.Password(password),
-				ssh.KeyboardInteractive(
-					func(user, instruction string, questions []string, echos []bool) ([]string, error) {
-						answers := make([]string, len(questions))
-						for i := range answers {
-							answers[i] = password
-						}
-						return answers, nil
-					},
-				),
-			},
-			HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
-		})
-	if err != nil {
-		t.Fatalf("Got unexpected error dialing ssh target %s, error: %v", target, err)
+func extractRawSSHClient(c binding.SSHClient) *ssh.Client {
+	v := reflect.ValueOf(c)
+	if !v.IsValid() {
+		return nil
+	}
+	for v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface {
+		if v.IsNil() {
+			return nil
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return nil
+	}
+	// Try to find a field of type *ssh.Client by name "Client" first.
+	f := v.FieldByName("Client")
+	if f.IsValid() && f.Type().String() == "*ssh.Client" {
+		return f.Interface().(*ssh.Client)
+	}
+	// If not found, iterate through all fields and return the first *ssh.Client found.
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		if field.Type().String() == "*ssh.Client" {
+			return field.Interface().(*ssh.Client)
+		}
+	}
+	return nil
+}
+
+func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target string) (*ssh.Client, io.WriteCloser) {
+	var conn *ssh.Client
+	var err error
+
+	// Try using the binding's DialSSH first as it may handle proxies/gateways.
+	auth := binding.PasswordAuth{
+		User:     username,
+		Password: password,
+	}
+	t.Logf("Attempting to dial SSH to %s with user %s", target, username)
+	if bClient, bErr := dut.RawAPIs().BindingDUT().DialSSH(context.Background(), auth); bErr == nil {
+		t.Logf("BindingDUT().DialSSH succeeded for target %s", target)
+		if raw := extractRawSSHClient(bClient); raw != nil {
+			t.Logf("Successfully extracted raw ssh.Client from binding client")
+			conn = raw
+		} else {
+			t.Logf("extractRawSSHClient failed to find *ssh.Client in binding client")
+		}
+	} else {
+		t.Logf("BindingDUT().DialSSH failed for target %s: %v", target, bErr)
+	}
+
+	if conn == nil {
+		conn, err = ssh.Dial(
+			"tcp",
+			target,
+			&ssh.ClientConfig{
+				User: username,
+				Auth: []ssh.AuthMethod{
+					ssh.Password(password),
+					ssh.KeyboardInteractive(
+						func(user, instruction string, questions []string, echos []bool) ([]string, error) {
+							answers := make([]string, len(questions))
+							for i := range answers {
+								answers[i] = password
+							}
+							return answers, nil
+						},
+					),
+				},
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(), // lgtm[go/insecure-hostkeycallback]
+				Timeout:         120 * time.Second,
+			})
+		if err != nil {
+			t.Fatalf("Got unexpected error dialing ssh target %s, error: %v", target, err)
+		}
 	}
 
 	sess, err := conn.NewSession()
@@ -859,7 +935,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
-				Identity: failuser,
+				Identity: failAuthorizeUsername,
 			},
 		},
 	})
@@ -1071,7 +1147,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 
 	var records []*acctzpb.RecordResponse
 
-	sshConn, w := dialSSH(t, SuccessUsername, successPassword, target)
+	sshConn, w := dialSSH(t, dut, SuccessUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -1087,8 +1163,8 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	var authnField *acctzpb.AuthnDetail
 
@@ -1108,6 +1184,10 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		userRole = "root-lr, cisco-support"
+	case ondatra.NOKIA:
+		userRole = "admin"
+	case ondatra.ARISTA:
+		userRole = "network-admin"
 	default:
 		userRole = ""
 	}
@@ -1123,13 +1203,13 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
-			Authn:         authnField,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
+			Authn:   authnField,
 			User: &acctzpb.UserDetail{
 				Identity: SuccessUsername,
 				Role:     userRole,
@@ -1148,8 +1228,12 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	target := getSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
-	sshConn, w := dialSSH(t, failAuthorizeUsername, failAuthorizePassword, target)
-
+	sshConn, w := dialSSH(t, dut, failAuthorizeUsername, failAuthorizePassword, target)
+	if dut.Vendor() == ondatra.ARISTA {
+		failuser = failAuthorizeUsername
+	} else {
+		failuser = FailAuthenticateUsername
+	}
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -1165,8 +1249,8 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	var authnField *acctzpb.AuthnDetail
 
@@ -1193,6 +1277,18 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 		}
 	}
 
+	var userRole string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		userRole = "root-lr, cisco-support"
+	case ondatra.NOKIA:
+		userRole = "admin"
+	case ondatra.ARISTA:
+		userRole = "acctz-fp-test-fail"
+	default:
+		userRole = ""
+	}
+
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
 			CmdService: &acctzpb.CommandService{
@@ -1202,16 +1298,16 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
-			Authn:         authnField,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
+			Authn:   authnField,
 			User: &acctzpb.UserDetail{
-				Identity: failAuthorizeUsername,
-				Role:     failRoleName,
+				Identity: failuser,
+				Role:     userRole,
 			},
 		},
 	})
@@ -1238,7 +1334,19 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 		shellPassword = "NokiaSrl1!"
 	}
 
-	sshConn, w := dialSSH(t, shellUsername, shellPassword, target)
+	var userRole string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		userRole = "root-lr, cisco-support"
+	case ondatra.NOKIA:
+		userRole = "admin"
+	case ondatra.ARISTA:
+		userRole = "network-admin"
+	default:
+		userRole = ""
+	}
+
+	sshConn, w := dialSSH(t, dut, shellUsername, shellPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
 		time.Sleep(3 * time.Second)
@@ -1256,8 +1364,8 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	}
 
 	// Remote from the perspective of the router.
-	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
-	localIP, localPort := getHostPortInfo(t, target)
+	// remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	// localIP, localPort := getHostPortInfo(t, target)
 
 	records = append(records, &acctzpb.RecordResponse{
 		ServiceRequest: &acctzpb.RecordResponse_CmdService{
@@ -1270,18 +1378,19 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 			},
 		},
 		SessionInfo: &acctzpb.SessionInfo{
-			Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
-			LocalAddress:  localIP,
-			LocalPort:     localPort,
-			RemoteAddress: remoteIP,
-			RemotePort:    remotePort,
-			IpProto:       ipProto,
+			Status: acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+			// LocalAddress:  localIP,
+			// LocalPort:     localPort,
+			// RemoteAddress: remoteIP,
+			// RemotePort:    remotePort,
+			IpProto: ipProto,
 			Authn: &acctzpb.AuthnDetail{
 				Type:   acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED,
 				Status: acctzpb.AuthnDetail_AUTHN_STATUS_UNSPECIFIED,
 			},
 			User: &acctzpb.UserDetail{
 				Identity: shellUsername,
+				Role:     userRole,
 			},
 		},
 	})
