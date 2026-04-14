@@ -151,7 +151,6 @@ func TestLowPowerMode(t *testing.T) {
 			perfMonSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
 				perfMonSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
-				perfMonSamplingInterval *= time.Second // JN don't merge
 			}
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), perfMonSamplingInterval)
 			defer opInst.Close()
