@@ -222,6 +222,10 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ssecurity/gnsi/certz/trust_bundle_rotation/README.md"
 }
 test: {
+  id: "CFM-1.1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/README.md"
+}
+test: {
   id: "CNTR-3"
   description: "Container Supervisor Failover"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/failover/tests/supervisor_failover/README.md"
@@ -2144,6 +2148,11 @@ test: {
 test: {
   id: "gNOI-6.1"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/factory_reset/tests/factory_reset_test/README.md"
+}
+test: {
+  id: "gNOI-7.1"
+  description: "BootConfig"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnoi/secure_boot/tests/bootconfig/README.md"
 }
 test: {
   id: "gNPSI-1"
