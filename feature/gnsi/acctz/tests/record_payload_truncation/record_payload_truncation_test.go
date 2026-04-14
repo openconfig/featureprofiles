@@ -57,7 +57,7 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		default:
 			nstatRoutes = 254
 		}
-		for j := 0; j < 254; j++ {
+		for j := 0; j < nstatRoutes; j++ {
 			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
 			nh1 := sr1.GetOrCreateNextHop("0")
 			nh1.NextHop = oc.UnionString(nhAddress)
