@@ -24,5 +24,6 @@ platform_exceptions: {
   }
   deviations: {
     qos_queue_requires_id: true
+    static_mpls_lsp_oc_unsupported: true
   }
 }

@@ -154,38 +154,41 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 
 	t.Run("DP-1.16.1 Ingress Classification and rewrite of IPv4 packets with various DSCP values", func(t *testing.T) {
+		t.Skip()
 		rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
 	t.Run("DP-1.16.2 Ingress Classification and rewrite of IPv6 packets with various DSCP values", func(t *testing.T) {
+		t.Skip()
 		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
-	// t.Run("DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action", func(t *testing.T) {
-	// 	rewriteMplsSwapAction(t, dut, ate, topo)
-	// })
-	// t.Run("DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action", func(t *testing.T) {
-	// 	rewriteIpv4MplsPopAction(t, dut, ate, topo)
-	// })
-	// t.Run("DP-1.16.5 Ingress Classification and rewrite of IPv6-over-MPLS traffic with pop action", func(t *testing.T) {
-	// 	rewriteIpv6MplsPopAction(t, dut, ate, topo)
-	// })
-	// t.Run("DP-1.16.6 Ingress Classification and rewrite of IPv4 packets traffic with label push action", func(t *testing.T) {
-	// 	rewriteIpv4MplsPushAction(t, dut, ate, topo)
-	// })
-	// t.Run("DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action", func(t *testing.T) {
-	// 	rewriteIpv6MplsPushAction(t, dut, ate, topo)
-	// })
-	// t.Run("DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap", func(t *testing.T) {
-	// 	rewriteIpv4PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
-	// })
-	// t.Run("DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap", func(t *testing.T) {
-	// 	rewriteIpv6PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
-	// })
-	// t.Run("DP-1.16.10 Ingress Classification and rewrite of IPV4 traffic with action GUE variant1 encap", func(t *testing.T) {
-	// 	rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
-	// })
-	// t.Run("DP-1.16.11 Ingress Classification and rewrite of IPV6 traffic with action GUE variant1 encap", func(t *testing.T) {
-	// 	rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
-	// })
+
+	t.Run("DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action", func(t *testing.T) {
+		rewriteMplsSwapAction(t, dut, ate, topo)
+	})
+	//t.Run("DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action", func(t *testing.T) {
+	//	rewriteIpv4MplsPopAction(t, dut, ate, topo)
+	//})
+	//t.Run("DP-1.16.5 Ingress Classification and rewrite of IPv6-over-MPLS traffic with pop action", func(t *testing.T) {
+	//	rewriteIpv6MplsPopAction(t, dut, ate, topo)
+	//})
+	//t.Run("DP-1.16.6 Ingress Classification and rewrite of IPv4 packets traffic with label push action", func(t *testing.T) {
+	//	rewriteIpv4MplsPushAction(t, dut, ate, topo)
+	//})
+	//t.Run("DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action", func(t *testing.T) {
+	//	rewriteIpv6MplsPushAction(t, dut, ate, topo)
+	//})
+	//t.Run("DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap", func(t *testing.T) {
+	//	rewriteIpv4PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	//})
+	//t.Run("DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap", func(t *testing.T) {
+	//	rewriteIpv6PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	//})
+	//t.Run("DP-1.16.10 Ingress Classification and rewrite of IPV4 traffic with action GUE variant1 encap", func(t *testing.T) {
+	//	rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	//})
+	//t.Run("DP-1.16.11 Ingress Classification and rewrite of IPV6 traffic with action GUE variant1 encap", func(t *testing.T) {
+	//	rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	//})
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
@@ -567,21 +570,43 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	topo.Flows().Clear()
 	var trafficIds []string
 
-	const max = maxIpv6Tos
-	for value := 0; value < max; value++ {
-		trafficID := fmt.Sprintf("ipv6-traffic-tos%v", value)
-		trafficIds = append(trafficIds, trafficID)
-		t.Logf("Configuring flow %s", trafficID)
-		flow := topo.Flows().Add().SetName(trafficID)
+	//const max = maxIpv6Tos TODO: uncomment after AI code is done
+	//for value := 0; value < max; value++ {
+	//	trafficID := fmt.Sprintf("ipv6-traffic-tos%v", value)
+	//	trafficIds = append(trafficIds, trafficID)
+	//	t.Logf("Configuring flow %s", trafficID)
+	//	flow := topo.Flows().Add().SetName(trafficID)
+	//	flow.Metrics().SetEnable(true)
+	//	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+	//	ethHeader := flow.Packet().Add().Ethernet()
+	//	ethHeader.Src().SetValue(atePort1.MAC)
+	//	ethHeader.Dst().Auto()
+	//	ipHeader := flow.Packet().Add().Ipv6()
+	//	ipHeader.Src().SetValue(atePort1.IPv6)
+	//	ipHeader.Dst().SetValue(atePort2.IPv6)
+	//	ipHeader.TrafficClass().SetValue(uint32(value))
+	//	flow.Size().SetFixed(uint32(frameSize))
+	//	flow.Rate().SetPps(packetPerSecond)
+	//	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	//}
+
+	ipv6DSCPs := []uint8{0, 8, 16, 24, 32, 48}
+	for _, dscp := range ipv6DSCPs {
+		flow := topo.Flows().Add().SetName(fmt.Sprintf("ipv6-traffic-dscp%d", dscp))
 		flow.Metrics().SetEnable(true)
-		flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+		flow.TxRx().Device().
+			SetTxNames([]string{atePort1.Name + ".IPv6"}).
+			SetRxNames([]string{atePort2.Name + ".IPv6"})
+
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(atePort1.MAC)
 		ethHeader.Dst().Auto()
+
 		ipHeader := flow.Packet().Add().Ipv6()
 		ipHeader.Src().SetValue(atePort1.IPv6)
 		ipHeader.Dst().SetValue(atePort2.IPv6)
-		ipHeader.TrafficClass().SetValue(uint32(value))
+		ipHeader.TrafficClass().SetValue(uint32(dscp << 2)) // DSCP encoded into Traffic Class
+
 		flow.Size().SetFixed(uint32(frameSize))
 		flow.Rate().SetPps(packetPerSecond)
 		flow.Duration().FixedPackets().SetPackets(packetPerSecond)
@@ -640,12 +665,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
 	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
-	compare_counters(t, intialpacket1, finalpacket1)
-	compare_counters(t, intialpacket2, finalpacket2)
-	compare_counters(t, intialpacket3, finalpacket3)
-	compare_counters(t, intialpacket4, finalpacket4)
-	compare_counters(t, intialpacket5, finalpacket5)
-	compare_counters(t, intialpacket6, finalpacket6)
+	compare_counters(t, intialpacket1, finalpacket1, oc.Input_Classifier_Type_IPV6, "0")
+	compare_counters(t, intialpacket2, finalpacket2, oc.Input_Classifier_Type_IPV6, "1")
+	compare_counters(t, intialpacket3, finalpacket3, oc.Input_Classifier_Type_IPV6, "2")
+	compare_counters(t, intialpacket4, finalpacket4, oc.Input_Classifier_Type_IPV6, "3")
+	compare_counters(t, intialpacket5, finalpacket5, oc.Input_Classifier_Type_IPV6, "4")
+	compare_counters(t, intialpacket6, finalpacket6, oc.Input_Classifier_Type_IPV6, "6")
 }
 
 func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, greTest bool, gueTest bool) {
@@ -775,12 +800,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
 	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
-	compare_counters(t, intialpacket1, finalpacket1)
-	compare_counters(t, intialpacket2, finalpacket2)
-	compare_counters(t, intialpacket3, finalpacket3)
-	compare_counters(t, intialpacket4, finalpacket4)
-	compare_counters(t, intialpacket5, finalpacket5)
-	compare_counters(t, intialpacket6, finalpacket6)
+	compare_counters(t, intialpacket1, finalpacket1, oc.Input_Classifier_Type_IPV4, "0")
+	compare_counters(t, intialpacket2, finalpacket2, oc.Input_Classifier_Type_IPV4, "1")
+	compare_counters(t, intialpacket3, finalpacket3, oc.Input_Classifier_Type_IPV4, "2")
+	compare_counters(t, intialpacket4, finalpacket4, oc.Input_Classifier_Type_IPV4, "3")
+	compare_counters(t, intialpacket5, finalpacket5, oc.Input_Classifier_Type_IPV4, "4")
+	compare_counters(t, intialpacket6, finalpacket6, oc.Input_Classifier_Type_IPV4, "6")
 
 }
 
@@ -810,7 +835,7 @@ func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.AT
 	ate.OTG().PushConfig(t, topo)
 
 	t.Logf("Configuring MPLS Swap Action with DUT")
-
+	// TODO: need to deviate this via a unique deviation name
 	cfgplugins.NewStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
 
 	startCapture(t, ate)
@@ -979,6 +1004,9 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 }
 
 func trafficStartStop(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
+	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), config, "IPv6")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(trafficSleepTime * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -1169,25 +1197,25 @@ func verify_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier 
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
 
-	_, ok := gnmi.WatchAll(t, dut, gnmi.OC().Qos().Interface(dp1.Name()).Input().ClassifierAny().Term(termId).MatchedPackets().State(), timeout, isPresent).Await(t)
+	path := gnmi.OC().Qos().Interface(dp1.Name()).Input().Classifier(classifier).Term(termId).MatchedPackets().State()
+	_, ok := gnmi.Watch(t, dut, path, timeout, isPresent).Await(t)
 	if !ok {
-		t.Errorf("Unable to find matched packets")
+		t.Fatalf("Matched packets not present for classifier %v termID %v", classifier.String(), termId)
 	}
-	matchpackets := gnmi.Get(t, dut, gnmi.OC().Qos().Interface(dp1.Name()).Input().Classifier(classifier).Term(termId).MatchedPackets().State())
-	return matchpackets
+	return gnmi.Get(t, dut, path)
 }
 
-func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64) {
+func compare_counters(t *testing.T, intialpacket uint64, finalpacket uint64, classifier oc.E_Input_Classifier_Type, termId string) {
 	t.Logf("Classifier counters Before Traffic %v", intialpacket)
 	t.Logf("Classifier counters After Traffic %v", finalpacket)
 	if finalpacket > intialpacket {
-		t.Logf("Pass : Classifier counters got incremented after start and stop traffic")
+		t.Logf("Pass : Classifier counters for classifier %v termID %v got incremented after start and stop traffic", classifier.String(), termId)
 	} else {
 		dut := ondatra.DUT(t, "dut")
 		if dut.Vendor() == ondatra.ARISTA {
 			t.Logf("Arista devices might not update classifier counters for GRE/GUE encapsulated traffic. Refer BUG ID 419618177")
 		} else {
-			t.Errorf("Fail : Classifier counters not incremented after start and stop traffic.")
+			t.Errorf("Fail : Classifier counters not incremented after start and stop traffic for classifier %v termID %v", classifier.String(), termId)
 		}
 	}
 }

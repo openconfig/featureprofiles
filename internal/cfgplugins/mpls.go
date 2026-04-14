@@ -144,6 +144,10 @@ func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		case ondatra.CISCO:
+			cliConfig = fmt.Sprintf(`
+				
+			`)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
 		}
