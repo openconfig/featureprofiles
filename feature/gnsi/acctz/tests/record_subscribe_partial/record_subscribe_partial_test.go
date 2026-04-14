@@ -143,7 +143,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
 		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn", "tty"),
 		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
-		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated"),
+		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated", "string_val"),
 	}
 
 	for recordIdx < len(gotRecords) && recordIdx < len(wantRecords) {
@@ -175,7 +175,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if record.GetSessionInfo().GetChannelId() == "" {
+		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(record))
 		}
 
