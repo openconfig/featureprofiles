@@ -215,6 +215,7 @@ type DynamicStructParams struct {
 type NexthopGroupUDPParams struct {
 	IPFamily           string // IPFamily specifies the IP address family for encapsulation. For example, "V4Udp" for IPv4-over-UDP or "V6Udp" for IPv6-over-UDP.
 	NexthopGrpName     string
+	Index              string
 	DstIp              []string
 	SrcIp              string
 	DstUdpPort         uint16
@@ -222,6 +223,8 @@ type NexthopGroupUDPParams struct {
 	TTL                uint8
 	DSCP               uint8
 	NetworkInstanceObj *oc.NetworkInstance
+	DeleteTtl          bool
+	DeleteDSCP         bool
 }
 
 // configureNextHopGroups configures the next-hop groups and their encapsulation headers.
@@ -288,13 +291,13 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 				t.Fatalf("Unsupported address family type %q", params.IPFamily)
 			}
 			if len(params.DstIp) > 0 {
-				var tunnelDst string
+				tunnelDst := ""
 				for i, addr := range params.DstIp {
 					tunnelDst += fmt.Sprintf("entry %d tunnel-destination %s \n", i, addr)
 				}
 				cli = fmt.Sprintf(`
 					nexthop-group %s type %s
-					tunnel-source %s
+					tunnel-source intf %s
 					fec hierarchical
    					%s
 					`, params.NexthopGrpName, groupType, params.SrcIp, tunnelDst)
@@ -309,15 +312,18 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 			}
 
 			if params.DSCP != 0 {
-				cli = fmt.Sprintf(`
-					nexthop-group %s type %s
-					tos %v
-					`, params.NexthopGrpName, groupType, params.DSCP)
+				configureTOSGUE(t, dut, "policy1", uint32(params.DSCP>>5), params.SrcIp, params.DeleteDSCP)
+			}
+
+			if params.DeleteTtl {
+				cli = fmt.Sprintf(
+					`nexthop-group %s type %s
+					no ttl %v
+					`, params.NexthopGrpName, groupType, params.TTL)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
 
 			if params.DstUdpPort != 0 {
-				// Select and apply the appropriate CLI snippet based on 'traffictype'.
 				cli = fmt.Sprintf(`tunnel type %s udp destination port %v`, groupType, params.DstUdpPort)
 				helpers.GnmiCLIConfig(t, dut, cli)
 			}
@@ -325,21 +331,50 @@ func NextHopGroupConfigForIpOverUdp(t *testing.T, dut *ondatra.DUTDevice, params
 			t.Logf("Unsupported vendor %s for native command support for deviation 'next-hop-group config'", dut.Vendor())
 		}
 	} else {
-		t.Helper()
 		nhg := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHopGroup(params.NexthopGrpName)
-		nhg.GetOrCreateNextHop("Dest A-NH1").Index = ygot.String("Dest A-NH1")
+		nhg.GetOrCreateNextHop(params.Index).SetIndex(params.Index)
 
-		// Set the encap header for each next-hop
-		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop("Dest A-NH1").GetOrCreateEncapHeader(1)
+		ueh1 := params.NetworkInstanceObj.GetOrCreateStatic().GetOrCreateNextHop(params.Index).GetOrCreateEncapHeader(1)
 		for _, addr := range params.DstIp {
-			ueh1.GetOrCreateUdpV4().DstIp = ygot.String(addr)
+			ueh1.GetOrCreateUdpV4().SetDstIp(addr)
 		}
 		if params.TTL != 0 {
-			ueh1.GetOrCreateUdpV4().IpTtl = ygot.Uint8(params.TTL)
+			ueh1.GetOrCreateUdpV4().SetIpTtl(params.TTL)
 		}
 		ueh1.GetOrCreateUdpV4().SetSrcIp(params.SrcIp)
 		ueh1.GetOrCreateUdpV4().SetDscp(params.DSCP)
 		ueh1.GetOrCreateUdpV4().SetDstUdpPort(params.DstUdpPort)
 		ueh1.GetOrCreateUdpV4().SetSrcUdpPort(params.SrcUdpPort)
 	}
+}
+
+// configureTOSGUE configures the tos
+func configureTOSGUE(t *testing.T, dut *ondatra.DUTDevice, policyName string, dscpValue uint32, port string, deleteTOS bool) {
+	if deviations.QosClassificationOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if deleteTOS {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				no set dscp %d`, policyName, dscpValue)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			} else {
+				cli := fmt.Sprintf(`
+				policy-map type quality-of-service %s
+   					class class-default
+      				set dscp cs%d
+				
+				qos rewrite dscp
+				interface %s
+					service-policy type qos input %s
+					`, policyName, dscpValue, port, policyName)
+				helpers.GnmiCLIConfig(t, dut, cli)
+			}
+
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'qos classification'", dut.Vendor())
+		}
+	}
+
 }
