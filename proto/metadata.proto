@@ -1237,11 +1237,11 @@ message Metadata {
 
     // Device that do not support acctz record for fail user cases
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-    bool acctz_record_fail_command_unsupported = 401;
+    bool acctz_record_fail_command_unsupported = 402;
 
     // Device that do not support acctz record for fail user cases
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-    bool acctz_record_fail_grpc_unsupported = 402;
+    bool acctz_record_fail_grpc_unsupported = 403;
 
     // Devices that do not support BGP Graceful restart for Peer Group
     // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
