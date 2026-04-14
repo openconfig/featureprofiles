@@ -220,7 +220,7 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 	})
 	t.Logf("config on device: %s\nconfig: %s", dut.Name(), config)
 	time.Sleep(60 * time.Second)
-	config = fmt.Sprintf(`
+	config = `
 		interfaces {
 			lo0 {
 			    unit 0 {
@@ -230,7 +230,7 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 			    }
 			}
 		}
-                `)
+                `
 	helpers.GnmiCLIConfig(t, dut, config)
 	t.Logf("Loopback Configuration Completed.")
 }
