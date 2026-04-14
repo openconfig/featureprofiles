@@ -1235,6 +1235,14 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
     bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
 
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_command_unsupported = 403;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_grpc_unsupported = 404;
+
     // Devices that do not support BGP Graceful restart for Peer Group
     // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
     bool bgp_graceful_restart_peer_group_unsupported = 400;
