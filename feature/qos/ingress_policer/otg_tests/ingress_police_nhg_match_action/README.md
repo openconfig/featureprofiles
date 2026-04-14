@@ -99,6 +99,17 @@ The following JSON illustrates the proposed schema usage for this feature profil
         },
         "name": "DEFAULT",
         "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "config": {
+                  "apply-forwarding-policy": "policer-match-action-policy",
+                  "interface-id": "port1"
+                },
+                "interface-id": "port1"
+              }
+            ]
+          },
           "policies": {
             "policy": [
               {
@@ -121,7 +132,6 @@ The following JSON illustrates the proposed schema usage for this feature profil
                       "conditions": {
                         "config": {
                           "next-hop-group": "nhg_A"
-                          // Note: matches on NHG name for static NHG, or NHG ID for gRIBI NHG
                         }
                       },
                       "sequence-id": 10
@@ -211,7 +221,8 @@ paths:
   /qos/policer-groups/policer-group/two-rate-three-color/violate-action/state/matched-packets:
 
   # Policy Forwarding Match-Action config
-  /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+  # Policy Forwarding Match-Action config
+  /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/config/sequence-id:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/conditions/config/next-hop-group:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/policer-group:
