@@ -16,4 +16,11 @@ platform_exceptions: {
     acctz_records_authz_status_deny_unsupported: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+  }
+}
