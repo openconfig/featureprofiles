@@ -241,6 +241,9 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 	}
 
 	dutPort := tc.dut.Port(t, port1Name).Name()
+	if deviations.InterfaceRefInterfaceIDFormat(tc.dut) {
+		dutPort = dutPort + ".0"
+	}
 	adjPath := isisPath.Interface(dutPort).Level(2).AdjacencyAny()
 	if _, ok := gnmi.WatchAll(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
 		return fmt.Errorf("no ISIS adjacency formed for port1 (%s)", dutPort)

@@ -1468,7 +1468,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
-// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// ReducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
 // Nokia: b/459893133
 func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
@@ -1731,6 +1731,7 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // LocalhostForContainerz returns true if the device uses an IPv6 address instead of localhost.
+// TODO enhancement: this should be renamed to LocalhostForContainerzUnsupported for clarity
 func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
 }
@@ -1805,8 +1806,8 @@ func ConfigACLValueAnyOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclValueAnyOcUnsupported()
 }
 
-// ConfigAclOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
-func ConfigAclOcUnsupported(dut *ondatra.DUTDevice) bool {
+// ConfigACLOcUnsupported returns true if OC for configuring parameter in ACL with OC is not supported
+func ConfigACLOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetConfigAclOcUnsupported()
 }
 
@@ -1878,15 +1879,15 @@ func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
 }
 
-// CpuUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
+// CPUUtilizationQueryAgainstBaseControllerCardComponent returns true if the device reports Controller CPU utilization against the base controller card component
 // example: against "0/RP0/CPU0" and not "0/RP00/CPU0-Broadwell-DE (D-1573N)"
-func CpuUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
+func CPUUtilizationQueryAgainstBaseControllerCardComponent(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseControllerCardComponent()
 }
 
-// CpuUtilizationQueryAgainstBaseLinecardComponent returns true if the device reports linecard CPU utilization against the base linecard component
+// CPUUtilizationQueryAgainstBaseLinecardComponent returns true if the device reports linecard CPU utilization against the base linecard component
 // example: against "0/0/CPU0" and not "0/0/CPU0-Broadwell-DE (D-1573N)"
-func CpuUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
+func CPUUtilizationQueryAgainstBaseLinecardComponent(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCpuUtilizationQueryAgainstBaseLinecardComponent()
 }
 
@@ -1982,6 +1983,84 @@ func BgpRplDirectlyUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 // WecmpSetWeightUnsupported returns if device doesnt support setting weight for wecmp.
 func WecmpSetWeightUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetWecmpSetWeightUnsupported()
+}
+
+// ExplicitlyApplyAllowAllImportPolicy returns true if we need to explicitly apply "allow-all" import policy on the device
+// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+func ExplicitlyApplyAllowAllImportPolicy(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExplicitlyApplyAllowAllImportPolicy()
+}
+
+// QosFt returns the functional translator to be used for translating QoS leaves.
+func QosFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetQosFt()
+}
+
+// SystemMountPointStateFt returns the functional translator name for devices with mount point state paths unsupported.
+func SystemMountPointStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetSystemMountPointStateFt()
+}
+
+// ArpFT returns the functional translator name for devices with neighbor link-layer-address paths unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+func ArpFT(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetArpFt()
+}
+
+// PrefixLimitConfigUnsupported returns true if max prefix limit configuration is unsupported by the device
+// Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+func PrefixLimitConfigUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPrefixLimitConfigUnsupported()
+}
+
+// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+// is not supported.
+// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
+}
+
+// SendMaxUnsupported returns true if the device does not support leaf send max.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
+func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
+}
+
+// OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+func OcAaaUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetOcAaaUserRoleLeafStringTypeUnsupported()
+}
+
+// AcctzShellCmdAccountingUnsupported returns true if the device does not support shell cmd accounting records.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+func AcctzShellCmdAccountingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzShellCmdAccountingUnsupported()
+}
+
+// AcctzRecordsAuthzStatusDenyUnsupported returns true if the device does not support AuthZ status field with 'Deny' in CMD service in AcctZ records.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordsAuthzStatusDenyUnsupported()
+}
+
+// FpgaFt returns the functional translator name for devices with FPD paths unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+func FpgaFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFpgaFt()
+}
+
+// BgpGracefulRestartPeerGroupUnsupported returns true for devices that do not support BGP Graceful restart for Peer Group
+// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
+
+// GrpcServerServicesUnsupported returns true if the device does not support the services leaf
+// under grpc-server config (/system/grpc-servers/grpc-server/config/services).
+// Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+func GrpcServerServicesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGrpcServerServicesUnsupported()
 }
 
 // StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
