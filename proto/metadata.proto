@@ -1259,17 +1259,17 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
     // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
     // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
-    bool fragment_punt_unsupported = 403;
+    bool fragment_punt_unsupported = 405;
 
     // Device does not support fragment punt pkts.
     // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
     // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
     // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
-    bool fragment_punt_pkts_unsupported = 404;
+    bool fragment_punt_pkts_unsupported = 406;
 
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
     // Functional translator to be used for Fragment Punt OC paths
-    string fragment_punt_ft = 405;
+    string fragment_punt_ft = 407;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
