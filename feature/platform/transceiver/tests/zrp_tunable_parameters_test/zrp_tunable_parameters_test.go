@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"testing"
 	"time"
-	
-	"github.com/openconfig/ygot/ygot"
+
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -16,6 +15,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -442,4 +442,3 @@ func opticalChannelFromPort(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Por
 	tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
 	return gnmi.Get(t, dut, gnmi.OC().Component(tr).Transceiver().Channel(0).AssociatedOpticalChannel().State())
 }
-
