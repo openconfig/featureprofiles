@@ -14,4 +14,11 @@ platform_exceptions: {
     gribi_records_unsupported: true
   }
 }
-
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+  }
+}
