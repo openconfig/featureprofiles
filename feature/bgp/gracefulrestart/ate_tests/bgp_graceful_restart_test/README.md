@@ -197,10 +197,32 @@ BGP conifguration:
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/destination-address:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/ipv4/config/source-address:
+  /acl/interfaces/interface/interface-ref/config/interface:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/restart-time:
+  /network-instances/network-instance/protocols/protocol/bgp/global/graceful-restart/config/stale-routes-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/installed:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/hold-time:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/timers/config/keepalive-interval:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/apply-policy/config/import-policy:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
 rpcs:
   gnmi:
-    gNMI.Set:
     gNMI.Get:
+    gNMI.Set:
     gNMI.Subscribe:
   gnoi:
     system.System.KillProcess:

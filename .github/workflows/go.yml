@@ -6,23 +6,27 @@ on:
   pull_request:
   schedule:
     - cron: "0 0 * * *"
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
+    # space for the container by removing unnecessary tooling.
+    - name: Free additional disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /usr/local/lib/android
+        sudo rm -rf /opt/hostedtoolcache/CodeQL
     - name: Set up Go
       uses: actions/setup-go@v5
       with:
         go-version-file: 'go.mod'
-    - name: Cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+        cache: true
+    - name: Move cache
+      run: |
+        sudo mv "${HOME}/.cache" /mnt/cache
+        ln -s /mnt/cache "${HOME}/.cache"
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
@@ -31,19 +35,24 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    steps:
+    steps:    
       - uses: actions/checkout@v4
+      # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
+      # space for the container by removing unnecessary tooling.
+      - name: Free additional disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
+          cache: true
+      - name: Move cache
+        run: |
+          sudo mv "${HOME}/.cache" /mnt/cache
+          ln -s /mnt/cache "${HOME}/.cache"
       # Dependency for Go module github.com/google/gopacket
       - name: Install libpcap-dev
         run: sudo apt-get -y install libpcap-dev
@@ -59,27 +68,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version-file: 'go.mod'
-    # Go & staticcheck build cache require a lot of disk space.  Reclaim extra
-    # space for the container by removing unnecessary tooling.
     - name: Free additional disk space
       run: |
         sudo rm -rf /usr/share/dotnet
         sudo rm -rf /usr/local/lib/android
         sudo rm -rf /opt/hostedtoolcache/CodeQL
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version-file: 'go.mod'
+        cache: true
+    - name: Move cache
+      run: |
         sudo mv "${HOME}/.cache" /mnt/cache
         ln -s /mnt/cache "${HOME}/.cache"
-    - name: Cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/go/pkg/mod
-          ~/.cache/go-build
-          ~/.cache/staticcheck
-        key: ${{ github.job }}-${{ runner.os }}-go-build-${{ hashFiles('**/go.sum') }}
     # Dependency for Go module github.com/google/gopacket
     - name: Install libpcap-dev
       run: sudo apt-get -y install libpcap-dev
