@@ -2105,6 +2105,7 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 
 // DefaultSubinterfacePacketCountersMissing returns if device is missing subinterface state packet counters.
 // Default value is false.
+// Arista: https://issuetracker.google.com/502838491
 func DefaultSubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDefaultSubinterfacePacketCountersMissing()
 }
