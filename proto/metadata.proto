@@ -1083,7 +1083,7 @@ message Metadata {
     // Devices that require no-php flag for ISIS SR prefix and node segments
     // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 360;
-
+    
     // Device does not support match-set-options leaf with ALL for match-community-set
     // Arista: b/335739231
     bool match_community_set_match_set_options_all_unsupported = 361;
@@ -1187,7 +1187,7 @@ message Metadata {
     // Devices that do not support configuring weight for wecmp
     // Juniper b/450154047
     bool wecmp_set_weight_unsupported = 388;
-
+    
     // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
     // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
     bool explicitly_apply_allow_all_import_policy = 389;
@@ -1235,6 +1235,14 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
     bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
 
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_command_unsupported = 403;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_grpc_unsupported = 404;
+
     // Devices that do not support BGP Graceful restart for Peer Group
     // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
     bool bgp_graceful_restart_peer_group_unsupported = 400;
@@ -1243,21 +1251,25 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
     bool grpc_server_services_unsupported = 401;
 
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+    // Devices that do not support oc path for static route to nexthop
+    bool static_route_to_nhg_oc_unsupported = 402;
+
     // Device does not support fragment punt drops.
     // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
     // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
     // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
-    bool fragment_punt_unsupported = 402;
+    bool fragment_punt_unsupported = 403;
 
     // Device does not support fragment punt pkts.
     // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
     // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
     // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
-    bool fragment_punt_pkts_unsupported = 403;
+    bool fragment_punt_pkts_unsupported = 404;
 
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
     // Functional translator to be used for Fragment Punt OC paths
-    string fragment_punt_ft = 404;
+    string fragment_punt_ft = 405;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;

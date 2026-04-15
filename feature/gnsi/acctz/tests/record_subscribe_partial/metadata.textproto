@@ -16,6 +16,18 @@ platform_exceptions: {
     acctz_records_authz_status_deny_unsupported: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    gribi_records_unsupported: true
+    acctz_record_fail_command_unsupported: true
+    acctz_record_fail_grpc_unsupported: true
+  }
+}
+
 platform_exceptions: {
   platform: {
     vendor: ARISTA
