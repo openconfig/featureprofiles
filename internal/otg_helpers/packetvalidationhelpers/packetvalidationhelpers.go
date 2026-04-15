@@ -2,6 +2,7 @@
 package packetvalidationhelpers
 
 import (
+	"encoding/binary"
 	"fmt"
 	"os"
 	"testing"
@@ -406,9 +407,15 @@ func validateMPLSLayer(t *testing.T, packetSource *gopacket.PacketSource, packet
 			if packetVal.MPLSLayer.ControlWordHeader {
 				if len(mpls.Payload) >= 4 {
 					controlWord := mpls.Payload[:4]
-					if uint16(controlWord[0])<<8|uint16(controlWord[1]) == uint16(packetVal.MPLSLayer.ControlWordSequence) {
-						t.Logf("%v (32-bit field ) control word is inserted between the MPLS label stack and the Layer 2 payload (the Ethernet frame).0", packetVal.MPLSLayer.ControlWordSequence)
+					// Per RFC 4385, the first 4 bits of the control word MUST be 0.
+					if (controlWord[0] & 0xF0) != 0 {
+						return fmt.Errorf("invalid control word format, first 4 bits are not zero: 0x%x", controlWord[0])
 					}
+					sequenceNumber := binary.BigEndian.Uint32(controlWord)
+					if sequenceNumber != packetVal.MPLSLayer.ControlWordSequence {
+						return fmt.Errorf("control word sequence number mismatch. Got: %d, Want: %d", sequenceNumber, packetVal.MPLSLayer.ControlWordSequence)
+					}
+					t.Logf("Control Word with sequence number %d found as expected.", sequenceNumber)
 				} else {
 					t.Errorf("Control Word header not found")
 				}
