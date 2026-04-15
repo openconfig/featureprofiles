@@ -109,12 +109,13 @@ func TestInterfaceCounters(t *testing.T) {
 
 	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
 	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
+	skipDefaultSubinterfacePacketCountersMissing := deviations.DefaultSubinterfacePacketCountersMissing(dut)
 
 	cases := []struct {
 		desc    string
 		path    string
 		counter ygnmi.SingletonQuery[uint64]
-		skip    bool
+		skip    []bool
 	}{{
 		desc:    "CarrierTransitions",
 		path:    intfCounterPath + "carrier-transitions",
@@ -183,74 +184,76 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "SubinterfaceOutBroadcastPkts",
 		path:    subinterfaceCounterPath + "out-broadcast-pkts",
 		counter: subinterfaceCounters.OutBroadcastPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceCarrierTransitions",
 		path:    subinterfaceCounterPath + "carrier-transitions",
 		counter: subinterfaceCounters.CarrierTransitions().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceOutErrors",
 		path:    subinterfaceCounterPath + "out-errors",
 		counter: subinterfaceCounters.OutErrors().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceLastClear",
 		path:    subinterfaceCounterPath + "last-clear",
 		counter: subinterfaceCounters.LastClear().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceInErrors",
 		path:    subinterfaceCounterPath + "in-errors",
 		counter: subinterfaceCounters.InErrors().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceInUnknownProtos",
 		path:    subinterfaceCounterPath + "in-unknown-protos",
 		counter: subinterfaceCounters.InUnknownProtos().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "SubinterfaceInBroadcastPkts",
 		path:    subinterfaceCounterPath + "in-broadcast-pkts",
 		counter: subinterfaceCounters.InBroadcastPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing, skipDefaultSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",
 		counter: ipv4Counters.InPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "IPv4OutPkts",
 		path:    ipv4CounterPath + "out-pkts",
 		counter: ipv4Counters.OutPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "IPv6InPkts",
 		path:    ipv6CounterPath + "in-pkts",
 		counter: ipv6Counters.InPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "IPv6OutPkts",
 		path:    ipv6CounterPath + "out-pkts",
 		counter: ipv6Counters.OutPkts().State(),
-		skip:    skipSubinterfacePacketCountersMissing,
+		skip:    []bool{skipSubinterfacePacketCountersMissing},
 	}, {
 		desc:    "IPv6InDiscardedPkts",
 		path:    ipv6CounterPath + "in-discarded-pkts",
 		counter: ipv6Counters.InDiscardedPkts().State(),
-		skip:    skipIpv6DiscardedPkts,
+		skip:    []bool{skipIpv6DiscardedPkts},
 	}, {
 		desc:    "IPv6OutDiscardedPkts",
 		path:    ipv6CounterPath + "out-discarded-pkts",
 		counter: ipv6Counters.OutDiscardedPkts().State(),
-		skip:    skipIpv6DiscardedPkts,
+		skip:    []bool{skipIpv6DiscardedPkts},
 	},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
-			if tc.skip {
-				t.Skipf("Counter %v is not supported.", tc.desc)
+			for _, s := range tc.skip {
+				if s {
+					t.Skipf("Counter %v is not supported.", tc.desc)
+				}
 			}
 			val, present := gnmi.Lookup(t, dut, tc.counter).Val()
 			if !present {
