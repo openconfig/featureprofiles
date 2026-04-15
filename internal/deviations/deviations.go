@@ -2062,3 +2062,9 @@ func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 func GrpcServerServicesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGrpcServerServicesUnsupported()
 }
+
+// FabricFt returns the functional translator name for fabric error telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+func FabricFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFabricFt()
+}

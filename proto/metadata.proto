@@ -1243,6 +1243,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
     bool grpc_server_services_unsupported = 401;
 
+    // Functional translator name for fabric error telemetry.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+    string fabric_ft = 402;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
