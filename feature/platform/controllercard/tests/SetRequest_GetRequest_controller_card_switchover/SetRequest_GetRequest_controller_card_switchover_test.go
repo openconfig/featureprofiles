@@ -330,7 +330,7 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 		if setResponseTime.Sub(switchoverResponseTime) > maxResponseTime {
 			t.Fatalf("gNMI Set response after switchover time: %v, got SUCCESS, but exceeded max response time: %v", setResponseTime.Sub(switchoverResponseTime), maxResponseTime)
 		}
-		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS", setResponseTime.Sub(switchoverResponseTime))
+		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS in attempt %d", setResponseTime.Sub(switchoverResponseTime),attempt)
 		break
 	}
 	if setErr != nil {
