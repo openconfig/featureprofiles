@@ -58,6 +58,7 @@ const (
 	Metadata_TESTBED_DUT_800ZR_PLUS        Metadata_Testbed = 14
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
 	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
+	Metadata_TESTBED_DUT_ATE_8LINKS_LAG    Metadata_Testbed = 17
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -80,6 +81,7 @@ var (
 		14: "TESTBED_DUT_800ZR_PLUS",
 		15: "TESTBED_DUT_2LINKS",
 		16: "TESTBED_DUT_ATE_34LINKS",
+		17: "TESTBED_DUT_ATE_8LINKS_LAG",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -99,6 +101,7 @@ var (
 		"TESTBED_DUT_800ZR_PLUS":        14,
 		"TESTBED_DUT_2LINKS":            15,
 		"TESTBED_DUT_ATE_34LINKS":       16,
+		"TESTBED_DUT_ATE_8LINKS_LAG":    17,
 	}
 )
 
@@ -937,9 +940,6 @@ type Metadata_Deviations struct {
 	IsisDisSysidUnsupported bool `protobuf:"varint,239,opt,name=isis_dis_sysid_unsupported,json=isisDisSysidUnsupported,proto3" json:"isis_dis_sysid_unsupported,omitempty"`
 	// Cisco: b/378616912
 	IsisDatabaseOverloadsUnsupported bool `protobuf:"varint,240,opt,name=isis_database_overloads_unsupported,json=isisDatabaseOverloadsUnsupported,proto3" json:"isis_database_overloads_unsupported,omitempty"`
-	// Juniper: b/358534837
-	// Devices that do not support setting med value using union type in OC.
-	BgpSetMedV7Unsupported bool `protobuf:"varint,241,opt,name=bgp_set_med_v7_unsupported,json=bgpSetMedV7Unsupported,proto3" json:"bgp_set_med_v7_unsupported,omitempty"`
 	// Cisco: b/388980373
 	// default import policy for table connection unsupported is set to true for devices that do not support default import policy.
 	TcDefaultImportPolicyUnsupported bool `protobuf:"varint,242,opt,name=tc_default_import_policy_unsupported,json=tcDefaultImportPolicyUnsupported,proto3" json:"tc_default_import_policy_unsupported,omitempty"`
@@ -1312,8 +1312,105 @@ type Metadata_Deviations struct {
 	// Nokia: b/459893133
 	// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
 	ReducedEcmpSetOnMixedEncapDecapNh bool `protobuf:"varint,378,opt,name=reduced_ecmp_set_on_mixed_encap_decap_nh,json=reducedEcmpSetOnMixedEncapDecapNh,proto3" json:"reduced_ecmp_set_on_mixed_encap_decap_nh,omitempty"`
-	unknownFields                     protoimpl.UnknownFields
-	sizeCache                         protoimpl.SizeCache
+	// Setting admin-state on TerminalDevice Channel is unsupported.
+	TerminalDeviceChannelAdminStateUnsupported bool `protobuf:"varint,379,opt,name=terminal_device_channel_admin_state_unsupported,json=terminalDeviceChannelAdminStateUnsupported,proto3" json:"terminal_device_channel_admin_state_unsupported,omitempty"`
+	// Device that requires explicit config to support BGP RIB streaming
+	// Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+	BgpRibStreamingConfigRequired bool `protobuf:"varint,380,opt,name=bgp_rib_streaming_config_required,json=bgpRibStreamingConfigRequired,proto3" json:"bgp_rib_streaming_config_required,omitempty"`
+	// Device does not support enabling ACL counters through OC
+	// Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+	AclCountersEnableOcUnsupported bool `protobuf:"varint,381,opt,name=acl_counters_enable_oc_unsupported,json=aclCountersEnableOcUnsupported,proto3" json:"acl_counters_enable_oc_unsupported,omitempty"`
+	// Device does not report ACL counters accurately during ACL update
+	// Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+	SkipAclCountersVerificationDuringUpdate bool `protobuf:"varint,382,opt,name=skip_acl_counters_verification_during_update,json=skipAclCountersVerificationDuringUpdate,proto3" json:"skip_acl_counters_verification_during_update,omitempty"`
+	// Device does not support configuring ICMP type and code fields for ACL
+	// Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+	AclIcmpTypeCodeConfigurationUnsupported bool `protobuf:"varint,383,opt,name=acl_icmp_type_code_configuration_unsupported,json=aclIcmpTypeCodeConfigurationUnsupported,proto3" json:"acl_icmp_type_code_configuration_unsupported,omitempty"`
+	// Devices that do not support suppress router advertisement.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+	Ipv6RouterAdvertisementSuppressUnsupported bool `protobuf:"varint,384,opt,name=ipv6_router_advertisement_suppress_unsupported,json=ipv6RouterAdvertisementSuppressUnsupported,proto3" json:"ipv6_router_advertisement_suppress_unsupported,omitempty"`
+	// Device does not support BGP configuration during graceful restart.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+	BgpConfigDuringGracefulRestartUnsupported bool `protobuf:"varint,385,opt,name=bgp_config_during_graceful_restart_unsupported,json=bgpConfigDuringGracefulRestartUnsupported,proto3" json:"bgp_config_during_graceful_restart_unsupported,omitempty"`
+	// Device does not support restarting the routing process via gNOI.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+	RoutingRestartViaGnoiUnsupported bool `protobuf:"varint,386,opt,name=routing_restart_via_gnoi_unsupported,json=routingRestartViaGnoiUnsupported,proto3" json:"routing_restart_via_gnoi_unsupported,omitempty"`
+	// Device does not support BGP RPL under peer-group directly
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+	BgpRplDirectlyUnderPeerGroupUnsupported bool `protobuf:"varint,387,opt,name=bgp_rpl_directly_under_peer_group_unsupported,json=bgpRplDirectlyUnderPeerGroupUnsupported,proto3" json:"bgp_rpl_directly_under_peer_group_unsupported,omitempty"`
+	// Devices that do not support configuring weight for wecmp
+	// Juniper b/450154047
+	WecmpSetWeightUnsupported bool `protobuf:"varint,388,opt,name=wecmp_set_weight_unsupported,json=wecmpSetWeightUnsupported,proto3" json:"wecmp_set_weight_unsupported,omitempty"`
+	// Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+	ExplicitlyApplyAllowAllImportPolicy bool `protobuf:"varint,389,opt,name=explicitly_apply_allow_all_import_policy,json=explicitlyApplyAllowAllImportPolicy,proto3" json:"explicitly_apply_allow_all_import_policy,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
+	// Functional translator to be used for QoS paths
+	QosFt string `protobuf:"bytes,390,opt,name=qos_ft,json=qosFt,proto3" json:"qos_ft,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+	// Functional Translator name for devices with mount point state paths unsupported.
+	SystemMountPointStateFt string `protobuf:"bytes,391,opt,name=system_mount_point_state_ft,json=systemMountPointStateFt,proto3" json:"system_mount_point_state_ft,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+	// Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+	ArpFt string `protobuf:"bytes,392,opt,name=arp_ft,json=arpFt,proto3" json:"arp_ft,omitempty"`
+	// Device does not support configuring prefix limit received paths through OC
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+	PrefixLimitConfigUnsupported bool `protobuf:"varint,393,opt,name=prefix_limit_config_unsupported,json=prefixLimitConfigUnsupported,proto3" json:"prefix_limit_config_unsupported,omitempty"`
+	// SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+	// is not supported.
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+	SshServerHostCertificateTelemetryUnsupported bool `protobuf:"varint,394,opt,name=ssh_server_host_certificate_telemetry_unsupported,json=sshServerHostCertificateTelemetryUnsupported,proto3" json:"ssh_server_host_certificate_telemetry_unsupported,omitempty"`
+	// SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
+	// Cisco: b/498283710
+	SendMaxUnsupported bool `protobuf:"varint,395,opt,name=send_max_unsupported,json=sendMaxUnsupported,proto3" json:"send_max_unsupported,omitempty"`
+	// Devices that do not support AcctZ shell CMD records accounting.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzShellCmdAccountingUnsupported bool `protobuf:"varint,396,opt,name=acctz_shell_cmd_accounting_unsupported,json=acctzShellCmdAccountingUnsupported,proto3" json:"acctz_shell_cmd_accounting_unsupported,omitempty"`
+	// Devices that do not support AuthZ status field with deny in CMD service
+	// in AcctZ records.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzRecordsAuthzStatusDenyUnsupported bool `protobuf:"varint,397,opt,name=acctz_records_authz_status_deny_unsupported,json=acctzRecordsAuthzStatusDenyUnsupported,proto3" json:"acctz_records_authz_status_deny_unsupported,omitempty"`
+	// Functional Translator name for devices with FPD paths unsupported.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+	FpgaFt string `protobuf:"bytes,398,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
+	// Devices that do not support role leaf of string type for OC system/aaa
+	// username configuration.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	OcAaaUserRoleLeafStringTypeUnsupported bool `protobuf:"varint,399,opt,name=oc_aaa_user_role_leaf_string_type_unsupported,json=ocAaaUserRoleLeafStringTypeUnsupported,proto3" json:"oc_aaa_user_role_leaf_string_type_unsupported,omitempty"`
+	// Device that do not support acctz record for fail user cases
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordFailCommandUnsupported bool `protobuf:"varint,403,opt,name=acctz_record_fail_command_unsupported,json=acctzRecordFailCommandUnsupported,proto3" json:"acctz_record_fail_command_unsupported,omitempty"`
+	// Device that do not support acctz record for fail user cases
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordFailGrpcUnsupported bool `protobuf:"varint,404,opt,name=acctz_record_fail_grpc_unsupported,json=acctzRecordFailGrpcUnsupported,proto3" json:"acctz_record_fail_grpc_unsupported,omitempty"`
+	// Devices that do not support BGP Graceful restart for Peer Group
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+	BgpGracefulRestartPeerGroupUnsupported bool `protobuf:"varint,400,opt,name=bgp_graceful_restart_peer_group_unsupported,json=bgpGracefulRestartPeerGroupUnsupported,proto3" json:"bgp_graceful_restart_peer_group_unsupported,omitempty"`
+	// Device does not support services leaf under grpc-server config.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+	GrpcServerServicesUnsupported bool `protobuf:"varint,401,opt,name=grpc_server_services_unsupported,json=grpcServerServicesUnsupported,proto3" json:"grpc_server_services_unsupported,omitempty"`
+	// Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+	// Devices that do not support oc path for static route to nexthop
+	StaticRouteToNhgOcUnsupported bool `protobuf:"varint,402,opt,name=static_route_to_nhg_oc_unsupported,json=staticRouteToNhgOcUnsupported,proto3" json:"static_route_to_nhg_oc_unsupported,omitempty"`
+	// Device does not populate state on subinterface 0
+	// that is implicitly created.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+	Subinterface_0StateUnsupported bool `protobuf:"varint,405,opt,name=subinterface_0_state_unsupported,json=subinterface0StateUnsupported,proto3" json:"subinterface_0_state_unsupported,omitempty"`
+	// Device does not support fragment punt drops.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntUnsupported bool `protobuf:"varint,406,opt,name=fragment_punt_unsupported,json=fragmentPuntUnsupported,proto3" json:"fragment_punt_unsupported,omitempty"`
+	// Device does not support fragment punt pkts.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntPktsUnsupported bool `protobuf:"varint,407,opt,name=fragment_punt_pkts_unsupported,json=fragmentPuntPktsUnsupported,proto3" json:"fragment_punt_pkts_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+	// Functional translator to be used for Fragment Punt OC paths
+	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -2809,13 +2906,6 @@ func (x *Metadata_Deviations) GetIsisDatabaseOverloadsUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetBgpSetMedV7Unsupported() bool {
-	if x != nil {
-		return x.BgpSetMedV7Unsupported
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetTcDefaultImportPolicyUnsupported() bool {
 	if x != nil {
 		return x.TcDefaultImportPolicyUnsupported
@@ -3761,6 +3851,216 @@ func (x *Metadata_Deviations) GetReducedEcmpSetOnMixedEncapDecapNh() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetTerminalDeviceChannelAdminStateUnsupported() bool {
+	if x != nil {
+		return x.TerminalDeviceChannelAdminStateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpRibStreamingConfigRequired() bool {
+	if x != nil {
+		return x.BgpRibStreamingConfigRequired
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAclCountersEnableOcUnsupported() bool {
+	if x != nil {
+		return x.AclCountersEnableOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSkipAclCountersVerificationDuringUpdate() bool {
+	if x != nil {
+		return x.SkipAclCountersVerificationDuringUpdate
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAclIcmpTypeCodeConfigurationUnsupported() bool {
+	if x != nil {
+		return x.AclIcmpTypeCodeConfigurationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetIpv6RouterAdvertisementSuppressUnsupported() bool {
+	if x != nil {
+		return x.Ipv6RouterAdvertisementSuppressUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpConfigDuringGracefulRestartUnsupported() bool {
+	if x != nil {
+		return x.BgpConfigDuringGracefulRestartUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetRoutingRestartViaGnoiUnsupported() bool {
+	if x != nil {
+		return x.RoutingRestartViaGnoiUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpRplDirectlyUnderPeerGroupUnsupported() bool {
+	if x != nil {
+		return x.BgpRplDirectlyUnderPeerGroupUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetWecmpSetWeightUnsupported() bool {
+	if x != nil {
+		return x.WecmpSetWeightUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetExplicitlyApplyAllowAllImportPolicy() bool {
+	if x != nil {
+		return x.ExplicitlyApplyAllowAllImportPolicy
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetQosFt() string {
+	if x != nil {
+		return x.QosFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetSystemMountPointStateFt() string {
+	if x != nil {
+		return x.SystemMountPointStateFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetArpFt() string {
+	if x != nil {
+		return x.ArpFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetPrefixLimitConfigUnsupported() bool {
+	if x != nil {
+		return x.PrefixLimitConfigUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() bool {
+	if x != nil {
+		return x.SshServerHostCertificateTelemetryUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSendMaxUnsupported() bool {
+	if x != nil {
+		return x.SendMaxUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzShellCmdAccountingUnsupported() bool {
+	if x != nil {
+		return x.AcctzShellCmdAccountingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordsAuthzStatusDenyUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordsAuthzStatusDenyUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFpgaFt() string {
+	if x != nil {
+		return x.FpgaFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetOcAaaUserRoleLeafStringTypeUnsupported() bool {
+	if x != nil {
+		return x.OcAaaUserRoleLeafStringTypeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordFailCommandUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordFailCommandUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordFailGrpcUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordFailGrpcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpGracefulRestartPeerGroupUnsupported() bool {
+	if x != nil {
+		return x.BgpGracefulRestartPeerGroupUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGrpcServerServicesUnsupported() bool {
+	if x != nil {
+		return x.GrpcServerServicesUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetStaticRouteToNhgOcUnsupported() bool {
+	if x != nil {
+		return x.StaticRouteToNhgOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSubinterface_0StateUnsupported() bool {
+	if x != nil {
+		return x.Subinterface_0StateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntPktsUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntPktsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntFt() string {
+	if x != nil {
+		return x.FragmentPuntFt
+	}
+	return ""
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -3817,7 +4117,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa1\xd2\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xec\xe3\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3829,7 +4129,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x8d\xc8\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xb8\xd9\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4042,8 +4342,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\x13no_zero_suppression\x18\xed\x01 \x01(\bR\x11noZeroSuppression\x12W\n" +
 	"(isis_interface_level_passive_unsupported\x18\xee\x01 \x01(\bR$isisInterfaceLevelPassiveUnsupported\x12<\n" +
 	"\x1aisis_dis_sysid_unsupported\x18\xef\x01 \x01(\bR\x17isisDisSysidUnsupported\x12N\n" +
-	"#isis_database_overloads_unsupported\x18\xf0\x01 \x01(\bR isisDatabaseOverloadsUnsupported\x12;\n" +
-	"\x1abgp_set_med_v7_unsupported\x18\xf1\x01 \x01(\bR\x16bgpSetMedV7Unsupported\x12O\n" +
+	"#isis_database_overloads_unsupported\x18\xf0\x01 \x01(\bR isisDatabaseOverloadsUnsupported\x12O\n" +
 	"$tc_default_import_policy_unsupported\x18\xf2\x01 \x01(\bR tcDefaultImportPolicyUnsupported\x12J\n" +
 	"!tc_metric_propagation_unsupported\x18\xf3\x01 \x01(\bR\x1etcMetricPropagationUnsupported\x12P\n" +
 	"$tc_attribute_propagation_unsupported\x18\xf4\x01 \x01(\bR!tcAttributePropagationUnsupported\x12?\n" +
@@ -4179,13 +4478,43 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1bsubnet_mask_change_required\x18\xf7\x02 \x01(\bR\x18subnetMaskChangeRequired\x12[\n" +
 	"*ciscoxr8000_integrated_circuit_resource_ft\x18\xf8\x02 \x01(\tR&ciscoxr8000IntegratedCircuitResourceFt\x12V\n" +
 	"(bgp_default_policy_behavior_accept_route\x18\xf9\x02 \x01(\bR#bgpDefaultPolicyBehaviorAcceptRoute\x12T\n" +
-	"(reduced_ecmp_set_on_mixed_encap_decap_nh\x18\xfa\x02 \x01(\bR!reducedEcmpSetOnMixedEncapDecapNhJ\x04\bT\x10UJ\x04\b\t\x10\n" +
-	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02\x1a\xa0\x01\n" +
+	"(reduced_ecmp_set_on_mixed_encap_decap_nh\x18\xfa\x02 \x01(\bR!reducedEcmpSetOnMixedEncapDecapNh\x12d\n" +
+	"/terminal_device_channel_admin_state_unsupported\x18\xfb\x02 \x01(\bR*terminalDeviceChannelAdminStateUnsupported\x12I\n" +
+	"!bgp_rib_streaming_config_required\x18\xfc\x02 \x01(\bR\x1dbgpRibStreamingConfigRequired\x12K\n" +
+	"\"acl_counters_enable_oc_unsupported\x18\xfd\x02 \x01(\bR\x1eaclCountersEnableOcUnsupported\x12^\n" +
+	",skip_acl_counters_verification_during_update\x18\xfe\x02 \x01(\bR'skipAclCountersVerificationDuringUpdate\x12^\n" +
+	",acl_icmp_type_code_configuration_unsupported\x18\xff\x02 \x01(\bR'aclIcmpTypeCodeConfigurationUnsupported\x12c\n" +
+	".ipv6_router_advertisement_suppress_unsupported\x18\x80\x03 \x01(\bR*ipv6RouterAdvertisementSuppressUnsupported\x12b\n" +
+	".bgp_config_during_graceful_restart_unsupported\x18\x81\x03 \x01(\bR)bgpConfigDuringGracefulRestartUnsupported\x12O\n" +
+	"$routing_restart_via_gnoi_unsupported\x18\x82\x03 \x01(\bR routingRestartViaGnoiUnsupported\x12_\n" +
+	"-bgp_rpl_directly_under_peer_group_unsupported\x18\x83\x03 \x01(\bR'bgpRplDirectlyUnderPeerGroupUnsupported\x12@\n" +
+	"\x1cwecmp_set_weight_unsupported\x18\x84\x03 \x01(\bR\x19wecmpSetWeightUnsupported\x12V\n" +
+	"(explicitly_apply_allow_all_import_policy\x18\x85\x03 \x01(\bR#explicitlyApplyAllowAllImportPolicy\x12\x16\n" +
+	"\x06qos_ft\x18\x86\x03 \x01(\tR\x05qosFt\x12=\n" +
+	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12\x16\n" +
+	"\x06arp_ft\x18\x88\x03 \x01(\tR\x05arpFt\x12F\n" +
+	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12h\n" +
+	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x121\n" +
+	"\x14send_max_unsupported\x18\x8b\x03 \x01(\bR\x12sendMaxUnsupported\x12S\n" +
+	"&acctz_shell_cmd_accounting_unsupported\x18\x8c\x03 \x01(\bR\"acctzShellCmdAccountingUnsupported\x12\\\n" +
+	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
+	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFt\x12^\n" +
+	"-oc_aaa_user_role_leaf_string_type_unsupported\x18\x8f\x03 \x01(\bR&ocAaaUserRoleLeafStringTypeUnsupported\x12Q\n" +
+	"%acctz_record_fail_command_unsupported\x18\x93\x03 \x01(\bR!acctzRecordFailCommandUnsupported\x12K\n" +
+	"\"acctz_record_fail_grpc_unsupported\x18\x94\x03 \x01(\bR\x1eacctzRecordFailGrpcUnsupported\x12\\\n" +
+	"+bgp_graceful_restart_peer_group_unsupported\x18\x90\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupported\x12H\n" +
+	" grpc_server_services_unsupported\x18\x91\x03 \x01(\bR\x1dgrpcServerServicesUnsupported\x12J\n" +
+	"\"static_route_to_nhg_oc_unsupported\x18\x92\x03 \x01(\bR\x1dstaticRouteToNhgOcUnsupported\x12H\n" +
+	" subinterface_0_state_unsupported\x18\x95\x03 \x01(\bR\x1dsubinterface0StateUnsupported\x12;\n" +
+	"\x19fragment_punt_unsupported\x18\x96\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
+	"\x1efragment_punt_pkts_unsupported\x18\x97\x03 \x01(\bR\x1bfragmentPuntPktsUnsupported\x12)\n" +
+	"\x10fragment_punt_ft\x18\x98\x03 \x01(\tR\x0efragmentPuntFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\xe0\x03\n" +
+	"deviations\"\x80\x04\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -4204,7 +4533,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x11TESTBED_DUT_800ZR\x10\r\x12\x1a\n" +
 	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
 	"\x12TESTBED_DUT_2LINKS\x10\x0f\x12\x1b\n" +
-	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\"m\n" +
+	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\x12\x1e\n" +
+	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
