@@ -187,7 +187,7 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, intBatch *gnmi.
 	a6 := i6.GetOrCreateAddress(attrs.IPv6)
 	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
 	if urpf {
-		cfgplugins.configureURPFNonDefaultNI(t, dut, cfgplugins.URPFConfigParams{IPv4Obj: i4, IPv6Obj: i6, VrfName: nonDefaultVRF})
+		cfgplugins.ConfigureURPFNonDefaultNI(t, dut, cfgplugins.URPFConfigParams{IPv4Obj: i4, IPv6Obj: i6, VrfName: nonDefaultVRF})
 	}
 	gnmi.BatchUpdate(intBatch, d.Interface(p.Name()).Config(), i)
 }

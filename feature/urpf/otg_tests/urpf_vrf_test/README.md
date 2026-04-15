@@ -169,12 +169,12 @@ paths:
   ## Telemetry Parameter Coverage
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv4/urpf/state/mode:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
+##  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-pkts:
+##  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/urpf-drop-bytes:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/enabled:
   /interfaces/interface/subinterfaces/subinterface/ipv6/urpf/state/mode:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
-  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
+##  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-pkts:
+##  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/urpf-drop-bytes:
 
 
 rpcs:

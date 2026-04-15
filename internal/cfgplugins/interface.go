@@ -1298,8 +1298,8 @@ type URPFNonDefaultNIConfigParams struct {
 }
 
 
-// configureURPFNonDefaultNI enables uRPF on an interface and sets the lookup network-instance.
-func configureURPFNonDefaultNI(t *testing.T, dut *ondatra.DUTDevice, cfg URPFNonDefaultNIConfigParams) {
+// ConfigureURPFNonDefaultNI enables uRPF on an interface and sets the lookup network-instance.
+func ConfigureURPFNonDefaultNI(t *testing.T, dut *ondatra.DUTDevice, cfg URPFNonDefaultNIConfigParams) {
    t.Helper()
   
    // Configure IPv4 uRPF
