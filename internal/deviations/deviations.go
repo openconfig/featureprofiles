@@ -2082,6 +2082,12 @@ func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
 }
 
+// Subinterface0StateUnsupported returns true if the device does not populate
+// state on subinterface 0 that is implicitly created.
+func Subinterface0StateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterface_0StateUnsupported()
+}
+
 // FragmentPuntUnsupported returns true if the device does not support fragment punt drops.
 func FragmentPuntUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetFragmentPuntUnsupported()
