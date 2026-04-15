@@ -78,7 +78,7 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
+	startTime := time.Now().Add(-10 * time.Second)
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
