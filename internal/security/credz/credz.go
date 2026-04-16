@@ -219,10 +219,14 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 			t.Fatalf("Failed reading private key contents, error: %s", err)
 		}
 		dataTypes := bytes.Fields(data)
+		keyType := keyTypeFromAlgo(string(dataTypes[0]))
+		if keyType == cpb.KeyType_KEY_TYPE_UNSPECIFIED {
+			keyType = cpb.KeyType_KEY_TYPE_ED25519
+		}
+		authKey := dataTypes[1]
 		keyContents = append(keyContents, &cpb.AccountCredentials_AuthorizedKey{
-			// AuthorizedKey: data,
-			AuthorizedKey: dataTypes[1],
-			KeyType:       cpb.KeyType_KEY_TYPE_ED25519,
+			AuthorizedKey: authKey,
+			KeyType:       keyType,
 		})
 	}
 	request := &cpb.RotateAccountCredentialsRequest{
@@ -253,9 +257,14 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 			t.Fatalf("Failed reading ca public key contents, error: %s", err)
 		}
 		dataTypes := bytes.Fields(data)
+		keyType := keyTypeFromAlgo(string(dataTypes[0]))
+		if keyType == cpb.KeyType_KEY_TYPE_UNSPECIFIED {
+			t.Fatalf("Unrecognized key type: %s", dataTypes[0])
+		}
+		pubKey := dataTypes[1]
 		keyContents = append(keyContents, &cpb.PublicKey{
-			PublicKey: dataTypes[1],
-			KeyType:   cpb.KeyType_KEY_TYPE_ED25519,
+			PublicKey: pubKey,
+			KeyType:   keyType,
 		})
 	}
 	request := &cpb.RotateHostParametersRequest{
@@ -424,21 +433,27 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice, targetAlgo string) []
 	return []byte(keyLine)
 }
 
-// CreateSSHKeyPair creates ssh keypair with a filename of keyName in the specified directory.
-// Keypairs can be created for ca/dut/testuser as per individual credentialz test requirements.
-func CreateSSHKeyPair(t *testing.T, dir, keyName string) {
-	sshCmd := exec.Command(
-		"ssh-keygen",
-		"-t", "ed25519",
-		"-f", keyName,
-		"-C", keyName,
-		"-q", "-N", "",
-	)
+// CreateSSHKeyPairAlgo creates ssh keypair with a filename of keyName in the specified directory with the specified algo.
+func CreateSSHKeyPairAlgo(t *testing.T, dir, keyName, algo string) {
+	args := []string{
+		"-t", algo,
+	}
+	if algo == "rsa" {
+		args = append(args, "-b", "4096")
+	}
+	args = append(args, "-f", keyName, "-C", keyName, "-q", "-N", "")
+	sshCmd := exec.Command("ssh-keygen", args...)
 	sshCmd.Dir = dir
 	err := sshCmd.Run()
 	if err != nil {
 		t.Fatalf("Failed generating %s key pair, error: %s", keyName, err)
 	}
+}
+
+// CreateSSHKeyPair creates ssh keypair with a filename of keyName in the specified directory.
+// Keypairs can be created for ca/dut/testuser as per individual credentialz test requirements.
+func CreateSSHKeyPair(t *testing.T, dir, keyName string) {
+	CreateSSHKeyPairAlgo(t, dir, keyName, "ed25519")
 }
 
 // CreateUserCertificate creates ssh user certificate in the specified directory.
@@ -725,6 +740,23 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 	}
 
 	return algo + " " + matchingKey
+}
+
+func keyTypeFromAlgo(algo string) cpb.KeyType {
+	switch algo {
+	case "ssh-rsa":
+		return cpb.KeyType_KEY_TYPE_RSA_4096
+	case "ecdsa-sha2-nistp256":
+		return cpb.KeyType_KEY_TYPE_ECDSA_P_256
+	case "ecdsa-sha2-nistp384":
+		return cpb.KeyType_KEY_TYPE_ECDSA_P_384
+	case "ecdsa-sha2-nistp521":
+		return cpb.KeyType_KEY_TYPE_ECDSA_P_521
+	case "ssh-ed25519":
+		return cpb.KeyType_KEY_TYPE_ED25519
+	default:
+		return cpb.KeyType_KEY_TYPE_UNSPECIFIED
+	}
 }
 
 func sshAlgo(t *testing.T, pk *cpb.PublicKey) string {

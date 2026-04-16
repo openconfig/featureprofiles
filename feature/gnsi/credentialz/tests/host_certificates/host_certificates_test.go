@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/ondatra/gnmi"
-
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -92,20 +92,22 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify host certificate telemetry values.
-		sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
-		gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
-		if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
-			t.Errorf(
-				"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
-				gotHostCertificateVersion, hostCertificateVersion,
-			)
-		}
-		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
-			t.Errorf(
-				"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
-				want, got,
-			)
+		if !deviations.SSHServerHostCertificateTelemetryUnsupported(dut) {
+			sshServer := gnmi.Get(t, dut, gnmi.OC().System().SshServer().State())
+			gotHostCertificateVersion := sshServer.GetActiveHostCertificateVersion()
+			if !cmp.Equal(gotHostCertificateVersion, hostCertificateVersion) {
+				t.Errorf(
+					"Telemetry reports host certificate version is not correct\n\tgot: %s\n\twant: %s",
+					gotHostCertificateVersion, hostCertificateVersion,
+				)
+			}
+			gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
+			if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
+				t.Errorf(
+					"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
+					want, got,
+				)
+			}
 		}
 	})
 }
