@@ -59,6 +59,7 @@ const (
 var (
 	dutPort1 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "dutPort1",
 			Name:    "port1",
 			IPv4:    "192.0.2.1",
 			IPv4Len: plenIPv4,
@@ -69,6 +70,7 @@ var (
 	}
 	dutPort2 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "dutPort2",
 			Name:    "port2",
 			IPv4:    "192.0.2.5",
 			IPv4Len: plenIPv4,
@@ -80,6 +82,7 @@ var (
 	}
 	dutPort3 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "dutPort3",
 			Name:    "port3",
 			IPv4:    "192.0.2.9",
 			IPv4Len: plenIPv4,
@@ -91,6 +94,7 @@ var (
 	}
 	dutPort4 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "dutPort4",
 			Name:    "port4",
 			IPv4:    "200.0.0.1", // 192.0.2.13
 			IPv4Len: 24,
@@ -108,6 +112,7 @@ var (
 
 	atePort1 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "atePort1",
 			Name:    "port1",
 			MAC:     "02:00:01:01:01:01",
 			IPv4:    "192.0.2.2",
@@ -125,6 +130,7 @@ var (
 	}
 	atePort2 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "atePort2",
 			Name:    "port2",
 			MAC:     "02:00:02:01:01:01",
 			IPv4:    "192.0.2.6",
@@ -138,6 +144,7 @@ var (
 	}
 	atePort3 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "atePort3",
 			Name:    "port3",
 			MAC:     "02:00:03:01:01:01",
 			IPv4:    "192.0.2.10",
@@ -151,6 +158,7 @@ var (
 	}
 	atePort4 = attributes{
 		Attributes: &attrs.Attributes{
+			Desc:    "atePort4",
 			Name:    "port4",
 			MAC:     "02:00:04:01:01:01",
 			IPv4:    "200.0.0.2", // 192.0.2.14
@@ -405,7 +413,8 @@ func createCommunitySet(t *testing.T, dut *ondatra.DUTDevice, cs communitySet, r
 	if deviations.CommunityMemberRegexUnsupported(dut) && cs.name == communitySetNameRegex {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1'\n end-set", cs.name)
+			communitySetCLIConfig = fmt.Sprintf("community-set %v\n ios-regex '10[0-9]:1' end-set", cs.name)
+
 		default:
 			t.Fatalf("Unsupported vendor %s for deviation 'CommunityMemberRegexUnsupported'", dut.Vendor())
 		}
@@ -496,7 +505,9 @@ func configAddPathReceiveSend(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 		}
 		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSend(true)
 		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetReceive(true)
-		nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSendMax(10)
+		if !deviations.SendMaxUnsupported(dut) {
+			nbrD.GetOrCreateAfiSafi(afiSafiType).GetOrCreateAddPaths().SetSendMax(10)
+		}
 	}
 	gnmi.Update(t, dut, bgpPath.Config(), bgp)
 	ate.OTG().StopProtocols(t)
