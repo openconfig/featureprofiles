@@ -1275,6 +1275,14 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
+    
+    // Devices that do not support mpls static pseudowire OC
+    // Arista: b/495544007
+    bool mpls_static_pseudowire_oc_unsupported = 409;
+
+    // Devices that do not support vlan client encapsulation OC
+    // Arista: b/495549829
+    bool vlan_client_encapsulation_oc_unsupported = 410;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
