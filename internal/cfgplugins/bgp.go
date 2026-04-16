@@ -141,6 +141,8 @@ var (
 
 	bgpName = "BGP"
 
+	// PortCount1 use this for topology of 1 ports
+	PortCount1 PortCount = 1
 	// PortCount2 use this for topology of 2 ports
 	PortCount2 PortCount = 2
 	// PortCount4 use this for topology of 4 ports
@@ -241,6 +243,11 @@ func NewBGPSession(t *testing.T, pc PortCount, ni *string) *BGPSession {
 		OndatraDUTPorts: make([]*ondatra.Port, int(pc)),
 		OndatraATEPorts: make([]*ondatra.Port, int(pc)),
 		ATEIntfs:        make([]gosnappi.Device, int(pc)),
+	}
+
+	if pc == PortCount1 {
+		conf.DUTPorts = []*attrs.Attributes{dutPort1}
+		conf.ATEPorts = []*attrs.Attributes{atePort1}
 	}
 
 	if pc == PortCount4 {
@@ -1731,5 +1738,68 @@ func ConfigureBMPAccessList(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Se
  			permit tcp any eq %[1]d any`, cfgParams.StationPort)
 
 		helpers.GnmiCLIConfig(t, dut, bmpAclConfig.String())
+	}
+}
+
+// SetPortAttr sets port attributes for specified DUT and ATE ports.
+func SetPortAttr(ports []string, dutAttr *attrs.Attributes, ateAttr *attrs.Attributes) {
+	if dutAttr == nil && ateAttr == nil {
+		return
+	}
+
+	dutPortMap := map[string]*attrs.Attributes{
+		"port1": dutPort1,
+		"port2": dutPort2,
+		"port3": dutPort3,
+		"port4": dutPort4,
+	}
+	atePortMap := map[string]*attrs.Attributes{
+		"port1": atePort1,
+		"port2": atePort2,
+		"port3": atePort3,
+		"port4": atePort4,
+	}
+
+	// Update DUT ports if dutAttr is provided
+	if dutAttr != nil {
+		for _, port := range ports {
+			if p, ok := dutPortMap[port]; ok {
+				updateAttributes(p, dutAttr)
+			}
+		}
+	}
+
+	// Update ATE ports if ateAttr is provided
+	if ateAttr != nil {
+		for _, port := range ports {
+			if p, ok := atePortMap[port]; ok {
+				updateAttributes(p, ateAttr)
+			}
+		}
+	}
+}
+
+// updateAttributes update attribute values
+func updateAttributes(oldAttr, newAttr *attrs.Attributes) {
+	if newAttr.Name != "" {
+		oldAttr.Name = newAttr.Name
+	}
+	if newAttr.IPv4 != "" {
+		oldAttr.IPv4 = newAttr.IPv4
+	}
+	if newAttr.IPv6 != "" {
+		oldAttr.IPv6 = newAttr.IPv6
+	}
+	if newAttr.IPv4Len != 0 {
+		oldAttr.IPv4Len = newAttr.IPv4Len
+	}
+	if newAttr.IPv6Len != 0 {
+		oldAttr.IPv6Len = newAttr.IPv6Len
+	}
+	if newAttr.MAC != "" {
+		oldAttr.MAC = newAttr.MAC
+	}
+	if newAttr.Desc != "" {
+		oldAttr.Desc = newAttr.Desc
 	}
 }

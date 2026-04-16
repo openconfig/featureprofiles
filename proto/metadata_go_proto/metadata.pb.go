@@ -1360,8 +1360,58 @@ type Metadata_Deviations struct {
 	// is not supported.
 	// Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
 	SshServerHostCertificateTelemetryUnsupported bool `protobuf:"varint,394,opt,name=ssh_server_host_certificate_telemetry_unsupported,json=sshServerHostCertificateTelemetryUnsupported,proto3" json:"ssh_server_host_certificate_telemetry_unsupported,omitempty"`
+	// SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
+	// Cisco: b/498283710
+	SendMaxUnsupported bool `protobuf:"varint,395,opt,name=send_max_unsupported,json=sendMaxUnsupported,proto3" json:"send_max_unsupported,omitempty"`
+	// Devices that do not support AcctZ shell CMD records accounting.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzShellCmdAccountingUnsupported bool `protobuf:"varint,396,opt,name=acctz_shell_cmd_accounting_unsupported,json=acctzShellCmdAccountingUnsupported,proto3" json:"acctz_shell_cmd_accounting_unsupported,omitempty"`
+	// Devices that do not support AuthZ status field with deny in CMD service
+	// in AcctZ records.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	AcctzRecordsAuthzStatusDenyUnsupported bool `protobuf:"varint,397,opt,name=acctz_records_authz_status_deny_unsupported,json=acctzRecordsAuthzStatusDenyUnsupported,proto3" json:"acctz_records_authz_status_deny_unsupported,omitempty"`
+	// Functional Translator name for devices with FPD paths unsupported.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+	FpgaFt string `protobuf:"bytes,398,opt,name=fpga_ft,json=fpgaFt,proto3" json:"fpga_ft,omitempty"`
+	// Devices that do not support role leaf of string type for OC system/aaa
+	// username configuration.
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+	OcAaaUserRoleLeafStringTypeUnsupported bool `protobuf:"varint,399,opt,name=oc_aaa_user_role_leaf_string_type_unsupported,json=ocAaaUserRoleLeafStringTypeUnsupported,proto3" json:"oc_aaa_user_role_leaf_string_type_unsupported,omitempty"`
+	// Device that do not support acctz record for fail user cases
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordFailCommandUnsupported bool `protobuf:"varint,403,opt,name=acctz_record_fail_command_unsupported,json=acctzRecordFailCommandUnsupported,proto3" json:"acctz_record_fail_command_unsupported,omitempty"`
+	// Device that do not support acctz record for fail user cases
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordFailGrpcUnsupported bool `protobuf:"varint,404,opt,name=acctz_record_fail_grpc_unsupported,json=acctzRecordFailGrpcUnsupported,proto3" json:"acctz_record_fail_grpc_unsupported,omitempty"`
+	// Devices that do not support BGP Graceful restart for Peer Group
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+	BgpGracefulRestartPeerGroupUnsupported bool `protobuf:"varint,400,opt,name=bgp_graceful_restart_peer_group_unsupported,json=bgpGracefulRestartPeerGroupUnsupported,proto3" json:"bgp_graceful_restart_peer_group_unsupported,omitempty"`
+	// Device does not support services leaf under grpc-server config.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+	GrpcServerServicesUnsupported bool `protobuf:"varint,401,opt,name=grpc_server_services_unsupported,json=grpcServerServicesUnsupported,proto3" json:"grpc_server_services_unsupported,omitempty"`
+	// Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+	// Devices that do not support oc path for static route to nexthop
+	StaticRouteToNhgOcUnsupported bool `protobuf:"varint,402,opt,name=static_route_to_nhg_oc_unsupported,json=staticRouteToNhgOcUnsupported,proto3" json:"static_route_to_nhg_oc_unsupported,omitempty"`
+	// Device does not populate state on subinterface 0
+	// that is implicitly created.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+	Subinterface_0StateUnsupported bool `protobuf:"varint,405,opt,name=subinterface_0_state_unsupported,json=subinterface0StateUnsupported,proto3" json:"subinterface_0_state_unsupported,omitempty"`
+	// Device does not support fragment punt drops.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntUnsupported bool `protobuf:"varint,406,opt,name=fragment_punt_unsupported,json=fragmentPuntUnsupported,proto3" json:"fragment_punt_unsupported,omitempty"`
+	// Device does not support fragment punt pkts.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntPktsUnsupported bool `protobuf:"varint,407,opt,name=fragment_punt_pkts_unsupported,json=fragmentPuntPktsUnsupported,proto3" json:"fragment_punt_pkts_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+	// Functional translator to be used for Fragment Punt OC paths
+	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502838491
 	// Device is missing subinterface state packet counters.
-	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,395,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
+	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,409,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
 	unknownFields                            protoimpl.UnknownFields
 	sizeCache                                protoimpl.SizeCache
 }
@@ -3916,6 +3966,104 @@ func (x *Metadata_Deviations) GetSshServerHostCertificateTelemetryUnsupported() 
 	return false
 }
 
+func (x *Metadata_Deviations) GetSendMaxUnsupported() bool {
+	if x != nil {
+		return x.SendMaxUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzShellCmdAccountingUnsupported() bool {
+	if x != nil {
+		return x.AcctzShellCmdAccountingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordsAuthzStatusDenyUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordsAuthzStatusDenyUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFpgaFt() string {
+	if x != nil {
+		return x.FpgaFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetOcAaaUserRoleLeafStringTypeUnsupported() bool {
+	if x != nil {
+		return x.OcAaaUserRoleLeafStringTypeUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordFailCommandUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordFailCommandUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordFailGrpcUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordFailGrpcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpGracefulRestartPeerGroupUnsupported() bool {
+	if x != nil {
+		return x.BgpGracefulRestartPeerGroupUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetGrpcServerServicesUnsupported() bool {
+	if x != nil {
+		return x.GrpcServerServicesUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetStaticRouteToNhgOcUnsupported() bool {
+	if x != nil {
+		return x.StaticRouteToNhgOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSubinterface_0StateUnsupported() bool {
+	if x != nil {
+		return x.Subinterface_0StateUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntPktsUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntPktsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntFt() string {
+	if x != nil {
+		return x.FragmentPuntFt
+	}
+	return ""
+}
+
 func (x *Metadata_Deviations) GetDefaultSubinterfacePacketCountersMissing() bool {
 	if x != nil {
 		return x.DefaultSubinterfacePacketCountersMissing
@@ -3979,7 +4127,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xe1\xdc\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xcd\xe4\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -3991,7 +4139,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xad\xd2\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x99\xda\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4356,8 +4504,22 @@ const file_metadata_proto_rawDesc = "" +
 	"\x1bsystem_mount_point_state_ft\x18\x87\x03 \x01(\tR\x17systemMountPointStateFt\x12\x16\n" +
 	"\x06arp_ft\x18\x88\x03 \x01(\tR\x05arpFt\x12F\n" +
 	"\x1fprefix_limit_config_unsupported\x18\x89\x03 \x01(\bR\x1cprefixLimitConfigUnsupported\x12h\n" +
-	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x12_\n" +
-	",default_subinterface_packet_counters_missing\x18\x8b\x03 \x01(\bR(defaultSubinterfacePacketCountersMissingJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"1ssh_server_host_certificate_telemetry_unsupported\x18\x8a\x03 \x01(\bR,sshServerHostCertificateTelemetryUnsupported\x121\n" +
+	"\x14send_max_unsupported\x18\x8b\x03 \x01(\bR\x12sendMaxUnsupported\x12S\n" +
+	"&acctz_shell_cmd_accounting_unsupported\x18\x8c\x03 \x01(\bR\"acctzShellCmdAccountingUnsupported\x12\\\n" +
+	"+acctz_records_authz_status_deny_unsupported\x18\x8d\x03 \x01(\bR&acctzRecordsAuthzStatusDenyUnsupported\x12\x18\n" +
+	"\afpga_ft\x18\x8e\x03 \x01(\tR\x06fpgaFt\x12^\n" +
+	"-oc_aaa_user_role_leaf_string_type_unsupported\x18\x8f\x03 \x01(\bR&ocAaaUserRoleLeafStringTypeUnsupported\x12Q\n" +
+	"%acctz_record_fail_command_unsupported\x18\x93\x03 \x01(\bR!acctzRecordFailCommandUnsupported\x12K\n" +
+	"\"acctz_record_fail_grpc_unsupported\x18\x94\x03 \x01(\bR\x1eacctzRecordFailGrpcUnsupported\x12\\\n" +
+	"+bgp_graceful_restart_peer_group_unsupported\x18\x90\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupported\x12H\n" +
+	" grpc_server_services_unsupported\x18\x91\x03 \x01(\bR\x1dgrpcServerServicesUnsupported\x12J\n" +
+	"\"static_route_to_nhg_oc_unsupported\x18\x92\x03 \x01(\bR\x1dstaticRouteToNhgOcUnsupported\x12H\n" +
+	" subinterface_0_state_unsupported\x18\x95\x03 \x01(\bR\x1dsubinterface0StateUnsupported\x12;\n" +
+	"\x19fragment_punt_unsupported\x18\x96\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
+	"\x1efragment_punt_pkts_unsupported\x18\x97\x03 \x01(\bR\x1bfragmentPuntPktsUnsupported\x12)\n" +
+	"\x10fragment_punt_ft\x18\x98\x03 \x01(\tR\x0efragmentPuntFt\x12_\n" +
+	",default_subinterface_packet_counters_missing\x18\x99\x03 \x01(\bR(defaultSubinterfacePacketCountersMissingJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
