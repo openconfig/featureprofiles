@@ -1290,6 +1290,31 @@ func ConfigureURPFonDutInt(t *testing.T, dut *ondatra.DUTDevice, cfg URPFConfigP
 	}
 }
 
+// URPFNonDefaultNIConfigParams holds all parameters required to configure Unicast Reverse Path Forwarding (uRPF) on a DUT interface where lookup happens in an non-default vrf.
+type URPFNonDefaultNIConfigParams struct {
+   IPv4Obj       *oc.Interface_Subinterface_Ipv4
+   IPv6Obj       *oc.Interface_Subinterface_Ipv6
+   VrfName string
+}
+
+
+// ConfigureURPFNonDefaultNI enables uRPF on an interface and sets the lookup network-instance.
+func ConfigureURPFNonDefaultNI(t *testing.T, dut *ondatra.DUTDevice, cfg URPFNonDefaultNIConfigParams) {
+   t.Helper()
+  
+   // Configure IPv4 uRPF
+   	cfg.IPv4Obj.GetOrCreateUrpf()
+	cfg.IPv4Obj.Urpf.Enabled = ygot.Bool(true)
+	cfg.IPv4Obj.Urpf.Mode = oc.IfIp_UrpfMode_LOOSE
+	cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
+	// Configure IPv6 uRPF	
+	cfg.IPv6Obj.GetOrCreateUrpf()
+	cfg.IPv6Obj.Urpf.Enabled = ygot.Bool(true)
+	cfg.IPv6Obj.Urpf.Mode = oc.IfIp_UrpfMode_LOOSE
+	cfg.IPv4Obj.Urpf.LookupNetworkInstance = ygot.String(cfg.VrfName)
+}
+
+
 // EnableInterfaceAndSubinterfaces enables the parent interface and v4 and v6 subinterfaces.
 func EnableInterfaceAndSubinterfaces(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, portAttribs attrs.Attributes) {
 	t.Helper()
