@@ -149,41 +149,39 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 
 	t.Run("DP-1.16.1 Ingress Classification and rewrite of IPv4 packets with various DSCP values", func(t *testing.T) {
-		t.Skip("scoped to DP-1.16.3 on this branch")
 		rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
 	t.Run("DP-1.16.2 Ingress Classification and rewrite of IPv6 packets with various DSCP values", func(t *testing.T) {
-		t.Skip("scoped to DP-1.16.3 on this branch")
 		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
 
 	t.Run("DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action", func(t *testing.T) {
 		rewriteMplsSwapAction(t, dut, ate, topo, dp1, dp2)
 	})
-	//t.Run("DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action", func(t *testing.T) {
-	//	rewriteIpv4MplsPopAction(t, dut, ate, topo)
-	//})
-	//t.Run("DP-1.16.5 Ingress Classification and rewrite of IPv6-over-MPLS traffic with pop action", func(t *testing.T) {
-	//	rewriteIpv6MplsPopAction(t, dut, ate, topo)
-	//})
-	//t.Run("DP-1.16.6 Ingress Classification and rewrite of IPv4 packets traffic with label push action", func(t *testing.T) {
-	//	rewriteIpv4MplsPushAction(t, dut, ate, topo)
-	//})
-	//t.Run("DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action", func(t *testing.T) {
-	//	rewriteIpv6MplsPushAction(t, dut, ate, topo)
-	//})
-	//t.Run("DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap", func(t *testing.T) {
-	//	rewriteIpv4PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
-	//})
-	//t.Run("DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap", func(t *testing.T) {
-	//	rewriteIpv6PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
-	//})
-	//t.Run("DP-1.16.10 Ingress Classification and rewrite of IPV4 traffic with action GUE variant1 encap", func(t *testing.T) {
-	//	rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
-	//})
-	//t.Run("DP-1.16.11 Ingress Classification and rewrite of IPV6 traffic with action GUE variant1 encap", func(t *testing.T) {
-	//	rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
-	//})
+	t.Run("DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action", func(t *testing.T) {
+		rewriteIpv4MplsPopAction(t, dut, ate, topo)
+	})
+	t.Run("DP-1.16.5 Ingress Classification and rewrite of IPv6-over-MPLS traffic with pop action", func(t *testing.T) {
+		rewriteIpv6MplsPopAction(t, dut, ate, topo)
+	})
+	t.Run("DP-1.16.6 Ingress Classification and rewrite of IPv4 packets traffic with label push action", func(t *testing.T) {
+		rewriteIpv4MplsPushAction(t, dut, ate, topo)
+	})
+	t.Run("DP-1.16.7 Ingress Classification and rewrite of IPv6 packets traffic with label push action", func(t *testing.T) {
+		rewriteIpv6MplsPushAction(t, dut, ate, topo)
+	})
+	t.Run("DP-1.16.8 Ingress Classification and rewrite of IPV4 traffic with action GRE encap", func(t *testing.T) {
+		rewriteIpv4PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	})
+	t.Run("DP-1.16.9 Ingress Classification and rewrite of IPV6 traffic with action GRE encap", func(t *testing.T) {
+		rewriteIpv6PktsWithDscp(t, dut, ate, topo, executeGre, donotExecuteGue)
+	})
+	t.Run("DP-1.16.10 Ingress Classification and rewrite of IPV4 traffic with action GUE variant1 encap", func(t *testing.T) {
+		rewriteIpv4PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	})
+	t.Run("DP-1.16.11 Ingress Classification and rewrite of IPV6 traffic with action GUE variant1 encap", func(t *testing.T) {
+		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, executeGue)
+	})
 }
 
 func ConfigureDUTIntf(t *testing.T, dut *ondatra.DUTDevice) {
