@@ -186,6 +186,11 @@ func TestInterfaceCounters(t *testing.T) {
 		counter: subinterfaceCounters.OutBroadcastPkts().State(),
 		skip:    skipSubinterfaceStateCounters,
 	}, {
+		desc:    "SubinterfaceCarrierTransitions",
+		path:    subinterfaceCounterPath + "carrier-transitions",
+		counter: subinterfaceCounters.CarrierTransitions().State(),
+		skip:    skipSubinterfaceStateCounters,
+	}, {
 		desc:    "SubinterfaceOutErrors",
 		path:    subinterfaceCounterPath + "out-errors",
 		counter: subinterfaceCounters.OutErrors().State(),
