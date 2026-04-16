@@ -28,16 +28,6 @@ const (
 )
 
 var (
-	dutPort1 = attrs.Attributes{
-		Desc:    "dutPort1",
-		IPv4:    "192.0.2.1",
-		IPv4Len: 30,
-	}
-	dutPort2 = attrs.Attributes{
-		Desc:    "dutPort2",
-		IPv4:    "192.0.2.5",
-		IPv4Len: 30,
-	}
 	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
