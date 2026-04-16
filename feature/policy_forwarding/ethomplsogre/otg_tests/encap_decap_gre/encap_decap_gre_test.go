@@ -640,7 +640,7 @@ func verifyLoadBalanceUsingNexthopCounters(t *testing.T, response *gnmipb.GetRes
 			return fmt.Errorf("traffic not equally load-balanced across 16 GRE destinationsone or more tunnels deviate beyond %.2f%% threshold", tolerance*100)
 		}
 	} else {
-		return fmt.Errorf("No packet values available for load balance verification")
+		return fmt.Errorf("no packet values available for load balance verification")
 	}
 	return nil
 }
