@@ -1385,7 +1385,7 @@ func ConfigureVlanInterfaceFromCLI(t *testing.T, dut *ondatra.DUTDevice, vlan DU
 		cli := fmt.Sprintf(vlanInterfaceCLITemplate, vlan.VlanID, vlan.IPv4Address, vlan.IPv4PrefixLen, vlan.IPv6Address, vlan.IPv6PrefixLen)
 		helpers.GnmiCLIConfig(t, dut, cli)
 	default:
-		t.Logf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
+		t.Fatalf("VLAN interface CLI deviation not implemented for vendor: %s", dut.Vendor())
 	}
 }
 

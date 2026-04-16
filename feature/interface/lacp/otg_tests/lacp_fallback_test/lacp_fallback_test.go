@@ -56,9 +56,10 @@ const (
 
 	ateLag = "ateLag"
 
-	noOfPackets   = 1000
-	packetRatePPS = 500
-	packetSize    = 128
+	noOfPackets      = 1000
+	packetRatePPS    = 500
+	packetSize       = 128
+	lossTolerancePct = 1
 
 	broadcastMAC    = "ff:ff:ff:ff:ff:ff"
 	flowIPv4Flood   = "ipv4_flood"
@@ -66,10 +67,10 @@ const (
 	flowIPv4Forward = "ipv4_forward"
 	flowIPv6Forward = "ipv6_forward"
 
-	wantLag        = true
-	expectFallback = false
-	ingress        = true
-	egress         = false
+	wantLag  = true
+	wantSync = true
+	ingress  = true
+	egress   = false
 )
 
 type atePortConfig struct {
@@ -271,7 +272,7 @@ func TestLacpFallback(t *testing.T) {
 	ate.OTG().StartProtocols(t)
 
 	t.Log("Waiting for LACP to establish on DUT ports...")
-	if err := verifyLACPPortsState(t, dut, !expectFallback, p1, p2); err != nil {
+	if err := verifyLACPPortsState(t, dut, wantSync, p1, p2); err != nil {
 		t.Fatalf("initial LACP setup: %v", err)
 	}
 
@@ -283,7 +284,7 @@ func TestLacpFallback(t *testing.T) {
 	t.Log("Stopping ATE protocols to trigger LACP fallback on DUT...")
 	ate.OTG().StopProtocols(t)
 
-	if err := verifyLACPPortsState(t, dut, expectFallback, p1, p2); err != nil {
+	if err := verifyLACPPortsState(t, dut, !wantSync, p1, p2); err != nil {
 		t.Fatalf("initial fallback state: %v", err)
 	}
 
@@ -300,8 +301,19 @@ func TestLacpFallback(t *testing.T) {
 				otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv4)
 				otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv6)
 
-				dev1 := top.Devices().Items()[0]
-				dev4 := top.Devices().Items()[1]
+				findDev := func(name string) gosnappi.Device {
+					for _, d := range top.Devices().Items() {
+						if d.Name() == name {
+							return d
+						}
+					}
+					return nil
+				}
+				dev1 := findDev(ateP1.Name)
+				dev4 := findDev(ateP4.Name)
+				if dev1 == nil || dev4 == nil {
+					t.Fatalf("could not find source or destination device in OTG config: dev1=%v, dev4=%v", dev1, dev4)
+				}
 
 				floodFlows := []flowConfig{
 					{name: flowIPv4Flood, ipType: cfgplugins.IPv4, srcDev: &dev1, srcIP: ateVlan10ip, dstIP: dutVlan10ip},
@@ -319,7 +331,7 @@ func TestLacpFallback(t *testing.T) {
 					p4.Name(): gnmi.Get(t, dut, gnmi.OC().Interface(p4.Name()).Counters().OutPkts().State()),
 				}
 
-				checkDUTPortPkts := func(portName string, isIngress bool) error {
+				checkDUTPortPkts := func(portName string, isIngress bool, wantPkts uint64) error {
 					prev := baselinePkts[portName]
 					var newPkts uint64
 					var direction string
@@ -332,11 +344,9 @@ func TestLacpFallback(t *testing.T) {
 					}
 					delta := newPkts - prev
 					baselinePkts[portName] = newPkts
-					if delta == 0 {
-						return fmt.Errorf("DUT port %s %s 0 packets, want ~%d", portName, direction, noOfPackets)
-					}
-					if delta < noOfPackets {
-						return fmt.Errorf("DUT port %s %s %d packets, want ~%d", portName, direction, delta, noOfPackets)
+					minPkts := wantPkts * (100 - lossTolerancePct) / 100
+					if delta < minPkts {
+						return fmt.Errorf("DUT port %s %s %d packets, want >=%d (~%d with %d%% loss tolerance)", portName, direction, delta, minPkts, wantPkts, lossTolerancePct)
 					}
 					t.Logf("DUT port %s %s %d packets", portName, direction, delta)
 					return nil
@@ -350,14 +360,15 @@ func TestLacpFallback(t *testing.T) {
 
 				t.Log("Sending flood traffic...")
 				ate.OTG().StartTraffic(t)
-				floodErr := waitForFloodedPkts(t, ate, ap2, ap3)
+				expectedPkts := uint64(len(floodFlows) * noOfPackets)
+				floodErr := waitForFloodedPkts(t, ate, expectedPkts, ap2, ap3)
 				ate.OTG().StopTraffic(t)
 
 				var errs []error
 				errs = append(errs, floodErr)
-				errs = append(errs, checkDUTPortPkts(p1.Name(), ingress))
-				errs = append(errs, checkDUTPortPkts(p2.Name(), egress))
-				errs = append(errs, checkDUTPortPkts(p3.Name(), egress))
+				errs = append(errs, checkDUTPortPkts(p1.Name(), ingress, expectedPkts))
+				errs = append(errs, checkDUTPortPkts(p2.Name(), egress, expectedPkts))
+				errs = append(errs, checkDUTPortPkts(p3.Name(), egress, expectedPkts))
 
 				top.Flows().Clear()
 				for _, flow := range forwardedFlows {
@@ -375,8 +386,9 @@ func TestLacpFallback(t *testing.T) {
 				otgutils.LogFlowMetrics(t, ate.OTG(), top)
 				otgutils.LogPortMetrics(t, ate.OTG(), top)
 
-				errs = append(errs, checkDUTPortPkts(p1.Name(), ingress))
-				errs = append(errs, checkDUTPortPkts(p4.Name(), egress))
+				forwardedPkts := uint64(len(forwardedFlows) * noOfPackets)
+				errs = append(errs, checkDUTPortPkts(p1.Name(), ingress, forwardedPkts))
+				errs = append(errs, checkDUTPortPkts(p4.Name(), egress, forwardedPkts))
 
 				for _, flowName := range []string{flowIPv4Forward, flowIPv6Forward} {
 					fm := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
@@ -389,7 +401,7 @@ func TestLacpFallback(t *testing.T) {
 
 				t.Log("Verifying DUT LAG ports are still sending LACP PDUs in fallback mode...")
 				errs = append(errs, verifyLACPPortsOutPkts(t, dut, p1, p2))
-				errs = append(errs, verifyLACPPortsState(t, dut, expectFallback, p1, p2))
+				errs = append(errs, verifyLACPPortsState(t, dut, !wantSync, p1, p2))
 
 				return errors.Join(errs...)
 			},
@@ -423,7 +435,7 @@ func TestLacpFallback(t *testing.T) {
 
 				var errs []error
 				t.Log("Waiting for LACP to establish on DUT ports...")
-				if err := verifyLACPPortsState(t, dut, !expectFallback, p1, p2); err != nil {
+				if err := verifyLACPPortsState(t, dut, wantSync, p1, p2); err != nil {
 					t.Fatalf("RT-5.15.3 setup: %v", err)
 				}
 
@@ -433,9 +445,9 @@ func TestLacpFallback(t *testing.T) {
 				ate.OTG().StartProtocols(t)
 
 				t.Log("Verifying DUT:Port[2] moved to aggregate detached (OUT_SYNC)...")
-				errs = append(errs, verifyLACPState(t, dut, p2, expectFallback))
+				errs = append(errs, verifyLACPState(t, dut, p2, !wantSync))
 				t.Log("Verifying DUT:Port[1] remains in LACP aggregate (IN_SYNC)...")
-				errs = append(errs, verifyLACPState(t, dut, p1, !expectFallback))
+				errs = append(errs, verifyLACPState(t, dut, p1, wantSync))
 
 				t.Log("Verifying both DUT LAG ports are still sending LACP PDUs...")
 				errs = append(errs, verifyLACPPortsOutPkts(t, dut, p1, p2))
@@ -445,7 +457,7 @@ func TestLacpFallback(t *testing.T) {
 				ate.OTG().PushConfig(t, top)
 				ate.OTG().StartProtocols(t)
 				t.Log("Waiting for LACP to establish on DUT ports...")
-				errs = append(errs, verifyLACPPortsState(t, dut, !expectFallback, p1, p2))
+				errs = append(errs, verifyLACPPortsState(t, dut, wantSync, p1, p2))
 
 				return errors.Join(errs...)
 			},
@@ -459,7 +471,7 @@ func TestLacpFallback(t *testing.T) {
 
 				var errs []error
 				t.Log("Waiting for LACP to establish on DUT ports...")
-				if err := verifyLACPPortsState(t, dut, !expectFallback, p1, p2); err != nil {
+				if err := verifyLACPPortsState(t, dut, wantSync, p1, p2); err != nil {
 					t.Fatalf("RT-5.15.4 setup: %v", err)
 				}
 
@@ -467,7 +479,7 @@ func TestLacpFallback(t *testing.T) {
 				ate.OTG().StopProtocols(t)
 
 				t.Log("Verifying both DUT ports moved to aggregate detached (OUT_SYNC)...")
-				errs = append(errs, verifyLACPPortsState(t, dut, expectFallback, p1, p2))
+				errs = append(errs, verifyLACPPortsState(t, dut, !wantSync, p1, p2))
 
 				t.Log("Verifying both DUT LAG ports are still sending LACP PDUs in fallback mode...")
 				errs = append(errs, verifyLACPPortsOutPkts(t, dut, p1, p2))
@@ -477,7 +489,7 @@ func TestLacpFallback(t *testing.T) {
 				ate.OTG().PushConfig(t, top)
 				ate.OTG().StartProtocols(t)
 				t.Log("Waiting for LACP to establish on DUT ports...")
-				errs = append(errs, verifyLACPPortsState(t, dut, !expectFallback, p1, p2))
+				errs = append(errs, verifyLACPPortsState(t, dut, wantSync, p1, p2))
 
 				return errors.Join(errs...)
 			},
@@ -493,9 +505,8 @@ func TestLacpFallback(t *testing.T) {
 	}
 }
 
-func waitForFloodedPkts(t *testing.T, ate *ondatra.ATEDevice, ports ...*ondatra.Port) error {
+func waitForFloodedPkts(t *testing.T, ate *ondatra.ATEDevice, expectedPkts uint64, ports ...*ondatra.Port) error {
 	t.Helper()
-	expectedPkts := uint64(len(ports) * noOfPackets)
 	var errs []error
 	for _, port := range ports {
 		portName := port.ID()
