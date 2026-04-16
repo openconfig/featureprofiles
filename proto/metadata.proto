@@ -1276,6 +1276,15 @@ message Metadata {
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
 
+    // https://partnerissuetracker.corp.google.com/issues/443044887
+    bool extended_route_retention_oc_unsupported = 409;
+
+    // https://partnerissuetracker.corp.google.com/issues/439825838
+    bool exrr_stale_route_time_unsupported = 410;
+
+    // https://partnerissuetracker.corp.google.com/issues/446376446
+    bool gnoi_bgp_graceful_restart_unsupported = 411;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
