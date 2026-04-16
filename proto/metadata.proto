@@ -1083,7 +1083,7 @@ message Metadata {
     // Devices that require no-php flag for ISIS SR prefix and node segments
     // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 360;
-
+    
     // Device does not support match-set-options leaf with ALL for match-community-set
     // Arista: b/335739231
     bool match_community_set_match_set_options_all_unsupported = 361;
@@ -1187,7 +1187,7 @@ message Metadata {
     // Devices that do not support configuring weight for wecmp
     // Juniper b/450154047
     bool wecmp_set_weight_unsupported = 388;
-
+    
     // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
     // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
     bool explicitly_apply_allow_all_import_policy = 389;
@@ -1207,12 +1207,80 @@ message Metadata {
     // Device does not support configuring prefix limit received paths through OC
     // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
     bool prefix_limit_config_unsupported = 393;
-    
+
+    // SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+    // is not supported.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+    bool ssh_server_host_certificate_telemetry_unsupported = 394;
+
+    // SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
+    // Cisco: b/498283710
+    bool send_max_unsupported = 395;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_shell_cmd_accounting_unsupported = 396;
+
+    // Devices that do not support AuthZ status field with deny in CMD service
+    // in AcctZ records.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_records_authz_status_deny_unsupported = 397;
+
+    // Functional Translator name for devices with FPD paths unsupported.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+    string fpga_ft = 398;
+
+    // Devices that do not support role leaf of string type for OC system/aaa
+    // username configuration.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_command_unsupported = 403;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_grpc_unsupported = 404;
+
+    // Devices that do not support BGP Graceful restart for Peer Group
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+    bool bgp_graceful_restart_peer_group_unsupported = 400;
+
+    // Device does not support services leaf under grpc-server config.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+    bool grpc_server_services_unsupported = 401;
+
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+    // Devices that do not support oc path for static route to nexthop
+    bool static_route_to_nhg_oc_unsupported = 402;
+
+    // Device does not populate state on subinterface 0
+    // that is implicitly created.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+    bool subinterface_0_state_unsupported = 405;
+
+    // Device does not support fragment punt drops.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_unsupported = 406;
+
+    // Device does not support fragment punt pkts.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_pkts_unsupported = 407;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+    // Functional translator to be used for Fragment Punt OC paths
+    string fragment_punt_ft = 408;
+
     // Device does not support OC configuration for lacp interface fallback
-    bool lacp_interface_fallback_oc_unsupported = 394;
+    bool lacp_interface_fallback_oc_unsupported = 409;
 
     // Device does not support configuring VLAN subinterfaces
-    bool vlan_subinterface_oc_unsupported = 395;
+    bool vlan_subinterface_oc_unsupported = 410;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
