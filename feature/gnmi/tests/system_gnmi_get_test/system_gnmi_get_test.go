@@ -130,7 +130,7 @@ func TestGNMIGet(t *testing.T) {
 			case err == nil && tt.wantErrCode != codes.OK:
 				t.Fatalf("did not get expected error, got: %v, want: %v", err, tt.wantErrCode)
 			case err != nil && tt.wantErrCode == codes.OK:
-				t.Fatalf("got unexpected error, got: %v, want OK", err)
+				t.Fatalf("Got unexpected error, got: %v, want OK", err)
 			case err != nil:
 				s, ok := status.FromError(err)
 				if !ok {
