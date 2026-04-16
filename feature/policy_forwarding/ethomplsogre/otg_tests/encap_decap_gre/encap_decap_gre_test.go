@@ -25,6 +25,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // TestMain calls main function.
@@ -58,15 +59,12 @@ const (
 )
 
 var (
-	sfBatch      *gnmi.SetBatch
-	ni           *oc.NetworkInstance
-	custAggID    string
-	tunnelSrcIPs = []string{}
-	custPort     = "port1"
-	packetSource = []*gopacket.PacketSource{}
-
-	activity = oc.Lacp_LacpActivityType_ACTIVE
-	period   = oc.Lacp_LacpPeriodType_FAST
+	sfBatch   *gnmi.SetBatch
+	ni        *oc.NetworkInstance
+	custAggID string
+	custPort  = "port1"
+	activity  = oc.Lacp_LacpActivityType_ACTIVE
+	period    = oc.Lacp_LacpPeriodType_FAST
 
 	lacpParams = &cfgplugins.LACPParams{
 		Activity: &activity,
@@ -82,7 +80,7 @@ var (
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
+					VlanEnable:    ygot.Bool(false),
 					IPv4Address:   net.ParseIP("192.168.10.2"),
 					IPv6Address:   net.ParseIP("2001:db8::192:168:10:2"),
 					IPv4PrefixLen: plenIPv4,
@@ -290,6 +288,8 @@ func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 func configureDut(t *testing.T, dut *ondatra.DUTDevice, ocPFParams cfgplugins.OcPolicyForwardingParams) {
+	var tunnelSrcIPs = []string{}
+
 	configureHardwareInit(t, dut)
 
 	for _, l := range custLagData {
@@ -665,7 +665,6 @@ func TestEncapDecapGre(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	sfBatch = &gnmi.SetBatch{}
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	// Get default parameters for OC Policy Forwarding
@@ -727,7 +726,7 @@ func TestEncapDecapGre(t *testing.T) {
 				RxPorts:           []string{otgConfig.Lags().Items()[1].Name(), otgConfig.Lags().Items()[2].Name()},
 				IsTxRxPort:        true,
 				SizeWeightProfile: &sizeWeightProfile,
-				FlowName:          "EthoMPLSoGREv4WOEntropy ",
+				FlowName:          "EthoMPLSoGREv4WOEntropy",
 				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC, DstMAC: "01:01:01:01:01:01"},
 				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(custLagData[0].SubInterfaces[0].VlanID)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
@@ -873,6 +872,7 @@ func TestEncapDecapGre(t *testing.T) {
 // EthoCWoMPLSoGRE encapsulate for IPv4
 func testEthoCWoMPLSoGREEncapIPv4WithEntropy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	// Generate 1000 different traffic flows on ATE Port 1
+	var packetSource = []*gopacket.PacketSource{}
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
@@ -883,7 +883,7 @@ func testEthoCWoMPLSoGREEncapIPv4WithEntropy(t *testing.T, dut *ondatra.DUTDevic
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
-		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	verifyLoadBalanceAcrossGre(t, false, packetSource)
@@ -891,6 +891,7 @@ func testEthoCWoMPLSoGREEncapIPv4WithEntropy(t *testing.T, dut *ondatra.DUTDevic
 
 func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	// Flows should have NOT have entropy on any headers.
+	var packetSource = []*gopacket.PacketSource{}
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
@@ -899,7 +900,7 @@ func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDev
 
 	for _, v := range encapValidation {
 		if err := validateEncapPacket(t, ate, v); err == nil {
-			packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+			packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 			break
 		}
 	}
@@ -909,6 +910,8 @@ func testEthoCWoMPLSoGREEncapIPv4WithoutEntrpy(t *testing.T, dut *ondatra.DUTDev
 
 func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	// Flows should have NOT have entropy on any headers.
+	var packetSource = []*gopacket.PacketSource{}
+
 	createflow(otgConfig, &flow, true, nil)
 
 	if !deviations.MacsecOCUnsupported(dut) {
@@ -926,7 +929,7 @@ func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *o
 
 		for _, v := range encapValidation {
 			if err := validateEncapPacket(t, ate, v); err == nil {
-				packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+				packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 				break
 			}
 		}
@@ -939,6 +942,7 @@ func testEthoCWoMPLSoGREEncapMACSec(t *testing.T, dut *ondatra.DUTDevice, ate *o
 func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	// Generate 1000 different traffic flows on ATE Port 1
 	var resp *gnmipb.GetResponse
+	var packetSource = []*gopacket.PacketSource{}
 
 	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
 		switch dut.Vendor() {
@@ -963,7 +967,7 @@ func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate 
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
-		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	if deviations.NexthopGroupPseudowireCountersOcUnsupported(dut) {
@@ -990,6 +994,7 @@ func testEthoCWoMPLSoGREEncapJumboMTU(t *testing.T, dut *ondatra.DUTDevice, ate 
 }
 
 func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
@@ -1000,13 +1005,14 @@ func testControlWordUnencrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondat
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
-		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	verifyLoadBalanceAcrossGre(t, false, packetSource)
 }
 
 func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
 	createflow(otgConfig, &flow, true, nil)
 	sendTrafficCapture(t, ate, otgConfig)
 	verifyTrafficFlow(t, ate, otgConfig, otg, flow.FlowName)
@@ -1014,7 +1020,7 @@ func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	for _, v := range encapValidation {
 		v.MPLSLayer = controlWordMPLS
 		if err := validateEncapPacket(t, ate, v); err == nil {
-			packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+			packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 			break
 		}
 	}
@@ -1023,6 +1029,7 @@ func testControlWordEncrypted(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 }
 
 func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
 	greNextHopGroupCfg := cfgplugins.GreNextHopGroupParams{
 		NetworkInstance:  ni,
 		NexthopGroupName: nexthopGroupName,
@@ -1045,13 +1052,14 @@ func testDSCPEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
-		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	verifyLoadBalanceAcrossGre(t, false, packetSource)
 }
 
 func testEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
 	// Shutdown or remove a single GRE tunnel destination on the DUT
 	if deviations.NextHopGroupOCUnsupported(dut) {
 		cli := fmt.Sprintf(`
@@ -1071,7 +1079,7 @@ func testEthoCWoMPLSoGRE(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 		if err := validateEncapPacket(t, ate, v); err != nil {
 			t.Errorf("capture and validatePackets failed (): %q", err)
 		}
-		packetSource = append(packetSource, packetvalidationhelpers.SourceObj())
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	verifyLoadBalanceAcrossGre(t, false, packetSource, 15)
