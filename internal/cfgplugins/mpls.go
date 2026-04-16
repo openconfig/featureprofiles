@@ -137,12 +137,14 @@ func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-
 			cliConfig = fmt.Sprintf(`
-			    mpls ip
+				mpls ip
     			mpls static top-label %v %s swap-label %v
 				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		case ondatra.CISCO:
+			cliConfig = fmt.Sprintf("mpls static lsp %v\n in-label %v allocate\n forward\n path 1 resolve-nexthop %v out-label %v", lspName, incomingLabel, nextHopIP, mplsSwapLabelTo)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -171,6 +173,9 @@ func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 				no mpls static top-label %v %s swap-label %v
 				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		case ondatra.CISCO:
+			cliConfig = fmt.Sprintf("no mpls static lsp %v", lspName)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())

@@ -2102,3 +2102,8 @@ func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
 func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFragmentPuntFt()
 }
+
+// EnableMplsStaticOnInterface returns true if device needs MPLS Static enabled explicitly on ingress/egress interface
+func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
+}
