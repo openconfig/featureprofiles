@@ -53,6 +53,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		acctz.SetupUsers(t, dut, false)
 	}
 
+	requestTimestamp := acctz.StartTimestamp(t, dut)
 	// Start sending rpc's after 5 seconds to be able to properly test the timestamps.
 	time.Sleep(5 * time.Second)
 
@@ -76,7 +77,6 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Get gNSI record subscribe client.
-	requestTimestamp := acctz.StartTimestamp(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
 	if err != nil {
