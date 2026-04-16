@@ -447,11 +447,8 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 			condition.GetOrCreateMpls().SetTrafficClass(tc.expSet[0])
 		}
 
-		if !deviations.QosRemarkOCUnsupported(dut) {
-			remark := action.GetOrCreateRemark()
-			if tc.classType == oc.Qos_Classifier_Type_MPLS {
-				remark.SetSetMplsTc(tc.remarkEXP)
-			}
+		if !deviations.QosRemarkOCUnsupported(dut) && tc.classType == oc.Qos_Classifier_Type_MPLS {
+			action.GetOrCreateRemark().SetSetMplsTc(tc.remarkEXP)
 		}
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
@@ -781,8 +778,10 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, dp1, dp2 *ondatra.Port) {
 	t.Logf("Configuring MPLS Swap Action with DUT")
 	if deviations.EnableMplsStaticOnInterface(dut) && deviations.StaticMplsLspOCUnsupported(dut) {
-		cliCfg := fmt.Sprintf("mpls static interface %v\nroot\nmpls static interface %v", dp1.Name(), dp2.Name())
-		helpers.GnmiCLIConfig(t, dut, cliCfg)
+		for _, intf := range []string{dp1.Name(), dp2.Name()} {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("mpls static interface %v", intf))
+			defer helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no mpls static interface %v", intf))
+		}
 	}
 	cfgplugins.NewStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
 	defer cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
