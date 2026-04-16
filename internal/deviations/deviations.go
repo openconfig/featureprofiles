@@ -2293,3 +2293,8 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	}
 	return 2500000
 }
+
+// CoppL2UnicastUnsupported returns true if the device does not support L2 unicast COPP counter validation.
+func CoppL2UnicastUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetCoppL2UnicastUnsupported()
+}
