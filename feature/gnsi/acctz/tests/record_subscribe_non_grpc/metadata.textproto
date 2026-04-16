@@ -13,7 +13,6 @@ platform_exceptions: {
   deviations: {
     oc_aaa_user_role_leaf_string_type_unsupported: true
     acctz_shell_cmd_accounting_unsupported: true
-    acctz_records_authz_status_deny_unsupported: true
   }
 }
 platform_exceptions: {
