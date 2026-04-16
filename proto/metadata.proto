@@ -1276,6 +1276,10 @@ message Metadata {
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
 
+    // Device Does not support session channel id
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_session_channel_id_unsupported = 409;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
   }
