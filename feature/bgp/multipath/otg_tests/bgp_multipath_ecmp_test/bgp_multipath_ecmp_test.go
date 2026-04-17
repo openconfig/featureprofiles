@@ -251,7 +251,10 @@ func TestBGPSetup(t *testing.T) {
 							return false
 						}
 
-						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
+						hopGroup, present := gnmi.Lookup[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State()).Val()
+						if !present {
+							return false
+						}
 						got := len(hopGroup.NextHop)
 						want := tc.expectedPaths
 						return got == want
@@ -262,11 +265,15 @@ func TestBGPSetup(t *testing.T) {
 					if !present {
 						t.Errorf("prefix: %s, found no aft entry", ipv4Entry.GetPrefix())
 					} else {
-						hopGroup := gnmi.Get[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State())
-						got := len(hopGroup.NextHop)
-						want := tc.expectedPaths
-						if got != want {
-							t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+						hopGroup, present := gnmi.Lookup[*oc.NetworkInstance_Afts_NextHopGroup](t, bs.DUT, aftsPath.NextHopGroup(ipv4Entry.GetNextHopGroup()).State()).Val()
+						if !present {
+							t.Errorf("prefix: %s, next-hop-group %d not present", ipv4Entry.GetPrefix(), ipv4Entry.GetNextHopGroup())
+						} else {
+							got := len(hopGroup.NextHop)
+							want := tc.expectedPaths
+							if got != want {
+								t.Errorf("prefix: %s, found %d hops, want %d", ipv4Entry.GetPrefix(), got, want)
+							}
 						}
 					}
 				}
