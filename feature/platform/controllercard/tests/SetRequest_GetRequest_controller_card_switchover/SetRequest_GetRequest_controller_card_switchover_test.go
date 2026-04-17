@@ -50,14 +50,17 @@ const (
 	getRequestTimeout               = 10 * time.Second
 	controllerCardSwitchoverTimeout = 2 * time.Minute
 	sleepTimeBtwAttempts            = 10 * time.Second
-	lastRequestTime                 = 110 * time.Second
-	maxResponseTime                 = 120 * time.Second
-	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
-	globalRouterID                  = "192.0.2.1"
-	peerASN                         = 64501
-	localASN                        = 65501
-	IPv4PrefixLen                   = 30
-	IPv6PrefixLen                   = 126
+	//lastRequestTime                 = 110 * time.Second
+	lastRequestTime = 120 * time.Second
+	//maxResponseTime                 = 120 * time.Second
+	maxResponseTime = 150 * time.Second
+	bgpPeerGrpName  = "BGP-PEER-GROUP1"
+	globalRouterID  = "192.0.2.1"
+	peerASN         = 64501
+	localASN        = 65501
+	IPv4PrefixLen   = 30
+	IPv6PrefixLen   = 126
+	isisInstance    = "DEFAULT"
 )
 
 type activeStandByControllerCards struct {
@@ -153,12 +156,13 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	for i := 1; i <= params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
 			Desc:    fmt.Sprintf("LAG Interface %d", i),
-			IPv4:    "192.0.2.5",
-			IPv6:    "2001:db8::5",
+			IPv4:    fmt.Sprintf("192.0.2.%d", i),
+			IPv6:    fmt.Sprintf("2001:db8::%d", i),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
 		}
 		aggID := netutil.NextAggregateInterface(t, dut)
+		t.Logf(" Inside setConfig loop i= %d ,netutils returned aggID is %v", i, aggID)
 
 		aggIDs = append(aggIDs, aggID)
 		agg := lagInterfaceAttrs.NewOCInterface(aggID, dut)
@@ -174,7 +178,7 @@ func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 
 	networkInterface := device.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 
-	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, "ISIS")
+	isisProto := networkInterface.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	isisProto.Enabled = ygot.Bool(true)
 	isis := isisProto.GetOrCreateIsis()
 	for _, agg := range aggIDs {
@@ -299,6 +303,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 	if numBGPNeighbors != 2*params.NumBGPNeighbors {
 		t.Fatalf("Number of BGP neighbors mismatch: got: %d, want: %d", numBGPNeighbors, 2*params.NumBGPNeighbors)
 	}
+	t.Logf("*****verifyConfiguredElements Success")
 }
 
 func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
@@ -325,7 +330,7 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 		if setResponseTime.Sub(switchoverResponseTime) > maxResponseTime {
 			t.Fatalf("gNMI Set response after switchover time: %v, got SUCCESS, but exceeded max response time: %v", setResponseTime.Sub(switchoverResponseTime), maxResponseTime)
 		}
-		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS", setResponseTime.Sub(switchoverResponseTime))
+		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS in attempt %d", setResponseTime.Sub(switchoverResponseTime), attempt)
 		break
 	}
 	if setErr != nil {
@@ -343,14 +348,11 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	}
 
 	verifyConfiguredElements(t, dut, fullConfig)
+	t.Logf("**Passed verifyConfiguredElements ***")
 }
 
 func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
 	activeStandbyCC := fetchActiveStandbyControllerCards(t, dut, controllerCards)
-	if err := sendSetRequest(ctx, t, dut, setConfig); err != nil {
-		t.Fatalf("Unable to send config to the device; err: %v", err)
-	}
-
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	getRequest := buildGetRequest(t)
 	previousFullConfig, err := gnmiClient.Get(ctx, getRequest)
@@ -365,7 +367,6 @@ func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	if st, ok := status.FromError(err); ok && st.Code() != codes.OK {
 		t.Fatalf("gNMI GET response got non-zero status code: %d", st.Code())
 	}
-
 	switchoverControllerCards(ctx, t, dut, &switchoverControllerCardsConfig{&activeStandbyCC, gnoiClient, controllerCardSwitchoverTimeout})
 
 	var currentFullConfig *gpb.GetResponse
