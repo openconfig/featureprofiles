@@ -52,6 +52,19 @@ See also:
     with a masklength range of `/65` to `/128` (i.e., any subnet of that
     block).
 
+  - `POLICY-MULTI-STMT`: Two accept statements — statement 10 matches
+    `PREFIX-SET-A` (ACCEPT_ROUTE), statement 20 matches `PREFIX-SET-SUBNET`
+    (ACCEPT_ROUTE). Used to verify that all matching statements contribute to
+    the filtered view.
+
+  - `POLICY-DENY-PREFIX-SET-A`: Statement 10 explicitly denies prefixes in
+    `PREFIX-SET-A` (REJECT_ROUTE); statement 20 accepts all remaining routes
+    (unconditional ACCEPT_ROUTE). The prefix-set acts as an exclusion list.
+
+  - `POLICY-TAG-MATCH`: Statement 10 matches routes carrying tag `999`
+    (ACCEPT_ROUTE). No installed route uses this tag, so the policy matches
+    nothing.
+
 ### Test Case Iteration
 
 **AFT-6.1.1** is a parameterized test. Its subscribe and validate steps must be
@@ -240,6 +253,82 @@ subscribe: {
 - Verify that the previously excluded prefix `100.64.0.0/24` is now received,
   confirming the filter has been lifted.
 
+## AFT-6.1.4 - Changing the Prefix-Set Referenced by the Active Policy
+
+- Configure the global-filter `ipv4-policy` to `POLICY-PREFIX-SET-A`.
+
+- Establish a gNMI Subscribe session as in **AFT-6.1.1** and wait for `SYNC`.
+  Verify notifications are received for `198.51.100.0/24` and `203.0.113.0/28`.
+
+- Update `POLICY-PREFIX-SET-A` to reference `PREFIX-SET-B` instead of
+  `PREFIX-SET-A` (i.e., swap the prefix-set the policy matches against).
+
+- Verify that delete notifications are received for `198.51.100.0/24` and
+  `203.0.113.0/28` (no longer matched by the updated policy).
+
+- Verify that no new update notifications are received for prefixes in
+  `PREFIX-SET-B`, since the DUT's AFT contains no installed entries matching
+  those prefixes.
+
+## AFT-6.1.5 - Policy with Multiple Statements Referencing Different Prefix-Sets
+
+- Install an additional route `203.0.113.128/25` on the DUT (matches
+  `PREFIX-SET-SUBNET` via `203.0.113.0/24` with masklength `/25`–`/32`).
+
+- Configure the global-filter `ipv4-policy` to `POLICY-MULTI-STMT`.
+
+- Establish a gNMI Subscribe session as in **AFT-6.1.1** and wait for `SYNC`.
+
+- Verify that notifications are received for:
+  - `198.51.100.0/24` and `203.0.113.0/28` (matched by statement 10 via
+    `PREFIX-SET-A`)
+  - `203.0.113.128/25` (matched by statement 20 via `PREFIX-SET-SUBNET`)
+
+- Verify that the non-matching prefix `100.64.0.0/24` is **not** received.
+
+- Verify that all next-hop-groups and next-hops referenced by the matching
+  prefixes are received.
+
+## AFT-6.1.6 - Policy with DENY Action (Prefix-Set as Exclusion List)
+
+- Configure the global-filter `ipv4-policy` to `POLICY-DENY-PREFIX-SET-A`.
+
+- Establish a gNMI Subscribe session as in **AFT-6.1.1** and wait for `SYNC`.
+
+- Verify that notifications are **not** received for prefixes explicitly denied
+  by statement 10: `198.51.100.0/24` and `203.0.113.0/28`.
+
+- Verify that a notification **is** received for `100.64.0.0/24`, which is
+  accepted by the unconditional statement 20.
+
+- Verify that all next-hop-groups and next-hops referenced by the accepted
+  prefix are received.
+
+## AFT-6.1.7 - Negative: Non-Prefix-Set Match Criteria
+
+### Fresh Subscribe with Non-Matching Policy
+
+- Configure the global-filter `ipv4-policy` to `POLICY-TAG-MATCH`.
+
+- Establish a gNMI Subscribe session as in **AFT-6.1.1** and wait for `SYNC`.
+
+- Verify that **no** prefix, next-hop-group, or next-hop notifications are
+  received (the policy matches no installed routes).
+
+### Transition from Active Policy to Non-Matching Policy
+
+- Configure the global-filter `ipv4-policy` to `POLICY-PREFIX-SET-A`.
+
+- Establish a gNMI Subscribe session and wait for `SYNC`. Verify notifications
+  are received for `198.51.100.0/24` and `203.0.113.0/28`.
+
+- Update the global-filter `ipv4-policy` to `POLICY-TAG-MATCH`.
+
+- Verify that delete notifications are received for the previously streamed
+  prefixes `198.51.100.0/24` and `203.0.113.0/28`.
+
+- Verify that **no** new update notifications are received.
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
@@ -269,7 +358,11 @@ paths:
   /routing-policy/policy-definitions/policy-definition/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/defined-sets/tag-sets/tag-set/config/name:
+  /routing-policy/defined-sets/tag-sets/tag-set/tags/tag/config/value:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
@@ -288,9 +381,9 @@ rpcs:
 ## Canonical OC
 
 The following JSON shows the expected OpenConfig configuration for the routing
-policies, static routes, and global-filter used in the test setup. The
-`global-filter` example below shows `POLICY-PREFIX-SET-A` applied as the
-IPv4 policy (as used in **AFT-6.1.1**).
+policies and static routes used in the test setup. The `global-filter`
+configuration is omitted here because the OC schema bundled in featureprofiles
+has not yet been updated to include the merged YANG changes.
 
 ```json
 {
@@ -412,7 +505,25 @@ IPv4 policy (as used in **AFT-6.1.1**).
               ]
             }
           }
-        ]
+        ],
+        "tag-sets": {
+          "tag-set": [
+            {
+              "name": "TAG-SET-999",
+              "config": {
+                "name": "TAG-SET-999"
+              },
+              "tags": {
+                "tag": [
+                  {
+                    "value": 999,
+                    "config": { "value": 999 }
+                  }
+                ]
+              }
+            }
+          ]
+        }
       }
     },
     "policy-definitions": {
@@ -558,6 +669,103 @@ IPv4 policy (as used in **AFT-6.1.1**).
               }
             ]
           }
+        },
+        {
+          "name": "POLICY-MULTI-STMT",
+          "config": {
+            "name": "POLICY-MULTI-STMT"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "config": { "name": "10" },
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "PREFIX-SET-A",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": { "policy-result": "ACCEPT_ROUTE" }
+                }
+              },
+              {
+                "name": "20",
+                "config": { "name": "20" },
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "PREFIX-SET-SUBNET",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": { "policy-result": "ACCEPT_ROUTE" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "POLICY-DENY-PREFIX-SET-A",
+          "config": {
+            "name": "POLICY-DENY-PREFIX-SET-A"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "config": { "name": "10" },
+                "conditions": {
+                  "match-prefix-set": {
+                    "config": {
+                      "prefix-set": "PREFIX-SET-A",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": { "policy-result": "REJECT_ROUTE" }
+                }
+              },
+              {
+                "name": "20",
+                "config": { "name": "20" },
+                "actions": {
+                  "config": { "policy-result": "ACCEPT_ROUTE" }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "POLICY-TAG-MATCH",
+          "config": {
+            "name": "POLICY-TAG-MATCH"
+          },
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "config": { "name": "10" },
+                "conditions": {
+                  "match-tag-set": {
+                    "config": {
+                      "tag-set": "TAG-SET-999",
+                      "match-set-options": "ANY"
+                    }
+                  }
+                },
+                "actions": {
+                  "config": { "policy-result": "ACCEPT_ROUTE" }
+                }
+              }
+            ]
+          }
         }
       ]
     }
@@ -566,13 +774,6 @@ IPv4 policy (as used in **AFT-6.1.1**).
     "network-instance": [
       {
         "name": "DEFAULT",
-        "afts": {
-          "global-filter": {
-            "config": {
-              "ipv4-policy": "POLICY-PREFIX-SET-A"
-            }
-          }
-        },
         "protocols": {
           "protocol": [
             {
