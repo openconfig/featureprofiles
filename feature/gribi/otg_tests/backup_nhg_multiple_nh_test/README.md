@@ -2,34 +2,32 @@
 
 ## Summary
 
-Ensure that backup NHGs are honoured with NextHopGroup entries containing >1 NH.
+Ensure that backup NHGs are honoured when the primary NextHopGroup entries contain >1 NH.
 
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1, ATE port-2 to DUT port-2, ATE port-3 to
-    DUT port-3, and ATE port-4 to DUT port-4.
+    DUT port-3, ATE port-4 to DUT port-4, and ATE port-5 to DUT port-5.
 *   Create a L3 routing instance (VRF-A), and assign DUT port-1 to VRF-A.
-*   Create a L3 routing instance (VRF-B) that includes no interface.
-*   TODO: Create a L3 routing instance (VRF-C) that includes no interface.
-*   TODO: Connect a gRIBI client to the DUT, make it become leader and inject the
+*   Connect a gRIBI client to the DUT, make it become leader and inject the
     following:
-    *   An IPv4Entry in VRF-A for IP-1, pointing to a NextHopGroup (in DEFAULT VRF)
+    *   An IPv4Entry in VRF-A for `203.0.113.1/32`, pointing to a NextHopGroup (in DEFAULT VRF)
         containing:
-        *   Two primary next-hops:
-            *   IP of ATE port-2
-            *   IP of ATE port-3
-    *   An IPv4Entry VRF-B for IP-1, pointing to a NextHopGroup (in
-        DEFAULT VRF) containing a primary next-hop that
-        decaps-and-reencaps traffic to IP-2 and redirects to VRF-C.
-    *   An IPv4Entry for IP-2 in VRF-C, pointing to a NextHopGroup (in DEFAULT VRF)
-        containing:
-        *   One primary next-hop pointing to IP of ATE port-4
-*   TODO: Ensure that traffic with IP-1 as an outer IP (and an inner packet) is received at ATE port-2
-    and port-3. Validate that AFT telemetry covers this case.
-*   Disable ATE port-2. Ensure that traffic for the destination is received at
+        *   Two primary next-hops with weights:
+            *   IP of ATE port-2 (Weight 80)
+            *   IP of ATE port-3 (Weight 20)
+        *   A backup NextHopGroup.
+    *   The backup NextHopGroup (in DEFAULT VRF) contains:
+        *   Two next-hops with weights:
+            *   IP of ATE port-4 (Weight 60)
+            *   IP of ATE port-5 (Weight 40)
+*   Send traffic from ATE port-1 destined to `203.0.113.1/32`.
+*   Ensure that traffic is received at ATE port-2 and ATE port-3 in an 80:20 ratio.
+    Validate that AFT telemetry covers this case.
+*   Disable DUT port-2. Ensure that traffic for the destination is now received only at
     ATE port-3.
-*   Disable ATE port-3. Ensure that traffic for the destination is received at
-    ATE port-4.
+*   Disable DUT port-3. Ensure that traffic for the destination fails over to the backup NHG
+    and is received at ATE port-4 and ATE port-5 in a 60:40 ratio.
 
 ## Config Parameter coverage
 
