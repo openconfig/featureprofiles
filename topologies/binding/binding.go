@@ -605,7 +605,7 @@ func dialOpts(bopts *bindpb.Options) ([]grpc.DialOption, error) {
 		opts = append(opts, grpc.WithTransportCredentials(tlsConfig))
 	}
 	if bopts.Username != "" {
-		c := &creds{bopts.Username, bopts.Password, !bopts.Insecure}
+		c := &creds{bopts.Username, bopts.Password, opb.Device_ARISTA, !bopts.Insecure}
 		opts = append(opts, grpc.WithPerRPCCredentials(c))
 	}
 	if bopts.MaxRecvMsgSize != 0 {
@@ -668,30 +668,38 @@ func loadCertificates(bopts *bindpb.Options) (*x509.CertPool, tls.Certificate, e
 // as a grpc.DialOption in dialGRPC.
 type creds struct {
 	username, password string
+	vendor             opb.Device_Vendor
 	secure             bool
 }
 
-func (c *creds) GetRequestMetadata(ctx context.Context, _ ...string) (map[string]string, error) {
+func (c *creds) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
 	md, ok := metadata.FromOutgoingContext(ctx)
-	var username, password string
+	user, pass := c.username, c.password
+	returnMap := make(map[string]string)
+
+	// Track if these were overridden by the context
+	userOverride := false
 	if ok {
-		if len(md.Get("username")) > 0 && md.Get("username")[0] != "" {
-			username = md.Get("username")[0]
+		if v := md.Get("username"); len(v) > 0 && v[0] != "" {
+			user = v[0]
+			userOverride = true // Flag that it's already in metadata
 		}
-		if len(md.Get("password")) > 0 && md.Get("password")[0] != "" {
-			password = md.Get("password")[0]
+		if v := md.Get("password"); len(v) > 0 && v[0] != "" {
+			pass = v[0]
 		}
 	}
-	if username == "" {
-		username = c.username
+
+	// ONLY add username if it wasn't already in the context metadata
+	if !userOverride {
+		returnMap["username"] = user
 	}
-	if password == "" {
-		password = c.password
+
+	// Arista Quirk, Omit password if using mTLS.
+	if c.vendor != opb.Device_ARISTA || !c.secure {
+		returnMap["password"] = pass
 	}
-	return map[string]string{
-		"username": username,
-		"password": password,
-	}, nil
+
+	return returnMap, nil
 }
 
 func (c *creds) RequireTransportSecurity() bool {
