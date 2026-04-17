@@ -3926,4 +3926,15 @@ deviations: {
     }
   }
 }
+deviations: {
+  name: "acctz_record_session_channel_id_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
 
