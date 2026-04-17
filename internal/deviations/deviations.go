@@ -328,6 +328,12 @@ func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
 
+// DefaultSubinterfacePacketCountersMissing returns if device is missing subinterface state packet counters.
+// Default value is false.
+func DefaultSubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfacePacketCountersMissing()
+}
+
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
 // Fully-compliant devices should pass with and without this deviation.
 func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
@@ -2101,4 +2107,10 @@ func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
 // FragmentPuntFt returns the functional translator to be used for translating Fragment Punt OC paths.
 func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFragmentPuntFt()
+}
+
+// AcctzRecordSessionChannelIdUnsupported returns true if the device does not support Acctz record for fail user
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
+func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
