@@ -2108,3 +2108,9 @@ func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
 func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFragmentPuntFt()
 }
+
+// FabricFt returns the functional translator name for fabric error telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+func FabricFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFabricFt()
+}
