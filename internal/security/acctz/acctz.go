@@ -85,6 +85,8 @@ var (
 	failPassword = "baggins"
 	// TestPaths is the list of paths to be tested for acctz.
 	TestPaths = []string{gnmiCapabilitiesPath, gnoiPingPath, gnsiGetPath, gribiGetPath, p4rtCapabilitiesPath}
+
+	sshClientType = reflect.TypeOf((*ssh.Client)(nil))
 )
 
 // var gRPCClientAddr net.Addr
@@ -440,13 +442,13 @@ func extractRawSSHClient(c binding.SSHClient) *ssh.Client {
 	}
 	// Try to find a field of type *ssh.Client by name "Client" first.
 	f := v.FieldByName("Client")
-	if f.IsValid() && f.Type().String() == "*ssh.Client" {
+	if f.IsValid() && f.CanInterface() && f.Type() == sshClientType {
 		return f.Interface().(*ssh.Client)
 	}
 	// If not found, iterate through all fields and return the first *ssh.Client found.
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Type().String() == "*ssh.Client" {
+		if field.CanInterface() && field.Type() == sshClientType {
 			return field.Interface().(*ssh.Client)
 		}
 	}
