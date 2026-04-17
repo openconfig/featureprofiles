@@ -66,34 +66,6 @@ Perform this test with both the RSA and ECDSA types.
       connections to the service impaired / restarted / delayed due to
       the rotation event.
 
-
-### Certz-3.2
-
-Perform these negative tests:
-
-Test that a server certificate can be rotated by using the gNSI certz Rotate()
-api if the certificate is requested without the device generated CSR, expect a
-failure because the certificate loaded is not signed by a trusted CA.
-
-Perform this test with both the RSA and ECDSA types.
-
-   0) Build the test data, configure the DUT to use the ca-0001 form
-      key/certificate/trust_bundle, use the server-${TYPE}-a key/certificate.
-
-   1) With the server running, connect and note that the ceritficate loaded
-      is the appropriate one.
-
-   2) Use the gNSI Rotate RPC to load a ca-02/server-${TYPE}-b key and
-      certificate on to the server.
-
-   3) Test that the certificate load fails, because the certificate is not
-      trusted by a known CA.
-
-   4) Tear down the Rotate RPC, forcing the device to return to the
-      previously used certificate/key material.
-
-   5) Verify that the server is now serving the previous certifcate properly.
-
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
@@ -104,6 +76,15 @@ TODO(OCRPC): Record may not be correct or complete
 rpcs:
   gnsi:
     certz.v1.Certz.Rotate:
+```
+
+## Canonical OC
+No OC configuration is performed in this test as all interaction is via gNSI.Certz
+
+```json
+{
+
+}
 ```
 
 ## Minimum DUT Platform Requirement
