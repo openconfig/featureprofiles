@@ -189,6 +189,7 @@ type BGPNeighborConfig struct {
 	IsLag            bool
 	MultiPathEnabled bool
 	PolicyName       *string
+	IsRCF            bool
 }
 
 // BgpNeighborScale holds parameters for configuring BGP neighbors in a scale test.
@@ -981,8 +982,10 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 		rpl4.ImportPolicy = []string{*cfg.PolicyName}
 		rpl4.ExportPolicy = []string{*cfg.PolicyName}
 	} else {
-		rpl4.ImportPolicy = []string{ALLOW}
-		rpl4.ExportPolicy = []string{ALLOW}
+		if !cfg.IsRCF {
+			rpl4.ImportPolicy = []string{ALLOW}
+			rpl4.ExportPolicy = []string{ALLOW}
+		}
 	}
 
 	// === Peer Group for IPv6 ===
@@ -997,8 +1000,10 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 		rpl6.ImportPolicy = []string{*cfg.PolicyName}
 		rpl6.ExportPolicy = []string{*cfg.PolicyName}
 	} else {
-		rpl6.ImportPolicy = []string{ALLOW}
-		rpl6.ExportPolicy = []string{ALLOW}
+		if !cfg.IsRCF {
+			rpl6.ImportPolicy = []string{ALLOW}
+			rpl6.ExportPolicy = []string{ALLOW}
+		}
 	}
 
 	if cfg.MultiPathEnabled {

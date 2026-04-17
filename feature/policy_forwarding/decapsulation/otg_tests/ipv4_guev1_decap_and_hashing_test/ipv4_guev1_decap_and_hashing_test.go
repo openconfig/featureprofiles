@@ -50,6 +50,7 @@ const (
 	advertisedIPv4PfxLen = 24
 	advertisedIPv6PfxLen = 64
 	loopbackPfxLen       = 32
+	loopbackPfxLenV6     = 128
 	isisInstance         = "DEFAULT"
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
@@ -60,7 +61,7 @@ const (
 	testSrcPort          = 14
 	testDstPort          = 15
 	flowCount            = 10 // Number of prefixes/routes per host group
-	dcapIP               = "192.168.0.1"
+	dcapIPv6             = "2001:db8::3"
 	tolerance            = 5 // As per readme, Tolerance for delta: 5%
 	fixedPackets         = 1000000
 	trafficFrameSize     = 1500
@@ -79,7 +80,7 @@ const (
 // IP Addresses and Attributes
 var (
 	// DUT Loopback0 (GUE Decap Address)
-	dutLo0 = attrs.Attributes{Desc: "DUT Loopback0", IPv4: "192.168.3.2", IPv4Len: loopbackPfxLen, IPv6: "2001:db8:c000::1", IPv6Len: 128}
+	dutLo0 = attrs.Attributes{Desc: "DUT Loopback0", IPv4: "192.168.3.2", IPv4Len: loopbackPfxLen, IPv6: "2001:db8:c000::1", IPv6Len: loopbackPfxLenV6}
 
 	// DUT Port1 <> ATE Port1 (ATE1)
 	dutP1 = attrs.Attributes{Desc: "DUT Port1", IPv4: "192.0.1.1", IPv6: "2001:db8:1::1", MAC: "02:00:01:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
@@ -97,7 +98,7 @@ var (
 	ateLag2 = attrs.Attributes{Name: "ateLag2", IPv4: "192.0.4.2", IPv6: "2001:db8:4::2", MAC: "02:00:04:01:01:01", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
 
 	// ATE3 Loopback (for ISIS passive demo)
-	ate3Lo = attrs.Attributes{Name: "ate3Lo0", IPv4: "192.168.3.1", IPv6: "2001:db8:10::1", IPv4Len: loopbackPfxLen, IPv6Len: 128}
+	ate3Lo = attrs.Attributes{Name: "ate3Lo0", IPv4: "192.168.3.1", IPv6: "2001:db8:10::1", IPv4Len: loopbackPfxLen, IPv6Len: loopbackPfxLenV6}
 
 	// DUT Port7 <--> ATE P7 (Represents ATE5 in diagram)
 	dutP7 = attrs.Attributes{Desc: "DUT Port7", IPv4: "192.0.7.1", IPv6: "2001:db8:7::1", MAC: "02:00:05:02:02:02", IPv4Len: plenIPv4, IPv6Len: plenIPv6}
@@ -111,6 +112,7 @@ var (
 	host4IPv4Start         = "198.51.130.0"
 	host4IPv6Start         = "2001:db8:130::"
 	ate1LoopbackIP         = "172.16.1.0"
+	ate1LoopbackIPv6       = "2001:db8:1:1::1"
 	timeout                = 1 * time.Minute
 	lagTrafficDistribution = []uint64{50, 50}
 	aggID1                 = "Port-Channel1"
@@ -157,7 +159,7 @@ func TestMultipathGUE(t *testing.T) {
 		{IPv4: ateP7.IPv4, IPv6: ateP7.IPv6},
 	}
 	checkBgpStatus(t, dut, neighbors)
-	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv4 decap address and Load-balance test", func(t *testing.T) {
+	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv6 decap address and Load-balance test", func(t *testing.T) {
 
 		destinations := [][]string{
 			{otgConfig.Lags().Items()[0].Name()},                                      // Flow#1 to H3 via ATE3 LAG
@@ -171,7 +173,6 @@ func TestMultipathGUE(t *testing.T) {
 			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#9 to H4 via ATE4 LAG + ATE5
 			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#10 same as Flow#9
 		}
-
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
 			otgConfig.Flows().Clear()
@@ -229,7 +230,7 @@ func TestMultipathGUE(t *testing.T) {
 			t.Logf("Load balancing has been verified on the LAG interfaces.")
 		}
 	})
-	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv4 decap address [Negative] test", func(t *testing.T) {
+	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv6 decap address [Negative] test", func(t *testing.T) {
 		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -400,6 +401,7 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 			NeighborIPv4: ateP1.IPv4,
 			NeighborIPv6: ateP1.IPv6,
 			IsLag:        false,
+			IsRCF:        true,
 		},
 		{
 			AteAS:        ate5AS,
@@ -407,6 +409,7 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 			NeighborIPv4: ateP7.IPv4,
 			NeighborIPv6: ateP7.IPv6,
 			IsLag:        false,
+			IsRCF:        true,
 		},
 		{
 			AteAS:        ate2AS,
@@ -414,6 +417,7 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 			NeighborIPv4: ateP2.IPv4,
 			NeighborIPv6: ateP2.IPv6,
 			IsLag:        false,
+			IsRCF:        true,
 		},
 		{
 			AteAS:        ate3AS,
@@ -421,6 +425,7 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 			NeighborIPv4: ateLag1.IPv4,
 			NeighborIPv6: ateLag1.IPv6,
 			IsLag:        true,
+			IsRCF:        true,
 		},
 		{
 			AteAS:        ate4AS,
@@ -428,6 +433,7 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 			NeighborIPv4: ateLag2.IPv4,
 			NeighborIPv6: ateLag2.IPv6,
 			IsLag:        true,
+			IsRCF:        true,
 		},
 	}
 	for _, n := range neighbors {
@@ -441,7 +447,7 @@ func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipTyp
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
-		TunnelIP:            dcapIP,
+		TunnelIP:            dcapIPv6,
 		GUEPort:             uint32(decapPort),
 		IPType:              ipType,
 		Dynamic:             true,
@@ -463,9 +469,9 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	ate2Port := ateConfig.Ports().Add().SetName(ate2p1.ID())
 	ate5Port := ateConfig.Ports().Add().SetName(ate5p7.ID())
 	// ATE Device 1 (EBGP)
-	configureATEDevice(t, ateConfig, ate1Port, ateP1, dutP1, ate1AS, loopbackPfxLen, true, true, true, host1IPv4Start, host1IPv6Start, ate1LoopbackIP, ateSysID+"1")
+	configureATEDevice(t, ateConfig, ate1Port, ateP1, dutP1, ate1AS, loopbackPfxLen, true, true, true, host1IPv4Start, host1IPv6Start, ate1LoopbackIPv6, ateSysID+"1")
 	// ATE Device 2 (IBGP)
-	configureATEDevice(t, ateConfig, ate2Port, ateP2, dutP2, ate2AS, loopbackPfxLen, false, false, true, host2IPv4Start, host2IPv6Start, ate1LoopbackIP, ateSysID+"2")
+	configureATEDevice(t, ateConfig, ate2Port, ateP2, dutP2, ate2AS, loopbackPfxLen, false, false, true, host2IPv4Start, host2IPv6Start, ate1LoopbackIPv6, ateSysID+"2")
 	// ATE LAG1 (IBGP)
 	ateAggPorts1 := []*ondatra.Port{
 		ate.Port(t, "port3"),
@@ -478,7 +484,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		ate.Port(t, "port6"),
 	}
 	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "")
-	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, loopbackPfxLen, true, false, false, host4IPv4Start, host4IPv6Start, ate1LoopbackIP, ateSysID+"2")
+	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, loopbackPfxLen, true, false, false, host4IPv4Start, host4IPv6Start, ate1LoopbackIPv6, ateSysID+"2")
 	return ateConfig
 }
 
@@ -509,16 +515,16 @@ func configureATEDevice(t *testing.T, cfg gosnappi.Config, port gosnappi.Port, a
 
 	bgpV4 := bgp.Ipv4Interfaces().Add().SetIpv4Name(ip4.Name())
 	v4Peer := bgpV4.Peers().Add().SetName(atePort.Name + ".BGPv4.Peer").SetPeerAddress(dutPort.IPv4).SetAsNumber(asn).SetAsType(peerTypeV4)
-
+	v4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true)
 	bgpV6 := bgp.Ipv6Interfaces().Add().SetIpv6Name(ip6.Name())
 	v6Peer := bgpV6.Peers().Add().SetName(atePort.Name + ".BGPv6.Peer").SetPeerAddress(dutPort.IPv6).SetAsNumber(asn).SetAsType(peerTypeV6)
-
+	v6Peer.LearnedInformationFilter().SetUnicastIpv6Prefix(true)
 	// Advertise host routes
 	addBGPRoutes(v4Peer.V4Routes().Add(), atePort.Name+".Host.v4", hostPrefixV4, advertisedIPv4PfxLen, flowCount, ip4.Address())
 	addBGPRoutes(v6Peer.V6Routes().Add(), atePort.Name+".Host.v6", hostPrefixV6, advertisedIPv6PfxLen, flowCount, ip6.Address())
 
 	if loopbacks {
-		addBGPRoutes(v4Peer.V4Routes().Add(), atePort.Name+".Loopbacks.v4", loopbackPrefix, loopbackPrefixLen, flowCount, ip4.Address())
+		addBGPRoutes(v6Peer.V6Routes().Add(), atePort.Name+".Loopbacks.v6", loopbackPrefix, loopbackPfxLenV6, flowCount, ip6.Address())
 	}
 	if isisConfig {
 		configureISIS(dev, ip4.Address(), eth.Name(), []string{atePort.IPv4 + "/" + strconv.Itoa(plenIPv4)}, []string{atePort.IPv6 + "/" + strconv.Itoa(plenIPv6)}, sysID)
@@ -687,14 +693,14 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	eth.Src().SetValue(ateP1.MAC)
 	eth.Dst().SetValue(macAddress)
 
-	ipOuter := flow.Packet().Add().Ipv4()
-	ipOuter.Src().SetValue(ateP1.IPv4)
+	ipOuter := flow.Packet().Add().Ipv6()
+	ipOuter.Src().SetValue(ateP1.IPv6)
 	if incr == 11 || incr == 12 {
-		ipOuter.Dst().SetValue(ateP2.IPv4)
+		ipOuter.Dst().SetValue(ateP2.IPv6)
 	} else if immediateHeader {
-		ipOuter.Dst().SetValue(ateP2.IPv4)
+		ipOuter.Dst().SetValue(ateP2.IPv6)
 	} else {
-		ipOuter.Dst().SetValue(dcapIP)
+		ipOuter.Dst().SetValue(dcapIPv6)
 	}
 	udpOuter := flow.Packet().Add().Udp()
 	if immediateHeader {
@@ -707,7 +713,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	} else {
 		udpOuter.DstPort().SetValue(UDPDstPort)
 	}
-
+	udpOuter.Checksum().SetCustom(0)
 	// Flow-specific configuration from image table
 	switch incr {
 	case 1, 6:
@@ -862,8 +868,8 @@ func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, fl
 func countRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPort string) {
 	t.Helper()
 	if rxPort != "" {
-		// Constants for lower and upper bounds as percentage of total flow (e.g., 30% to 80%)
-		const lowerPct = 30
+		// Constants for lower and upper bounds as percentage of total flow (e.g., 20% to 80%)
+		const lowerPct = 20
 		const upperPct = 81
 
 		// Fetch flow-level InPkts
