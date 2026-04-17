@@ -2407,6 +2407,12 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/mpls/sr/otg_tests/srte_egress_node_forwarding/egress_node_forwading_test.go"
 }
 test: {
+  id: "PF-1.26"
+  description: "Double GUE Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
+  exec: " "
+}
+test: {
   id: "gNMI-1.28"
   description: "Telemetry: Interface openconfig validation."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
