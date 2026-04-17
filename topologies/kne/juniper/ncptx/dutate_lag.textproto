@@ -67,12 +67,6 @@ nodes: {
           name: "et-0/0/9:0"
         }
     }
-    #interfaces: {
-    #    key: "eth61"
-    #    value: {
-    #      name: "et-0/0/10:0"
-    #    }
-    #}
 }
 nodes: {
     name: "otg"
@@ -123,12 +117,6 @@ nodes: {
             group: "lag"
         }
     }
-    #interfaces: {
-    #    key: "eth9"
-    #    value: {
-    #        group: "lag"
-    #    }
-    #}
 }
 links: {
     a_node: "otg"
@@ -178,9 +166,3 @@ links: {
     z_node: "otg"
     z_int: "eth8"
 }
-#links: {
-#    a_node: "dut"
-#    a_int: "eth61"
-#    z_node: "otg"
-#    z_int: "eth9"
-#}
