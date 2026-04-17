@@ -358,11 +358,7 @@ paths:
   /routing-policy/policy-definitions/policy-definition/config/name:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/tag-set:
-  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-tag-set/config/match-set-options:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
-  /routing-policy/defined-sets/tag-sets/tag-set/config/name:
-  /routing-policy/defined-sets/tag-sets/tag-set/tags/tag/config/value:
   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/index:
   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
@@ -505,25 +501,7 @@ has not yet been updated to include the merged YANG changes.
               ]
             }
           }
-        ],
-        "tag-sets": {
-          "tag-set": [
-            {
-              "name": "TAG-SET-999",
-              "config": {
-                "name": "TAG-SET-999"
-              },
-              "tags": {
-                "tag": [
-                  {
-                    "value": 999,
-                    "config": { "value": 999 }
-                  }
-                ]
-              }
-            }
-          ]
-        }
+        ]
       }
     },
     "policy-definitions": {
@@ -735,31 +713,6 @@ has not yet been updated to include the merged YANG changes.
               {
                 "name": "20",
                 "config": { "name": "20" },
-                "actions": {
-                  "config": { "policy-result": "ACCEPT_ROUTE" }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "name": "POLICY-TAG-MATCH",
-          "config": {
-            "name": "POLICY-TAG-MATCH"
-          },
-          "statements": {
-            "statement": [
-              {
-                "name": "10",
-                "config": { "name": "10" },
-                "conditions": {
-                  "match-tag-set": {
-                    "config": {
-                      "tag-set": "TAG-SET-999",
-                      "match-set-options": "ANY"
-                    }
-                  }
-                },
                 "actions": {
                   "config": { "policy-result": "ACCEPT_ROUTE" }
                 }
