@@ -2106,6 +2106,6 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 // AcctzRecordSessionChannelIdUnsupported returns true if the device does not support Acctz record for fail user
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
-        return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupportedUnsupported()
+        return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
 
