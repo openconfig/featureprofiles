@@ -22,3 +22,11 @@ platform_exceptions: {
     ate_port_link_state_operations_unsupported: true
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  JUNIPER
+  }
+  deviations:  {
+    isis_level_enabled:  true
+  }
+}
