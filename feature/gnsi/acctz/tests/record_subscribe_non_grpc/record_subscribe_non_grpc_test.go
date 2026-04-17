@@ -62,8 +62,10 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendFailCliCommand(t, dut, *staticBinding)
-	records = append(records, newRecords...)
+	if !deviations.AcctzRecordFailCommandUnsupported(dut) {
+		newRecords = acctz.SendFailCliCommand(t, dut, *staticBinding)
+		records = append(records, newRecords...)
+	}
 	if !deviations.AcctzShellCmdAccountingUnsupported(dut) {
 		newRecords = acctz.SendShellCommand(t, dut, *staticBinding)
 		records = append(records, newRecords...)
@@ -198,7 +200,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if resp.record.GetSessionInfo().GetChannelId() == "" {
+		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
 		}
 
