@@ -50,6 +50,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/types/known/anypb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 const (
@@ -257,6 +258,19 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		"      authorization requests",
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+}
+
+// StartTimestamp returns a protobuf timestamp sourced from the DUT's own clock
+// via gNMI, avoiding clock skew between the test host and DUT that can cause
+// "timestamp in the future" errors in RecordSubscribe requests.
+func StartTimestamp(t *testing.T, dut *ondatra.DUTDevice) *timestamppb.Timestamp {
+	t.Helper()
+	now := ondatragnmi.Get(t, dut, ondatragnmi.OC().System().CurrentDatetime().State())
+	ts, err := time.Parse(time.RFC3339Nano, now)
+	if err != nil {
+		t.Fatalf("Failed to parse DUT current-datetime %q: %v", now, err)
+	}
+	return timestamppb.New(ts)
 }
 
 // SetupUsers Setup users for acctz tests and optionally configure cli role for denied commands.

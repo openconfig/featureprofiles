@@ -29,7 +29,6 @@ import (
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type recordRequestResult struct {
@@ -54,7 +53,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		acctz.SetupUsers(t, dut, false)
 	}
 
-	startTime := time.Now()
+	requestTimestamp := acctz.StartTimestamp(t, dut)
 	// Start sending rpc's after 5 seconds to be able to properly test the timestamps.
 	time.Sleep(5 * time.Second)
 
@@ -78,10 +77,6 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	// Get gNSI record subscribe client.
-	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: startTime.Unix(),
-		Nanos:   0,
-	}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
 	if err != nil {
@@ -166,7 +161,7 @@ func TestAccountzRecordSubscribePartial(t *testing.T) {
 		}
 
 		// Verify record timestamp is after request timestamp.
-		if !timestamp.After(startTime) {
+		if !timestamp.After(requestTimestamp.AsTime()) {
 			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(record))
 		}
 
