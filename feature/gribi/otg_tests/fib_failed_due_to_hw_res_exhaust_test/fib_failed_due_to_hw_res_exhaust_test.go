@@ -19,6 +19,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -110,6 +111,11 @@ var (
 	fibPassedDstRoute      string
 	fibFailedDstRoute      string
 	fibFailedDstRouteInHex string
+	routeCountModelList    = []string{"ROUTECHANGENEEDED"}
+
+	vendorUpdatedSpecRoutecount = map[ondatra.Vendor]uint32{
+		ondatra.JUNIPER: 3750000,
+	}
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -465,6 +471,11 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 	if _, ok := vendorSpecRoutecount[args.dut.Vendor()]; !ok {
 		t.Fatalf("Please provide BGP route count for vendor to maxout FIB %v in var vendorSpecRoutecount ", args.dut.Vendor())
 	}
+
+	if slices.Contains(routeCountModelList, args.dut.RawAPIs().BindingDUT().HardwareModel()) {
+		vendorSpecRoutecount[args.dut.Vendor()] = vendorUpdatedSpecRoutecount[args.dut.Vendor()]
+	}
+
 	bgpNeti1Bgp6PeerRoutes := args.otgBgpPeer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
 	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(args.otgIPv6Device.Address()).
 		SetNextHopAddressType(gosnappi.BgpV6RouteRangeNextHopAddressType.IPV6).
