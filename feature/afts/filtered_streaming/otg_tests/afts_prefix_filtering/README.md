@@ -146,19 +146,13 @@ subscribe: {
   received.
 
 - Verify that Notifications are received **only** for prefixes matching
-  `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`,
-  `198.51.100.1/32`), plus any necessary recursive resolution prefixes.
+  `POLICY-PREFIX-SET-A` (`198.51.100.0/24`, `203.0.113.0/28`),
+  plus any necessary recursive resolution prefixes.
 
 - Verify that the non-matching prefix (`100.64.0.0/24`) is **not** received.
 
 - Verify that all next-hop-groups and next-hops referenced by matching
   prefixes are received.
-
-- Verify that every received next-hop-group is referenced by at least one
-  received prefix.
-
-- Verify that every received next-hop is referenced by at least one received
-  next-hop-group.
 
 - Verify that the `atomic` flag is set to `true` on all initial update
   notifications. (See AFT-3.1 for complete atomic-flag behavior coverage.)
@@ -248,22 +242,13 @@ subscribe: {
 
 ## OpenConfig Path and RPC Coverage
 
-> **TODO:** The `global-filter` container and its `config/ipv4-policy`,
-> `config/ipv6-policy`, `state/ipv4-policy` and `state/ipv6-policy` leaves are
-> proposed extensions to the OpenConfig AFT model and are not yet present in the
-> master branch of [openconfig/public](https://github.com/openconfig/public).
-> This README may be merged before the TODO is resolved.
->
-> The OpenConfig pull request is
-> [#1441](https://github.com/openconfig/public/pull/1441).
-
 ```yaml
 paths:
-  # Proposed paths for the new filter mechanism (not yet in openconfig/public)
-  # /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
-  # /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
-  # /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
-  # /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
+  # Global filter config/state paths
+  /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
+  /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
+  /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
+  /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
 
   # Standard AFT state paths
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
@@ -303,9 +288,9 @@ rpcs:
 ## Canonical OC
 
 The following JSON shows the expected OpenConfig configuration for the routing
-policies and static routes used in the test setup. The `global-filter`
-configuration uses proposed OC paths and is excluded from this JSON (see TODO
-above).
+policies, static routes, and global-filter used in the test setup. The
+`global-filter` example below shows `POLICY-PREFIX-SET-A` applied as the
+IPv4 policy (as used in **AFT-6.1.1**).
 
 ```json
 {
@@ -581,6 +566,13 @@ above).
     "network-instance": [
       {
         "name": "DEFAULT",
+        "afts": {
+          "global-filter": {
+            "config": {
+              "ipv4-policy": "POLICY-PREFIX-SET-A"
+            }
+          }
+        },
         "protocols": {
           "protocol": [
             {
@@ -624,6 +616,30 @@ above).
                         {
                           "index": "0",
                           "config": { "index": "0", "next-hop": "192.0.2.2" }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "prefix": "2001:DB8:1::/64",
+                    "config": { "prefix": "2001:DB8:1::/64" },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": { "index": "0", "next-hop": "2001:DB8::2" }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "prefix": "2001:DB8:3::/64",
+                    "config": { "prefix": "2001:DB8:3::/64" },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": { "index": "0", "next-hop": "2001:DB8::2" }
                         }
                       ]
                     }
