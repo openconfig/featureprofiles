@@ -260,7 +260,7 @@ func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]ma
 		for _, update := range translatedSR.GetUpdate().GetUpdate() {
 			path := update.GetPath()
 			elems := path.GetElem()
-			if len(elems) == 0 {
+			if len(elems) < 8 {
 				continue
 			}
 			if elems[0].GetName() == "components" && elems[1].GetName() == "component" {
@@ -540,15 +540,18 @@ func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, fabr
 	if deviations.FabricFt(dut) == "" {
 		t.Skip("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
 	}
-	expectedLeaves := []string{
-		"rx-bad-crc",
-		"rx-errors",
-		"tx-fifo-unrun",
+	expectedPlaneCounters := []string{
 		"uncorrectable-error-cells",
 		"unicast-lost-cells",
 		"multicast-lost-cells",
 		"parity-error-cells",
 		"asic-internal-drops",
+	}
+
+	expectedPortCounters := []string{
+		"rx-bad-crc",
+		"rx-errors",
+		"tx-fifo-unrun",
 	}
 
 	counters := readFabricBlockCounters(t, dut)
@@ -558,7 +561,11 @@ func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, fabr
 	}
 
 	for compName, compCounters := range counters {
-		for _, leaf := range expectedLeaves {
+		expected := expectedPlaneCounters
+		if strings.Contains(compName, ":") {
+			expected = expectedPortCounters
+		}
+		for _, leaf := range expected {
 			if _, ok := compCounters[leaf]; !ok {
 				t.Errorf("Counter %s missing on component %s", leaf, compName)
 			} else {
