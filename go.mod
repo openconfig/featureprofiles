@@ -23,7 +23,7 @@ require (
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
 	github.com/openconfig/gnpsi v0.3.2
-	github.com/openconfig/gnsi v1.9.0
+	github.com/openconfig/gnsi v1.9.1
 	github.com/openconfig/gocloser v0.0.0-20251119232641-34bca749fdb3
 	github.com/openconfig/goyang v1.6.3
 	github.com/openconfig/gribi v1.9.1
