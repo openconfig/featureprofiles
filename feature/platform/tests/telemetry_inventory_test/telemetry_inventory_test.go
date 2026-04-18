@@ -1043,11 +1043,17 @@ func TestDefaultPowerAdminState(t *testing.T) {
 			}
 			switch compName {
 			case "Fabric":
-				fabrics = append(fabrics, c)
+				if !c.GetEmpty() {
+					fabrics = append(fabrics, c)
+				}
 			case "Linecard":
-				linecards = append(linecards, c)
+				if !c.GetEmpty() {
+					linecards = append(linecards, c)
+				}
 			case "Supervisor":
-				supervisors = append(supervisors, c)
+				if !c.GetEmpty() {
+					supervisors = append(supervisors, c)
+				}
 			}
 		}
 	}
