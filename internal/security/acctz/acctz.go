@@ -692,7 +692,7 @@ func SendGnmiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI,
 					RpcName:     gnmiCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnmiCapabilitiesPath),
 					},
 				},
 			},
@@ -839,7 +839,7 @@ func SendGnoiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI,
 					RpcName:     rpcName,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, rpcName),
 					},
 				},
 			},
@@ -980,7 +980,7 @@ func SendGnsiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI,
 					RpcName:     gnsiGetPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gnsiGetPath),
 					},
 				},
 			},
@@ -1099,7 +1099,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 				ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI,
 				RpcName:     gribiGetPath,
 				Authz: &acctzpb.AuthzDetail{
-					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, gribiGetPath),
 				},
 			},
 		},
@@ -1152,7 +1152,7 @@ func SendGribiRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespon
 					ProtoVal: payload,
 				},
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, gribiGetPath),
 				},
 			},
 		},
@@ -1246,7 +1246,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ServiceType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT,
 					RpcName:     p4rtCapabilitiesPath,
 					Authz: &acctzpb.AuthzDetail{
-						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+						Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, p4rtCapabilitiesPath),
 					},
 				},
 			},
@@ -1288,7 +1288,7 @@ func SendP4rtRPCs(t *testing.T, dut *ondatra.DUTDevice) []*acctzpb.RecordRespons
 					ProtoVal: payload,
 				},
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, p4rtCapabilitiesPath),
 				},
 			},
 		},
@@ -1373,7 +1373,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
 				Cmd:         successCliCommand,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, successCliCommand),
 				},
 			},
 		},
@@ -1451,7 +1451,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 		}
 	} else {
 		authzStatusField = &acctzpb.AuthzDetail{
-			Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY),
+			Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_DENY, failCliCommand),
 		}
 	}
 
@@ -1551,7 +1551,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 				ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_SHELL,
 				Cmd:         shellCommand,
 				Authz: &acctzpb.AuthzDetail{
-					Status: acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT,
+					Status: expectedAuthzStatus(dut, acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT, shellCommand),
 				},
 			},
 		},
@@ -1576,9 +1576,12 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	return records
 }
 
-func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus) acctzpb.AuthzDetail_AuthzStatus {
+func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
 	if dut.Vendor() == ondatra.NOKIA && status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY {
 		return acctzpb.AuthzDetail_AUTHZ_STATUS_ERROR
+	}
+	if dut.Vendor() == ondatra.ARISTA && rpcName == gribiGetPath && status == acctzpb.AuthzDetail_AUTHZ_STATUS_DENY {
+		return acctzpb.AuthzDetail_AUTHZ_STATUS_PERMIT
 	}
 	return status
 }
