@@ -37,7 +37,6 @@ import (
 	systempb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnsi/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
-	acctzgrpc "github.com/openconfig/gnsi/acctz/acctz_go_grpc"
 	authzpb "github.com/openconfig/gnsi/authz"
 	cpb "github.com/openconfig/gnsi/credentialz"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
@@ -396,8 +395,55 @@ func SetupUsers(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole bool)
 	}
 }
 
+// AcctzStreamClient is a local interface for the AcctzStream gRPC client.
+type AcctzStreamClient interface {
+	RecordSubscribe(ctx context.Context, in *acctzpb.RecordRequest, opts ...grpc.CallOption) (AcctzStream_RecordSubscribeClient, error)
+}
+
+// AcctzStream_RecordSubscribeClient is a local interface for the RecordSubscribe gRPC stream.
+type AcctzStream_RecordSubscribeClient interface {
+	Recv() (*acctzpb.RecordResponse, error)
+	grpc.ClientStream
+}
+
+type nokiaAcctzClient struct {
+	conn *grpc.ClientConn
+}
+
+func (c *nokiaAcctzClient) RecordSubscribe(ctx context.Context, in *acctzpb.RecordRequest, opts ...grpc.CallOption) (AcctzStream_RecordSubscribeClient, error) {
+	stream, err := c.conn.NewStream(ctx, &grpc.StreamDesc{
+		StreamName:    "RecordSubscribe",
+		Handler:       nil,
+		ServerStreams: true,
+		ClientStreams: true,
+	}, "/gnsi.acctz.v1.AcctzStream/RecordSubscribe", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &nokiaAcctzRecordSubscribeClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type nokiaAcctzRecordSubscribeClient struct {
+	grpc.ClientStream
+}
+
+func (x *nokiaAcctzRecordSubscribeClient) Recv() (*acctzpb.RecordResponse, error) {
+	m := new(acctzpb.RecordResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // GetNokiaCustomAcctzClient returns a custom gNSI Acctz client for Nokia devices connecting to port 10162.
-func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) acctzgrpc.AcctzStreamClient {
+func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) AcctzStreamClient {
 	t.Helper()
 	var dialer interface {
 		DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
@@ -411,7 +457,7 @@ func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) acctzgrpc.A
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed for port 10162: %v", err)
 	}
-	return acctzgrpc.NewAcctzStreamClient(conn)
+	return &nokiaAcctzClient{conn: conn}
 }
 
 // func getGrpcTarget(t *testing.T, dut *ondatra.DUTDevice, service introspect.Service) string {
