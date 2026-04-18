@@ -34,6 +34,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -235,7 +236,11 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		// Ensure ISIS Adjacency is Down on LAG_2
 
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
-			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+			isisIntfID := aggIDs[1]
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				isisIntfID = aggIDs[1] + ".0"
+			}
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(isisIntfID).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2 ")
 			}
 		}
@@ -384,7 +389,11 @@ func TestAggregateAllNotForwardingViable(t *testing.T) {
 		configForwardingViable(t, dut, dutPortList[1:agg2.ateLagCount+1], false)
 		// Ensure ISIS Adjacency is Down on LAG_2
 		if ok := awaitAdjacency(t, dut, aggIDs[1], []oc.E_Isis_IsisInterfaceAdjState{oc.Isis_IsisInterfaceAdjState_INIT, oc.Isis_IsisInterfaceAdjState_DOWN}); !ok {
-			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(aggIDs[1]).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
+			isisIntfID := aggIDs[1]
+			if deviations.InterfaceRefInterfaceIDFormat(dut) {
+				isisIntfID = aggIDs[1] + ".0"
+			}
+			if presence := gnmi.LookupAll(t, dut, ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(isisIntfID).LevelAny().AdjacencyAny().AdjacencyState().State()); len(presence) > 0 {
 				t.Fatalf("ISIS Adjacency is Established on LAG_2")
 			}
 		}
@@ -526,8 +535,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		aggPath := d.Interface(aggID)
 		fptest.LogQuery(t, aggID, aggPath.Config(), aggInt)
 		gnmi.Replace(t, dut, aggPath.Config(), aggInt)
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
-			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+		// Skip network instance assignment for Cisco LAG (Bundle-Ether) interfaces.
+		// Cisco IOS-XR does not support explicit VRF assignment on aggregate interfaces.
+		// The error: "'RSI' detected the 'warning' condition 'The specified interface type does not support VRFs'"
+		if dut.Vendor() != ondatra.CISCO {
+			if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+				fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
+			}
 		}
 		for _, port := range portList {
 			i := &oc.Interface{Name: ygot.String(port.Name())}
@@ -552,6 +566,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	}
 
 	configureRoutingPolicy(t, dut)
+
+	// Configure Loopback0 for Cisco where ISIS requires a loopback interface
+	if deviations.ISISLoopbackRequired(dut) {
+		configureLoopback(t, dut)
+		aggIDs = append(aggIDs, "Loopback0")
+	}
+
 	configureDUTISIS(t, dut, aggIDs)
 
 	if !deviations.MaxEcmpPaths(dut) {
@@ -573,6 +594,31 @@ func configMemberDUT(dut *ondatra.DUTDevice, i *oc.Interface, p *ondatra.Port, a
 	}
 	e := i.GetOrCreateEthernet()
 	e.AggregateId = ygot.String(aggID)
+}
+
+// configureLoopback configures Loopback0 interface on DUT for ISIS
+func configureLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	loopbackIntf := d.GetOrCreateInterface("Loopback0")
+	loopbackIntf.Name = ygot.String("Loopback0")
+	loopbackIntf.Description = ygot.String("Loopback for ISIS")
+	loopbackIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	if deviations.InterfaceEnabled(dut) {
+		loopbackIntf.Enabled = ygot.Bool(true)
+	}
+	s := loopbackIntf.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.GetOrCreateAddress(dutLoopback.IPv4).PrefixLength = ygot.Uint8(dutLoopback.IPv4Len)
+	s6 := s.GetOrCreateIpv6()
+	if deviations.InterfaceEnabled(dut) {
+		s6.Enabled = ygot.Bool(true)
+	}
+	s6.GetOrCreateAddress(dutLoopback.IPv6).PrefixLength = ygot.Uint8(dutLoopback.IPv6Len)
+	gnmi.Update(t, dut, gnmi.OC().Interface("Loopback0").Config(), loopbackIntf)
 }
 
 // initializePort initializes ports for aggregate on DUT
@@ -762,10 +808,14 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 	for _, aggID := range aggIDs {
-		isisIntf := isis.GetOrCreateInterface(aggID)
-		if deviations.InterfaceRefInterfaceIDFormat(dut) {
-			isisIntf = isis.GetOrCreateInterface(aggID + ".0")
+		isLoopback := strings.HasPrefix(strings.ToLower(aggID), "loopback")
+		intfID := aggID
+		// Only add .0 suffix for non-loopback interfaces when InterfaceRefInterfaceIDFormat is true
+		// Loopback interfaces on Cisco do not use subinterface notation
+		if deviations.InterfaceRefInterfaceIDFormat(dut) && !isLoopback {
+			intfID = aggID + ".0"
 		}
+		isisIntf := isis.GetOrCreateInterface(intfID)
 		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(aggID)
 		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -774,7 +824,12 @@ func configureDUTISIS(t *testing.T, dut *ondatra.DUTDevice, aggIDs []string) {
 		}
 
 		isisIntf.Enabled = ygot.Bool(true)
-		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		// Loopback interfaces should be passive (they don't form ISIS adjacencies)
+		if isLoopback {
+			isisIntf.SetPassive(true)
+		} else {
+			isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
+		}
 		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 		if deviations.ISISInterfaceAfiUnsupported(dut) {
@@ -1201,8 +1256,13 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 
 // awaitAdjacency wait for adjacency to be up/down
 func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state []oc.E_Isis_IsisInterfaceAdjState) bool {
+	isisIntfID := intfName
+	// When InterfaceRefInterfaceIDFormat is true, ISIS interface ID has .0 suffix
+	if deviations.InterfaceRefInterfaceIDFormat(dut) && !strings.HasPrefix(strings.ToLower(intfName), "loopback") {
+		isisIntfID = intfName + ".0"
+	}
 	isisPath := ocpath.Root().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-	intf := isisPath.Interface(intfName)
+	intf := isisPath.Interface(isisIntfID)
 	query := intf.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, 90*time.Second, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
 		v, ok := val.Val()
