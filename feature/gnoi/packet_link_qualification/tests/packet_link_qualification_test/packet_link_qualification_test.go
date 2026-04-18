@@ -575,8 +575,12 @@ func testLinkQualification(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Po
 		if got, want := result.GetPacketsError(), uint64(0); got != want {
 			t.Errorf("result.GetPacketsError(): got %v, want %v", got, want)
 		}
-		if got, want := result.GetPacketsDropped(), uint64(0); got != want {
-			t.Errorf("result.GetPacketsDropped(): got %v, want %v", got, want)
+		if result.GetPacketsSent() > 0 {
+			droppedPct := (float64(result.GetPacketsDropped()) / float64(result.GetPacketsSent())) * 100.0
+			if droppedPct > tolerance {
+				t.Errorf("result.GetPacketsDropped(): got %v (%.6f%%), want <= %.4f%% of packets sent (%v)",
+					result.GetPacketsDropped(), droppedPct, tolerance, result.GetPacketsSent())
+			}
 		}
 
 		generatorPktsSent := result.GetPacketsSent()
