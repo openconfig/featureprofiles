@@ -35,7 +35,6 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	systempb "github.com/openconfig/gnoi/system"
-	"github.com/openconfig/gnsi/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	authzpb "github.com/openconfig/gnsi/authz"
 	cpb "github.com/openconfig/gnsi/credentialz"
