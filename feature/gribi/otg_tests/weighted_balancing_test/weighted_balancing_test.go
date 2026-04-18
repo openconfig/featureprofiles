@@ -206,12 +206,16 @@ func TestWeightedBalancing(t *testing.T) {
 	// Configure the DUT
 	configureDUT(t, dut)
 
-	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
-
 	// Run through the test cases.
 	for _, s := range scales {
 		t.Run(s.TestName, func(t *testing.T) {
+			// Restart protocols and resolve ARP at the start of each scale.
+			// This is necessary to ensure proper protocol state and ARP resolution
+			// for the new scale, but limits protocol restarts to 2x per test run
+			// rather than 16x (once per test case).
+			ate.OTG().StartProtocols(t)
+			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+
 			for _, c := range cases {
 				t.Run(c.TestName, func(t *testing.T) {
 					t.Logf("Description: %s", c.Description)
