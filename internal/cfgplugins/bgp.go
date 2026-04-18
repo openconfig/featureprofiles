@@ -182,14 +182,14 @@ type BGPConfig struct {
 
 // BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
 type BGPNeighborConfig struct {
-	AteAS            uint32
-	PortName         string
-	NeighborIPv4     string
-	NeighborIPv6     string
-	IsLag            bool
-	MultiPathEnabled bool
-	PolicyName       *string
-	IsRCF            bool
+	AteAS             uint32
+	PortName          string
+	NeighborIPv4      string
+	NeighborIPv6      string
+	IsLag             bool
+	MultiPathEnabled  bool
+	PolicyName        *string
+	SkipDefaultPolicy bool
 }
 
 // BgpNeighborScale holds parameters for configuring BGP neighbors in a scale test.
@@ -982,7 +982,7 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 		rpl4.ImportPolicy = []string{*cfg.PolicyName}
 		rpl4.ExportPolicy = []string{*cfg.PolicyName}
 	} else {
-		if !cfg.IsRCF {
+		if !cfg.SkipDefaultPolicy {
 			rpl4.ImportPolicy = []string{ALLOW}
 			rpl4.ExportPolicy = []string{ALLOW}
 		}
@@ -1000,7 +1000,7 @@ func AppendBGPNeighbor(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 		rpl6.ImportPolicy = []string{*cfg.PolicyName}
 		rpl6.ExportPolicy = []string{*cfg.PolicyName}
 	} else {
-		if !cfg.IsRCF {
+		if !cfg.SkipDefaultPolicy {
 			rpl6.ImportPolicy = []string{ALLOW}
 			rpl6.ExportPolicy = []string{ALLOW}
 		}

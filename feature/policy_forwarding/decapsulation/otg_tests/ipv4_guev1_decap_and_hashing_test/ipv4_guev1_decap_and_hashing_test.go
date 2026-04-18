@@ -75,6 +75,8 @@ const (
 	policyID             = 1
 	trafficDuration      = 20
 	dutLoopbackName      = "Loopback0"
+	skipDefaultPolicy    = true
+	checkSum             = 0
 )
 
 // IP Addresses and Attributes
@@ -396,44 +398,44 @@ func configureDUTBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.
 	// Add BGP neighbors
 	neighbors := []cfgplugins.BGPNeighborConfig{
 		{
-			AteAS:        ate1AS,
-			PortName:     dutP1.Name,
-			NeighborIPv4: ateP1.IPv4,
-			NeighborIPv6: ateP1.IPv6,
-			IsLag:        false,
-			IsRCF:        true,
+			AteAS:             ate1AS,
+			PortName:          dutP1.Name,
+			NeighborIPv4:      ateP1.IPv4,
+			NeighborIPv6:      ateP1.IPv6,
+			IsLag:             false,
+			SkipDefaultPolicy: skipDefaultPolicy,
 		},
 		{
-			AteAS:        ate5AS,
-			PortName:     dutP7.Name,
-			NeighborIPv4: ateP7.IPv4,
-			NeighborIPv6: ateP7.IPv6,
-			IsLag:        false,
-			IsRCF:        true,
+			AteAS:             ate5AS,
+			PortName:          dutP7.Name,
+			NeighborIPv4:      ateP7.IPv4,
+			NeighborIPv6:      ateP7.IPv6,
+			IsLag:             false,
+			SkipDefaultPolicy: skipDefaultPolicy,
 		},
 		{
-			AteAS:        ate2AS,
-			PortName:     dutP2.Name,
-			NeighborIPv4: ateP2.IPv4,
-			NeighborIPv6: ateP2.IPv6,
-			IsLag:        false,
-			IsRCF:        true,
+			AteAS:             ate2AS,
+			PortName:          dutP2.Name,
+			NeighborIPv4:      ateP2.IPv4,
+			NeighborIPv6:      ateP2.IPv6,
+			IsLag:             false,
+			SkipDefaultPolicy: skipDefaultPolicy,
 		},
 		{
-			AteAS:        ate3AS,
-			PortName:     dutLag1.Name,
-			NeighborIPv4: ateLag1.IPv4,
-			NeighborIPv6: ateLag1.IPv6,
-			IsLag:        true,
-			IsRCF:        true,
+			AteAS:             ate3AS,
+			PortName:          dutLag1.Name,
+			NeighborIPv4:      ateLag1.IPv4,
+			NeighborIPv6:      ateLag1.IPv6,
+			IsLag:             true,
+			SkipDefaultPolicy: skipDefaultPolicy,
 		},
 		{
-			AteAS:        ate4AS,
-			PortName:     dutLag2.Name,
-			NeighborIPv4: ateLag2.IPv4,
-			NeighborIPv6: ateLag2.IPv6,
-			IsLag:        true,
-			IsRCF:        true,
+			AteAS:             ate4AS,
+			PortName:          dutLag2.Name,
+			NeighborIPv4:      ateLag2.IPv4,
+			NeighborIPv6:      ateLag2.IPv6,
+			IsLag:             true,
+			SkipDefaultPolicy: skipDefaultPolicy,
 		},
 	}
 	for _, n := range neighbors {
@@ -713,7 +715,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	} else {
 		udpOuter.DstPort().SetValue(UDPDstPort)
 	}
-	udpOuter.Checksum().SetCustom(0)
+	udpOuter.Checksum().SetCustom(checkSum)
 	// Flow-specific configuration from image table
 	switch incr {
 	case 1, 6:
