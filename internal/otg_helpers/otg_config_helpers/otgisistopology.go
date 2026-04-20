@@ -233,6 +233,7 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 	isis.Advanced().SetAreaAddresses([]string{eRouter.ISISAreaAddress})
 	isis.Advanced().SetEnableHelloPadding(false)
 	isis.Basic().SetEnableWideMetric(true)
+	isis.Basic().SetLearnedLspFilter(false)
 	if eRouter.ISISLSPRefreshInterval != 0 {
 		isis.Advanced().SetLspRefreshRate(uint32(eRouter.ISISLSPRefreshInterval))
 	}
