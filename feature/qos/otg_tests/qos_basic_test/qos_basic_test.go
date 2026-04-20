@@ -441,32 +441,28 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 			if !deviations.QosGetStatePathUnsupported(dut) {
 				for _, data := range trafficFlows {
 					count, ok := gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), timeout, isPresent).Await(t)
-					if !ok || count == nil {
-						t.Errorf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
-					} else {
-						counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
+					if !ok {
+						t.Fatalf("TransmitPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
 					}
+					counters["dutQosPktsBeforeTraffic"][data.queue], _ = count.Val()
 
 					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), timeout, isPresent).Await(t)
-					if !ok || count == nil {
+					if !ok {
 						t.Errorf("TransmitOctets count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
-					} else {
-						counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
 					}
+					counters["dutQosOctetsBeforeTraffic"][data.queue], _ = count.Val()
 
 					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), timeout, isPresent).Await(t)
-					if !ok || count == nil {
+					if !ok {
 						t.Errorf("DroppedPkts count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
-					} else {
-						counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 					}
+					counters["dutQosDroppedPktsBeforeTraffic"][data.queue], _ = count.Val()
 
 					count, ok = gnmi.Watch(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), timeout, isPresent).Await(t)
-					if !ok || count == nil {
+					if !ok {
 						t.Errorf("DroppedOctets count for queue %q on interface %q not available within %v", data.queue, dp3.Name(), timeout)
-					} else {
-						counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 					}
+					counters["dutQosDroppedOctetsBeforeTraffic"][data.queue], _ = count.Val()
 				}
 			}
 
