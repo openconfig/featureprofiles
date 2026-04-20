@@ -2455,12 +2455,6 @@ test: {
   exec: " "
 }
 test: {
-  id: "TestID-16.4"
-  description: "gRIBI to BGP Route Redistribution for IPv4"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/gribi_to_bgp_redistribution/README.md"
-  exec: " "
-}
-test: {
   id: "IPSEC-1.1"
   description: "IPSec with MACSec over aggregated links."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/README.md"
@@ -2566,11 +2560,5 @@ test: {
   id: "System-1.5"
   description: "System software-version test"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_software_version/README.md"
-  exec: " "
-}
-test: {
-  id: "HA-1.0"
-  description: "Telemetry: Firewall High Availability"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ha_groups/tests/telemetry_high_availability_test/README.md"
   exec: " "
 }
