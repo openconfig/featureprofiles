@@ -4,7 +4,7 @@
 uuid: "101ebaf7-467a-48f9-865b-2b255ea49c9a"
 plan_id: "CFM-1.1"
 description: "CFM over ETHoCWoMPLSoGRE"
-testbed: TESTBED_DUT_ATE_2LINKS
+testbed: TESTBED_DUT_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
