@@ -991,15 +991,43 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 
 	t.Run("VerifyPersistence", func(t *testing.T) {
 		t.Log("Waiting for DUT to reboot and reconnect...")
+
 		// Wait for reboot.
-		time.Sleep(8 * time.Minute)
+		maxRebootTime := 8 * time.Minute
+		ticker := time.NewTicker(30 * time.Second)
+		defer ticker.Stop()
+		timeout := time.After(maxRebootTime)
+		var deviceWentDown bool
+
+	rebootLoop:
+		for {
+			select {
+			case <-timeout:
+				t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
+			case <-ticker.C:
+				// use GNOI to refresh the stale cached connection post reboot.
+				sysClient := dut.RawAPIs().GNOI(t).System()
+				_, err := sysClient.Time(ctx, &gspb.TimeRequest{})
+				if err != nil {
+					if !deviceWentDown {
+						t.Logf("Device is now unreachable. Waiting for it to come back up.")
+						deviceWentDown = true
+					}
+				} else {
+					if deviceWentDown {
+						t.Logf("Device rebooted successfully.")
+						break rebootLoop
+					}
+					t.Logf("Device is still reachable; reboot hasn't started yet.")
+				}
+			}
+		}
 
 		// Poll for container state.
 		cli = containerztest.Client(t, dut)
 
 		// Use a generous timeout for the device to come back up and the container to start.
-		timeout := 5 * time.Minute
-		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, timeout); err != nil {
+		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, 5*time.Minute); err != nil {
 			t.Errorf("Container persistence failed: %v", err)
 		}
 

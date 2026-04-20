@@ -175,6 +175,40 @@ func (d *staticDUT) reset(ctx context.Context) error {
 	return resetGRIBI(ctx, d)
 }
 
+func (d *staticDUT) PushConfig(ctx context.Context, config string, reset bool) error {
+	if reset {
+		if err := resetGNMI(ctx, d); err != nil {
+			return err
+		}
+	}
+	if config == "" {
+		return nil
+	}
+
+	setRequest := &gpb.SetRequest{Update: []*gpb.Update{
+		{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		},
+	}}
+
+	gnmiClient, err := d.DialGNMI(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
 	conn, err := dialConn(ctx, d, introspect.GNMI, opts)
 	if err != nil {
