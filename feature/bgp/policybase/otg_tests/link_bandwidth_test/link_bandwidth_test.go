@@ -460,6 +460,14 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 			if bgpPrefix.GetAddress() == v4Prefix {
 				found = true
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
+				freshVal := gnmi.Lookup(t, td.ate.OTG(),
+					gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").
+						UnicastIpv4Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(),
+							bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State())
+				if !freshVal.IsPresent() {
+					return false
+				}
+				bgpPrefix, _ = freshVal.Val()
 				for _, ec := range bgpPrefix.ExtendedCommunity {
 					if ec.Structured == nil || ec.Structured.NonTransitive_2OctetAsType == nil || ec.Structured.NonTransitive_2OctetAsType.LinkBandwidthSubtype == nil {
 						continue
@@ -552,6 +560,14 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 			if bgpPrefix.GetAddress() == v6Prefix {
 				found = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
+				freshVal := gnmi.Lookup(t, td.ate.OTG(),
+					gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP6.peer").
+						UnicastIpv6Prefix(bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength(),
+							bgpPrefix.GetOrigin(), bgpPrefix.GetPathId()).State())
+				if !freshVal.IsPresent() {
+					return false
+				}
+				bgpPrefix, _ = freshVal.Val()
 				switch community {
 				case "none":
 					t.Logf("Prefix community AS:%v Prefix extended community: %v", bgpPrefix.Community, bgpPrefix.ExtendedCommunity)
