@@ -2114,3 +2114,9 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
+
+// CarrierFt returns the functional translator to be used for translating
+// phy-carrier-transitions path.
+func CarrierFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCarrierFt()
+}

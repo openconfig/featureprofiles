@@ -15,6 +15,7 @@
 package carrier_transitions_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
+	"github.com/openconfig/functional-translators/registrar"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -137,5 +139,107 @@ func TestCarrierTransitions(t *testing.T) {
 		t.Errorf("Carrier transitions did not increase. Initial: %d, Final: %d", initialCount, finalCount)
 	} else {
 		t.Logf("Carrier transitions validated successfully. Initial: %d, Final: %d", initialCount, finalCount)
+	}
+}
+
+func TestPhyCarrierTransitions(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	if deviations.CarrierFt(dut) == "" {
+		t.Skip("Skipping phy-carrier-transitions check as CarrierFt deviation is not populated.")
+	}
+
+	dp1 := dut.Port(t, "port1")
+	ctx := context.Background()
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI: %v", err)
+	}
+
+	ft, ok := registrar.FunctionalTranslatorRegistry[deviations.CarrierFt(dut)]
+	if !ok {
+		t.Fatalf("Functional translator %q not found.", deviations.CarrierFt(dut))
+	}
+
+	var nativePaths []*gpb.Path
+	for _, paths := range ft.OutputToInputMap() {
+		nativePaths = append(nativePaths, paths...)
+	}
+	if len(nativePaths) == 0 {
+		t.Fatalf("No native paths found for functional translator %q", deviations.CarrierFt(dut))
+	}
+
+	// Flap the interface and read raw values using Get to verify functional increase.
+	readCount := func() (uint64, bool) {
+		resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+			Path:     nativePaths,
+			Type:     gpb.GetRequest_STATE,
+			Encoding: gpb.Encoding_JSON_IETF,
+		})
+		if err != nil {
+			t.Errorf("Failed to get native paths: %v", err)
+			return 0, false
+		}
+
+		for _, notification := range resp.GetNotification() {
+			dummySR := &gpb.SubscribeResponse{
+				Response: &gpb.SubscribeResponse_Update{
+					Update: notification,
+				},
+			}
+			translatedSR, err := ft.Translate(dummySR)
+			if err != nil {
+				t.Errorf("Translation Failed: %v", err)
+				continue
+			}
+			if translatedSR == nil {
+				continue
+			}
+			for _, update := range translatedSR.GetUpdate().GetUpdate() {
+				path := update.GetPath()
+				elems := path.GetElem()
+				if len(elems) < 6 {
+					continue
+				}
+				if elems[0].GetName() == "interfaces" && elems[1].GetName() == "interface" {
+					intfName := elems[1].GetKey()["name"]
+					if intfName == dp1.Name() && elems[5].GetName() == "phy-carrier-transitions" {
+						return update.GetVal().GetUintVal(), true
+					}
+				}
+			}
+		}
+		return 0, false
+	}
+
+	// Read initial value
+	initialCount, present := readCount()
+	if !present {
+		t.Logf("phy-carrier-transitions native counter not present initially.")
+	} else {
+		t.Logf("Initial phy-carrier-transitions count: %d", initialCount)
+	}
+
+	// Flap the interface
+	t.Log("Disabling interface for phy-carrier-transitions...")
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), false)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_DOWN)
+
+	t.Log("Enabling interface for phy-carrier-transitions...")
+	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
+	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
+
+	time.Sleep(10 * time.Second)
+
+	// Read final value
+	finalCount, present := readCount()
+	if !present {
+		t.Fatalf("phy-carrier-transitions native counter not found after flap.")
+	}
+	t.Logf("Final phy-carrier-transitions count: %d", finalCount)
+
+	if finalCount <= initialCount {
+		t.Errorf("phy-carrier-transitions did not increase. Initial: %d, Final: %d", initialCount, finalCount)
+	} else {
+		t.Logf("phy-carrier-transitions validated successfully. Initial: %d, Final: %d", initialCount, finalCount)
 	}
 }
