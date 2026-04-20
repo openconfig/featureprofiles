@@ -1276,17 +1276,24 @@ message Metadata {
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
 
+    // Device Does not support session channel id
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_session_channel_id_unsupported = 410;
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Device is missing subinterface state packet counters.
+    bool default_subinterface_packet_counters_missing = 409;
+
     // https://partnerissuetracker.corp.google.com/issues/443044887
     // Use the deviation if BGP Extension Route Retention configuration is not available via OC
-    bool extended_route_retention_oc_unsupported = 409;
+    bool extended_route_retention_oc_unsupported = 411;
 
     // https://partnerissuetracker.corp.google.com/issues/439825838
     // Use the deviation if BGP Stale Route Time is not supported by DUT
-    bool exrr_stale_route_time_unsupported = 410;
+    bool exrr_stale_route_time_unsupported = 412;
 
     // https://partnerissuetracker.corp.google.com/issues/446376446
     // Use the deviation if BGP Graceful restart is not supported using gnoi
-    bool gnoi_bgp_graceful_restart_unsupported = 411;
+    bool gnoi_bgp_graceful_restart_unsupported = 413;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
