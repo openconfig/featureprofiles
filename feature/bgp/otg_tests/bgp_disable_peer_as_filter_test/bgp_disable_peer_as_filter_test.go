@@ -256,8 +256,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32) gosnappi.Config {
 		SetPrefix(uint32(advertisedRoutesv4Prefix)).
 		SetCount(uint32(routeCount))
 
-	BGP4AsPath := atePort1Bgp4Routes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
-	BGP4AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	atePort1Bgp4Routes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ).Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 
 	// Configure IPv6 routes on ATE Port 1 with specified AS path
 	atePort1Bgp6Routes := atePort1Bgp6Peer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
@@ -269,8 +268,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32) gosnappi.Config {
 		SetPrefix(uint32(advertisedRoutesv6Prefix)).
 		SetCount(uint32(routeCount))
 
-	BGP6AsPath := atePort1Bgp6Routes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ)
-	BGP6AsPath.Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
+	atePort1Bgp6Routes.AsPath().SetAsSetMode(gosnappi.BgpAsPathAsSetMode.INCLUDE_AS_SEQ).Segments().Add().SetAsNumbers(asSeg).SetType(gosnappi.BgpAsPathSegmentType.AS_SEQ)
 
 	t.Log("Pushing config to OTG and starting protocols...")
 	otg.PushConfig(t, config)
@@ -406,7 +404,7 @@ func verifyReceivedRoutesWithAsPath(t *testing.T, otg *otg.OTG, peerName string,
 // testCase represents a single test case for the disable-peer-as-filter functionality.
 type testCase struct {
 	name                string
-	setupFunc           func(*testing.T, *ondatra.DUTDevice, *gnmi.SetBatch, bool) *gnmi.SetBatch
+	setupFunc           func(*testing.T, *ondatra.DUTDevice, *gnmi.SetBatch, cfgplugins.BGPConfig) *gnmi.SetBatch
 	asSeg               []uint32
 	disablePeerASFilter bool
 	expectedASPath      []uint32
@@ -438,7 +436,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			peerGroup:           false,
 		},
 		{
-			name:                "RT-1.71.2: Enable disable-peer-as-filter at peer group level",
+			name:                "RT-1.71.2: Enable disable-peer-as-filter at neighbor level",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
 			asSeg:               []uint32{ateAS2, ateAS4},
 			disablePeerASFilter: true,
@@ -469,7 +467,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Configure BGP with appropriate settings
 			b := &gnmi.SetBatch{}
-			tc.setupFunc(t, dut, b, tc.peerGroup)
+			tc.setupFunc(t, dut, b, cfgplugins.BGPConfig{ApplyOnPeerGroup: false, DutAS: dutAS})
 			b.Set(t, dut)
 
 			// Configure ATE and establish BGP sessions
@@ -477,10 +475,10 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 
 			// Verify BGP sessions are established
 			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			// Verify routes received according to test case expectations
@@ -553,7 +551,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Configure BGP with appropriate settings
 			b := &gnmi.SetBatch{}
-			tc.setupFunc(t, dut, b, tc.peerGroup)
+			tc.setupFunc(t, dut, b, cfgplugins.BGPConfig{ApplyOnPeerGroup: true, DutAS: dutAS})
 			b.Set(t, dut)
 
 			// Configure ATE and establish BGP sessions
@@ -561,10 +559,10 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 
 			// Verify BGP sessions are established
 			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 			if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			// Verify routes received according to test case expectations

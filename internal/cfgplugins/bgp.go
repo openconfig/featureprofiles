@@ -178,6 +178,8 @@ type BGPConfig struct {
 	EnableMaxRoutes bool
 	//Peer Groups
 	PeerGroups []string
+	// ApplyOnPeerGroup indicates whether to apply the policy on peer group or directly on neighbors.
+	ApplyOnPeerGroup bool
 }
 
 // BGPNeighborConfig holds params for creating BGP neighbors + peer groups.
@@ -1805,46 +1807,46 @@ func updateAttributes(oldAttr, newAttr *attrs.Attributes) {
 }
 
 // ConfigureBGPEnablePeerAsFilterPeer enables enable-peer-as-filter for specified neighbors or peer groups
-func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, peerGroup bool) *gnmi.SetBatch {
+func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
 	// The default behavior is to have peer AS filter enabled. we are achieving it using peer-tag .
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		if peerGroup {
-			cliConfigNoPeerAsFilter := `router bgp 64498
+		if params.ApplyOnPeerGroup {
+			cliConfigNoPeerAsFilter := fmt.Sprintf(`router bgp %d
 	neighbor BGP-PEER-GROUP1 peer-tag in PEER_AS_FILTER
-	neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`
+	neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`, params.DutAS)
 			helpers.GnmiCLIConfig(t, dut, cliConfigNoPeerAsFilter)
 		} else {
-			cliConfigNoPeerAsFilter := `router bgp 64498
+			cliConfigNoPeerAsFilter := fmt.Sprintf(`router bgp %d
 	neighbor 192.0.2.2  peer-tag in PEER_AS_FILTER
 	neighbor 198.51.100.2 peer-tag out discard PEER_AS_FILTER
 	neighbor 2001:db8::2 peer-tag in PEER_AS_FILTER
-	neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`
+	neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`, params.DutAS)
 			helpers.GnmiCLIConfig(t, dut, cliConfigNoPeerAsFilter)
 		}
 	}
 	return batch
 }
 
-// ConfigureBGPWithDisablePeerAsFilterPeerGroup enables disable-peer-as-filter at peer group level
-func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, peerGroup bool) *gnmi.SetBatch {
+// ConfigureBGPWithDisablePeerAsFilter enables disable-peer-as-filter at peer group level
+func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, params BGPConfig) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
 	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
-		if peerGroup {
-			cliConfig := `router bgp 64498
+		if params.ApplyOnPeerGroup {
+			cliConfig := fmt.Sprintf(`router bgp %d
 		no neighbor BGP-PEER-GROUP1 peer-tag in PEER_AS_FILTER
-		no neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`
+		no neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`, params.DutAS)
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		} else {
-			cliConfig := `router bgp 64498
+			cliConfig := fmt.Sprintf(`router bgp %d
 		no neighbor 192.0.2.2  peer-tag in PEER_AS_FILTER
 		no neighbor 198.51.100.2 peer-tag out discard PEER_AS_FILTER
 		no neighbor 2001:db8::2 peer-tag in PEER_AS_FILTER
-		no neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`
+		no neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`, params.DutAS)
 
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		}
