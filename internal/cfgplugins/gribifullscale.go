@@ -211,10 +211,6 @@ var (
 		IPv6Len: IPv6IntfMask,
 	}
 
-	// dutPort2Ips and atePort2Ips are populated by ConfigurePort2 and ConfigureOTG respectively.
-	dutPort2Ips = make([]string, NumPort2VLANs)
-	atePort2Ips = make([]string, NumPort2VLANs)
-
 	// decapPrefixLens is the mix of prefix lengths for DECAP_TE_VRF.
 	decapPrefixLens = []int{22, 24, 26, 28}
 

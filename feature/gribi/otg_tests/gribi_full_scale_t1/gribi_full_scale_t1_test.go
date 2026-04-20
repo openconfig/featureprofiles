@@ -37,7 +37,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 )
 
@@ -62,14 +61,6 @@ const (
 	// numUniqueEncapNHT1 is the T4 scale target: total unique encap NHs.
 	// T1: 16K, T2: 32K.
 	numUniqueEncapNHT1 = 16_000
-)
-
-// ============================================================
-// Variables
-// ============================================================
-
-var (
-	allEntries []fluent.GRIBIEntry
 )
 
 // ============================================================
