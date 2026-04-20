@@ -33,5 +33,7 @@ platform_exceptions: {
     gribi_records_unsupported: true
     acctz_record_fail_command_unsupported: true
     acctz_record_fail_grpc_unsupported: true
+    acctz_shell_cmd_accounting_unsupported: true
+    acctz_record_session_channel_id_unsupported: true
   }
 }

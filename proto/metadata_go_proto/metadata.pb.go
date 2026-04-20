@@ -1392,10 +1392,31 @@ type Metadata_Deviations struct {
 	// Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
 	// Devices that do not support oc path for static route to nexthop
 	StaticRouteToNhgOcUnsupported bool `protobuf:"varint,402,opt,name=static_route_to_nhg_oc_unsupported,json=staticRouteToNhgOcUnsupported,proto3" json:"static_route_to_nhg_oc_unsupported,omitempty"`
-	// Partner issue: https://partnerissuetracker.corp.google.com/issues/504424786
-	DefaultPeerAsFilterOcUnsupported bool `protobuf:"varint,405,opt,name=default_peer_as_filter_oc_unsupported,json=defaultPeerAsFilterOcUnsupported,proto3" json:"default_peer_as_filter_oc_unsupported,omitempty"`
-	unknownFields                    protoimpl.UnknownFields
-	sizeCache                        protoimpl.SizeCache
+	// Device does not populate state on subinterface 0
+	// that is implicitly created.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+	Subinterface_0StateUnsupported bool `protobuf:"varint,405,opt,name=subinterface_0_state_unsupported,json=subinterface0StateUnsupported,proto3" json:"subinterface_0_state_unsupported,omitempty"`
+	// Device does not support fragment punt drops.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntUnsupported bool `protobuf:"varint,406,opt,name=fragment_punt_unsupported,json=fragmentPuntUnsupported,proto3" json:"fragment_punt_unsupported,omitempty"`
+	// Device does not support fragment punt pkts.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+	// Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+	FragmentPuntPktsUnsupported bool `protobuf:"varint,407,opt,name=fragment_punt_pkts_unsupported,json=fragmentPuntPktsUnsupported,proto3" json:"fragment_punt_pkts_unsupported,omitempty"`
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+	// Functional translator to be used for Fragment Punt OC paths
+	FragmentPuntFt string `protobuf:"bytes,408,opt,name=fragment_punt_ft,json=fragmentPuntFt,proto3" json:"fragment_punt_ft,omitempty"`
+	// Device Does not support session channel id
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+	AcctzRecordSessionChannelIdUnsupported bool `protobuf:"varint,410,opt,name=acctz_record_session_channel_id_unsupported,json=acctzRecordSessionChannelIdUnsupported,proto3" json:"acctz_record_session_channel_id_unsupported,omitempty"`
+	// Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+	// Device is missing subinterface state packet counters.
+	DefaultSubinterfacePacketCountersMissing bool `protobuf:"varint,409,opt,name=default_subinterface_packet_counters_missing,json=defaultSubinterfacePacketCountersMissing,proto3" json:"default_subinterface_packet_counters_missing,omitempty"`
+	unknownFields                            protoimpl.UnknownFields
+	sizeCache                                protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4018,16 +4039,45 @@ func (x *Metadata_Deviations) GetStaticRouteToNhgOcUnsupported() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetDefaultPeerAsFilterOcUnsupported() bool {
+func (x *Metadata_Deviations) GetSubinterface_0StateUnsupported() bool {
 	if x != nil {
-		return x.DefaultPeerAsFilterOcUnsupported
+func (x *Metadata_Deviations) GetFragmentPuntUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntPktsUnsupported() bool {
+	if x != nil {
+		return x.FragmentPuntPktsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetFragmentPuntFt() string {
+	if x != nil {
+		return x.FragmentPuntFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetAcctzRecordSessionChannelIdUnsupported() bool {
+	if x != nil {
+		return x.AcctzRecordSessionChannelIdUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetDefaultSubinterfacePacketCountersMissing() bool {
+	if x != nil {
+		return x.DefaultSubinterfacePacketCountersMissing
 	}
 	return false
 }
 
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
 	Deviations    *Metadata_Deviations   `protobuf:"bytes,2,opt,name=deviations,proto3" json:"deviations,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4081,7 +4131,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xc6\xe2\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xab\xe5\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4093,7 +4143,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x92\xd8\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf7\xda\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4468,8 +4518,13 @@ const file_metadata_proto_rawDesc = "" +
 	"\"acctz_record_fail_grpc_unsupported\x18\x94\x03 \x01(\bR\x1eacctzRecordFailGrpcUnsupported\x12\\\n" +
 	"+bgp_graceful_restart_peer_group_unsupported\x18\x90\x03 \x01(\bR&bgpGracefulRestartPeerGroupUnsupported\x12H\n" +
 	" grpc_server_services_unsupported\x18\x91\x03 \x01(\bR\x1dgrpcServerServicesUnsupported\x12J\n" +
-	"\"static_route_to_nhg_oc_unsupported\x18\x92\x03 \x01(\bR\x1dstaticRouteToNhgOcUnsupported\x12P\n" +
-	"%default_peer_as_filter_oc_unsupported\x18\x95\x03 \x01(\bR defaultPeerAsFilterOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\"static_route_to_nhg_oc_unsupported\x18\x92\x03 \x01(\bR\x1dstaticRouteToNhgOcUnsupported\x12H\n" +
+	" subinterface_0_state_unsupported\x18\x95\x03 \x01(\bR\x1dsubinterface0StateUnsupported\x12;\n" +
+	"\x19fragment_punt_unsupported\x18\x96\x03 \x01(\bR\x17fragmentPuntUnsupported\x12D\n" +
+	"\x1efragment_punt_pkts_unsupported\x18\x97\x03 \x01(\bR\x1bfragmentPuntPktsUnsupported\x12)\n" +
+	"\x10fragment_punt_ft\x18\x98\x03 \x01(\tR\x0efragmentPuntFt\x12\\\n" +
+	"+acctz_record_session_channel_id_unsupported\x18\x9a\x03 \x01(\bR&acctzRecordSessionChannelIdUnsupported\x12_\n" +
+	",default_subinterface_packet_counters_missing\x18\x99\x03 \x01(\bR(defaultSubinterfacePacketCountersMissingJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
