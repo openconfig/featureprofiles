@@ -1832,21 +1832,22 @@ func ConfigureBGPEnablePeerAsFilterPeer(t *testing.T, dut *ondatra.DUTDevice, b 
 func ConfigureBGPDisablePeerAsFilter(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, peerGroup bool) *gnmi.SetBatch {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
-	// TODO: Add Deviation
-	if peerGroup {
-		cliConfig := `router bgp 64498
-	no neighbor BGP-PEER-GROUP1 peer-tag in PEER_AS_FILTER
-	no neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`
+	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
+		if peerGroup {
+			cliConfig := `router bgp 64498
+		no neighbor BGP-PEER-GROUP1 peer-tag in PEER_AS_FILTER
+		no neighbor BGP-PEER-GROUP2 peer-tag out discard PEER_AS_FILTER`
 
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-	} else {
-		cliConfig := `router bgp 64498
-	no neighbor 192.0.2.2  peer-tag in PEER_AS_FILTER
-	no neighbor 198.51.100.2 peer-tag out discard PEER_AS_FILTER
-	no neighbor 2001:db8::2 peer-tag in PEER_AS_FILTER
-	no neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		} else {
+			cliConfig := `router bgp 64498
+		no neighbor 192.0.2.2  peer-tag in PEER_AS_FILTER
+		no neighbor 198.51.100.2 peer-tag out discard PEER_AS_FILTER
+		no neighbor 2001:db8::2 peer-tag in PEER_AS_FILTER
+		no neighbor 2001:db8::6 peer-tag out discard PEER_AS_FILTER`
 
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		}
 	}
 	return batch
 }
