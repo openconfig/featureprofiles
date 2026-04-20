@@ -1,4 +1,4 @@
-# TestID-16.4: gRIBI to BGP Route Redistribution for IPv4
+# TE-6.4: gRIBI to BGP Route Redistribution for IPv4
 
 ## Summary
 
@@ -48,7 +48,7 @@ This test validates the gRIBI route redistribution from gRIBI to BGP for IPv4 in
     * Prefixes within 198.51.100.0/26 with mask /32: Add Communities EF_ALL, NO-CORE, then Accept.
     * Default: Reject
 
-### TestID-16.4.1 - gRIBI to BGP Redistribution
+### TE-6.4.1 - gRIBI to BGP Redistribution
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -255,7 +255,7 @@ Note: Protocols and tables containers are not expected to be configured, but are
 * Step 7 - Verify gRIBI route '198.51.100.1/32' is deleted from TEST_VRF using '/network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/' and route withdrawal from over eBGP on ATE Port 2
 * Step 8 - Validate full traffic loss at ATE Port 1
 
-### TestID-16.4.2 - Drain Policy Validation
+### TE-6.4.2 - Drain Policy Validation
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
@@ -361,7 +361,7 @@ Note: Protocols and tables containers are not expected to be configured, but are
 'operation: { op: DELETE network_instance: "DEFAULT" next_hop: { index: 1001 } }'
 ```
 
-### TestID-16.4.3 - Disable BGP session with drain policy
+### TE-6.4.3 - Disable BGP session with drain policy
 
 * Step 1 - Generate DUT configuration
   * Configure network-instance 'TEST_VRF' with DUT and ATE interfaces and IP addresses.
