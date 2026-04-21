@@ -48,6 +48,7 @@ platform_exceptions: {
     bgp_llgr_oc_undefined: true
     routing_restart_via_gnoi_unsupported: true
     missing_value_for_defaults: true
+    kill_process_different_yang_name: true
   }
 }
 tags: TAGS_AGGREGATION
