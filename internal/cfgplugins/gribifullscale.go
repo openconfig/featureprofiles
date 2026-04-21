@@ -711,10 +711,22 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string) (uint64, uint64) {
 	t.Helper()
 	s1NHG, s2NHG := StaticS1NHG, StaticS2NHG
-	s1NH, _ := gribi.NHEntry(s1NHG, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: RepairVRFStr})
-	s1NHGEntry, _ := gribi.NHGEntry(s1NHG, map[uint64]uint64{s1NHG: 1}, defaultVRF, fluent.InstalledInFIB)
-	s2NH, _ := gribi.NHEntry(s2NHG, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
-	s2NHGEntry, _ := gribi.NHGEntry(s2NHG, map[uint64]uint64{s2NHG: 1}, defaultVRF, fluent.InstalledInFIB)
+	s1NH, s1NHerr := gribi.NHEntry(s1NHG, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: RepairVRFStr})
+	if s1NHerr != nil {
+		t.Fatalf("Failed to create S1 NH: %v", s1NHerr)
+	}
+	s1NHGEntry, s1NHGerr := gribi.NHGEntry(s1NHG, map[uint64]uint64{s1NHG: 1}, defaultVRF, fluent.InstalledInFIB)
+	if s1NHGerr != nil {
+		t.Fatalf("Failed to create S1 NHG: %v", s1NHGerr)
+	}
+	s2NH, s2NHerr := gribi.NHEntry(s2NHG, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
+	if s2NHerr != nil {
+		t.Fatalf("Failed to create S2 NH: %v", s2NHerr)
+	}
+	s2NHGEntry, s2NHGerr := gribi.NHGEntry(s2NHG, map[uint64]uint64{s2NHG: 1}, defaultVRF, fluent.InstalledInFIB)
+	if s2NHGerr != nil {
+		t.Fatalf("Failed to create S2 NHG: %v", s2NHGerr)
+	}
 	t.Logf("BuildStaticGroups: S1 NHG=%d (→REPAIR_VRF), S2 NHG=%d (decap→DEFAULT)", s1NHG, s2NHG)
 	gSession := BatchModify(t, dut, ctx, []fluent.GRIBIEntry{s1NH, s1NHGEntry, s2NH, s2NHGEntry}, 30*time.Second)
 	gSession.Close(t)
@@ -863,16 +875,16 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	for vi, vrf := range encapVRFs {
-		v4Prefixes, err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
-		if err != nil {
-			t.Fatalf("BuildEncapDecapVRFs: generate encap V4 prefixes for VRF %s: %v", vrf, err)
+		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
+		if v4Err != nil {
+			t.Fatalf("BuildEncapDecapVRFs: generate encap V4 prefixes for VRF %s: %v", vrf, v4Err)
 		}
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
-		v6Prefixes, err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
-		if err != nil {
-			t.Fatalf("BuildEncapDecapVRFs: generate encap V6 prefixes for VRF %s: %v", vrf, err)
+		v6Prefixes, v6Err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
+		if v6Err != nil {
+			t.Fatalf("BuildEncapDecapVRFs: generate encap V6 prefixes for VRF %s: %v", vrf, v6Err)
 		}
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
