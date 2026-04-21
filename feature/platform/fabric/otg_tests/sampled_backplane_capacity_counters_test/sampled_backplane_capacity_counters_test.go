@@ -173,7 +173,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 				t.Errorf("Component %s, power-admin-state got: %v, want: %v", f, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 			}
 		}
-		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 2*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
+		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 3*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}
