@@ -211,10 +211,6 @@ var (
 		IPv6Len: IPv6IntfMask,
 	}
 
-	// dutPort2Ips and atePort2Ips are populated by ConfigurePort2 and ConfigureOTG respectively.
-	dutPort2Ips = make([]string, NumPort2VLANs)
-	atePort2Ips = make([]string, NumPort2VLANs)
-
 	// decapPrefixLens is the mix of prefix lengths for DECAP_TE_VRF.
 	decapPrefixLens = []int{22, 24, 26, 28}
 
@@ -769,7 +765,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		base []string
 	}{
 		{TransitVRF111Str, vrf111Prefixes},
-		// {TransitVRF222Str, vrf222Prefixes},
+		{TransitVRF222Str, vrf222Prefixes},
 	} {
 		pfxs := []string{}
 		for i := 1; i < FIBPrgCount; i++ {
@@ -867,11 +863,17 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	for vi, vrf := range encapVRFs {
-		v4Prefixes, _ := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
+		v4Prefixes, err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
+		if err != nil {
+			t.Fatalf("BuildEncapDecapVRFs: generate encap V4 prefixes for VRF %s: %v", vrf, err)
+		}
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
-		v6Prefixes, _ := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
+		v6Prefixes, err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
+		if err != nil {
+			t.Fatalf("BuildEncapDecapVRFs: generate encap V6 prefixes for VRF %s: %v", vrf, err)
+		}
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
@@ -1197,6 +1199,16 @@ func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bo
 	return flows
 }
 
+// RemovegRIBIRoute method is clearing the gRIBI routes.
+func RemovegRIBIRoute(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	gSession := NewGRIBIClient(t, dut)
+	t.Cleanup(func() {
+		gSession.FlushAll(t)
+		gSession.Close(t)
+	})
+}
+
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
 func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool) {
 	t.Helper()
@@ -1205,17 +1217,15 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 	if perFlowPPS == 0 {
 		perFlowPPS = 1
 	}
-	t.Logf("Traffic: imix=%v, %d base flow groups, %d pps/group -> ~%d Mpps aggregate", imix, baseFlows, perFlowPPS, perFlowPPS*uint64(baseFlows)/1_000_000)
+	t.Logf("Traffic : imix=%v, %d base flow groups, %d pps/group -> ~%d Mpps aggregate", imix, baseFlows, perFlowPPS, perFlowPPS*uint64(baseFlows)/1_000_000)
 
 	decapPfxSet := ExpandDecapPrefixes()
 	expectations := map[string]FlowExpectation{}
 	gSession := NewGRIBIClient(t, dut)
-
 	t.Cleanup(func() {
 		gSession.FlushAll(t)
 		gSession.Close(t)
 	})
-
 	// addFlows registers each flow's expectation. The VRF index is extracted
 	// from the flow's position in the slice so both DSCP values for that VRF
 	// can be stored in ExpectedDSCPs — either is a valid egress DSCP.
