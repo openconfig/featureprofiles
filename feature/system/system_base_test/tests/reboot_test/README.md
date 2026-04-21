@@ -12,7 +12,7 @@
 
 ## Procedure
 
-#### Initial Setup:
+### Test environment setup:
 
 *   Connect DUT port-1, 2 to ATE port-1, 2
 *   Configure IPv4/IPv6 addresses on the ports
@@ -21,20 +21,19 @@
 *   Advertise a few IPv4/v6 BGP routes from ATE to DUT through the BGP session
 *   Configure redistribution of the BGP prefixes to IS-IS on the DUT
 
-### System-2.1.1
-#### Pre Reboot Validation
+### System-2.1.1 - Pre Reboot Validation
 ---
 
-##### Validate SSH connectivity
+#### Validate SSH connectivity
 *   Verify SSH connectivity to the device works
 
-##### Validate P4RT connectivity
+#### Validate P4RT connectivity
 *   Configure P4RT id and node-id (device_id) with port-1 interface
     *  Linecard `device_id = 111`
 *   Using P4RT Read RPC send a ReadRequest for port-1 counters
 *   Ensure a ReadResponse is received
 
-##### Validate Traffic Forwarding
+#### Validate Traffic Forwarding
 *   Initiate traffic from ATE port-1 to the DUT and destined towards the BGP redistributed routes
 *   Validate that the traffic is received on ATE port-2
 
@@ -100,22 +99,21 @@
 }
 ```
 
-### System-2.1.2
-#### Post Reboot Validation
+### System-2.1.2 - Post Reboot Validation
 ---
-##### Reboot the DUT
+#### Reboot the DUT
 *   Reboot the DUT and wait for it to come back up
 
-##### Validate SSH connectivity
+#### Validate SSH connectivity
 *   Verify SSH connectivity to the device works
 
-##### Validate P4RT connectivity
+#### Validate P4RT connectivity
 *   Configure P4RT id and node-id (device_id) with port-1 interface
     *  Linecard `device_id = 111`
 *   Using P4RT Read RPC send a ReadRequest for port-1 counters
 *   Ensure a ReadResponse is received
 
-##### Validate Traffic Forwarding
+#### Validate Traffic Forwarding
 *   Initiate traffic from ATE port-1 to the DUT and destined towards the BGP redistributed routes
 *   Validate that the traffic is received on ATE port-2
 
@@ -128,7 +126,7 @@
 
 ## Required DUT platform
 
-* FFF
+* MFF
 
 ## OpenConfig Path and RPC Coverage
 
