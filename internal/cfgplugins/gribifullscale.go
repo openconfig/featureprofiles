@@ -711,22 +711,10 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string) (uint64, uint64) {
 	t.Helper()
 	s1NHG, s2NHG := StaticS1NHG, StaticS2NHG
-	s1NH, s1NHerr := gribi.NHEntry(s1NHG, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: RepairVRFStr})
-	if s1NHerr != nil {
-		t.Fatalf("Failed to create S1 NH: %v", s1NHerr)
-	}
-	s1NHGEntry, s1NHGerr := gribi.NHGEntry(s1NHG, map[uint64]uint64{s1NHG: 1}, defaultVRF, fluent.InstalledInFIB)
-	if s1NHGerr != nil {
-		t.Fatalf("Failed to create S1 NHG: %v", s1NHGerr)
-	}
-	s2NH, s2NHerr := gribi.NHEntry(s2NHG, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
-	if s2NHerr != nil {
-		t.Fatalf("Failed to create S2 NH: %v", s2NHerr)
-	}
-	s2NHGEntry, s2NHGerr := gribi.NHGEntry(s2NHG, map[uint64]uint64{s2NHG: 1}, defaultVRF, fluent.InstalledInFIB)
-	if s2NHGerr != nil {
-		t.Fatalf("Failed to create S2 NHG: %v", s2NHGerr)
-	}
+	s1NH, _ := gribi.NHEntry(s1NHG, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: RepairVRFStr})
+	s1NHGEntry, _ := gribi.NHGEntry(s1NHG, map[uint64]uint64{s1NHG: 1}, defaultVRF, fluent.InstalledInFIB)
+	s2NH, _ := gribi.NHEntry(s2NHG, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
+	s2NHGEntry, _ := gribi.NHGEntry(s2NHG, map[uint64]uint64{s2NHG: 1}, defaultVRF, fluent.InstalledInFIB)
 	t.Logf("BuildStaticGroups: S1 NHG=%d (→REPAIR_VRF), S2 NHG=%d (decap→DEFAULT)", s1NHG, s2NHG)
 	gSession := BatchModify(t, dut, ctx, []fluent.GRIBIEntry{s1NH, s1NHGEntry, s2NH, s2NHGEntry}, 30*time.Second)
 	gSession.Close(t)
@@ -1211,16 +1199,6 @@ func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bo
 	return flows
 }
 
-// RemovegRIBIRoute method is clearing the gRIBI routes.
-func RemovegRIBIRoute(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	gSession := NewGRIBIClient(t, dut)
-	t.Cleanup(func() {
-		gSession.FlushAll(t)
-		gSession.Close(t)
-	})
-}
-
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
 func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool) {
 	t.Helper()
@@ -1229,7 +1207,7 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 	if perFlowPPS == 0 {
 		perFlowPPS = 1
 	}
-	t.Logf("Traffic : imix=%v, %d base flow groups, %d pps/group -> ~%d Mpps aggregate", imix, baseFlows, perFlowPPS, perFlowPPS*uint64(baseFlows)/1_000_000)
+	t.Logf("Traffic: imix=%v, %d base flow groups, %d pps/group -> ~%d Mpps aggregate", imix, baseFlows, perFlowPPS, perFlowPPS*uint64(baseFlows)/1_000_000)
 
 	decapPfxSet := ExpandDecapPrefixes()
 	expectations := map[string]FlowExpectation{}
