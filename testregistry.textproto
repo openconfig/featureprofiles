@@ -2412,3 +2412,153 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
 }
+test: {
+  id: "TE-18.4"
+  description: "ECMP hashing on outer and inner packets with MPLSoUDP encapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/mpls_in_udp/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-11.1"
+  description: "Backup NHG: Single NH"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_single_nh_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-11.21"
+  description: "Backup NHG: Multiple NH with PBF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_multiple_nh_pbf_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-11.3"
+  description: "Backup NHG: Actions"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-11.31"
+  description: "Backup NHG: Actions with PBF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/backup_nhg_action_pbf/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-2.2"
+  description: "gRIBI IPv4 Entry With Aggregate Ports"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/ipv4_entry_with_aggregate_ports_test/README.md"
+  exec: " "
+}
+test: {
+  id: "TE-8.1"
+  description: "DUT Daemon Failure"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/otg_tests/dut_daemon_failure/README.md"
+  exec: " "
+}
+test: {
+  id: "IPSEC-1.1"
+  description: "IPSec with MACSec over aggregated links."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_base/README.md"
+  exec: " "
+}
+test: {
+  id: "IPSEC-1.2"
+  description: "IPSec Scaling with MACSec over aggregated links."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_scale/README.md"
+  exec: " "
+}
+test: {
+  id: "IPSEC-1.3"
+  description: "IPSec Packet-Order with MACSec over aggregated links."
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/ipsec/otg_tests/ipsec_packetorder/README.md"
+  exec: " "
+}
+test: {
+  id: "RT-2.18"
+  description: "IS-IS Multi-adjacencies scale test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/isis/otg_tests/isis_scale_multi_adjacency_test/README.md"
+  exec: " "
+}
+test: {
+  id: "P4RT-3.21"
+  description: "Google Discovery Protocol: PacketOut with LAG"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/p4rt/otg_tests/google_discovery_protocol_packetout_lag_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PLT-1.3"
+  description: "OnChange Subscription Test for Breakout Interfaces"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/tests/breakout_subscription_test/README.md"
+  exec: " "
+}
+test: {
+  id: "PF-1.24"
+  description: "Add and remove interface bound to PBF"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/add_remove_policy_bound_interface_test/README.md"
+  exec: " "
+}
+test: {
+  id: "Authz"
+  description: "General Authz (1-4) tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/authz/tests/authz/README.md"
+  exec: " "
+}
+test: {
+  id: "SYS-3.1"
+  description: "AAA and TACACS+ Configuration Verification Test Suite"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/aaa/tests/tacacs/README.md"
+  exec: " "
+}
+test: {
+  id: "bootz"
+  description: "General bootz bootstrap tests"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+  exec: " "
+}
+test: {
+  id: "enrollz-1"
+  description: "enrollz test for TPM 2.0 HMAC-based Enrollment flow"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm20_hmac/README.md"
+  exec: " "
+}
+test: {
+  id: "enrollz-2"
+  description: "enrollz test for TPM 1.2 Enrollment flow"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/security/attestz/tests/enrollz_tpm12/README.md"
+  exec: " "
+}
+test: {
+  id: "SYS-4.1"
+  description: "System Mount Points State Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/mount_points/tests/system_mount_points_state/README.md"
+  exec: " "
+}
+test: {
+  id: "System-1.1"
+  description: "System banner test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_banner_test/README.md"
+  exec: " "
+}
+test: {
+  id: "System-1.2"
+  description: "System g protocol test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: " "
+}
+test: {
+  id: "System-1.3"
+  description: "System hostname test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/hostname_test/README.md"
+  exec: " "
+}
+test: {
+  id: "System-1.4"
+  description: "System time test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_time_test/README.md"
+  exec: " "
+}
+test: {
+  id: "System-1.5"
+  description: "System software-version test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_software_version/README.md"
+  exec: " "
+}
