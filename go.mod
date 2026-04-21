@@ -23,7 +23,7 @@ require (
 	github.com/openconfig/gnoi v0.7.0
 	github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56
 	github.com/openconfig/gnpsi v0.3.2
-	github.com/openconfig/gnsi v1.9.0
+	github.com/openconfig/gnsi v1.9.1
 	github.com/openconfig/gocloser v0.0.0-20251119232641-34bca749fdb3
 	github.com/openconfig/goyang v1.6.3
 	github.com/openconfig/gribi v1.9.1
@@ -49,7 +49,7 @@ require (
 	golang.org/x/oauth2 v0.34.0
 	golang.org/x/text v0.33.0
 	google.golang.org/api v0.215.0
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1

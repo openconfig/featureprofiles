@@ -20,5 +20,6 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     fr_breakout_fix: true
+    subinterface_0_state_unsupported: true
   }
 }

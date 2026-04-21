@@ -3,7 +3,7 @@
 
 uuid: "50e9e4ce-ab83-4f61-9521-35a760ab2aff"
 plan_id: "RT-2.17"
-description: "Scale for IS-IS"
+description: "IS-IS scale test"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
