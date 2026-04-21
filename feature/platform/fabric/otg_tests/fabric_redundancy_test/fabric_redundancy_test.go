@@ -539,11 +539,11 @@ func TestFabricRedundancy(t *testing.T) {
 	}
 
 	testCases := []testCase{
-		//{
-		//	name:     "TEST 1: Fabric inventory",
-		//	fabrics:  fabrics,
-		//	testFunc: testFabricInventory,
-		//}//,
+		{
+			name:     "TEST 1: Fabric inventory",
+			fabrics:  fabrics,
+			testFunc: testFabricInventory,
+		},
 		{
 			name:     "TEST 2: Fabric redundancy",
 			fabrics:  fabrics,
