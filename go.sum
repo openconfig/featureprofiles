@@ -315,6 +315,8 @@ github.com/openconfig/gnpsi v0.3.2 h1:+bl1bXMOTrWOcGydWB+8wGgvxlgvL8Y6joAiWFU5so
 github.com/openconfig/gnpsi v0.3.2/go.mod h1:+Qj2PwadJ/jvGkH6H/A3XO9ZRKQRVtl3A30ubwz0M18=
 github.com/openconfig/gnsi v1.9.0 h1:DokjN2rvzrP9/sMexBtigq6XkeKO8cPzzQmF8HQcVLQ=
 github.com/openconfig/gnsi v1.9.0/go.mod h1:mvfo1wUBFfojkHrD8kKqVV8Epoyq1Vt1Qpkj2hif6ow=
+github.com/openconfig/gnsi v1.9.1 h1:0XpYlG/99YWVIm6gFTVkxlwiXcU/tBla9MDLChLNBMM=
+github.com/openconfig/gnsi v1.9.1/go.mod h1:r1OgFdQdbVB6PdamWM6nW85MKLlRCYwCd9Gx/tm2/Gw=
 github.com/openconfig/gocloser v0.0.0-20251119232641-34bca749fdb3 h1:HsTKOBZeQw/Rt8KmxFY578pVZDIgeem50jzv4BjrTR8=
 github.com/openconfig/gocloser v0.0.0-20251119232641-34bca749fdb3/go.mod h1:4vnwCnlfaYP/nmt3ST13nRo1oygak9ctB6CUbhGZUUE=
 github.com/openconfig/goyang v1.6.3 h1:9nWXBwd6b4+nZr8ni7O4zUXVhrVMXCLFz8os5YWFuo4=
