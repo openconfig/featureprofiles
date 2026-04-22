@@ -12,7 +12,7 @@
 
 # /feature folders each have owners who are auto requested for review and may merge PR's
 /feature/acl/          @openconfig/featureprofiles-owner-acl
-/feature/aft/          @openconfig/featureprofiles-owner-aft
+/feature/afts/         @openconfig/featureprofiles-owner-aft
 /feature/bgp/          @openconfig/featureprofiles-owner-bgp
 /feature/dhcp/         @alokmtri-g
 /feature/ethernet/     @ram-mac

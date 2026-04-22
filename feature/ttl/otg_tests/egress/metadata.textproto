@@ -5,3 +5,15 @@ uuid:  "60e4c1d1-a36e-49af-bd10-188a626b84bf"
 plan_id:  "PF-1.9"
 description:  "Egress handling of TTL"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    static_mpls_lsp_oc_unsupported: true
+    gre_decapsulation_oc_unsupported: true
+    decapsulate_gue_oc_unsupported: true
+  }
+}

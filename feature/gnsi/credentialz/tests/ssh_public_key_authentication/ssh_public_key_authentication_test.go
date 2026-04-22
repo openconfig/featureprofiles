@@ -15,6 +15,7 @@
 package sshpublickeyauthentication_test
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -28,11 +29,13 @@ import (
 )
 
 const (
-	username                  = "testuser"
-	authorizedKeysListVersion = "v1.0"
+	username = "testuser"
 )
 
-var authorizedKeysListCreatedOn int64
+var (
+	authorizedKeysListCreatedOn int64
+	authorizedKeysListVersion   = credz.GenerateVersion()
+)
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
@@ -40,7 +43,6 @@ func TestMain(m *testing.M) {
 
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	target := credz.GetDutTarget(t, dut)
 	authorizedKeysListCreatedOn = time.Now().Unix()
 
 	// Create temporary directory for storing ssh keys/certificates.
@@ -59,7 +61,9 @@ func TestCredentialz(t *testing.T) {
 	credz.SetupUser(t, dut, username)
 
 	t.Run("auth should fail ssh public key not authorized for user", func(t *testing.T) {
-		_, err := credz.SSHWithKey(t, target, username, dir)
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		_, err = credz.SSHWithKey(ctx, t, dut, username, dir)
 		if err == nil {
 			t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
 		}
@@ -80,18 +84,16 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		// Verify ssh with key succeeds.
-		sshClient, err := credz.SSHWithKey(t, target, username, dir)
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+		defer cancel()
+		sshClient, err := credz.SSHWithKey(ctx, t, dut, username, dir)
 		if err != nil {
 			t.Fatalf("Dialing ssh failed, but we expected to succeed. error: %v", err)
 		}
-		sess, err := sshClient.NewSession()
-		if err != nil {
-			t.Fatalf("NewSession failed, err: %v", err)
-		}
-		defer sess.Close()
+		defer sshClient.Close()
 		t.Logf("SSH session established")
 
-		res, err := sess.CombinedOutput("show version")
+		res, err := sshClient.RunCommand(ctx, "show version")
 		if err != nil {
 			t.Fatalf("CombinedOutput failed, err: %v", err)
 		}
@@ -118,14 +120,20 @@ func TestCredentialz(t *testing.T) {
 		}
 
 		gotAuthorizedKeysListCreatedOn := int64(userState.GetAuthorizedKeysListCreatedOn())
-		if got, want := gotAuthorizedKeysListCreatedOn, authorizedKeysListCreatedOn; got != want {
+		wantAuthorizedKeysListCreatedOn := authorizedKeysListCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantAuthorizedKeysListCreatedOn *= 1e9
+		default:
+			t.Logf("Vendor %s, does not need support nanosecond conversion for authorized keys list created on", dut.Vendor())
+		}
+		if got, want := gotAuthorizedKeysListCreatedOn, wantAuthorizedKeysListCreatedOn; got != want {
 			t.Errorf("Telemetry reports authorized keys list created on is not correct, got: %d, want: %d", got, want)
 		}
-
 	})
 
 	t.Cleanup(func() {
 		// Cleanup user authorized key after test.
-		credz.RotateAuthorizedKey(t, dut, "", username, "", uint64(authorizedKeysListCreatedOn))
+		credz.RotateAuthorizedKey(t, dut, "", username, authorizedKeysListVersion, uint64(authorizedKeysListCreatedOn))
 	})
 }

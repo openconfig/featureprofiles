@@ -111,21 +111,41 @@ func TestCopyingDebugFiles(t *testing.T) {
 	}
 	t.Logf("Component Name: %v", componentName)
 
-	req := &hpb.GetRequest{
-		Path: &tpb.Path{
-			Origin: "openconfig",
-			Elem: []*tpb.PathElem{
-				{
-					Name: "components",
-				},
-				{
-					Name: "component",
-					Key:  componentName,
-				},
-			},
+	// Define the path once so it's consistent for both Check and Get
+	healthPath := &tpb.Path{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: componentName},
 		},
 	}
-	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+	if !deviations.SkipOrigin(dut) {
+		healthPath.Origin = "openconfig"
+	}
+
+	// Trigger an active health check using Check()
+	checkReq := &hpb.CheckRequest{
+		Path: healthPath,
+	}
+	t.Logf("Triggering Healthz Check for %v", componentName)
+	if _, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq); checkErr != nil {
+		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
+	}
+
+	// Poll for the results using Get()
+	req := &hpb.GetRequest{
+		Path: healthPath,
+	}
+
+	var validResponse *hpb.GetResponse
+	for i := 0; i < 5; i++ {
+		validResponse, err = gnoiClient.Healthz().Get(context.Background(), req)
+		if err == nil {
+			break
+		}
+		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
+		time.Sleep(30 * time.Second)
+	}
+
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -145,7 +165,6 @@ func TestChassisComponentArtifacts(t *testing.T) {
 	// Execute Healthz Check RPC for the chassis component.
 	chkReq := &hpb.CheckRequest{
 		Path: &tpb.Path{
-			Origin: "openconfig",
 			Elem: []*tpb.PathElem{
 				{
 					Name: "components",
@@ -156,6 +175,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 				},
 			},
 		},
+	}
+	if !deviations.SkipOrigin(dut) {
+		chkReq.Path.Origin = "openconfig"
 	}
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)

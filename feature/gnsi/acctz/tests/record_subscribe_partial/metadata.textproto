@@ -5,3 +5,34 @@ uuid:  "31dbda6b-5034-4a95-880c-25e4ce0676c4"
 plan_id:  "ACCTZ-2.1"
 description:  "Record Subscribe Partial"
 testbed:  TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+    gribi_records_unsupported: true
+    acctz_records_authz_status_deny_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    gribi_records_unsupported: true
+    acctz_record_fail_command_unsupported: true
+    acctz_record_fail_grpc_unsupported: true
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    p4rt_capabilities_unsupported: true
+  }
+}

@@ -73,9 +73,13 @@ FFF
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/type:
+  /network-instances/network-instance/config/type:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
-
 ```

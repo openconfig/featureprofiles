@@ -108,6 +108,7 @@ func TestInterfaceCounters(t *testing.T) {
 	ipv6CounterPath := "/interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/"
 
 	skipSubinterfacePacketCountersMissing := deviations.SubinterfacePacketCountersMissing(dut)
+	skipSubinterfaceStateCounters := skipSubinterfacePacketCountersMissing || deviations.DefaultSubinterfacePacketCountersMissing(dut)
 	skipIpv6DiscardedPkts := skipSubinterfacePacketCountersMissing || deviations.Ipv6DiscardedPktsUnsupported(dut)
 
 	cases := []struct {
@@ -183,30 +184,37 @@ func TestInterfaceCounters(t *testing.T) {
 		desc:    "SubinterfaceOutBroadcastPkts",
 		path:    subinterfaceCounterPath + "out-broadcast-pkts",
 		counter: subinterfaceCounters.OutBroadcastPkts().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceCarrierTransitions",
 		path:    subinterfaceCounterPath + "carrier-transitions",
 		counter: subinterfaceCounters.CarrierTransitions().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceOutErrors",
 		path:    subinterfaceCounterPath + "out-errors",
 		counter: subinterfaceCounters.OutErrors().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceLastClear",
 		path:    subinterfaceCounterPath + "last-clear",
 		counter: subinterfaceCounters.LastClear().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceInErrors",
 		path:    subinterfaceCounterPath + "in-errors",
 		counter: subinterfaceCounters.InErrors().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceInUnknownProtos",
 		path:    subinterfaceCounterPath + "in-unknown-protos",
 		counter: subinterfaceCounters.InUnknownProtos().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "SubinterfaceInBroadcastPkts",
 		path:    subinterfaceCounterPath + "in-broadcast-pkts",
 		counter: subinterfaceCounters.InBroadcastPkts().State(),
+		skip:    skipSubinterfaceStateCounters,
 	}, {
 		desc:    "IPv4InPkts",
 		path:    ipv4CounterPath + "in-pkts",

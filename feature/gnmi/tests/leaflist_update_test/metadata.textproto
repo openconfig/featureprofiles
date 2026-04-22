@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "ded8e821-3503-4a1b-a675-2f4ba117c5ee"
+plan_id:  "gNMI-1.24"
+description:  "gNMI Leaf-List Update Test"
+testbed:  TESTBED_DUT
