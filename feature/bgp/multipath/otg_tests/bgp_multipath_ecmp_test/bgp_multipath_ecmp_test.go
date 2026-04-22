@@ -15,7 +15,6 @@
 package bgp_multipath_ecmp_test
 
 import (
-	"math/rand"
 	"sort"
 	"strconv"
 	"testing"
