@@ -212,7 +212,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return otgConfig
 }
 
-func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]map[string]any {
+func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]map[string]float64 {
 	ctx := context.Background()
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
@@ -242,7 +242,7 @@ func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]ma
 		t.Fatalf("Failed to get native paths: %v", err)
 	}
 
-	counters := make(map[string]map[string]any)
+	counters := make(map[string]map[string]float64)
 
 	for _, notification := range resp.GetNotification() {
 		dummySR := &gpb.SubscribeResponse{
@@ -257,7 +257,11 @@ func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]ma
 		if translatedSR == nil {
 			continue
 		}
-		for _, update := range translatedSR.GetUpdate().GetUpdate() {
+		translatedNotification := translatedSR.GetUpdate()
+		if translatedNotification == nil {
+			continue
+		}
+		for _, update := range translatedNotification.GetUpdate() {
 			path := update.GetPath()
 			elems := path.GetElem()
 			if len(elems) < 8 {
@@ -270,7 +274,7 @@ func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]ma
 					val := update.GetVal().GetUintVal()
 
 					if _, ok := counters[compName]; !ok {
-						counters[compName] = make(map[string]any)
+						counters[compName] = make(map[string]float64)
 					}
 					counters[compName][errorName] = float64(val)
 				}
@@ -537,9 +541,6 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 }
 
 func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
-	if deviations.FabricFt(dut) == "" {
-		t.Skip("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
-	}
 	expectedPlaneCounters := []string{
 		"uncorrectable-error-cells",
 		"unicast-lost-cells",
@@ -567,7 +568,7 @@ func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, fabr
 		}
 		for _, leaf := range expected {
 			if _, ok := compCounters[leaf]; !ok {
-				t.Errorf("Counter %s missing on component %s", leaf, compName)
+				t.Fatalf("Counter %s missing on component %s", leaf, compName)
 			} else {
 				t.Logf("Counter %s is present on component %s", leaf, compName)
 			}
@@ -664,11 +665,16 @@ func TestFabricRedundancy(t *testing.T) {
 			fabrics:  fabrics,
 			testFunc: testFabricLastRebootTime,
 		},
-		{
+	}
+
+	if deviations.FabricFt(dut) != "" {
+		testCases = append(testCases, testCase{
 			name:     "TEST 4: Fabric error telemetry",
 			fabrics:  fabrics,
 			testFunc: testFabricErrorTelemetryPresence,
-		},
+		})
+	} else {
+		t.Skip("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
 	}
 
 	// Run the test cases.
