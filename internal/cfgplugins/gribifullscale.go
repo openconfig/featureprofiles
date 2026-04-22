@@ -863,11 +863,17 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	for vi, vrf := range encapVRFs {
-		v4Prefixes, _ := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
+		v4Prefixes, v4Err := iputil.GenerateIPsWithStep(fmt.Sprintf("200.%d.0.1", vi), NumEncapIPv4PerVRF, CommonPrefixStep)
+		if v4Err != nil {
+			t.Fatalf("Failed to generate IPv4 prefixes for VRF %s (vi=%d): %v", vrf, vi, v4Err)
+		}
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
-		v6Prefixes, _ := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
+		v6Prefixes, v6Err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
+		if v6Err != nil {
+			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
+		}
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
