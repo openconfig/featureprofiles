@@ -27,12 +27,12 @@ import (
 )
 
 const (
-	username        = "testuser"
-	passwordVersion = "v1.0"
+	username = "testuser"
 )
 
 var (
 	passwordCreatedOn = time.Now().Unix()
+	passwordVersion   = credz.GenerateVersion()
 )
 
 func TestMain(m *testing.M) {
