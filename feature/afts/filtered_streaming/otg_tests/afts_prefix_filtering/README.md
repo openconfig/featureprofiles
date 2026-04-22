@@ -168,7 +168,7 @@ subscribe: {
   prefixes are received.
 
 - Verify that the `atomic` flag is set to `true` on all initial update
-  notifications. (See AFT-3.1 for complete atomic-flag behavior coverage.)
+  notifications. (See [AFT-3.1](../../../otg_tests/afts_atomic/README.md) for complete atomic-flag behavior coverage.)
 
 ### Validate Dynamic Updates
 

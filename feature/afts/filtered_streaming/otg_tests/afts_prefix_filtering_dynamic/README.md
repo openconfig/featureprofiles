@@ -79,8 +79,6 @@ Use the test environment and routing policies described in
 
 ## OpenConfig Path and RPC Coverage
 
-
-
 ```yaml
 paths:
   # Global filter config/state paths

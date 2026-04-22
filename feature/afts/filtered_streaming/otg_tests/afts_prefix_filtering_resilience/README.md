@@ -171,8 +171,6 @@ respective filters.
 
 ## OpenConfig Path and RPC Coverage
 
-
-
 ```yaml
 paths:
   # Global filter config/state paths
