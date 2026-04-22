@@ -36,7 +36,7 @@ for d in ${DIRS[@]} ; do
           ;;
         ecdsa)
           openssl ecparam -name ${CURVE} \
-            -out ca-${d}/ca-${OFFSET}-${t}-key.pem -genkey
+            -out ca-${d}/ca-${OFFSET}-${t}-key.pem -genkey -noout
           ;;
       esac
       # Create a cert with the fresh key, require it to be a CA certificate.
@@ -83,7 +83,7 @@ for  d in ${DIRS[@]}; do
             ;;
           ecdsa)
             openssl ecparam -name ${CURVE} \
-              -out ca-${d}/${cs}-${t}-${g}-key.pem -genkey
+              -out ca-${d}/${cs}-${t}-${g}-key.pem -genkey -noout
             ;;
         esac
       done
