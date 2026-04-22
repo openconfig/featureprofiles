@@ -19,11 +19,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"regexp"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +37,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	netutil "github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -452,25 +449,4 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
-}
-
-func generateRandomIPList(t testing.TB, cidr string, count int) []string {
-	t.Helper()
-	gotNets := make([]string, 0)
-	for net := range netutil.GenCIDRs(t, cidr, count) {
-		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
-	}
-
-	// Make a copy of the input slice to avoid modifying the original
-	randomized := make([]string, len(gotNets))
-	copy(randomized, gotNets)
-
-	// Shuffle the slice of elements
-	for i := len(randomized) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
-		randomized[i], randomized[j] = randomized[j], randomized[i]
-	}
-
-	return randomized
-
 }

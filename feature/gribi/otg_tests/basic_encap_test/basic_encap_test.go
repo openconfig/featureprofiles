@@ -18,7 +18,6 @@ package basic_encap_test
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -899,15 +898,6 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 	t.Log("Clearing capture")
 	topo.Captures().Clear()
 	otg.PushConfig(t, topo)
-}
-
-func randRange(max int, count int) []uint32 {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result []uint32
-	for len(result) < count {
-		result = append(result, uint32(rand.Intn(max)))
-	}
-	return result
 }
 
 // getFlow returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp value passed in args.
