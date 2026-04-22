@@ -79,22 +79,15 @@ Use the test environment and routing policies described in
 
 ## OpenConfig Path and RPC Coverage
 
-> **TODO:** The `global-filter` container and its `config/ipv4-policy`,
-> `config/ipv6-policy`, `state/ipv4-policy` and `state/ipv6-policy` leaves are
-> proposed extensions to the OpenConfig AFT model and are not yet present in the
-> master branch of [openconfig/public](https://github.com/openconfig/public).
-> This README may be merged before the TODO is resolved.
->
-> The OpenConfig pull request is
-> [#1441](https://github.com/openconfig/public/pull/1441).
+
 
 ```yaml
 paths:
-  # Proposed paths for the new filter mechanism (not yet in openconfig/public)
-  # /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
-  # /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
-  # /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
-  # /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
+  # Global filter config/state paths
+  /network-instances/network-instance/afts/global-filter/config/ipv4-policy:
+  /network-instances/network-instance/afts/global-filter/config/ipv6-policy:
+  /network-instances/network-instance/afts/global-filter/state/ipv4-policy:
+  /network-instances/network-instance/afts/global-filter/state/ipv6-policy:
 
   # Standard AFT state paths
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
