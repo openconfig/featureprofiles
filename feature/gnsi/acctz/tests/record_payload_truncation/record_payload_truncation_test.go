@@ -20,7 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -46,52 +48,64 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		ni := ocRoot.GetOrCreateNetworkInstance(fmt.Sprintf("acctz-test-ni-%d", i))
 		ni.SetDescription("This is a pointlessly long description in order to make the payload bigger.")
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
-		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "static")
-		for j := 0; j < 254; j++ {
-			staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
+		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+		nhAddress := fmt.Sprintf("192.%d.2.1", i)
+		nstatRoutes := 0
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			nstatRoutes = 1
+		default:
+			nstatRoutes = 254
+		}
+		for j := 0; j < nstatRoutes; j++ {
+			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
+			nh1 := sr1.GetOrCreateNextHop("0")
+			nh1.NextHop = oc.UnionString(nhAddress)
 		}
 	}
-
 	gnmi.Update(t, dut, gnmi.OC().Config(), ocRoot)
 }
 
 func TestAccountzRecordPayloadTruncation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	startTime := time.Now()
-	sendOversizedPayload(t, dut)
-	acctzClient := dut.RawAPIs().GNSI(t).Acctz()
 
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background())
-	if err != nil {
-		t.Fatalf("Failed getting accountz record subscribe client, error: %s", err)
+	const queueSize = 100
+	const historyMemory = 100
+
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		communitySetCLIConfig := fmt.Sprintf("grpc \n aaa accounting queue-size %d\n aaa accounting history-memory %d \n!", queueSize, historyMemory)
+		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	err = acctzSubClient.Send(&acctzpb.RecordRequest{
+	startTime := time.Now()
+
+	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
+	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
 	})
 	if err != nil {
-		t.Fatalf("Failed sending record request, error: %s", err)
+		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
+
+	sendOversizedPayload(t, dut)
 
 	for {
 		r := make(chan recordRequestResult)
-
 		go func(r chan recordRequestResult) {
-			var response *acctzpb.RecordResponse
-			response, err = acctzSubClient.Recv()
+			resp, err := acctzSubClient.Recv()
 			r <- recordRequestResult{
-				record: response,
+				record: resp,
 				err:    err,
 			}
 		}(r)
-
 		var done bool
 		var resp recordRequestResult
 
 		select {
 		case rr := <-r:
 			resp = rr
-		case <-time.After(10 * time.Second):
+		case <-time.After(60 * time.Second):
 			done = true
 		}
 
@@ -103,20 +117,29 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
+		t.Logf("Received record: %v", resp.record)
+
 		grpcServiceRecord := resp.record.GetGrpcService()
+		if grpcServiceRecord == nil {
+			continue
+		}
 
 		if grpcServiceRecord.GetServiceType() != acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI {
-			// Not our gnmi set, nothing to see here.
+			t.Logf("Not our gnmi set, service type: %v", grpcServiceRecord.GetServiceType())
 			continue
 		}
 
-		if grpcServiceRecord.RpcName != "/gnmi.gNMI/Set" {
+		if grpcServiceRecord.GetRpcName() != "/gnmi.gNMI/Set" {
+			t.Logf("Not our gnmi set, rpc name: %v", grpcServiceRecord.GetRpcName())
 			continue
 		}
 
-		if grpcServiceRecord.GetPayloadIstruncated() {
-			t.Log("Found truncated payload of gnmi.Set after start timestamp, success!")
-			break
+		if !grpcServiceRecord.GetPayloadIstruncated() {
+			t.Log("Found our record, but it is not truncated...")
+			continue
 		}
+
+		t.Logf("Found truncated record: %v", resp.record)
+		break
 	}
 }

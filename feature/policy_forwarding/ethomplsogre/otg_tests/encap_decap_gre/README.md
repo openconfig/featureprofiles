@@ -205,27 +205,14 @@ Run the test separately for both port mode and attachment mode "customer interfa
 
 Verify:
 
-*  DSCP of encapsulated packets is set to 96. 
+*  TOS of encapsulated packets is set to 96. 
 *  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
 *  No packet loss when forwarding.
 *  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.23.9: Verify DSCP of EthoCWoMPLSoGRE encapsulated packets
-
-* Use the same traffic profile as PF-1.23.2. 
-
-Verify:
-
-*  DSCP of encapsulated packets is set to 96. 
-*  All traffic received on Aggregate2, Aggregate3 are EthoCWoMPLSoGRE-encapsulated.
-*  No packet loss when forwarding.
-*  Traffic equally load-balanced across 16 GRE destinations and distributed equally across 2 egress ports.
-
-Run the test separately for both port mode and attachment mode "customer interface" configuration. 
-
-### PF-1.23.10: Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown. 
+### PF-1.23.9: Verify PF EthoCWoMPLSoGRE encapsulate after single GRE tunnel destination shutdown. 
 
 * Use the same traffic profile as PF-1.23.2. 
 * Start the traffic profile on ATE. 
@@ -237,7 +224,7 @@ Verify:
 *  No packet loss when forwarding.
 *  Traffic load-balanced across remaining 15 GRE destinations and distributed equally across 2 egress ports.
 
-### PF-1.23.11: Verify PF EthoCWoMPLSoGRE decapsulate action 
+### PF-1.23.10: Verify PF EthoCWoMPLSoGRE decapsulate action 
 
 Generate traffic on ATE Aggregate2 and Aggregate3 having:
 
@@ -255,25 +242,7 @@ Inner payload:
 
 Run the test separately for both port mode and attachment mode "customer interface" configuration. 
 
-### PF-1.23.12: Verify PF EthoCWoMPLSoGRE decapsulate action 
-
-Generate traffic on ATE Aggregate2 and Aggregate3 having:
-
-* Outer source address: random combination of 1000+ IPV4 source addresses from 100.64.0.0/22
-* Outer destination address: Traffic must fall within the configured GRE tunnel sources in PF-1.23.1 so it cuold be decapsulated.
-* MPLS Label: Should be same as the local label configured in PF-1.23.1
-Inner payload:
-* Both IPV4 and IPV6 unicast payloads, with random source address, destination address, TCP/UDP source port and destination ports
-* Use 64, 128, 256, 512, 1024.. MTU bytes frame size
-
-* Verify:
-
-* All traffic received on Aggregate2 and Aggregate3 gets decapsulated and forwarded as IPV4/IPV6 unicast on the respective egress interface under Aggregate1
-* No packet loss when forwarding with counters incrementing corresponding to traffic
-
-Run the test separately for both port mode and attachment mode "customer interface" configuration. 
-
-### PF-1.23.13: Verify VLAN tag after PF EthoCWoMPLSoGRE decapsulate action
+### PF-1.23.11: Verify VLAN tag after PF EthoCWoMPLSoGRE decapsulate action
 
 * Use the same traffic profile as PF-1.23.12.
 * Ensure inner payload Ethernet header has a VLAN tag attached to it. 

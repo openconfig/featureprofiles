@@ -60,10 +60,10 @@ func Test400ZRLogicalChannels(t *testing.T) {
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(p1.Name()).Transceiver().State())
 	tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(p2.Name()).Transceiver().State())
 
-	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc1, frequency, targetOutputPower, operationalMode, cfgplugins.WithLinePort(dut, oc1))
 	cfgplugins.ConfigOTNChannel(t, dut, oc1, otnIndex1, ethernetIndex1)
 	cfgplugins.ConfigETHChannel(t, dut, p1.Name(), tr1, otnIndex1, ethernetIndex1)
-	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, oc2, frequency, targetOutputPower, operationalMode, cfgplugins.WithLinePort(dut, oc2))
 	cfgplugins.ConfigOTNChannel(t, dut, oc2, otnIndex2, ethernetIndex2)
 	cfgplugins.ConfigETHChannel(t, dut, p2.Name(), tr2, otnIndex2, ethernetIndex2)
 

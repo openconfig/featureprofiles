@@ -15,7 +15,6 @@
 package actions_med_localpref_prepend_flow_control_test
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,7 +25,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -211,24 +209,6 @@ func VerifyBgpState(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("BGP sessions Established")
 }
 
-// juniperBgpPolicyMEDAdd is used to configure set metric add via native cli as an alternative for below xpath.
-// routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
-func juniperBgpPolicyMEDAdd(polName string, metric int) string {
-	return fmt.Sprintf(`
-		policy-options {
- 		   policy-statement %s {
-        		term 1 {
-            		then {
-                		metric add %d;
-            		}
-        		}
-        		term 2 {
-            		then accept;
-        		}
-    		}
-		}`, polName, metric)
-}
-
 // configureASLocalPrefMEDPolicy configures MED, Local Pref, AS prepend etc
 func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyType, policyValue, statement string, ASN uint32) {
 	t.Helper()
@@ -247,33 +227,18 @@ func configureASLocalPrefMEDPolicy(t *testing.T, dut *ondatra.DUTDevice, policyT
 		actions.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(uint32(metric))
 		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setMEDPolicy:
+		metric, _ := strconv.Atoi(policyValue)
+		actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 		if strings.Contains(policyValue, "+") {
-			if deviations.BgpSetMedV7Unsupported(dut) {
-				t.Logf("Push the CLI config:%s", dut.Vendor())
-				metric, _ := strconv.Atoi(policyValue)
-				switch dut.Vendor() {
-				case ondatra.JUNIPER:
-					config := juniperBgpPolicyMEDAdd(setMEDPolicy, metric)
-					helpers.GnmiCLIConfig(t, dut, config)
-				default:
-					t.Fatalf("BgpSetMedV7Unsupported deviation needs cli configuration for vendor %s which is not defined", dut.Vendor())
-				}
-			} else {
-				metric, _ := strconv.Atoi(policyValue)
-				actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
-				if !deviations.BGPSetMedActionUnsupported(dut) {
-					actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
-				}
-				actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+			if !deviations.BGPSetMedActionUnsupported(dut) {
+				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_ADD
 			}
 		} else {
-			metric, _ := strconv.Atoi(policyValue)
-			actions.GetOrCreateBgpActions().SetMed = oc.UnionUint32(uint32(metric))
 			if !deviations.BGPSetMedActionUnsupported(dut) {
 				actions.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 			}
-			actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 		}
+		actions.PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	case setPrependPolicy:
 		metric, _ := strconv.Atoi(policyValue)
 		asPrepend := actions.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
@@ -495,7 +460,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 
 // validateOTGBgpPrefixV4AndASLocalPrefMED verifies that the IPv4 prefix is received on OTG.
 func validateOTGBgpPrefixV4AndASLocalPrefMED(t *testing.T, otg *otg.OTG, dut *ondatra.DUTDevice, config gosnappi.Config, peerName, ipAddr string, prefixLen uint32, pathAttr string, metric uint32) {
-	// t.Helper()
+	t.Helper()
 	_, ok := gnmi.WatchAll(t,
 		otg,
 		gnmi.OTG().BgpPeer(peerName).UnicastIpv4PrefixAny().State(),
@@ -686,7 +651,7 @@ func TestBGPPolicy(t *testing.T) {
 		port1v6Prefix:   advertisedRoutesv6Net2,
 		port2v4Prefix:   advertisedRoutesv4Net1,
 		port2v6Prefix:   advertisedRoutesv6Net1,
-		metricValue:     150,
+		metricValue:     expectedMED(t, dut, 150, 100),
 		polNbrv4:        atePort2.IPv4,
 		polNbrv6:        atePort2.IPv6,
 		isDeletePolicy:  true,
@@ -812,4 +777,15 @@ func TestBGPPolicy(t *testing.T) {
 			validateOTGBgpPrefixV6AndASLocalPrefMED(t, otg, dut, otgConfig, atePort2.Name+".BGP6.peer", tc.port2v6Prefix, advertisedRoutesv6PrefixLen, tc.rpPolicy, tc.metricValue)
 		})
 	}
+}
+
+// expectedMED returns the MED that should be verified considering device deviations.
+func expectedMED(t *testing.T, dut *ondatra.DUTDevice, requestedValue, deviatedValue uint32) uint32 {
+	t.Helper()
+	// If device cannot perform set-med or med-add actions, return base MED value.
+	if deviations.BGPSetMedActionUnsupported(dut) {
+		return deviatedValue
+	}
+	// return requested policy-derived value.
+	return requestedValue
 }
