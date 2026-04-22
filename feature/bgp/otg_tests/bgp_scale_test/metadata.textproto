@@ -1,0 +1,85 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "c4998950-3e64-4aa9-bff8-7df0392787a1"
+plan_id:  "RT-1.65"
+description:  "BGP scale test"
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    skip_tcp_negotiated_mss_check: true
+    interface_enabled: true
+    default_network_instance: "default"
+    isis_instance_enabled_required: true
+    bgp_default_policy_unsupported: true
+    require_routed_subinterface_0: true
+    explicit_interface_in_default_vrf: false
+    route_policy_under_afi_unsupported: true
+    default_bgp_instance_name: "BGP"
+    isis_mpls_unsupported: true
+    explicit_port_speed: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    bgp_max_multipath_paths_unsupported: true
+    multipath_unsupported_neighbor_or_afisafi: true
+    route_policy_under_afi_unsupported: true
+    bgp_graceful_restart_under_afi_safi_unsupported: true
+    skip_setting_allow_multiple_as: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    default_bgp_instance_name: "default"
+    interface_ref_config_unsupported: true
+    interface_ref_interface_id_format: true
+    missing_isis_interface_afi_safi_enable: true
+    enable_multipath_under_afi_safi: true
+    bgp_distance_oc_path_unsupported:  true
+    community_member_regex_unsupported: true
+    default_route_policy_unsupported: true
+    bgp_conditions_match_community_set_unsupported: true
+    skip_isis_set_level: true
+    skip_isis_set_metric_style_type: true
+    bgp_graceful_restart_under_afi_safi_unsupported: true
+    bgp_gr_helper_disable_unsupported: true
+    skip_bgp_send_community_type: true
+    skip_afi_safi_path_for_bgp_multiple_as: true
+    skip_setting_allow_multiple_as: true
+    bgp_extended_community_set_unsupported:  true
+    bgp_delete_link_bandwidth_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    isis_interface_afi_unsupported: true
+    missing_isis_interface_afi_safi_enable: true
+    missing_value_for_defaults: true
+    require_routed_subinterface_0: true
+    enable_multipath_under_afi_safi: true
+    skip_prefix_set_mode: true
+    bgp_graceful_restart_under_afi_safi_unsupported: true
+    default_bgp_instance_name: "BGP"
+    skip_bgp_send_community_type: true
+    bgp_gr_helper_disable_unsupported: true
+    isis_mpls_unsupported: true
+    bgp_explicit_prefix_limit_received: true
+  }
+}

@@ -11,6 +11,7 @@ platform_exceptions:  {
   }
   deviations:  {
     transceiver_thresholds_unsupported:  true
+    transceiver_state_unsupported: true
   }
 }
 
@@ -20,5 +21,17 @@ platform_exceptions:  {
   }
   deviations:  {
     transceiver_thresholds_unsupported:  true
+  }
+}
+
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    ciscoxr_laser_ft:  "ciscoxr-laser-ft"
+    ciscoxr_transceiver_ft:  "ciscoxr-transceiver-ft"
+    transceiver_thresholds_unsupported:  true
+    temperature_sensor_check: true
   }
 }

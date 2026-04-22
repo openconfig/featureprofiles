@@ -1,7 +1,19 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid:  "5172ac27-b07b-42dd-93e6-f751b2a671bf"
+uuid:  "78ded223-c4ce-4b47-a46f-98fc37299d2d"
 plan_id:  "ACL-1.3"
 description:  "Large Scale ACL with TCAM profile"
-testbed:  TESTBED_DUT_ATE_2LINKS
+testbed:  TESTBED_DUT_ATE_4LINKS
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+  }
+  deviations:  {
+    interface_enabled:  true
+    default_network_instance:  "default"
+    config_acl_with_prefixlist_unsupported:  true
+    config_acl_value_any_oc_unsupported:  true
+    config_acl_oc_unsupported: true
+  }
+}
