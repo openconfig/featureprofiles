@@ -28,11 +28,11 @@ const (
 )
 
 var (
-	schemaValue                     = 1
-	breakOutCompName           string
-	fullInterfaceName          string
-	foundComp                  bool
-	dutPort1                   = attrs.Attributes{
+	schemaValue       = 1
+	breakOutCompName  string
+	fullInterfaceName string
+	foundComp         bool
+	dutPort1          = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::1",
