@@ -28,6 +28,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+
+	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -54,9 +56,8 @@ var (
 	}
 )
 
-func TestCarrierTransitions(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
+func configureInterface(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port) {
+	t.Helper()
 
 	// Configure DUT interface
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Config(), dutSrc.NewOCInterface(dp1.Name(), dut))
@@ -78,7 +79,24 @@ func TestCarrierTransitions(t *testing.T) {
 
 	// Wait for link to be UP
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
+}
 
+func TestCarrierTransitions(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	dp1 := dut.Port(t, "port1")
+
+	configureInterface(t, dut, dp1)
+
+	t.Run("CarrierTransitions", func(t *testing.T) {
+		testCarrierTransitions(t, dut, dp1)
+	})
+
+	t.Run("PhyCarrierTransitions", func(t *testing.T) {
+		testPhyCarrierTransitions(t, dut, dp1)
+	})
+}
+
+func testCarrierTransitions(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port) {
 	// Start metric collection (SAMPLE mode, 30s interval)
 	t.Log("Starting carrier-transitions collection...")
 	s := samplestream.New(t, dut, gnmi.OC().Interface(dp1.Name()).Counters().CarrierTransitions().State(), 30*time.Second)
@@ -142,14 +160,13 @@ func TestCarrierTransitions(t *testing.T) {
 	}
 }
 
-func TestPhyCarrierTransitions(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
+func testPhyCarrierTransitions(t *testing.T, dut *ondatra.DUTDevice, dp1 *ondatra.Port) {
 	if deviations.CarrierFt(dut) == "" {
 		t.Skip("Skipping phy-carrier-transitions check as CarrierFt deviation is not populated.")
 	}
 
-	dp1 := dut.Port(t, "port1")
 	ctx := context.Background()
+
 	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("Failed to dial gNMI: %v", err)
@@ -160,7 +177,7 @@ func TestPhyCarrierTransitions(t *testing.T) {
 		t.Fatalf("Functional translator %q not found.", deviations.CarrierFt(dut))
 	}
 
-	var nativePaths []*gpb.Path
+	var nativePaths []*gnmipb.Path
 	for _, paths := range ft.OutputToInputMap() {
 		nativePaths = append(nativePaths, paths...)
 	}
@@ -170,10 +187,10 @@ func TestPhyCarrierTransitions(t *testing.T) {
 
 	// Flap the interface and read raw values using Get to verify functional increase.
 	readCount := func() (uint64, bool) {
-		resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+		resp, err := gnmiClient.Get(ctx, &gnmipb.GetRequest{
 			Path:     nativePaths,
-			Type:     gpb.GetRequest_STATE,
-			Encoding: gpb.Encoding_JSON_IETF,
+			Type:     gnmipb.GetRequest_STATE,
+			Encoding: gnmipb.Encoding_JSON_IETF,
 		})
 		if err != nil {
 			t.Errorf("Failed to get native paths: %v", err)
@@ -181,8 +198,8 @@ func TestPhyCarrierTransitions(t *testing.T) {
 		}
 
 		for _, notification := range resp.GetNotification() {
-			dummySR := &gpb.SubscribeResponse{
-				Response: &gpb.SubscribeResponse_Update{
+			dummySR := &gnmipb.SubscribeResponse{
+				Response: &gnmipb.SubscribeResponse_Update{
 					Update: notification,
 				},
 			}
@@ -228,10 +245,19 @@ func TestPhyCarrierTransitions(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().Interface(dp1.Name()).Enabled().Config(), true)
 	gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), 30*time.Second, oc.Interface_OperStatus_UP)
 
-	time.Sleep(10 * time.Second)
+	// Wait up to 60 seconds for the counter to update asynchronously.
+	var finalCount uint64
+	present = false
+	// var present bool
+	deadline := time.Now().Add(60 * time.Second)
+	for time.Now().Before(deadline) {
+		finalCount, present = readCount()
+		if present && finalCount > initialCount {
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
 
-	// Read final value
-	finalCount, present := readCount()
 	if !present {
 		t.Fatalf("phy-carrier-transitions native counter not found after flap.")
 	}
