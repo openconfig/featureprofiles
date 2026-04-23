@@ -29,7 +29,6 @@ const (
 
 var (
 	schemaValue                     = 1
-	foundExpectedInterfaceFlag bool = false
 	breakOutCompName           string
 	fullInterfaceName          string
 	foundComp                  bool
