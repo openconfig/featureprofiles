@@ -1,0 +1,18 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/deviations.proto
+# proto-message: DeviationRegistry
+deviations: {
+  name: "auto_negotiate_unsupported"
+  type: DEVIATION_TYPE_PATH
+  impacted_paths: {
+    ocpaths: {
+      name: "/interfaces/interface/ethernet/config/auto-negotiate"
+    }
+  }
+  platforms: {
+    issue_url: "https://example.com/issue/1"
+    platform: {
+      vendor: NOKIA
+      software_version_regex: "*.*"
+    }
+  }
+}
