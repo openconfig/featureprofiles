@@ -36,8 +36,10 @@ const (
 	v61Route               = "2024:db8:128:128::"
 	v61TrafficStart        = "2024:db8:128:128::1"
 	v6RoutePrefix          = uint32(64)
+	v43Route               = "192.168.30.0"
 	v42Route               = "192.168.20.0"
 	v42TrafficStart        = "192.168.20.1"
+	v63Route               = "2024:db8:64:44::"
 	v62Route               = "2024:db8:64:64::"
 	v62TrafficStart        = "2024:db8:64:64::1"
 	v4PrefixSetIP          = "10.0.0.0/8"
@@ -83,8 +85,6 @@ const (
 	v6CommunitySet         = "community-set-v6"
 	peerGrpNamev4          = "BGP-PEER-GROUP-V4"
 	peerGrpNamev6          = "BGP-PEER-GROUP-V6"
-	permitAll              = "PERMIT-ALL"
-	permitAllStmtName      = "20"
 	v4MatchImportPolicy    = "match-import-policy-v4"
 	v4MatchImportStatement = "match-statement-v4"
 	v4InvertPolicy         = "invert-policy-v4"
@@ -133,8 +133,10 @@ var (
 	}
 	advertisedIPv41 = Prefix{address: v41Route, prefix: v4RoutePrefix}
 	advertisedIPv42 = Prefix{address: v42Route, prefix: v4RoutePrefix}
+	advertisedIPv43 = Prefix{address: v43Route, prefix: v4RoutePrefix}
 	advertisedIPv61 = Prefix{address: v61Route, prefix: v6RoutePrefix}
 	advertisedIPv62 = Prefix{address: v62Route, prefix: v6RoutePrefix}
+	advertisedIPv63 = Prefix{address: v63Route, prefix: v6RoutePrefix}
 )
 
 type Prefix struct {
@@ -169,12 +171,13 @@ type testData struct {
 }
 
 type testCase struct {
-	name        string
-	desc        string
-	applyPolicy func(t *testing.T, dut *ondatra.DUTDevice)
-	validate    func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice)
-	ipv4        bool
-	flowConfig  flowConfig
+	name          string
+	desc          string
+	applyPolicy   func(t *testing.T, dut *ondatra.DUTDevice)
+	validate      func(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice)
+	ipv4          bool
+	flowConfig    flowConfig
+	cleanupPolicy func(t *testing.T, dut *ondatra.DUTDevice)
 }
 
 type flowConfig struct {
@@ -212,36 +215,40 @@ func TestBgp3LevelNestedPolicy(t *testing.T) {
 
 	testCases := []testCase{
 		{
-			name:        "IPv4BGPNestedImportPolicy",
-			desc:        "RT-1.31.1: IPv4 BGP 3 levels of nested import policy with match-prefix-set conditions",
-			applyPolicy: configureImportRoutingPolicyV4,
-			validate:    validateImportRoutingPolicyV4,
-			ipv4:        true,
-			flowConfig:  flowConfig{src: atePort2, srcPort: td.top.Ports().Items()[1].Name(), dstPort: []string{td.top.Ports().Items()[0].Name()}, dstMac: port2Mac, dstIP: v41TrafficStart, flowType: "ipv4", flowName: v4Flow},
+			name:          "IPv4BGPNestedImportPolicy",
+			desc:          "RT-1.31.1: IPv4 BGP 3 levels of nested import policy with match-prefix-set conditions",
+			applyPolicy:   configureImportRoutingPolicyV4,
+			validate:      validateImportRoutingPolicyV4,
+			ipv4:          true,
+			flowConfig:    flowConfig{src: atePort2, srcPort: td.top.Ports().Items()[1].Name(), dstPort: []string{td.top.Ports().Items()[0].Name()}, dstMac: port2Mac, dstIP: v41TrafficStart, flowType: "ipv4", flowName: v4Flow},
+			cleanupPolicy: unconfigureImportRoutingPolicyV4,
 		},
 		{
-			name:        "IPv4BGPNestedExportPolicy",
-			desc:        "RT-1.31.2: IPv4 BGP 3 levels of nested export policy with match-prefix-set conditions",
-			applyPolicy: configureExportRoutingPolicyV4,
-			validate:    validateExportRoutingPolicyV4,
-			ipv4:        true,
-			flowConfig:  flowConfig{src: atePort1, srcPort: td.top.Ports().Items()[0].Name(), dstPort: []string{td.top.Ports().Items()[1].Name()}, dstMac: port1Mac, dstIP: v42TrafficStart, flowType: "ipv4", flowName: v4Flow},
+			name:          "IPv4BGPNestedExportPolicy",
+			desc:          "RT-1.31.2: IPv4 BGP 3 levels of nested export policy with match-prefix-set conditions",
+			applyPolicy:   configureExportRoutingPolicyV4,
+			validate:      validateExportRoutingPolicyV4,
+			ipv4:          true,
+			flowConfig:    flowConfig{src: atePort1, srcPort: td.top.Ports().Items()[0].Name(), dstPort: []string{td.top.Ports().Items()[1].Name()}, dstMac: port1Mac, dstIP: v42TrafficStart, flowType: "ipv4", flowName: v4Flow},
+			cleanupPolicy: unconfigureExportRoutingPolicyV4,
 		},
 		{
-			name:        "IPv6BGPNestedImportPolicy",
-			desc:        "RT-1.31.3: IPv6 BGP 3 levels of nested import policy with match-prefix-set conditions",
-			applyPolicy: configureImportRoutingPolicyV6,
-			validate:    validateImportRoutingPolicyV6,
-			ipv4:        false,
-			flowConfig:  flowConfig{src: atePort2, srcPort: td.top.Ports().Items()[1].Name(), dstPort: []string{td.top.Ports().Items()[0].Name()}, dstMac: port2Mac, dstIP: v61TrafficStart, flowType: "ipv6", flowName: v6Flow},
+			name:          "IPv6BGPNestedImportPolicy",
+			desc:          "RT-1.31.3: IPv6 BGP 3 levels of nested import policy with match-prefix-set conditions",
+			applyPolicy:   configureImportRoutingPolicyV6,
+			validate:      validateImportRoutingPolicyV6,
+			ipv4:          false,
+			flowConfig:    flowConfig{src: atePort2, srcPort: td.top.Ports().Items()[1].Name(), dstPort: []string{td.top.Ports().Items()[0].Name()}, dstMac: port2Mac, dstIP: v61TrafficStart, flowType: "ipv6", flowName: v6Flow},
+			cleanupPolicy: unconfigureImportRoutingPolicyV6,
 		},
 		{
-			name:        "IPv6BGPNestedExportPolicy",
-			desc:        "RT-1.31.4: IPv6 BGP 3 levels of nested export policy with match-prefix-set conditions",
-			applyPolicy: configureExportRoutingPolicyV6,
-			validate:    validateExportRoutingPolicyV6,
-			ipv4:        false,
-			flowConfig:  flowConfig{src: atePort1, srcPort: td.top.Ports().Items()[0].Name(), dstPort: []string{td.top.Ports().Items()[1].Name()}, dstMac: port1Mac, dstIP: v62TrafficStart, flowType: "ipv6", flowName: v6Flow},
+			name:          "IPv6BGPNestedExportPolicy",
+			desc:          "RT-1.31.4: IPv6 BGP 3 levels of nested export policy with match-prefix-set conditions",
+			applyPolicy:   configureExportRoutingPolicyV6,
+			validate:      validateExportRoutingPolicyV6,
+			ipv4:          false,
+			flowConfig:    flowConfig{src: atePort1, srcPort: td.top.Ports().Items()[0].Name(), dstPort: []string{td.top.Ports().Items()[1].Name()}, dstMac: port1Mac, dstIP: v62TrafficStart, flowType: "ipv6", flowName: v6Flow},
+			cleanupPolicy: unconfigureExportRoutingPolicyV6,
 		},
 	}
 
@@ -261,8 +268,63 @@ func TestBgp3LevelNestedPolicy(t *testing.T) {
 				td.verifyOTGBGPEstablished(t)
 				checkTraffic(t, td, v6Flow)
 			}
+
 		})
+		tc.cleanupPolicy(t, dut)
 	}
+}
+
+func unconfigureImportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+
+	// Clear any existing policy
+	dni := deviations.DefaultNetworkInstance(dut)
+	policyPath1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath1)
+	policyPath2 := gnmi.OC().RoutingPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath2)
+
+	batch.Set(t, dut)
+}
+
+func unconfigureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+
+	// Clear any existing policy
+	dni := deviations.DefaultNetworkInstance(dut)
+	policyPath1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath1)
+	policyPath2 := gnmi.OC().RoutingPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath2)
+	batch.Set(t, dut)
+}
+
+func unconfigureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+
+	// Clear any existing policy
+	dni := deviations.DefaultNetworkInstance(dut)
+	policyPath1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath1)
+	policyPath2 := gnmi.OC().RoutingPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath2)
+	batch.Set(t, dut)
+}
+
+func unconfigureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	batch := &gnmi.SetBatch{}
+
+	// Clear any existing policy
+	dni := deviations.DefaultNetworkInstance(dut)
+	policyPath1 := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort1.IPv6).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ExportPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath1)
+	policyPath2 := gnmi.OC().RoutingPolicy().Config()
+	gnmi.BatchDelete(batch, policyPath2)
+	batch.Set(t, dut)
 }
 
 // configureImportRoutingPolicyV4 configures the dut for IPv4 BGP nested import policy test.
@@ -272,14 +334,6 @@ func configureImportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	// Configure PERMIT-ALL policy
-	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
-	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
 	// match-import-policy-v4 (ANY)
 	pdefMatch := rp.GetOrCreatePolicyDefinition(v4MatchImportPolicy)
 	stmtMatch, err := pdefMatch.AppendNewStatement(v4MatchImportStatement)
@@ -288,7 +342,7 @@ func configureImportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	stmtMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmtMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
-	stmtMatch.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtMatch.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	// lp-policy-v4 (set local-pref)
 	pdefLP := rp.GetOrCreatePolicyDefinition(v4LPPolicy)
@@ -296,7 +350,7 @@ func configureImportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v4LPStatement, err)
 	}
-	stmtLP.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLP.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	stmtLP.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
 	// community-policy-v4 (set community)
@@ -405,14 +459,6 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	// Permit-all helper policy (unchanged)
-	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
-	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
 	// prefix set used by match-export-policy-v4 (exact match on configured IPv4)
 	psExportV4 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4PrefixEportSet)
 	psExportV4.SetMode(oc.PrefixSet_Mode_IPV4)
@@ -427,7 +473,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	matchCond := stMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 	matchCond.SetPrefixSet(v4PrefixEportSet)
 	matchCond.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	stMatch.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stMatch.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// asp-policy-v4 (AS-PATH prepend)
 	pdAsp := rp.GetOrCreatePolicyDefinition(v4ASPPolicy)
@@ -435,7 +481,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	aspBgp := stAsp.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	aspBgp.SetRepeatN(asPathRepeat)
 	aspBgp.SetAsn(dutAS)
-	stAsp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stAsp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// med-policy-v4 (set MED = 1000)
 	pdMed := rp.GetOrCreatePolicyDefinition(v4MedPolicy)
@@ -455,6 +501,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 	// Parent invert-policy-v4 with INVERT match of a prefix-set
 	invertPs := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v4InvertPrefixSet)
 	invertPs.SetMode(oc.PrefixSet_Mode_IPV4)
+	invertPs.GetOrCreatePrefix(advertisedIPv43.cidr(t), maskLenExact)
 
 	// invert-policy-v4
 	pdInvert := rp.GetOrCreatePolicyDefinition(v4InvertPolicy)
@@ -486,6 +533,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 		policy.SetExportPolicy([]string{v4InvertPolicy})
 		// Explicitly set default export policy to REJECT_ROUTE as README asks
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		gnmi.BatchReplace(batch, path.Config(), policy)
 	} else {
@@ -497,6 +545,7 @@ func configureExportRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice) {
 
 		policy.SetExportPolicy([]string{v4InvertPolicy})
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		if !deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
@@ -553,14 +602,6 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 
-	// Configure PERMIT-ALL policy
-	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
-	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-
 	// match-import-policy-v6 (ANY)
 	pdefMatch := rp.GetOrCreatePolicyDefinition(v6MatchImportPolicy)
 	stmtMatch, err := pdefMatch.AppendNewStatement(v6MatchImportStatement)
@@ -569,7 +610,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	stmtMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmtMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
-	stmtMatch.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtMatch.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 
 	// lp-policy-v6 (set local-pref)
 	pdefLP := rp.GetOrCreatePolicyDefinition(v6LPPolicy)
@@ -577,7 +618,7 @@ func configureImportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	if err != nil {
 		t.Fatalf("AppendNewStatement(%s) failed: %v", v6LPStatement, err)
 	}
-	stmtLP.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT
+	stmtLP.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 	stmtLP.GetOrCreateActions().GetOrCreateBgpActions().SetSetLocalPref(localPref)
 
 	// community-policy-v6 (set community)
@@ -684,13 +725,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	batch := &gnmi.SetBatch{}
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	// Permit-all helper policy (unchanged)
-	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
-	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+
 	// Prefix-set: prefix-set-v6
 	psExportV6 := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6PrefixEportSet)
 	psExportV6.SetMode(oc.PrefixSet_Mode_IPV6)
@@ -705,7 +740,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	matchCond := stMatch.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 	matchCond.SetPrefixSet(v6PrefixEportSet)
 	matchCond.SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	stMatch.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stMatch.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 
 	// asp-policy-v6 (AS-PATH prepend)
 	pdAsp := rp.GetOrCreatePolicyDefinition(v6ASPPolicy)
@@ -714,7 +749,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	bgpAspAction := stAsp.GetOrCreateActions().GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend()
 	bgpAspAction.SetRepeatN(asPathRepeat)
 	bgpAspAction.SetAsn(dutAS)
-	stAsp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_NEXT_STATEMENT)
+	stAsp.GetOrCreateActions().SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	// med-policy-v6 (set MED = 1000)
 	pdMed := rp.GetOrCreatePolicyDefinition(v6MedPolicy)
 	stMed, err := pdMed.AppendNewStatement(v6MedStatement)
@@ -734,6 +769,8 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	// Parent invert-policy-v4 with INVERT match of a prefix-set
 	invertPs := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(v6InvertPrefixSet)
 	invertPs.SetMode(oc.PrefixSet_Mode_IPV6)
+	invertPs.GetOrCreatePrefix(advertisedIPv63.cidr(t), maskLenExact)
+
 	// invert → match
 	pdInvert := rp.GetOrCreatePolicyDefinition(v6InvertPolicy)
 	stInvert, err := pdInvert.AppendNewStatement(v6InvertStatement)
@@ -760,6 +797,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 		policy.SetExportPolicy([]string{v6InvertPolicy})
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		gnmi.BatchReplace(batch, path.Config(), policy)
 	} else {
@@ -771,6 +809,7 @@ func configureExportRoutingPolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 
 		policy.SetExportPolicy([]string{v6InvertPolicy})
 		policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
+		policy.SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 		if !deviations.RoutingPolicyChainingUnsupported(dut) {
 			gnmi.BatchUpdate(batch, path.Config(), policy)
@@ -907,14 +946,6 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	g.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 
 	t.Logf("Configuring route-policy for BGP on DUT")
-	rp := root.GetOrCreateRoutingPolicy()
-	pdef := rp.GetOrCreatePolicyDefinition(permitAll)
-	stmt, err := pdef.AppendNewStatement(permitAllStmtName)
-	if err != nil {
-		t.Fatalf("AppendNewStatement(%s) failed: %v", permitAllStmtName, err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-	gnmi.Update(t, td.dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	pgv4 := bgp.GetOrCreatePeerGroup(peerGrpNamev4)
 	pgv4.PeerGroupName = ygot.String(peerGrpNamev4)
@@ -925,32 +956,35 @@ func (td *testData) advertiseRoutesWithEBGP(t *testing.T) {
 	nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV41.PeerGroup = ygot.String(peerGrpNamev4)
 	afisafiv41 := nV41.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afisafiv41.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
-	afisafiv41.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
+	afisafiv41.GetOrCreateApplyPolicy().SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	afisafiv41.GetOrCreateApplyPolicy().SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 	nV42 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nV42.SetPeerAs(ateAS2)
 	nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	nV42.PeerGroup = ygot.String(peerGrpNamev4)
 	afisafiv42 := nV42.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-	afisafiv42.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
-	afisafiv42.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
+
+	afisafiv42.GetOrCreateApplyPolicy().SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	afisafiv42.GetOrCreateApplyPolicy().SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 	nV61 := bgp.GetOrCreateNeighbor(atePort1.IPv6)
 	nV61.SetPeerAs(ateAS1)
 	nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV61.PeerGroup = ygot.String(peerGrpNamev6)
 	afisafiv61 := nV61.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	afisafiv61.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
-	afisafiv61.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
+
+	afisafiv61.GetOrCreateApplyPolicy().SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	afisafiv61.GetOrCreateApplyPolicy().SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 	nV62 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nV62.SetPeerAs(ateAS2)
 	nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
 	nV62.PeerGroup = ygot.String(peerGrpNamev6)
 	afisafiv62 := nV62.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
-	afisafiv62.GetOrCreateApplyPolicy().SetImportPolicy([]string{permitAll})
-	afisafiv62.GetOrCreateApplyPolicy().SetExportPolicy([]string{permitAll})
+
+	afisafiv62.GetOrCreateApplyPolicy().SetDefaultImportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	afisafiv62.GetOrCreateApplyPolicy().SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 
 	gnmi.Update(t, td.dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Config(), ni)
 
