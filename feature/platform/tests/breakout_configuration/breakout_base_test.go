@@ -270,7 +270,7 @@ func getCompName(dut *ondatra.DUTDevice, _ string, portPrefix string, t *testing
 	foundExpectedInterfaceFlag := false
 	portsAll := dut.Ports()
 	var dutPortName string
-	
+
 	// Look for the port with the specified prefix (e.g., "TenGigE" or "HundredGigE")
 	for _, port := range portsAll {
 		if strings.HasPrefix(port.Name(), portPrefix) {

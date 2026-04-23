@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	schemaValue                = 1
+	schemaValue                     = 1
 	foundExpectedInterfaceFlag bool = false
 	breakOutCompName           string
 	fullInterfaceName          string
@@ -377,12 +377,11 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					gnmi.BatchReplace(batch, path.Config(), configContainer)
 
 					batch.Set(t, dut)
-					
+
 				} else {
 					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
 					gnmi.Replace(t, dut, path.Config(), configContainer)
 				}
-
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
 					componentName, schemaValue), func(t *testing.T) {
@@ -401,7 +400,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					verifyBreakout(dut, index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
 						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
-				
+
 				breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
 				if err != nil {
 					t.Fatal(err)
