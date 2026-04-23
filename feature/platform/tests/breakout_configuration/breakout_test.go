@@ -29,7 +29,6 @@ const (
 
 var (
 	schemaValue                = 1
-	dutPortName                string
 	foundExpectedInterfaceFlag bool = false
 	breakOutCompName           string
 	fullInterfaceName          string
@@ -198,8 +197,8 @@ func configureOTG(t *testing.T,
 	// Show the OTG Config
 	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(time.Second * 30)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(time.Second * 30)
 
 	return top
 }
@@ -378,12 +377,12 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					gnmi.BatchReplace(batch, path.Config(), configContainer)
 
 					batch.Set(t, dut)
+					
 				} else {
 					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
 					gnmi.Replace(t, dut, path.Config(), configContainer)
 				}
 
-				gnmi.Await(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).State(), 2*time.Minute, configContainer)
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
 					componentName, schemaValue), func(t *testing.T) {
@@ -402,18 +401,17 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					verifyBreakout(dut, index, tc.numbreakouts, numBreakouts, tc.breakoutspeed.String(),
 						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
+				
+				breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sortBreakoutPorts(breakOutPorts)
 
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
-					breakOutPorts, err := findNewPortNames(dut, t, dutPortName, tc.numbreakouts)
-					if err != nil {
-						t.Fatal(err)
-					}
 
-					if dut.Vendor() == ondatra.CISCO {
-						sortBreakoutPorts(breakOutPorts)
-					}
 					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
@@ -504,12 +502,12 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 						}
 						lastIndex := len(responses) - 1
 
-						if responses[lastIndex].Source != dutAddrs {
-							t.Errorf("Did not get a ping response from ATE source Interface %s. Got %d responses, checking index %d.",
-								responses[lastIndex].Source, len(responses), lastIndex)
+						if responses[0].Source != dutAddrs {
+							t.Errorf("Did not get a ping response from ATE source Interface. Expected %s, got %s.",
+								dutAddrs, responses[0].Source)
 						} else {
-							t.Logf("Got a successful reply from ATE Source Interface: %s (Response %d of %d)",
-								responses[lastIndex].Source, lastIndex+1, len(responses))
+							t.Logf("Got a successful reply from ATE Source Interface: %s. Stats: Sent %v, Received %v",
+								responses[0].Source, responses[lastIndex].Sent, responses[lastIndex].Received)
 						}
 					}
 				})
