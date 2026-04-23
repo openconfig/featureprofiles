@@ -431,6 +431,24 @@ func verifyCounters(t *testing.T, dut *ondatra.DUTDevice, aclName string, aclTyp
 	}
 }
 
+// waitForProtocolSettle waits for IPv4 neighbor resolution for the DUT gateway.
+// It is best-effort on purpose: this test sets explicit destination MACs for flows,
+// so traffic can still proceed even if neighbor telemetry is delayed.
+func waitForProtocolSettle(t *testing.T, ate *ondatra.ATEDevice) {
+	t.Helper()
+	neighborPath := gnmi.OTG().Interface(atePort1.Name + ".Eth").Ipv4Neighbor(dutPort1IPv4).LinkLayerAddress().State()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if _, present := gnmi.Lookup(t, ate.OTG(), neighborPath).Val(); present {
+			return
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	t.Logf("Proceeding without confirmed IPv4 neighbor resolution on %s after 20s wait", atePort1.Name+".Eth")
+	time.Sleep(2 * time.Second)
+}
+
 func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName string) {
 	t.Helper()
 
@@ -555,6 +573,7 @@ func TestControlPlaneACL(t *testing.T) {
 		t.Log("Starting Permit Traffic...")
 		ate.OTG().PushConfig(t, otgConfig)
 		ate.OTG().StartProtocols(t)
+		waitForProtocolSettle(t, ate)
 		captureState := gosnappi.NewControlState()
 		captureState.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 		ate.OTG().SetControlState(t, captureState)
@@ -612,6 +631,7 @@ func TestControlPlaneACL(t *testing.T) {
 		t.Log("Starting Deny Traffic...")
 		ate.OTG().PushConfig(t, otgConfig)
 		ate.OTG().StartProtocols(t)
+		waitForProtocolSettle(t, ate)
 		ate.OTG().StartTraffic(t)
 		time.Sleep(15 * time.Second) // Allow time for traffic and counter updates
 		ate.OTG().StopTraffic(t)
