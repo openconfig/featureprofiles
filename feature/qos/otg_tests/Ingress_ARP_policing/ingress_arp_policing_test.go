@@ -225,7 +225,7 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 	}
 }
 
-// configureHardwareInit configure the TCAM Profile based on the test.
+// configureHardwareInit configures the TCAM Profile based on the test.
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	features := []cfgplugins.FeatureType{
