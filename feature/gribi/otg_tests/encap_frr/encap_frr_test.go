@@ -502,29 +502,20 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 
-	// Parse interface name to extract base interface and subinterface index
+	// Parse interface name to extract base interface and subinterface index.
 	baseIntf := intfName
-	subIdx := uint32(0)
-	if strings.Contains(intfName, ".") {
-		parts := strings.SplitN(intfName, ".", 2)
+	var subIdx uint32
+	if parts := strings.SplitN(intfName, ".", 2); len(parts) == 2 {
 		baseIntf = parts[0]
-		if len(parts) == 2 {
-			if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
-				subIdx = uint32(v)
-			}
+		if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+			subIdx = uint32(v)
 		}
 	}
 
-	// For deviations that require .0 suffix, ensure it's added
+	// For deviations that require .0 suffix for base interfaces, ensure it's added.
 	isisIntfName := intfName
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
-		if !strings.HasSuffix(intfName, ".0") {
-			isisIntfName = intfName + ".0"
-			if !strings.Contains(intfName, ".") {
-				baseIntf = intfName
-				subIdx = 0
-			}
-		}
+	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(intfName, ".") {
+		isisIntfName = intfName + ".0"
 	}
 
 	isisIntf := isis.GetOrCreateInterface(isisIntfName)
