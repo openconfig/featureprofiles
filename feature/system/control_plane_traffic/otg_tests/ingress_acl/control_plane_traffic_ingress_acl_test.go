@@ -203,19 +203,29 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 	return ports
 }
 
-// configureATE configures the ATE interfaces.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
+// buildBaseOTGConfig returns the reusable OTG topology and primary port ID.
+func buildBaseOTGConfig(ate *ondatra.ATEDevice, enableCapture bool) (gosnappi.Config, string) {
 	top := gosnappi.NewConfig()
 	atePorts := sortPorts(ate.Ports())
 	p0 := atePorts[0]
-	top.Ports().Add().SetName(p0.ID())
+	portID := p0.ID()
+
+	top.Ports().Add().SetName(portID)
 	srcDev := top.Devices().Add().SetName(atePort1.Name)
-	t.Logf("The name of the source device is %s", srcDev.Name())
 	srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-	srcEth.Connection().SetPortName(p0.ID())
+	srcEth.Connection().SetPortName(portID)
 	srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
 	srcEth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
+	if enableCapture {
+		top.Captures().Add().SetName("permitResponseCapture").SetPortNames([]string{portID}).SetFormat(gosnappi.CaptureFormat.PCAP)
+	}
+	return top, portID
+}
+
+// configureATE configures the ATE interfaces.
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) {
+	top, _ := buildBaseOTGConfig(ate, false)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 }
@@ -509,24 +519,8 @@ func TestControlPlaneACL(t *testing.T) {
 		initialICMPv6Count := getACLMatchedPackets(t, dut, aclNameIPv6, aclTypeIPv6, icmpTermSeqID)
 		initialSSHv6Count := getACLMatchedPackets(t, dut, aclNameIPv6, aclTypeIPv6, sshTermSeqID)
 
-		// Create OTG Traffic Flows
-		otgConfig := gosnappi.NewConfig()
-		//otgConfig.Ports().Add().SetName(p0.ID())
-
-		// set ports and device configuration
-		atePorts := sortPorts(ate.Ports())
-		p0 := atePorts[0]
-		otgConfig.Ports().Add().SetName(p0.ID())
-		srcDev := otgConfig.Devices().Add().SetName(atePort1.Name)
-		t.Logf("The name of the source device is %s", srcDev.Name())
-		srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-		srcEth.Connection().SetPortName(p0.ID())
-		srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-		srcEth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-		otgConfig.Captures().Add().SetName("permitResponseCapture").SetPortNames([]string{p0.ID()}).SetFormat(gosnappi.CaptureFormat.PCAP)
-
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
+		// Build reusable OTG topology and append permit flows.
+		otgConfig, capturePortID := buildBaseOTGConfig(ate, true)
 
 		// CREATE FLOWS
 		// IPv4 ICMP from MGMT_SRC
@@ -545,6 +539,7 @@ func TestControlPlaneACL(t *testing.T) {
 		// Start Traffic
 		t.Log("Starting Permit Traffic...")
 		ate.OTG().PushConfig(t, otgConfig)
+		ate.OTG().StartProtocols(t)
 		captureState := gosnappi.NewControlState()
 		captureState.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 		ate.OTG().SetControlState(t, captureState)
@@ -574,7 +569,7 @@ func TestControlPlaneACL(t *testing.T) {
 		verifyCounters(t, dut, aclNameIPv6, aclTypeIPv6, icmpTermSeqID, initialICMPv6Count)
 		verifyCounters(t, dut, aclNameIPv6, aclTypeIPv6, sshTermSeqID, initialSSHv6Count)
 		// Verify DUT responses in ATE capture to confirm traffic was permitted and processed by DUT
-		verifyDUTResponsesInCapture(t, ate, p0.ID())
+		verifyDUTResponsesInCapture(t, ate, capturePortID)
 	})
 
 	// === Test Case SYS-2.1.2: Verify control-plane ACL deny ===
@@ -583,21 +578,8 @@ func TestControlPlaneACL(t *testing.T) {
 		initialDenyIPv4Count := getACLMatchedPackets(t, dut, aclNameIPv4, aclTypeIPv4, denyTermSeqID)
 		initialDenyIPv6Count := getACLMatchedPackets(t, dut, aclNameIPv6, aclTypeIPv6, denyTermSeqID)
 
-		// Create OTG Traffic Flows
-		otgConfig := gosnappi.NewConfig()
-
-		// Keep SYS-2.1.2 self-contained with explicit OTG port/device config.
-		atePorts := sortPorts(ate.Ports())
-		p0 := atePorts[0]
-		otgConfig.Ports().Add().SetName(p0.ID())
-		srcDev := otgConfig.Devices().Add().SetName(atePort1.Name)
-		srcEth := srcDev.Ethernets().Add().SetName(atePort1.Name + ".Eth").SetMac(atePort1.MAC)
-		srcEth.Connection().SetPortName(p0.ID())
-		srcEth.Ipv4Addresses().Add().SetName(atePort1.Name + ".IPv4").SetAddress(atePort1.IPv4).SetGateway(dutPort1.IPv4).SetPrefix(uint32(atePort1.IPv4Len))
-		srcEth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6").SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
-
-		ate.OTG().PushConfig(t, otgConfig)
-		ate.OTG().StartProtocols(t)
+		// Build reusable OTG topology and append deny flows.
+		otgConfig, _ := buildBaseOTGConfig(ate, false)
 		// IPv4 ICMP from UNKNOWN_SRC
 		flowICMPv4Deny := createFlow(t, ate, "Deny_ICMPv4", atePort1.MAC, dutPort1Mac, unknownSrcIPv4, dutLoopbackIPv4, ipProtoICMP, 0, 0, false)
 		otgConfig.Flows().Append(flowICMPv4Deny)
@@ -614,6 +596,7 @@ func TestControlPlaneACL(t *testing.T) {
 		// Start Traffic
 		t.Log("Starting Deny Traffic...")
 		ate.OTG().PushConfig(t, otgConfig)
+		ate.OTG().StartProtocols(t)
 		ate.OTG().StartTraffic(t)
 		time.Sleep(15 * time.Second) // Allow time for traffic and counter updates
 		ate.OTG().StopTraffic(t)
