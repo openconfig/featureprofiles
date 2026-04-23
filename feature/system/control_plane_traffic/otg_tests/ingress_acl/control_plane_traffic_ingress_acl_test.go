@@ -142,22 +142,24 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	lb0 := netutil.LoopbackInterface(t, dut, 0)
-	lb := lb0
 	foundV4, foundV6 := hasExpectedLoopbackIPs(lb0)
+	if foundV4 && foundV6 {
+		return
+	}
 
-	if !foundV4 || !foundV6 {
-		lb1 := netutil.LoopbackInterface(t, dut, 1)
-		if _, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(lb1).Name().State()).Val(); present {
-			lb = lb1
-			foundV4, foundV6 = hasExpectedLoopbackIPs(lb1)
+	// Prefer an existing loopback that already has the expected addresses.
+	// If none exists, configure Loopback0 to keep behavior deterministic.
+	targetLB := lb0
+	lb1 := netutil.LoopbackInterface(t, dut, 1)
+	if _, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(lb1).Name().State()).Val(); present {
+		if lb1V4, lb1V6 := hasExpectedLoopbackIPs(lb1); lb1V4 && lb1V6 {
+			return
 		}
 	}
 
-	if !foundV4 || !foundV6 {
-		lo := dutLoopback.NewOCInterface(lb, dut)
-		lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo)
-	}
+	lo := dutLoopback.NewOCInterface(targetLB, dut)
+	lo.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+	gnmi.Update(t, dut, gnmi.OC().Interface(targetLB).Config(), lo)
 }
 
 // configureDUT configures the DUT interfaces and loopback.
