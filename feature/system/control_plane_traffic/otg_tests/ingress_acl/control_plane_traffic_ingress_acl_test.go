@@ -79,6 +79,8 @@ const (
 	ipProtoTCP    = 6
 	ipProtoICMP   = 1
 	ipProtoICMPv6 = 58
+	sshSrcPortV4  = 12345
+	sshSrcPortV6  = 12346
 
 	// Traffic flow parameters
 	packetCount = 100
@@ -458,7 +460,9 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 				}
 				if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 					tcp := tcpLayer.(*layers.TCP)
-					if tcp.SYN && tcp.ACK && tcp.SrcPort == layers.TCPPort(sshPort) {
+					if tcp.SYN && tcp.ACK &&
+						tcp.SrcPort == layers.TCPPort(sshPort) &&
+						tcp.DstPort == layers.TCPPort(sshSrcPortV4) {
 						foundTCPSynAckV4 = true
 					}
 				}
@@ -475,7 +479,9 @@ func verifyDUTResponsesInCapture(t *testing.T, ate *ondatra.ATEDevice, portName 
 				}
 				if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
 					tcp := tcpLayer.(*layers.TCP)
-					if tcp.SYN && tcp.ACK && tcp.SrcPort == layers.TCPPort(sshPort) {
+					if tcp.SYN && tcp.ACK &&
+						tcp.SrcPort == layers.TCPPort(sshPort) &&
+						tcp.DstPort == layers.TCPPort(sshSrcPortV6) {
 						foundTCPSynAckV6 = true
 					}
 				}
@@ -536,13 +542,13 @@ func TestControlPlaneACL(t *testing.T) {
 		flowICMPv4 := createFlow(t, ate, "Permit_ICMPv4", atePort1.MAC, dutPort1Mac, mgmtSrcIPv4, dutLoopbackIPv4, ipProtoICMP, 0, 0, false)
 		otgConfig.Flows().Append(flowICMPv4)
 		// IPv4 SSH from MGMT_SRC
-		flowSSHv4 := createFlow(t, ate, "Permit_SSHv4", atePort1.MAC, dutPort1Mac, mgmtSrcIPv4, dutLoopbackIPv4, ipProtoTCP, 12345, sshPort, false) // Random source port
+		flowSSHv4 := createFlow(t, ate, "Permit_SSHv4", atePort1.MAC, dutPort1Mac, mgmtSrcIPv4, dutLoopbackIPv4, ipProtoTCP, sshSrcPortV4, sshPort, false)
 		otgConfig.Flows().Append(flowSSHv4)
 		// IPv6 ICMP from MGMT_SRC
 		flowICMPv6 := createFlow(t, ate, "Permit_ICMPv6", atePort1.MAC, dutPort1Mac, mgmtSrcIPv6, dutLoopbackIPv6, ipProtoICMPv6, 0, 0, true)
 		otgConfig.Flows().Append(flowICMPv6)
 		// IPv6 SSH from MGMT_SRC
-		flowSSHv6 := createFlow(t, ate, "Permit_SSHv6", atePort1.MAC, dutPort1Mac, mgmtSrcIPv6, dutLoopbackIPv6, ipProtoTCP, 12346, sshPort, true) // Random source port
+		flowSSHv6 := createFlow(t, ate, "Permit_SSHv6", atePort1.MAC, dutPort1Mac, mgmtSrcIPv6, dutLoopbackIPv6, ipProtoTCP, sshSrcPortV6, sshPort, true)
 		otgConfig.Flows().Append(flowSSHv6)
 
 		// Start Traffic
