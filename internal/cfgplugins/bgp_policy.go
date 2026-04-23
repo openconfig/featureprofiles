@@ -439,3 +439,140 @@ func routingPolicyBGPAdvertiseAggregate(t *testing.T, dut *ondatra.DUTDevice, tr
 		t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
 	}
 }
+
+type AIGPRoutePolicyData struct {
+	PolicyName    string
+	AigpMetric    uint32
+	AcceptRoute   bool
+	StatementName string
+	Nexthop       string
+	NexthopType   string
+	PrependASN    uint32
+	PrependRepeat uint32
+	PrefixSetName string
+}
+
+type NeighborRouteMapAttributes struct {
+	NetworkInstance      string
+	As                   uint32
+	NeighborIp           string
+	ImportRouteMapPolicy string
+	ExportRouteMapPolicy string
+	V4                   bool
+	RemoveRouteMapPolicy bool
+}
+
+func RoutingPolicyBGPAIGP(t *testing.T, dut *ondatra.DUTDevice, params AIGPRoutePolicyData) {
+	if deviations.AIGPRouteMetricNotSupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf(`route-map %s statement %s `, params.PolicyName, params.StatementName)
+
+			if params.AcceptRoute {
+				cliConfig += "permit\n"
+			} else {
+				cliConfig += "deny\n"
+			}
+
+			if params.AigpMetric != 0 {
+				cliConfig += fmt.Sprintf("set aigp-metric %d\n", params.AigpMetric)
+			}
+
+			if params.PrependASN != 0 && params.PrependRepeat != 0 {
+				cliConfig += fmt.Sprintf(`set as-path prepend %d repeat %d
+									`, params.PrependASN, params.PrependRepeat)
+			}
+
+			if params.Nexthop != "" {
+				if params.Nexthop == "SELF" {
+					cliConfig += fmt.Sprintf("set %s next-hop peer-address\n", params.NexthopType)
+				} else {
+					cliConfig += fmt.Sprintf("set %s next-hop %s\n", params.NexthopType, params.Nexthop)
+				}
+			}
+
+			if params.PrefixSetName != "" {
+				cliConfig += fmt.Sprintf("match %s address prefix-list %s\n", params.NexthopType, params.PrefixSetName)
+			}
+
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'AIGPRouteMetricNotSupported'", dut.Vendor())
+		}
+	} else {
+		d := &oc.Root{}
+		rp := d.GetOrCreateRoutingPolicy()
+		pd := rp.GetOrCreatePolicyDefinition(params.PolicyName)
+		stmt, err := pd.AppendNewStatement(params.StatementName)
+		if err != nil {
+			t.Fatalf("error appending NewStatement: %v", err)
+		}
+		if params.AcceptRoute {
+			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+		}
+
+		if params.AigpMetric != 0 {
+			t.Errorf("aigp metric support is not present")
+		}
+
+		if params.Nexthop != "" {
+			stmt.GetOrCreateActions().GetOrCreateBgpActions().SetSetNextHop(oc.UnionString("NEXT_HOP_SELF"))
+		}
+
+		gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	}
+}
+
+func ApplyRoutePolicyToBGPPeer(t *testing.T, dut *ondatra.DUTDevice, params NeighborRouteMapAttributes) {
+	if deviations.AIGPRouteMetricNotSupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig := fmt.Sprintf("router bgp %d\n", params.As)
+			if params.V4 {
+				if params.NetworkInstance != deviations.DefaultNetworkInstance(dut) && params.NetworkInstance != "DEFAULT" {
+					cliConfig += fmt.Sprintf("vrf %s\n", params.NetworkInstance)
+				}
+				cliConfig += fmt.Sprintf("address-family ipv4\n")
+				if params.ImportRouteMapPolicy != "" {
+					if params.RemoveRouteMapPolicy {
+						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
+					} else {
+						cliConfig += fmt.Sprintf(`neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
+					}
+				}
+				if params.ExportRouteMapPolicy != "" {
+					if params.RemoveRouteMapPolicy {
+						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s out`, params.NeighborIp, params.ExportRouteMapPolicy)
+					} else {
+						cliConfig += fmt.Sprintf(`neighbor %s route-map %s out`, params.NeighborIp, params.ExportRouteMapPolicy)
+					}
+				}
+				helpers.GnmiCLIConfig(t, dut, cliConfig)
+			} else {
+				if params.NetworkInstance != deviations.DefaultNetworkInstance(dut) && params.NetworkInstance != "DEFAULT" {
+					cliConfig += fmt.Sprintf("vrf %s\n", params.NetworkInstance)
+				}
+				cliConfig += fmt.Sprintf("address-family ipv6\n")
+				if params.ImportRouteMapPolicy != "" {
+					if params.RemoveRouteMapPolicy {
+						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
+					} else {
+						cliConfig += fmt.Sprintf(`neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
+					}
+				}
+				if params.ExportRouteMapPolicy != "" {
+					if params.RemoveRouteMapPolicy {
+						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s out`, params.NeighborIp, params.ExportRouteMapPolicy)
+					} else {
+						cliConfig += fmt.Sprintf(`neighbor %s route-map %s out`, params.NeighborIp, params.ExportRouteMapPolicy)
+					}
+				}
+				helpers.GnmiCLIConfig(t, dut, cliConfig)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native cmd support for deviation 'BgpLocalAggregateUnsupported'", dut.Vendor())
+		}
+	} else {
+		t.Errorf("OC is not supported for vendor %s", dut.Vendor())
+	}
+}

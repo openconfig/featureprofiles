@@ -416,3 +416,31 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
+
+// VlanClientEncapsulationParams configures vlan encapsulation params
+type VlanClientEncapsulationParams struct {
+	IntfName         string
+	Subinterfaces    uint32
+	RemoveVlanConfig bool
+}
+
+func VlanClientEncapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params VlanClientEncapsulationParams) {
+	if deviations.VlanClientEncapsulationOcUnsupported(dut) {
+		cli := ""
+		if !params.RemoveVlanConfig {
+			cli = fmt.Sprintf(`
+					interface %v.%v
+						encapsulation vlan
+      						client dot1q %v network client
+						`, params.IntfName, params.Subinterfaces, params.Subinterfaces)
+		} else {
+			cli = fmt.Sprintf(`
+				interface %v.%v
+					no encapsulation vlan
+					`, params.IntfName, params.Subinterfaces)
+		}
+		helpers.GnmiCLIConfig(t, dut, cli)
+	} else {
+		// OC is not available
+	}
+}

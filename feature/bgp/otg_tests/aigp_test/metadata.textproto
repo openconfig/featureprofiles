@@ -5,3 +5,22 @@ uuid: "dc021164-c7c2-46ee-bb55-0b4259a1b470"
 plan_id: "RT-1.36"
 description: "AIGP feature support test"
 testbed: TESTBED_DUT_DUT_ATE_2LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    aigp_route_metric_not_supported: true
+    interface_config_vrf_before_address: true
+    vlan_client_encapsulation_oc_unsupported: true
+    ipv4_missing_enabled: true
+    omit_l2_mtu: true
+    require_routed_subinterface_0: true
+    isis_instance_enabled_required:  true
+    isis_interface_afi_unsupported:  true
+    bgp_adj_rib_oc_unsupported: true
+  }
+}

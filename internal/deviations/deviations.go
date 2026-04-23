@@ -2042,3 +2042,18 @@ func AcctzRecordsAuthzStatusDenyUnsupported(dut *ondatra.DUTDevice) bool {
 func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
+
+// AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
+func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpRouteMetricNotSupported()
+}
+
+// BgpAdjRibOcUnsupported returns true if BGP adjacency rib OC is not supported.
+func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
+}

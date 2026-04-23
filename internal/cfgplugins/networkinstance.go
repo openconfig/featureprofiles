@@ -131,7 +131,7 @@ func AssignToNetworkInstance(t testing.TB, d *ondatra.DUTDevice, i string, ni st
 
 // AssignInterfaceToNetworkInstance attaches an interface to a network instance using batch update.
 // This is required for vendors that do not support subinterfaces and only support interface to network instance assignment.
-func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, i string, nip *NetworkInstanceParams, si uint32) {
+func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ondatra.DUTDevice, i string, nip *NetworkInstanceParams, si uint32, subInt ...bool) {
 	var ni string
 	if nip.Default {
 		ni = deviations.DefaultNetworkInstance(d)
@@ -152,7 +152,7 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	switch d.Vendor() {
 	case ondatra.ARISTA:
-		if deviations.InterfaceConfigVRFBeforeAddress(d) {
+		if deviations.InterfaceConfigVRFBeforeAddress(d) && (len(subInt) > 0 && subInt[0] == true) {
 			netInstIntf.Id = ygot.String(fmt.Sprintf("%s.%d", intf.GetName(), si))
 		} else {
 			netInstIntf.Id = ygot.String(intf.GetName())
