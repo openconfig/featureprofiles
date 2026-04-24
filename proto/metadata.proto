@@ -1280,7 +1280,7 @@ message Metadata {
     // Device is missing subinterface state packet counters.
     bool default_subinterface_packet_counters_missing = 409;
 
-    // Device Does not support session channel id
+    // Device does not support session channel id
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
     bool acctz_record_session_channel_id_unsupported = 410;
 
