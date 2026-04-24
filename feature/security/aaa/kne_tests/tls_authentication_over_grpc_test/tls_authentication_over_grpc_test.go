@@ -17,6 +17,7 @@ package tls_authentication_over_grpc_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -36,6 +37,11 @@ import (
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
+
+var (
+	password        = credz.GeneratePassword()
+	passwordVersion = credz.GenerateVersion()
+)
 
 // helper function for native model;
 // Configure a new user by passing a username and password and assign that user to a role
@@ -131,6 +137,15 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 		if _, err := gnmiClient.Set(context.Background(), SetRequest); err != nil {
 			t.Fatalf("Unexpected error configuring User: %v", err)
 		}
+	case ondatra.JUNIPER:
+		t.Logf("Rotating user password on DUT for user, pass: %s, %s", user, pass)
+		credz.SetupUser(t.(*testing.T), dut, user)
+		t.Logf("Rotating user password on DUT")
+		credz.RotateUserPassword(t.(*testing.T), dut, user, pass, passwordVersion, uint64(time.Now().Unix()))
+	case ondatra.ARISTA:
+		cliConfig := fmt.Sprintf("username %s privilege 15 role network-admin secret %s", user, pass)
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(5 * time.Second)
 	default:
 		t.Fatalf("Unsupported vendor %s for deviation 'deviation_native_users'", dut.Vendor())
 	}
@@ -138,6 +153,30 @@ func createNativeUser(t testing.TB, dut *ondatra.DUTDevice, user string, pass st
 
 func TestAuthentication(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	// Save the original hostname to restore it at the end of the test.
+	hostnamePath := gnmi.OC().System().Hostname().Config()
+	if origHostname, present := gnmi.Lookup(t, dut, hostnamePath).Val(); present {
+		defer func() {
+			var dev gnmi.DeviceOrOpts = dut
+			if dut.Vendor() == ondatra.CISCO {
+				dev = dut.GNMIOpts().WithMetadata(metadata.Pairs("username", "alice", "password", password))
+			}
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Replace(t, dev, hostnamePath, origHostname)
+			})
+		}()
+	} else {
+		defer func() {
+			var dev gnmi.DeviceOrOpts = dut
+			if dut.Vendor() == ondatra.CISCO {
+				dev = dut.GNMIOpts().WithMetadata(metadata.Pairs("username", "alice", "password", password))
+			}
+			fptest.NonFatal(t, func(t testing.TB) {
+				gnmi.Delete(t, dev, hostnamePath)
+			})
+		}()
+	}
+
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Logf("Arista vendor, performing SSH cleanup")
@@ -146,16 +185,40 @@ func TestAuthentication(t *testing.T) {
 					authentication protocol password
 				`
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+	case ondatra.CISCO:
+		t.Logf("Cisco vendor, performing SSH configuration")
+		cliConfig := `
+				aaa authentication login default local
+				aaa authorization exec default local
+				ssh server vrf default
+				`
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+
+	case ondatra.JUNIPER:
+		t.Logf("Juniper SSH configuration ")
+
+		cliConfig := `
+				system {
+					services {
+							ssh {
+									root-login allow;
+							}
+					}
+					authentication-order password;
+			}
+			`
+		dut.Config().New().WithJuniperText(cliConfig).Append(t)
 	default:
 		t.Logf("No CLI config required for vendor %s", dut.Vendor())
 	}
 	if deviations.SetNativeUser(dut) {
-		createNativeUser(t, dut, "alice", "password", "admin")
+		createNativeUser(t, dut, "alice", password, "admin")
 	} else {
 		gnmi.Replace(t, dut, gnmi.OC().System().Aaa().Authentication().
 			User("alice").Config(), &oc.System_Aaa_Authentication_User{
 			Username: ygot.String("alice"),
-			Password: ygot.String("password"),
+			Password: ygot.String(password),
 			Role:     oc.AaaTypes_SYSTEM_DEFINED_ROLES_SYSTEM_ROLE_ADMIN,
 		})
 	}
@@ -167,7 +230,7 @@ func TestAuthentication(t *testing.T) {
 	}{{
 		desc: "good username and password",
 		user: "alice",
-		pass: "password",
+		pass: password,
 	}, {
 		desc:    "good username bad password",
 		user:    "alice",
@@ -179,12 +242,29 @@ func TestAuthentication(t *testing.T) {
 		pass:    "password",
 		wantErr: true,
 	}}
+
 	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Log("Trying SSH credentials")
-			ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 90*time.Second)
 			defer cancel()
-			client, err := credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
+			var (
+				client any
+				err    error
+			)
+			if dut.Vendor() == ondatra.CISCO || dut.Vendor() == ondatra.JUNIPER {
+				// Some vendors might be slow to process new users/AAA changes.
+				for i := 0; i < 5; i++ {
+					client, err = credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
+					if err == nil || (tc.wantErr && err.Error() != "ssh: handshake failed: EOF") {
+						break
+					}
+					t.Logf("SSH attempt %d failed: %v, retrying...", i+1, err)
+					time.Sleep(5 * time.Second)
+				}
+			} else {
+				client, err = credz.SSHWithPassword(ctx, dut, tc.user, tc.pass)
+			}
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("Dialing ssh succeeded, but we expected to fail.")
@@ -194,7 +274,7 @@ func TestAuthentication(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Failed dialing ssh, error: %s", err)
 			}
-			defer client.Close()
+			defer client.(interface{ Close() error }).Close()
 			if tc.wantErr != (err != nil) {
 				if tc.wantErr {
 					t.Errorf("ssh.Dial got nil error, want error for user %q, password %q", tc.user, tc.pass)
