@@ -2063,7 +2063,7 @@ func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user
+// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user.
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
