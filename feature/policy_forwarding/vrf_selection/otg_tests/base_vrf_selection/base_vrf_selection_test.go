@@ -379,6 +379,8 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 	time.Sleep(trafficDuration)
 	t.Logf("*** Stop traffic ...")
 	ate.OTG().StopTraffic(t)
+	// Wait for counters to be updated.
+	time.Sleep(20 * time.Second)
 }
 
 func captureTrafficStats(t *testing.T, ate *ondatra.ATEDevice, flowName string, wantLoss bool) {
