@@ -1811,42 +1811,43 @@ Test-case RT-1.36.1 above.
 The following configuration steps are additions to the configuration done on
 Test-case RT-1.36.3 above.
 
+#### Effective Emulated Test Topology
+
+```text
++-------------------------+ LAG2(vlan 30 and 40) [iBGP]    +-------------+          LAG2 [iBGP]          +---------+
+|  DUT2(test-originate NI)|===============================|  DUT 1(RR)   |===============================|  DUT 2  |
++-------------------------+                                +-------------+             ISIS              +---------+
+
+```
+
 ### DUT 1 - Generate Configuration
 
 #### ISIS Configuration - Default Network instance
 
-* Configure a ISIS metric of Zero on Lag 2 vlan 10 and lag 2 vlan 30 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 30 from the ISIS configuration instance named DEFAULT
 
 #### ISIS Configuration - test-instance Network instance
 
-* Configure a ISIS metric of Zero on Lag 2 vlan 20 and lag 2 vlan 40 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 40 from the ISIS configuration instance named DEFAULT
 
 ### DUT 2 - Generate Configuration
 
-##### ISIS Configuration - Default Network instance
-
-* Configure a ISIS metric of Zero on Lag 2 vlan 10 for both IPV4 and IPV6 address-family
-
-##### ISIS Configuration - test-instance Network instance
-
-* Configure a ISIS metric of Zero on Lag 2 vlan 20 for both IPV4 and IPV6 address-family
-
 ##### ISIS Configuration - test-originate Network instance
 
-* Configure a ISIS metric of Zero on lag 2 vlan 30 and vlan 40 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 30 and vlan 40 from the ISIS configuration instance named DEFAULT
+* Remove the ISIS configuration instance
 
 ### Testing Steps
 
 ###### ISIS testing step on DUT 1
 
-* In the DEFAULT network instance, fetch the ISIS metric on interfaces Lag 2 vlan 10 and lag 2 vlan 30
-* In test-instance Network instance, fetch the ISIS metric on Lag 2 vlan 20 and lag 2 vlan 40
+* In the DEFAULT network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 10
+* In test-instance Network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 20
 
 ###### ISIS testing step on DUT 2
 
-* In the DEFAULT network instance,fetch the ISIS metric on Lag 2 vlan 10
-* In test-instance Network instance,fetch the ISIS metric on Lag 2 vlan 20
-* In test-originate Network instance,fetch the ISIS metric on Lag 2 vlan 30 and vlan 40
+* In the DEFAULT network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 10
+* In test-instance Network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 20
 
 ##### BGP testing Steps on DUT 1
 
@@ -1862,13 +1863,15 @@ Test-case RT-1.36.3 above.
 
 ##### Pass criteria on DUT 1
 
-* All isis interface level metric must be zero
+* All ISIS adjacency states must be up in DEFAULT NI  
+* All ISIS adjacency states must be up in test-instance NI
 * In default NI,BGP routes received from 198.51.100.26 and 2001:db8::26 must have a AIGP metric of 200
 * In test-instance NI,BGP routes received from 198.51.100.30 and 2001:db8::30 must have a AIGP metric of 200
 
 ##### Pass criteria on DUT 2
 
-* All isis interface level metric must be zero
+* All ISIS adjacency states must be up in DEFAULT NI  
+* All ISIS adjacency states must be up in test-instance NI
 * In default NI,BGP routes received from 198.51.100.17 and 2001:db8::17 must have a AIGP metric of 201
 * In test-instance NI,BGP routes received from 198.51.100.21 and 2001:db8::21 must have a AIGP metric of 201
 
@@ -1929,8 +1932,7 @@ Test-case RT-1.36.4 above.
 ## RT-1.36.6 : AIGP propagation in BGP peer-group
 
 The following configuration steps are additions to the configuration done on
-Test-case RT-1.36.5 above( AIGP has been disabled on neighbor level and ISIS
-metric on link has been set to zero)
+Test-case RT-1.36.5 above
 
 ### DUT 1 - Generate Configuration
 
