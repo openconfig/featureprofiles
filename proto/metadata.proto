@@ -1235,13 +1235,58 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
     bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
 
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_command_unsupported = 403;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_grpc_unsupported = 404;
+
     // Devices that do not support BGP Graceful restart for Peer Group
     // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
     bool bgp_graceful_restart_peer_group_unsupported = 400;
 
+    // Device does not support services leaf under grpc-server config.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+    bool grpc_server_services_unsupported = 401;
+
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+    // Devices that do not support oc path for static route to nexthop
+    bool static_route_to_nhg_oc_unsupported = 402;
+
+    // Device does not populate state on subinterface 0
+    // that is implicitly created.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+    bool subinterface_0_state_unsupported = 405;
+
+    // Device does not support fragment punt drops.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_unsupported = 406;
+
+    // Device does not support fragment punt pkts.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_pkts_unsupported = 407;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+    // Functional translator to be used for Fragment Punt OC paths
+    string fragment_punt_ft = 408;
+
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Device is missing subinterface state packet counters.
+    bool default_subinterface_packet_counters_missing = 409;
+
+    // Device Does not support session channel id
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_session_channel_id_unsupported = 410;
+
     // Device needs LocalAddress that points to an interface name instead of IPv4 address for establishing BGP neighborship
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
-    bool use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address = 401;
+    bool use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address = 411;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241;
