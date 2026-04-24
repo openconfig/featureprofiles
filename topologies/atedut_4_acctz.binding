@@ -1,0 +1,116 @@
+# proto-file: github.com/openconfig/featureprofiles/blob/main/topologies/proto/binding.proto
+# proto-message: openconfig.testing.Binding
+
+# This is an example static binding that demonstrates how to specify
+# options to be used in conjunction with the atedut_*.testbed
+# testbeds.
+
+# These options are inherited throughout the entire binding for both the
+# DUT and the ATE, unless overridden by a specific device or protocol.
+options {
+  username: "username"
+  password: "password"
+}
+
+duts {
+  id: "dut"
+  name: "dut-hostname"  # Change this to the device hostname.
+
+  # Options inherited by all protocols on this device unless
+  # overridden by individual protocols.  Remove if not needed.
+  options {
+    insecure: true
+  }
+
+  config {
+   cli: "configure terminal"
+   cli: "security pki key generate rsa 4096 gnsi-test.key"
+   cli: "security pki certificate generate self-signed gnsi-test.crt key gnsi-test.key parameters common-name localhost subject-alternative-name ip dut-proxy-hostname"
+   cli: "management security"
+   cli: "ssl profile GNSI_PROFILE"
+   cli: "tls versions 1.2"
+   cli: "certificate gnsi-test.crt key gnsi-test.key"
+   cli: "management api gnmi"
+   cli: "transport grpc default"
+   cli: "ssl profile GNSI_PROFILE"
+   cli: "authorization requests"
+   cli: "accounting requests"
+   cli: "management api gnsi"
+   cli: "transport gnmi default"
+   cli: "service authz"
+   cli: "service certz"
+   cli: "service credentialz"
+   cli: "service acctz"
+  }
+
+  # Options specific to gNMI.  Remove if not needed.
+  gnmi {
+    target: "dut-proxy-hostname:6030"
+    skip_verify: true
+    insecure: false
+    timeout: 180
+  }
+
+  gnsi {
+    target: "dut-proxy-hostname:6030"
+    skip_verify: true
+    insecure: false
+    timeout: 180
+  }
+
+  # Options specific to gNOI
+  gnoi {
+    max_recv_msg_size: 40000000
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "Ethernet1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "Ethernet2/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "Ethernet3/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "Ethernet4/1"  # Change this to the actual port name.
+  }
+}
+
+ates {
+  id: "ate"
+  name: "ate-hostname"  # Change this to the Ixia chassis name.
+
+  # Options specific to the IxNetwork API.  Remove if not needed.
+  ixnetwork {
+    # Change this to the Web UI hostname, if it differs from the Ixia
+    # chassis name.
+    target: "ixia-hostname"
+    skip_verify: true
+  }
+
+  # Before this binding can be used with a topology, add ports mapping
+  # from its topology ID to the actual port name on the device.
+  ports {
+    id: "port1"
+    name: "1/1"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port2"
+    name: "1/2"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port3"
+    name: "1/3"  # Change this to the actual port name.
+  }
+  ports {
+    id: "port4"
+    name: "1/4"  # Change this to the actual port name.
+  }
+}
