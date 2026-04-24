@@ -31,5 +31,6 @@ platform_exceptions:  {
     ipv4_missing_enabled: true
     skip_setting_allow_multiple_as: true
     skip_afi_safi_path_for_bgp_multiple_as: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
   }
 }
