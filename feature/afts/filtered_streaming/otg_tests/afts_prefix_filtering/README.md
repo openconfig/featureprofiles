@@ -212,8 +212,8 @@ subscribe: {
 - Subscribe to the AFT as in **AFT-6.1.1** and verify:
 
   - `SYNC` is received.
-  - Notifications are received only for `198.51.100.128/25` and its
-    associated next-hops/groups.
+  - Notifications are received only for `198.51.100.128/25`. All expected
+    next-hop-groups and next-hops are received normally.
   - Prefixes that do not match `POLICY-DOES-NOT-YET-EXIST` are **not**
     received.
 
@@ -312,8 +312,9 @@ subscribe: {
 
 - Establish a gNMI Subscribe session as in **AFT-6.1.1** and wait for `SYNC`.
 
-- Verify that **no** prefix, next-hop-group, or next-hop notifications are
-  received (the policy matches no installed routes).
+- Verify that **no** prefix notifications are received (the policy matches no
+  installed routes). All expected next-hop-groups and next-hops are received
+  normally.
 
 ### Transition from Active Policy to Non-Matching Policy
 
