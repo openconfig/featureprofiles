@@ -48,7 +48,8 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	containerTar        = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	removeExistingImage = flag.Bool("remove_existing_image", true, "Whether to remove any existing DUT image before pushing the test container image.")
 	// containerTarPath returns the path to the container tarball.
 	// This can be overridden for internal testing behavior using init().
 	containerTarPath = func(t *testing.T) string {
@@ -74,7 +75,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 		TarPath:             containerTarPath(t),
 		Network:             "host",
 		PollForRunningState: true,
-		RemoveExistingImage: true,
+		RemoveExistingImage: *removeExistingImage,
 	}
 	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
 	return cleanup
