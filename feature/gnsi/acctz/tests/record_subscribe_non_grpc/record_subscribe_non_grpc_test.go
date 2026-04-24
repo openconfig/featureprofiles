@@ -79,7 +79,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	// Get gNSI record subscribe client.
 	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: 0,
+		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
