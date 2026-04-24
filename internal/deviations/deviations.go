@@ -2114,3 +2114,21 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
+
+// ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
+// Use the deviation if BGP Extension Route Retention configuration is not available via OC
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+// ExrrStaleRouteTimeUnsupported returns true if devices do not support exrr stale route time configuration.
+// Use the deviation if BGP Stale Route Time is not supported by DUT
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+// GnoiBgpGracefulRestartUnsupported returns true if gNMI/gNOI support for BGP graceful restart is not available.
+// Use the deviation if BGP Graceful restart is not supported using gnoi
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}
