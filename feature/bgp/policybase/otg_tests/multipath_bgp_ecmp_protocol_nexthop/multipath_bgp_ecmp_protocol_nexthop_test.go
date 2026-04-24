@@ -512,7 +512,7 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		if nbr.localAddress != "" {
 			localAddressLeaf := nbr.localAddress
 			if nbr.isV4 == true {
-				if dut.Vendor() == ondatra.CISCO {
+				if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
 					localAddressLeaf = loopbackIntfName
 				}
 			}
