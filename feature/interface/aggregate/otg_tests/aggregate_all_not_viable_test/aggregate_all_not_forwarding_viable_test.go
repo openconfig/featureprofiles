@@ -526,7 +526,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		aggPath := d.Interface(aggID)
 		fptest.LogQuery(t, aggID, aggPath.Config(), aggInt)
 		gnmi.Replace(t, dut, aggPath.Config(), aggInt)
-		if deviations.ExplicitInterfaceInDefaultVRF(dut){
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 			fptest.AssignToNetworkInstance(t, dut, aggID, deviations.DefaultNetworkInstance(dut), 0)
 		}
 		for _, port := range portList {
