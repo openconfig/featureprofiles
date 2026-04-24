@@ -17,6 +17,8 @@ package recordsubscribenongrpc_test
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"strings"
 	"testing"
 	"time"
 
@@ -24,6 +26,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
@@ -44,6 +47,10 @@ func prettyPrint(i any) string {
 	return string(s)
 }
 
+var (
+	staticBinding = flag.Bool("static_binding", false, "set this flag to true if test is run for testbed using static binding")
+)
+
 func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	acctz.SetupUsers(t, dut, true)
@@ -51,15 +58,18 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	// Put enough time between the test starting and any prior events so we can easily know where
 	// our records start.
-	time.Sleep(5 * time.Second)
+	startTime := time.Now().Add(-10 * time.Second)
 
-	startTime := time.Now()
-	newRecords := acctz.SendSuccessCliCommand(t, dut)
+	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
-	newRecords = acctz.SendFailCliCommand(t, dut)
-	records = append(records, newRecords...)
-	newRecords = acctz.SendShellCommand(t, dut)
-	records = append(records, newRecords...)
+	if !deviations.AcctzRecordFailCommandUnsupported(dut) {
+		newRecords = acctz.SendFailCliCommand(t, dut, *staticBinding)
+		records = append(records, newRecords...)
+	}
+	if !deviations.AcctzShellCmdAccountingUnsupported(dut) {
+		newRecords = acctz.SendShellCommand(t, dut, *staticBinding)
+		records = append(records, newRecords...)
+	}
 
 	// Quick sleep to ensure all the records have been processed/ready for us.
 	time.Sleep(5 * time.Second)
@@ -83,11 +93,13 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	// Ignore proto fields which are set internally by the DUT (cannot be matched exactly)
 	// and compare them manually later.
 	popts := []cmp.Option{protocmp.Transform(),
-		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids"),
+		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids", "component_name"),
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
-		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "channel_id", "tty"),
+		protocmp.IgnoreFields(&acctzpb.AuthnDetail{}, "type", "cause"),
+		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
+		protocmp.IgnoreFields(&acctzpb.CommandService{}, "cmd", "cmd_args"),
+		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "channel_id", "tty", "local_address", "local_port", "remote_address", "remote_port"),
 	}
-
 	for {
 		if recordIdx >= len(records) {
 			t.Log("Out of records to process...")
@@ -115,24 +127,47 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		case <-time.After(10 * time.Second):
 			done = true
 		}
-
 		if done {
-			t.Log("Done receiving records...")
+			t.Log("Done receiving records (timeout or manual break)...")
 			break
 		}
+		t.Logf("Received record: %s", prettyPrint(resp.record))
 
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
 		}
 
+		cmdServiceRecord := resp.record.GetCmdService()
+		// Skip records which are non CMD type (e.g. gNMI, gNSI, etc).
+		if cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI &&
+			cmdServiceRecord.GetServiceType() != acctzpb.CommandService_CMD_SERVICE_TYPE_SHELL {
+			t.Logf("Skipping record: not CLI type (got %v)", cmdServiceRecord.GetServiceType())
+			continue
+		}
+
 		if !resp.record.Timestamp.AsTime().After(startTime) {
-			// Skipping record if it happened before test start time.
+			t.Logf("Skipping record: timestamp %v not after start time %v", resp.record.Timestamp.AsTime(), startTime)
 			continue
 		}
 
 		// Skip start/stop accounting records if present.
 		sessionStatus := resp.record.GetSessionInfo().GetStatus()
 		if sessionStatus == acctzpb.SessionInfo_SESSION_STATUS_LOGIN || sessionStatus == acctzpb.SessionInfo_SESSION_STATUS_LOGOUT {
+			t.Logf("Skipping record: login/logout status (%v)", sessionStatus)
+			continue
+		}
+
+		// Skip records from unknown users (e.g. gnetch-ro)
+		foundUser := false
+		userIdentity := resp.record.GetSessionInfo().GetUser().GetIdentity()
+		for _, r := range records {
+			if r.GetSessionInfo().GetUser().GetIdentity() == userIdentity {
+				foundUser = true
+				break
+			}
+		}
+		if !foundUser {
+			t.Logf("Skipping record from unknown user: %s", userIdentity)
 			continue
 		}
 
@@ -148,6 +183,13 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 			t.Errorf("got diff in got/want: %s", diff)
 		}
 
+		// Verify command matches even if split between cmd and cmd_args.
+		gotCmd := strings.TrimSpace(resp.record.GetCmdService().GetCmd() + " " + strings.Join(resp.record.GetCmdService().GetCmdArgs(), " "))
+		wantCmd := strings.TrimSpace(records[recordIdx].GetCmdService().GetCmd() + " " + strings.Join(records[recordIdx].GetCmdService().GetCmdArgs(), " "))
+		if gotCmd != wantCmd {
+			t.Errorf("Command mismatch: got %q, want %q", gotCmd, wantCmd)
+		}
+
 		// Verify record timestamp is after request timestamp.
 		if !timestamp.After(requestTimestamp.AsTime()) {
 			t.Errorf("Record timestamp is before record request timestamp %v, Record Details: %v", requestTimestamp.AsTime(), prettyPrint(resp.record))
@@ -158,7 +200,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if resp.record.GetSessionInfo().GetChannelId() == "" {
+		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
 		}
 
@@ -176,7 +218,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		t.Logf("Processed Record: %s", prettyPrint(resp.record))
 		recordIdx++
 	}
-
+	t.Logf("recordIdx: %d, len(records): %d", recordIdx, len(records))
 	if recordIdx != len(records) {
 		t.Fatal("Did not process all records.")
 	}

@@ -115,9 +115,7 @@ func createAppendIPV4Flow(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Con
 	flow.Size().SetFixed(1400)
 	flow.Metrics().SetEnable(true)
 	flow.Rate().SetPercentage(0.1)
-
-	ethHeader := flow.Packet().Add().Ethernet()
-	ethHeader.Src().SetValue(top.Devices().Items()[0].Ethernets().Items()[0].Mac())
+	flow.Packet().Add().Ethernet()
 	if srcVlanID != 0 {
 		flow.Packet().Add().Vlan().SetId(gosnappi.NewPatternFlowVlanId().SetValue(srcVlanID))
 	}
@@ -235,6 +233,7 @@ func configureOTGISIS(t *testing.T, dev gosnappi.Device, eRouter *AteEmulatedRou
 	isis.Advanced().SetAreaAddresses([]string{eRouter.ISISAreaAddress})
 	isis.Advanced().SetEnableHelloPadding(false)
 	isis.Basic().SetEnableWideMetric(true)
+	isis.Basic().SetLearnedLspFilter(false)
 	if eRouter.ISISLSPRefreshInterval != 0 {
 		isis.Advanced().SetLspRefreshRate(uint32(eRouter.ISISLSPRefreshInterval))
 	}

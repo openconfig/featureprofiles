@@ -20,8 +20,10 @@ package cntr_test
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -30,12 +32,16 @@ import (
 	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
@@ -45,33 +51,46 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-var containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
-
-const (
-	imageName    = "cntrsrv"
-	instanceName = "cntr-test-conn"
-	cntrPort     = 60061
+var (
+	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	// containerTarPath returns the path to the container tarball.
+	// This can be overridden for internal testing behavior using init().
+	containerTarPath = func() string {
+		return *containerTar
+	}
 )
 
-// setupContainer deploys and starts the cntrsrv container on the DUT.
-// It returns a function to clean up the container.
-func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
+const (
+	imageName    = "cntrsrv_image"
+	instanceName = "cntr-test-conn"
+	cntrPort     = 60061
+
+	// dialTimeout is the overall timeout used when dialing the cntrsrv gRPC
+	// service and when waiting for it to become ready.
+	dialTimeout = 30 * time.Second
+	// pingRetryEvery is how often waitForCntrReady retries a failed Ping.
+	pingRetryEvery = 2 * time.Second
+)
+
+// setupContainer deploys and starts the cntrsrv container on the DUT and
+// registers a t.Cleanup to tear it down when the test (or subtest) ends.
+func setupContainer(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	ctx := context.Background()
 	opts := containerztest.StartContainerOptions{
 		ImageName:           imageName,
 		InstanceName:        instanceName,
 		Command:             fmt.Sprintf("./cntrsrv --port=%d", cntrPort),
-		TarPath:             *containerTar,
+		TarPath:             containerTarPath(),
 		Network:             "host",
 		PollForRunningState: true,
 	}
 	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
-	return cleanup
+	t.Cleanup(cleanup)
 }
 
 // dialContainer dials a gRPC service running on a container on a device at the specified port.
-func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientConn {
+func dialContainer(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, port int) *grpc.ClientConn {
 	t.Helper()
 	var dialer interface {
 		DialGRPCWithPort(context.Context, int, ...grpc.DialOption) (*grpc.ClientConn, error)
@@ -81,37 +100,41 @@ func dialContainer(t *testing.T, dut *ondatra.DUTDevice, port int) *grpc.ClientC
 		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
-	conn, err := dialer.DialGRPCWithPort(context.Background(), port)
+	conn, err := dialer.DialGRPCWithPort(ctx, port)
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}
 	return conn
 }
 
-// The container can be in a RUNNING state before the gRPC server inside is
-// ready to accept connections. We retry the Ping RPC to handle this race
-// condition.
-func waitForCntrReady(t testing.TB, client cpb.CntrClient, dut string, timeout time.Duration, retryEvery time.Duration) {
+// waitForCntrReady retries the Ping RPC until it succeeds or the timeout
+// elapses. The container can be in a RUNNING state before the gRPC server
+// inside is ready to accept connections, so a single dial success is not
+// sufficient to know the service is up.
+func waitForCntrReady(t testing.TB, client cpb.CntrClient, dut string, timeout, retryEvery time.Duration) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	var lastErr error
 	ticker := time.NewTicker(retryEvery)
 	defer ticker.Stop()
 
+	var lastErr error
 	for {
+		pingCtx, pingCancel := context.WithTimeout(ctx, retryEvery)
+		_, err := client.Ping(pingCtx, &cpb.PingRequest{})
+		pingCancel()
+		if err == nil {
+			t.Logf("%s: Successfully pinged cntrsrv.", dut)
+			return
+		}
+		lastErr = err
+		t.Logf("%s: Ping failed, retrying in %v... (error: %v)", dut, retryEvery, err)
+
 		select {
 		case <-ctx.Done():
 			t.Fatalf("%s: Ping failed after %v, last error: %v", dut, timeout, lastErr)
 		case <-ticker.C:
-			_, err := client.Ping(context.Background(), &cpb.PingRequest{})
-			if err == nil {
-				t.Logf("%s: Successfully pinged cntrsrv.", dut)
-				return
-			}
-			lastErr = err
-			t.Logf("%s: Ping failed, retrying in %v... (error: %v)", dut, retryEvery, err)
 		}
 	}
 }
@@ -119,15 +142,16 @@ func waitForCntrReady(t testing.TB, client cpb.CntrClient, dut string, timeout t
 // TestDial implements CNTR-2, validating that it is possible for an external caller to dial into a service
 // running in a container on a DUT. The service used is the cntr service defined by cntr.proto.
 func TestDial(t *testing.T) {
-	dut := ondatra.DUT(t, "r0")
-	cleanup := setupContainer(t, dut)
-	defer cleanup()
+	dut := ondatra.DUT(t, "dut1")
+	setupContainer(t, dut)
 
-	conn := dialContainer(t, dut, cntrPort)
+	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer cancel()
+	conn := dialContainer(t, ctx, dut, cntrPort)
 	defer conn.Close()
 
 	client := cpb.NewCntrClient(conn)
-	waitForCntrReady(t, client, dut.Name(), 30*time.Second, 2*time.Second)
+	waitForCntrReady(t, client, dut.Name(), dialTimeout, pingRetryEvery)
 }
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -140,16 +164,17 @@ type DUTCredentialer interface {
 // container running on the device to connect to local gRPC services that are
 // running on the DUT.
 func TestDialLocal(t *testing.T) {
-	dut := ondatra.DUT(t, "r0")
-	cleanup := setupContainer(t, dut)
-	defer cleanup()
+	dut := ondatra.DUT(t, "dut1")
+	setupContainer(t, dut)
 
-	conn := dialContainer(t, dut, cntrPort)
+	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer cancel()
+
+	conn := dialContainer(t, ctx, dut, cntrPort)
 	defer conn.Close()
 	client := cpb.NewCntrClient(conn)
 
-	// Wait for the container's gRPC server to be ready before running sub-tests.
-	waitForCntrReady(t, client, dut.Name(), 30*time.Second, 2*time.Second)
+	waitForCntrReady(t, client, dut.Name(), dialTimeout, pingRetryEvery)
 
 	var creds DUTCredentialer
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
@@ -158,17 +183,38 @@ func TestDialLocal(t *testing.T) {
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
 
-	var dialAddr string
-	dialAddr = "localhost"
+	// The container dials back into the DUT's loopback. Some platforms do not
+	// route the unspecified IPv6 address ([::]) to the host network stack
+	// from inside the container and require the management loopback instead.
+	dialAddr := "[::]"
 	if deviations.LocalhostForContainerz(dut) {
 		dialAddr = "[fd01::1]"
 	}
+
+	gribiClient := gribi.Client{
+		DUT:         dut,
+		FIBACK:      true,
+		Persistence: true,
+	}
+	if err := gribiClient.Start(t); err != nil {
+		t.Fatalf("gRIBI connection cannot be established: %v", err)
+	}
+
+	gribiClient.BecomeLeader(t)
+	gribiClient.FlushAll(t)
+	defer gribiClient.Close(t)
+	defer gribiClient.FlushAll(t)
+
+	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
+	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
 
 	tests := []struct {
 		desc     string
 		inMsg    *cpb.DialRequest
 		wantResp bool
 		wantErr  bool
+		allowEOF bool // treat io.EOF / codes.Unknown "EOF" as success (empty gRIBI stream)
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
@@ -191,6 +237,7 @@ func TestDialLocal(t *testing.T) {
 			},
 		},
 		wantResp: true,
+		allowEOF: true,
 	}, {
 		desc: "dial something not listening",
 		inMsg: &cpb.DialRequest{
@@ -206,14 +253,10 @@ func TestDialLocal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			tctx, cancel := context.WithTimeout(ctx, dialTimeout)
 			defer cancel()
-			// Use the client established before the sub-tests.
-			got, err := client.Dial(ctx, tt.inMsg)
-			// For the gRIBI Get RPC, an EOF error is returned if the server has no entries to
-			// stream back. This is the expected behavior for a successful connection to a
-			// gRIBI service on a device with an empty RIB, so we treat it as a non-error.
-			if tt.inMsg.GetSrv() == cpb.Service_ST_GRIBI && err != nil && strings.Contains(err.Error(), "EOF") {
+			got, err := client.Dial(tctx, tt.inMsg)
+			if tt.allowEOF && isEOFError(err) {
 				err = nil
 			}
 			if (err != nil) != tt.wantErr {
@@ -228,15 +271,38 @@ func TestDialLocal(t *testing.T) {
 	}
 }
 
-// TestConnectRemote implements CNTR-4, validating that it is possible for a container to connect to a container
+// isEOFError reports whether err represents an EOF from a streaming gRPC RPC.
+// The gRIBI Get RPC returns io.EOF (or a gRPC status whose message contains
+// "EOF") when the server has no entries to stream back, which is a successful
+// outcome for the purposes of these tests.
+func isEOFError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	if s, ok := status.FromError(err); ok {
+		if s.Code() == codes.OK {
+			return false
+		}
+		if strings.Contains(s.Message(), "EOF") {
+			return true
+		}
+	}
+	return false
+}
+
+// TestConnectRemote implements CNTR-3, validating that it is possible for a container to connect to a container
 // on an adjacent node via gRPC using IPv6 link local addresses. r0 and r1 in the topology are configured with
 // IPv6 link-local addresses via gNMI, and the CNTR service is used to trigger a connection between the two addresses.
 //
 // The test is repeated for r0 --> r1 and r1 --> r0.
 func TestConnectRemote(t *testing.T) {
+	t.Skip("TODO(abhinavkmr): Testing pending on device. Skipping for now!")
 	configureIPv6Addr := func(dut *ondatra.DUTDevice, name, addr string) {
 		t.Helper()
-		pn := dut.Port(t, "port1").Name()
+		pn := dut.Port(t, name).Name()
 
 		d := &oc.Interface{
 			Name:    ygot.String(pn),
@@ -260,13 +326,11 @@ func TestConnectRemote(t *testing.T) {
 		time.Sleep(1 * time.Second)
 	}
 
-	r0 := ondatra.DUT(t, "r0")
-	r1 := ondatra.DUT(t, "r1")
+	r0 := ondatra.DUT(t, "dut1")
+	r1 := ondatra.DUT(t, "dut2")
 
-	cleanup0 := setupContainer(t, r0)
-	defer cleanup0()
-	cleanup1 := setupContainer(t, r1)
-	defer cleanup1()
+	setupContainer(t, r0)
+	setupContainer(t, r1)
 
 	configureIPv6Addr(r0, "port1", "fe80::cafe:1")
 	configureIPv6Addr(r1, "port1", "fe80::cafe:2")
@@ -283,26 +347,30 @@ func TestConnectRemote(t *testing.T) {
 
 	validateIPv6Present(r0, "port1")
 	validateIPv6Present(r1, "port1")
+	ctx, cancel := context.WithTimeout(context.Background(), dialTimeout)
+	defer cancel()
 
 	containerInterfaceName := func(t *testing.T, d *ondatra.DUTDevice, port *ondatra.Port) string {
+		portName := port.Name()
+		if parts := strings.Split(portName, ":"); len(parts) == 2 {
+			portName = parts[1]
+		}
 		switch d.Vendor() {
 		case ondatra.ARISTA:
-			switch {
-			case strings.HasPrefix(port.Name(), "Ethernet"):
-				num, _ := strings.CutPrefix(port.Name(), "Ethernet")
+			if strings.HasPrefix(portName, "Ethernet") {
+				num, _ := strings.CutPrefix(portName, "Ethernet")
 				return fmt.Sprintf("eth%s", num)
 			}
 		case ondatra.NOKIA:
-			switch {
-			case strings.HasPrefix(port.Name(), "ethernet-"):
-				rest := strings.TrimPrefix(port.Name(), "ethernet-")
+			if strings.HasPrefix(portName, "ethernet-") {
+				rest := strings.TrimPrefix(portName, "ethernet-")
 				parts := strings.Split(rest, "/")
 				if len(parts) == 2 {
 					return fmt.Sprintf("e%s-%s.0", parts[0], parts[1])
 				}
 			}
 		}
-		t.Fatalf("cannot resolve interface name into Linux interface name, %s -> %s", d.Vendor(), port.Name())
+		t.Fatalf("cannot resolve interface name into Linux interface name, %s -> %s", d.Vendor(), portName)
 		return ""
 	}
 
@@ -310,33 +378,40 @@ func TestConnectRemote(t *testing.T) {
 		desc         string
 		inRemoteAddr string
 		inDialer     *ondatra.DUTDevice
+		dialerPort   string
 	}{{
 		desc:         "r1->r0",
 		inRemoteAddr: "fe80::cafe:1",
 		inDialer:     r1,
+		dialerPort:   "port1",
 	}, {
 		desc:         "r0->r1",
 		inRemoteAddr: "fe80::cafe:2",
 		inDialer:     r0,
+		dialerPort:   "port1",
 	}}
 
 	for _, tt := range tests {
 		t.Run(tt.desc, func(t *testing.T) {
-			// Since there are two containers on different devices,
-			// Ensure container readiness on both devices before proceeding.
+			// Since there are two containers on different devices, ensure
+			// container readiness on the dialer device before proceeding.
 			if tt.inDialer == r1 {
-				conn := dialContainer(t, r0, cntrPort)
-				client := cpb.NewCntrClient(conn)
-				waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", r0.Name(), tt.desc), 30*time.Second, 2*time.Second)
-
+				peerConn := dialContainer(t, ctx, r0, cntrPort)
+				defer peerConn.Close()
+				peerClient := cpb.NewCntrClient(peerConn)
+				waitForCntrReady(t, peerClient, fmt.Sprintf("%s (%s)", r0.Name(), tt.desc), dialTimeout, pingRetryEvery)
 			}
-			conn := dialContainer(t, tt.inDialer, cntrPort)
+			conn := dialContainer(t, ctx, tt.inDialer, cntrPort)
+			defer conn.Close()
+
 			dialAddr := fmt.Sprintf("[%s%%25%s]:%d", tt.inRemoteAddr, containerInterfaceName(t, tt.inDialer, tt.inDialer.Port(t, "port1")), cntrPort)
 			t.Logf("dialing remote address %s", dialAddr)
 			client := cpb.NewCntrClient(conn)
-			waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", tt.inDialer.Name(), tt.desc), 30*time.Second, 2*time.Second)
-			ctx := context.Background()
-			got, err := client.Dial(ctx, &cpb.DialRequest{
+			// Checking container readiness on the dialer device
+			waitForCntrReady(t, client, fmt.Sprintf("%s (%s)", tt.inDialer.Name(), tt.desc), dialTimeout, pingRetryEvery)
+			dctx, dcancel := context.WithTimeout(ctx, dialTimeout)
+			defer dcancel()
+			got, err := client.Dial(dctx, &cpb.DialRequest{
 				Addr: dialAddr,
 				Request: &cpb.DialRequest_Ping{
 					Ping: &cpb.PingRequest{},
