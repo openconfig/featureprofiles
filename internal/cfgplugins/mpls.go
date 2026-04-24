@@ -27,6 +27,15 @@ import (
 	"github.com/openconfig/ygot/ygot"
 )
 
+type StaticLSPParams struct {
+	Name         string
+	Label        uint32
+	Interface    string
+	NextHop      string
+	ProtocolType string
+	VRF          string
+}
+
 type DecapMPLSParams struct {
 	ScaleStaticLSP          bool
 	MplsStaticLabels        []int
@@ -101,6 +110,49 @@ func NewStaticMplsLspPopLabel(t *testing.T, dut *ondatra.DUTDevice, lspName stri
 	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
 
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+}
+
+// NewStaticMplsLspVRFPopLabel configures static MPLS label binding (LBL1) using CLI with deviation, if OC is unsupported on the device. It also supports VRF selection
+func NewStaticMplsLspVRFPopLabel(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, params StaticLSPParams) {
+	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if params.Interface != "" {
+				t.Logf("Configuring static LSP on interface %s", params.Interface)
+				cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s %s pop payload-type %s
+					`, params.Label, params.Interface, params.NextHop, params.ProtocolType)
+			} else {
+				if params.VRF != "" {
+					t.Logf("Configuring static LSP on VRF %s", params.VRF)
+					cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v vrf %s %s pop payload-type %s
+					`, params.Label, params.VRF, params.NextHop, params.ProtocolType)
+				} else {
+					cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s
+					`, params.Label, params.NextHop, params.ProtocolType)
+				}
+			}
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	}
+	d := &oc.Root{}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+	staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(params.Name)
+	staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(params.Label))
+	staticMplsCfg.GetOrCreateEgress().SetNextHop(params.NextHop)
+	staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+	// TODO Set VRF in LSP config when available in OC model
+	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
 }
 
 // RemoveStaticMplsLspPopLabel removes static MPLS POP label binding using CLI with deviation, if OC is unsupported on the device.
