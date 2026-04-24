@@ -2114,3 +2114,8 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
+
+// DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
+func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
+}
