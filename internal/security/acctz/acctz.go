@@ -584,13 +584,13 @@ func extractRawSSHClient(c binding.SSHClient) *ssh.Client {
 	}
 	// Try to find a field of type *ssh.Client by name "Client" first.
 	f := v.FieldByName("Client")
-	if f.IsValid() && f.Type().String() == "*ssh.Client" {
+	if f.IsValid() && f.CanInterface() && f.Type().String() == "*ssh.Client" {
 		return f.Interface().(*ssh.Client)
 	}
 	// If not found, iterate through all fields and return the first *ssh.Client found.
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Type().String() == "*ssh.Client" {
+		if field.CanInterface() && field.Type().String() == "*ssh.Client" {
 			return field.Interface().(*ssh.Client)
 		}
 	}
@@ -1450,7 +1450,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 
 	var records []*acctzpb.RecordResponse
 
-	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA {
+	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.CISCO {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
 	} else {

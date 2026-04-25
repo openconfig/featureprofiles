@@ -25,6 +25,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -48,13 +49,17 @@ func prettyPrint(i any) string {
 
 func TestAccountzRecordSubscribePartial(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	setupVendorSpecificAcctzConfig(t, dut)
+
 	if dut.Vendor() == ondatra.ARISTA {
 		acctz.SetupUsers(t, dut, true)
 	} else {
 		acctz.SetupUsers(t, dut, false)
 	}
 
-	startTime := time.Now()
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 	// Start sending rpc's after 5 seconds to be able to properly test the timestamps.
 	time.Sleep(5 * time.Second)
 
@@ -232,5 +237,17 @@ func deviceRecords(t *testing.T, client recvClient, deadline time.Duration) ([]*
 		case <-limit:
 			return rs, nil
 		}
+	}
+}
+
+// setupVendorSpecificAcctzConfig applies vendor-specific accounting configuration needed
+// before running acctz tests.
+func setupVendorSpecificAcctzConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Increase gRPC accounting queue size to avoid record loss
+		// during longer test executions with background activity.
+		helpers.GnmiCLIConfig(t, dut, "grpc\n aaa accounting queue-size 512\n")
 	}
 }
