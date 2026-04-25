@@ -39,5 +39,6 @@ platform_exceptions: {
   }
   deviations: {
     config_leaf_create_required: true
+    fabric_ft: "ciscoxr-fabric-ft"
   }
 }

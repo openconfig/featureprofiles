@@ -2114,3 +2114,9 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
+
+// FabricFt returns the functional translator name for fabric error telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+func FabricFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFabricFt()
+}
