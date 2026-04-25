@@ -350,7 +350,7 @@ func TestHardwareCards(t *testing.T) {
 		t.Run(tc.desc, func(t *testing.T) {
 			if tc.desc == "Storage" && deviations.StorageComponentUnsupported(dut) {
 				t.Skipf("Telemetry path /components/component/storage is not supported.")
-			} else if tc.desc == "Fabric" && *args.NumLinecards <= 0 {
+			} else if tc.desc == "Fabric" && *args.NumFabrics <= 0 {
 				t.Skip("Skip Fabric Telemetry check for fixed form factor devices.")
 			} else if tc.desc == "Linecard" && *args.NumLinecards <= 0 {
 				t.Skip("Skip Linecard Telemetry check for fixed form factor devices.")
