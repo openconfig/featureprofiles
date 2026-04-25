@@ -7,7 +7,7 @@ require (
 	cloud.google.com/go/storage v1.49.0
 	github.com/cisco-open/go-p4 v0.1.2
 	github.com/go-git/go-billy/v5 v5.8.0
-	github.com/go-git/go-git/v5 v5.17.1
+	github.com/go-git/go-git/v5 v5.18.0
 	github.com/golang/glog v1.2.5
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v50 v50.1.0
