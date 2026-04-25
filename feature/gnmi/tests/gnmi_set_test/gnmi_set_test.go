@@ -75,7 +75,7 @@ type Options struct {
 // breakout struct parameters define the speed and number of physical channels
 type breakout struct {
 	breakoutSpeed       oc.E_IfEthernet_ETHERNET_SPEED
-	numPhysicalChannels *uint8
+	numPhysicalChannels uint8
 }
 
 // showRunningConfig gets the running config from the router
@@ -919,6 +919,7 @@ func (rootOp) shouldSkip() bool { return *skipRootOp }
 
 func (op rootOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *pushScope) {
 	t.Helper()
+	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "RootOp", gnmi.OC().Config(), config)
 	dut := ondatra.DUT(t, "dut")
 	if deviations.AddMissingBaseConfigViaCli(dut) {
@@ -939,6 +940,7 @@ func (containerOp) shouldSkip() bool { return *skipContainerOp }
 
 func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *pushScope) {
 	t.Helper()
+	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "ContainerOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
@@ -952,11 +954,12 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 				bmode := &oc.Component_Port_BreakoutMode{}
 				gp := bmode.GetOrCreateGroup(0)
 				gp.BreakoutSpeed = data.breakoutSpeed
-				gp.NumBreakouts = ygot.Uint8(*data.numPhysicalChannels + 1)
+				gp.NumBreakouts = ygot.Uint8(data.numPhysicalChannels)
 				bmp := gnmi.OC().Component(port).Port().BreakoutMode()
 				gnmi.BatchReplace(batch, bmp.Config(), bmode)
+				time.Sleep(5 * time.Second)
 				// Also set Name for each breakout child port to satisfy leafref constraints
-				for i := 0; i < int(*data.numPhysicalChannels); i++ {
+				for i := 0; i < int(data.numPhysicalChannels); i++ {
 					childPortName := fmt.Sprintf("%s/%d", port, i)
 					gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(childPortName).Config(), &oc.Component{
 						Name: ygot.String(childPortName),
@@ -978,6 +981,7 @@ func (itemOp) shouldSkip() bool { return *skipItemOp }
 
 func (op itemOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, scope *pushScope) {
 	t.Helper()
+	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "ItemOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
@@ -1160,37 +1164,78 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 			t.Log("Could not split name")
 		}
 
-		channel := strconv.Itoa(int(intf.GetPhysicalChannel()[0]))
-
-		if hwp+"/"+(channel) == name {
+		prefix := hwp + "/"
+		if strings.HasPrefix(name, prefix) {
 			var speed oc.E_IfEthernet_ETHERNET_SPEED
 
 			_, keyExists := breakoutPortsMap[intf.GetHardwarePort()]
 			if !keyExists && speed == oc.IfEthernet_ETHERNET_SPEED_UNSET {
-				if intf.GetEthernet().PortSpeed.String() == "SPEED_100GB" {
+				if intf.GetEthernet().PortSpeed.String() == "SPEED_800GB" {
+					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
+				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_400GB" {
+					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_100GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_10GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
 				}
 			}
-
-			numChannels := make([]*uint8, len(intf.GetPhysicalChannel()))
-			truncated := uint8(intf.GetPhysicalChannel()[0])
-			numChannels[0] = &truncated
-
-			_, keyExists = port[intf.GetHardwarePort()]
-			if !keyExists {
-				breakoutPortsMap[intf.GetHardwarePort()] = breakout{numPhysicalChannels: numChannels[0], breakoutSpeed: trackspeed}
-				port[intf.GetHardwarePort()] = 0
-			}
-
-			if port[intf.GetHardwarePort()] < *numChannels[0] {
-				breakoutPortsMap[intf.GetHardwarePort()] = breakout{numPhysicalChannels: numChannels[0], breakoutSpeed: trackspeed}
-				port[intf.GetHardwarePort()] = *numChannels[0]
-			}
+			hwPort := intf.GetHardwarePort()
+			numChannels := port[hwPort] + 1
+			port[hwPort] = numChannels
+			breakoutPortsMap[hwPort] = breakout{numPhysicalChannels: numChannels, breakoutSpeed: trackspeed}
 		}
 	}
 	return breakoutPortsMap
+}
+
+func setStaticRouteRecurseForPhysicalInterface(config *oc.Root) {
+	if config == nil {
+		return
+	}
+
+	for _, ni := range config.NetworkInstance {
+		if ni == nil {
+			continue
+		}
+		for _, p := range ni.Protocol {
+			if p == nil {
+				continue
+			}
+			for _, st := range p.Static {
+				if st == nil {
+					continue
+				}
+				for _, nh := range st.NextHop {
+					if nh == nil || nh.InterfaceRef == nil || nh.InterfaceRef.Interface == nil {
+						continue
+					}
+					if isPhysicalInterface(config, *nh.InterfaceRef.Interface) {
+						nh.Recurse = ygot.Bool(false)
+					}
+				}
+			}
+		}
+	}
+}
+
+func isPhysicalInterface(config *oc.Root, ifName string) bool {
+	if config == nil || ifName == "" {
+		return false
+	}
+
+	intf := config.GetInterface(ifName)
+	if intf == nil {
+		return false
+	}
+
+	switch intf.GetType() {
+	case oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+		oc.IETFInterfaces_InterfaceType_ieee8023adLag:
+		return true
+	default:
+		return false
+	}
 }
 
 func addMissingConfigForRootReplace(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root) {
@@ -1200,9 +1245,9 @@ func addMissingConfigForRootReplace(t testing.TB, dev gnmi.DeviceOrOpts, config 
 	data := "hostname " + strings.Split(running, "hostname ")[1]
 	modifiedStr := strings.Replace(data, "\r\n", "\n", -1)
 	// remove interface config from the running configure
-	fileString := removeStatementsBetweenWords(modifiedStr, "interface ", "!", &Options{interfaces: []string{"HundredGigE", "FourHundredGigE", "TenGigE", "Bundle-Ether", "Loopback", "MgmtEth0", "FortyGigE", "PTP0/RP"}})
+	fileString := removeStatementsBetweenWords(modifiedStr, "interface", "!", &Options{interfaces: []string{"HundredGigE", "FourHundredGigE", "TenGigE", "Bundle-Ether", "Loopback", "MgmtEth0", "FortyGigE", "PTP0/RP"}})
 	// remove router static config from the running config
-	fileString = removeStatementsBetweenWords(fileString, "router static ", "!")
+	fileString = removeStatementsBetweenWords(fileString, "router static", "!")
 	// need to explicitly remove configured NI "BLUE" since it is still present in running config and will overwrite config parameter which doesn't set it
 	fileString = removeStatementsBetweenWords(fileString, "vrf BLUE", "!")
 	cliPath, err := schemaless.NewConfig[string]("", "cli")
