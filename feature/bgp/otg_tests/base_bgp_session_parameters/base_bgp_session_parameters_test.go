@@ -435,7 +435,7 @@ func TestPassword(t *testing.T) {
 
 	}
 	t.Log("Wait till hold time expires: BGP should not be in ESTABLISHED state when passwords do not match.")
-	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+10)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
+	_, ok := gnmi.Watch(t, dut, nbrPath.SessionState().State(), (dutHoldTime+2*dutKeepaliveTime)*time.Second, func(val *ygnmi.Value[oc.E_Bgp_Neighbor_SessionState]) bool {
 		state, ok := val.Val()
 		return ok && state != oc.Bgp_Neighbor_SessionState_ESTABLISHED
 	}).Await(t)
