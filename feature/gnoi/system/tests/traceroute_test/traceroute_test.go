@@ -20,13 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -83,10 +86,51 @@ func TestMain(m *testing.M) {
 func TestGNOITraceroute(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
+	// Define loopback attributes for configuration if needed
+	loopbackAttrs := attrs.Attributes{
+		Desc:    "Loopback IP for gNOI traceroute test",
+		IPv4:    "198.51.100.1",
+		IPv6:    "2001:db8:100::1",
+		IPv4Len: 32,
+		IPv6Len: 128,
+	}
+
 	lbIntf := netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lbIntf).Subinterface(0)
-	ipv4Addrs := gnmi.GetAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.GetAll(t, dut, lo0.Ipv6().AddressAny().State())
+
+	// Use LookupAll to gracefully handle missing addresses (doesn't fail if path doesn't exist)
+	ipv4Lookups := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+	ipv6Lookups := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
+
+	// If both IPv4 and IPv6 addresses are missing, configure the loopback
+	if len(ipv4Lookups) == 0 && len(ipv6Lookups) == 0 {
+		t.Logf("Loopback addresses not found, configuring loopback interface %s", lbIntf)
+		loopbackIntf := loopbackAttrs.NewOCInterface(lbIntf, dut)
+		loopbackIntf.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
+		loopbackIntf.Description = ygot.String("Loopback IP for testing")
+		loopbackIntf.Enabled = ygot.Bool(true)
+		gnmi.Update(t, dut, gnmi.OC().Interface(lbIntf).Config(), loopbackIntf)
+
+		// Re-read addresses after configuration
+		ipv4Lookups = gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
+		ipv6Lookups = gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
+	}
+
+	// Extract address values
+	var ipv4Addrs []*oc.Interface_Subinterface_Ipv4_Address
+	for _, lookup := range ipv4Lookups {
+		if val, ok := lookup.Val(); ok {
+			ipv4Addrs = append(ipv4Addrs, val)
+		}
+	}
+
+	var ipv6Addrs []*oc.Interface_Subinterface_Ipv6_Address
+	for _, lookup := range ipv6Lookups {
+		if val, ok := lookup.Val(); ok {
+			ipv6Addrs = append(ipv6Addrs, val)
+		}
+	}
+
 	t.Logf("Got DUT %s IPv4 loopback address: %+v", dut.Name(), ipv4Addrs)
 	t.Logf("Got DUT %s IPv6 loopback address: %+v", dut.Name(), ipv6Addrs)
 	if len(ipv4Addrs) == 0 {
