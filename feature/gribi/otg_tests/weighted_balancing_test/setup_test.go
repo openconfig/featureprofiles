@@ -315,7 +315,14 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	re, _ := regexp.Compile(".+:([a-zA-Z0-9]+)")
 	dutString := "dut:" + re.FindStringSubmatch(ateSrcPort)[1]
 	gwIp := portsIPv4[dutString]
-	dstMac := gnmi.Get(t, ate.OTG(), gnmi.OTG().Interface(ateSrcPort+".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State())
+	neighborPath := gnmi.OTG().Interface(ateSrcPort + ".Eth").Ipv4Neighbor(gwIp).LinkLayerAddress().State()
+	dstMac, present := gnmi.Lookup(t, ate.OTG(), neighborPath).Val()
+	if !present || dstMac == "" {
+		t.Logf("Gateway MAC for %s missing on %s, restarting protocols and waiting for ARP", gwIp, ateSrcPort)
+		ate.OTG().StartProtocols(t)
+		otgutils.WaitForARP(t, ate.OTG(), config, "IPv4")
+		dstMac = gnmi.Get(t, ate.OTG(), neighborPath)
+	}
 	config.Flows().Clear().Items()
 	flow := config.Flows().Add().SetName("flow")
 	flow.Metrics().SetEnable(true)
@@ -349,7 +356,6 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 
 	flow.Size().SetFixed(200)
 	ate.OTG().PushConfig(t, config)
-	ate.OTG().StartProtocols(t)
 }
 
 func runTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) (atePorts []*ondatra.Port, inPkts []uint64, outPkts []uint64) {
