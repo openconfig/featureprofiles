@@ -265,10 +265,11 @@ func sortBreakoutPorts(breakOutPorts []string) {
 }
 
 // Function to get compName and set up port name based on provided interface and port prefix
-func getCompName(dut *ondatra.DUTDevice, string, portPrefix string, t *testing.T) (string, string, bool) {
+func getCompName(dut *ondatra.DUTDevice, _ string, portPrefix string, t *testing.T) (string, string, bool) {
 
-	foundExpectedInterfaceFlag = false
+	foundExpectedInterfaceFlag := false
 	portsAll := dut.Ports()
+	var dutPortName string
 
 	// Look for the port with the specified prefix (e.g., "TenGigE" or "HundredGigE")
 	for _, port := range portsAll {
@@ -289,8 +290,8 @@ func getCompName(dut *ondatra.DUTDevice, string, portPrefix string, t *testing.T
 	// Extract line card slot and port number from the interface name
 	switch dut.Vendor() {
 	case ondatra.CISCO:
-		var portNumber = string
-		var lcSlot = string
+		var portNumber string
+		var lcSlot string
 		parts := strings.Split(dutPortName, "/")
 		if len(parts) >= 4 {
 			lcSlot = parts[2]
