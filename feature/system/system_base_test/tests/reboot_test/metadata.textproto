@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "e8222152-dc41-4398-92e6-2f9dbc8d3026"
+plan_id:  "System-2.1"
+description:  "DUT Reboot Test"
+testbed:  TESTBED_DUT_ATE_2LINKS
