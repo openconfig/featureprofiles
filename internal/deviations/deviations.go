@@ -2114,3 +2114,10 @@ func FragmentPuntFt(dut *ondatra.DUTDevice) string {
 func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
 }
+
+// KillProcessHasDifferentName returns true if gNOI KillProcess RPC expects a name
+// which differs from the name in /system/processes/process list
+// Arista https://partnerissuetracker.corp.google.com/issues/489304077
+func KillProcessHasDifferentName(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetKillProcessDifferentYangName()
+}
