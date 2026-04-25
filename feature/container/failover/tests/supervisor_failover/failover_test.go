@@ -445,6 +445,7 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		startOpts := []client.StartOption{
 			client.WithPorts([]string{"60061:60061"}),
 			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
+			client.WithRestartPolicy("always"),
 		}
 		// Ensure container is removed before starting.
 		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
