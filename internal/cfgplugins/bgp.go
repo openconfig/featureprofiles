@@ -918,49 +918,56 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 	af6 := global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af6.Enabled = ygot.Bool(true)
 
-	if cfg.EnableMaxRoutes {
-		bgpMaxRouteCfg := new(strings.Builder)
-		fmt.Fprintf(bgpMaxRouteCfg, "router bgp %d\n", cfg.DutAS)
+	switch dut.Vendor() {
+	default:
 
-		for _, pg := range cfg.PeerGroups {
-			fmt.Fprintf(bgpMaxRouteCfg, "neighbor %s maximum-routes 0\n", pg)
-		}
+		if cfg.EnableMaxRoutes {
+			bgpMaxRouteCfg := new(strings.Builder)
+			fmt.Fprintf(bgpMaxRouteCfg, "router bgp %d\n", cfg.DutAS)
 
-		helpers.GnmiCLIConfig(t, dut, bgpMaxRouteCfg.String())
-	}
-
-	// Handle multipath deviation
-	if cfg.ECMPMaxPath > 0 {
-		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
-			t.Log("Executing CLI commands for multipath deviation")
-			bgpRouteConfig := fmt.Sprintf(`
-		router bgp %d
-		address-family ipv4
-		maximum-paths %[2]d ecmp %[2]d
-		bgp bestpath as-path multipath-relax
-		address-family ipv6
-		maximum-paths %[2]d ecmp %[2]d
-		bgp bestpath as-path multipath-relax
-		`, cfg.DutAS, cfg.ECMPMaxPath)
-			helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
-		} else {
-			// TODO: Once multipath is fully supported via OpenConfig across all platforms,
-			// remove CLI fallback and rely solely on OC configuration.
-			v4Multipath := af4.GetOrCreateUseMultiplePaths()
-			v4Multipath.SetEnabled(true)
-			v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-			v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-
-			v6Multipath := af6.GetOrCreateUseMultiplePaths()
-			v6Multipath.SetEnabled(true)
-			v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-			v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
-
-			if !deviations.SkipSettingAllowMultipleAS(dut) {
-				v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
-				v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+			for _, pg := range cfg.PeerGroups {
+				fmt.Fprintf(bgpMaxRouteCfg, "neighbor %s maximum-routes 0\n", pg)
 			}
+
+			helpers.GnmiCLIConfig(t, dut, bgpMaxRouteCfg.String())
 		}
+
+		// Handle multipath deviation
+		if cfg.ECMPMaxPath > 0 {
+			if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
+				t.Log("Executing CLI commands for multipath deviation")
+				bgpRouteConfig := fmt.Sprintf(`
+			router bgp %d
+			address-family ipv4
+			maximum-paths %[2]d ecmp %[2]d
+			bgp bestpath as-path multipath-relax
+			address-family ipv6
+			maximum-paths %[2]d ecmp %[2]d
+			bgp bestpath as-path multipath-relax
+			`, cfg.DutAS, cfg.ECMPMaxPath)
+				helpers.GnmiCLIConfig(t, dut, bgpRouteConfig)
+			} else {
+				// TODO: Once multipath is fully supported via OpenConfig across all platforms,
+				// remove CLI fallback and rely solely on OC configuration.
+				v4Multipath := af4.GetOrCreateUseMultiplePaths()
+				v4Multipath.SetEnabled(true)
+				v4Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+				v4Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+
+				v6Multipath := af6.GetOrCreateUseMultiplePaths()
+				v6Multipath.SetEnabled(true)
+				v6Multipath.GetOrCreateIbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+				v6Multipath.GetOrCreateEbgp().SetMaximumPaths(cfg.ECMPMaxPath)
+
+				if !deviations.SkipSettingAllowMultipleAS(dut) {
+					v4Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+					v6Multipath.GetOrCreateEbgp().SetAllowMultipleAs(true)
+				}
+			}
+
+		}
+	case ondatra.JUNIPER:
+		// Juniper does not need the above configurations for BMP
 	}
 	gnmi.BatchUpdate(batch, dutBgpConfPath.Config(), dutBgpConf)
 	return dutBgpConf
@@ -1702,6 +1709,60 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 					monitoring station BMP_STN
 					export-policy received routes post-policy
 					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+		case ondatra.JUNIPER:
+			fmt.Fprintf(bmpConfig, `
+				routing-options {
+					autonomous-system %d;
+    				bmp {
+        				statistics-timeout 30;
+						station r-bmp {                
+							connection-mode active;
+            				route-monitoring {
+                				loc-rib;
+                				pre-policy;
+                				post-policy;
+                				rib-out pre-policy post-policy;
+             				}
+            				station-address %s;
+            				station-port %d;
+						}	
+        			}
+				}`, cfgParams.DutAS, cfgParams.StationAddr, cfgParams.StationPort)
+			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+
+			if cfgParams.PrePolicy {
+				t.Log("Configured BMP station with pre-policy export")
+				fmt.Fprintf(bmpConfig, `
+				routing-options {
+    				bmp {
+        				station r-bmp {                
+            				route-monitoring {
+                				pre-policy;
+                				rib-out pre-policy;
+            				}
+						}	
+        			}
+				}		
+				`)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if cfgParams.PostPolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+				routing-options {
+    				bmp {
+        				station r-bmp {                
+            				route-monitoring {
+                				post-policy;
+                				rib-out post-policy;
+            				}
+						}	
+        			}
+				}		
+				`)
 				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
 			}
 		}
