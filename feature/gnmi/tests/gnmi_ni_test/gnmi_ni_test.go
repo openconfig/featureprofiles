@@ -147,16 +147,14 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	customGnmiServerName := "gnxi-" + customVRFName
 
 	var defaultValidated, customValidated bool
-	//if Juniper remove DEFAULT from the list.
 
 	for _, gnmiServer := range gnmiServerList {
 		serverName := gnmiServer.GetName()
-		// 1. Strict Skip for the internal Juniper system entry
+		// Skip for the internal Juniper system serverName DEFAULT
 		if dut.Vendor() == ondatra.JUNIPER && serverName == "DEFAULT" {
 			t.Logf("Skipping internal Juniper system server placeholder: %s", serverName)
 			continue
 		}
-		// Using gnmiServer.GetName() to get the state is better than hardcoding.
 		serverState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).State())
 		switch serverName {
 		case customGnmiServerName:
@@ -208,12 +206,10 @@ func GetUsedPorts(t *testing.T, dut *ondatra.DUTDevice) []uint16 {
 	return used
 }
 
-// GenerateUniquePort picks a random port between min and max that isn't in the used list.
 func GenerateUniquePort(min, max int, usedPorts []uint16) (uint16, error) {
 	// Seed the random generator
 	rand.Seed(time.Now().UnixNano())
 
-	// Create a map for O(1) lookup
 	usedMap := make(map[uint16]bool)
 	for _, p := range usedPorts {
 		usedMap[p] = true
