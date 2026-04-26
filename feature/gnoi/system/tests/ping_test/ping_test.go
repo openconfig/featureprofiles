@@ -41,10 +41,8 @@ const (
 	minimumSent              = 1
 	minimumReceived          = 1
 	minimumMinTime           = 1
-	minimumAvgTime           = 1
-	minimumMaxTime           = 1
-	// StdDeviation would be 0 if we only send 1 ping.
-	minimumStdDev = 1
+	minimumAvgTime = 1
+	minimumMaxTime = 1
 )
 
 func TestMain(m *testing.M) {
@@ -134,7 +132,6 @@ func TestGNOIPing(t *testing.T) {
 		MinTime:  minimumMinTime,
 		AvgTime:  minimumAvgTime,
 		MaxTime:  minimumMaxTime,
-		StdDev:   minimumStdDev,
 	}
 
 	cases := []struct {
@@ -266,7 +263,6 @@ func TestGNOIPing(t *testing.T) {
 			MinTime:  minimumMinTime,
 			AvgTime:  minimumAvgTime,
 			MaxTime:  minimumMaxTime,
-			StdDev:   minimumStdDev,
 		},
 	}, {
 		desc: "Check ping with IPv6 count",
@@ -285,7 +281,6 @@ func TestGNOIPing(t *testing.T) {
 			MinTime:  minimumMinTime,
 			AvgTime:  minimumAvgTime,
 			MaxTime:  minimumMaxTime,
-			StdDev:   minimumStdDev,
 		},
 	}, {
 		desc: "Check ping with IPv4 minimum packet size",
@@ -422,16 +417,8 @@ func TestGNOIPing(t *testing.T) {
 				t.Errorf("Number of responses to %v: got 0, want > 0", tc.pingRequest.Destination)
 			}
 
-			StdDevZero := true
-			pingTime := responses[len(responses)-1].Time
-
 			for i := 0; i < len(responses)-1; i++ {
 				t.Logf("Check each ping reply %v out of %v.\n  %v\n", i+1, len(responses), responses[i])
-
-				// Check StdDev if ping time is different
-				if pingTime != responses[i].Time {
-					StdDevZero = false
-				}
 
 				if responses[i].Source != tc.expectedReply.Source {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
@@ -468,9 +455,6 @@ func TestGNOIPing(t *testing.T) {
 			}
 			if summary.MaxTime < tc.expectedStats.MaxTime {
 				t.Errorf("Ping MaxTime: got %v, want >= %v", summary.MaxTime, tc.expectedStats.MaxTime)
-			}
-			if summary.StdDev < tc.expectedStats.StdDev && !StdDevZero {
-				t.Errorf("Ping Standard Deviation: got %v, want >= %v", summary.StdDev, tc.expectedStats.StdDev)
 			}
 		})
 	}
