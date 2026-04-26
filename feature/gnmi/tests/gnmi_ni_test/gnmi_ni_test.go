@@ -1,7 +1,10 @@
 package gnmi_ni_test
 
 import (
+	"fmt"
+	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -54,9 +57,25 @@ var (
 func TestGNMIAdditionalNetworkInstance(t *testing.T) {
 	// configure DUT
 	dut := ondatra.DUT(t, "dut")
+	// Get current ports from the device
+	usedPorts := GetUsedPorts(t, dut)
+	// Generate a port number between 10000 and 65535
+	gNMIPort1, err := GenerateUniquePort(10000, 65535, usedPorts)
+	if err != nil {
+		t.Fatalf("Could not generate port: %v", err)
+	}
+	t.Logf("Generated unique gNMIport1: %d", gNMIPort1)
+
+	usedPorts = append(usedPorts, gNMIPort1)
+	gNMIPort2, err := GenerateUniquePort(10000, 65535, usedPorts)
+	if err != nil {
+		t.Fatalf("Could not generate port: %v", err)
+	}
+	t.Logf("Generated unique gNMIport2: %d", gNMIPort2)
+
 	batch := &gnmi.SetBatch{}
-	ConfigureDUT(batch, t, dut)
-	ConfigureAdditionalNetworkInstance(batch, t, dut, customVRFName)
+	ConfigureDUT(batch, t, dut, gNMIPort1)
+	ConfigureAdditionalNetworkInstance(batch, t, dut, customVRFName, gNMIPort2)
 	t.Log("\nApplying configuration to DUT\n")
 	batch.Set(t, dut)
 	t.Log("\nConfiguration applied to DUT\n")
@@ -64,7 +83,7 @@ func TestGNMIAdditionalNetworkInstance(t *testing.T) {
 }
 
 // ConfigureDUT configures port1 and port2 on the DUT with default network instance.
-func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, gNMIPort uint16) {
 
 	// Configuring basic interface and subinterfaces.
 	cfgplugins.EnableInterfaceAndSubinterfaces(t, dut, batch, dutPort1)
@@ -75,15 +94,16 @@ func ConfigureDUT(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice) {
 		cfgplugins.AssignInterfaceToNetworkInstance(t, batch, dut, dut.Port(t, "port1").Name(), &dutPort1NetworkInstanceIParams, dutPort1.Subinterface)
 	}
 
-	// Configure default network instance.
-	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort1NetworkInstanceIParams)
+	// TBD Not required #### Configure default network instance.
+	//cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort1NetworkInstanceIParams)
 
 	// Configure gNMI server on default network instance.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams)
+	transportSecurity := false
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort1NetworkInstanceIParams, gNMIPort, transportSecurity)
 }
 
 // ConfigureAdditionalNetworkInstance configures a new network instance in DUT and changes the network instance of port2
-func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, ni string) {
+func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut *ondatra.DUTDevice, ni string, gNMIPort uint16) {
 	// Configure interface, non-default network instance
 	t.Logf("\nConfiguring network instance and gNMI server: Network instance: %s \n", ni)
 
@@ -96,7 +116,8 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 	cfgplugins.NewNetworkInstance(t, dut, batch, &dutPort2NetworkInstanceIParams)
 
 	// Configure non-default gNMI server.
-	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams)
+	transportSecurity := false
+	cfgplugins.CreateGNMIServer(t, dut, batch, &dutPort2NetworkInstanceIParams, gNMIPort, transportSecurity)
 }
 
 func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
@@ -126,11 +147,15 @@ func ValidateNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	customGnmiServerName := "gnxi-" + customVRFName
 
 	var defaultValidated, customValidated bool
+
 	for _, gnmiServer := range gnmiServerList {
 		serverName := gnmiServer.GetName()
-		// Using gnmiServer.GetName() to get the state is better than hardcoding.
+		// Skip for the internal Juniper system serverName DEFAULT
+		if dut.Vendor() == ondatra.JUNIPER && serverName == "DEFAULT" {
+			t.Logf("Skipping internal Juniper system server placeholder: %s", serverName)
+			continue
+		}
 		serverState := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).State())
-
 		switch serverName {
 		case customGnmiServerName:
 			validateGnmiServerState(t, serverState)
@@ -164,4 +189,39 @@ func validateGnmiServerState(t *testing.T, state *oc.System_GrpcServer) {
 	}
 	t.Logf("gNMI Server: %s, running on network instance: %s, listening port: %v, Enabled: %t",
 		state.GetName(), state.GetNetworkInstance(), state.GetPort(), state.GetEnable())
+}
+func GetUsedPorts(t *testing.T, dut *ondatra.DUTDevice) []uint16 {
+	t.Helper()
+	var used []uint16
+
+	// Query all gRPC servers in the system
+	servers := gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State())
+
+	for _, s := range servers {
+		if s.Port != nil {
+			used = append(used, s.GetPort())
+		}
+	}
+
+	return used
+}
+
+func GenerateUniquePort(min, max int, usedPorts []uint16) (uint16, error) {
+	// Seed the random generator
+	rand.Seed(time.Now().UnixNano())
+
+	usedMap := make(map[uint16]bool)
+	for _, p := range usedPorts {
+		usedMap[p] = true
+	}
+
+	// Try up to 100 times to find a random free port
+	for i := 0; i < 100; i++ {
+		p := uint16(rand.Intn(max-min+1) + min)
+		if !usedMap[p] {
+			return p, nil
+		}
+	}
+
+	return 0, fmt.Errorf("failed to find a unique port after 100 attempts")
 }
