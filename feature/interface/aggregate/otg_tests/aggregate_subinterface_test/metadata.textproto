@@ -13,7 +13,6 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
-    deprecated_vlan_id: true
     require_routed_subinterface_0: true
   }
 }
