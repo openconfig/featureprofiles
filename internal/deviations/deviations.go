@@ -2063,9 +2063,8 @@ func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
 }
 
-// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// AcctzRecordFailGrpcUnsupported returns true if the device does not support Acctz record for fail user.
 // Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
-
 func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
 }
@@ -2074,6 +2073,12 @@ func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
 func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
 }
 
 // GrpcServerServicesUnsupported returns true if the device does not support the services leaf
