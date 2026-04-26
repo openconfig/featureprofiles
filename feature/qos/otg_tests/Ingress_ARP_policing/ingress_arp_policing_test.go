@@ -23,6 +23,7 @@ import (
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -38,8 +39,6 @@ const (
 	trafficDuration = 30 * time.Second
 	rateKbps        = 1500
 	fixedSize       = 64
-	fixedTotalPkts  = 20000
-	expectedLoss    = true
 	cir             = 1000
 	burstCount      = 100
 	classifierName  = "ARP-match"
@@ -158,6 +157,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	i2 := dutPort2.NewOCInterface(p2, dut)
 	gnmi.Replace(t, dut, d.Interface(p2).Config(), i2)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	configureHardwareInit(t, dut)
 }
 
 func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName string) {
@@ -222,6 +222,20 @@ func configureDUTTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, portName st
 		}
 		// Push full config
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), qos)
+	}
+}
+
+// configureHardwareInit configures the TCAM Profile based on the test.
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	features := []cfgplugins.FeatureType{
+		cfgplugins.FeatureIngressARP,
+	}
+	for _, feature := range features {
+		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
+		if hardwareInitCfg != "" {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
+		}
 	}
 }
 
