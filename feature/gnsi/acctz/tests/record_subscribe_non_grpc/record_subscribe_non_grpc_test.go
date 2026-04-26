@@ -56,9 +56,8 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	acctz.SetupUsers(t, dut, true)
 	var records []*acctzpb.RecordResponse
 
-	// Put enough time between the test starting and any prior events so we can easily know where
-	// our records start.
-	startTime := time.Now().Add(-10 * time.Second)
+	// Use the DUT's own clock to avoid clock skew between test host and DUT.
+	startTime := acctz.StartTimestamp(t, dut).AsTime()
 
 	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)

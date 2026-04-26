@@ -29,7 +29,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type recordRequestResult struct {
@@ -53,13 +52,8 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	} else {
 		acctz.SetupUsers(t, dut, false)
 	}
-	startTime := time.Now()
-
 	// Get gNSI record subscribe client.
-	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: startTime.Unix(),
-		Nanos:   0,
-	}
+	requestTimestamp := acctz.StartTimestamp(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{Timestamp: requestTimestamp})
 	if err != nil {
