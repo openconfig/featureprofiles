@@ -18,7 +18,6 @@ package basic_encap_test
 import (
 	"fmt"
 	"log"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -901,15 +900,6 @@ func clearCapture(t *testing.T, otg *otg.OTG, topo gosnappi.Config) {
 	otg.PushConfig(t, topo)
 }
 
-func randRange(max int, count int) []uint32 {
-	rand.New(rand.NewSource(time.Now().UnixNano()))
-	var result []uint32
-	for len(result) < count {
-		result = append(result, uint32(rand.Intn(max)))
-	}
-	return result
-}
-
 // getFlow returns a flow of type ipv4, ipv4in4, ipv6in4 or ipv6 with dscp value passed in args.
 func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.Flow {
 	flow := fa.topo.Flows().Add().SetName(name)
@@ -949,8 +939,10 @@ func (fa *flowAttr) getFlow(flowType string, name string, dscp uint32) gosnappi.
 		v6.TrafficClass().SetValue(dscp << 2)
 	}
 	udp := flow.Packet().Add().Udp()
-	udp.SrcPort().SetValues(randRange(50001, 10000))
-	udp.DstPort().SetValues(randRange(50001, 10000))
+	udpSrcPortRand := udp.SrcPort().Random()
+	udpSrcPortRand.SetMin(1).SetMax(50001).SetCount(10000).SetSeed(1)
+	udpDstPortRand := udp.DstPort().Random()
+	udpDstPortRand.SetMin(1).SetMax(50001).SetCount(10000).SetSeed(1)
 
 	return flow
 }
