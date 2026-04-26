@@ -38,5 +38,7 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    default_ni_gnmi_server_name: "gnxi-mgmt_junos"
+    default_network_instance: "mgmt_junos"
   }
 }
