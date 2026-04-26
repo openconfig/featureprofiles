@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "82a0e32f-4f79-43dc-a2f3-da48275c539e"
+plan_id: "AFT-6.4"
+description: "AFT Prefix Filtering Dynamic Updates"
+testbed: TESTBED_DUT_ATE_2LINKS
