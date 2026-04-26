@@ -27,6 +27,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	cpb "github.com/openconfig/gnoi/containerz"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 // Client returns a new containerz client.
@@ -54,12 +55,21 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
 	case ondatra.CISCO:
-		dut.Config().New().WithCiscoText(`
-			appmgr docker allow-sensitive-paths
-			ipv6 access-list restrict-access-ipv6
-			  ! open port for cntrsrv from PROD
-			  permit tcp any any eq 60061
-		`).Append(t)
+		dut.CLI().Run(t, "appmgr docker allow-sensitive-paths")
+		if _, err := dut.RawAPIs().GNMI(t).Set(context.Background(), &gpb.SetRequest{
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{
+					Origin: "cli",
+				},
+				Val: &gpb.TypedValue{
+					Value: &gpb.TypedValue_AsciiVal{
+						AsciiVal: "ipv6 access-list restrict-access-ipv6\n  ! open port for cntrsrv from PROD\n  permit tcp any any eq 60061",
+					},
+				},
+			}},
+		}); err != nil {
+			t.Fatalf("Failed to configure Cisco ACL via gNMI CLI origin: %v", err)
+		}
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
 	case ondatra.NOKIA, ondatra.JUNIPER:
