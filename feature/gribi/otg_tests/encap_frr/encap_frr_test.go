@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -501,14 +502,23 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		intfName = intfName + ".0"
-	}
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		intfName += ".0"
+	// Parse interface name to extract base interface and subinterface index.
+	baseIntf := intfName
+	var subIdx uint32
+	if parts := strings.SplitN(intfName, ".", 2); len(parts) == 2 {
+		baseIntf = parts[0]
+		if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+			subIdx = uint32(v)
+		}
 	}
 
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	// For deviations that require .0 suffix for base interfaces, ensure it's added.
+	isisIntfName := intfName
+	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(intfName, ".") {
+		isisIntfName = intfName + ".0"
+	}
+
+	isisIntf := isis.GetOrCreateInterface(isisIntfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
@@ -520,6 +530,12 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	}
 	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 		isisIntfLevelAfi.Enabled = nil
+	}
+	// Always populate interface-ref with base interface and subinterface index
+	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		isisIntf.InterfaceRef = nil
 	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
