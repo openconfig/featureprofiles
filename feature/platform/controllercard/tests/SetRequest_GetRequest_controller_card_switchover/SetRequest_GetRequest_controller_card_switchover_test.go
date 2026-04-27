@@ -17,6 +17,8 @@ package controller_card_switchover_config_pull_and_push_test
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -50,23 +52,24 @@ const (
 	getRequestTimeout               = 10 * time.Second
 	controllerCardSwitchoverTimeout = 2 * time.Minute
 	sleepTimeBtwAttempts            = 10 * time.Second
-	//lastRequestTime                 = 110 * time.Second
-	lastRequestTime = 120 * time.Second
-	//maxResponseTime                 = 120 * time.Second
-	maxResponseTime = 150 * time.Second
-	bgpPeerGrpName  = "BGP-PEER-GROUP1"
-	globalRouterID  = "192.0.2.1"
-	peerASN         = 64501
-	localASN        = 65501
-	IPv4PrefixLen   = 30
-	IPv6PrefixLen   = 126
-	isisInstance    = "DEFAULT"
+	lastRequestTime                 = 120 * time.Second
+	maxResponseTime                 = 150 * time.Second
+	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
+	globalRouterID                  = "192.0.2.1"
+	peerASN                         = 64501
+	localASN                        = 65501
+	IPv4PrefixLen                   = 31
+	IPv6PrefixLen                   = 127
+	isisInstance                    = "DEFAULT"
 )
 
 type activeStandByControllerCards struct {
 	activeControllerCard  string
 	standbyControllerCard string
 }
+
+var aggIDs []string
+var numRE = regexp.MustCompile(`(\d+)`)
 
 // configParams holds the parameters for the OpenConfig configuration
 type configParams struct {
@@ -149,27 +152,50 @@ var (
 	params   configParams
 )
 
+// nextAggregates is like netutil.NextAggregateInterface but obtains multiple
+// aggregate interfaces.
+func nextAggregates(t *testing.T, dut *ondatra.DUTDevice, n int) []string {
+	firstAgg := netutil.NextAggregateInterface(t, dut)
+	start, err := strconv.Atoi(numRE.FindString(firstAgg))
+	if err != nil {
+		t.Fatalf("Cannot extract integer from %q: %v", firstAgg, err)
+	}
+	aggs := []string{firstAgg}
+	for i := start + 1; i < start+n; i++ {
+		agg := numRE.ReplaceAllStringFunc(firstAgg, func(_ string) string {
+			return strconv.Itoa(i)
+		})
+		//some aggregate interface after firstAgg may already be present in the system.
+		_, present := gnmi.Lookup(t, dut, gnmi.OC().Interface(agg).Name().State()).Val()
+		if !present {
+			aggs = append(aggs, agg)
+		} else {
+			n++
+		}
+	}
+	return aggs
+}
 func setConfig(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
-
-	var aggIDs []string
-	for i := 1; i <= params.NumLAGInterfaces; i++ {
+	for i := 0; i < params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
-			Desc:    fmt.Sprintf("LAG Interface %d", i),
-			IPv4:    fmt.Sprintf("192.0.2.%d", i),
-			IPv6:    fmt.Sprintf("2001:db8::%d", i),
+			Desc:    fmt.Sprintf("LAG Interface %d", i+1),
+			IPv4:    fmt.Sprintf("192.0.2.%d", i+1),
+			IPv6:    fmt.Sprintf("2001:db8::%d", i+1),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
 		}
-		aggID := netutil.NextAggregateInterface(t, dut)
-		t.Logf(" Inside setConfig loop i= %d ,netutils returned aggID is %v", i, aggID)
+		aggID := aggIDs[i]
+		t.Logf(" Inside setConfig loop i= %d , aggID is %v", i, aggID)
 
-		aggIDs = append(aggIDs, aggID)
+		//aggIDs = append(aggIDs, aggID)
 		agg := lagInterfaceAttrs.NewOCInterface(aggID, dut)
 		agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
 		agg.GetOrCreateAggregation().LagType = oc.IfAggregate_AggregationType_STATIC
 		if result := gnmi.Replace(t, dut, gnmi.OC().Interface(aggID).Config(), agg); result.RawResponse.Message.GetCode() != 0 {
-			return fmt.Errorf("unable to set lag interface")
+			//return fmt.Errorf("unable to set lag interface")
+			t.Logf("In Agg create loop gNMI Replace failed: %v", result.RawResponse.Message)
+			return fmt.Errorf("In Agg create loop gNMI Replace failed: %v", result.RawResponse.Message)
 		}
 	}
 
@@ -308,6 +334,9 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice, config *gpb.
 
 func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
 	activeStandbyCC := fetchActiveStandbyControllerCards(t, dut, controllerCards)
+	//define aggIDs here
+	aggIDs = nextAggregates(t, dut, params.NumLAGInterfaces)
+	t.Logf("****nextAggregates generated aggIDS is %s ", aggIDs)
 	switchoverControllerCards(ctx, t, dut, &switchoverControllerCardsConfig{&activeStandbyCC, gnoiClient, controllerCardSwitchoverTimeout})
 	switchoverResponseTime := time.Now()
 
@@ -330,7 +359,7 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 		if setResponseTime.Sub(switchoverResponseTime) > maxResponseTime {
 			t.Fatalf("gNMI Set response after switchover time: %v, got SUCCESS, but exceeded max response time: %v", setResponseTime.Sub(switchoverResponseTime), maxResponseTime)
 		}
-		t.Logf("gNMI Set response after switchover time: %v, got SUCCESS in attempt %d", setResponseTime.Sub(switchoverResponseTime), attempt)
+		t.Logf("****SUCESS!!!gNMI Set response after switchover time: %v, got SUCCESS in attempt %d", setResponseTime.Sub(switchoverResponseTime), attempt)
 		break
 	}
 	if setErr != nil {
