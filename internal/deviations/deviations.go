@@ -1699,6 +1699,14 @@ func MatchAsPathSetUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMatchAsPathSetUnsupported()
 }
 
+// BgpDefaultVrfIPv4UnicastAfiSafiEnabledLeafMissing returns the implicit value to assume for the
+// enabled leaf under bgp/global/afi-safis/afi-safi[IPV4_UNICAST] config in the default VRF when
+// it is absent from the device response. An empty string means the deviation is not set.
+// Arista: https://issuetracker.google.com/493611623
+func BgpDefaultVrfIPv4UnicastAfiSafiEnabledLeafMissing(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetBgpDefaultVrfIpv4UnicastAfiSafiEnabledLeafMissing()
+}
+
 // SameAfiSafiAndPeergroupPoliciesUnsupported returns true if configuring same apply-policy under peer-group and peer-group/afi-safi is unsupported
 func SameAfiSafiAndPeergroupPoliciesUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSameAfiSafiAndPeergroupPoliciesUnsupported()

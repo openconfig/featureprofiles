@@ -21,5 +21,7 @@ platform_exceptions: {
   deviations: {
     default_network_instance: "default"
     interface_enabled: true
+    missing_value_for_defaults: true
+    bgp_default_vrf_ipv4_unicast_afi_safi_enabled_leaf_missing: "true"
   }
 }
