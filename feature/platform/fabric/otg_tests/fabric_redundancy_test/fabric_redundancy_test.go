@@ -540,7 +540,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 
 }
 
-func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
+// Note: We are accepting extra unused parameters to comply with the interface of test loop.
+func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, _ []string, _ otgData) {
 	expectedPlaneCounters := []string{
 		"uncorrectable-error-cells",
 		"unicast-lost-cells",
@@ -674,7 +675,7 @@ func TestFabricRedundancy(t *testing.T) {
 			testFunc: testFabricErrorTelemetryPresence,
 		})
 	} else {
-		t.Skip("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
+		t.Logf("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
 	}
 
 	// Run the test cases.
