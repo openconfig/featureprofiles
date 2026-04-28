@@ -77,9 +77,11 @@ address family under test before subscribing. (Note: Simultaneous application of
 both policies is covered in
 [AFT-6.2.1](../afts_prefix_filtering_dualstack/README.md#aft-621---simultaneous-independent-ipv4-and-ipv6-policy-application)).
 
-## AFT-6.1.1 - Validation of Subscription with Prefix-Set Policy
+## Procedure
 
-### Configure Routing Policy and Prefixes
+### AFT-6.1.1 - Validation of Subscription with Prefix-Set Policy
+
+#### Configure Routing Policy and Prefixes
 
 - Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
   `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
@@ -97,7 +99,7 @@ both policies is covered in
     `/network-instances/network-instance/afts/global-filter/config/ipv6-policy`
     is NOT set (or set to an empty/matching-none policy).
 
-### Subscribe
+#### Subscribe
 
 Establish a gNMI STREAM subscription (ON_CHANGE) to the DUT targeting the
 following paths within the `DEFAULT` network instance AFT:
@@ -153,7 +155,7 @@ subscribe: {
 }
 ```
 
-### Validate Initial Synced Data
+#### Validate Initial Synced Data
 
 - Wait for the initial set of gNMI Notifications and verify `SYNC` is
   received.
@@ -170,7 +172,7 @@ subscribe: {
 - Verify that the `atomic` flag is set to `true` on all initial update
   notifications. (See [AFT-3.1](../../../otg_tests/afts_atomic/README.md) for complete atomic-flag behavior coverage.)
 
-### Validate Dynamic Updates
+#### Validate Dynamic Updates
 
 - Add a new prefix (`198.51.100.1/32`) to the DUT that matches
   `POLICY-PREFIX-SET-A`. Verify receipt of an update notification for this
@@ -184,7 +186,7 @@ subscribe: {
 - Add a new prefix (`100.64.1.0/24`) to the DUT that does **not** match the
   routing policy. Verify that **no** gNMI update is received for this prefix.
 
-### Remove the Filtered View
+#### Remove the Filtered View
 
 - Delete the `global-filter` configuration from the DUT.
 
@@ -196,7 +198,7 @@ subscribe: {
 - Verify that the previously excluded prefix `100.64.0.0/24` is now received,
   confirming the filter has been lifted.
 
-## AFT-6.1.2 - Validation with Non-Existent Policy
+### AFT-6.1.2 - Validation with Non-Existent Policy
 
 - Attempt to configure the AFT global filter `ipv4-policy` and `ipv6-policy`
   with `POLICY-DOES-NOT-YET-EXIST`.
@@ -217,7 +219,7 @@ subscribe: {
   - Prefixes that do not match `POLICY-DOES-NOT-YET-EXIST` are **not**
     received.
 
-## AFT-6.1.3 - Validation of Policy Deletion
+### AFT-6.1.3 - Validation of Policy Deletion
 
 - Configure the device to filter AFT using `POLICY-PREFIX-SET-A`.
 
@@ -242,7 +244,7 @@ subscribe: {
 
 - Verify notifications match the expected filtered set as in **AFT-6.1.1**.
 
-### Multi-Step Policy Deletion
+#### Multi-Step Policy Deletion
 
 - Delete the global filter reference in a first gNMI.Set request. Verify no
   error is returned.
@@ -253,7 +255,7 @@ subscribe: {
 - Verify that the previously excluded prefix `100.64.0.0/24` is now received,
   confirming the filter has been lifted.
 
-## AFT-6.1.4 - Changing the Prefix-Set Referenced by the Active Policy
+### AFT-6.1.4 - Changing the Prefix-Set Referenced by the Active Policy
 
 - Configure the global-filter `ipv4-policy` to `POLICY-PREFIX-SET-A`.
 
@@ -270,7 +272,7 @@ subscribe: {
   `PREFIX-SET-B`, since the DUT's AFT contains no installed entries matching
   those prefixes.
 
-## AFT-6.1.5 - Policy with Multiple Statements Referencing Different Prefix-Sets
+### AFT-6.1.5 - Policy with Multiple Statements Referencing Different Prefix-Sets
 
 - Install an additional route `203.0.113.128/25` on the DUT (matches
   `PREFIX-SET-SUBNET` via `203.0.113.0/24` with masklength `/25`–`/32`).
@@ -289,7 +291,7 @@ subscribe: {
 - Verify that all next-hop-groups and next-hops referenced by the matching
   prefixes are received.
 
-## AFT-6.1.6 - Policy with DENY Action (Prefix-Set as Exclusion List)
+### AFT-6.1.6 - Policy with DENY Action (Prefix-Set as Exclusion List)
 
 - Configure the global-filter `ipv4-policy` to `POLICY-DENY-PREFIX-SET-A`.
 
@@ -304,9 +306,9 @@ subscribe: {
 - Verify that all next-hop-groups and next-hops referenced by the accepted
   prefix are received.
 
-## AFT-6.1.7 - Negative: Non-Prefix-Set Match Criteria
+### AFT-6.1.7 - Negative: Non-Prefix-Set Match Criteria
 
-### Fresh Subscribe with Non-Matching Policy
+#### Fresh Subscribe with Non-Matching Policy
 
 - Configure the global-filter `ipv4-policy` to `POLICY-TAG-MATCH`.
 
@@ -316,7 +318,7 @@ subscribe: {
   installed routes). All expected next-hop-groups and next-hops are received
   normally.
 
-### Transition from Active Policy to Non-Matching Policy
+#### Transition from Active Policy to Non-Matching Policy
 
 - Configure the global-filter `ipv4-policy` to `POLICY-PREFIX-SET-A`.
 

@@ -19,9 +19,11 @@ policy definitions.
 Use the test environment and routing policies described in
 [AFT-6.1](../afts_prefix_filtering/README.md#test-setup).
 
-## AFT-6.3.1 - Validation After Device Reboot
+## Procedure
 
-### Establish Subscription
+### AFT-6.3.1 - Validation After Device Reboot
+
+#### Establish Subscription
 
 - Configure `POLICY-PREFIX-SET-A` and set the global filter `ipv4-policy` and
   `ipv6-policy` to it.
@@ -29,19 +31,19 @@ Use the test environment and routing policies described in
 - Establish a successful gNMI subscription and verify the initial filtered set
   of AFT entries is received.
 
-### Reboot DUT
+#### Reboot DUT
 
 - Issue a reboot command to the DUT via `gNOI.System/Reboot` while the
   subscription is active.
 
 - Verify the gNMI stream terminates.
 
-### Await DUT Readiness
+#### Await DUT Readiness
 
 - Wait for the DUT to become reachable and for gNMI to be available after
   reboot.
 
-### Re-establish Subscription
+#### Re-establish Subscription
 
 - Re-establish the same gNMI subscription.
 
@@ -56,7 +58,7 @@ Use the test environment and routing policies described in
 - Verify that the DUT streams the correct filtered set of AFT entries matching
   `POLICY-PREFIX-SET-A`.
 
-## AFT-6.3.2 - Scale Test
+### AFT-6.3.2 - Scale Test
 
 - Let `X` be the number of IPv4 routes to advertise from the ATE. **(User
   Adjustable Value, default: 5000)**
@@ -84,13 +86,13 @@ Use the test environment and routing policies described in
 - Verify correct filtering is applied in all scenarios (only matching prefixes
   for the active address family are streamed).
 
-## AFT-6.3.3 - Per Network-Instance Filtering with Multiple Collectors
+### AFT-6.3.3 - Per Network-Instance Filtering with Multiple Collectors
 
 To validate that AFT filters are applied independently per network instance and
 that multiple collectors can subscribe to different network instances with their
 respective filters.
 
-### Setup
+#### Setup
 
 - Configure two network instances on the DUT: `DEFAULT` and `VRF-A`.
 
@@ -121,7 +123,7 @@ respective filters.
     `/network-instances/network-instance[name=VRF-A]/afts/global-filter/config/ipv6-policy` =
     `POLICY-PREFIX-SET-VRF-A`
 
-### Validation
+#### Validation
 
 - **Collector 1**: Establishes a gNMI subscription to AFT paths within the
   `DEFAULT` network instance.

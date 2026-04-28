@@ -28,9 +28,11 @@ the following policies and prefixes are configured:
   each address family (e.g., `100.64.0.0/24` for IPv4, `2001:DB8:1::/64` for
   IPv6).
 
-## AFT-6.2.1 - Simultaneous Independent IPv4 and IPv6 Policy Application
+## Procedure
 
-### Setup
+### AFT-6.2.1 - Simultaneous Independent IPv4 and IPv6 Policy Application
+
+#### Setup
 
 - Configure the global filter such that different address families use
   different policies:
@@ -40,7 +42,7 @@ the following policies and prefixes are configured:
   - `/network-instances/network-instance[name=DEFAULT]/afts/global-filter/config/ipv6-policy` =
     `POLICY-PREFIX-SET-B`
 
-### Validation
+#### Validation
 
 - Establish a gNMI STREAM subscription (ON_CHANGE) to the AFT of the `DEFAULT`
   network instance as described in
