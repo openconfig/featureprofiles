@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fe8a1596-7b82-483c-b3b4-df1672bef2df"
+plan_id: "MSEC-1.1"
+description: "MACsec Configuration and Verification (DUT-to-DUT)"
+testbed: TESTBED_DUT_DUT_4LINKS
