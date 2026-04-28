@@ -219,10 +219,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	agg.Protocol().Lacp().SetActorKey(1).SetActorSystemPriority(1).SetActorSystemId("01:01:01:01:01:01")
 
 	// Gather only the ports actively added to the topology
-	activePorts := []*ondatra.Port{tc.atePorts[2]}
-	for _, p := range tc.atePorts[0:1] {
-		activePorts = append(activePorts, p)
-	}
+	activePorts := []*ondatra.Port{tc.atePorts[2], tc.atePorts[0]}
 
 	// Disable FEC for active 100G-FR ports because Novus does not support it.
 	var p100gbasefr []string
@@ -421,8 +418,9 @@ func LinecardReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	} else {
 		validCards = lcs
 	}
-	if *args.NumLinecards >= 0 && len(validCards) <= *args.NumLinecards {
-		t.Errorf("Incorrect number of linecards: got %v, want atleast %v (specified by flag)", len(validCards), *args.NumLinecards)
+	if *args.NumLinecards >= 0 && len(validCards) < *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want at least %v (specified by flag)", len(validCards), *args.NumLinecards)
+	}
 	}
 
 	if got := len(validCards); got == 0 {
@@ -920,8 +918,9 @@ func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string
 	} else {
 		validCards = lcs
 	}
-	if *args.NumLinecards >= 0 && len(validCards) <= *args.NumLinecards {
-		t.Errorf("Incorrect number of linecards: got %v, want atleast %v (specified by flag)", len(validCards), *args.NumLinecards)
+	if *args.NumLinecards >= 0 && len(validCards) < *args.NumLinecards {
+		t.Errorf("Incorrect number of linecards: got %v, want at least %v (specified by flag)", len(validCards), *args.NumLinecards)
+	}
 	}
 
 	if got := len(validCards); got == 0 {
