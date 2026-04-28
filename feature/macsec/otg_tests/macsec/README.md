@@ -23,6 +23,13 @@ Ensure that network devices successfully negotiate and establish MACsec Secure E
     *   Set cipher to `aes256-gcm`.
     *   Set the shared key (CKN and CAK) to match on both devices.
     *   Apply IP addressing and the `must_secure` profile to the dedicated test interfaces.
+
+#### Canonical OC
+
+```json
+{}
+```
+
 * Step 3 - Wait for the MACsec session to establish.
 * Step 4 - Validate that the operational status transitions to `Secured`, the CKN matches the configured value, and control plane packet counters (`tx-pkts-ctrl` and `rx-pkts-ctrl`) are non-zero on both DUTs.
 
