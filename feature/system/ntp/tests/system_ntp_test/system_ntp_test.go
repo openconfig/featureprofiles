@@ -84,7 +84,7 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 	for _, testCase := range testCases {
-		if testCase.vrf != "" {
+		if testCase.vrf != "DEFAULT" {
 			createVRF(t, dut, testCase.vrf)
 			addLoopbackToVRF(t, dut, testCase.vrf, loopbackIntfName)
 		}
