@@ -17,6 +17,7 @@ package ping_test
 import (
 	"context"
 	"io"
+	"net"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -433,7 +434,7 @@ func TestGNOIPing(t *testing.T) {
 					StdDevZero = false
 				}
 
-				if responses[i].Source != tc.expectedReply.Source {
+				if !ipEqual(responses[i].Source, tc.expectedReply.Source) {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
 
@@ -474,6 +475,15 @@ func TestGNOIPing(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ipEqual(got, want string) bool {
+	gotIP := net.ParseIP(got)
+	wantIP := net.ParseIP(want)
+	if gotIP != nil && wantIP != nil {
+		return gotIP.Equal(wantIP)
+	}
+	return got == want
 }
 
 func fetchResponses(c spb.System_PingClient) ([]*spb.PingResponse, error) {

@@ -17,6 +17,7 @@ package traceroute_test
 import (
 	"context"
 	"io"
+	"net"
 	"testing"
 	"time"
 
@@ -257,7 +258,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
-			if resps[0].DestinationAddress != tc.traceRequest.Destination {
+			if !ipEqual(resps[0].DestinationAddress, tc.traceRequest.Destination) {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
 			}
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
@@ -284,6 +285,15 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 		})
 	}
+}
+
+func ipEqual(got, want string) bool {
+	gotIP := net.ParseIP(got)
+	wantIP := net.ParseIP(want)
+	if gotIP != nil && wantIP != nil {
+		return gotIP.Equal(wantIP)
+	}
+	return got == want
 }
 
 func fetchTracerouteResponses(c spb.System_TracerouteClient) ([]*spb.TracerouteResponse, error) {
