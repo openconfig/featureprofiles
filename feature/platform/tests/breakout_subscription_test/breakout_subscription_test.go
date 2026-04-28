@@ -338,7 +338,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		time.Sleep(15 * time.Second)
 	}
 
-	// 2. Configure LACP SECOND
+	// Configure LACP SECOND
 	if tc.lagType == lagTypeLACP {
 		lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
@@ -348,7 +348,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		gnmi.Replace(t, tc.dut, lacpPath.Config(), lacp)
 	}
 
-	// 1. Create the Aggregate Interface FIRST
+	// Create the Aggregate Interface FIRST
 	agg := &oc.Interface{Name: ygot.String(tc.aggID)}
 	tc.configSrcAggregateDUT(agg, &dutSrc)
 	aggPath := d.Interface(tc.aggID)
@@ -357,7 +357,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	// 3. Configure the destination port
+	// Configure the destination port
 	dstp := tc.dutPorts[2]
 	dsti := &oc.Interface{Name: ygot.String(dstp.Name())}
 	tc.configDstDUT(dsti, &dutDst)
@@ -370,7 +370,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 		fptest.AssignToNetworkInstance(t, tc.dut, tc.aggID, deviations.DefaultNetworkInstance(tc.dut), 0)
 	}
 
-	// 4. Configure the member ports
+	// Configure the member ports
 	for _, port := range tc.dutPorts[0:1] {
 		i := &oc.Interface{Name: ygot.String(port.Name())}
 		tc.configSrcMemberDUT(i, port)
