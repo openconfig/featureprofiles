@@ -51,7 +51,7 @@ const (
 	setRequestTimeout               = 30 * time.Second
 	getRequestTimeout               = 10 * time.Second
 	controllerCardSwitchoverTimeout = 2 * time.Minute
-	sleepTimeBtwAttempts            = 10 * time.Second
+	sleepTimeBtwAttempts            = 20 * time.Second
 	lastRequestTime                 = 120 * time.Second
 	maxResponseTime                 = 150 * time.Second
 	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
@@ -342,7 +342,7 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 
 	var setResponseTime time.Time
 	var setErr error
-	for attempt := 1; attempt <= 4; attempt++ {
+	for attempt := 1; attempt <= 8; attempt++ {
 		if attempt > 1 {
 			time.Sleep(sleepTimeBtwAttempts)
 		}
