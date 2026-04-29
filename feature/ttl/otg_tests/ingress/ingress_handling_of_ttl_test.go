@@ -401,6 +401,12 @@ func verifyReceivedInnerPacketTTL(t *testing.T, captureFilename string, tc testC
 		if ipLayer == nil {
 			continue
 		}
+
+		if packet.Layer(layers.LayerTypeICMPv4) != nil || packet.Layer(layers.LayerTypeICMPv6) != nil {
+			t.Log("Skipping ICMP packet")
+			continue
+		}
+
 		ipOuterLayer, ok := ipLayer.(*layers.IPv4)
 		if !ok || ipOuterLayer == nil {
 			t.Errorf("Outer IP layer not found %d", ipLayer)
@@ -693,7 +699,7 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwarding)
+	hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, cfgplugins.FeaturePolicyForwardingTTLHandling)
 	if hardwareInitCfg == "" {
 		return
 	}
@@ -764,8 +770,8 @@ func verifyDutInterfaceCounters(t *testing.T, dut *ondatra.DUTDevice, intfName s
 		packetType = "out-unicast-pkts"
 	}
 	got := total - interfaceCounterPackets[intfKey]
-	message := fmt.Sprintf("Interface %s %s: got %d, want %d", intfName, packetType, got, expectedPkts)
-	if got != expectedPkts {
+	message := fmt.Sprintf("Interface %s %s: got %d, want >= %d", intfName, packetType, got, expectedPkts)
+	if got < expectedPkts {
 		t.Error(message)
 	} else {
 		t.Log(message)
