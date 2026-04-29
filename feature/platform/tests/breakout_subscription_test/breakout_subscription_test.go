@@ -921,7 +921,6 @@ func linecardDown(t testing.TB, dut *ondatra.DUTDevice, fpc string, lcs []string
 	if *args.NumLinecards >= 0 && len(validCards) < *args.NumLinecards {
 		t.Errorf("Incorrect number of linecards: got %v, want at least %v (specified by flag)", len(validCards), *args.NumLinecards)
 	}
-	}
 
 	if got := len(validCards); got == 0 {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
@@ -1115,4 +1114,3 @@ func TestBreakoutSubscription(t *testing.T) {
 		defer streamLC.CloseSend()
 	})
 }
-
