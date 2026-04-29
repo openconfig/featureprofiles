@@ -52,10 +52,8 @@ func TestNtpServerConfigurability(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	loopbackIntfName := netutil.LoopbackInterface(t, dut, loopbackIntf[dut.Vendor()])
 
-	// Get the correct string: "DEFAULT" (Cisco/Nokia), "default" (Arista), etc.
 	defaultVrf := deviations.DefaultNetworkInstance(dut)
 
-	// Clean up Nokia prior state if needed
 	if dut.Vendor() == ondatra.NOKIA {
 		helpers.GnmiCLIConfig(t, dut, "/ system delete ntp")
 	}
@@ -180,6 +178,6 @@ func addLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loop
 	i.Description = ygot.String(fmt.Sprintf("Port %s", loopbackIntfName))
 	si := i.GetOrCreateSubinterface(0)
 	si.Enabled = ygot.Bool(true)
+	
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), i)
 }
-
