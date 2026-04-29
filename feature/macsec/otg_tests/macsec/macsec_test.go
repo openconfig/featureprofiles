@@ -222,6 +222,7 @@ func getMacsecCounter(t *testing.T, dut *ondatra.DUTDevice, port string, counter
 			return update.GetVal().GetUintVal()
 		}
 	}
+	t.Errorf("[%s] Counter %s on port %s not found", dut.Name(), counterName, port)
 	return 0
 }
 
