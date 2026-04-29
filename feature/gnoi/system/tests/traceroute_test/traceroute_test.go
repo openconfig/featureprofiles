@@ -17,7 +17,7 @@ package traceroute_test
 import (
 	"context"
 	"io"
-	"net"
+	"net/netip"
 	"testing"
 	"time"
 
@@ -254,7 +254,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 			t.Logf("Got traceroute responses: Items: %v\n, Content: %v\n\n", len(resps), resps)
 			if len(resps) == 0 {
-				t.Errorf("Number of responses to %v: got 0, want > 0", tc.traceRequest.Destination)
+				t.Fatalf("Number of responses to %v: got 0, want > 0", tc.traceRequest.Destination)
 			}
 
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
@@ -288,10 +288,10 @@ func TestGNOITraceroute(t *testing.T) {
 }
 
 func ipEqual(got, want string) bool {
-	gotIP := net.ParseIP(got)
-	wantIP := net.ParseIP(want)
-	if gotIP != nil && wantIP != nil {
-		return gotIP.Equal(wantIP)
+	gotIP, errG := netip.ParseAddr(got)
+	wantIP, errW := netip.ParseAddr(want)
+	if errG == nil && errW == nil {
+		return gotIP == wantIP
 	}
 	return got == want
 }
