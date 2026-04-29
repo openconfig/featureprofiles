@@ -28,6 +28,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/functionaltranslator/registrar"
 	gpb "github.com/openconfig/goyang/pkg/proto"
+	spb "github.com/openconfig/gnoi/system"
 )
 
 const (
