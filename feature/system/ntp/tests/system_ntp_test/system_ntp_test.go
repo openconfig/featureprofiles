@@ -178,6 +178,6 @@ func addLoopbackToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname string, loop
 	i.Description = ygot.String(fmt.Sprintf("Port %s", loopbackIntfName))
 	si := i.GetOrCreateSubinterface(0)
 	si.Enabled = ygot.Bool(true)
-	
+
 	gnmi.Update(t, dut, gnmi.OC().Interface(loopbackIntfName).Config(), i)
 }
