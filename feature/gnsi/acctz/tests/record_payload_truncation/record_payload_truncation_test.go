@@ -93,14 +93,15 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 	request := &acctzpb.RecordRequest{
 		Timestamp: timestamppb.New(startTime),
 	}
 
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
 	t.Logf("Sending acctz record subscribe request: %s", acctz.PrettyPrint(request))
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), request, grpc.MaxCallRecvMsgSize(45000000))
+	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), request, grpc.MaxCallRecvMsgSize(45000000))
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)
 	}
