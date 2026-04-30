@@ -71,7 +71,7 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 *   Non-oversubscription traffic test case 1 with 80% of aggregated linerate
 
      Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
-    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+        ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
     NC1           | 3                       | 3                       | 100                   | 100
     Af4           | 24                      | 24                      | 100                   | 100
     AF3           | 6                       | 6                       | 100                   | 100
@@ -83,7 +83,7 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 *   Non-oversubscription traffic test case 2 with 98% of aggregated linerate
 
      Traffic class | Interface1(line rate %) | Interface2(line rate %) | Rx from interface1(%) | Rx from interface2(%)
-    ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
+        ------------- | ----------------------- | ----------------------- | --------------------- | ---------------------
     NC1           | 5                       | 4                       | 100                   | 100
     Af4           | 30                      | 30                      | 100                   | 100
     AF3           | 7.5                     | 7.5                     | 100                   | 100
@@ -100,15 +100,18 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 
 *   Counters should be verified using gNMI subscribe with sample mode
 
-    *   Run the test twice, once with a SAMPLE interval of 10 Seconds and once again
-        with a SAMPLE interval of 15 seconds for the below telemetry paths
-
+    *   Validate the below telemetry paths using gNMI `SAMPLE` subscriptions.
         *   /qos/interfaces/interface/output/queues/queue/state/transmit-pkts
         *   /qos/interfaces/interface/output/queues/queue/state/transmit-octets
         *   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts
         *   /qos/interfaces/interface/output/queues/queue/state/dropped-octets
+    *   By default, run the validation twice, once with a SAMPLE interval of 10 seconds
+        and once again with a SAMPLE interval of 15 seconds.
+    *   If the DUT supports only a slower sampling cadence for these QoS counters,
+        use an implementation-supported SAMPLE interval for validation.
 
- *   Ensure counter of all queues increment at the selected SAMPLE interval
+*   Ensure counters for all queues are observed and increment at each selected
+    SAMPLE interval
 
 ## Config parameter coverage
 
@@ -158,8 +161,8 @@ Verify that DUT supports QoS config and forward QoS traffic correctly.
 ## Protocol/RPC Parameter Coverage
 
 * gNMI
-  * Get
-  * Subscribe
+    * Get
+    * Subscribe
 
 ## Required DUT platform
 

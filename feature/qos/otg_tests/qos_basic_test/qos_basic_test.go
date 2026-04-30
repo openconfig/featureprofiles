@@ -76,6 +76,12 @@ type trafficData struct {
 	inputIntf             attrs.Attributes
 }
 
+type qosCounterSamplePlan struct {
+	interval   time.Duration
+	timeout    time.Duration
+	minSamples int
+}
+
 func getOptsForFunctionalTranslator(t *testing.T, dut *ondatra.DUTDevice, functionalTranslatorName string) []ygnmi.Option {
 	if functionalTranslatorName == "" {
 		return nil
@@ -536,27 +542,25 @@ func TestBasicConfigWithTraffic(t *testing.T) {
 
 				}
 			}
-			if !deviations.SkipSamplingQosCounters(dut) && !deviations.QosGetStatePathUnsupported(dut) {
-				// gnmi subscribe sample mode(10 and 15 seconds sample interval) for queue counters
-				subscribeTimeout := 30 * time.Second
-				for _, sampleInterval := range []time.Duration{10 * time.Second, 15 * time.Second} {
-					minWant := int(subscribeTimeout/sampleInterval) - 1
+			if !deviations.QosGetStatePathUnsupported(dut) {
+				for _, plan := range qosCounterSamplePlans(dut) {
+					t.Logf("Validating QoS counters with SAMPLE interval %s", plan.interval)
 					for _, data := range trafficFlows {
-						transmitPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), subscribeTimeout).Await(t)
-						if len(transmitPkts) < minWant {
-							t.Errorf("TransmitPkts: got %d, want >= %d", len(transmitPkts), minWant)
+						transmitPkts := gnmi.Collect(t, gnmiOpts(t, dut, plan.interval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitPkts().State(), plan.timeout).Await(t)
+						if len(transmitPkts) < plan.minSamples {
+							t.Errorf("TransmitPkts(%s): got %d, want >= %d", plan.interval, len(transmitPkts), plan.minSamples)
 						}
-						transmitOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), subscribeTimeout).Await(t)
-						if len(transmitOctets) < minWant {
-							t.Errorf("TransmitOctets: got %d, want >= %d", len(transmitOctets), minWant)
+						transmitOctets := gnmi.Collect(t, gnmiOpts(t, dut, plan.interval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).TransmitOctets().State(), plan.timeout).Await(t)
+						if len(transmitOctets) < plan.minSamples {
+							t.Errorf("TransmitOctets(%s): got %d, want >= %d", plan.interval, len(transmitOctets), plan.minSamples)
 						}
-						droppedPkts := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), subscribeTimeout).Await(t)
-						if len(droppedPkts) < minWant {
-							t.Errorf("DroppedPkts: got %d, want >= %d", len(droppedPkts), minWant)
+						droppedPkts := gnmi.Collect(t, gnmiOpts(t, dut, plan.interval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedPkts().State(), plan.timeout).Await(t)
+						if len(droppedPkts) < plan.minSamples {
+							t.Errorf("DroppedPkts(%s): got %d, want >= %d", plan.interval, len(droppedPkts), plan.minSamples)
 						}
-						droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, sampleInterval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), subscribeTimeout).Await(t)
-						if len(droppedOctets) < minWant {
-							t.Errorf("DroppedOctets: got %d, want >= %d", len(droppedOctets), minWant)
+						droppedOctets := gnmi.Collect(t, gnmiOpts(t, dut, plan.interval), gnmi.OC().Qos().Interface(dp3.Name()).Output().Queue(data.queue).DroppedOctets().State(), plan.timeout).Await(t)
+						if len(droppedOctets) < plan.minSamples {
+							t.Errorf("DroppedOctets(%s): got %d, want >= %d", plan.interval, len(droppedOctets), plan.minSamples)
 						}
 					}
 				}
@@ -1767,6 +1771,32 @@ func gnmiOpts(t *testing.T, dut *ondatra.DUTDevice, interval time.Duration) *gnm
 	opts = append(opts, ygnmi.WithSampleInterval(interval))
 	return dut.GNMIOpts().WithYGNMIOpts(opts...)
 }
+
+// qosCounterSamplePlans returns the DUT-supported SAMPLE subscription plans used to validate QoS counter telemetry.
+// minSamples is calculated as int(timeout/interval) - 1, allowing for start-up jitter.
+func qosCounterSamplePlans(dut *ondatra.DUTDevice) []qosCounterSamplePlan {
+	if deviations.SamplingQosCountersBelow30SecondsCadenceUnsupported(dut) {
+		return []qosCounterSamplePlan{{
+			interval:   30 * time.Second,
+			timeout:    60 * time.Second,
+			minSamples: 1,
+		}}
+	}
+
+	return []qosCounterSamplePlan{
+		{
+			interval:   10 * time.Second,
+			timeout:    30 * time.Second,
+			minSamples: 2,
+		},
+		{
+			interval:   15 * time.Second,
+			timeout:    30 * time.Second,
+			minSamples: 1,
+		},
+	}
+}
+
 func configureNoZeroSuppression(t *testing.T, dut *ondatra.DUTDevice) {
 	// Disable Zero suppression
 	t.Logf("Disable zero suppression:\n%s", dut.Vendor())

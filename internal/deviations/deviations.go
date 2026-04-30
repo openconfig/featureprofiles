@@ -1782,12 +1782,6 @@ func BgpLocalAggregateUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpLocalAggregateUnsupported()
 }
 
-// SkipSamplingQosCounters returns true if device does not support sampling QoS counters
-// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
-func SkipSamplingQosCounters(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetSkipSamplingQosCounters()
-}
-
 // DefaultNiGnmiServerName returns the user provided default server name for gRPC server in the default network-instance.
 func DefaultNiGnmiServerName(dut *ondatra.DUTDevice) string {
 	if gnmiServerName := lookupDUTDeviations(dut).GetDefaultNiGnmiServerName(); gnmiServerName != "" {
@@ -2119,4 +2113,10 @@ func CarrierFt(dut *ondatra.DUTDevice) string {
 // Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
 func FabricFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFabricFt()
+}
+
+// SamplingQosCountersBelow30SecondsCadenceUnsupported returns true if device does not support sampling QoS counters below 30 seconds cadence for sample stream subscriptions
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/508074229
+func SamplingQosCountersBelow30SecondsCadenceUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSamplingQosCountersBelow30SecondsCadenceUnsupported()
 }

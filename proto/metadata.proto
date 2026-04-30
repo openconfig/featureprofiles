@@ -1046,11 +1046,6 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
     bool syslog_non_default_vrf_unsupported = 351;
 
-    // Device does not support sampling QoS counters
-    // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
-    // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
-    bool skip_sampling_qos_counters = 352;
-
     // Devices do not support default network instance gNMI server name.
     // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
     string default_ni_gnmi_server_name = 353;
@@ -1284,10 +1279,14 @@ message Metadata {
     // Functional translator to be used for carrier-transitions paths.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
     string carrier_ft = 411;
-    
+
     // Functional translator name for fabric error telemetry.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
     string fabric_ft = 412;
+
+    // Device does not support sampling QoS counters below 30 seconds cadence for sample stream subscriptions
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/508074229
+    bool sampling_qos_counters_below30_seconds_cadence_unsupported = 413;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
