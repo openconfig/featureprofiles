@@ -28,7 +28,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gocaml/metadata"
 
-	"github.com/openconfig/featureprofiles/internal/functionaltranslator/registrar"
+	"github.com/openconfig/functional-translators/registrar"
 	spb "github.com/openconfig/gnoi/system"
 	gpb "github.com/openconfig/goyang/pkg/proto"
 )
