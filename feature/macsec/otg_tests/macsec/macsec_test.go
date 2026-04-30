@@ -26,11 +26,11 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gocaml/metadata"
+	"google.golang.org/grpc/metadata"
 
 	"github.com/openconfig/functional-translators/registrar"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	spb "github.com/openconfig/gnoi/system"
-	gpb "github.com/openconfig/goyang/pkg/proto"
 )
 
 const (
