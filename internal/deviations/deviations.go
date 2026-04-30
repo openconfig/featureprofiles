@@ -2120,3 +2120,9 @@ func CarrierFt(dut *ondatra.DUTDevice) string {
 func FabricFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFabricFt()
 }
+
+// ACLDescriptionUnsupported returns true if ACL description is unsupported.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/492342925
+func ACLDescriptionUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAclDescriptionUnsupported()
+}
