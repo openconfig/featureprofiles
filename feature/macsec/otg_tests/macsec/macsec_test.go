@@ -16,6 +16,8 @@ package macsec_test
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -27,17 +29,28 @@ import (
 	"github.com/openconfig/ondatra/gocaml/metadata"
 
 	"github.com/openconfig/featureprofiles/internal/functionaltranslator/registrar"
-	gpb "github.com/openconfig/goyang/pkg/proto"
 	spb "github.com/openconfig/gnoi/system"
+	gpb "github.com/openconfig/goyang/pkg/proto"
 )
 
 const (
-	keyID     = "abcd111122223333444455556666777788889999000011112222333344445555"
-	secretKey = "1111222233334444555566667777888899990000aaaabbbbccccddddeeeeffff"
-	ip1       = "10.0.0.1/30"
-	ip2       = "10.0.0.2/30"
-	username  = "macsec_test_user"
-	password  = "macsec_test_password"
+	ip1      = "10.0.0.1/30"
+	ip2      = "10.0.0.2/30"
+	username = "macsec_test_user"
+	password = "macsec_test_password"
+)
+
+func generateHexKey(length int) string {
+	b := make([]byte, length/2)
+	if _, err := rand.Read(b); err != nil {
+		panic(err)
+	}
+	return hex.EncodeToString(b)
+}
+
+var (
+	keyID     = generateHexKey(64)
+	secretKey = generateHexKey(64)
 )
 
 func TestMain(m *testing.M) {
@@ -320,8 +333,8 @@ func TestMacsecConfiguration(t *testing.T) {
 	})
 
 	t.Run("RxUnrecognizedCkn", func(t *testing.T) {
-		keyID1 := "abcd111122223333444455556666777788889999000011112222333344440001"
-		keyID2 := "abcd111122223333444455556666777788889999000011112222333344440002"
+		keyID1 := generateHexKey(64)
+		keyID2 := generateHexKey(64)
 
 		configureMacsecOnDUT(t, dut1, port1, ip1, keyID1, secretKey)
 		configureMacsecOnDUT(t, dut2, port2, ip2, keyID2, secretKey)
@@ -330,8 +343,8 @@ func TestMacsecConfiguration(t *testing.T) {
 	})
 
 	t.Run("RxBadIcvPkts", func(t *testing.T) {
-		secretKey1 := "1111222233334444555566667777888899990000aaaabbbbccccddddeeeeaaaa"
-		secretKey2 := "1111222233334444555566667777888899990000aaaabbbbccccddddeeeebbbb"
+		secretKey1 := generateHexKey(64)
+		secretKey2 := generateHexKey(64)
 
 		configureMacsecOnDUT(t, dut1, port1, ip1, keyID, secretKey1)
 		configureMacsecOnDUT(t, dut2, port2, ip2, keyID, secretKey2)
