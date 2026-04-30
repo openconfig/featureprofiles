@@ -2120,3 +2120,13 @@ func CarrierFt(dut *ondatra.DUTDevice) string {
 func FabricFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFabricFt()
 }
+
+// MacsecStateFt returns the functional translator name for macsec state telemetry.
+func MacsecStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecStateFt()
+}
+
+// MacsecCountersFt returns the functional translator name for macsec counters telemetry.
+func MacsecCountersFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecCountersFt()
+}
