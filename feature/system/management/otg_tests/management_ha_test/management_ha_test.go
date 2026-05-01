@@ -16,7 +16,6 @@ package management_ha_test
 
 import (
 	"fmt"
-	"math"
 	"sort"
 	"strconv"
 	"testing"
@@ -463,10 +462,6 @@ func configureImportExportBGPPolicy(t *testing.T, bs *cfgplugins.BGPSession, dut
 	}
 
 	batchSet.Set(t, bs.DUT)
-}
-
-func lossPct(tx, rx float64) float64 {
-	return (math.Abs(tx-rx) * 100) / tx
 }
 
 func getCiscoCLIRedisConfig(instanceName string, as uint32, vrf string) string {
