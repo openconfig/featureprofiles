@@ -227,7 +227,7 @@ func TestManagementHA1(t *testing.T) {
 		bs.ATE.OTG().StopTraffic(t)
 		otgutils.LogFlowMetrics(t, bs.ATE.OTG(), bs.ATETop)
 		otgutils.LogPortMetrics(t, bs.ATE.OTG(), bs.ATETop)
-		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", 10*time.Second)
+		lossV6 := otgutils.GetFlowLossPct(t, bs.ATE.OTG(), "v6Flow", timeout)
 		if lossV6 > lossTolerance {
 			t.Errorf("Loss percent for IPv6 Traffic: got: %f, want %f", lossV6, lossTolerance)
 		}
