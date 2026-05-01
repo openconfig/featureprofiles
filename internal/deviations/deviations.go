@@ -2147,3 +2147,9 @@ func SecondaryControllerCardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bo
 func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSecondaryControllerCardMemoryUtilizationUnsupported()
 }
+
+// Device does not support interface counters in fcs errors
+// Arista: https://issuetracker.google.com/issues/508304903
+func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
+}
