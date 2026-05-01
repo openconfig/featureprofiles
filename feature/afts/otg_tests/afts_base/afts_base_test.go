@@ -122,7 +122,7 @@ var (
 
 // getRouteCount returns the expected route count for the given dut, IP family,
 // and optional prefix length for IPv6.
-func getRouteCount(dut *ondatra.DUTDevice, afi IPv6PrefixLen, prefixLen ...uint32) uint32 {
+func getRouteCount(dut *ondatra.DUTDevice, afi IPFamily, prefixLen ...uint32) uint32 {
 	var pfx uint32
 	if len(prefixLen) > 0 {
 		pfx = prefixLen[0]
@@ -242,13 +242,13 @@ func (tc *testCase) configureDUT(t *testing.T) error {
 type BGPNeighbor struct {
 	as         uint32
 	neighborip string
-	version    IPv6PrefixLen
+	version    IPFamily
 }
-type IPv6PrefixLen int
+type IPFamily int
 
 const (
-	// UnknownIPv6PrefixLen indicates an unspecified or unknown IP address family.
-	UnknownIPv6PrefixLen IPv6PrefixLen = iota
+	// UnknownIPFamily indicates an unspecified or unknown IP address family.
+	UnknownIPFamily IPFamily = iota
 	IPv4
 	IPv6
 )
