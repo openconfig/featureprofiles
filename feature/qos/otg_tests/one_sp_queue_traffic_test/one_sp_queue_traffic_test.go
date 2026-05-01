@@ -1050,7 +1050,7 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		priority:    oc.Scheduler_Priority_UNSET,
 		inputID:     "BE0",
 		inputType:   oc.Input_InputType_QUEUE,
-		weight:      uint64(2),
+		weight:      uint64(1),
 		queueName:   queues.BE0,
 		targetGroup: "target-group-BE0",
 	}, {

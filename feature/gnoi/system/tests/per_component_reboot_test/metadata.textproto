@@ -13,5 +13,14 @@ platform_exceptions: {
     gnoi_fabric_component_reboot_unsupported: true
     gnoi_subcomponent_path: true
     gnoi_subcomponent_reboot_status_unsupported: true
+    interface_enabled: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    interface_enabled: true
   }
 }

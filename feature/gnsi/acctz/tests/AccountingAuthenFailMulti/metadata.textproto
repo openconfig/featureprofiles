@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "06b221ae-2709-4e75-88d6-5ffebb4c6bbd"
+plan_id:  "ACCTZ-7.1"
+description:  "gNSI.acctz.v1 (Accounting) Test Accounting Authentication Failure - Multi-transaction"
+testbed:  TESTBED_DUT_ATE_2LINKS

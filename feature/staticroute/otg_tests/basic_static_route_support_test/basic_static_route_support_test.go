@@ -54,6 +54,7 @@ const (
 var (
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
+		Name:    "port1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:db8::192:0:2:1",
@@ -71,6 +72,7 @@ var (
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
+		Name:    "port2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:db8::192:0:2:5",
@@ -88,6 +90,7 @@ var (
 
 	dutPort3 = attrs.Attributes{
 		Desc:    "dutPort3",
+		Name:    "port3",
 		IPv4:    "192.0.2.9",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:db8::192:0:2:9",
@@ -105,6 +108,7 @@ var (
 
 	dutPort4 = attrs.Attributes{
 		Desc:    "dutPort4",
+		Name:    "port4",
 		IPv4:    "192.0.2.13",
 		IPv4Len: ipv4PrefixLen,
 		IPv6:    "2001:db8::192:0:2:d",
@@ -245,8 +249,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          prefix.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -279,8 +283,8 @@ func TestStaticRouteAddRemove(t *testing.T) {
 		NetworkInstance: deviations.DefaultNetworkInstance(dut),
 		Prefix:          prefix.cidr(t),
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			"0": oc.UnionString(atePort2.IPv4),
-			"1": oc.UnionString(atePort3.IPv4),
+			"0": oc.UnionString(atePort1.IPv4),
+			"1": oc.UnionString(atePort2.IPv4),
 		},
 	}
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV4, dut); err != nil {
@@ -682,7 +686,7 @@ func (td *testData) testStaticRouteWithMetric(t *testing.T) {
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if deviations.MissingStaticRouteNextHopMetricTelemetry(td.dut) {
+		if deviations.TelemetryNotSupportedForLowPriorityNh(td.dut) {
 			t.Skip("Skipping Telemetry check for Metric, since deviation MissingStaticRouteNextHopMetricTelemetry is enabled.")
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
@@ -789,7 +793,7 @@ func (td *testData) testStaticRouteWithPreference(t *testing.T) {
 	batch.Set(t, td.dut)
 
 	t.Run("Telemetry", func(t *testing.T) {
-		if deviations.SetMetricAsPreference(td.dut) {
+		if deviations.SetMetricAsPreference(td.dut) || deviations.TelemetryNotSupportedForLowPriorityNh(td.dut) {
 			t.Skip("Skipping Preference telemetry check since deviation SetMetricAsPreference is enabled")
 		}
 		gnmi.Await(t, td.dut, sp.Static(td.staticIPv4.cidr(t)).Prefix().State(), 30*time.Second, td.staticIPv4.cidr(t))
@@ -1291,7 +1295,7 @@ func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName s
 	t.Helper()
 	isis := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(td.dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisName).Isis()
 	intf := isis.Interface(p.Name())
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		intf = isis.Interface(p.Name() + ".0")
 	}
 	query := intf.Level(2).AdjacencyAny().AdjacencyState().State()
@@ -1308,41 +1312,23 @@ func (td *testData) awaitISISAdjacency(t *testing.T, p *ondatra.Port, isisName s
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	p1 := dut.Port(t, "port1")
-	p2 := dut.Port(t, "port2")
-	p3 := dut.Port(t, "port3")
-	p4 := dut.Port(t, "port4")
-	b := &gnmi.SetBatch{}
-	i1 := dutPort1.NewOCInterface(p1.Name(), dut)
-	i2 := dutPort2.NewOCInterface(p2.Name(), dut)
-	i3 := dutPort3.NewOCInterface(p3.Name(), dut)
-	i4 := dutPort4.NewOCInterface(p4.Name(), dut)
-	if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
-		i1.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-		i2.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-		i3.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-		i4.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
-	}
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p1.Name()).Config(), i1)
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p2.Name()).Config(), i2)
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p3.Name()).Config(), i3)
-	gnmi.BatchReplace(b, gnmi.OC().Interface(p4.Name()).Config(), i4)
-	b.Set(t, dut)
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
-	}
-
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+	for _, dutPorts := range []*attrs.Attributes{&dutPort1, &dutPort2, &dutPort3, &dutPort4} {
+		dutPort := dut.Port(t, dutPorts.Name)
+		dutInt := dutPorts.NewOCInterface(dutPort.Name(), dut)
+		if deviations.FrBreakoutFix(dut) && dutPort.PMD() == ondatra.PMD100GBASEFR {
+			ethPort := dutInt.GetOrCreateEthernet()
+			ethPort.SetAutoNegotiate(false)
+			ethPort.SetDuplexMode(oc.Ethernet_DuplexMode_FULL)
+			ethPort.SetPortSpeed(oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB)
+		}
+		if deviations.IPv6StaticRouteWithIPv4NextHopRequiresStaticARP(dut) {
+			dutInt.GetOrCreateSubinterface(0).GetOrCreateIpv6().GetOrCreateNeighbor(dummyV6).LinkLayerAddress = ygot.String(dummyMAC)
+		}
+		gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort.Name()).Config(), dutInt)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, dutPort.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 }
 
@@ -1386,14 +1372,23 @@ func (td *testData) advertiseRoutesWithISIS(t *testing.T) {
 
 	p1Name := td.dut.Port(t, "port1").Name()
 	p2Name := td.dut.Port(t, "port2").Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+		for _, intfName := range []string{p1Name, p2Name} {
+			isisIntf := isis.GetOrCreateInterface(intfName + ".0")
+			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(td.dut) || deviations.InterfaceRefInterfaceIDFormat(td.dut) {
 		p1Name += ".0"
 		p2Name += ".0"
 	}
 	for _, intfName := range []string{p1Name, p2Name} {
 		isisIntf := isis.GetOrCreateInterface(intfName)
-		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		if !deviations.InterfaceRefInterfaceIDFormat(td.dut) {
+			isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+			isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+		}
 		if deviations.InterfaceRefConfigUnsupported(td.dut) {
 			isisIntf.InterfaceRef = nil
 		}

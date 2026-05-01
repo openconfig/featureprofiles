@@ -36,34 +36,39 @@ func TestMain(m *testing.M) {
 
 // Constants
 const (
+	srgbLowerBound           = 400000
+	srgbUpperBound           = 465001
+	srgbLocalID              = "100.1.1.1"
+	srlbLocalID              = "200.1.1.1"
+	plenIPv4                 = 30
+	plenIPv6                 = 126
+	ateV4Route               = "203.0.113.0"
+	ateV6Route               = "2001:db8::203:0:113:0"
+	v4IP                     = "203.0.113.1"
+	v6IP                     = "2001:db8::203:0:113:1"
+	v4Route                  = "203.0.113.0"
+	v6Route                  = "2001:db8::203:0:113:0"
+	ateV4Metric              = 200
+	ateV6Metric              = 200
+	v4NetName                = "isisv4Net"
+	v6NetName                = "isisv6Net"
+	v4FlowName               = "v4Flow"
+	v6FlowName               = "v6Flow"
+	SRReservedLabelblockName = "default-srgb" // supported name for Cisco SRGB
+)
+
+var (
 	srgbMplsLabelBlockName = "400000 465001"
-	srgbLowerBound         = 400000
-	srgbUpperBound         = 465001
-	srgbLocalID            = "100.1.1.1"
-	srlbLocalID            = "200.1.1.1"
-	plenIPv4               = 30
-	plenIPv6               = 126
-	ateV4Route             = "203.0.113.0/30"
-	ateV6Route             = "2001:db8::203:0:113:0/126"
-	v4IP                   = "203.0.113.1"
-	v6IP                   = "2001:db8::203:0:113:1"
-	v4Route                = "203.0.113.0"
-	v6Route                = "2001:db8::203:0:113:0"
-	ateV4Metric            = 200
-	ateV6Metric            = 200
-	v4NetName              = "isisv4Net"
-	v6NetName              = "isisv6Net"
-	v4FlowName             = "v4Flow"
-	v6FlowName             = "v6Flow"
+	customLabelBlockName   = "99.99.99.99"
 )
 
 // Configure ISIS, MPLS and ISIS-SR on DUT
-func configureISISSegmentRouting(t *testing.T, ts *isissession.TestSession) {
+func configureISISSegmentRouting(t *testing.T, ts *isissession.TestSession, dut *ondatra.DUTDevice) {
 	t.Helper()
 	d := ts.DUTConf
 	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
 	prot := networkInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName)
-	// prot.Enabled = ygot.Bool(true)
+	prot.Enabled = ygot.Bool(true)
 
 	// Configure MPLS
 	mplsCfg := networkInstance.GetOrCreateMpls().GetOrCreateGlobal()
@@ -71,16 +76,25 @@ func configureISISSegmentRouting(t *testing.T, ts *isissession.TestSession) {
 	mplsCfg.GetOrCreateInterface(ts.DUTPort2.Name())
 	mplsCfg.GetOrCreateReservedLabelBlock(srgbMplsLabelBlockName).LowerBound = oc.UnionUint32(srgbLowerBound)
 	mplsCfg.GetOrCreateReservedLabelBlock(srgbMplsLabelBlockName).UpperBound = oc.UnionUint32(srgbUpperBound)
+	// Cisco requires the reserved label block name to be "default-srgb"
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		mplsCfg.GetOrCreateReservedLabelBlock(SRReservedLabelblockName).LocalId = ygot.String(SRReservedLabelblockName)
+	default:
+	}
+
+	mplsCfgIntf := mplsCfg.GetOrCreateInterface(ts.DUTPort1.Name())
+	mplsCfgIntf.InterfaceId = ygot.String(ts.DUTPort1.Name())
 
 	// Configure SR
 	srCfg := networkInstance.GetOrCreateSegmentRouting()
-	srgb := srCfg.GetOrCreateSrgb("99.99.99.99")
-	srgb.LocalId = ygot.String("99.99.99.99")
+	srgb := srCfg.GetOrCreateSrgb(customLabelBlockName)
+	srgb.LocalId = ygot.String(customLabelBlockName)
 	srgb.SetMplsLabelBlocks([]string{srgbMplsLabelBlockName})
 
-	// Configure ISIS-SR
+	// ISIS Segment Routing configurations
 	isisSR := prot.GetOrCreateIsis().GetOrCreateGlobal().GetOrCreateSegmentRouting()
-	isisSR.SetSrgb("99.99.99.99")
+	isisSR.SetSrgb(customLabelBlockName)
 	isisSR.Enabled = ygot.Bool(true)
 }
 
@@ -117,7 +131,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(isissession.ATEISISAttrs.IPv4)
-	v4.Dst().SetValues([]string{srcIpv4.Address(), srcIpv4.Address()})
+	v4.Dst().SetValue(ateV4Route) //
 
 	t.Log("Configuring v6 traffic flow ")
 
@@ -128,7 +142,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 		SetTxNames([]string{srcIpv6.Name()}).
 		SetRxNames([]string{v6NetName})
 
-	v4Flow.Duration().FixedPackets().SetPackets(1000)
+	v6Flow.Duration().FixedPackets().SetPackets(1000)
 	v6Flow.Size().SetFixed(512)
 	v6Flow.Rate().SetPps(100)
 
@@ -136,7 +150,7 @@ func configureOTG(t *testing.T, ts *isissession.TestSession) {
 	e2.Src().SetValue(isissession.ATEISISAttrs.MAC)
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(isissession.ATEISISAttrs.IPv6)
-	v6.Dst().SetValues([]string{srcIpv6.Address(), srcIpv6.Address()})
+	v6.Dst().SetValue(ateV6Route)
 }
 
 func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
@@ -151,14 +165,19 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 			t.Errorf("FAIL - Segment Routing is not enabled on DUT")
 		}
 
-		srgbValue := routing.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
-		if srgbValue == "nil" || srgbValue == "" {
-			t.Errorf("FAIL- SRGB is not present on DUT")
+		if deviations.SrIgpConfigUnsupported(ts.DUT) {
+			t.Log("Skipping Protocol Checks as SR IGP Configuration is not required or supported")
 		} else {
-			t.Logf("SRGB is present on DUT value: %s", srgbValue)
+			srgbValue := routing.GetIsis().GetGlobal().GetSegmentRouting().GetSrgb()
+			if srgbValue == "nil" || srgbValue == "" {
+				t.Errorf("FAIL- SRGB is not present on DUT")
+			} else {
+				t.Logf("SRGB is present on DUT value: %s", srgbValue)
+			}
 		}
 
 		mplsprot := networkInstance.GetOrCreateMpls().GetOrCreateGlobal()
+
 		if got := mplsprot.GetReservedLabelBlock(srgbMplsLabelBlockName).GetLowerBound(); got != oc.UnionUint32(srgbLowerBound) {
 			t.Errorf("FAIL- SR Reserved Block is not present on DUT, got %d, want %d", got, srgbLowerBound)
 		} else {
@@ -169,7 +188,29 @@ func verifyMPLSSR(t *testing.T, ts *isissession.TestSession) {
 		} else {
 			t.Logf("SR Reserved Block is present on DUT value: %d, want %d", got, srgbUpperBound)
 		}
+
 	})
+}
+
+func verifySRCounters(t *testing.T, ts *isissession.TestSession, ate *ondatra.ATEDevice) {
+	d := ts.DUTConf
+	networkInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT))
+	recvMetricV4 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v4FlowName).State())
+	// recvMetricV6 := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v6FlowName).State())
+	v4InPkts := recvMetricV4.GetCounters().GetInPkts()
+	v4OutPkts := recvMetricV4.GetCounters().GetOutPkts()
+	// Get SR Counters
+	srSgProto := networkInstance.GetOrCreateMpls().GetOrCreateSignalingProtocols().GetSegmentRouting()
+	srIntf := srSgProto.GetOrCreateInterface(ts.DUTPort1.Name())
+	t.Logf("SR InPkts: %d, SR OutPkts: %d", srIntf.InPkts, srIntf.OutPkts)
+	t.Logf("InPkts: %d, OutPkts: %d", v4InPkts, v4OutPkts)
+
+	if got := srIntf.InPkts; got != ygot.Uint64(0) {
+		t.Errorf("FAIL- SR InPkts is not zero, got %d, want %d", got, v4InPkts)
+	}
+	if got := srIntf.OutPkts; got != ygot.Uint64(0) {
+		t.Errorf("FAIL- SR OutPkts is not zero, got %d, want %d", got, v4OutPkts)
+	}
 }
 
 func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
@@ -201,8 +242,25 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
 
 // TestMPLSLabelBlockWithISIS verifies MPLS label block SRGB on DUT.
 func TestMPLSLabelBlockWithISIS(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
 	ts := isissession.MustNew(t).WithISIS()
-	configureISISSegmentRouting(t, ts)
+	switch ts.DUT.Vendor() {
+	case ondatra.CISCO:
+		srgbMplsLabelBlockName = SRReservedLabelblockName
+		customLabelBlockName = SRReservedLabelblockName
+	default:
+	}
+	configureISISSegmentRouting(t, ts, ts.DUT)
+	switch deviations.IsisSrgbSrlbUnsupported(ts.DUT) {
+	case true:
+		// Configures SRGB via network-instance/mpls/global/ OC Path as SR-IGP Not needed or supported
+		t.Log("configure SR label block via network-instance/mpls/global/ OC Path")
+		srgbGlobalConfig := configureSRGBViaMplsGlobalPath(srgbLowerBound, srgbUpperBound)
+		gnmi.Update(t, dut, gnmi.OC().Config(), srgbGlobalConfig)
+	case false:
+		// Other vendors
+		t.Log("SRGB configuration under only network-instance/MPLS")
+	}
 	ts.ATETop.Flows().Clear()
 	configureOTG(t, ts)
 	ts.PushAndStart(t)
@@ -213,7 +271,10 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 	// Traffic checks
 	otg := ts.ATE.OTG()
 	t.Run("Traffic checks", func(t *testing.T) {
+		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv4")
+		otgutils.WaitForARP(t, otg, ts.ATETop, "IPv6")
 		t.Logf("Starting traffic")
+		t.Log(otg.GetConfig(t))
 		otg.StartTraffic(t)
 		time.Sleep(time.Second * 15)
 		t.Logf("Stop traffic")
@@ -223,4 +284,41 @@ func TestMPLSLabelBlockWithISIS(t *testing.T) {
 		otgutils.LogPortMetrics(t, otg, ts.ATETop)
 		verifyTraffic(t, ts.ATE)
 	})
+
+	// SR counters checks
+	t.Run("SR counters checks", func(t *testing.T) {
+		t.Logf("Starting traffic")
+		otg.StartTraffic(t)
+		time.Sleep(time.Second * 15)
+		t.Logf("Stop traffic")
+		otg.StopTraffic(t)
+
+		t.Logf("Starting SR counters checks")
+		if !deviations.SIDPerInterfaceCounterUnsupported(ts.DUT) {
+			verifySRCounters(t, ts, ts.ATE)
+		}
+
+	})
+}
+
+// configureSRGBGlobalPath
+func configureSRGBViaMplsGlobalPath(LowerBoundLabel int, UpperBoundLabel int) *oc.Root {
+
+	d := &oc.Root{}
+
+	netInstance := d.GetOrCreateNetworkInstance("DEFAULT")
+	netInstance.Name = ygot.String("DEFAULT")
+	mplsGlobal := netInstance.GetOrCreateMpls().GetOrCreateGlobal()
+
+	rlb := mplsGlobal.GetOrCreateReservedLabelBlock(SRReservedLabelblockName)
+	rlb.LocalId = ygot.String(SRReservedLabelblockName)
+	rlb.LowerBound = oc.UnionUint32(LowerBoundLabel)
+	rlb.UpperBound = oc.UnionUint32(UpperBoundLabel)
+
+	sr := netInstance.GetOrCreateSegmentRouting()
+	srgb := sr.GetOrCreateSrgb(SRReservedLabelblockName)
+	srgb.LocalId = ygot.String(SRReservedLabelblockName)
+	srgb.SetMplsLabelBlocks([]string{SRReservedLabelblockName})
+
+	return d
 }
