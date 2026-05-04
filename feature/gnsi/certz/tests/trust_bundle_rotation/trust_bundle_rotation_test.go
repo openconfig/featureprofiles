@@ -59,8 +59,9 @@ func createCombinedBundle(t *testing.T, dirPath, typeStr string) string {
 	t.Helper()
 	pem1 := filepath.Join(dirPath, "ca-01", fmt.Sprintf("trust_bundle_01_%s.pem", typeStr))
 	pem2 := filepath.Join(dirPath, "ca-02", fmt.Sprintf("trust_bundle_02_%s.pem", typeStr))
-	combinedPem := filepath.Join(dirPath, fmt.Sprintf("combined_%s.pem", typeStr))
-	combinedP7b := filepath.Join(dirPath, fmt.Sprintf("combined_%s.p7b", typeStr))
+	tempDir := t.TempDir()
+	combinedPem := filepath.Join(tempDir, fmt.Sprintf("combined_%s.pem", typeStr))
+	combinedP7b := filepath.Join(tempDir, fmt.Sprintf("combined_%s.p7b", typeStr))
 
 	// Read pem1
 	d1, err := os.ReadFile(pem1)
