@@ -1,10 +1,10 @@
 # NOSImageProfile Enhancement Requirements
 
-The `NOSImageProfile` has been updated to transition from manual reporting to a structured, machine-readable format. This ensures that critical metadata regarding release lifecycles and test validation can be automatically ingested and processed by internal systems and catalogs.
+The `NOSImageProfile` describes a network operating system's (NOS) properties, including identifying the software, its support of OpenConfig RPCs and paths, as well as an assertion of [featureprofiles](https://github.com/openconfig/featureprofiles/tree/main) test results.
 
 ## Enhancement Field Requirements
 
-### 1. Machine-Consumable Test Data
+### 1. Machine-Consumable featureprofiles Test Data
 To enable automated coverage analysis and validation tracking, vendors must provide structured test results within the `featureprofile_test_result` field. This structured reporting replaces manual or unstructured updates, providing a unified view of test outcomes.
 
 *   **Field**: `repeated FeatureProfileTestResult featureprofile_test_result = 8;`
