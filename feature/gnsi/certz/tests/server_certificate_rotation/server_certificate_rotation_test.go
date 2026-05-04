@@ -18,7 +18,9 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -84,6 +86,24 @@ func dialAndGetCert(t *testing.T, addr string) *x509.Certificate {
 	}
 	return certs[0]
 }
+
+func loadPemCert(t *testing.T, filePath string) *x509.Certificate {
+	t.Helper()
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		t.Fatalf("Failed to read cert file %s: %v", filePath, err)
+	}
+	block, _ := pem.Decode(data)
+	if block == nil {
+		t.Fatalf("Failed to decode PEM in %s", filePath)
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse certificate in %s: %v", filePath, err)
+	}
+	return cert
+}
+
 func TestServerCertificateRotation(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name()
@@ -226,13 +246,17 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		t.Fatalf("Failed to setup initial certificate 'a': %v", err)
 	}
 
-	// Verify initial cert is loaded and has correct SAN
-	serverSAN := setupService.ReadDecodeServerCertificate(t, tc.initialCert)
+	// Verify initial cert is loaded and has correct SN and SAN
+	expectedInitialCert := loadPemCert(t, tc.initialCert)
 	initialCert := dialAndGetCert(t, serverAddr)
-	t.Logf("Initial certificate subject: %s", initialCert.Subject)
+	t.Logf("Initial certificate subject: %s, SN: %s", initialCert.Subject, initialCert.SerialNumber.String())
 	// Validate SAN
-	if len(initialCert.DNSNames) == 0 || initialCert.DNSNames[0] != serverSAN {
-		t.Fatalf("Initial certificate SAN mismatch: got %v, want %v", initialCert.DNSNames, serverSAN)
+	if len(initialCert.DNSNames) == 0 || initialCert.DNSNames[0] != expectedInitialCert.DNSNames[0] {
+		t.Fatalf("Initial certificate SAN mismatch: got %v, want %v", initialCert.DNSNames, expectedInitialCert.DNSNames)
+	}
+	// Validate SN
+	if initialCert.SerialNumber.Cmp(expectedInitialCert.SerialNumber) != 0 {
+		t.Fatalf("Initial certificate SN mismatch: got %s, want %s", initialCert.SerialNumber.String(), expectedInitialCert.SerialNumber.String())
 	}
 
 	// NOW WE ARE IN THE INITIAL STATE (Cert 'a' is active).
@@ -342,9 +366,16 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		time.Sleep(5 * time.Second) // Wait for rollback
 
 		// Verify it reverted to 'a'
+		expectedInitialCert := loadPemCert(t, tc.initialCert)
 		postRollbackCert := dialAndGetCert(t, serverAddr)
-		if len(postRollbackCert.DNSNames) == 0 || postRollbackCert.DNSNames[0] != initialSAN {
-			t.Fatalf("Failed to rollback to initial cert 'a': got %v, want %v", postRollbackCert.DNSNames, initialSAN)
+		t.Logf("Post-rollback certificate subject: %s, SN: %s", postRollbackCert.Subject, postRollbackCert.SerialNumber.String())
+		// Validate SAN
+		if len(postRollbackCert.DNSNames) == 0 || postRollbackCert.DNSNames[0] != expectedInitialCert.DNSNames[0] {
+			t.Fatalf("Failed to rollback to initial cert 'a' (SAN mismatch): got %v, want %v", postRollbackCert.DNSNames, expectedInitialCert.DNSNames)
+		}
+		// Validate SN
+		if postRollbackCert.SerialNumber.Cmp(expectedInitialCert.SerialNumber) != 0 {
+			t.Fatalf("Failed to rollback to initial cert 'a' (SN mismatch): got %s, want %s", postRollbackCert.SerialNumber.String(), expectedInitialCert.SerialNumber.String())
 		}
 		t.Log("Negative test passed: successfully rolled back to initial cert.")
 		return
@@ -353,11 +384,16 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	// POSITIVE TEST CONTINUATION
 	// 3. Probe
 	t.Log("Positive test: probing new certificate...")
-	targetSAN := setupService.ReadDecodeServerCertificate(t, tc.targetCert)
+	expectedTargetCert := loadPemCert(t, tc.targetCert)
 	probeCert := dialAndGetCert(t, serverAddr)
-	t.Logf("Probe certificate subject: %s", probeCert.Subject)
-	if len(probeCert.DNSNames) == 0 || probeCert.DNSNames[0] != targetSAN {
-		t.Fatalf("Probe certificate SAN mismatch: got %v, want %v", probeCert.DNSNames, targetSAN)
+	t.Logf("Probe certificate subject: %s, SN: %s", probeCert.Subject, probeCert.SerialNumber.String())
+	// Validate SAN
+	if len(probeCert.DNSNames) == 0 || probeCert.DNSNames[0] != expectedTargetCert.DNSNames[0] {
+		t.Fatalf("Probe certificate SAN mismatch: got %v, want %v", probeCert.DNSNames, expectedTargetCert.DNSNames)
+	}
+	// Validate SN
+	if probeCert.SerialNumber.Cmp(expectedTargetCert.SerialNumber) != 0 {
+		t.Fatalf("Probe certificate SN mismatch: got %s, want %s", probeCert.SerialNumber.String(), expectedTargetCert.SerialNumber.String())
 	}
 	t.Log("Probe successful: new certificate is being served.")
 
@@ -381,8 +417,14 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 
 	// 5. Verify post-finalize
 	postFinalizeCert := dialAndGetCert(t, serverAddr)
-	if len(postFinalizeCert.DNSNames) == 0 || postFinalizeCert.DNSNames[0] != targetSAN {
-		t.Fatalf("Post-finalize certificate SAN mismatch: got %v, want %v", postFinalizeCert.DNSNames, targetSAN)
+	t.Logf("Post-finalize certificate subject: %s, SN: %s", postFinalizeCert.Subject, postFinalizeCert.SerialNumber.String())
+	// Validate SAN
+	if len(postFinalizeCert.DNSNames) == 0 || postFinalizeCert.DNSNames[0] != expectedTargetCert.DNSNames[0] {
+		t.Fatalf("Post-finalize certificate SAN mismatch: got %v, want %v", postFinalizeCert.DNSNames, expectedTargetCert.DNSNames)
+	}
+	// Validate SN
+	if postFinalizeCert.SerialNumber.Cmp(expectedTargetCert.SerialNumber) != 0 {
+		t.Fatalf("Post-finalize certificate SN mismatch: got %s, want %s", postFinalizeCert.SerialNumber.String(), expectedTargetCert.SerialNumber.String())
 	}
 	t.Log("Post-finalize verification successful: new certificate is permanently served.")
 
