@@ -2120,3 +2120,18 @@ func CarrierFt(dut *ondatra.DUTDevice) string {
 func FabricFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFabricFt()
 }
+
+// MacsecStateFt returns the functional translator name for macsec state telemetry.
+func MacsecStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecStateFt()
+}
+
+// MacsecCountersFt returns the functional translator name for macsec counters telemetry.
+func MacsecCountersFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecCountersFt()
+}
+
+// EnableMplsStaticOnInterface returns true if device needs MPLS Static enabled explicitly on ingress/egress interface
+func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
+}
