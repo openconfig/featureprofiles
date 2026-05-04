@@ -149,7 +149,8 @@ func TestTrustBundleRotation(t *testing.T) {
 
 	for _, typeStr := range types {
 		t.Run(fmt.Sprintf("Type_%s", typeStr), func(t *testing.T) {
-			ctx := context.Background()
+			ctx, cancel := context.WithTimeout(context.Background(), timeOutVar)
+			defer cancel()
 			gnmiClient, gnsiC := setup_service.PreInitCheck(ctx, t, dut)
 			certzClient := gnsiC.Certz()
 
