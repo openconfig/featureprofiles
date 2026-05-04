@@ -27,7 +27,6 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -236,7 +235,6 @@ func TestTrustBundleRotation(t *testing.T) {
 					conn := setup_service.CreateNewDialOption(t, clientCert, caCertPool, serverSAN, username, password, serverAddr)
 					defer conn.Close()
 					activeCertzClient := certzpb.NewCertzClient(conn)
-					activeGnmiClient := gnmipb.NewGNMIClient(conn)
 
 					// Prepare target trust bundle
 					targetBundlePath := tc.getBundlePath(t)
@@ -251,16 +249,65 @@ func TestTrustBundleRotation(t *testing.T) {
 					targetTrustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, string(targetData), tc.version)
 
 					if !tc.isNegative {
-						// Positive Rotation
+						// Positive Rotation - Explicit Steps
 						t.Logf("Rotating trust bundle to target: %s", targetBundlePath)
-						if success := setup_service.CertzRotate(ctx, t, targetCaCertPool, activeCertzClient, activeGnmiClient, clientCert, dut, username, password, serverSAN, serverAddr, profileID, true, false, false, &targetTrustBundleEntity); !success {
-							t.Fatalf("Trust Bundle Rotation failed.")
+
+						stream, err := activeCertzClient.Rotate(ctx)
+						if err != nil {
+							t.Fatalf("Failed to open Rotate stream: %v", err)
+						}
+						defer stream.CloseSend()
+
+						req := &certzpb.RotateCertificateRequest{
+							ForceOverwrite: false,
+							SslProfileId:   profileID,
+							RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+								Certificates: &certzpb.UploadRequest{
+									Entities: []*certzpb.Entity{&targetTrustBundleEntity},
+								},
+							},
+						}
+						if err := stream.Send(req); err != nil {
+							t.Fatalf("Failed to send Rotate request: %v", err)
 						}
 
-						// Verify connection still works (with target trust pool)
-						if result := setup_service.ServicesValidationCheck(t, targetCaCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
-							t.Fatalf("Service validation failed after rotation.")
+						resp, err := stream.Recv()
+						if err != nil {
+							t.Fatalf("Failed to receive Rotate response: %v", err)
 						}
+						t.Logf("Received Rotate response: %v", resp)
+
+						// Step 4: Probe (Verify connection works with new trust pool before finalize)
+						t.Log("Step 4: Probing new trust bundle...")
+						if success := setup_service.VerifyGnsi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("Probe failed: gNSI service verification failed with new trust bundle.")
+						}
+						t.Log("Probe successful.")
+
+						// Step 5: Finalize
+						t.Log("Step 5: Finalizing rotation...")
+						finalizeReq := &certzpb.RotateCertificateRequest{
+							ForceOverwrite: false,
+							SslProfileId:   profileID,
+							RotateRequest: &certzpb.RotateCertificateRequest_FinalizeRotation{
+								FinalizeRotation: &certzpb.FinalizeRequest{},
+							},
+						}
+						if err := stream.Send(finalizeReq); err != nil {
+							t.Fatalf("Failed to send Finalize request: %v", err)
+						}
+						if err := stream.CloseSend(); err != nil {
+							t.Fatalf("Failed to CloseSend: %v", err)
+						}
+
+						time.Sleep(5 * time.Second) // Wait for finalization to settle
+
+						// Step 6: Post-finalization verification
+						t.Log("Step 6: Verifying service after finalization...")
+						if result := setup_service.ServicesValidationCheck(t, targetCaCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
+							t.Fatalf("Service validation failed after finalization.")
+						}
+						t.Log("Post-finalization verification successful.")
 					} else {
 						// Negative Rotation
 						t.Logf("Attempting negative trust bundle rotation to target: %s", targetBundlePath)
