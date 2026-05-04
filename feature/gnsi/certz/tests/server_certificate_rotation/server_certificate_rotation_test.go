@@ -31,6 +31,9 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	ognmi "github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -46,7 +49,6 @@ type DUTCredentialer interface {
 var (
 	serverAddr string
 	creds      DUTCredentialer
-	logTime    string = time.Now().String()
 )
 
 func TestMain(m *testing.M) {
@@ -102,6 +104,32 @@ func loadPemCert(t *testing.T, filePath string) *x509.Certificate {
 		t.Fatalf("Failed to parse certificate in %s: %v", filePath, err)
 	}
 	return cert
+}
+
+func awaitCert(t *testing.T, addr string, expectedCert *x509.Certificate, timeout time.Duration) {
+	t.Helper()
+	start := time.Now()
+	for time.Since(start) < timeout {
+		conf := &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		conn, err := tls.Dial("tcp", fmt.Sprintf("%s:%d", addr, 9339), conf)
+		if err != nil {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		certs := conn.ConnectionState().PeerCertificates
+		conn.Close()
+		if len(certs) > 0 {
+			cert := certs[0]
+			t.Logf("Awaiting cert: got subject: %s, SN: %s", cert.Subject, cert.SerialNumber.String())
+			if len(cert.DNSNames) > 0 && cert.DNSNames[0] == expectedCert.DNSNames[0] && cert.SerialNumber.Cmp(expectedCert.SerialNumber) == 0 {
+				return // Success
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Fatalf("Timed out waiting for certificate SAN: %s, SN: %s", expectedCert.DNSNames[0], expectedCert.SerialNumber.String())
 }
 
 func TestServerCertificateRotation(t *testing.T) {
@@ -209,7 +237,12 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 
 	// Add profile if it doesn't exist (ignore error if it already exists, or check list)
 	t.Logf("Adding sslprofileID %s", profileID)
-	_, _ = certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: profileID})
+	if _, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: profileID}); err != nil {
+		if status.Code(err) != codes.AlreadyExists {
+			t.Fatalf("Failed to add profile %s: %v", profileID, err)
+		}
+		t.Logf("Profile %s already exists, continuing...", profileID)
+	}
 
 	// Rotate to INITIAL cert 'a'
 	t.Logf("Rotating to INITIAL certificate: %s", tc.initialCert)
@@ -363,20 +396,8 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 
 		// Tear down stream (rollback) by closing it without finalize
 		stream.CloseSend()
-		time.Sleep(5 * time.Second) // Wait for rollback
-
-		// Verify it reverted to 'a'
 		expectedInitialCert := loadPemCert(t, tc.initialCert)
-		postRollbackCert := dialAndGetCert(t, serverAddr)
-		t.Logf("Post-rollback certificate subject: %s, SN: %s", postRollbackCert.Subject, postRollbackCert.SerialNumber.String())
-		// Validate SAN
-		if len(postRollbackCert.DNSNames) == 0 || postRollbackCert.DNSNames[0] != expectedInitialCert.DNSNames[0] {
-			t.Fatalf("Failed to rollback to initial cert 'a' (SAN mismatch): got %v, want %v", postRollbackCert.DNSNames, expectedInitialCert.DNSNames)
-		}
-		// Validate SN
-		if postRollbackCert.SerialNumber.Cmp(expectedInitialCert.SerialNumber) != 0 {
-			t.Fatalf("Failed to rollback to initial cert 'a' (SN mismatch): got %s, want %s", postRollbackCert.SerialNumber.String(), expectedInitialCert.SerialNumber.String())
-		}
+		awaitCert(t, serverAddr, expectedInitialCert, 30*time.Second)
 		t.Log("Negative test passed: successfully rolled back to initial cert.")
 		return
 	}
@@ -413,19 +434,8 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 		t.Fatalf("Failed to CloseSend: %v", err)
 	}
 
-	time.Sleep(5 * time.Second) // Wait for finalization to settle
-
 	// 5. Verify post-finalize
-	postFinalizeCert := dialAndGetCert(t, serverAddr)
-	t.Logf("Post-finalize certificate subject: %s, SN: %s", postFinalizeCert.Subject, postFinalizeCert.SerialNumber.String())
-	// Validate SAN
-	if len(postFinalizeCert.DNSNames) == 0 || postFinalizeCert.DNSNames[0] != expectedTargetCert.DNSNames[0] {
-		t.Fatalf("Post-finalize certificate SAN mismatch: got %v, want %v", postFinalizeCert.DNSNames, expectedTargetCert.DNSNames)
-	}
-	// Validate SN
-	if postFinalizeCert.SerialNumber.Cmp(expectedTargetCert.SerialNumber) != 0 {
-		t.Fatalf("Post-finalize certificate SN mismatch: got %s, want %s", postFinalizeCert.SerialNumber.String(), expectedTargetCert.SerialNumber.String())
-	}
+	awaitCert(t, serverAddr, expectedTargetCert, 30*time.Second)
 	t.Log("Post-finalize verification successful: new certificate is permanently served.")
 
 	// 6. Verify maintained connection
@@ -473,7 +483,16 @@ func rotateAndFinalize(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice
 	}
 	batch.Set(t, dut.GNMIOpts().WithClient(gnmiClient))
 	t.Logf("Applied gNMI config for profile %s", profileID)
-	time.Sleep(10 * time.Second) // Wait for config to propagate
+	if len(servers) > 0 {
+		server := servers[0]
+		_, ok := ognmi.Watch(t, dut.GNMIOpts().WithClient(gnmiClient), ognmi.OC().System().GrpcServer(server).CertificateId().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+			v, present := val.Val()
+			return present && v == profileID
+		}).Await(t)
+		if !ok {
+			return fmt.Errorf("timed out waiting for gNMI config to propagate for profile %s", profileID)
+		}
+	}
 
 	// Finalize
 	finalizeReq := &certzpb.RotateCertificateRequest{
