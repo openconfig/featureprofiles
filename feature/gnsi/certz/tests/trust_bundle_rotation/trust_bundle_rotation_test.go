@@ -27,6 +27,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -278,9 +279,14 @@ func TestTrustBundleRotation(t *testing.T) {
 						t.Logf("Received Rotate response: %v", resp)
 
 						// Step 4: Probe (Verify connection works with new trust pool before finalize)
-						t.Log("Step 4: Probing new trust bundle...")
-						if success := setup_service.VerifyGnsi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("Probe failed: gNSI service verification failed with new trust bundle.")
+						t.Log("Step 4: Probing new trust bundle using Probe RPC...")
+						activeAuthzClient := authzpb.NewAuthzClient(conn)
+						_, err = activeAuthzClient.Probe(ctx, &authzpb.ProbeRequest{
+							User: username,
+							Rpc:  "/gnsi.authz.v1.Authz/Probe",
+						})
+						if err != nil {
+							t.Fatalf("Probe failed: %v", err)
 						}
 						t.Log("Probe successful.")
 
@@ -303,9 +309,21 @@ func TestTrustBundleRotation(t *testing.T) {
 						time.Sleep(5 * time.Second) // Wait for finalization to settle
 
 						// Step 6: Post-finalization verification
-						t.Log("Step 6: Verifying service after finalization...")
-						if result := setup_service.ServicesValidationCheck(t, targetCaCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
-							t.Fatalf("Service validation failed after finalization.")
+						t.Log("Step 6: Verifying services after finalization...")
+						if success := setup_service.VerifyGnoi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("gNOI service verification failed after finalization.")
+						}
+						if success := setup_service.VerifyGribi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("gRIBI service verification failed after finalization.")
+						}
+						if success := setup_service.VerifyP4rt(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("P4RT service verification failed after finalization.")
+						}
+						if success := setup_service.VerifyGnmi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("gNMI service verification failed after finalization.")
+						}
+						if success := setup_service.VerifyGnsi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("gNSI service verification failed after finalization.")
 						}
 						t.Log("Post-finalization verification successful.")
 					} else {
