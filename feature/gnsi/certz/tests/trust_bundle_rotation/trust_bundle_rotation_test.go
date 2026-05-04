@@ -44,11 +44,11 @@ type DUTCredentialer interface {
 }
 
 var (
-	serverAddr          string
-	creds               DUTCredentialer
-	testProfile         string = "rotationprofile"
-	logTime             string = time.Now().String()
-	expectedResult      bool   = true
+	serverAddr     string
+	creds          DUTCredentialer
+	testProfile    string = "rotationprofile"
+	logTime        string = time.Now().String()
+	expectedResult bool   = true
 )
 
 func TestMain(m *testing.M) {
