@@ -27,6 +27,7 @@ import (
 	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -406,6 +407,41 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	// 3. Probe
 	t.Log("Positive test: probing new certificate...")
 	expectedTargetCert := loadPemCert(t, tc.targetCert)
+	targetSAN := expectedTargetCert.DNSNames[0]
+
+	// Load client cert for probing
+	clientCert, err := tls.LoadX509KeyPair(tc.clientCert, tc.clientKey)
+	if err != nil {
+		t.Fatalf("Failed to load client cert for probing: %v", err)
+	}
+
+	// Load target trust bundle for probing
+	targetCerts, _, err := setupService.Loadpkcs7TrustBundle(tc.targetBundle)
+	if err != nil {
+		t.Fatalf("Failed to load target trust bundle for probing: %v", err)
+	}
+	targetCaCertPool := x509.NewCertPool()
+	for _, c := range targetCerts {
+		targetCaCertPool.AddCert(c)
+	}
+
+	// Dial new connection using target certs
+	conn := setupService.CreateNewDialOption(t, clientCert, targetCaCertPool, targetSAN, username, password, serverAddr)
+	defer conn.Close()
+
+	// Call Probe RPC
+	t.Log("Probing new certificate using Probe RPC...")
+	activeAuthzClient := authzpb.NewAuthzClient(conn)
+	_, err = activeAuthzClient.Probe(ctx, &authzpb.ProbeRequest{
+		User: username,
+		Rpc:  "/gnsi.authz.v1.Authz/Probe",
+	})
+	if err != nil {
+		t.Fatalf("Probe RPC failed: %v", err)
+	}
+	t.Log("Probe RPC successful.")
+
+	// Also do the TLS dial to validate SN and SAN (as required by steps 2 and 4)
 	probeCert := dialAndGetCert(t, serverAddr)
 	t.Logf("Probe certificate subject: %s, SN: %s", probeCert.Subject, probeCert.SerialNumber.String())
 	// Validate SAN
@@ -416,7 +452,7 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	if probeCert.SerialNumber.Cmp(expectedTargetCert.SerialNumber) != 0 {
 		t.Fatalf("Probe certificate SN mismatch: got %s, want %s", probeCert.SerialNumber.String(), expectedTargetCert.SerialNumber.String())
 	}
-	t.Log("Probe successful: new certificate is being served.")
+	t.Log("Probe successful: new certificate is being served and validated.")
 
 	// 4. Finalize
 	t.Log("Finalizing rotation...")
