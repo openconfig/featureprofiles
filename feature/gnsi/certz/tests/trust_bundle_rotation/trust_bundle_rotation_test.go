@@ -97,12 +97,14 @@ func CertzRotateNegative(ctx context.Context, t *testing.T, certzClient certzpb.
 	if len(entities) == 0 {
 		t.Fatalf("At least one entity required for Rotate request.")
 	}
-	uploadRequest := &certzpb.UploadRequest{Entities: entities}
-	rotateRequest := &certzpb.RotateCertificateRequest_Certificates{Certificates: uploadRequest}
 	rotateCertRequest := &certzpb.RotateCertificateRequest{
 		ForceOverwrite: false,
 		SslProfileId:   profileID,
-		RotateRequest:  rotateRequest,
+		RotateRequest: &certzpb.RotateCertificateRequest_Certificates{
+			Certificates: &certzpb.UploadRequest{
+				Entities: entities,
+			},
+		},
 	}
 	rotateRequestClient, err := certzClient.Rotate(ctx)
 	if err != nil {
