@@ -20,6 +20,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,8 +54,9 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func monitorConnection(ctx context.Context, t *testing.T, gnmiClient gnmipb.GNMIClient, errChan chan error) {
+func monitorConnection(ctx context.Context, t *testing.T, gnmiClient gnmipb.GNMIClient, errChan chan error, wg *sync.WaitGroup) {
 	t.Helper()
+	defer wg.Done()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -231,10 +233,12 @@ func TestServerCertificateRotation(t *testing.T) {
 					var monitorCtx context.Context
 					var monitorCancel context.CancelFunc
 					errChan := make(chan error, 1)
+					var wg sync.WaitGroup
 
 					if tc.monitorConn {
 						monitorCtx, monitorCancel = context.WithCancel(ctx)
-						go monitorConnection(monitorCtx, t, activeGnmiClient, errChan)
+						wg.Add(1)
+						go monitorConnection(monitorCtx, t, activeGnmiClient, errChan, &wg)
 					}
 
 					if !tc.isNegative {
@@ -246,7 +250,7 @@ func TestServerCertificateRotation(t *testing.T) {
 
 						if tc.monitorConn {
 							monitorCancel()
-							time.Sleep(200 * time.Millisecond)
+							wg.Wait()
 							select {
 							case err := <-errChan:
 								t.Errorf("Connection was impaired during rotation: %v", err)
