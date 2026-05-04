@@ -21,18 +21,24 @@ import (
 	"encoding/pem"
 	"fmt"
 	"os"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnoigo"
+	spb "github.com/openconfig/gnoi/system"
 	authzpb "github.com/openconfig/gnsi/authz"
 	certzpb "github.com/openconfig/gnsi/certz"
+	gribipb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	ognmi "github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ygnmi/ygnmi"
+	p4rtpb "github.com/p4lang/p4runtime/go/p4/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -70,6 +76,12 @@ type testCase struct {
 	clientKey     string
 	cversion      string
 	bversion      string
+}
+
+type serviceMaintainer struct {
+	name string
+	dial func(ctx context.Context) (any, error)
+	ping func(ctx context.Context, client any) error
 }
 
 func dialAndGetCert(t *testing.T, addr string) *x509.Certificate {
@@ -312,35 +324,93 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	}
 	targetTrustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(targetPkcs7data), tc.bversion)
 
-	// Maintain connection goroutine (for positive test)
-	var connImpaired bool
+	// Maintain connection goroutines (for positive test)
+	var connImpaired atomic.Bool
 	stopMaintain := make(chan struct{})
 	if !tc.isNegative {
-		go func() {
-			// Maintain connection by doing periodic gNMI Capabilities requests
-			maintainConn, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-			if err != nil {
-				t.Logf("Maintain conn: failed to dial: %v", err)
-				connImpaired = true
-				return
-			}
-			ticker := time.NewTicker(2 * time.Second)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-stopMaintain:
+		maintainers := []serviceMaintainer{
+			{
+				name: "gNMI",
+				dial: func(ctx context.Context) (any, error) {
+					return dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+				},
+				ping: func(ctx context.Context, client any) error {
+					_, err := client.(gnmipb.GNMIClient).Capabilities(ctx, &gnmipb.CapabilityRequest{})
+					return err
+				},
+			},
+			{
+				name: "gNOI",
+				dial: func(ctx context.Context) (any, error) {
+					return dut.RawAPIs().BindingDUT().DialGNOI(ctx)
+				},
+				ping: func(ctx context.Context, client any) error {
+					_, err := client.(gnoigo.Clients).System().Ping(ctx, &spb.PingRequest{})
+					return err
+				},
+			},
+			{
+				name: "gRIBI",
+				dial: func(ctx context.Context) (any, error) {
+					return dut.RawAPIs().BindingDUT().DialGRIBI(ctx)
+				},
+				ping: func(ctx context.Context, client any) error {
+					_, err := client.(gribipb.GRIBIClient).Get(ctx, &gribipb.GetRequest{})
+					return err
+				},
+			},
+			{
+				name: "P4RT",
+				dial: func(ctx context.Context) (any, error) {
+					return dut.RawAPIs().BindingDUT().DialP4RT(ctx)
+				},
+				ping: func(ctx context.Context, client any) error {
+					_, err := client.(p4rtpb.P4RuntimeClient).Capabilities(ctx, &p4rtpb.CapabilitiesRequest{})
+					return err
+				},
+			},
+			{
+				name: "gNSI",
+				dial: func(ctx context.Context) (any, error) {
+					return dut.RawAPIs().BindingDUT().DialGNSI(ctx)
+				},
+				ping: func(ctx context.Context, client any) error {
+					_, err := client.(binding.GNSIClients).Authz().Get(ctx, &authzpb.GetRequest{})
+					return err
+				},
+			},
+		}
+
+		var wg sync.WaitGroup
+		for _, m := range maintainers {
+			wg.Add(1)
+			go func(m serviceMaintainer) {
+				defer wg.Done()
+				t.Logf("Starting maintainer for %s", m.name)
+				client, err := m.dial(ctx)
+				if err != nil {
+					t.Logf("Maintain %s: failed to dial: %v", m.name, err)
+					connImpaired.Store(true)
 					return
-				case <-ticker.C:
-					// Simple RPC to keep connection active
-					_, err := maintainConn.Capabilities(ctx, &gnmipb.CapabilityRequest{})
-					if err != nil {
-						t.Logf("Maintain conn: Capabilities failed: %v", err)
-						connImpaired = true
+				}
+				ticker := time.NewTicker(2 * time.Second)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stopMaintain:
 						return
+					case <-ticker.C:
+						if err := m.ping(ctx, client); err != nil {
+							t.Logf("Maintain %s: ping failed: %v", m.name, err)
+							connImpaired.Store(true)
+							return
+						}
 					}
 				}
-			}
-		}()
+			}(m)
+		}
+		// Wait for all maintainers to finish when stopped
+		defer wg.Wait()
 	}
 
 	// Open Rotate stream
@@ -478,7 +548,7 @@ func runTestCase(t *testing.T, dut *ondatra.DUTDevice, username, password string
 	if stopMaintain != nil {
 		close(stopMaintain)
 	}
-	if connImpaired {
+	if connImpaired.Load() {
 		t.Fatalf("Maintained connection was impaired during rotation")
 	}
 	t.Log("Maintained connection was NOT impaired during rotation.")
