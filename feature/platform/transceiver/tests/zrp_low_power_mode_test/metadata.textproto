@@ -23,5 +23,6 @@ platform_exceptions: {
     interface_enabled: true
     explicit_dco_config: true
     skip_optical_channel_output_power_interval: true
+    skip_transceiver_description: true
   }
 }
