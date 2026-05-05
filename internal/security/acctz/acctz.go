@@ -584,13 +584,13 @@ func extractRawSSHClient(c binding.SSHClient) *ssh.Client {
 	}
 	// Try to find a field of type *ssh.Client by name "Client" first.
 	f := v.FieldByName("Client")
-	if f.IsValid() && f.Type().String() == "*ssh.Client" {
+	if f.IsValid() && f.CanInterface() && f.Type().String() == "*ssh.Client" {
 		return f.Interface().(*ssh.Client)
 	}
 	// If not found, iterate through all fields and return the first *ssh.Client found.
 	for i := 0; i < v.NumField(); i++ {
 		field := v.Field(i)
-		if field.Type().String() == "*ssh.Client" {
+		if field.CanInterface() && field.Type().String() == "*ssh.Client" {
 			return field.Interface().(*ssh.Client)
 		}
 	}
@@ -1371,7 +1371,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	sshConn, w := dialSSH(t, dut, SuccessUsername, successPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1450,7 +1450,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 
 	var records []*acctzpb.RecordResponse
 
-	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA {
+	if dut.Vendor() == ondatra.ARISTA || dut.Vendor() == ondatra.NOKIA || dut.Vendor() == ondatra.CISCO {
 		failuser = failAuthorizeUsername
 		failpass = failAuthorizePassword
 	} else {
@@ -1460,7 +1460,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	sshConn, w := dialSSH(t, dut, failuser, failpass, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
@@ -1573,7 +1573,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	sshConn, w := dialSSH(t, dut, shellUsername, shellPassword, target)
 	defer func() {
 		// Give things a second to percolate then close the connection.
-		time.Sleep(3 * time.Second)
+		time.Sleep(6 * time.Second)
 		err := sshConn.Close()
 		if err != nil {
 			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)

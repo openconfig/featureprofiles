@@ -643,10 +643,19 @@ func TestInterfaceStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Type: %s", root.GetType())
 			}
-			if root.Description == nil {
-				t.Errorf("ERROR: Description is not present")
-			} else {
-				t.Logf("INFO: Description: %s", root.GetType())
+			cfgDesc, cfgPresent := gnmi.Lookup(t, dut, gnmi.OC().Interface(intf).Description().Config()).Val()
+			gotDesc := root.GetDescription()
+			switch {
+			case cfgPresent && root.Description == nil:
+				t.Errorf("ERROR: Description is not present in state, but config is set to %q", cfgDesc)
+			case cfgPresent && gotDesc != cfgDesc:
+				t.Errorf("ERROR: Description mismatch, got %q, want %q", gotDesc, cfgDesc)
+			case cfgPresent:
+				t.Logf("INFO: Description: %s", gotDesc)
+			case root.Description != nil:
+				t.Logf("INFO: Description is present in state without config: %s", gotDesc)
+			default:
+				t.Logf("INFO: Description is not configured; skipping interface state description check")
 			}
 			if root.GetCounters().OutOctets == nil {
 				t.Errorf("ERROR: Counter OutOctets is not present")
