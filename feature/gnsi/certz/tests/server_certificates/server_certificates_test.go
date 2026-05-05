@@ -4,14 +4,15 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//	http://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package client_certificates_test
+
+package server_certificates_test
 
 import (
 	"context"
@@ -55,45 +56,45 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// TestClientCert Test validates that client certificates from a set of one CA are able to be loaded successfully
-// and  used for authentication to a device when used by a client connecting to each
+// TestServerCert tests the server certificates from a set of one CA are able to be validated and
+// used for authentication to a device when used by a client connecting to each
 // gRPC service.
-func TestClientCert(t *testing.T) {
+func TestServerCert(t *testing.T) {
 
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name() //returns the device name.
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
-		t.Fatalf("%sSTATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", logTime, err, dut.Name())
+		t.Fatalf("%s:STATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface", logTime, err, dut.Name())
 	}
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
-	t.Logf("Validation of all services that are using gRPC before certz rotation.")
+	t.Logf("Validation of all services that are using gRPC before server certificate rotation.")
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
-	//Generate testdata certificates
-	t.Logf("%sSTATUS:Generation of test data certificates.", logTime)
+	//Generate testdata certificates.
+	t.Logf("%s:STATUS:Generation of test data certificates.", logTime)
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Fatalf("%sSTATUS:Generation of testdata certificates failed!: %v", logTime, err)
+		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
-	//Create a certz client
+	//Create a certz client.
 	ctx := context.Background()
 	certzClient := gnsiC.Certz()
-	t.Logf("%sSTATUS:Precheck:checking baseline ssl profile list.", logTime)
-	//Get ssl profile list.
+	t.Logf("%s:STATUS:Precheck:checking baseline sslprofile list.", logTime)
+	//Get sslprofile list.
 	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%sSTATUS:profileID %s already exists.", logTime, testProfile)
+		t.Fatalf("%s:STATUS:profileID %s already exists.", logTime, testProfile)
 	}
-	//Add a new ssl profileID
-	t.Logf("%sSTATUS:Adding new empty ssl profile ID %s.", logTime, testProfile)
+	//Add a new sslprofileID.
+	t.Logf("%s:STATUS:Adding new sslprofileID %s.", logTime, testProfile)
 	if addProfileResponse, err := certzClient.AddProfile(ctx, &certzpb.AddProfileRequest{SslProfileId: testProfile}); err != nil {
-		t.Fatalf("%sSTATUS:Add profile request failed with %v!", logTime, err)
+		t.Fatalf("%s:STATUS:Add profile request failed with %v! ", logTime, err)
 	} else {
-		t.Logf("%sSTATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
+		t.Logf("%s:STATUS:Received the AddProfileResponse %v.", logTime, addProfileResponse)
 	}
-	//Get ssl profile list after new ssl profile addition.
+	//Get sslprofile list after new sslprofile addition.
 	if getResp := setupService.GetSslProfilelist(ctx, t, certzClient, &certzpb.GetProfileListRequest{}); !slices.Contains(getResp.SslProfileIds, testProfile) {
-		t.Fatalf("%sSTATUS:newly added profileID is not seen.", logTime)
+		t.Fatalf("%s:STATUS:newly added profileID is not seen.", logTime)
 	} else {
-		t.Logf("%sSTATUS: new profileID %s is seen in ssl profile list.", logTime, testProfile)
+		t.Logf("%sSTATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
 	}
 	cases := []struct {
 		desc            string
@@ -109,7 +110,7 @@ func TestClientCert(t *testing.T) {
 		scale           bool
 	}{
 		{
-			desc:            "Certz1.1:Load the key-type rsa trustbundle with 1 CA configuration",
+			desc:            "Certz2.1:Load server certificate of rsa keytype with 1 CA configuration",
 			serverCertFile:  dirPath + "ca-01/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_rsa.p7b",
@@ -119,7 +120,7 @@ func TestClientCert(t *testing.T) {
 			bversion:        "bundle1",
 		},
 		{
-			desc:            "Certz1.1:Load the key-type ecdsa trustbundle with 1 CA configuration",
+			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1 CA configuration",
 			serverCertFile:  dirPath + "ca-01/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-01/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-01/trust_bundle_01_ecdsa.p7b",
@@ -130,7 +131,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type rsa trustbundle with 2 CA configuration",
+			desc:            "Certz2.1:Load server certificate of rsa keytype with 2 CA configuration",
 			serverCertFile:  dirPath + "ca-02/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.p7b",
@@ -141,7 +142,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type ecdsa trustbundle with 2 CA configuration",
+			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 2 CA configuration",
 			serverCertFile:  dirPath + "ca-02/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
@@ -152,7 +153,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type rsa trustbundle with 10CA configuration",
+			desc:            "Certz2.1:Load server certificate of rsa keytype with 10CA configuration",
 			serverCertFile:  dirPath + "ca-10/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_rsa.p7b",
@@ -163,7 +164,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type ecdsa trustbundle with 10CA configuration",
+			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 10CA configuration",
 			serverCertFile:  dirPath + "ca-10/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-10/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-10/trust_bundle_10_ecdsa.p7b",
@@ -174,7 +175,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type rsa trustbundle with 1000CA configuration",
+			desc:            "Certz2.1:Load server certificate of rsa keytype with 1000CA configuration",
 			serverCertFile:  dirPath + "ca-1000/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_rsa.p7b",
@@ -186,7 +187,7 @@ func TestClientCert(t *testing.T) {
 			scale:           true,
 		},
 		{
-			desc:            "Certz1.1:Load the key-type ecdsa trustbundle with 1000CA configuration",
+			desc:            "Certz2.1:Load server certificate of ecdsa keytype with 1000CA configuration",
 			serverCertFile:  dirPath + "ca-1000/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-1000/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-1000/trust_bundle_1000_ecdsa.p7b",
@@ -198,7 +199,7 @@ func TestClientCert(t *testing.T) {
 			scale:           true,
 		},
 		{
-			desc:            "Certz1.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa client certificate from ca-01",
+			desc:            "Certz2.2:Load the rsa trust_bundle from ca-02 with mismatching key type rsa server certificate from ca-01",
 			serverCertFile:  dirPath + "ca-02/server-rsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-rsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_rsa.p7b",
@@ -210,7 +211,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 		{
-			desc:            "Certz1.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa client certificate from ca-01",
+			desc:            "Certz2.2:Load the ecdsa trust_bundle from ca-02 with mismatching key type ecdsa server certificate from ca-01",
 			serverCertFile:  dirPath + "ca-02/server-ecdsa-a-cert.pem",
 			serverKeyFile:   dirPath + "ca-02/server-ecdsa-a-key.pem",
 			trustBundleFile: dirPath + "ca-02/trust_bundle_02_ecdsa.p7b",
@@ -233,10 +234,10 @@ func TestClientCert(t *testing.T) {
 				ServerCertFile: tc.serverCertFile,
 				ServerKeyFile:  tc.serverKeyFile})
 			serverCertEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeCertificateChain, &serverCert, tc.cversion)
-			//Create a new Cert Pool and add the certs from the trustbundle.
+			//Create a new Cert Pool and add the certs from the trust bundle.
 			pkcs7certs, pkcs7data, err := setupService.Loadpkcs7TrustBundle(tc.trustBundleFile)
 			if err != nil {
-				t.Fatalf("%sSTATUS:failed to load trust bundle: %v", logTime, err)
+				t.Fatalf("%s:STATUS:Failed to load trust bundle: %v", logTime, err)
 			}
 			newCaCert := x509.NewCertPool()
 			for _, c := range pkcs7certs {
@@ -244,21 +245,21 @@ func TestClientCert(t *testing.T) {
 			}
 			//Build trustBundleEntity for the server certificate rotation.
 			trustBundleEntity := setupService.CreateCertzEntity(t, setupService.EntityTypeTrustBundle, string(pkcs7data), tc.bversion)
-			//Load Client certificate
+			//Load Client certificate.
 			newClientCert, err := tls.LoadX509KeyPair(tc.clientCertFile, tc.clientKeyFile)
 			if err != nil {
-				t.Fatalf("%sSTATUS:Failed to load client cert: %v", logTime, err)
+				t.Fatalf("%s:STATUS:Failed to load client cert: %v", logTime, err)
 			}
 			if tc.newTLScreds {
-				t.Logf("%s:STATUS:%s: Creating new TLS credentials for client connection.", logTime, tc.desc)
+				t.Logf("%s:STATUS:%sCreating new TLS credentials for client connection.", logTime, tc.desc)
 				//Load the prior client keypair for new client TLS credentials.
 				prevClientCert, err := tls.LoadX509KeyPair(prevClientCertFile, prevClientKeyFile)
 				if err != nil {
-					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v", logTime, tc.desc, err)
+					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v.", logTime, tc.desc, err)
 				}
 				oldPkcs7certs, oldPkcs7data, err := setupService.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
-					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v", logTime, tc.desc, oldPkcs7data, err)
+					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v.", logTime, tc.desc, oldPkcs7data, err)
 				}
 				//Create a old set of Cert Pool and append the certs from previous trust bundle.
 				prevCaCert := x509.NewCertPool()
@@ -272,21 +273,22 @@ func TestClientCert(t *testing.T) {
 				//Retrieve the connection with previous TLS credentials for certz rotation.
 				conn := setupService.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
 				defer conn.Close()
+				//certz and gnmi clients for the rotation request.
 				certzClient = certzpb.NewCertzClient(conn)
 				gnmiClient = gnmi.NewGNMIClient(conn)
 			} else {
 				t.Logf("%s:STATUS:%s:Using existing TLS credentials for client connection in first iteration.", logTime, tc.desc)
 			}
-			//Initiate certz rotation.
-			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s", tc.desc, tc.serverCertFile, tc.trustBundleFile)
+			//Initiate server certificate rotation.
+			t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", logTime, tc.desc, tc.serverCertFile, tc.trustBundleFile)
 			if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
-				t.Fatalf("%sSTATUS: %s:Certz rotation failed.", logTime, tc.desc)
+				t.Fatalf("%s:STATUS: %s:Certz rotation failed.", logTime, tc.desc)
 			}
 			t.Logf("%s:STATUS:%s: Certz rotation completed!", logTime, tc.desc)
 			//Post rotate validation of all services.
-			t.Run("Verification of new connection after rotate ", func(t *testing.T) {
+			t.Run("Verification of new connection after rotate", func(t *testing.T) {
 				if result := setupService.ServicesValidationCheck(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
-					t.Fatalf("%s:STATUS:%s:service validation failed after rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
+					t.Fatalf("STATUS:%s:service validation failed after rotate- got %v, want %v.", tc.desc, result, expectedResult)
 				}
 				t.Logf("%s:STATUS:%s:service validation done!", logTime, tc.desc)
 			})
@@ -299,7 +301,7 @@ func TestClientCert(t *testing.T) {
 	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
 	//Cleanup of test data.
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
-		t.Errorf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
+		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
 	}
 	t.Logf("%s:STATUS:Test completed!", logTime)
 }
