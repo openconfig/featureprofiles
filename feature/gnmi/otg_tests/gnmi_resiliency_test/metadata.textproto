@@ -3,5 +3,5 @@
 
 uuid:  "73f60107-4b5c-4006-bb4a-bbac09e66b69"
 plan_id:  "gNMI-1.7"
-description:  "DUT Reboot Test"
+description:  "gNMI Resiliency Test"
 testbed:  TESTBED_DUT_ATE_2LINKS
