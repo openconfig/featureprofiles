@@ -1393,6 +1393,7 @@ type Metadata_Deviations struct {
 	// Device does not populate state on subinterface 0
 	// that is implicitly created.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/509766094
 	Subinterface_0StateUnsupported bool `protobuf:"varint,405,opt,name=subinterface_0_state_unsupported,json=subinterface0StateUnsupported,proto3" json:"subinterface_0_state_unsupported,omitempty"`
 	// Device does not support fragment punt drops.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
