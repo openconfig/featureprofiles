@@ -24,6 +24,7 @@ platform_exceptions:  {
 }
 platform_exceptions:  {
   platform:  {
+<<<<<<< RT-7.9
     vendor:  JUNIPER
   }
   deviations:  {
@@ -33,3 +34,14 @@ platform_exceptions:  {
   }
 }
 
+=======
+    vendor:  CISCO
+  }
+  deviations:  {
+    enable_multipath_under_afi_safi: true
+    ipv4_missing_enabled: true
+    skip_setting_allow_multiple_as: true
+    skip_afi_safi_path_for_bgp_multiple_as: true
+  }
+}
+>>>>>>> main

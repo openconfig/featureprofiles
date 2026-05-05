@@ -22,12 +22,11 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/openconfig/ondatra/gnmi"
-
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/credz"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -101,7 +100,12 @@ func TestCredentialz(t *testing.T) {
 			)
 		}
 		gotHostCertificateCreatedOn := sshServer.GetActiveHostCertificateCreatedOn()
-		if got, want := gotHostCertificateCreatedOn, hostCertificateCreatedOn; got != want {
+		wantHostCertificateCreatedOn := hostCertificateCreatedOn
+		switch dut.Vendor() {
+		case ondatra.NOKIA:
+			wantHostCertificateCreatedOn *= 1e9
+		}
+		if got, want := gotHostCertificateCreatedOn, wantHostCertificateCreatedOn; got != want {
 			t.Errorf(
 				"Telemetry reports host certificate created on is not correct\n\twant: %d\n\tgot: %d",
 				want, got,
