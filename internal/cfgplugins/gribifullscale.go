@@ -371,7 +371,7 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, NumPort2VLANs)
 	vrfBatch.Set(t, dut)
 	// TODO: VRF selection policy must be configured (Fix: 500317744 defect).
-	// ConfigureVRFSelectionPolicy(t, dut)
+	ConfigureVRFSelectionPolicy(t, dut)
 }
 
 // ConfigureDUTSubinterfaces creates multiple VLAN-tagged sub-interfaces on dut port, deriving IPv4/IPv6 addresses from the provided prefixes.
