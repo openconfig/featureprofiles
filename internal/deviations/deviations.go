@@ -2135,3 +2135,8 @@ func MacsecCountersFt(dut *ondatra.DUTDevice) string {
 func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
 }
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
+}

@@ -1295,9 +1295,13 @@ message Metadata {
     // Functional translator name for macsec counters telemetry.
     string macsec_counters_ft = 414;
 
-
     // Device needs MPLS Static enabled explicitly on ingress/egress interface
     bool enable_mpls_static_on_interface = 415;
+
+    // Device does not support static route nexthop interface state
+    // Arista: https://partnerissuetracker.corp.google.com/issues/494493377
+    bool static_route_nexthop_interface_state_oc_unsupported = 416;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
