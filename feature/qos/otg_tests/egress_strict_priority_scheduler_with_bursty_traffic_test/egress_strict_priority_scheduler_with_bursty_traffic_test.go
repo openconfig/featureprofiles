@@ -63,7 +63,7 @@ func TestEgressStrictPrioritySchedulerBurstTraffic(t *testing.T) {
 	configureHardwareInit(t, dut)
 
 	t.Logf("Configuring QoS Global parameters")
-	configureQoSGlobalParams(t, dut)
+	cfgplugins.NewQosInitialize(t, dut)
 
 	verifyEgressStrictPrioritySchedulerBurstTrafficIPv4(t, dut)
 	verifyEgressStrictPrioritySchedulerBurstTrafficIPv6(t, dut)
@@ -2511,54 +2511,6 @@ func ConfigureDUTQoSMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 		queue.SetName(tc.queueName)
 		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 	}
-}
-
-func runCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
-	cliClient := dut.RawAPIs().CLI(t)
-	output, err := cliClient.RunCommand(context.Background(), cliCommand)
-	if err != nil {
-		t.Fatalf("Failed to execute CLI command '%s': %v", cliCommand, err)
-	}
-	t.Logf("Received from cli: %s", output.Output())
-	return output.Output()
-}
-
-func configureQoSGlobalParams(t *testing.T, dut *ondatra.DUTDevice) {
-
-	queues := netutil.CommonTrafficQueues(t, dut)
-	qosQNameSet := `
-	configure terminal
-	!
-	qos tx-queue %d name %s
-	!
-	`
-	qosMapTC := `
-	configure terminal
-	!
-	qos map traffic-class %d to tx-queue %d
-	!
-	`
-
-	qosCfgTargetGroup := `
-	configure terminal
-	!
-	qos traffic-class %d name %s
-	!
-	`
-
-	runCliCommand(t, dut, "show version")
-
-	qList := []string{queues.BE1, queues.AF1, queues.AF2, queues.AF3, queues.AF4, queues.NC1}
-	for index, queue := range qList {
-
-		runCliCommand(t, dut, fmt.Sprintf(qosQNameSet, index, queue))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosMapTC, index, index))
-		time.Sleep(time.Second)
-		runCliCommand(t, dut, fmt.Sprintf(qosCfgTargetGroup, index, fmt.Sprintf("target-group-%s", queue)))
-		time.Sleep(time.Second)
-	}
-
 }
 
 func buildCliSetRequest(config string) *gpb.SetRequest {

@@ -7,14 +7,12 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -26,7 +24,7 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -77,12 +75,6 @@ func TestInventoryInterfaceFlap(t *testing.T) {
 	cfgplugins.InterfaceConfig(t, dut, dp2)
 	tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 	// tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
-
 	// Uncomment once the Ondatra OC release version is fixed.
 	// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
 	// 	t.Fatalf("Transceivers types (%v, %v): (%v, %v) are not 400ZR_PLUS, expected %v", tr1, tr2, dp1.PMD(), dp2.PMD(), ondatra.PMD400GBASEZRP)
@@ -148,10 +140,6 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 		cfgplugins.InterfaceConfig(t, dut, dp2)
 		tr1 := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Transceiver().State())
 		//tr2 := gnmi.Get(t, dut, gnmi.OC().Interface(dp2.Name()).Transceiver().State())
-		och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-		och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-		cfgplugins.ConfigOpticalChannel(t, dut, och1, frequency, targetOutputPower, operationalMode)
-		cfgplugins.ConfigOpticalChannel(t, dut, och2, frequency, targetOutputPower, operationalMode)
 
 		// Uncomment once the Ondatra OC release version is fixed.
 		// if (dp1.PMD() != ondatra.PMD400GBASEZRP) || (dp2.PMD() != ondatra.PMD400GBASEZRP) {
@@ -182,26 +170,23 @@ func TestInventoryTransceiverOnOff(t *testing.T) {
 
 		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
-		//  power off interface transceiver.
+		// Disable or shut down the interface on the DUT.
 		for _, p := range dut.Ports() {
-			// for transceiver disable, the input needs to be the transceiver name instead of the interface name
-			tr := gnmi.Get(t, dut, gnmi.OC().Interface(p.Name()).Transceiver().State())
-			gnmi.Update(t, dut, gnmi.OC().Component(p.Name()).Name().Config(), p.Name())
-			setConfigLeaf := gnmi.OC().Component(tr)
-			gnmi.Update(t, dut, setConfigLeaf.Config(), &oc.Component{
-				Name: ygot.String(tr),
-			})
-			gnmi.Update(t, dut, gnmi.OC().Component(tr).Transceiver().Enabled().Config(), false)
+			cfgplugins.ToggleInterface(t, dut, p.Name(), false)
 		}
+		// Wait for channels to be down.
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
+		gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_DOWN)
+
 		t.Logf("Interfaces are down: %v, %v", dp1.Name(), dp2.Name())
 		verifyAllInventoryValues(t, p1StreamsStr, p1StreamsUnion)
 
 		time.Sleep(3 * waitInterval)
-		//  power on interface transceiver.
-		gnmi.Update(t, dut, gnmi.OC().Component(dp1.Name()).Name().Config(), dp1.Name())
-		gnmi.Update(t, dut, gnmi.OC().Component(tr1).Transceiver().Enabled().Config(), true)
-		gnmi.Update(t, dut, gnmi.OC().Component(dp2.Name()).Name().Config(), dp2.Name())
-		//gnmi.Update(t, dut, gnmi.OC().Component(tr2).Transceiver().Enabled().Config(), true)
+		// Re-enable interfaces.
+		for _, p := range dut.Ports() {
+			cfgplugins.ToggleInterface(t, dut, p.Name(), true)
+		}
+
 		// Wait for channels to be up.
 		gnmi.Await(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)
 		gnmi.Await(t, dut, gnmi.OC().Interface(dp2.Name()).OperStatus().State(), timeout, oc.Interface_OperStatus_UP)

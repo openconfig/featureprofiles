@@ -233,21 +233,19 @@ func TestPacketOut(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	configureDUT(t, dut)
 
+	configureDeviceID(ctx, t, dut)
+	client := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
+	if err := client.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
+		t.Fatalf("Could not initialize p4rt client: %v", err)
+	}
+
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
-
 	otg := ate.OTG()
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
-
-	configureDeviceID(ctx, t, dut)
-
-	client := p4rt_client.NewP4RTClient(&p4rt_client.P4RTClientParameters{})
-	if err := client.P4rtClientSet(dut.RawAPIs().P4RT(t)); err != nil {
-		t.Fatalf("Could not initialize p4rt client: %v", err)
-	}
 
 	sm := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 	srcMAC, err := net.ParseMAC(sm)

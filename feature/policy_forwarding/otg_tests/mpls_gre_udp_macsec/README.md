@@ -22,27 +22,26 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate).
 * Send bidirectional traffic:
   * IP to Encap Traffic: The IP to Encap traffic is from ATE Ports [1,2] to ATE Ports [3,4,5,6]. 
 
-  * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].  
+  * Encap to IP Traffic: The Encap traffic to IP traffic is from ATE Ports [3,4,5,6] to ATE Ports [1,2].
 
 Please refer to the MPLSoGRE [encapsulation PF-1.14](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_encap_test/README.md) and [decapsulation PF-1.12](feature/policy_forwarding/otg_tests/mpls_gre_ipv4_decap_test/README.md) READMEs for additional information on the test traffic environment setup.
 
 ## PF-1.17.1: Generate DUT Configuration
 ### MACsec
 * Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the aggregate bundle links connecting ATE ports 1,2 and DUT:
-    * Define first Policy(1) to cover must-secure scenario  
-    * Define second Policy(2) to cover should-secure scenario
+    * Define first Policy(1) to cover must-secure scenario, as defined below
+    * Define second Policy(2) to cover should-secure scenario, as defined below
     * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
-    * Each pre-shared key mush have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
-    * Set CKN as encrypted/hidden in the running configuration
+    * Each pre-shared key must have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
+    * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
     * Set Key server priority: 15
-    * Set Security association key rekey interval: 28800 seconds
+    * Set Security association key rekey interval: 30 seconds (test only)
     * Set MACsec confidentiality offset: 0
-    * Set Replay Protection Window size: 64
-    * Set ICV enabled:True
-    * Set SCI enabled:True
-    * Set Out of sequence protection window size:64
-    * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable)
+    * Set Replay Protection Window (out-of-sequence protection) size: 64
+    * Include ICV indicator:True
+    * Include SCI:True
+    * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable and is not included in the test cases)
 
 ## PF-1.17.2: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec must-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -57,7 +56,7 @@ Verify:
 * No packet loss while forwarding at line rate
 * Traffic equally load-balanced across bundle interfaces in both directions
 * Header fields are as expected in both directions
-* Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by disabling MACsec on ATE ports
+* Traffic is dropped (100 percent) when the must-secure MACSec sessions are down by changing a key on one side to a mismatch & forcing renegotiation on ATE ports
 
 ## PF-1.17.3: Verify PF MPLSoGRE and MPLSoGUE traffic forwarding with MACSec should-secure policy
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -72,7 +71,7 @@ Verify:
 * No packet loss while forwarding at line rate
 * Traffic equally load-balanced across bundle interfaces in both directions
 * Header fields are as expected in both directions
-* Traffic is not dropped when the should-secure MACSec sessions are down by disabling MACsec on ATE ports
+* Traffic is not dropped when the should-secure MACSec sessions are down by changing a key on one side to a mismatch & forcing renegotiation on ATE ports
 
 ## PF-1.17.4: Verify MACSec key rotation
 * Generate bidirectional traffic as highlighted in the test environment setup section:
@@ -90,119 +89,129 @@ Verify:
 * No packet loss when keys one through five expires as configured
 * 100 percent packet loss after all the keys configured expires
 
+## PF-1.17.5: Verify standard Security-Association timer
+* Generate bidirectional traffic as highlighted in the test environment setup section:
+    * MPLSoGRE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
+    * MPLSoGUE traffic with IPV4 and IPV6 payloads from ATE ports 3,4,5,6
+    * IPV4 and IPV6 traffic from ATE ports 1,2
+* Use 64, 128, 256, 512, 1024.. MTU bytes frame size.
+* Enable must secure policy (Policy(1)) on both interfaces ATE ports 1,2 and DUT
+* Set the security association key rekey interval to 28800 seconds
 
-## Canonical OpenConfig for MACsec configuration
+Verify:
+* Verify the SAK key value is accepted by the DUT
+* Verify that MACsec sessions are up
+* No packet loss while forwarding at line rate
+
+## Definitions
+  * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used or if keys have expired. On receive (rx), unencrypted packets that should be secure or encrypted with expired keys are dropped.
+  * *should-secure:* Unencrypted packets are permitted. On receive (rx), it's recommended but not required to drop unencrypted packets if a macsec session is active. On transmit (tx), it's recommended but not required to send unencrypted packets if macsec session negotiation has failed.
+
+## Canonical OC
  
 ```json
 {
-    "macsec": {
-        "interfaces": {
-            "interface": [
-                {
-                    "config": {
-                        "enable": true,
-                        "name": "Ethernet12/1",
-                        "replay-protection": 64
-                    },
-                    "mka": {
-                        "config": {
-                            "key-chain": "my_macsec_keychain",
-                            "mka-policy": "must_secure_policy"
-                        }
-                    },
-                    "name": "Ethernet12/1"
-                },
-                {
-                    "config": {
-                        "enable": true,
-                        "name": "Ethernet11/1",
-                        "replay-protection": 64
-                    },
-                    "mka": {
-                        "config": {
-                            "key-chain": "my_macsec_keychain",
-                            "mka-policy": "must_secure_policy"
-                        }
-                    },
-                    "name": "Ethernet11/1"
-                }
-            ]
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "name": "Ethernet1/1"
         },
-        "mka": {
-            "policies": {
-                "policy": [
-                    {
-                        "config": {
-                            "confidentiality-offset": "0_BYTES",
-                            "include-icv-indicator": true,
-                            "include-sci": true,
-                            "key-server-priority": 15,
-                            "macsec-cipher-suite": [
-                                "GCM_AES_XPN_256"
-                            ],
-                            "name": "must_secure_policy",
-                            "sak-rekey-interval": 28800,
-                            "security-policy": "MUST_SECURE"
-                        },
-                        "name": "must_secure_policy"
-                    },
-                    {
-                        "config": {
-                            "confidentiality-offset": "0_BYTES",
-                            "include-icv-indicator": true,
-                            "include-sci": true,
-                            "key-server-priority": 15,
-                            "macsec-cipher-suite": [
-                                "GCM_AES_XPN_256"
-                            ],
-                            "name": "should_secure_policy",
-                            "sak-rekey-interval": 28800,
-                            "security-policy": "SHOULD_SECURE"
-                        },
-                        "name": "should_secure_policy"
-                    }
-                ]
+        "name": "Ethernet1/1"
+      },
+      {
+        "config": {
+          "name": "Ethernet1/2"
+        },
+        "name": "Ethernet1/2"
+      }
+    ]
+  },
+  "keychains": {
+    "keychain": [
+      {
+        "config": {
+          "name": "keychain1"
+        },
+        "keys": {
+          "key": [
+            {
+              "config": {
+                "crypto-algorithm": "AES_256_CMAC",
+                "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555",
+                "secret-key": "ad4rf10kn85fc0adk5dfcsnr1or4cm08q"
+              },
+              "key-id": "0xabcd111122223333444455556666777788889999000011112222333344445555"
             }
-        }
-    },
-    "keychains": {
-        "keychain": {
+          ]
+        },
+        "name": "keychain1"
+      }
+    ]
+  },
+  "macsec": {
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet1/1",
+            "replay-protection": 64
+          },
+          "mka": {
             "config": {
-                "name": "my_macsec_keychain"
-            },
-            "keys": {
-                "key": [
-                    {
-                        "config": {
-                            "secret-key": "sercret password/CAK",
-                            "key-id": "key-id/CKN",
-                            "crypto-algorithm": "AES_256_CMAC",
-                            "send-lifetime": {
-                                "config": {
-                                    "start-time": "my_start_time",
-                                    "end-time": "my_end_time"
-                                }
-                            },
-                            "receive-lifetime": {
-                                "config": {
-                                    "start-time": "my_start_time",
-                                    "end-time": "my_end_time"
-                                }
-                            }
-                        }
-                    }
-                ]
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
             }
+          },
+          "name": "Ethernet1/1"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet1/2",
+            "replay-protection": 64
+          },
+          "mka": {
+            "config": {
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
+            }
+          },
+          "name": "Ethernet1/2"
         }
+      ]
+    },
+    "mka": {
+      "policies": {
+        "policy": [
+          {
+            "config": {
+              "confidentiality-offset": "0_BYTES",
+              "include-icv-indicator": true,
+              "include-sci": true,
+              "key-server-priority": 15,
+              "macsec-cipher-suite": [
+                "GCM_AES_XPN_256"
+              ],
+              "name": "must_secure",
+              "sak-rekey-interval": 30
+            },
+            "name": "must_secure"
+          }
+        ]
+      }
     }
+  }
 }
-  ```
+```
 
 ## OpenConfig Path and RPC Coverage
 TODO: Finalize and update the below paths after the review and testing on any vendor device.
 
 ```yaml
 paths:
+ # TODO:  /macsec/mka/config/security-policy  MUST_SECURE,SHOULD_SECURE
  /macsec/interfaces/interface/state/name:
  /macsec/interfaces/interface/state/enable:
  /macsec/interfaces/interface/state/replay-protection:

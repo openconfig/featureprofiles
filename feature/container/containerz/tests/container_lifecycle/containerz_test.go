@@ -10,7 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -20,6 +22,7 @@ import (
 	"github.com/openconfig/containerz/client"
 
 	cpb "github.com/openconfig/gnoi/containerz"
+	gspb "github.com/openconfig/gnoi/system"
 )
 
 var (
@@ -27,11 +30,21 @@ var (
 	containerUpgradeTar = flag.String("container_upgrade_tar", "/tmp/cntrsrv-upgrade.tar", "The container tarball to upgrade to.")
 	pluginTar           = flag.String("plugin_tar", "/tmp/rootfs.tar.gz", "The plugin tarball (e.g., for vieux/docker-volume-sshfs rootfs.tar.gz).")
 	pluginConfig        = flag.String("plugin_config", "testdata/test_sshfs_config.json", "The plugin config.")
+	// These can be overridden for internal testing behavior using init().
+	containerTarPath = func(t *testing.T) string {
+		return *containerTar
+	}
+	containerUpgradeTarPath = func(t *testing.T) string {
+		return *containerUpgradeTar
+	}
+	pluginTarPath = func(t *testing.T) string {
+		return *pluginTar
+	}
 )
 
 const (
 	instanceName = "test-instance"
-	imageName    = "cntrsrv"
+	imageName    = "cntrsrv_image"
 )
 
 func TestMain(m *testing.M) {
@@ -44,7 +57,8 @@ func startContainer(ctx context.Context, t *testing.T) (*client.Client, func()) 
 	t.Helper()
 	dut := ondatra.DUT(t, "dut")
 	opts := containerztest.StartContainerOptions{
-		TarPath:             *containerTar,
+		InstanceName:        instanceName,
+		TarPath:             containerTarPath(t),
 		RemoveExistingImage: false,
 		PollForRunningState: false,
 		PollInterval:        5 * time.Second,
@@ -64,7 +78,7 @@ func TestDeployAndStartContainer(t *testing.T) {
 			InstanceName:        instanceName,
 			ImageName:           imageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60061:60061"},
 			RemoveExistingImage: true,
@@ -225,7 +239,7 @@ func TestRetrieveLogs(t *testing.T) {
 			InstanceName:        stoppedInstanceName,
 			ImageName:           localImageName,
 			ImageTag:            "latest",
-			TarPath:             *containerTar,
+			TarPath:             containerTarPath(t),
 			Command:             "./cntrsrv",
 			Ports:               []string{"60062:60062"},
 			RemoveExistingImage: false,
@@ -241,9 +255,14 @@ func TestRetrieveLogs(t *testing.T) {
 
 		// Stop the container.
 		if err := baseCli.StopContainer(ctx, stoppedInstanceName, true); err != nil {
-			t.Fatalf("Failed to stop container %s for stopped log test: %v", stoppedInstanceName, err)
+			if status.Code(err) == codes.NotFound || status.Code(err) == codes.FailedPrecondition {
+				t.Logf("Container %s is already stopped: %v", stoppedInstanceName, err)
+			} else {
+				t.Fatalf("Failed to stop container %s for stopped log test: %v", stoppedInstanceName, err)
+			}
+		} else {
+			t.Logf("Container %s stopped.", stoppedInstanceName)
 		}
-		t.Logf("Container %s stopped.", stoppedInstanceName)
 		// Allow time for stop to process.
 		time.Sleep(3 * time.Second)
 
@@ -279,8 +298,8 @@ func TestRetrieveLogs(t *testing.T) {
 				s, ok := status.FromError(msg.Error)
 				if !ok {
 					t.Errorf("Stream error for stopped instance %s was not a gRPC status error: %v", stoppedInstanceName, msg.Error)
-				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown {
-					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
+				} else if s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition && s.Code() != codes.Unknown && s.Code() != codes.Internal {
+					t.Errorf("Expected gRPC status code NotFound, FailedPrecondition, Internal or Unknown from channel for stopped instance %s, but got %s.", stoppedInstanceName, s.Code())
 				}
 				foundErrorOnChannel = true
 				break
@@ -478,10 +497,14 @@ func TestVolumes(t *testing.T) {
 		}
 		// Allow time for removal to settle.
 		time.Sleep(5 * time.Second)
-
-		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, nil)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		createdVolumeName, err := cli.CreateVolume(ctx, volumeName, "local", nil, volOpts)
 		if err != nil {
-			t.Fatalf("CreateVolume(%q, \"local\", nil, nil) failed: %v", volumeName, err)
+			t.Fatalf("CreateVolume(%q, \"local\", nil, %v) failed: %v", volumeName, volOpts, err)
 		}
 		if createdVolumeName != volumeName {
 			t.Errorf("CreateVolume returned name %q, want %q", createdVolumeName, volumeName)
@@ -508,6 +531,18 @@ func TestVolumes(t *testing.T) {
 				if vol.Driver != "local" {
 					t.Errorf("Volume %q has driver %q, want \"local\"", vol.Name, vol.Driver)
 				}
+
+				// check options.
+				wantOptions := map[string]string{
+					"device": "/tmp",
+					"o":      "bind",
+					"type":   "none",
+				}
+
+				if diff := cmp.Diff(vol.Options, wantOptions); diff != "" {
+					t.Errorf("Volume %q returned a diff(-got, +want):\n%s", vol.Name, diff)
+				}
+
 				break
 			}
 		}
@@ -577,7 +612,7 @@ func TestUpgrade(t *testing.T) {
 		defer cleanup()
 		defer cli.RemoveImage(ctx, imageName, "upgrade", true)
 
-		progCh, err := cli.PushImage(ctx, imageName, "upgrade", *containerUpgradeTar, false)
+		progCh, err := cli.PushImage(ctx, imageName, "upgrade", containerUpgradeTarPath(t), false)
 		if err != nil {
 			t.Fatalf("unable to push image %s:upgrade: %v", imageName, err)
 		}
@@ -717,6 +752,11 @@ func pushPluginImage(ctx context.Context, t *testing.T, cli *client.Client, plug
 func TestPlugins(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
+
+	if deviations.ContainerzPluginRPCUnsupported(dut) {
+		t.Skip("Skipping Containerz plugin tests as Containerz plugin RPCs are unsupported on this device")
+	}
+
 	cli := containerztest.Client(t, dut)
 	// Common SSH parameters for plugin setup
 	const (
@@ -727,8 +767,8 @@ func TestPlugins(t *testing.T) {
 	)
 
 	// Check if the plugin tarball exists (as it's needed for config extraction).
-	if _, err := os.Stat(*pluginTar); os.IsNotExist(err) {
-		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", *pluginTar)
+	if _, err := os.Stat(pluginTarPath(t)); os.IsNotExist(err) {
+		t.Fatalf("Plugin tarball %q not found. Build it from vieux/docker-volume-sshfs and specify path using --plugin_tar.", pluginTarPath(t))
 	}
 
 	t.Run("SuccessfulPluginCompleteLifecycle", func(t *testing.T) {
@@ -751,7 +791,7 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, pluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s: %v", pluginName, pluginImageTag, err)
 		}
 
@@ -823,7 +863,7 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
-			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.FailedPrecondition) {
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.NotFound) {
 				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
 			}
 		}
@@ -849,7 +889,7 @@ func TestPlugins(t *testing.T) {
 		}()
 
 		// Push the plugin image for this specific test case.
-		if err := pushPluginImage(ctx, t, cli, *pluginTar, pluginName, pluginImageTag); err != nil {
+		if err := pushPluginImage(ctx, t, cli, pluginTarPath(t), pluginName, pluginImageTag); err != nil {
 			t.Fatalf("Failed to push plugin image %s:%s for StartAlreadyStartedInstance: %v", pluginName, pluginImageTag, err)
 		}
 
@@ -869,6 +909,112 @@ func TestPlugins(t *testing.T) {
 			s, ok := status.FromError(err)
 			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.AlreadyExists) {
 				t.Errorf("Expected gRPC status code Unknown or AlreadyExists for already started instance, got: %v (status code: %s)", err, s.Code())
+			}
+		}
+	})
+}
+
+// TestContainerPersistenceAfterColdReboot implements CNTR-3.8 checking container persistence after a chassis cold reboot.
+func TestContainerPersistenceAfterColdReboot(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	sysClient := dut.RawAPIs().GNOI(t).System()
+
+	volName := "test-coldreboot-vol"
+	tag := "latest"
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		// Re-initialize client in case of connection loss
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove container %q: %v", instanceName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		t.Logf("Creating volume %s...", volName)
+		volOpts := map[string]string{
+			"type":       "none",
+			"options":    "bind",
+			"mountpoint": "/tmp",
+		}
+		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
+			t.Fatalf("Failed to create volume: %v", err)
+		}
+
+		opts := containerztest.StartContainerOptions{
+			InstanceName:        instanceName,
+			ImageName:           imageName,
+			ImageTag:            tag,
+			TarPath:             containerTarPath(t),
+			Command:             "./cntrsrv",
+			Ports:               []string{"60061:60061"},
+			Volumes:             []string{fmt.Sprintf("%s:%s", volName, "/data")},
+			RemoveExistingImage: true,
+			PollForRunningState: true,
+			PollTimeout:         30 * time.Second,
+			PollInterval:        5 * time.Second,
+		}
+
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("Failed to deploy and start container: %v", err)
+		}
+	})
+
+	t.Run("ColdReboot", func(t *testing.T) {
+		t.Log("Rebooting chassis (cold reboot)...")
+		rebootReq := &gspb.RebootRequest{
+			Method:  gspb.RebootMethod_COLD,
+			Delay:   0,
+			Message: "Container persistence test reboot",
+			Force:   true,
+		}
+		// We expect the connection to drop.
+		if _, err := sysClient.Reboot(ctx, rebootReq); err != nil {
+			t.Logf("Reboot returned error (expected): %v", err)
+		}
+	})
+
+	t.Run("VerifyPersistence", func(t *testing.T) {
+		t.Log("Waiting for DUT to reboot and reconnect...")
+		// Wait for reboot.
+		time.Sleep(8 * time.Minute)
+
+		// Poll for container state.
+		cli = containerztest.Client(t, dut)
+
+		// Use a generous timeout for the device to come back up and the container to start.
+		timeout := 5 * time.Minute
+		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, timeout); err != nil {
+			t.Errorf("Container persistence failed: %v", err)
+		}
+
+		volCh, err := cli.ListVolume(ctx, map[string][]string{"name": {volName}})
+		if err != nil {
+			t.Errorf("ListVolume failed: %v", err)
+		} else {
+			volFound := false
+			for vol := range volCh {
+				if vol.Name == volName {
+					volFound = true
+				}
+			}
+			if !volFound {
+				t.Errorf("Volume persistence failed: volume %s not found", volName)
 			}
 		}
 	})

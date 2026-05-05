@@ -13,14 +13,14 @@ Load balancing across members of a LACP-controlled LAG
 ```mermaid
 graph LR;
 A[ATE] <-- (Port 1) --> B[DUT];
-B[DUT] <-- LACP LAG (Port 2-9) --> C[ATE];
+B[DUT] <-- LACP LAG (Port 2-8) --> C[ATE];
 ```
 
 ## Procedure
 
 *   Connect ATE port-1 to DUT port-1
-*   Connect ATE ports 2 through 9 to DUT ports 2-9
-*   Configure ATE and DUT ports 2-9 to be part of a LACP-controlled LAG
+*   Connect ATE ports 2 through 8 to DUT ports 2-8
+*   Configure ATE and DUT ports 2-8 to be part of a LACP-controlled LAG
 *   Configure a default static route on DUT with the next hop to ATE LAG
 *   Send at least 1000 flows from ATE port-1 towards the DUT with the following
     parameters
@@ -44,47 +44,70 @@ distribution of traffic, but all the links should get traffic
 
 ```json
 {
-  "openconfig-lacp:config": {
-    "name": "Port-Channel1"
-  },
-  "openconfig-lacp:members": {
-    "member": [
+  "openconfig-interfaces:interfaces": {
+    "interface": [
       {
+        "name": "Port-Channel1",
         "config": {
-          "interface": "Ethernet29/1"
-        },
-        "interface": "Ethernet29/1",
-        "state": {
-          "activity": "ACTIVE",
-          "aggregatable": true,
-          "collecting": true,
-          "counters": {
-            "lacp-errors": "0",
-            "lacp-in-pkts": "4393",
-            "lacp-out-pkts": "130415",
-            "lacp-rx-errors": "0",
-            "lacp-tx-errors": "0",
-            "lacp-unknown-errors": "0"
-          },
-          "distributing": true,
-          "interface": "Ethernet29/1",
-          "oper-key": 1,
-          "partner-id": "ac:78:d1:1e:ad:c8",
-          "partner-key": 55,
-          "partner-port-num": 44,
-          "port-num": 175,
-          "arista-lacp-augments:selected": "selected",
-          "synchronization": "IN_SYNC",
-          "system-id": "38:38:a6:a2:f7:30",
-          "timeout": "LONG"
+          "name": "Port-Channel1"
+        }
+      },
+      {
+        "name": "Ethernet29/1",
+        "config": {
+          "name": "Ethernet29/1"
         }
       }
     ]
   },
-  "openconfig-lacp:name": "Port-Channel1",
-  "openconfig-lacp:state": {
-    "name": "Port-Channel1",
-    "system-id-mac": "38:38:a6:a2:f7:30"
+  "openconfig-lacp:lacp": {
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "name": "Port-Channel1"
+          },
+          "members": {
+            "member": [
+              {
+                "config": {
+                  "interface": "Ethernet29/1"
+                },
+                "interface": "Ethernet29/1",
+                "state": {
+                  "activity": "ACTIVE",
+                  "aggregatable": true,
+                  "collecting": true,
+                  "counters": {
+                    "lacp-errors": "0",
+                    "lacp-in-pkts": "4393",
+                    "lacp-out-pkts": "130415",
+                    "lacp-rx-errors": "0",
+                    "lacp-tx-errors": "0",
+                    "lacp-unknown-errors": "0"
+                  },
+                  "distributing": true,
+                  "interface": "Ethernet29/1",
+                  "oper-key": 1,
+                  "partner-id": "ac:78:d1:1e:ad:c8",
+                  "partner-key": 55,
+                  "partner-port-num": 44,
+                  "port-num": 175,
+                  "synchronization": "IN_SYNC",
+                  "system-id": "38:38:a6:a2:f7:30",
+                  "timeout": "LONG"
+                }
+              }
+            ]
+          },
+          "name": "Port-Channel1",
+          "state": {
+            "name": "Port-Channel1",
+            "system-id-mac": "38:38:a6:a2:f7:30"
+          }
+        }
+      ]
+    }
   }
 }
 ```

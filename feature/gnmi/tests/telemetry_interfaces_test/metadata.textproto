@@ -1,0 +1,11 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+uuid: "72d5fade-abb1-49fb-ab9d-1c4f14845e2f"
+plan_id: "gNMI-1.28"
+description: "Telemetry: Interface openconfig validation."
+testbed: TESTBED_DUT_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: PALOALTO
+  }
+}

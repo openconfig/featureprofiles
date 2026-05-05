@@ -12,6 +12,7 @@ platform_exceptions:  {
   deviations:  {
     isis_level_enabled:  true
     skip_non_bgp_route_export_check:  true
+    interface_ref_interface_id_format: true
   }
 }
 platform_exceptions:  {

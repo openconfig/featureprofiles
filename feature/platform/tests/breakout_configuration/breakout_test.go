@@ -28,13 +28,11 @@ const (
 )
 
 var (
-	schemaValue                = 1
-	dutPortName                string
-	foundExpectedInterfaceFlag bool = false
-	breakOutCompName           string
-	fullInterfaceName          string
-	foundComp                  bool
-	dutPort1                   = attrs.Attributes{
+	schemaValue       = 1
+	breakOutCompName  string
+	fullInterfaceName string
+	foundComp         bool
+	dutPort1          = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "203.0.113.1",
 		IPv6:    "2001:db8::1",
@@ -109,6 +107,24 @@ func extractPortPrefixRegex(portName string) string {
 	return portName
 }
 
+// deleteBreakoutConfig deletes the breakout configuration along with the logical interfaces for the given component.
+func deleteBreakoutConfig(t *testing.T, dut *ondatra.DUTDevice, componentName string) {
+	path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+	batch := &gnmi.SetBatch{}
+	for _, port := range dut.Ports() {
+		t.Logf("Queueing deletion of logical interface: %s", port.Name())
+
+		// Delete interface and subinterface config to avoid sticky config issues
+		gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Config())
+		gnmi.BatchDelete(batch, gnmi.OC().Interface(port.Name()).Subinterface(0).Config())
+	}
+
+	// Delete the physical breakout configuration.
+	t.Logf("Queueing deletion of component breakout config for %s", componentName)
+	gnmi.BatchDelete(batch, path.Config())
+	batch.Set(t, dut)
+}
+
 // configureOTG configures port1 and port2 on the ATE.
 func configureOTG(t *testing.T,
 	ate *ondatra.ATEDevice,
@@ -180,8 +196,8 @@ func configureOTG(t *testing.T,
 	// Show the OTG Config
 	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(time.Second * 30)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(time.Second * 30)
 
 	return top
 }
@@ -299,28 +315,72 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(componentName)}
 
 				if deviations.VerifyExpectedBreakoutSupportedConfig(dut) {
-					// deviation is the output "show controllers phy breakout interface" this command returns the following output
-					// this will tell us if a given optic supports the attempted breakout config before applying it
-					// leading to false positive failures
-					//
-					// DUT#show controllers optics 0/0/0/30 breakout-details
-					// Optics Port                     : Optics0_0_0_30
-					// No:of Breakouts                 : 2
-					// Physical Channels per intf      : 2
-					// Interface Speed                 : 100G
-					t.Logf("sending fullInterfaceName to func %s", fullInterfaceName)
-					if !isBreakoutSupported(t, dut, fullInterfaceName, tc.numbreakouts, tc.breakoutspeed) {
-						t.Skipf("Skipping test case %dx%s: Configuration not supported",
-							tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
-						return
+					switch dut.Vendor() {
+					case ondatra.CISCO:
+						// deviation is the output "show controllers phy breakout interface" this command returns the following output
+						// this will tell us if a given optic supports the attempted breakout config before applying it
+						// leading to false positive failures
+						//
+						// DUT#show controllers optics 0/0/0/30 breakout-details
+						// Optics Port                     : Optics0_0_0_30
+						// No:of Breakouts                 : 2
+						// Physical Channels per intf      : 2
+						// Interface Speed                 : 100G
+						t.Logf("sending fullInterfaceName to func %s", fullInterfaceName)
+						if !isBreakoutSupported(t, dut, fullInterfaceName, tc.numbreakouts, tc.breakoutspeed, tc.numPhysicalChannels) {
+							t.Skipf("Skipping test case %dx%s: Configuration not supported",
+								tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
+							return
+						}
+					case ondatra.ARISTA:
+						t.Logf("sending breakOutCompName to func %s", breakOutCompName)
+						if !isBreakoutSupported(t, dut, breakOutCompName, tc.numbreakouts, tc.breakoutspeed, tc.numPhysicalChannels) {
+							t.Skipf("Skipping test case %dx%s: Configuration not supported",
+								tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
+							return
+						}
 					}
 				}
 
 				// Apply configuration
 				gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
-				gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
 				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
-				gnmi.Replace(t, dut, path.Config(), configContainer)
+
+				if deviations.FrBreakoutFix(dut) {
+					batch := &gnmi.SetBatch{}
+					for _, port := range dut.Ports() {
+						t.Logf("Queueing batch replace for interface: %s with speed %v", port.Name(), tc.breakoutspeed)
+
+						// Create interface config with the matching speed
+						interfaceConfig := &oc.Interface{
+							Name:    ygot.String(port.Name()),
+							Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+							Enabled: ygot.Bool(true),
+							Ethernet: &oc.Interface_Ethernet{
+								PortSpeed:  oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
+								DuplexMode: oc.Ethernet_DuplexMode_FULL,
+							},
+						}
+						subInterfaceConfig := &oc.Interface_Subinterface{
+							Index: ygot.Uint32(0),
+							Ipv4: &oc.Interface_Subinterface_Ipv4{
+								Enabled: ygot.Bool(true),
+							},
+						}
+
+						gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Config(), interfaceConfig)
+						gnmi.BatchReplace(batch, gnmi.OC().Interface(port.Name()).Subinterface(0).Config(), subInterfaceConfig)
+					}
+
+					// Add the Breakout Component config to the same batch
+					gnmi.BatchReplace(batch, path.Config(), configContainer)
+
+					batch.Set(t, dut)
+
+				} else {
+					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
+					gnmi.Replace(t, dut, path.Config(), configContainer)
+				}
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
 					componentName, schemaValue), func(t *testing.T) {
@@ -340,17 +400,16 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
+				breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
+				if err != nil {
+					t.Fatal(err)
+				}
+				sortBreakoutPorts(breakOutPorts)
+
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
-					breakOutPorts, err := findNewPortNames(dut, t, dutPortName, tc.numbreakouts)
-					if err != nil {
-						t.Fatal(err)
-					}
 
-					if dut.Vendor() == ondatra.CISCO {
-						sortBreakoutPorts(breakOutPorts)
-					}
 					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
 						t.Fatalf("Failed to generate IPv4 subnet addresses for DUT: %v", err)
@@ -436,12 +495,17 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 								pingRequest.Destination, maxPingRetries)
 						}
 
-						if responses[3].Source != dutAddrs {
-							t.Errorf("Did not get a ping response from ATE source Interface %s",
-								responses[3].Source)
+						if len(responses) < 4 {
+							t.Logf("Warning: Received fewer than 4 responses (%d). Checking last response.", len(responses))
+						}
+						lastIndex := len(responses) - 1
+
+						if responses[0].Source != dutAddrs {
+							t.Errorf("Did not get a ping response from ATE source Interface. Expected %s, got %s.",
+								dutAddrs, responses[0].Source)
 						} else {
-							t.Logf("Got a successful reply from ATE Source Interface: %s",
-								responses[3].Source)
+							t.Logf("Got a successful reply from ATE Source Interface: %s. Stats: Sent %v, Received %v",
+								responses[0].Source, responses[lastIndex].Sent, responses[lastIndex].Received)
 						}
 					}
 				})
@@ -455,7 +519,11 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config",
 					componentName), func(t *testing.T) {
 					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
-					gnmi.Delete(t, dut, path.Config())
+					if deviations.FrBreakoutFix(dut) {
+						deleteBreakoutConfig(t, dut, componentName)
+					} else {
+						gnmi.Delete(t, dut, path.Config())
+					}
 					verifyDelete(t, dut, componentName, uint8(schemaValue))
 				})
 			}

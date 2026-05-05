@@ -233,12 +233,17 @@ func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attribu
 
 	i.GetOrCreateEthernet()
 	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) {
+		i4.Enabled = ygot.Bool(true)
+	}
 	a := i4.GetOrCreateAddress(attrs.IPv4)
 	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
 
 	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
+	if deviations.InterfaceEnabled(dut) {
+		i6.Enabled = ygot.Bool(true)
+	}
+
 	a6 := i6.GetOrCreateAddress(attrs.IPv6)
 	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
 

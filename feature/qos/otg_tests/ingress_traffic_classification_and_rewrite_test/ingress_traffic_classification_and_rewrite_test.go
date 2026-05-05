@@ -68,6 +68,8 @@ const (
 	donotExecuteGue      = false
 	greProtocol          = 47
 	gueProtocolPort      = 6080
+	encapDscp            = 24
+	encapTrafficClass    = 3
 )
 
 var (
@@ -124,6 +126,9 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	dp2 := dut.Port(t, "port2")
 	t.Log(dp1, dp2)
 
+	t.Logf("Configuring Hardware Init")
+	configureHardwareInit(t, dut)
+
 	// Configure DUT interfaces.
 	ConfigureDUTIntf(t, dut)
 	ConfigureQoS(t, dut)
@@ -149,8 +154,9 @@ func TestIngressTrafficClassificationAndRewrite(t *testing.T) {
 	t.Run("DP-1.16.2 Ingress Classification and rewrite of IPv6 packets with various DSCP values", func(t *testing.T) {
 		rewriteIpv6PktsWithDscp(t, dut, ate, topo, donotExecuteGre, donotExecuteGue)
 	})
+
 	t.Run("DP-1.16.3 Ingress Classification and rewrite of MPLS traffic with swap action", func(t *testing.T) {
-		rewriteMplsSwapAction(t, dut, ate, topo)
+		rewriteMplsSwapAction(t, dut, ate, topo, dp1, dp2)
 	})
 	t.Run("DP-1.16.4 Ingress Classification and rewrite of IPv4-over-MPLS traffic with pop action", func(t *testing.T) {
 		rewriteIpv4MplsPopAction(t, dut, ate, topo)
@@ -263,133 +269,160 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		targetGroup string
 		dscpSet     []uint8
 		expSet      []uint8 // MPLS EXP values
-	}{{
-		desc:        "classifier_ipv4_be1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0},
-	}, {
-		desc:        "classifier_ipv4_af1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{1},
-	}, {
-		desc:        "classifier_ipv4_af2",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{2},
-	}, {
-		desc:        "classifier_ipv4_af3",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{3},
-	}, {
-		desc:        "classifier_ipv4_af4",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{4, 5},
-	}, {
-		desc:        "classifier_ipv4_nc1",
-		name:        "dscp_based_classifier_ipv4",
-		classType:   oc.Qos_Classifier_Type_IPV4,
-		termID:      "6",
-		targetGroup: "target-group-NC1",
-		dscpSet:     []uint8{6, 7},
-	}, {
-		desc:        "classifier_ipv6_be1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "0",
-		targetGroup: "target-group-BE1",
-		dscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
-	}, {
-		desc:        "classifier_ipv6_af1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "1",
-		targetGroup: "target-group-AF1",
-		dscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
-	}, {
-		desc:        "classifier_ipv6_af2",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "2",
-		targetGroup: "target-group-AF2",
-		dscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
-	}, {
-		desc:        "classifier_ipv6_af3",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "3",
-		targetGroup: "target-group-AF3",
-		dscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
-	}, {
-		desc:        "classifier_ipv6_af4",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "4",
-		targetGroup: "target-group-AF4",
-		dscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
-	}, {
-		desc:        "classifier_ipv6_nc1",
-		name:        "dscp_based_classifier_ipv6",
-		classType:   oc.Qos_Classifier_Type_IPV6,
-		termID:      "6",
-		targetGroup: "target-group-NC1",
-		dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
-		// }, {
-		// 	desc:        "classifier_mpls_be1",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "0",
-		// 	targetGroup: "target-group-BE1",
-		// 	expSet:      []uint8{0},
-		// }, {
-		// 	desc:        "classifier_mpls_af1",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "1",
-		// 	targetGroup: "target-group-AF1",
-		// 	expSet:      []uint8{1},
-		// }, {
-		// 	desc:        "classifier_mpls_af2",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "2",
-		// 	targetGroup: "target-group-AF2",
-		// 	expSet:      []uint8{2},
-		// }, {
-		// 	desc:        "classifier_mpls_af3",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "3",
-		// 	targetGroup: "target-group-AF3",
-		// 	expSet:      []uint8{3},
-		// }, {
-		// 	desc:        "classifier_mpls_af4",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "4",
-		// 	targetGroup: "target-group-AF4",
-		// 	expSet:      []uint8{4, 5},
-		// }, {
-		// 	desc:        "classifier_mpls_nc1",
-		// 	name:        "exp_based_classifier_mpls",
-		// 	classType:   oc.Qos_Classifier_Type_MPLS,
-		// 	termID:      "6",
-		// 	targetGroup: "target-group-NC1",
-		// 	expSet:      []uint8{6, 7},
-	}}
+		remarkEXP   uint8
+	}{
+		{
+			desc:        "classifier_ipv4_be1",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "0",
+			targetGroup: "target-group-BE1",
+			dscpSet:     []uint8{0},
+		},
+		{
+			desc:        "classifier_ipv4_af1",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "1",
+			targetGroup: "target-group-AF1",
+			dscpSet:     []uint8{1},
+		}, {
+			desc:        "classifier_ipv4_af2",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "2",
+			targetGroup: "target-group-AF2",
+			dscpSet:     []uint8{2},
+		}, {
+			desc:        "classifier_ipv4_af3",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "3",
+			targetGroup: "target-group-AF3",
+			dscpSet:     []uint8{3},
+		}, {
+			desc:        "classifier_ipv4_af4",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "4",
+			targetGroup: "target-group-AF4",
+			dscpSet:     []uint8{4, 5},
+		}, {
+			desc:        "classifier_ipv4_nc1",
+			name:        "dscp_based_classifier_ipv4",
+			classType:   oc.Qos_Classifier_Type_IPV4,
+			termID:      "6",
+			targetGroup: "target-group-NC1",
+			dscpSet:     []uint8{6, 7},
+		},
+		{
+			desc:        "classifier_ipv6_be1",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "0",
+			targetGroup: "target-group-BE1",
+			dscpSet:     []uint8{0, 1, 2, 3, 4, 5, 6, 7},
+		},
+		{
+			desc:        "classifier_ipv6_af1",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "1",
+			targetGroup: "target-group-AF1",
+			dscpSet:     []uint8{8, 9, 10, 11, 12, 13, 14, 15},
+		}, {
+			desc:        "classifier_ipv6_af2",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "2",
+			targetGroup: "target-group-AF2",
+			dscpSet:     []uint8{16, 17, 18, 19, 20, 21, 22, 23},
+		}, {
+			desc:        "classifier_ipv6_af3",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "3",
+			targetGroup: "target-group-AF3",
+			dscpSet:     []uint8{24, 25, 26, 27, 28, 29, 30, 31},
+		}, {
+			desc:        "classifier_ipv6_af4",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "4",
+			targetGroup: "target-group-AF4",
+			dscpSet:     []uint8{32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47},
+		}, {
+			desc:        "classifier_ipv6_nc1",
+			name:        "dscp_based_classifier_ipv6",
+			classType:   oc.Qos_Classifier_Type_IPV6,
+			termID:      "6",
+			targetGroup: "target-group-NC1",
+			dscpSet:     []uint8{48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63},
+		}, {
+			desc:        "classifier_mpls_be1",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "0",
+			targetGroup: "target-group-BE1",
+			expSet:      []uint8{0},
+			remarkEXP:   0,
+		}, {
+			desc:        "classifier_mpls_af1",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "1",
+			targetGroup: "target-group-AF1",
+			expSet:      []uint8{1},
+			remarkEXP:   1,
+		}, {
+			desc:        "classifier_mpls_af2",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "2",
+			targetGroup: "target-group-AF2",
+			expSet:      []uint8{2},
+			remarkEXP:   2,
+		}, {
+			desc:        "classifier_mpls_af3",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "3",
+			targetGroup: "target-group-AF3",
+			expSet:      []uint8{3},
+			remarkEXP:   3,
+		}, {
+			desc:        "classifier_mpls_af4_exp4",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "4",
+			targetGroup: "target-group-AF4",
+			expSet:      []uint8{4},
+			remarkEXP:   4,
+		}, {
+			desc:        "classifier_mpls_af4_exp5",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "5",
+			targetGroup: "target-group-AF4",
+			expSet:      []uint8{5},
+			remarkEXP:   4,
+		}, {
+			desc:        "classifier_mpls_nc1_exp6",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "6",
+			targetGroup: "target-group-NC1",
+			expSet:      []uint8{6},
+			remarkEXP:   6,
+		}, {
+			desc:        "classifier_mpls_nc1_exp7",
+			name:        "exp_based_classifier_mpls",
+			classType:   oc.Qos_Classifier_Type_MPLS,
+			termID:      "7",
+			targetGroup: "target-group-NC1",
+			expSet:      []uint8{7},
+			remarkEXP:   6,
+		}}
 
 	t.Logf("qos Classifiers config: %v", classifiers)
 	for _, tc := range classifiers {
@@ -405,22 +438,20 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		action := term.GetOrCreateActions()
 		action.SetTargetGroup(tc.targetGroup)
 
-		// remark := action.GetOrCreateRemark()
-		// remark.SetDscp = ygot.Uint8(0)
-
 		condition := term.GetOrCreateConditions()
 		if tc.name == "dscp_based_classifier_ipv4" {
 			condition.GetOrCreateIpv4().SetDscpSet(tc.dscpSet)
 		} else if tc.name == "dscp_based_classifier_ipv6" {
 			condition.GetOrCreateIpv6().SetDscpSet(tc.dscpSet)
+		} else if tc.name == "exp_based_classifier_mpls" {
+			condition.GetOrCreateMpls().SetTrafficClass(tc.expSet[0])
 		}
-		// else if tc.name == "exp_based_classifier_mpls" {
-		// 	t.Log("creating MPLS")
-		// 	condition.GetOrCreateMpls().SetTrafficClass(tc.expSet[0])
-		// }
 
-		gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
+		if !deviations.QosRemarkOCUnsupported(dut) && tc.classType == oc.Qos_Classifier_Type_MPLS {
+			action.GetOrCreateRemark().SetSetMplsTc(tc.remarkEXP)
+		}
 	}
+	gnmi.Replace(t, dut, gnmi.OC().Qos().Config(), q)
 
 	t.Logf("Create qos input classifier config")
 	classifierIntfs := []struct {
@@ -434,10 +465,10 @@ func ConfigureQoS(t *testing.T, dut *ondatra.DUTDevice) {
 		inputClassifierType: oc.Input_Classifier_Type_IPV4,
 		classifier:          "dscp_based_classifier_ipv4",
 	}, {
-		desc:                "Input Classifier Type IPV6",
+		desc:                "Input Classifier Type MPLS",
 		intf:                dp1.Name(),
-		inputClassifierType: oc.Input_Classifier_Type_IPV6,
-		classifier:          "dscp_based_classifier_ipv6",
+		inputClassifierType: oc.Input_Classifier_Type_MPLS,
+		classifier:          "exp_based_classifier_mpls",
 		// }, {
 		// 	desc:                "Input Classifier Type MPLS",
 		// 	intf:                dp1.Name(),
@@ -559,12 +590,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv6", "ipv6-over-udp", true)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	intialpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	intialpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	intialpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	intialpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	intialpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	intialpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
@@ -593,12 +624,12 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		verifyIpv6DscpCapture(t, ate, "port2")
 	}
 
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
+	finalpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
+	finalpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
+	finalpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
+	finalpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
+	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
+	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -697,12 +728,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv4", "ipv4-over-udp", true)
 	}
 
-	intialpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	intialpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	intialpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	intialpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	intialpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	intialpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	intialpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	intialpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	intialpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	intialpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	intialpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	intialpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "intf1-nc1-ipv4")
@@ -728,12 +759,12 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	} else {
 		verifyIpv4DscpCapture(t, ate, "port2")
 	}
-	finalpacket1 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	finalpacket2 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	finalpacket3 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	finalpacket4 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	finalpacket5 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	finalpacket6 := verfiy_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	finalpacket1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "0")
+	finalpacket2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "1")
+	finalpacket3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "2")
+	finalpacket4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "3")
+	finalpacket5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "4")
+	finalpacket6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV4, "6")
 
 	compare_counters(t, intialpacket1, finalpacket1)
 	compare_counters(t, intialpacket2, finalpacket2)
@@ -744,44 +775,57 @@ func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 
 }
 
-func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
-
-	topo.Flows().Clear()
-
-	t.Logf("Configuring flow for MPLS Swap Action")
-	flow := topo.Flows().Add().SetName("MplsSwap")
-	flow.Metrics().SetEnable(true)
-	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
-	ethHeader := flow.Packet().Add().Ethernet()
-	ethHeader.Src().SetValue(atePort1.MAC)
-	ethHeader.Dst().Auto()
-
-	mpls := flow.Packet().Add().Mpls()
-	mpls.Label().SetValue(mplsSwapLabel)
-	mpls.TrafficClass().SetValue(uint32(5))
-
-	ipHeader := flow.Packet().Add().Ipv4()
-	ipHeader.Src().SetValue(atePort1.IPv4)
-	ipHeader.Dst().SetValue(atePort2.IPv4)
-	flow.Size().SetFixed(uint32(frameSize))
-	flow.Rate().SetPps(packetPerSecond)
-	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
-
-	ate.OTG().PushConfig(t, topo)
-
+func rewriteMplsSwapAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, dp1, dp2 *ondatra.Port) {
 	t.Logf("Configuring MPLS Swap Action with DUT")
-
+	if deviations.EnableMplsStaticOnInterface(dut) && deviations.StaticMplsLspOCUnsupported(dut) {
+		for _, intf := range []string{dp1.Name(), dp2.Name()} {
+			helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("mpls static interface %v", intf))
+			defer helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("no mpls static interface %v", intf))
+		}
+	}
 	cfgplugins.NewStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo, lspNextHopIndex)
+	defer cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
 
-	startCapture(t, ate)
-	trafficStartStop(t, ate, topo, "MplsSwap")
-	stopCapture(t, ate)
-	t.Logf("Verify Traffic flow MplsSwap")
-	verifyTrafficFlow(t, ate, "MplsSwap")
-	verifyMplsSwapPushCapture(t, ate, "port2", mplsSwapLabelTo, true)
+	tests := []struct {
+		name   string
+		expIn  uint32
+		expOut int
+	}{
+		{name: "MplsSwapEXP4", expIn: 4, expOut: 4},
+		{name: "MplsSwapEXP5", expIn: 5, expOut: 4},
+	}
 
-	cfgplugins.RemoveStaticMplsLspSwapLabel(t, dut, "lsp-swap", mplsSwapLabel, atePort2.IPv4, mplsSwapLabelTo)
+	for _, tc := range tests {
+		topo.Flows().Clear()
+		t.Logf("Configuring flow for MPLS Swap Action %s", tc.name)
+		flow := topo.Flows().Add().SetName(tc.name)
+		flow.Metrics().SetEnable(true)
+		flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+		ethHeader := flow.Packet().Add().Ethernet()
+		ethHeader.Src().SetValue(atePort1.MAC)
+		ethHeader.Dst().Auto()
 
+		mpls := flow.Packet().Add().Mpls()
+		mpls.Label().SetValue(mplsSwapLabel)
+		mpls.TrafficClass().SetValue(tc.expIn)
+
+		ipHeader := flow.Packet().Add().Ipv4()
+		ipHeader.Src().SetValue(atePort1.IPv4)
+		ipHeader.Dst().SetValue(atePort2.IPv4)
+		flow.Size().SetFixed(uint32(frameSize))
+		flow.Rate().SetPps(packetPerSecond)
+		flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+
+		ate.OTG().PushConfig(t, topo)
+
+		startCapture(t, ate)
+		trafficStartStop(t, ate, topo, tc.name)
+		stopCapture(t, ate)
+
+		t.Logf("Verify Traffic flow %s", tc.name)
+		verifyTrafficFlow(t, ate, tc.name)
+		verifyMplsSwapPushCapture(t, ate, "port2", mplsSwapLabelTo, tc.expOut, true)
+	}
 }
 
 func rewriteIpv4MplsPopAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config) {
@@ -894,7 +938,7 @@ func rewriteIpv4MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 
 	t.Logf("Verify Traffic flow MplsPushV4")
 	verifyTrafficFlow(t, ate, "MplsPushV4")
-	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV4, false)
+	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV4, 0, false)
 
 	cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, "mpls-lsp-push", dp1.Name())
 
@@ -933,7 +977,7 @@ func rewriteIpv6MplsPushAction(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 	t.Logf("Verify Traffic flow MplsPushV6")
 	verifyTrafficFlow(t, ate, "MplsPushV6")
 
-	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV6, false)
+	verifyMplsSwapPushCapture(t, ate, "port2", mplsPushLabelV6, 0, false)
 
 	cfgplugins.RemoveStaticMplsLspPushLabel(t, dut, "mpls-lsp-push-ipv6", dp1.Name())
 }
@@ -1003,7 +1047,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, port string) string {
 	return pcapFile.Name()
 }
 
-func verifyMplsSwapPushCapture(t *testing.T, ate *ondatra.ATEDevice, port string, expLabel int, checkExp bool) {
+func verifyMplsSwapPushCapture(t *testing.T, ate *ondatra.ATEDevice, port string, expLabel int, expectedEXP int, checkExp bool) {
 	pcapfilename := processCapture(t, ate, port)
 	handle, err := pcap.OpenOffline(pcapfilename)
 	if err != nil {
@@ -1021,12 +1065,12 @@ func verifyMplsSwapPushCapture(t *testing.T, ate *ondatra.ATEDevice, port string
 				found = true
 				t.Logf("Mpls Label Swapped/Pushed as expected, Got: %v", labelValue)
 				if checkExp {
-					expLabel = int(label.TrafficClass)
-					if expLabel == 4 {
+					gotEXP := int(label.TrafficClass)
+					if gotEXP == expectedEXP {
 						foundExp = true
-						t.Logf("Mpls EXP bit remarked as expected, Got: %v", expLabel)
+						t.Logf("Mpls EXP bit remarked as expected, Got: %v", gotEXP)
 					} else {
-						t.Fatalf("Mpls Exp bit not remarked as expected, Got: %v", expLabel)
+						t.Fatalf("Mpls Exp bit not remarked as expected, Got: %v, want: %v", gotEXP, expectedEXP)
 					}
 				}
 				break
@@ -1127,7 +1171,7 @@ func contains(arr []int, target int) bool {
 	return false
 }
 
-func verfiy_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
+func verify_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier oc.E_Input_Classifier_Type, termId string) uint64 {
 	dp1 := dut.Port(t, "port1")
 	const timeout = 10 * time.Second
 	isPresent := func(val *ygnmi.Value[uint64]) bool { return val.IsPresent() }
@@ -1173,24 +1217,27 @@ func configureGreGuePolicyForwardingFromCLI(t *testing.T, dut *ondatra.DUTDevice
         		actions
         		count
         		redirect next-hop group SRC1_NH
+				set dscp %d
+				set traffic class %d
 			    nexthop-group SRC1_NH type %s
         		tunnel-source intf %s
 				fec hierarchical
                 entry 1 tunnel-destination %s
-        	`, atePort2.IPv4, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+        	`, atePort2.IPv4, encapDscp, encapTrafficClass, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
 			} else {
-				matchRules += fmt.Sprintf(`
-				
+				matchRules += fmt.Sprintf(`				
         		match rule-src1-v6 ipv6
         		destination prefix %s/128
         		actions
         		count
         		redirect next-hop group SRC1_NH
+				set dscp %d
+				set traffic class %d
 				nexthop-group SRC1_NH type %s
         		tunnel-source intf %s
 				fec hierarchical
                 entry 2 tunnel-destination %s
-        	`, atePort2.IPv6, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
+        	`, atePort2.IPv6, encapDscp, encapTrafficClass, greOrGue, dutlo0Attrs.Name, ipv4DestAddr)
 			}
 
 			// Apply Policy on the interface
@@ -1456,6 +1503,21 @@ func checkGueCapture(t *testing.T, ate *ondatra.ATEDevice, port string, ipType s
 					t.Fatalf("Error: DSCP value %v should be converted by ingress DUT but not converted. ISSUE ID #434618050 raised ", dscp)
 				}
 			}
+		}
+	}
+}
+
+// configureHardwareInit configure the TCAM Profile based on the test.
+func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	features := []cfgplugins.FeatureType{
+		cfgplugins.FeatureNGPR,
+		cfgplugins.FeatureQOSIn,
+	}
+	for _, feature := range features {
+		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
+		if hardwareInitCfg != "" {
+			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
 		}
 	}
 }

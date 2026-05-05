@@ -14,3 +14,12 @@ platform_exceptions: {
     containerz_oc_unsupported: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    containerz_plugin_rpc_unsupported: true
+  }
+}
