@@ -224,7 +224,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 	if len(controllerCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
-	if deviations.CpuUtilizationQueryAgainstBaseControllerCardComponent(dut) {
+	if deviations.CPUUtilizationQueryAgainstBaseControllerCardComponent(dut) {
 		for _, cpu := range controllerCards {
 			t.Run(cpu, func(t *testing.T) {
 				ts := time.Now().Round(time.Second)
@@ -285,7 +285,7 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
 	chassisLineCards := make([]string, 0)
 
-	if deviations.CpuUtilizationQueryAgainstBaseLinecardComponent(dut) {
+	if deviations.CPUUtilizationQueryAgainstBaseLinecardComponent(dut) {
 		// Cisco reports CPU utilization on the base linecard component (e.g. 0/0/CPU0)
 		var baseLCs []string
 		for _, cpu := range cpuCards {
