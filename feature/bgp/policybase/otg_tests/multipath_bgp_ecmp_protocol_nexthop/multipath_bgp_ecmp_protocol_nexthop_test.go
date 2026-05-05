@@ -262,10 +262,6 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
-			configureRoutePolicy(t, dut, rplName, rplType)
-			configureDUT(t, dut)
-			otg := ate.OTG()
-			top := configureOTG(t, otg)
 			if tc.ipv4 {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				if tc.multipath {
