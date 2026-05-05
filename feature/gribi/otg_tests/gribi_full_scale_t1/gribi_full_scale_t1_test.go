@@ -93,6 +93,13 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	ctx := context.Background()
+
+	if res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show ver"); err == nil {
+		t.Logf("Output of 'show ver':\n%s", res.Output())
+	} else {
+		t.Logf("Failed to run 'show ver': %v", err)
+	}
+
 	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
 	cfgplugins.ConfigureDUT(t, dut)
 
