@@ -677,6 +677,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
+
 }
 
 // configureDUT configures port1-8 on the DUT.
@@ -2395,6 +2396,12 @@ func TestGribiDecap(t *testing.T) {
 	t.Run("Configure interfaces on DUT", func(t *testing.T) {
 		configureDUT(t, dut)
 	})
+
+	if res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show ver"); err == nil {
+		t.Logf("Output of 'show ver':\n%s", res.Output())
+	} else {
+		t.Logf("Failed to run 'show ver': %v", err)
+	}
 
 	t.Run("Apply vrf selectioin policy W to DUT port-1", func(t *testing.T) {
 		configureVrfSelectionPolicyW(t, dut)
