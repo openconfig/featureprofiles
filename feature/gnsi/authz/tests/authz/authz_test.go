@@ -198,6 +198,7 @@ func getSpiffe(t *testing.T, dut *ondatra.DUTDevice, certName string) *authz.Spi
 }
 
 // Authz-1, Test policy behaviors, and probe results matches actual client results.
+// Authz-1, Test policy behaviors, and probe results matches actual client results.
 func TestAuthz1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setUpBaseline(t, dut)
@@ -222,7 +223,12 @@ func TestAuthz1(t *testing.T) {
 
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.GnsiAuthzAllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false)
+		newpolicy.RotateWithOptions(t, dut, uint64(100), "policy-everyone-can-gnmi-not-gribi_v1", false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only)", func(t *testing.T) {
+				authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+				authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GnmiGet)
+			})
+		})
 
 		// Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get
 		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get", func(t *testing.T) {
@@ -245,7 +251,12 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(100), "policy-everyone-can-gribi-not-gnmi_v1", false)
+		newpolicy.RotateWithOptions(t, dut, uint64(100), "policy-everyone-can-gribi-not-gnmi_v1", false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only)", func(t *testing.T) {
+				authz.Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
+				authz.Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet)
+			})
+		})
 
 		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get`", func(t *testing.T) {
 			authz.Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
@@ -268,7 +279,12 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(100), "policy-gribi-get_v1", false)
+		newpolicy.RotateWithOptions(t, dut, uint64(100), "policy-gribi-get_v1", false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only) - 1", func(t *testing.T) {
+				authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet)
+				authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
+			})
+		})
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
@@ -281,7 +297,12 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		newpolicy.RotateWithOptions(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only) - 2", func(t *testing.T) {
+				authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+				authz.Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet)
+			})
+		})
 
 		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get
 		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get", func(t *testing.T) {
@@ -309,13 +330,24 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(100), "policy-normal-1_v1", false)
+		newpolicy.RotateWithOptions(t, dut, uint64(100), "policy-normal-1_v1", false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only)", func(t *testing.T) {
+				for certName, access := range authTable {
+					for _, allowedRPC := range access.allowed {
+						authz.Verify(t, dut, getSpiffe(t, dut, certName), allowedRPC)
+					}
+					for _, deniedRPC := range access.denied {
+						authz.Verify(t, dut, getSpiffe(t, dut, certName), deniedRPC, &authz.ExceptDeny{})
+					}
+				}
+			})
+		})
 
 		// Verify all results match per the above table for policy policy-normal-1
 		verifyAuthTable(t, dut, authTable)
 	})
 
-	t.Run("Authz-1.5, Test principle prefix and suffix match", func(t *testing.T) {
+	t.Run("Authz-1.5, Test principal prefix and suffix match", func(t *testing.T) {
 		// Pre-Test Section
 		_, policyBefore := authz.Get(t, dut)
 		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
@@ -328,7 +360,18 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(100), "policy-prefix-suffix-match_v1", false)
+		newpolicy.RotateWithOptions(t, dut, uint64(100), "policy-prefix-suffix-match_v1", false, func() {
+			t.Run("Verification of Policy BEFORE finalize (Probe only)", func(t *testing.T) {
+				for certName, spiffe := range usersMap {
+					authz.Verify(t, dut, &spiffe, gnxi.RPCs.GnmiGet)
+					if certName == "cert_user_admin" {
+						authz.Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet)
+					} else {
+						authz.Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+					}
+				}
+			})
+		})
 
 		// Verification
 		for certName, spiffe := range usersMap {
@@ -445,7 +488,9 @@ func TestAuthz2(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
+		expCreatedOn := uint64(time.Now().Unix())
+		newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get", func(t *testing.T) {
@@ -493,6 +538,17 @@ func TestAuthz2(t *testing.T) {
 		// Close the Stream
 		rotateStream.CloseSend()
 
+		// Verify telemetry rolled back
+		serverName := "DEFAULT"
+		versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+		createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+		if versionTele != expVersion {
+			t.Errorf("Expected rolled back telemetry version %s, got %s", expVersion, versionTele)
+		}
+		if createdOnTele != expCreatedOn {
+			t.Errorf("Expected rolled back telemetry createdOn %d, got %d", expCreatedOn, createdOnTele)
+		}
+
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
 			authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
@@ -514,7 +570,9 @@ func TestAuthz2(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+		expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
+		expCreatedOn := uint64(time.Now().Unix())
+		newpolicy.Rotate(t, dut, expCreatedOn, expVersion, false)
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 		t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get", func(t *testing.T) {
@@ -561,6 +619,18 @@ func TestAuthz2(t *testing.T) {
 
 			// Close the Stream
 			rotateStream.CloseSend()
+
+			// Verify telemetry rolled back
+			serverName := "DEFAULT"
+			versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+			createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+			if versionTele != expVersion {
+				t.Errorf("Expected rolled back telemetry version %s, got %s", expVersion, versionTele)
+			}
+			if createdOnTele != expCreatedOn {
+				t.Errorf("Expected rolled back telemetry createdOn %d, got %d", expCreatedOn, createdOnTele)
+			}
+
 			// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
 			t.Run("Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get after closing stream", func(t *testing.T) {
 				authz.Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})

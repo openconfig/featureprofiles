@@ -347,7 +347,7 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`, with `create_on` = `100` and `version` = `policy-normal-1_v1`.
   2. Ensure all results match per the above table for policy `policy-normal-1`.
 
-* Authz-1.5, "Test principle prefix and suffix match"
+* Authz-1.5, "Test principal prefix and suffix match"
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-prefix-suffix-match`, with `create_on` = `100` and `version` = `policy-prefix-suffix-match_v1`.
   2. Ensure all results match per the following:
       * All users matching `spiffe://test-abc.foo.bar/xyz/*` (prefix match) are allowed to issue `gNMI.Get` method.

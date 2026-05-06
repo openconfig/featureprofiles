@@ -35,6 +35,8 @@ import (
 	"google.golang.org/grpc/status"
 
 	authzpb "github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // Spiffe is an struct to save an Spiffe id and its svid.
@@ -101,7 +103,13 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 }
 
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
+// Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
+	p.RotateWithOptions(t, dut, createdOn, version, forcOverwrite, nil)
+}
+
+// RotateWithOptions applies policy p on device dut with optional callback before finalization and performs telemetry validation.
+func (p *AuthorizationPolicy) RotateWithOptions(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool, beforeFinalize func()) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
@@ -138,6 +146,23 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if !cmp.Equal(p, tempPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
 	}
+
+	// Validate telemetry metadata (temporary)
+	serverName := "DEFAULT"
+	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != version {
+		t.Errorf("Expected telemetry version %s, got %s", version, versionTele)
+	}
+	if createdOnTele != createdOn {
+		t.Errorf("Expected telemetry createdOn %d, got %d", createdOn, createdOnTele)
+	}
+
+	// Call the callback if provided
+	if beforeFinalize != nil {
+		beforeFinalize()
+	}
+
 	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
 	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
 	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
@@ -149,6 +174,15 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, finalPolicy))
 	}
 
+	// Validate telemetry metadata (finalized)
+	versionTele = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != version {
+		t.Errorf("Expected telemetry version %s, got %s after finalize", version, versionTele)
+	}
+	if createdOnTele != createdOn {
+		t.Errorf("Expected telemetry createdOn %d, got %d after finalize", createdOn, createdOnTele)
+	}
 }
 
 // NewAuthorizationPolicy creates an empty policy.
@@ -242,7 +276,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			expectedRes = authzpb.ProbeResponse_ACTION_DENY
 			expectedExecErr = codes.PermissionDenied
 		case *HardVerify:
-			hardVerify = false
+			hardVerify = true
 		default:
 			t.Errorf("Invalid option is passed to Verify function: %T", opt)
 		}
@@ -260,6 +294,24 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
+		serverName := "DEFAULT"
+		var counterPath ygnmi.SingletonQuery[uint64]
+		if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
+			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessAccepts().State()
+		} else {
+			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessRejects().State()
+		}
+
+		getCounter := func() uint64 {
+			val, ok := gnmi.Lookup(t, dut, counterPath).Val()
+			if !ok {
+				return 0
+			}
+			return val
+		}
+
+		valBefore := getCounter()
+
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
@@ -269,6 +321,12 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 		}
 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
+
+		valAfter := getCounter()
+
+		if valAfter != valBefore+1 {
+			t.Errorf("Expected counter %s to increment from %d to %d, got %d", rpc.Path, valBefore, valBefore+1, valAfter)
+		}
 	}
 }
 
