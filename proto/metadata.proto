@@ -1256,6 +1256,7 @@ message Metadata {
     // Device does not populate state on subinterface 0
     // that is implicitly created.
     // Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/509766094
     bool subinterface_0_state_unsupported = 405;
 
     // Device does not support fragment punt drops.
