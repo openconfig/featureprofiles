@@ -2562,3 +2562,17 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_software_version/README.md"
   exec: " "
 }
+test: {
+  id: "MSEC-1.1"
+  description: "MACsec Configuration and Verification (DUT-to-DUT)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/macsec/otg_tests/macsec/README.md"
+  exec: " "
+}
+
+
+test: {
+  id: "PF-1.26"
+  description: "Double GUE Decapsulation"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
+  exec: " "
+}
