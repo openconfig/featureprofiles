@@ -39,14 +39,3 @@ func normalizeNIName(niName string, d *ondatra.DUTDevice) string {
 	}
 	return niName
 }
-
-// ipEqual compares two strings by parsing them as IP addresses for semantic equality.
-// If parsing fails for either, it falls back to a standard direct string comparison.
-func ipEqual(got, want string) bool {
-	gotIP, errG := netip.ParseAddr(got)
-	wantIP, errW := netip.ParseAddr(want)
-	if errG == nil && errW == nil {
-		return gotIP == wantIP
-	}
-	return got == want
-}
