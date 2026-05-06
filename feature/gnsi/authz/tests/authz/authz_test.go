@@ -314,6 +314,39 @@ func TestAuthz1(t *testing.T) {
 		// Verify all results match per the above table for policy policy-normal-1
 		verifyAuthTable(t, dut, authTable)
 	})
+
+	t.Run("Authz-1.5, Test principle prefix and suffix match", func(t *testing.T) {
+		// Pre-Test Section
+		_, policyBefore := authz.Get(t, dut)
+		t.Logf("Authz Policy of the Device %s before the Rotate Trigger is %s", dut.Name(), policyBefore.PrettyPrint(t))
+		defer policyBefore.Rotate(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false)
+
+		// Fetch the Desired Authorization Policy and Attach base Admin Policy Before Rotate
+		newpolicy, ok := policyMap["policy-prefix-suffix-match"]
+		if !ok {
+			t.Fatal("Policy policy-prefix-suffix-match is not loaded from policy json file")
+		}
+		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
+		// Rotate the policy.
+		newpolicy.Rotate(t, dut, uint64(100), "policy-prefix-suffix-match_v1", false)
+
+		// Verification
+		for certName, spiffe := range usersMap {
+			t.Run(fmt.Sprintf("Verification of gNMI Get for %s (prefix match)", certName), func(t *testing.T) {
+				authz.Verify(t, dut, &spiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
+			})
+
+			if certName == "cert_user_admin" {
+				t.Run("Verification of gRIBI Get for admin (suffix match)", func(t *testing.T) {
+					authz.Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+				})
+			} else {
+				t.Run(fmt.Sprintf("Verification of gRIBI Get for %s (should be denied)", certName), func(t *testing.T) {
+					authz.Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+				})
+			}
+		}
+	})
 }
 
 // Authz-2, Test rotation behavior

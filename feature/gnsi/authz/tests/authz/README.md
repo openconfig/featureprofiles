@@ -1,4 +1,4 @@
-# Authz: General Authz (1-4) tests
+# Authz: General Authz tests
 
 ## Summary
 
@@ -347,8 +347,12 @@ For each of the scenarios in this section, we need to exercise the following 3 a
   1. Use `gNSI.Rotate` method to push and finalize policy `policy-normal-1`, with `create_on` = `100` and `version` = `policy-normal-1_v1`.
   2. Ensure all results match per the above table for policy `policy-normal-1`.
 
-* TODO: Authz-1.5, "Test principle prefix and suffix match"
-  * Test the behavior of [prefix and suffix match on principles](https://github.com/grpc/proposal/blob/eb0d8fcc93820d3039ac851f8a36bdf2554cab6a/A43-grpc-authorization-api.md?plain=1#L73-L74)
+* Authz-1.5, "Test principle prefix and suffix match"
+  1. Use `gNSI.Rotate` method to push and finalize policy `policy-prefix-suffix-match`, with `create_on` = `100` and `version` = `policy-prefix-suffix-match_v1`.
+  2. Ensure all results match per the following:
+      * All users matching `spiffe://test-abc.foo.bar/xyz/*` (prefix match) are allowed to issue `gNMI.Get` method.
+      * Only users matching `*admin` (suffix match, e.g., `cert_user_admin`) are allowed to issue `gRIBI.Get` method.
+      * Other users are denied to issue `gRIBI.Get` method.
 
 ### Authz-2, test rotation behavior
 
