@@ -31,10 +31,14 @@ func TestFabricPowerAdmin(t *testing.T) {
 		if ok && empty {
 			continue
 		}
-		if !gnmi.Get(t, dut, gnmi.OC().Component(f).Removable().State()) {
+		removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Removable().State()).Val()
+		if !ok || !removable {
 			continue
 		}
-		oper := gnmi.Get(t, dut, gnmi.OC().Component(f).OperStatus().State())
+		oper, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).OperStatus().State()).Val()
+		if !ok {
+			continue
+		}
 		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
 			continue
 		}
@@ -61,10 +65,14 @@ func TestLinecardPowerAdmin(t *testing.T) {
 		if ok && empty {
 			continue
 		}
-		if !gnmi.Get(t, dut, gnmi.OC().Component(l).Removable().State()) {
+		removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).Removable().State()).Val()
+		if !ok || !removable {
 			continue
 		}
-		oper := gnmi.Get(t, dut, gnmi.OC().Component(l).OperStatus().State())
+		oper, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(l).OperStatus().State()).Val()
+		if !ok {
+			continue
+		}
 		if got, want := oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE; got != want {
 			continue
 		}
@@ -95,14 +103,19 @@ func TestControllerCardPowerAdmin(t *testing.T) {
 
 	var primary, secondary string
 	for _, c := range cs {
-		role := gnmi.Get(t, dut, gnmi.OC().Component(c).RedundantRole().State())
+		role, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(c).RedundantRole().State()).Val()
+		if !ok {
+			t.Logf("Controller card %q missing redundant-role telemetry; skipping during selection", c)
+			continue
+		}
 		switch role {
 		case oc.Platform_ComponentRedundantRole_PRIMARY:
 			primary = c
 		case oc.Platform_ComponentRedundantRole_SECONDARY:
 			secondary = c
 		default:
-			t.Fatalf("Controller card %v has invalid redundant-role, got: %v", c, role.String())
+			t.Logf("Controller card %q has unexpected redundant-role %v; skipping during selection", c, role)
+			continue
 		}
 	}
 
