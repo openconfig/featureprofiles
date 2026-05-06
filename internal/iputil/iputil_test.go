@@ -333,7 +333,7 @@ func TestGenerateIPv6s(t *testing.T) {
 	}
 }
 
-func Test_ipEqual(t *testing.T) {
+func Test_IPEqual(t *testing.T) {
 	tests := []struct {
 		name     string
 		got      string
@@ -358,8 +358,8 @@ func Test_ipEqual(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if result := ipEqual(tt.got, tt.want); result != tt.wantBool {
-				t.Errorf("ipEqual(%q, %q) = %v, want %v", tt.got, tt.want, result, tt.wantBool)
+			if result := IPEqual(tt.got, tt.want); result != tt.wantBool {
+				t.Errorf("IPEqual(%q, %q) = %v, want %v", tt.got, tt.want, result, tt.wantBool)
 			}
 		})
 	}
