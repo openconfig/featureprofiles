@@ -1296,9 +1296,21 @@ message Metadata {
     // Functional translator name for macsec counters telemetry.
     string macsec_counters_ft = 414;
 
-
     // Device needs MPLS Static enabled explicitly on ingress/egress interface
     bool enable_mpls_static_on_interface = 415;
+
+    // Device does not support secondary controller card cpu telemetry
+    // Arista: https://issuetracker.google.com/issues/508666262
+    bool secondary_controller_card_cpu_utilization_unsupported = 416;
+
+    // Device does not support secondary controller card memory telemetry
+    // Arista: https://issuetracker.google.com/issues/508656197
+    bool secondary_controller_card_memory_utilization_unsupported = 417;
+
+    // Device does not support interface counters in fcs errors
+    // Arista: https://issuetracker.google.com/issues/508304903
+    bool interface_counters_in_fcs_errors_unsupported = 418;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

@@ -2135,3 +2135,21 @@ func MacsecCountersFt(dut *ondatra.DUTDevice) string {
 func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
 }
+
+// Device does not support secondary controller card CPU utilization
+// Arista: https://issuetracker.google.com/issues/508666262
+func SecondaryControllerCardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardCpuUtilizationUnsupported()
+}
+
+// Device does not support secondary controller card memory utilization
+// Arista: https://issuetracker.google.com/issues/508656197
+func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardMemoryUtilizationUnsupported()
+}
+
+// Device does not support interface counters in fcs errors
+// Arista: https://issuetracker.google.com/issues/508304903
+func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
+}
