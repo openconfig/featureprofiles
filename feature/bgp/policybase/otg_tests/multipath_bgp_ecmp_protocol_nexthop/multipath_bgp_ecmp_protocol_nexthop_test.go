@@ -228,11 +228,6 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	// Configure DUT and ATE with ISIS and BGP.
-	configureDUT(t, dut)
-	configureRoutePolicy(t, dut, rplName, rplType)
-	otg := ate.OTG()
-	top := configureOTG(t, otg)
-
 	testCases := []testCase{
 		{
 			desc:      "Testing with multipath disabled for ipv4 ",
@@ -261,6 +256,10 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			configureRoutePolicy(t, dut, rplName, rplType)
+			configureDUT(t, dut)
+			otg := ate.OTG()
+			top := configureOTG(t, otg)
 			if tc.ipv4 {
 				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
 				if tc.multipath {
@@ -271,9 +270,16 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
-				otg.StartTraffic(t)
+				// Start ONLY the IPv4 Flow
+				csV4 := gosnappi.NewControlState()
+				csV4.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.START).SetFlowNames([]string{"Traffic IPv4"})
+				otg.SetControlState(t, csV4)
+
 				time.Sleep(30 * time.Second)
-				otg.StopTraffic(t)
+
+				// Stop ONLY the IPv4 Flow
+				csV4.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP).SetFlowNames([]string{"Traffic IPv4"})
+				otg.SetControlState(t, csV4)
 				otgutils.LogFlowMetrics(t, otg, top)
 				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv4", 0)
@@ -292,9 +298,16 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 				}
 				verifyBGPSessionTelemetry(t, dut)
 				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
-				otg.StartTraffic(t)
+				// Start ONLY the IPv6 Flow
+				csV6 := gosnappi.NewControlState()
+				csV6.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.START).SetFlowNames([]string{"Traffic IPv6"})
+				otg.SetControlState(t, csV6)
+
 				time.Sleep(30 * time.Second)
-				otg.StopTraffic(t)
+
+				// Stop ONLY the IPv6 Flow
+				csV6.Traffic().FlowTransmit().SetState(gosnappi.StateTrafficFlowTransmitState.STOP).SetFlowNames([]string{"Traffic IPv6"})
+				otg.SetControlState(t, csV6)
 				otgutils.LogFlowMetrics(t, otg, top)
 				otgutils.LogPortMetrics(t, otg, top)
 				verifyTraffic(t, ate, "ipv6", 0)
@@ -333,10 +346,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := dut.Port(t, "port4")
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutP4.NewOCInterface(p4.Name(), dut))
 	t.Logf("Now configuring ISIS config on DUT")
-	for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
-		gnmi.Await(t, dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 10*time.Minute, oc.Interface_OperStatus_UP)
-	}
-
 	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
@@ -390,21 +399,24 @@ type bgpNeighbor struct {
 // enableMultipath enables multipath for the given DUT device with the given maximum paths.
 func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
 	dni := deviations.DefaultNetworkInstance(dut)
-	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
-	bgp := bgpProto.GetOrCreateBgp()
-	cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
+
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+
 	if !deviations.IbgpMultipathPathUnsupported(dut) {
 		if deviations.EnableMultipathUnderAfiSafi(dut) {
 			if ipv4 {
-				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				leafPath := bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths()
+				gnmi.Update(t, dut, leafPath.Config(), maxpaths)
 			} else {
-				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				leafPath := bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths()
+				gnmi.Update(t, dut, leafPath.Config(), maxpaths)
 			}
 		} else {
-			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+			leafPath := bgpPath.Global().UseMultiplePaths().Ibgp().MaximumPaths()
+			gnmi.Update(t, dut, leafPath.Config(), maxpaths)
 		}
 	} else {
+		cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
 		t.Logf("CLI config: \n%v", cliConfig)
 		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
@@ -450,8 +462,14 @@ func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkIns
 		bgpNbr.PeerGroup = ygot.String(peerGrpName1)
 		bgpNbr.Enabled = ygot.Bool(true)
 		if nbr.localAddress != "" {
+			localAddressLeaf := nbr.localAddress
+			if nbr.isV4 == true {
+				if dut.Vendor() == ondatra.CISCO {
+					localAddressLeaf = loopbackIntfName
+				}
+			}
 			bgpNbrT := bgpNbr.GetOrCreateTransport()
-			bgpNbrT.LocalAddress = ygot.String(nbr.localAddress)
+			bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 		}
 		if nbr.isV4 == true {
 			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -581,8 +599,7 @@ func configureOTG(t *testing.T, otg *otg.OTG) gosnappi.Config {
 	}
 	t.Logf("Traffic config: %v", trafficFlows)
 	for _, tc := range trafficFlows {
-		trafficID := tc.desc
-		flow := config.Flows().Add().SetName(trafficID)
+		flow := config.Flows().Add().SetName(tc.desc)
 		flow.Metrics().SetEnable(true)
 		ethHeader := flow.Packet().Add().Ethernet()
 		ethHeader.Src().SetValue(ateP1.MAC)

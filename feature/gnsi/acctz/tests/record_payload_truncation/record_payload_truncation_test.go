@@ -50,7 +50,14 @@ func sendOversizedPayload(t *testing.T, dut *ondatra.DUTDevice) {
 		ni.SetType(oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF)
 		staticProtocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
 		nhAddress := fmt.Sprintf("192.%d.2.1", i)
-		for j := 0; j < 254; j++ {
+		nstatRoutes := 0
+		switch dut.Vendor() {
+		case ondatra.JUNIPER:
+			nstatRoutes = 1
+		default:
+			nstatRoutes = 254
+		}
+		for j := 0; j < nstatRoutes; j++ {
 			sr1 := staticProtocol.GetOrCreateStatic(fmt.Sprintf("10.%d.0.0/24", j))
 			nh1 := sr1.GetOrCreateNextHop("0")
 			nh1.NextHop = oc.UnionString(nhAddress)
