@@ -335,9 +335,9 @@ func TestGenerateIPv6s(t *testing.T) {
 
 func Test_ipEqual(t *testing.T) {
 	tests := []struct {
-		name string
-		got  string
-		want string
+		name     string
+		got      string
+		want     string
 		wantBool bool
 	}{
 		// IPv4 Cases
