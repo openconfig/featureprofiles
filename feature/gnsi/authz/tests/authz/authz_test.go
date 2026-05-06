@@ -237,6 +237,15 @@ func setUpBaseline(t *testing.T, dut *ondatra.DUTDevice) {
 func verifyAuthTable(t *testing.T, dut *ondatra.DUTDevice, authTable authorizationTable) {
 	for certName, access := range authTable {
 		t.Run(fmt.Sprintf("Validating access for user %s", certName), func(t *testing.T) {
+			// Probe only after finalize
+			for _, allowedRPC := range access.allowed {
+				Verify(t, dut, getSpiffe(t, dut, certName), allowedRPC)
+			}
+			for _, deniedRPC := range access.denied {
+				Verify(t, dut, getSpiffe(t, dut, certName), deniedRPC, &authz.ExceptDeny{})
+			}
+
+			// Actual calls after finalize
 			for _, allowedRPC := range access.allowed {
 				Verify(t, dut, getSpiffe(t, dut, certName), allowedRPC, &authz.HardVerify{})
 			}
@@ -289,7 +298,11 @@ func TestAuthz1(t *testing.T) {
 		})
 
 		// Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get
-		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get", func(t *testing.T) {
+		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get (Probe after finalize)", func(t *testing.T) {
+			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GnmiGet)
+		})
+		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get (Actual calls after finalize)", func(t *testing.T) {
 			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
@@ -316,7 +329,11 @@ func TestAuthz1(t *testing.T) {
 			})
 		})
 
-		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get`", func(t *testing.T) {
+		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get` (Probe after finalize)", func(t *testing.T) {
+			Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
+			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet)
+		})
+		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get` (Actual calls after finalize)", func(t *testing.T) {
 			Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
 		})
@@ -344,7 +361,11 @@ func TestAuthz1(t *testing.T) {
 			})
 		})
 
-		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get
+		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get (Probe after finalize - 1)
+		Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet)
+		Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
+
+		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get (Actual calls after finalize - 1)
 		Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
 		Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 
@@ -362,8 +383,13 @@ func TestAuthz1(t *testing.T) {
 			})
 		})
 
-		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get
-		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get", func(t *testing.T) {
+		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Probe after finalize - 2)
+		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Probe after finalize)", func(t *testing.T) {
+			Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+			Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet)
+		})
+		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Actual calls after finalize - 2)
+		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Actual calls after finalize)", func(t *testing.T) {
 			Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 		})
@@ -431,18 +457,35 @@ func TestAuthz1(t *testing.T) {
 			})
 		})
 
-		// Verification
+		// Verification (Probe after finalize)
 		for certName, spiffe := range usersMap {
-			t.Run(fmt.Sprintf("Verification of gNMI Get for %s (prefix match)", certName), func(t *testing.T) {
+			t.Run(fmt.Sprintf("Verification of gNMI Get for %s (prefix match, Probe after finalize)", certName), func(t *testing.T) {
+				Verify(t, dut, &spiffe, gnxi.RPCs.GnmiGet)
+			})
+
+			if certName == "cert_user_admin" {
+				t.Run("Verification of gRIBI Get for admin (suffix match, Probe after finalize)", func(t *testing.T) {
+					Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet)
+				})
+			} else {
+				t.Run(fmt.Sprintf("Verification of gRIBI Get for %s (should be denied, Probe after finalize)", certName), func(t *testing.T) {
+					Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
+				})
+			}
+		}
+
+		// Verification (Actual calls after finalize)
+		for certName, spiffe := range usersMap {
+			t.Run(fmt.Sprintf("Verification of gNMI Get for %s (prefix match, Actual calls after finalize)", certName), func(t *testing.T) {
 				Verify(t, dut, &spiffe, gnxi.RPCs.GnmiGet, &authz.HardVerify{})
 			})
 
 			if certName == "cert_user_admin" {
-				t.Run("Verification of gRIBI Get for admin (suffix match)", func(t *testing.T) {
+				t.Run("Verification of gRIBI Get for admin (suffix match, Actual calls after finalize)", func(t *testing.T) {
 					Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.HardVerify{})
 				})
 			} else {
-				t.Run(fmt.Sprintf("Verification of gRIBI Get for %s (should be denied)", certName), func(t *testing.T) {
+				t.Run(fmt.Sprintf("Verification of gRIBI Get for %s (should be denied, Actual calls after finalize)", certName), func(t *testing.T) {
 					Verify(t, dut, &spiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 				})
 			}
