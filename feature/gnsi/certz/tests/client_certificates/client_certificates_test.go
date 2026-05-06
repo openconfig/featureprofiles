@@ -49,7 +49,6 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	logTime             string          = time.Now().String() //Timestamp
-	expectedResult      bool            = true
 )
 
 func TestMain(m *testing.M) {
