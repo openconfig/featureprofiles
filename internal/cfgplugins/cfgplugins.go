@@ -27,7 +27,6 @@
 package cfgplugins
 
 import (
-	"net/netip"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 )
