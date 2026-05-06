@@ -29,6 +29,7 @@ func TestCreateTGZArchive(t *testing.T) {
 	f := fstest.MapFS{
 		"file1.txt":      {Data: []byte("Hello World"), Mode: 0644},
 		"file2.txt":      {Mode: 0644},
+		"symlink.txt":    {Mode: fs.ModeSymlink, Data: []byte("file1.txt")},
 		"dir1":           {Mode: fs.ModeDir | 0755},
 		"dir1/file3.txt": {Data: []byte("Inside dir1"), Mode: 0644},
 		"dir2":           {Mode: fs.ModeDir | 0755},
@@ -36,11 +37,7 @@ func TestCreateTGZArchive(t *testing.T) {
 		"dir2/file5.txt": {Data: []byte("Executable Inside dir2"), Mode: 0755},
 	}
 
-	cb := cloudBuild{
-		f: f,
-	}
-
-	buf, err := cb.createTGZArchive()
+	buf, err := createTGZArchive(f)
 	if err != nil {
 		t.Fatal(err)
 	}

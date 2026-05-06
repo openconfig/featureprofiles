@@ -1,0 +1,12 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+plan_id: "gNMI-1.22"
+description: "Controller card port attributes"
+uuid: "89333073-196f-4de3-9cd4-5c6f11f64905"
+
+testbed: TESTBED_DUT
+
+tags:  TAGS_AGGREGATION
+tags:  TAGS_TRANSIT
+tags:  TAGS_DATACENTER_EDGE

@@ -25,14 +25,16 @@ import (
 	"flag"
 
 	"github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/core"
 	"github.com/openconfig/featureprofiles/internal/rundata"
-	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/knebind"
 	knecreds "github.com/openconfig/ondatra/knebind/creds"
-	opb "github.com/openconfig/ondatra/proto"
 	"google.golang.org/protobuf/encoding/prototext"
+
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	opb "github.com/openconfig/ondatra/proto"
 )
 
 var (
@@ -71,6 +73,8 @@ func New() (binding.Binding, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Register core file handler for DUTs.
+	core.Register()
 	return &rundataBind{Binding: b}, nil
 }
 

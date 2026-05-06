@@ -11,6 +11,8 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    skip_sampling_qos_counters: true
+    qos_ft: "ciscoxr-qos-ft"
   }
 }
 platform_exceptions: {
@@ -19,8 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     ecn_profile_required_definition: true
-    explicit_interface_ref_definition: true
-    qos_dropped_octets: true
+    no_zero_suppression: true
   }
 }
 platform_exceptions: {
@@ -28,8 +29,9 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_interface_ref_definition: true
     interface_enabled: true
+    explicit_interface_in_default_vrf: true
+    qos_octets: true
   }
 }
 platform_exceptions: {
@@ -38,6 +40,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    qos_octets: true
+    qos_get_state_path_unsupported: true
   }
 }

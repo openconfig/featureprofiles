@@ -7,7 +7,7 @@ echo "Checking for allowed file types..." >&2
 if
   find . -name .git -prune -o -name openconfig_public -prune -o \
     -type f -exec file \{} \+ |
-  egrep -vi '(ASCII|UTF-8|JSON|Perl|shell)'
+  egrep -vi '(ASCII|UTF-8|JSON|Perl|shell|PEM)'
 then
   echo "Error: files should be in plain text or non-empty." >&2
   exitcode=1

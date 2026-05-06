@@ -15,16 +15,25 @@
 package per_component_reboot_test
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/args"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -32,7 +41,6 @@ import (
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -41,6 +49,36 @@ const (
 	fabricType        = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	activeController  = oc.Platform_ComponentRedundantRole_PRIMARY
 	standbyController = oc.Platform_ComponentRedundantRole_SECONDARY
+	ipv4PrefixLen     = 30
+	flowPPS           = 500
+	flowPacketSize    = 512
+)
+
+var (
+	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
+
+	dutSrc = attrs.Attributes{
+		Desc:    "dutSrc",
+		IPv4:    "192.168.1.1",
+		IPv4Len: ipv4PrefixLen,
+	}
+	ateSrc = attrs.Attributes{
+		Name:    "ateSrc",
+		IPv4:    "192.168.1.2",
+		MAC:     "02:00:01:01:01:01",
+		IPv4Len: ipv4PrefixLen,
+	}
+	dutDst = attrs.Attributes{
+		Desc:    "dutDst",
+		IPv4:    "192.168.1.5",
+		IPv4Len: ipv4PrefixLen,
+	}
+	ateDst = attrs.Attributes{
+		Name:    "ateDst",
+		IPv4:    "192.168.1.6",
+		MAC:     "02:00:02:01:01:01",
+		IPv4Len: ipv4PrefixLen,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -95,10 +133,10 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		t.Skipf("Not enough controller cards for the test on %v: got %v, want at least %v", dut.Model(), got, want)
 	}
 
-	rpStandby, rpActive := components.FindStandbyRP(t, dut, controllerCards)
+	rpStandby, rpActive := components.FindStandbyControllerCard(t, dut, controllerCards)
 	t.Logf("Detected rpStandby: %v, rpActive: %v", rpStandby, rpActive)
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -129,6 +167,222 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	// TODO: Check the standby RP uptime has been reset.
 }
 
+// configInterfaceDUT configures the interface with the Addrs.
+func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
+	i.Description = ygot.String(a.Desc)
+	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+
+	if deviations.InterfaceEnabled(dut) {
+		i.Enabled = ygot.Bool(true)
+	}
+
+	s := i.GetOrCreateSubinterface(0)
+	s4 := s.GetOrCreateIpv4()
+	if deviations.InterfaceEnabled(dut) {
+		s4.Enabled = ygot.Bool(true)
+	}
+	s4.GetOrCreateAddress(a.IPv4).PrefixLength = ygot.Uint8(ipv4PrefixLen)
+
+	return i
+}
+
+// configureDUT configures port1, port2 on the DUT and enables the interfaces.
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := gnmi.OC()
+
+	p1 := dut.Port(t, "port1")
+	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
+	i1.Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutSrc, dut))
+
+	p2 := dut.Port(t, "port2")
+	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
+	i2.Enabled = ygot.Bool(true)
+	gnmi.Update(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutDst, dut))
+}
+
+// configureOTG configures the OTG with the ateSrc and ateDst.
+func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+	t.Helper()
+
+	top := gosnappi.NewConfig()
+	p1 := ate.Port(t, "port1")
+	p2 := ate.Port(t, "port2")
+	ateSrc.AddToOTG(top, p1, &dutSrc)
+	ateDst.AddToOTG(top, p2, &dutDst)
+	return top
+}
+
+// createTrafficFlows creates the traffic flows for each PBR policy.
+func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	flowName := "flow-ipv4"
+	flow := top.Flows().Add().SetName(flowName)
+	flow.TxRx().Port().
+		SetTxName(ate.Port(t, "port1").ID()).
+		SetRxNames([]string{ate.Port(t, "port2").ID()})
+
+	flow.Metrics().SetEnable(true)
+	flow.Rate().SetPps(flowPPS)
+	flow.Size().SetFixed(flowPacketSize)
+	flow.Duration().Continuous()
+
+	eth := flow.Packet().Add().Ethernet()
+	eth.Src().SetValue(ateSrc.MAC)
+	dutDstInterface := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+	eth.Dst().SetValue(dstMac)
+
+	ip := flow.Packet().Add().Ipv4()
+	ip.Src().SetValue(ateSrc.IPv4)
+	ip.Dst().SetValue(dutSrc.IPv4)
+}
+
+// trapStats represents a single row of trap statistics.
+type trapStats struct {
+	dev      int
+	trapcode int
+	name     string
+	count    int
+	rate     int
+}
+
+// parseTrapStats parses the output of the request pfe execute target fpc* command " show cda trapstats" | no-more command.
+func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
+	t.Helper()
+
+	var stats []trapStats
+	var parsingTable bool
+	scanner := bufio.NewScanner(strings.NewReader(output))
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if strings.HasPrefix(line, "DEV") {
+			parsingTable = true
+			continue
+		}
+
+		if !parsingTable {
+			continue
+		}
+
+		match := trapstatsRe.FindStringSubmatch(line)
+		if match == nil {
+			if len(strings.TrimSpace(line)) > 0 {
+				return nil, fmt.Errorf("invalid line format: %s", line)
+			}
+			continue
+		}
+
+		dev, err := strconv.Atoi(strings.TrimSpace(match[1]))
+		if err != nil {
+			return nil, fmt.Errorf("error parsing DEV: %w", err)
+		}
+		trapCode, err := strconv.Atoi(strings.TrimSpace(match[2]))
+		if err != nil {
+			return nil, fmt.Errorf("error parsing TRAPCODE: %w", err)
+		}
+		name := strings.TrimSpace(match[3])
+		count, err := strconv.Atoi(strings.TrimSpace(match[4]))
+		if err != nil {
+			return nil, fmt.Errorf("error parsing COUNT: %w", err)
+		}
+		rate, err := strconv.Atoi(strings.TrimSpace(match[5]))
+		if err != nil {
+			return nil, fmt.Errorf("error parsing RATE: %w", err)
+		}
+
+		stats = append(stats, trapStats{
+			dev:      dev,
+			trapcode: trapCode,
+			name:     name,
+			count:    count,
+			rate:     rate,
+		})
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading output: %w", err)
+	}
+
+	return stats, nil
+}
+
+func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
+	// TODO: Add traffic drop check for other vendors
+	if dut.Vendor() != ondatra.JUNIPER {
+		return
+	}
+	t.Log("Configure DUT")
+	configureDUT(t, dut)
+	t.Log("Configure OTG")
+	ate := ondatra.ATE(t, "ate")
+	top := configureOTG(t, ate)
+	createTrafficFlows(t, top, ate, dut)
+
+	t.Log("Push config to the OTG device")
+	t.Log(top.String())
+	otgObj := ate.OTG()
+	otgObj.PushConfig(t, top)
+
+	incomingPort := "port1"
+	initialCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).Counters().State())
+	initialInPkts := initialCounters.GetInPkts()
+	t.Logf("initial incoming packets: %v", initialInPkts)
+
+	t.Log("Start protocols and traffic")
+	otgObj.StartProtocols(t)
+	otgObj.StartTraffic(t)
+
+	command := fmt.Sprintf("request pfe execute target %s command \"show cda trapstats\" | no-more", linecard)
+	for idx := 0; idx < 10; idx++ {
+		time.Sleep(30 * time.Second)
+		result := dut.CLI().RunResult(t, command)
+		if result.Error() != "" {
+			t.Errorf("could not fetch output for: %s, err: %s", command, result.Error())
+			break
+		}
+		stats, err := parseTrapStats(t, result.Output())
+		if err != nil {
+			t.Errorf("could not parse output for: %s, output:\n%s \nerr: %s", command, result.Output(), err)
+			break
+		}
+
+		for i := range stats {
+			stat := &stats[i]
+			if stat.rate != 0 {
+				t.Errorf("found non-zero rate for stat: %s, rate: %d", stat.name, stat.rate)
+			}
+		}
+	}
+	t.Log("Stop traffic")
+	otgObj.StopTraffic(t)
+	t.Log("Stop protocols")
+	otgObj.StopProtocols(t)
+
+	finalCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).Counters().State())
+	finalInPkts := finalCounters.GetInPkts()
+	t.Logf("final incoming packets: %v", finalInPkts)
+
+	if finalInPkts == initialInPkts {
+		t.Errorf("incoming packets did not change after traffic was started")
+	}
+}
+
+// fpcFromPort extracts the FPC name from a Juniper port name.
+func fpcFromPort(t testing.TB, portName string) (string, error) {
+	t.Helper()
+	re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
+	match := re.FindStringSubmatch(portName)
+	if match == nil {
+		return "", fmt.Errorf("invalid port name format: %s", portName)
+	}
+	return fmt.Sprintf("FPC%s", match[1]), nil
+}
+
 func TestLinecardReboot(t *testing.T) {
 	const linecardBoottime = 10 * time.Minute
 	dut := ondatra.DUT(t, "dut")
@@ -156,10 +410,23 @@ func TestLinecardReboot(t *testing.T) {
 		t.Skipf("Not enough linecards for the test on %v: got %v, want > 0", dut.Model(), got)
 	}
 
-	t.Logf("Find a removable line card to reboot.")
+	var lineCardToReboot string
+	if dut.Vendor() == ondatra.JUNIPER {
+		portName := dut.Port(t, "port1").Name()
+		var err error
+		lineCardToReboot, err = fpcFromPort(t, portName)
+		if err != nil {
+			t.Fatalf("Failed to get line card to reboot: %v", err)
+		}
+		t.Logf("line card to reboot: %v", lineCardToReboot)
+	}
+
 	var removableLinecard string
 	for _, lc := range validCards {
 		t.Logf("Check if %s is removable", lc)
+		if dut.Vendor() == ondatra.JUNIPER && lc != lineCardToReboot {
+			continue
+		}
 		if got := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Removable().State()).IsPresent(); !got {
 			t.Logf("Detected non-removable line card: %v", lc)
 			continue
@@ -170,10 +437,14 @@ func TestLinecardReboot(t *testing.T) {
 		}
 	}
 	if removableLinecard == "" {
-		t.Fatalf("Component(lc).Removable().Get(t): got none, want non-empty")
+		if *args.NumLinecards > 0 {
+			t.Fatalf("No removable line card found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable line card found for the testing")
+		}
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -191,6 +462,16 @@ func TestLinecardReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
+	t.Logf("Wait for 10s to allow the sub component's reboot process to start")
+	time.Sleep(10 * time.Second)
+
+	req := &spb.RebootStatusRequest{
+		Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+	}
+
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
 	rebootDeadline := time.Now().Add(linecardBoottime)
 	for retry := true; retry; {
 		t.Log("Waiting for 10 seconds before checking.")
@@ -199,7 +480,7 @@ func TestLinecardReboot(t *testing.T) {
 			retry = false
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
 		switch {
 		case status.Code(err) == codes.Unimplemented:
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
@@ -215,6 +496,7 @@ func TestLinecardReboot(t *testing.T) {
 
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 10*time.Minute)
 	// TODO: Check the line card uptime has been reset.
+	testTrafficDrop(t, dut, strings.ToLower(removableLinecard))
 }
 
 // Reboot the fabric component on the DUT.
@@ -228,9 +510,16 @@ func TestFabricReboot(t *testing.T) {
 	fabrics := components.FindComponentsByType(t, dut, fabricType)
 	t.Logf("Found fabric components: %v", fabrics)
 
-	t.Logf("Find a removable fabric component to reboot.")
+	if *args.NumFabrics >= 0 && len(fabrics) != *args.NumFabrics {
+		t.Errorf("Incorrect number of fabrics: got %v, want exactly %v (specified by flag)", len(fabrics), *args.NumFabrics)
+	}
+
 	var removableFabric string
 	for _, fabric := range fabrics {
+		if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Empty().State()).Val(); ok && empty {
+			t.Logf("Skipping fabric: %v is empty", fabric)
+			continue
+		}
 		t.Logf("Check if %s is removable", fabric)
 		if removable, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(fabric).Removable().State()).Val(); ok && removable {
 			t.Logf("Found removable fabric component: %v", fabric)
@@ -241,7 +530,11 @@ func TestFabricReboot(t *testing.T) {
 		}
 	}
 	if removableFabric == "" {
-		t.Fatalf("Component(fabric).Removable().Get(t): got none, want non-empty")
+		if *args.NumFabrics > 0 {
+			t.Fatalf("No removable fabric component found for the testing on a modular device")
+		} else {
+			t.Skipf("No removable fabric component found for the testing")
+		}
 	}
 
 	// Fetch list of interfaces which are up prior to fabric component reboot.
@@ -249,7 +542,7 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("OperStatusUP interfaces before reboot: %v", intfsOperStatusUPBeforeReboot)
 
 	// Fetch a new gnoi client.
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	useNameOnly := deviations.GNOISubcomponentPath(dut)
 	rebootSubComponentRequest := &spb.RebootRequest{
 		Method: spb.RebootMethod_COLD,
@@ -265,6 +558,13 @@ func TestFabricReboot(t *testing.T) {
 	}
 	t.Logf("gnoiClient.System().Reboot() response: %v, err: %v", rebootResponse, err)
 
+	req := &spb.RebootStatusRequest{
+		Subcomponents: rebootSubComponentRequest.GetSubcomponents(),
+	}
+
+	if deviations.GNOISubcomponentRebootStatusUnsupported(dut) {
+		req.Subcomponents = nil
+	}
 	rebootDeadline := time.Now().Add(fabricBootTime)
 	for {
 		t.Log("Waiting for 10 seconds before checking.")
@@ -272,7 +572,7 @@ func TestFabricReboot(t *testing.T) {
 		if time.Now().After(rebootDeadline) {
 			break
 		}
-		resp, err := gnoiClient.System().RebootStatus(context.Background(), &spb.RebootStatusRequest{})
+		resp, err := gnoiClient.System().RebootStatus(context.Background(), req)
 		if status.Code(err) == codes.Unimplemented {
 			t.Fatalf("Unimplemented RebootStatus() is not fully compliant with the Reboot spec.")
 		}

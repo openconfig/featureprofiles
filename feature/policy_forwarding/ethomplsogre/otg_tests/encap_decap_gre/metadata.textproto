@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "fddf5a4c-ace7-464a-8f2b-70ccf3254b84"
+plan_id: "PF-1.23"
+description: "EthoCWoMPLSoGRE IPV4 forwarding of IPV4/IPV6 payload"
+testbed: TESTBED_DUT_ATE_2LINKS

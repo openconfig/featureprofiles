@@ -43,7 +43,11 @@ if (/\b(\d{1,3}(\.\d{1,3}){3,})(\/\d+)?\b/) {
   next if $ip =~ /192\.0\.2\./;         # TEST-NET-1 (RFC 5737)
   next if $ip =~ /198\.51\.100\./;      # TEST-NET-2 (RFC 5737)
   next if $ip =~ /203\.0\.113\./;       # TEST-NET-3 (RFC 5737)
-  next if $ip =~ /198\.(18|19)\./;      # BMWG (RFC 2544)
+  next if $ip =~ /100\.(6[4-9])\./;       # 64-69, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.([789][0-9])\./;       # 70-99, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.(1[01][0-9])\./;       # 100 - 119, CGN Shared Space (RFC 6598)
+  next if $ip =~ /100\.(12[0-7])\./;       # 120 - 127, CGN Shared Space (RFC 6598)
+  next if $ip =~ /198\.(18|19)\./;      # Device Benchmark Testing (RFC 2544)
   next if $ip == "0.0.0.0";             # Wildcard
   $lineok = 0;
 }
@@ -55,6 +59,7 @@ if (/\b(([[:xdigit:]]+(:|::)){2,}[[:xdigit:]]*)(\/\d+)?\b/) {
 
   my $ip = $parsed->ip();
   next if $ip =~ /2001:0?db8:/i;        # IPv6 Test Net (RFC 3849)
+  next if $ip =~ /fe80:/i;              # IPv6 Link Local
   $lineok = 0;
 }
 

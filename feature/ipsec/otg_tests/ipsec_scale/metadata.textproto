@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "4d56109f-1c04-482c-b54f-2858e3d551b7"
+plan_id:  "IPSEC-1.2"
+description:  "IPSec Scaling with MACSec over aggregated links."
+testbed:  TESTBED_DUT_ATE_2LINKS

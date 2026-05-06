@@ -1,3 +1,5 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
 name: "cisco-xrd-dut"
 nodes: {
     name: "dut"

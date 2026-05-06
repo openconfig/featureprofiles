@@ -230,7 +230,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}},
 	}
 
-	gnoiClient := dut.RawAPIs().GNOI().Default(t)
+	gnoiClient := dut.RawAPIs().GNOI(t)
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 			time.Sleep(1 * time.Second) // some devices do not allow back to back traceroute to prevent flooding
@@ -273,6 +273,10 @@ func TestGNOITraceroute(t *testing.T) {
 				}
 				if resps[i].GetRtt() < minTracerouteRTT {
 					t.Errorf("Traceroute reply RTT: got %v, want >= %v", resps[i].GetRtt(), minTracerouteRTT)
+				}
+				if resps[i].GetState() == spb.TracerouteResponse_NONE {
+					t.Logf("Hop %d timed out (state=NONE), which is acceptable.", resps[i].GetHop())
+					continue
 				}
 				if len(resps[i].GetAddress()) == 0 {
 					t.Errorf("Traceroute reply address: got none, want non-empty address")

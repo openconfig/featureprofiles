@@ -1,0 +1,142 @@
+module openconfig-platform {
+
+  yang-version "1";
+
+  // namespace
+  namespace "http://openconfig.net/yang/platform";
+
+  prefix "oc-platform";
+
+  import openconfig-extensions { prefix oc-ext; }
+
+  // meta
+  organization "OpenConfig working group";
+
+  contact
+    "OpenConfig working group
+    www.openconfig.net";
+
+  description
+    "This module defines a data model for representing a system
+    component inventory, which can include hardware or software
+    elements arranged in an arbitrary structure. The primary
+    relationship supported by the model is containment, e.g.,
+    components containing subcomponents.
+
+    It is expected that this model reflects every field replacable
+    unit on the device at a minimum (i.e., additional information
+    may be supplied about non-replacable components).
+
+    Every element in the inventory is termed a 'component' with each
+    component expected to have a unique name and type, and optionally
+    a unique system-assigned identifier and FRU number.  The
+    uniqueness is guaranteed by the system within the device.
+
+    Components may have properties defined by the system that are
+    modeled as a list of key-value pairs. These may or may not be
+    user-configurable.  The model provides a flag for the system
+    to optionally indicate which properties are user configurable.
+
+    Each component also has a list of 'subcomponents' which are
+    references to other components. Appearance in a list of
+    subcomponents indicates a containment relationship as described
+    above.  For example, a linecard component may have a list of
+    references to port components that reside on the linecard.
+
+    This schema is generic to allow devices to express their own
+    platform-specific structure.  It may be augmented by additional
+    component type-specific schemas that provide a common structure
+    for well-known component types.  In these cases, the system is
+    expected to populate the common component schema, and may
+    optionally also represent the component and its properties in the
+    generic structure.
+
+    The properties for each component may include dynamic values,
+    e.g., in the 'state' part of the schema.  For example, a CPU
+    component may report its utilization, temperature, or other
+    physical properties.  The intent is to capture all platform-
+    specific physical data in one location, including inventory
+    (presence or absence of a component) and state (physical
+    attributes or status).";
+
+  oc-ext:openconfig-version "0.23.0";
+
+  revision "2023-02-13" {
+    description
+      "Refactor resource utilization threshold config into a separate grouping.
+      Update 'utilization resource' to 'resource utilization'.";
+    reference "0.23.0";
+  }
+
+  grouping platform-component-config {
+    description
+      "Configuration data for components";
+
+    leaf name {
+      type string;
+      description
+        "Device name for the component -- this may not be a
+        configurable parameter on many implementations.  Where
+        component preconfiguration is supported, for example,
+        the component name may be configurable.";
+    }
+
+    leaf description {
+      type string;
+      description
+        "System-supplied description of the component";
+    }
+  }
+
+  grouping platform-component-top {
+    description
+      "Top-level grouping for components in the device inventory";
+
+    container components {
+      description
+        "Enclosing container for the components in the system.";
+
+      list component {
+        key "name";
+        description
+          "List of components, keyed by component name.";
+
+        leaf name {
+          type leafref {
+            path "../config/name";
+          }
+          description
+            "References the component name";
+        }
+
+        container config {
+          description
+            "Configuration data for each component";
+
+          uses platform-component-config;
+        }
+
+        container state {
+
+          config false;
+
+          description
+            "Operational state data for each component";
+
+          uses platform-component-config;
+        }
+
+      }
+    }
+  }
+
+
+  // data definition statements
+
+  uses platform-component-top;
+
+
+  // augments
+
+
+}

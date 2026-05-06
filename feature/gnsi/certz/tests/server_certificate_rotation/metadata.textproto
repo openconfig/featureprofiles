@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "1bf7746a-e4e3-4c46-ae5a-e24c4cb63395"
+plan_id:  "Certz-3"
+description:  "Server Certificate Rotation"
+testbed:  TESTBED_DUT_ATE_2LINKS

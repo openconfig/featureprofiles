@@ -18,33 +18,29 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"context"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
-	"strconv"
 	"strings"
-	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
 	"google.golang.org/api/cloudbuild/v1"
 	"gopkg.in/yaml.v2"
-
-	"github.com/google/uuid"
 )
 
 type cloudBuild struct {
-	device device
+	device *device
 
 	buildClient *cloudbuild.Service
 	storClient  *storage.Client
 	f           fs.FS
 }
 
-// submitBuild creates a CB Build and returns the jobID and log URL created.
-func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
+// submitBuild creates a CB Build using the data from objPath in Cloud Storage
+// and returns the jobID and log URL created.
+func (c *cloudBuild) submitBuild(objPath string) (string, string, error) {
 	build, err := c.defaultBuild()
 	if err != nil {
 		return "", "", err
@@ -70,11 +66,6 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 	}
 	build.Substitutions["_DUT_TESTS"] = testPaths.String()
 
-	objPath, err := c.prepareBuild(ctx)
-	if err != nil {
-		return "", "", err
-	}
-
 	build.LogsBucket = "gs://featureprofiles-ci-logs-" + vendor
 	build.Source = &cloudbuild.Source{
 		StorageSource: &cloudbuild.StorageSource{
@@ -82,6 +73,7 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 			Object: objPath,
 		},
 	}
+	build.ServiceAccount = "projects/" + gcpProjectID + "/serviceAccounts/" + gcpCloudBuildServiceAccount
 
 	resp, err := c.buildClient.Projects.Locations.Builds.Create("projects/"+gcpProjectID+"/locations/us-west1", build).Do()
 	if err != nil {
@@ -95,8 +87,20 @@ func (c *cloudBuild) submitBuild(ctx context.Context) (string, string, error) {
 	return bom.Build.Id, bom.Build.LogUrl, nil
 }
 
+// defaultBuild returns the Cloud Build configuration stored in the repository.
+func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
+	buildYAML, err := fs.ReadFile(c.f, "cloudbuild/virtual.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	var build *cloudbuild.Build
+	err = yaml.Unmarshal(buildYAML, &build)
+	return build, err
+}
+
 // createTGZArchive returns a tar.gz compressed archive of the cloudBuild fs.
-func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
+func createTGZArchive(f fs.FS) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 
 	gzWriter := gzip.NewWriter(&buf)
@@ -105,7 +109,7 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 	tarWriter := tar.NewWriter(gzWriter)
 	defer tarWriter.Close()
 
-	err := fs.WalkDir(c.f, ".", func(path string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(f, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -118,7 +122,33 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 			return err
 		}
 
-		header, err := tar.FileInfoHeader(info, "")
+		// readLinkFS is the interface implemented by a file system that
+		// supports reading symbolic links.
+		//
+		// TODO(bstoll): readLinkFS is expected to be introduced in a future go
+		// release as fs.ReadLinkFS. Once fs.ReadLinkFS is available, we can
+		// remove this interface and add a test case to validate that the total
+		// number of files matches added to the archive matches the number
+		// intended to be there. For earlier versions of go we will ignore
+		// processing symlinks and log a warning. This interface allows for
+		// forward-compatibility with symlinks once it becomes available.
+		type readLinkFS interface {
+			ReadLink(name string) (string, error)
+		}
+		var link string
+		if info.Mode()&fs.ModeSymlink == fs.ModeSymlink {
+			if rfs, ok := f.(readLinkFS); ok {
+				link, err = rfs.ReadLink(path)
+				if err != nil {
+					return err
+				}
+			} else {
+				glog.Warningf("Skipping unsupported symlink %s in tar archive", path)
+				return nil
+			}
+		}
+
+		header, err := tar.FileInfoHeader(info, link)
 		if err != nil {
 			return err
 		}
@@ -128,11 +158,11 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 			return err
 		}
 
-		if d.IsDir() {
+		if d.IsDir() || link != "" {
 			return nil
 		}
 
-		file, err := c.f.Open(path)
+		file, err := f.Open(path)
 		if err != nil {
 			return err
 		}
@@ -142,37 +172,4 @@ func (c *cloudBuild) createTGZArchive() (*bytes.Buffer, error) {
 		return err
 	})
 	return &buf, err
-}
-
-// prepareBuild uploads the compressed repository to Object Store and returns the path to the object.
-func (c *cloudBuild) prepareBuild(ctx context.Context) (string, error) {
-	data, err := c.createTGZArchive()
-	if err != nil {
-		return "", err
-	}
-
-	u, err := uuid.NewRandom()
-	if err != nil {
-		return "", err
-	}
-
-	objPath := "source/" + strconv.FormatInt(time.Now().UTC().Unix(), 10) + "-" + hex.EncodeToString(u[:]) + ".tgz"
-	obj := c.storClient.Bucket(gcpCloudBuildBucketName).Object(objPath).NewWriter(ctx)
-	obj.ContentType = "application/x-tar"
-	if _, err := data.WriteTo(obj); err != nil {
-		return "", err
-	}
-	return objPath, obj.Close()
-}
-
-// defaultBuild returns the Cloud Build configuration stored in the repository.
-func (c *cloudBuild) defaultBuild() (*cloudbuild.Build, error) {
-	buildYAML, err := fs.ReadFile(c.f, "cloudbuild/virtual.yaml")
-	if err != nil {
-		return nil, err
-	}
-
-	var build *cloudbuild.Build
-	err = yaml.Unmarshal(buildYAML, &build)
-	return build, err
 }

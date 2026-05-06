@@ -24,6 +24,7 @@ import (
 	"github.com/open-traffic-generator/snappi/gosnappi"
 
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
@@ -50,13 +51,13 @@ var (
 			NextHops:    []nextHop{{"ate:port2", 0, 0.5}, {"ate:port3", 0, 0.5}},
 		},
 		{
-			TestName:    "EightNextHops",
-			Description: "With NHG 10 containing 8 next hops, with no associated weights assigned, 12.5% of traffic is forwarded to each next-hop.",
+			TestName:    "SevenNextHops",
+			Description: "With NHG 10 containing 7 next hops, with no associated weights assigned, 14.29% of traffic is forwarded to each next-hop.",
 			NextHops: []nextHop{
-				{"ate:port2", 0, 0.125}, {"ate:port3", 0, 0.125},
-				{"ate:port4", 0, 0.125}, {"ate:port5", 0, 0.125},
-				{"ate:port6", 0, 0.125}, {"ate:port7", 0, 0.125},
-				{"ate:port8", 0, 0.125}, {"ate:port9", 0, 0.125},
+				{"ate:port2", 0, 0.1429}, {"ate:port3", 0, 0.1429},
+				{"ate:port4", 0, 0.1429}, {"ate:port5", 0, 0.1429},
+				{"ate:port6", 0, 0.1429}, {"ate:port7", 0, 0.1429},
+				{"ate:port8", 0, 0.1429},
 			},
 		},
 
@@ -196,15 +197,17 @@ func TestWeightedBalancing(t *testing.T) {
 
 	// Dial gRIBI
 	ctx := context.Background()
-	gribic := dut.RawAPIs().GRIBI().Default(t)
-
-	// Configure the DUT
-	configureDUT(t, dut)
+	gribic := dut.RawAPIs().GRIBI(t)
 
 	// Configure the ATE
 	ate := ondatra.ATE(t, "ate")
 	top := configureATE(t, ate)
+
+	// Configure the DUT
+	configureDUT(t, dut)
+
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	// Run through the test cases.
 	for _, s := range scales {

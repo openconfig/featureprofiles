@@ -318,15 +318,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
 	}
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, deviations.DefaultNetworkInstance(dut))
-	}
 }
 
 // configureATE configures port1, port2 on the ATE.
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
-	top := ate.OTG().NewConfig(t)
+	top := gosnappi.NewConfig()
 
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -357,9 +354,6 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	niIntf.Interface = ygot.String(p1.Name())
 
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(nonDefaultVRF).Config(), nonDefaultNI)
-	if deviations.ExplicitGRIBIUnderNetworkInstance(dut) {
-		fptest.EnableGRIBIUnderNetworkInstance(t, dut, nonDefaultVRF)
-	}
 }
 
 // networkInstance creates an OpenConfig network instance with the specified name
@@ -382,15 +376,15 @@ func sendTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) {
 }
 
 // computeLossPct checks for traffic packet loss.
-func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) int64 {
+func computeLossPct(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config) float32 {
 	t.Helper()
 	flowMetric := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow("Flow").State())
-	txPackets := flowMetric.GetCounters().GetOutPkts()
+	txPackets := float32(flowMetric.GetCounters().GetOutPkts())
 	if txPackets == 0 {
 		t.Fatal("No tx packets")
 	}
-	rxPackets := flowMetric.GetCounters().GetInPkts()
-	lossPct := int64((txPackets - rxPackets) * 100 / txPackets)
+	rxPackets := float32(flowMetric.GetCounters().GetInPkts())
+	lossPct := (txPackets - rxPackets) * 100 / txPackets
 	return lossPct
 }
 
@@ -406,7 +400,7 @@ func injectEntries(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, cl
 	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI client", ateDstNetCIDR)
 	client.AddNH(t, nhIndex, atePort2.IPv4, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 	client.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
-	client.AddIPv4(t, ateDstNetCIDR, nhgIndex, networkInstanceName, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	injectIPEntry(ctx, t, dut, client, networkInstanceName, ateDstNetCIDR)
 }
 
 // injectIPEntry adds only IPv4 entry to the specified network instance referencing to the nhgid, to the VRF.

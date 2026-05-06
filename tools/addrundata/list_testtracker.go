@@ -21,6 +21,7 @@ import (
 // JSON.  It optionally merges with an existing JSON if given.  The JSON uses a
 // proprietary schema for test tracker.  See listJSON for a simpler schema.
 func listTestTracker(w io.Writer, mergejson string, featuredir string, ts testsuite) error {
+	reduceMetadata(ts)
 	rootdir := filepath.Dir(featuredir)
 	ttp, ok := ttBuildPlan(ts, rootdir)
 	if !ok {
@@ -46,6 +47,18 @@ func listTestTracker(w io.Writer, mergejson string, featuredir string, ts testsu
 	data = append(data, '\n')
 	_, err = w.Write(data)
 	return err
+}
+
+// reduceMetadata includes only the test metadata fields we care about for testtracker.
+func reduceMetadata(ts testsuite) {
+	for _, tc := range ts {
+		md := tc.existing
+		tc.existing = &mpb.Metadata{
+			Uuid:        md.Uuid,
+			PlanId:      md.PlanId,
+			Description: md.Description,
+		}
+	}
 }
 
 // ttBuildPlan builds a hierarchical ttPlan from a flat testsuite.  The ttPlan reorganizes

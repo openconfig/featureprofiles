@@ -1,0 +1,23 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, 2 port, 400ZR optics
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+    speed: S_400GB
+    pmd: PMD_400GBASE_ZR
+  }
+  ports {
+    id: "port2"
+    speed: S_400GB
+    pmd: PMD_400GBASE_ZR
+  }
+}
+
+links {
+  a: "dut:port1"
+  b: "dut:port2"
+}

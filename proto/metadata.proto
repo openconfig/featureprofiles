@@ -35,6 +35,18 @@ message Metadata {
     TESTBED_DUT_ATE_2LINKS = 3;
     TESTBED_DUT_ATE_4LINKS = 4;
     TESTBED_DUT_ATE_9LINKS_LAG = 5;
+    TESTBED_DUT_DUT_ATE_2LINKS = 6;
+    TESTBED_DUT_ATE_8LINKS = 7;
+    TESTBED_DUT_400ZR = 8;
+    TESTBED_DUT_400ZR_PLUS = 9;
+    TESTBED_DUT_400ZR_100G_4LINKS = 10;
+    TESTBED_DUT_400FR_100G_4LINKS = 11;
+    TESTBED_DUT_ATE_5LINKS = 12;
+    TESTBED_DUT_800ZR = 13;
+    TESTBED_DUT_800ZR_PLUS = 14;
+    TESTBED_DUT_2LINKS = 15;
+    TESTBED_DUT_ATE_34LINKS = 16;
+    TESTBED_DUT_ATE_8LINKS_LAG = 17;
   }
   // Testbed on which the test is intended to run.
   Testbed testbed = 4;
@@ -75,10 +87,8 @@ message Metadata {
     bool isis_interface_level1_disable_required = 7;
     // Set isis af ipv6 single topology on the device if value is true.
     bool isis_single_topology_required = 8;
-    // Unset isis protocol enable flag on the device if value is true.
-    bool isis_protocol_enabled_not_required = 9;
     // Don't set isis instance enable flag on the device if value is true.
-    bool isis_instance_enabled_not_required = 10;
+    bool isis_instance_enabled_required = 10;
     // Set and validate isis interface address family enable on the device if
     // value is true.
     bool missing_isis_interface_afi_safi_enable = 11;
@@ -99,12 +109,6 @@ message Metadata {
     bool osinstall_for_standby_rp = 17;
     // Set this flag for LLDP interface config to override the global config.
     bool lldp_interface_config_override_global = 18;
-    // Skip BGP TestPassword mismatch subtest if value is true.
-    // Cisco: partnerissuetracker.corp.google.com/273285907
-    bool skip_bgp_test_password_mismatch = 19;
-    // Device does not support interface/physicalchannel leaf.
-    // Cisco: partnerissuetracker.corp.google.com/273287821
-    bool missing_interface_physical_channel = 20;
     // Skip check for
     // bgp/neighbors/neighbor/state/messages/received/last-notification-error-code
     // leaf missing case.
@@ -122,20 +126,16 @@ message Metadata {
     // Device requires additional config for ECN.
     // Juniper: partnerissuetracker.corp.google.com/277657269
     bool ecn_profile_required_definition = 25;
-    // Set true for device that does not support interface ipv6 discarded packet
-    // statistics.
+    // Device does not support interface ipv6 discarded packet statistics.
     // Juniper: partnerissuetracker.corp.google.com/277762075
     bool ipv6_discarded_pkts_unsupported = 26;
     // Device does not support drop and weight leaves under queue management
     // profile.
     // Juniper: partnerissuetracker.corp.google.com/279471405
     bool drop_weight_leaves_unsupported = 27;
-    // Device does not support traffic forward with secondary backup path
-    // failover.
-    // Juniper: partnerissuetracker.corp.google.com/279727552
-    bool secondary_backup_path_traffic_failover = 28;
     // Config pushed through origin CLI takes precedence over config pushed
     // through origin OC.
+    // Juniper: partnerissuetracker.corp.google.com/270474468
     bool cli_takes_precedence_over_oc = 29;
     // Device does not support weight above 100.
     // Juniper: partnerissuetracker.corp.google.com/277066804
@@ -152,22 +152,15 @@ message Metadata {
     bool interface_counters_from_container = 33;
     // Use this deviation when the device does not support a mix of tagged and
     // untagged subinterfaces.
+    // Juniper: partnerissuetracker.corp.google.com/267822588
     bool no_mix_of_tagged_and_untagged_subinterfaces = 34;
-    // Device does not report P4RT node names in the component hierarchy.
-    bool explicit_p4rt_node_component = 35;
-    // Configure ACLs using vendor native model specifically for RT-1.4.
-    bool use_vendor_native_acl_config = 36;
     // Device does not support reporting software version according to the
     // requirements in gNMI-1.10.
+    // Juniper: partnerissuetracker.corp.google.com/278764547
     bool sw_version_unsupported = 37;
-    // Device requires explicit interface ref configuration when applying
-    // features to interface.
-    bool explicit_interface_ref_definition = 38;
     // Device does not support telemetry path /components/component/storage.
     // Juniper: partnerissuetracker.corp.google.com/284239001
     bool storage_component_unsupported = 39;
-    // Device requires gribi-protocol to be enabled under network-instance.
-    bool explicit_gribi_under_network_instance = 40;
     // Device requires port-speed to be set because its default value may not be
     // usable.
     bool explicit_port_speed = 41;
@@ -175,8 +168,6 @@ message Metadata {
     // the default network instance.
     // Nokia: partnerissuetracker.corp.google.com/260928639
     bool explicit_interface_in_default_vrf = 42;
-    // Skip checking QOS Dropped octets stats for interface.
-    bool qos_dropped_octets = 43;
     // Device is missing subinterface packet counters for IPv4/IPv6.
     bool subinterface_packet_counters_missing = 44;
     // Connect-retry is not supported
@@ -189,8 +180,6 @@ message Metadata {
     bool route_policy_under_afi_unsupported = 47;
     // Device does not support using gNOI to reboot the Fabric Component.
     bool gnoi_fabric_component_reboot_unsupported = 48;
-    // Device does not support the ntp nondefault vrf case.
-    bool ntp_non_default_vrf_unsupported = 49;
     // Device does not support setting the L2 MTU. OpenConfig allows a device to
     // enforce that L2 MTU, which has a default value of 1514, must be set to a
     // higher value than L3 MTU.
@@ -198,8 +187,6 @@ message Metadata {
     bool omit_l2_mtu = 50;
     // Skip power admin for controller card
     bool skip_controller_card_power_admin = 51;
-    // Skip PLQ packets count check.
-    bool skip_plq_packets_count_check = 55;
     // Device requires the banner to have a delimiter character.
     string banner_delimiter = 60;
     // Allowed tolerance for BGP traffic flow while comparing for pass or fail
@@ -273,12 +260,1047 @@ message Metadata {
     bool bkup_arbitration_resp_code = 82;
     // Device requires IPOverIP decapsulation for backup NHG without interfaces.
     bool backup_nhg_requires_vrf_with_decap = 83;
-    // Devices don't support ISIS Timers lsp-refresh-interval leaf.
-    bool isis_timers_lsp_refresh_interval_unsupported = 84;
     // Devices don't support configuring ISIS /afi-safi/af/config container.
     bool isis_interface_afi_unsupported = 85;
     // Devices don't support modify table entry operation in P4 Runtime.
     bool p4rt_modify_table_entry_unsupported = 86;
+    // Parent of OS component is of type SUPERVISOR or LINECARD.
+    bool os_component_parent_is_supervisor_or_linecard = 87;
+    // Parent of OS component is of type CHASSIS.
+    bool os_component_parent_is_chassis = 88;
+    // Devices require configuring the same ISIS Metrics for Level 1 when
+    // configuring Level 2 Metrics.
+    bool isis_require_same_l1_metric_with_l2_metric = 91;
+    // Devices require configuring the same OSPF setMetric when BGP
+    // SetMED is configured.
+    bool bgp_set_med_requires_equal_ospf_set_metric = 92;
+    // Devices require configuring subinterface with tagged vlan for p4rt
+    // packet in.
+    bool p4rt_gdp_requires_dot1q_subinterface = 93;
+    // ATE port link state operations are a no-op in KNE/virtualized
+    // environments.
+    bool ate_port_link_state_operations_unsupported = 94;
+    // Creates a user and assigns role/rbac to said user via native model.
+    bool set_native_user = 95;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for linecards' CPU card.
+    bool linecard_cpu_utilization_unsupported = 98;
+    // Device does not support consistent component names for GNOI and GNMI.
+    bool consistent_component_names_unsupported = 99;
+    // Device does not support telemetry path
+    // /components/component/cpu/utilization/state/avg for controller cards'
+    // CPU card.
+    bool controller_card_cpu_utilization_unsupported = 100;
+    // Device does not support counter for fabric block drop packets.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/477492526
+    bool fabric_drop_counter_unsupported = 101;
+    // Device does not support memory utilization related leaves for linecard
+    // components.
+    bool linecard_memory_utilization_unsupported = 102;
+    // Device does not support telemetry path
+    // /qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts.
+    bool qos_voq_drop_counter_unsupported = 103;
+    // ATE IPv6 flow label unsupported in KNE/virtualized environments.
+    bool ate_ipv6_flow_label_unsupported = 104;
+    // Devices do not support configuring isis csnp-interval timer.
+    // Arista: partnerissuetracker.corp.google.com/299283216
+    bool isis_timers_csnp_interval_unsupported = 105;
+    // Devices do not support telemetry for isis counter:
+    // manual-address-drop-from-areas.
+    // Arista: partnerissuetracker.corp.google.com/299285115
+    bool isis_counter_manual_address_drop_from_areas_unsupported = 106;
+    // Devices do not support telemetry for isis counter: part-changes.
+    // Arista: partnerissuetracker.corp.google.com/317086576
+    bool isis_counter_part_changes_unsupported = 107;
+    // Devices do not support threshold container under
+    // /components/component/transceiver.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475716370
+    bool transceiver_thresholds_unsupported = 108;
+    // Update interface loopback mode using raw gnmi API due to server version.
+    bool interface_loopback_mode_raw_gnmi = 109;
+    // Devices do not support showing negotiated tcp mss value in bgp tcp mss
+    // telemetry. Juniper: b/300499125
+    bool skip_tcp_negotiated_mss_check = 110;
+    // Devices don't support ISIS-Lsp metadata paths: checksum, sequence-number,
+    // remaining-lifetime.
+    bool isis_lsp_metadata_leafs_unsupported = 111;
+    // QOS queue requires configuration with queue-id
+    bool qos_queue_requires_id = 112;
+    // QOS requires buffer-allocation-profile configuration
+    bool qos_buffer_allocation_config_required = 114;
+    // Devices do not support configuring ExtendedNextHopEncoding at the BGP
+    // global level. Arista:
+    // https://partnerissuetracker.corp.google.com/issues/203683090
+    bool bgp_global_extended_next_hop_encoding_unsupported = 115;
+    // OC unsupported for BGP LLGR disable.
+    // Juniper: b/303479602
+    bool bgp_llgr_oc_undefined = 116;
+    // Device does not support tunnel interfaces state paths
+    // Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_state_path_unsupported = 117;
+    // Device does not support tunnel interfaces source and destination address
+    // config paths Juniper: partnerissuetracker.corp.google.com/300111031
+    bool tunnel_config_path_unsupported = 118;
+    // Cisco: Device does not support same minimun and maximum threshold value
+    // in QOS ECN config.
+    bool ecn_same_min_max_threshold_unsupported = 119;
+    // Cisco: QOS requires scheduler configuration.
+    bool qos_scheduler_config_required = 120;
+    // Cisco: Device does not support set weight config under QOS ECN
+    // configuration.
+    bool qos_set_weight_config_unsupported = 121;
+    // Cisco: Device does not support these get state path.
+    bool qos_get_state_path_unsupported = 122;
+    // Devices requires enabled leaf under isis level
+    // Juniper: partnerissuetracker.corp.google.com/302661486
+    bool isis_level_enabled = 123;
+    // Devices which require to use interface-id format of interface name +
+    // .subinterface index with Interface-ref container
+    bool interface_ref_interface_id_format = 124;
+    // Devices does not support member link loopback
+    // Juniper: b/307763669
+    bool member_link_loopback_unsupported = 125;
+    // Device does not support PLQ operational status check on interface
+    // Juniper: b/308990185
+    bool skip_plq_interface_oper_status_check = 126;
+    // Device set received prefix limits explicitly under prefix-limit-received
+    // rather than "prefix-limit"
+    bool bgp_explicit_prefix_limit_received = 127;
+    // Device does not configure BGP maximum routes correctly when max-prefixes
+    // leaf is configured
+    bool bgp_missing_oc_max_prefixes_configuration = 128;
+    // Devices which needs to skip checking AFI-SAFI disable.
+    // Juniper: b/310698466
+    bool skip_bgp_session_check_without_afisafi = 129;
+    // Devices that have separate naming conventions for hardware resource name
+    // in /system/ tree and /components/ tree.
+    bool mismatched_hardware_resource_name_in_component = 130;
+    // Device does not support reboot status check on subcomponents.
+    bool gnoi_subcomponent_reboot_status_unsupported = 132;
+    // Devices exports routes from all protocols to BGP if the export-policy is
+    // ACCEPT Juniper: b/308970803
+    bool skip_non_bgp_route_export_check = 133;
+    // Devices do not support path
+    // /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style
+    // Arista: https://partnerissuetracker.corp.google.com/issues/317064733
+    bool isis_metric_style_telemetry_unsupported = 134;
+    // Devices do not support configuring Interface-ref under Static-Route
+    // Next-Hop
+    bool static_route_next_hop_interface_ref_unsupported = 135;
+    // Devices which does not support nexthop index state
+    // Juniper: b/304729237
+    bool skip_static_nexthop_check = 136;
+    // Device doesn't support router advertisement enable and mode config
+    // Juniper: b/316173974
+    bool ipv6_router_advertisement_config_unsupported = 138;
+    // Devices does not support setting prefix limit exceeded flag.
+    // Juniper : b/317181227
+    bool prefix_limit_exceeded_telemetry_unsupported = 139;
+    // Skip setting allow-multiple-as while configuring eBGP
+    // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    bool skip_setting_allow_multiple_as = 140;
+    // Devices does not support mixed prefix length in gribi.
+    // Juniper: b/307824407
+    bool gribi_decap_mixed_plen_unsupported = 143;
+    // Skip setting isis-actions set-level while configuring routing-policy
+    // statement action
+    bool skip_isis_set_level = 144;
+    // Skip setting isis-actions set-metric-style-type while configuring
+    // routing-policy statement action
+    // Cisco b/456075095
+    bool skip_isis_set_metric_style_type = 145;
+    // Skip setting disable-metric-propagation while configuring
+    // table-connection
+    bool skip_setting_disable_metric_propagation = 147;
+    // Devices do not support BGP conditions match-community-set
+    bool bgp_conditions_match_community_set_unsupported = 148;
+    // Device requires match condition for ethertype v4 and v6 for default rule
+    // with network-instance default-vrf in policy-forwarding.
+    bool pf_require_match_default_rule = 149;
+    // Devices missing component tree mapping from hardware port
+    // to optical channel.
+    bool missing_port_to_optical_channel_component_mapping = 150;
+    // Skip gNMI container OP tc.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_container_op = 151;
+    // Reorder calls for vendor compatibility.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool reorder_calls_for_vendor_compatibilty = 152;
+    // Add missing base config using cli.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/322291556
+    bool add_missing_base_config_via_cli = 153;
+    // skip_macaddress_check returns true if mac address for an interface via
+    // gNMI needs to be skipped. Cisco:
+    // https://partnerissuetracker.corp.google.com/issues/322291556
+    bool skip_macaddress_check = 154;
+    // Devices are having native telemetry paths for BGP RIB verification.
+    // Juniper : b/306144372
+    bool bgp_rib_oc_path_unsupported = 155;
+    // Skip setting prefix-set mode while configuring prefix-set routing-policy
+    bool skip_prefix_set_mode = 156;
+    // Devices set metric as preference for static next-hop
+    bool set_metric_as_preference = 157;
+    // Devices don't support having an IPv6 static Route with an IPv4 address
+    // as next hop and requires configuring a static ARP entry.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/316593298
+    bool ipv6_static_route_with_ipv4_next_hop_requires_static_arp = 158;
+    // Device requires policy-forwarding rules to be in sequential order in the
+    // gNMI set-request.
+    bool pf_require_sequential_order_pbr_rules = 159;
+    // Device telemetry missing next hop metric value.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/321010782
+    bool missing_static_route_next_hop_metric_telemetry = 160;
+    // Device does not support recursive resolution of static route next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/314449182
+    bool unsupported_static_route_next_hop_recurse = 161;
+    // Device missing telemetry for static route that has DROP next hop.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/330619816
+    bool missing_static_route_drop_next_hop_telemetry = 162;
+    // Device missing 400ZR optical-channel tunable parameters telemetry:
+    // min/max/avg.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/319314781
+    bool missing_zr_optical_channel_tunable_parameters_telemetry = 163;
+    // Device that does not support packet link qualification reflector packet
+    // sent/received stats.
+    bool plq_reflector_stats_unsupported = 164;
+    // Device that does not support PLQ Generator max_mtu to be atleast >= 8184.
+    uint32 plq_generator_capabilities_max_mtu = 165;
+    // Device that does not support PLQ Generator max_pps to be atleast >=
+    // 100000000.
+    uint64 plq_generator_capabilities_max_pps = 166;
+    // Support for bgp extended community index
+    bool bgp_extended_community_index_unsupported = 167;
+    // Support for bgp community set refs
+    bool bgp_community_set_refs_unsupported = 168;
+    // Arista device needs CLI knob to enable WECMP feature
+    bool rib_wecmp = 169;
+    // Device not supporting table-connection need to set this true
+    bool table_connections_unsupported = 170;
+    // Configure tag-set using vendor native model
+    bool use_vendor_native_tag_set_config = 171;
+    // Skip setting send-community-type in bgp global config
+    bool skip_bgp_send_community_type = 172;
+    // Support for bgp actions set-community method
+    bool bgp_actions_set_community_method_unsupported = 174;
+    // Ensure no configurations exist under BGP Peer Groups
+    bool set_no_peer_group = 175;
+    // Bgp community member is a string
+    bool bgp_community_member_is_a_string = 176;
+    // Flag to indicate whether IPv4 static routes with IPv6 next-hops are
+    // unsupported.
+    bool ipv4_static_route_with_ipv6_nh_unsupported = 177;
+    // Flag to indicate whether IPv6 static routes with IPv4 next-hops are
+    // unsupported.
+    bool ipv6_static_route_with_ipv4_nh_unsupported = 178;
+    // Flag to indicate support for static routes that simply drop packets
+    bool static_route_with_drop_nh = 179;
+    // Flag to indicate support for static routes that can be configured with an
+    // explicit metric.
+    bool static_route_with_explicit_metric = 180;
+    // Support for bgp default import/export policy
+    bool bgp_default_policy_unsupported = 181;
+    // Flag to enable bgp explicity on default vrf
+    // Arista: b/329094094#comment9
+    bool explicit_enable_bgp_on_default_vrf = 182;
+    // tag-set is not a real separate entity, but is embedded in the policy
+    // statement. this implies that 1. routing policy tag set name needs to be
+    // '<policy name> <statement name>'
+    // 2. only one policy statement can make use of a tag-set, and 3. tag must
+    // be refered by a policy
+    bool routing_policy_tag_set_embedded = 183;
+    // Devices does not support allow multiple as under AFI/SAFI.
+    // CISCO: b/340859662
+    bool skip_afi_safi_path_for_bgp_multiple_as = 184;
+    // Device does not support regex with routing-policy community-member.
+    bool community_member_regex_unsupported = 185;
+    // Support for same import policy attached to all AFIs for given
+    // (src-protocol, dst-protocol, network-instance) triple Arista:
+    // b/339645876#comment4
+    bool same_policy_attached_to_all_afis = 186;
+    // Devices needs to skip setting statement for policy to be applied as
+    // action pass otherwise it will be configured as action done.
+    // CISCO: b/338523730
+    bool skip_setting_statement_for_policy = 187;
+    // Devices does not support index specific attribute fetching and hence
+    // wildcards has to be used.
+    // CISCO: b/338523730
+    bool skip_checking_attribute_index = 188;
+    // Devices does not suppport policy-chaining, so needs to flatten policies
+    // with multiple statements.
+    // CISCO: b/338526243
+    bool flatten_policy_with_multiple_statements = 189;
+    // default_route_policy_unsupported is set to true for devices that do not
+    // support default route policy.
+    bool default_route_policy_unsupported = 190;
+    // CISCO: b/339801843
+    bool slaac_prefix_length128 = 191;
+    // Devices does not support bgp max multipaths
+    // Juniper: b/319301559
+    bool bgp_max_multipath_paths_unsupported = 192;
+    // Devices does not multipath config at neighbor or afisafi level
+    // Juniper: b/341130490
+    bool multipath_unsupported_neighbor_or_afisafi = 193;
+    // Devices that do not support /components/component/state/model-name for
+    // any component types.
+    // Note that for model name to be supported, the
+    // /components/component/state/model-name of the chassis component must be
+    // equal to the canonical hardware model name of its device.
+    bool model_name_unsupported = 194;
+    // community_match_with_redistribution_unsupported is set to true for devices that do not support matching community at the redistribution attach point.
+    bool community_match_with_redistribution_unsupported = 195;
+    // Devices that do not support components/component/state/install-component
+    // and components/component/state/install-position.
+    bool install_position_and_install_component_unsupported = 196;
+    // Encap tunnel is shut then zero traffic will flow to backup NHG
+    bool encap_tunnel_shut_backup_nhg_zero_traffic = 197;
+    // Flag to indicate support for max ecmp paths for isis.
+    bool max_ecmp_paths = 198;
+    // wecmp_auto_unsupported is set to true for devices that do not support auto wecmp
+    bool wecmp_auto_unsupported = 199;
+    // policy chaining, ie. more than one policy at an attachement point is not supported
+    bool routing_policy_chaining_unsupported = 200;
+    // isis loopback config required
+    bool isis_loopback_required = 201;
+    // weighted ecmp feature verification using fixed packet
+    bool weighted_ecmp_fixed_packet_verification = 202;
+    // Override default NextHop scale while enabling encap/decap scale
+    // CISCO:
+    bool override_default_nh_scale = 203;
+    // Devices that donot support setting bgp extended community set
+    bool bgp_extended_community_set_unsupported = 204;
+    // Devices that do not support setting bgp extended community set refs
+    bool bgp_set_ext_community_set_refs_unsupported = 205;
+    // Devices that do not support deleting link bandwidth
+    bool bgp_delete_link_bandwidth_unsupported = 206;
+    // qos_inqueue_drop_counter_Unsupported is set to true for devices that do not support qos ingress queue drop counters.
+    // Juniper: b/341130490
+    bool qos_inqueue_drop_counter_unsupported = 207;
+    // Devices that need bgp extended community enable explicitly
+    bool bgp_explicit_extended_community_enable = 208;
+    // devices that do not support match tag set condition
+    bool match_tag_set_condition_unsupported = 209;
+    // peer_group_def_bgp_vrf_unsupported is set to true for devices that do not support peer group definition under bgp vrf configuration.
+    bool peer_group_def_ebgp_vrf_unsupported = 210;
+    // redis_uconnected_under_ebgp_vrf_unsupported is set to true for devices that do not support redistribution of connected routes under ebgp vrf configuration.
+    bool redis_connected_under_ebgp_vrf_unsupported = 211;
+    // bgp_afisafi_in_default_ni_before_other_ni is set to true for devices that require certain afi/safis to be enabled
+    // in default network instance (ni) before enabling afi/safis for neighbors in default or non-default ni.
+    bool bgp_afi_safi_in_default_ni_before_other_ni = 212;
+    // Devices which do not support default import export policy.
+    bool default_import_export_policy_unsupported = 213;
+    // ipv6_router_advertisement_interval_unsupported is set to true for devices that do not support ipv6 router advertisement interval configuration.
+    bool ipv6_router_advertisement_interval_unsupported = 214;
+    // Decap NH with NextHopNetworkInstance is unsupported
+    bool decap_nh_with_nexthop_ni_unsupported = 215;
+    // Juniper: b/356898098
+    bool community_invert_any_unsupported = 216;
+    // SFlow source address update is unsupported
+    // Arista: b/357914789
+    bool sflow_source_address_update_unsupported = 217;
+    // Linklocal mask length is not 64
+    // Cisco: b/368271859
+    bool link_local_mask_len = 218;
+    // use parent component for temperature telemetry
+    bool use_parent_component_for_temperature_telemetry = 219;
+    // component manufactured date is unsupported
+    bool component_mfg_date_unsupported = 220;
+    // trib protocol field under otn channel config unsupported
+    bool otn_channel_trib_unsupported = 221;
+    // ingress parameters under eth channel config unsupported
+    bool eth_channel_ingress_parameters_unsupported = 222;
+    // Cisco numbering for eth channel assignment starts from 1 instead of 0
+    bool eth_channel_assignment_cisco_numbering = 223;
+    // Devices needs time to update interface counters.
+    bool interface_counters_update_delayed = 224;
+    // device does not support a Healthz GET RPC against Chassis level component like "CHASSIS" or "Rack 0"
+    bool chassis_get_rpc_unsupported = 225;
+    // Leaf-ref validation for list keys which is enforced for Cisco and hence deviation
+    // b/373581140
+    bool power_disable_enable_leaf_ref_validation = 226;
+    // Device does not support ssh server counters.
+    bool ssh_server_counters_unsupported = 227;
+    // True when the optical-channel operational-mode is unsupported.
+    // Juniper: b/355456031
+    bool operational_mode_unsupported = 228;
+    // BGP session state idle is supported in passive mode instead of active
+    // Cisco: b/376021545
+    bool bgp_session_state_idle_in_passive_mode = 229;
+    // EnableMultipathUnderAfiSafi returns true for devices that do not support multipath under /global path and instead support under global/afi/safi path
+    // CISCO: b/376241033
+    // CISCO: b/340859662
+    bool enable_multipath_under_afi_safi = 230;
+    // Cisco numbering for OTN channel assignment starts from 1 instead of 0
+    bool otn_channel_assignment_cisco_numbering = 232;
+    // Cisco pre-fec-ber inactive value for CISCO-ACACIA vendors
+    bool cisco_pre_fec_ber_inactive_value = 233;
+    // Device does not support bgp afi safi wildcard.
+    // Cisco: b/379863985
+    bool bgp_afi_safi_wildcard_not_supported = 235;
+    // Nokia; b/304493065 comment#7 SRL native admin_enable for table-connections
+    bool enable_table_connections = 236;
+    // Device has default zero suppression.
+    // Juniper : b/378646018
+    bool no_zero_suppression = 237;
+    // Cisco: b/378801305
+    bool isis_interface_level_passive_unsupported = 238;
+    // Cisco: b/378616912
+    bool isis_dis_sysid_unsupported = 239;
+    // Cisco: b/378616912
+    bool isis_database_overloads_unsupported = 240;
+    // Cisco: b/388980373
+    // default import policy for table connection unsupported is set to true for devices that do not support default import policy.
+    bool tc_default_import_policy_unsupported = 242;
+    // Cisco: b/388955361
+    // table connection metric propagation unsupported is set to true for devices that do not support metric propagation.
+    bool tc_metric_propagation_unsupported = 243;
+    // Cisco: b/388980376
+    // table connection attribute propagation unsupported is set to true for devices that do not support attribute propagation.
+    bool tc_attribute_propagation_unsupported = 244;
+    // Cisco: b/388955364
+    // table connection subscription unsupported is set to true for devices that do not support subscription for table connection leaves.
+    bool tc_subscription_unsupported = 245;
+    // Cisco: b/388983709
+    // default bgp instance name is used to set bgp instance name value other than DEFAULT
+    string default_bgp_instance_name = 246;
+    // Arista does not support ETHChannel rate-class
+    bool channel_assignment_rate_class_parameters_unsupported = 247;
+
+    // Arista: b/346557012
+    // Devices that do not support qos scheduler ingress policer.
+    bool qos_scheduler_ingress_policer_unsupported = 248;
+
+    // Arista: b/354689142
+    // Devices that do not support gRIBIencap headers.
+    bool gribi_encap_header_unsupported = 249;
+
+    // Device does not support P4RT Capabilities rpc.
+    // Cisco: b/385298158
+    bool p4rt_capabilities_unsupported = 250;
+
+    // Device does not support gNMI GET on root.
+    // Cisco: b/385298159
+    bool gnmi_get_on_root_unsupported = 251;
+
+    // Device does not support packet processing aggregate drops.
+    // Cisco: b/395567844
+    bool packet_processing_aggregate_drops_unsupported = 252;
+
+    // Device does not support fragment total drops.
+    // Nokia: b/395553772
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/395567844
+    bool fragment_total_drops_unsupported = 253;
+
+    // Juniper: b/383145521
+    // Device needs route policy reference to stream prefix set info.
+    bool bgp_prefixset_req_routepol_ref = 255;
+
+    // Devices that do not support oper-status for Integrated Circuits telemetry path
+    // Juniper b/395551640
+    bool oper_status_for_ic_unsupported = 256;
+
+    // Nokia: b/383075189
+    // ExplicitDcoConfig returns true if explicit configurations are required in module-functional-type for the transceiver
+    bool explicit_dco_config = 257;
+    // verify_expected_breakout_supported_config is used to verify on Cisco devices if optic supports a given breakout mode
+    // Cisco:
+    bool verify_expected_breakout_supported_config = 258;
+
+    // bgp_aspathset_unsupported is set to true for devices that do not support as-path-set for bgp-defined-sets.
+    // Juniper: b/330173167
+    bool bgp_aspathset_unsupported = 259;
+
+    // Devices that do not support SR IGP configuration
+    // Cisco b/390502067
+    bool sr_igp_config_unsupported = 260;
+
+    // Cisco: b/404301960
+    // Devices that block one IS-IS level specific authentication config attribute for P2P links.
+    // The same leafs can be set directly under ISIS Interface authentication /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/authentication.
+    bool set_isis_auth_with_interface_authentication_container = 261;
+
+    // Devices that do not support GRE/GUE tunnel interface oc.
+    // Juniper b/398171114
+    bool gre_gue_tunnel_interface_oc_unsupported = 262;
+
+    // Devices that do not support load-interval configuration
+    bool load_interval_not_supported = 263;
+
+    // SkipOpticalChannelOutputPowerInterval for devices that do not support optical-channel/output-power/interval leaf
+    // Nokia b/394622454
+    bool skip_optical_channel_output_power_interval = 264;
+
+    // SkipTransceiverDescription for devices that do not support transceiver/description leaf
+    // Nokia b/394622453
+    bool skip_transceiver_description = 265;
+
+    // Devices that do not support containerz config via OpenConfig.
+    bool containerz_oc_unsupported = 266;
+
+    // Device does not support BGP OC distance
+    bool bgp_distance_oc_path_unsupported = 267;
+
+    // Devices that do not support ISIS MPLS
+    bool isis_mpls_unsupported = 268;
+
+    // Devices that do not support oc path for auto-negotiate
+    // Nokia b/417843274
+    bool auto_negotiate_unsupported = 269;
+
+    // Devices that do not support oc path for duplex-mode
+    // Nokia b/417843274
+    bool duplex_mode_unsupported = 270;
+
+    // Devices that do not support oc path for port-speed
+    // Nokia b/417843274
+    bool port_speed_unsupported = 271;
+
+    // Set-Med-Action is not supported for BGP
+    // Cisco b/414333771
+    bool bgp_set_med_action_unsupported = 272;
+
+    // Devices that do not support next-hop-group config
+    // Arista b/390507957
+    bool next_hop_group_config_unsupported = 273;
+
+    // Arista b/390507780
+    bool qos_shaper_config_unsupported = 274;
+
+    // Arista b/390507780
+    bool qos_shaper_state_unsupported = 275;
+
+    // Arista b/393178770
+    bool ethernet_over_mplsogre_unsupported = 276;
+
+    // Arista b/390507408
+    bool sflow_unsupported = 277;
+
+    // Arista b/390507402
+    bool mpls_unsupported = 278;
+
+    // Arista b/390507399
+    bool macsec_unsupported = 279;
+
+    // Arista b/390506900
+    bool gue_gre_decap_unsupported = 280;
+
+    // Arista b/390506584
+    bool mpls_label_classification_unsupported = 281;
+
+    // Arista b/390506395
+    bool local_proxy_unsupported = 282;
+
+    // Arista b/390506513
+    bool static_mpls_unsupported = 283;
+
+    // Arista b/390504878
+    bool qos_classification_unsupported = 284;
+
+    // Arista b/390503348
+    bool policy_forwarding_unsupported = 285;
+
+    // Arista b/393177745
+    bool cfm_unsupported = 286;
+
+    // Arista b/390506903
+    bool label_range_unsupported = 287;
+
+    // Arista b/390506907
+    bool static_arp_unsupported = 288;
+
+    // Arista b/390506907
+    bool interface_policy_forwarding_unsupported = 289;
+    
+    // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
+    // issues/404301960
+    bool use_old_oc_path_static_lsp_nh = 290;
+
+    // Create/Replace config leaf required
+    // Juniper b/419536104
+    bool config_leaf_create_required = 291;
+
+    // SkipInterfaceNameCheck is set to true for devices that do not support
+    // interface name check in AFT.
+    bool skip_interface_name_check = 292;
+
+    // Arista b/426375784
+    // FNT only issue, non-breakout ports have breakout config
+    bool fr_breakout_fix = 293;
+
+    // Cisco b/421356455
+    // numPhysicalChannels is not supported
+    bool num_physical_channels_unsupported = 294;
+
+    // UnsupportedQoSOutputServicePolicy for devices that do not support qos output service-policy
+    bool unsupported_qos_output_service_policy = 295;
+
+    // InterfaceOutputQueueNonStandardName for devices with non-standard output queue names
+    bool interface_output_queue_non_standard_name = 296;
+
+    // MplsExpIngressClassifierUnsupported for devices that do not support ingress mpls exp field classification
+    bool mpls_exp_ingress_classifier_oc_unsupported = 297;
+
+    // Devices that do not propagate IGP metric through redistribution
+    bool default_no_igp_metric_propagation = 298;
+
+    // Skip setting send-community-type in bgp peer-group config
+    bool skip_bgp_peer_group_send_community_type = 299;
+
+    // Devices that need explicit swap_src_dst_mac set with loopback_mode
+    // Nokia b/430183279
+    bool explicit_swap_src_dst_mac_needed_for_loopback_mode = 301;
+
+    // link_local_instead_of_nh is set to true for devices that give
+    // link-local address instead of NH in AFT.
+    bool link_local_instead_of_nh = 302;
+
+    // low_scale_aft returns true if device requires low scale AFT.
+    bool low_scale_aft = 303;
+
+    // Devices that do not support system-description config path
+    // Nokia b/431929861
+    bool missing_system_description_config_path = 304;
+
+    // Juniper  b/428613305
+    // FEC uncorrectable errors accumulate over time and are not cleared unless the component is reset on target
+    bool non_interval_fec_error_counter = 305;
+
+    // Device does not support ntp source address
+    bool ntp_source_address_unsupported = 306;
+
+    // Devices does not support static mpls lsp
+    bool static_mpls_lsp_oc_unsupported = 307;
+
+    // Device doesnot support gre enacapsulation
+    bool gre_decapsulation_oc_unsupported = 308;
+
+    // SRGB and SLGB config through OC is not reflecting
+    bool isis_srgb_srlb_unsupported = 309;
+
+    // Prefix segment configuration not supported
+    bool isis_sr_prefix_segment_config_unsupported = 310;
+
+    // node segment configuration not supported
+    bool isis_sr_node_segment_config_unsupported = 311;
+
+    // Devices that do not support policy forwarding on next-hop
+    bool policy_forwarding_to_next_hop_oc_unsupported = 312;
+    // Cisco: b/402672689
+    // Devices that support sflow ingress min sampling rate of 1/N with N<1,000,000 can use
+    // this deviation to set specific value of N. Returns N=1,000,000 by default.
+    uint32 sflow_ingress_min_sampling_rate = 313;
+
+    // DUT not supporting with qos remarking
+    // Arista: b/415889077
+    bool qos_remark_oc_unsupported = 314;
+
+    // Devices that do not support policy forwarding encapsulate gre action
+    // Arista: b/409347274
+    bool policy_forwarding_gre_encapsulation_oc_unsupported = 315;
+
+    // policy rule based counters unsupported
+    // Arista : https://partnerissuetracker.corp.google.com/issues/425628787
+    bool policy_rule_counters_oc_unsupported = 316;
+
+    // Devices that must have OTN to ETH assignment.
+    // Arista : https://partnerissuetracker.corp.google.com/issues/434922681
+    bool otn_to_eth_assignment = 317;
+
+    // Devices that do not support import export policies configured in network instance
+    bool network_instance_import_export_policy_oc_unsupported = 318;
+
+    // Device does not support 'origin' field in gNMI/gNOI RPC paths.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/439656904
+    bool skip_origin = 319;
+
+    // Devices that support pre-defined max ecmp paths
+    // Juniper b/422688435
+    bool predefined_max_ecmp_paths = 320;
+
+    // b/425503156
+    // Device does not support decapsulation group
+    bool decapsulate_gue_oc_unsupported = 321;
+
+    // Device does not support line-port configuration on optical channel
+    // components for Nokia and Arista.
+    bool line_port_unsupported = 322;
+
+    // routing-policy bgp community needs to use REPLACE option
+    // Arista b/443044881
+    bool use_bgp_set_community_option_type_replace = 323;
+
+    // Devices that do not support global max ecmp paths
+    // Arista b/445097297
+    bool global_max_ecmp_paths_unsupported = 324;
+
+    // Devices that do not support configuring a two rate three color policer through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/442749011
+    bool qos_two_rate_three_color_policer_oc_unsupported = 325;
+
+    // Devices that do not support load balance policies
+    // Arista: https://partnerissuetracker.corp.google.com/issues/445043741
+    bool load_balance_policy_oc_unsupported = 326;
+
+    // Devices that do not support gribi records
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/445304668
+    bool gribi_records_unsupported = 327;
+
+    // Devices without breakout mode support for full rate.
+    // Nokia: b/435502032
+    bool breakout_mode_unsupported_for_eight_hundred_gb = 328;
+
+    // Devices without port speed and duplex mode support for interface config.
+    // Nokia: b/435502032
+    bool port_speed_duplex_mode_unsupported_for_interface_config = 329;
+
+    // Devices that need explicit breakout interface config.
+    // Nokia: b/435502032
+    bool explicit_breakout_interface_config = 330;
+
+    // Devices do not support threshold container under
+    // /components/component/transceiver. Translate from native ST with the
+    // specified functional translator. See ciscoxr-laser-ft.
+    // Cisco: b/429233045
+    string ciscoxr_laser_ft = 331;
+
+    // OC state path for the lower priority next hop not supported.
+    // Arista: b/447502389
+    bool telemetry_not_supported_for_low_priority_nh = 332;
+
+    // Devices that do not support match-as-path-set
+    // Arista b/434583178
+    bool match_as_path_set_unsupported = 333;
+
+    // Same apply-policy under peer-group and peer-group/afi-safi unsupported
+    // Arista b/413225712
+    bool same_afi_safi_and_peergroup_policies_unsupported = 334;
+
+    // Devices that do not support syslog OC configuration for below OC paths.
+    // '/system/logging/remote-servers/remote-server/config/network-instance'
+    // Cisco: b/447513282
+    bool syslog_oc_unsupported = 335;
+
+    // Devices that do not support transceiver config enable leaf
+    // Nokia b/414842051
+    bool transceiver_config_enable_unsupported = 336;
+
+    // Devices that do not support aft summary oc path
+    // Cisco: https://issuetracker.google.com/450898206
+    bool aft_summary_oc_unsupported = 337;
+
+    // Devices that do not support isis lsp tlvs
+    // Arista: https://issuetracker.google.com/450898200
+    bool isis_lsp_tlvs_oc_unsupported = 338;
+
+    // Devices that do not support isis adjancy with STREAM telemetry
+    // Nokia: https://issuetracker.google.com/452295044
+    bool isis_adjacency_stream_unsupported = 339;
+
+    // Device does not support sid_per_interface_counter_unsupported
+    // Cisco b/447350490
+    bool sid_per_interface_counter_unsupported = 340;
+
+    //  Juniper does not support localhost yet
+    //  b/448173472
+    bool localhost_for_containerz = 341;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for aggregate bandwidth policy
+    // action.
+    bool aggregate_bandwidth_policy_action_unsupported = 342;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for auto link bandwidth.
+    bool auto_link_bandwidth_unsupported = 343;
+
+    // Juniper: b/434633267
+    // Devices that do not support oc path for advertised cumulative link
+    // bandwidth.
+    bool advertised_cumulative_lbw_oc_unsupported = 344;
+
+    // disable hardware nexthop proxying
+    // Arista : https://partnerissuetracker.corp.google.com/issues/422275961
+    bool disable_hardware_nexthop_proxy = 345;
+
+    // Devices does not support uRPF configuration.
+    // Arista https://partnerissuetracker.corp.google.com/issues/444942109
+    bool urpf_config_oc_unsupported = 346;
+
+    // Devices does not support NextNetworkInstance configuration.
+    // Arista https://partnerissuetracker.corp.google.com/issues/457884385
+    bool static_route_next_network_instance_oc_unsupported = 347;
+
+    // Devices that do not support configuring gnpsi through OpenConfig
+    // Arista: https://partnerissuetracker.corp.google.com/issues/433989578
+    // GNPSI support PR: https://github.com/openconfig/public/pull/1385
+    bool gnpsi_oc_unsupported = 348;
+
+    // Device does not support to disable bgp GR-HELPER.
+    // Nokia: b/455781430
+    bool bgp_gr_helper_disable_unsupported = 349;
+
+    // Device does not support bgp GR-RESTART under AFI/SAFI.
+    // Cisco: b/455784294
+    bool bgp_graceful_restart_under_afi_safi_unsupported = 350;
+
+    // Device does not support adding remote-syslog config under non-default VRF
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/459659437
+    bool syslog_non_default_vrf_unsupported = 351;
+
+    // Device does not support sampling QoS counters
+    // Cisco bug: https://partnerissuetracker.corp.google.com/u/0/issues/463279843
+    // Cisco Feature Request: https://partnerissuetracker.corp.google.com/u/0/issues/463295774
+    bool skip_sampling_qos_counters = 352;
+
+    // Devices do not support default network instance gNMI server name.
+    // Cisco https://partnerissuetracker.corp.google.com/issues/462745721
+    string default_ni_gnmi_server_name = 353;
+
+    // Devices that do not support BGP local aggregate configuration from OC
+    // https://partnerissuetracker.corp.google.com/issues/458604959
+    bool bgp_local_aggregate_unsupported = 354;
+
+    // Device doesnot support configuring prefix list inside ACL
+    bool config_acl_with_prefixlist_unsupported = 355;
+
+    // Arista b/434815087
+    // Device doesnot support configuring source/destination address as ANY inside ACL
+    bool config_acl_value_any_oc_unsupported = 356;
+
+    // Device doesnot support configuring ACL through oc
+    bool config_acl_oc_unsupported = 357;
+
+    // Device does not support interface counters in unknown protos
+    // Juniper: https://issuetracker.google.com/issues/461368936
+    bool interface_counters_in_unknown_protos_unsupported = 358;
+
+    // Arista: b/449592554
+    // Devices that do not support /network-instances/network-instance/mpls/signaling-protocols
+    // /segment-routing/aggregate-sid-counters/aggregate-sid-counter/state/out-pkts.
+    bool aggregate_sid_counter_out_pkts_unsupported = 359;
+
+    // Devices that require no-php flag for ISIS SR prefix and node segments
+    // Arista: b/462580165 requires no-php for receiving packet with self advertised label
+    bool isis_sr_no_php_required = 360;
+    
+    // Device does not support match-set-options leaf with ALL for match-community-set
+    // Arista: b/335739231
+    bool match_community_set_match_set_options_all_unsupported = 361;
+
+    // Arista https://partnerissuetracker.corp.google.com/issues/452484903
+    bool bmp_oc_unsupported = 362;
+
+    // Device does not support slice input of BGP community type
+    bool bgp_community_type_slice_input_unsupported = 363;
+
+    // Device doesnot support configuring multipath path under ibgp
+    // b/470225281
+    bool ibgp_multipath_path_unsupported = 364;
+
+    // Device does not support ContainerZ Plugin RPC
+    // Arista: b/470225282
+    bool containerz_plugin_rpc_unsupported = 365;
+
+    // Arista b/384040563
+    // Device does not  support the IANA assigned gRPC port for g* services
+    bool non_standard_grpc_port = 366;
+
+    // Check if transceiver subcomponent should look for the temperature sensor
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475715208
+    bool temperature_sensor_check = 367;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report controller CPU utilization against base controller card component
+    bool cpu_utilization_query_against_base_controller_card_component = 368;
+
+    // Cisco https://partnerissuetracker.corp.google.com/issues/475101800
+    // Devices that report linecard CPU utilization against base linecard component
+    bool cpu_utilization_query_against_base_linecard_component = 369;
+
+    // Device does not support no-queue drops
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777158
+    bool no_queue_drop_unsupported = 370;
+
+    // Device does not support interface-ethernet in-block errors counters
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/475777324
+    bool interface_ethernet_inblock_errors_unsupported = 371;
+
+    // Arista https://partnerissuetracker.corp.google.com/476271160
+    bool retain_gnmi_cfg_after_reboot = 372;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429231108
+    string ciscoxr_transceiver_ft = 373;
+
+    // Device does not support transceiver state leaf.
+    bool transceiver_state_unsupported = 374;
+    
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
+    bool subnet_mask_change_required = 375;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429228826
+    string ciscoxr8000_integrated_circuit_resource_ft = 376;
+
+    // The BGP routes are accepted by default when no policy or default policy is configured.
+    // b/479957749
+    bool bgp_default_policy_behavior_accept_route = 377;
+
+    // Nokia: b/459893133
+    // reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+    bool reduced_ecmp_set_on_mixed_encap_decap_nh = 378;
+
+    // Setting admin-state on TerminalDevice Channel is unsupported.
+    bool terminal_device_channel_admin_state_unsupported = 379;
+
+    // Device that requires explicit config to support BGP RIB streaming
+    // Arista: https://partnerissuetracker.corp.google.com/issues/471971235
+    bool bgp_rib_streaming_config_required = 380;
+
+    // Device does not support enabling ACL counters through OC
+    // Arista: https://partnerissuetracker.corp.google.com/issues/485515097
+    bool acl_counters_enable_oc_unsupported = 381;
+
+    // Device does not report ACL counters accurately during ACL update
+    // Arista: https://partnerissuetracker.corp.google.com/issues/465920254
+    bool skip_acl_counters_verification_during_update = 382;
+
+    // Device does not support configuring ICMP type and code fields for ACL
+    // Arista: https://partnerissuetracker.corp.google.com/issues/487324495
+    bool acl_icmp_type_code_configuration_unsupported = 383;
+
+    // Devices that do not support suppress router advertisement.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/488748120
+    bool ipv6_router_advertisement_suppress_unsupported = 384;
+
+    // Device does not support BGP configuration during graceful restart.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/489255397
+    bool bgp_config_during_graceful_restart_unsupported = 385;
+
+    // Device does not support restarting the routing process via gNOI.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/489304077
+    bool routing_restart_via_gnoi_unsupported = 386;
+
+    // Device does not support BGP RPL under peer-group directly
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/490033220
+    bool bgp_rpl_directly_under_peer_group_unsupported = 387;
+
+    // Devices that do not support configuring weight for wecmp
+    // Juniper b/450154047
+    bool wecmp_set_weight_unsupported = 388;
+    
+    // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
+    bool explicitly_apply_allow_all_import_policy = 389;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
+    // Functional translator to be used for QoS paths
+    string qos_ft = 390;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429234456
+    // Functional Translator name for devices with mount point state paths unsupported.
+    string system_mount_point_state_ft = 391;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429137958
+    // Functional Translator name for devices with neighbor link-layer-address paths unsupported.
+    string arp_ft = 392;
+
+    // Device does not support configuring prefix limit received paths through OC
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/447509237
+    bool prefix_limit_config_unsupported = 393;
+
+    // SSHServerHostCertificateTelemetryUnsupported returns true if /system/ssh-server/state/active-host-certificate-version
+    // is not supported.
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/494777653
+    bool ssh_server_host_certificate_telemetry_unsupported = 394;
+
+    // SendMaxUnsupported Sets to true if the device does not support BGP add-path send-max configuration.
+    // Cisco: b/498283710
+    bool send_max_unsupported = 395;
+
+    // Devices that do not support AcctZ shell CMD records accounting.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_shell_cmd_accounting_unsupported = 396;
+
+    // Devices that do not support AuthZ status field with deny in CMD service
+    // in AcctZ records.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool acctz_records_authz_status_deny_unsupported = 397;
+
+    // Functional Translator name for devices with FPD paths unsupported.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429156503
+    string fpga_ft = 398;
+
+    // Devices that do not support role leaf of string type for OC system/aaa
+    // username configuration.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
+    bool oc_aaa_user_role_leaf_string_type_unsupported = 399;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_command_unsupported = 403;
+
+    // Device that do not support acctz record for fail user cases
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_fail_grpc_unsupported = 404;
+
+    // Devices that do not support BGP Graceful restart for Peer Group
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+    bool bgp_graceful_restart_peer_group_unsupported = 400;
+
+    // Device does not support services leaf under grpc-server config.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+    bool grpc_server_services_unsupported = 401;
+
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/456362593
+    // Devices that do not support oc path for static route to nexthop
+    bool static_route_to_nhg_oc_unsupported = 402;
+
+    // Device does not populate state on subinterface 0
+    // that is implicitly created.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/509766094
+    bool subinterface_0_state_unsupported = 405;
+
+    // Device does not support fragment punt drops.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_unsupported = 406;
+
+    // Device does not support fragment punt pkts.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502413665
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/502415318
+    // Nokia: https://partnerissuetracker.corp.google.com/issues/502415071
+    bool fragment_punt_pkts_unsupported = 407;
+
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
+    // Functional translator to be used for Fragment Punt OC paths
+    string fragment_punt_ft = 408;
+
+    // Device Does not support session channel id
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_session_channel_id_unsupported = 410;
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Device is missing subinterface state packet counters.
+    bool default_subinterface_packet_counters_missing = 409;
+
+    // Functional translator to be used for carrier-transitions paths.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
+    string carrier_ft = 411;
+    
+    // Functional translator name for fabric error telemetry.
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+    string fabric_ft = 412;
+
+    // Functional translator name for macsec state telemetry.
+    string macsec_state_ft = 413;
+
+    // Functional translator name for macsec counters telemetry.
+    string macsec_counters_ft = 414;
+
+
+    // Device needs MPLS Static enabled explicitly on ingress/egress interface
+    bool enable_mpls_static_on_interface = 415;
+    // Reserved field numbers and identifiers.
+    reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
 
   message PlatformExceptions {
@@ -289,4 +1311,21 @@ message Metadata {
   // The `platform` field for each `platform_exceptions` should be mutually
   // exclusive. Duplicate matches will result in a test failure.
   repeated PlatformExceptions platform_exceptions = 5;
+
+  enum Tags {
+    TAGS_UNSPECIFIED = 0;
+    TAGS_AGGREGATION = 1;
+    TAGS_DATACENTER_EDGE = 2;
+    TAGS_EDGE = 3;
+    TAGS_TRANSIT = 4;
+  }
+
+  // The `tags` used to identify the area(s) testcase applies to. An empty tag
+  // is the default implying it applies to all areas.
+  repeated Tags tags = 6;
+
+  // Whether this test only checks paths for presence rather than semantic
+  // checks.
+  bool path_presence_test = 7;
 }
+

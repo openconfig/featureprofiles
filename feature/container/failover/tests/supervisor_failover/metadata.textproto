@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "2f616c3d-852d-4180-8860-dbc16b09a1ba"
+plan_id: "CNTR-3"
+description: "Container Supervisor Failover"
+testbed: TESTBED_DUT
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    localhost_for_containerz: true
+  }  
+}

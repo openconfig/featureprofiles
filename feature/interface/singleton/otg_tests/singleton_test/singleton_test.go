@@ -101,10 +101,10 @@ var (
 type testCase struct {
 	mtu uint16 // This is the L3 MTU, i.e. the payload portion of an Ethernet frame.
 
-	dut *ondatra.DUTDevice
-	ate *ondatra.ATEDevice
-	top gosnappi.Config
-
+	dut           *ondatra.DUTDevice
+	ate           *ondatra.ATEDevice
+	top           gosnappi.Config
+	breakoutPorts map[string][]string
 	// Initialized by configureDUT.
 	duti1, duti2 *oc.Interface
 }
@@ -127,6 +127,44 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 
 	s6 := s.GetOrCreateIpv6()
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
+}
+
+func (tc *testCase) configureDUTBreakout(t *testing.T, dut *ondatra.DUTDevice) *oc.Component_Port_BreakoutMode_Group {
+	t.Helper()
+	d := gnmi.OC()
+	var breakoutGroupIndex uint8
+	// Decide which group index to use based on the device vendor
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		breakoutGroupIndex = 1
+	default:
+		breakoutGroupIndex = 0
+	}
+	tc.breakoutPorts = make(map[string][]string)
+
+	for _, dp := range tc.dut.Ports() {
+		// TODO(liulk): figure out a better way to detect breakout port.
+		if dp.PMD() != ondatra.PMD100GBASEFR {
+			continue
+		}
+		parent := gnmi.Get(t, tc.dut, gnmi.OC().Interface(dp.Name()).HardwarePort().State())
+		tc.breakoutPorts[parent] = append(tc.breakoutPorts[parent], dp.Name())
+	}
+	var group *oc.Component_Port_BreakoutMode_Group
+	for physical := range tc.breakoutPorts {
+		comp := &oc.Component{
+			Name: ygot.String(physical),
+		}
+		bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
+		group = bmode.GetOrCreateGroup(breakoutGroupIndex)
+		// TODO(liulk): use one of the logical port.Speed().
+		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		group.NumBreakouts = ygot.Uint8(4)
+
+		compPath := d.Component(physical)
+		gnmi.Replace(t, tc.dut, compPath.Config(), comp)
+	}
+	return group
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -164,36 +202,38 @@ func (tc *testCase) configureATE(t *testing.T) {
 	tc.top.Ports().Add().SetName(ap1.ID())
 	i1 := tc.top.Devices().Add().SetName(ap1.ID())
 	eth1 := i1.Ethernets().Add().SetName(ateSrc.Name + ".Eth").
-		SetMac(ateSrc.MAC).SetMtu(int32(ateMTU))
-	eth1.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i1.Name())
+		SetMac(ateSrc.MAC).SetMtu(uint32(ateMTU))
+	eth1.Connection().SetPortName(i1.Name())
 	if ateSrc.IPv4 != "" {
 		eth1.Ipv4Addresses().Add().SetName(ateSrc.Name + ".IPv4").
 			SetAddress(ateSrc.IPv4).SetGateway(dutSrc.IPv4).
-			SetPrefix(int32(ateSrc.IPv4Len))
+			SetPrefix(uint32(ateSrc.IPv4Len))
 	}
 	if ateSrc.IPv6 != "" {
 		eth1.Ipv6Addresses().Add().SetName(ateSrc.Name + ".IPv6").
 			SetAddress(ateSrc.IPv6).SetGateway(dutSrc.IPv6).
-			SetPrefix(int32(ateSrc.IPv6Len))
+			SetPrefix(uint32(ateSrc.IPv6Len))
 	}
 	tc.top.Ports().Add().SetName(ap2.ID())
 	i2 := tc.top.Devices().Add().SetName(ap2.ID())
 	eth2 := i2.Ethernets().Add().SetName(ateDst.Name + ".Eth").
-		SetMac(ateDst.MAC).SetMtu(int32(ateMTU))
-	eth2.Connection().SetChoice(gosnappi.EthernetConnectionChoice.PORT_NAME).SetPortName(i2.Name())
+		SetMac(ateDst.MAC).SetMtu(uint32(ateMTU))
+	eth2.Connection().SetPortName(i2.Name())
 	if ateDst.IPv4 != "" {
 		eth2.Ipv4Addresses().Add().SetName(ateDst.Name + ".IPv4").
 			SetAddress(ateDst.IPv4).SetGateway(dutDst.IPv4).
-			SetPrefix(int32(ateDst.IPv4Len))
+			SetPrefix(uint32(ateDst.IPv4Len))
 	}
 	if ateDst.IPv6 != "" {
 		eth2.Ipv6Addresses().Add().SetName(ateDst.Name + ".IPv6").
 			SetAddress(ateDst.IPv6).SetGateway(dutDst.IPv6).
-			SetPrefix(int32(ateDst.IPv6Len))
+			SetPrefix(uint32(ateDst.IPv6Len))
 	}
 
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 const (
@@ -215,7 +255,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
-	if tc.mtu == 1500 {
+	if tc.mtu == 1500 || tc.mtu == 5000 || tc.mtu == 9236 {
 		// MTU default values are still not populated.
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))
@@ -260,12 +300,24 @@ func (tc *testCase) verifyInterfaceDUT(
 
 // verifyDUT checks the telemetry against the parameters set by
 // configureDUT().
-func (tc *testCase) verifyDUT(t *testing.T) {
+func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_BreakoutMode_Group) {
 	t.Run("Port1", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port1"), tc.duti1, &ateSrc)
 	})
 	t.Run("Port2", func(t *testing.T) {
 		tc.verifyInterfaceDUT(t, tc.dut.Port(t, "port2"), tc.duti2, &ateDst)
+	})
+	t.Run("Breakout", func(t *testing.T) {
+		for physical := range tc.breakoutPorts {
+			if physical == "" {
+				continue // Not a breakout.
+			}
+			const want = 4
+			got := breakoutGroup.GetNumBreakouts()
+			if got != want {
+				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
+			}
+		}
 	})
 }
 
@@ -294,7 +346,7 @@ func (tc *testCase) verifyATE(t *testing.T) {
 func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v4 := flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(ateSrc.IPv4)
 	v4.Dst().SetValue(ateDst.IPv4)
@@ -303,7 +355,7 @@ func (tc *testCase) configureIPv4FlowHeader(t *testing.T, packetSize uint16) {
 func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv4"}).SetRxNames([]string{ateDst.Name + ".IPv4"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v4 := flow.Packet().Add().Ipv4()
 	v4.DontFragment().SetValue(1)
 	v4.Src().SetValue(ateSrc.IPv4)
@@ -313,22 +365,18 @@ func (tc *testCase) configureIPv4DfFlowHeader(t *testing.T, packetSize uint16) {
 func (tc *testCase) configureIPv6FlowHeader(t *testing.T, packetSize uint16) {
 	flow := tc.top.Flows().Items()[0]
 	flow.TxRx().Device().SetTxNames([]string{ateSrc.Name + ".IPv6"}).SetRxNames([]string{ateDst.Name + ".IPv6"})
-	flow.Size().SetFixed(int32(packetSize))
+	flow.Size().SetFixed(uint32(packetSize))
 	v6 := flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(ateSrc.IPv6)
 	v6.Dst().SetValue(ateDst.IPv6)
 }
 
 func (tc *testCase) waitOTGIPv4NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv4")
 }
 
 func (tc *testCase) waitOTGIPv6NeighborEntry(t *testing.T) {
-	gnmi.WatchAll(t, tc.ate.OTG(), gnmi.OTG().Interface(ateSrc.Name+".Eth").Ipv6NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
-		return val.IsPresent()
-	}).Await(t)
+	otgutils.WaitForARP(t, tc.ate.OTG(), tc.top, "IPv6")
 }
 
 type counters struct {
@@ -339,7 +387,7 @@ func inCounters(tic *oc.Interface_Counters) *counters {
 	return &counters{unicast: tic.GetInUnicastPkts(),
 		multicast: tic.GetInMulticastPkts(),
 		broadcast: tic.GetInBroadcastPkts(),
-		drop:      tic.GetInDiscards()}
+		drop:      tic.GetInErrors()}
 }
 
 func outCounters(tic *oc.Interface_Counters) *counters {
@@ -376,7 +424,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	waitOTGARPEntry(t)
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 	tc.ate.OTG().StopProtocols(t)
 
@@ -391,6 +439,36 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		aicp2 := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Port(ap2.ID()).State())
 		t.Logf("ap1 out-pkts %d -> ap2 in-pkts %d", aicp1.GetCounters().GetOutFrames(), aicp2.GetCounters().GetInFrames())
 		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
+	}
+
+	// Flow counters
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	fpc := fp.GetCounters()
+
+	// Pragmatic check on the average in and out packet sizes.  IPv4 may
+	// fragment the packet unless DF bit is set.  IPv6 never fragments.
+	// Under no circumstances should DUT send packets greater than MTU.
+
+	octets := fpc.GetOutOctets()
+	ateOutPkts := fpc.GetOutPkts()
+	ateInPkts := fpc.GetInPkts()
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		batch.AddPaths(
+			gnmi.OC().Interface(p1.Name()).Counters(),
+			gnmi.OC().Interface(p2.Name()).Counters(),
+		)
+		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			diffP1 := diffCounters(p1InBefore, inCounters(got.GetInterface(p1.Name()).GetCounters()))
+			diffP2 := diffCounters(p2OutBefore, outCounters(got.GetInterface(p2.Name()).GetCounters()))
+			return (diffP1.unicast+diffP1.drop >= ateOutPkts) && (diffP2.unicast >= ateInPkts-diffP2.drop)
+		}).Await(t)
 	}
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
@@ -412,22 +490,10 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Errorf("Large number of outbound Broadcast packets %d, want <= 100)", p2OutDiff.broadcast)
 	}
 
-	// Flow counters
-	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	fpc := fp.GetCounters()
-
-	// Pragmatic check on the average in and out packet sizes.  IPv4 may
-	// fragment the packet unless DF bit is set.  IPv6 never fragments.
-	// Under no circumstances should DUT send packets greater than MTU.
-
-	octets := fpc.GetOutOctets()
-	ateOutPkts := fpc.GetOutPkts()
-	ateInPkts := fpc.GetInPkts()
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
-	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
-		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+	} else if avg := octets / ateOutPkts; avg > uint64(packetSize) {
+		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, packetSize)
 	}
 	if p1InDiff.unicast < ateOutPkts {
 		if largeMTU && p1InDiff.drop < ateOutPkts {
@@ -454,8 +520,9 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
+	breakoutGroup := tc.configureDUTBreakout(t, tc.dut)
 
-	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t) })
+	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
 
 	for _, c := range []struct {
@@ -491,7 +558,7 @@ func (tc *testCase) testMTU(t *testing.T) {
 	}
 }
 
-func TestSingleton(t *testing.T) {
+func TestMTUs(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
@@ -499,7 +566,7 @@ func TestSingleton(t *testing.T) {
 	mtus := []uint16{1500, 5000, 9236}
 
 	for _, mtu := range mtus {
-		top := ate.OTG().NewConfig(t)
+		top := gosnappi.NewConfig()
 		tc := &testCase{
 			mtu: mtu,
 			dut: dut,
