@@ -32,7 +32,7 @@ import (
 
 const (
 	dirPath                  = "../../test_data/"
-	timeOutVar time.Duration = 2 * time.Minute
+	timeOutVar time.Duration = 30 * time.Minute
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -73,8 +73,14 @@ func TestClientCert(t *testing.T) {
 	//Generate testdata certificates.
 	t.Logf("%s:STATUS:Generation of test data certificates.", logTime)
 	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
+		t.Fatalf("Generation of testdata certificates failed: %v", err)
 	}
+	t.Cleanup(func() {
+		t.Logf("%s:STATUS:Cleanup of test data.", logTime)
+		if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+			t.Errorf("Cleanup of testdata certificates failed: %v", err)
+		}
+	})
 	//Create a certz client.
 	ctx := context.Background()
 	certzClient := gnsiC.Certz()
@@ -291,22 +297,27 @@ func TestClientCert(t *testing.T) {
 					prevCaCert.AddCert(c)
 				}
 				//Before rotation, validation of all services with existing certificates.
-				if result := setupService.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
+				if result := setupService.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
 					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
 				}
 				//Retrieve the connection with previous TLS credentials for certz rotation.
 				conn := setupService.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
 				defer conn.Close()
 				//certz and gnmi clients for the rotation request.
-				certzClient = certzpb.NewCertzClient(conn)
-				gnmiClient = gnmi.NewGNMIClient(conn)
+				cClient := certzpb.NewCertzClient(conn)
+				gClient := gnmi.NewGNMIClient(conn)
+				//Initiate server certificate rotation.
+				t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", logTime, tc.desc, tc.serverCertFile, tc.trustBundleFile)
+				if success := setupService.CertzRotate(ctx, t, newCaCert, cClient, gClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
+					t.Fatalf("%s:STATUS: %s:Certz rotation failed.", logTime, tc.desc)
+				}
 			} else {
 				t.Logf("%s:STATUS:%s:Using existing TLS credentials for client connection in first iteration.", logTime, tc.desc)
-			}
-			//Initiate server certificate rotation.
-			t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", logTime, tc.desc, tc.serverCertFile, tc.trustBundleFile)
-			if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
-				t.Fatalf("%s:STATUS: %s:Certz rotation failed.", logTime, tc.desc)
+				//Initiate server certificate rotation.
+				t.Logf("%s:STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", logTime, tc.desc, tc.serverCertFile, tc.trustBundleFile)
+				if success := setupService.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
+					t.Fatalf("%s:STATUS: %s:Certz rotation failed.", logTime, tc.desc)
+				}
 			}
 			t.Logf("%s:STATUS:%s: Certz rotation completed!", logTime, tc.desc)
 			//Post rotate validation of all services.
@@ -322,10 +333,6 @@ func TestClientCert(t *testing.T) {
 			prevTrustBundleFile = tc.trustBundleFile
 		})
 	}
-	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
-	//Cleanup of test data.
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
-		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
-	}
+
 	t.Logf("%s:STATUS:Test completed!", logTime)
 }
