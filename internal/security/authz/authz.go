@@ -36,7 +36,6 @@ import (
 
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 // Spiffe is an struct to save an Spiffe id and its svid.
@@ -248,8 +247,8 @@ func (p *AuthorizationPolicy) PrettyPrint(t *testing.T) string {
 	return string(prettyTex)
 }
 
-type verifyOpt interface {
-	isVerifyOpt()
+type VerifyOpt interface {
+	IsVerifyOpt()
 }
 
 // ExceptDeny is passed to verify function when failure is expected.
@@ -261,12 +260,12 @@ type ExceptDeny struct {
 type HardVerify struct {
 }
 
-func (o *ExceptDeny) isVerifyOpt() {}
-func (o *HardVerify) isVerifyOpt() {}
+func (o *ExceptDeny) IsVerifyOpt() {}
+func (o *HardVerify) IsVerifyOpt() {}
 
 // Verify uses prob to validate if the user access for a certain rpc is expected.
 // It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
-func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
+func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...VerifyOpt) {
 	expectedRes := authzpb.ProbeResponse_ACTION_PERMIT
 	expectedExecErr := codes.OK
 	hardVerify := false
@@ -294,36 +293,6 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		t.Fatalf("Prob response is not expected for user %s and path %s on dut %s, want %v, got %v", spiffe.ID, rpc.Path, dut.Name(), expectedRes, resp.GetAction())
 	}
 	if hardVerify {
-		serverName := "DEFAULT"
-		var counterPath ygnmi.SingletonQuery[uint64]
-		var timePath ygnmi.SingletonQuery[uint64]
-		if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
-			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessAccepts().State()
-			timePath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).LastAccessAccept().State()
-		} else {
-			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessRejects().State()
-			timePath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).LastAccessReject().State()
-		}
-
-		getCounter := func() uint64 {
-			val, ok := gnmi.Lookup(t, dut, counterPath).Val()
-			if !ok {
-				return 0
-			}
-			return val
-		}
-
-		getTime := func() uint64 {
-			val, ok := gnmi.Lookup(t, dut, timePath).Val()
-			if !ok {
-				return 0
-			}
-			return val
-		}
-
-		valBefore := getCounter()
-		timeBefore := getTime()
-
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
 		if status.Code(err) != expectedExecErr {
@@ -333,19 +302,6 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			t.Fatalf("The execution result of of rpc %s for user %s on dut %s is unexpected, want %v, got %v", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 		}
 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
-
-		valAfter := getCounter()
-		timeAfter := getTime()
-
-		if valAfter != valBefore+1 {
-			t.Errorf("Expected counter %s to increment from %d to %d, got %d", rpc.Path, valBefore, valBefore+1, valAfter)
-		}
-		if timeAfter < timeBefore {
-			t.Errorf("Expected timestamp %s to be >= %d, got %d", rpc.Path, timeBefore, timeAfter)
-		}
-		if timeAfter == 0 {
-			t.Errorf("Expected timestamp %s to be > 0 after call", rpc.Path)
-		}
 	}
 }
 
