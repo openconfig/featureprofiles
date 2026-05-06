@@ -297,9 +297,23 @@ func TestClientCert(t *testing.T) {
 					prevCaCert.AddCert(c)
 				}
 				//Before rotation, validation of all services with existing certificates.
-				if result := setupService.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
-					t.Fatalf("%s:STATUS:%s:service validation failed before rotate- got %v, want %v.", logTime, tc.desc, result, expectedResult)
-				}
+				t.Run("Pre-rotate verification", func(t *testing.T) {
+					if result := setupService.VerifyGnoi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+						t.Fatalf("Pre-rotate gNOI validation failed")
+					}
+					if result := setupService.VerifyGribi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+						t.Fatalf("Pre-rotate gRIBI validation failed")
+					}
+					if result := setupService.VerifyP4rt(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+						t.Fatalf("Pre-rotate P4RT validation failed")
+					}
+					if result := setupService.VerifyGnmi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+						t.Fatalf("Pre-rotate gNMI validation failed")
+					}
+					if result := setupService.VerifyGnsi(t, prevCaCert, serverSAN, serverAddr, username, password, prevClientCert, false); !result {
+						t.Fatalf("Pre-rotate gNSI validation failed")
+					}
+				})
 				//Retrieve the connection with previous TLS credentials for certz rotation.
 				conn := setupService.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
 				defer conn.Close()
@@ -322,10 +336,31 @@ func TestClientCert(t *testing.T) {
 			t.Logf("%s:STATUS:%s: Certz rotation completed!", logTime, tc.desc)
 			//Post rotate validation of all services.
 			t.Run("Verification of new connection after rotate", func(t *testing.T) {
-				if result := setupService.ServicesValidationCheck(t, newCaCert, expectedResult, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
-					t.Fatalf("STATUS:%s:service validation failed after rotate- got %v, want %v.", tc.desc, result, expectedResult)
-				}
-				t.Logf("%s:STATUS:%s:service validation done!", logTime, tc.desc)
+				t.Run("gNOI", func(t *testing.T) {
+					if result := setupService.VerifyGnoi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+						t.Fatalf("gNOI validation failed")
+					}
+				})
+				t.Run("gRIBI", func(t *testing.T) {
+					if result := setupService.VerifyGribi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+						t.Fatalf("gRIBI validation failed")
+					}
+				})
+				t.Run("P4RT", func(t *testing.T) {
+					if result := setupService.VerifyP4rt(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+						t.Fatalf("P4RT validation failed")
+					}
+				})
+				t.Run("gNMI", func(t *testing.T) {
+					if result := setupService.VerifyGnmi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+						t.Fatalf("gNMI validation failed")
+					}
+				})
+				t.Run("gNSI", func(t *testing.T) {
+					if result := setupService.VerifyGnsi(t, newCaCert, serverSAN, serverAddr, username, password, newClientCert, tc.mismatch); !result {
+						t.Fatalf("gNSI validation failed")
+					}
+				})
 			})
 			//Archiving previous client cert/key and trustbundle.
 			prevClientCertFile = tc.clientCertFile
