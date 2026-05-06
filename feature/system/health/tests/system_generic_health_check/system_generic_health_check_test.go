@@ -150,16 +150,16 @@ func TestComponentStatus(t *testing.T) {
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
 	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if !compEmptyVal {
 			fabrics = append(fabrics, f)
 		}
 	}
 	fabricCards = fabrics
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compEmptyVal {
 			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
@@ -173,8 +173,8 @@ func TestComponentStatus(t *testing.T) {
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
-			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
-			if compMtyPresent && compMtyVal {
+			compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
+			if compEmptyVal {
 				t.Skipf("INFO: Skip status check as %s is empty", component)
 			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
@@ -189,7 +189,8 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			componentName := map[string]string{"name": component}
-			req := &hpb.GetRequest{
+
+			checkReq := &hpb.CheckRequest{
 				Path: &tpb.Path{
 					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
@@ -201,11 +202,30 @@ func TestComponentStatus(t *testing.T) {
 					},
 				},
 			}
-			validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+			checkResponse, err := gnoiClient.Healthz().Check(context.Background(), checkReq)
 			if err != nil {
 				t.Errorf("ERROR: %v", err)
 			} else {
-				t.Logf("INFO: Component %s Healthz Status: %s", component, validResponse.GetComponent().Status)
+				t.Logf("INFO: Component %s Healthz Check Status: %s", component, checkResponse.GetStatus().GetStatus())
+			}
+
+			getReq := &hpb.GetRequest{
+				Path: &tpb.Path{
+					Origin: "openconfig",
+					Elem: []*tpb.PathElem{
+						{Name: "components"},
+						{
+							Name: "component",
+							Key:  componentName,
+						},
+					},
+				},
+			}
+			getResponse, err := gnoiClient.Healthz().Get(context.Background(), getReq)
+			if err != nil {
+				t.Errorf("ERROR: %v", err)
+			} else {
+				t.Logf("INFO: Component %s Healthz Get Status: %s", component, getResponse.GetComponent().GetStatus())
 			}
 		})
 	}
@@ -253,6 +273,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 					t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 				}
 
+				t.Logf("controller: %s, parent: %s, cpu: %s", controllerCards, cpuParent, cpu)
 				if slices.Contains(controllerCards, cpuParent) {
 					// Remove parent from the list of check cards.
 					controllerCards = removeElement(controllerCards, cpuParent)
@@ -267,7 +288,20 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			})
 
 		}
+
+		if deviations.SecondaryControllerCardCpuUtilizationUnsupported(dut) {
+			var activeControllerCards []string
+			for _, controllerCard := range controllerCards {
+				if gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).RedundantRole().State()) == oc.Platform_ComponentRedundantRole_SECONDARY {
+					t.Logf("INFO: Ignoring controller card component %s due to deviation secondary_controller_card_cpu_utilization_unsupported.", controllerCard)
+				} else {
+					activeControllerCards = append(activeControllerCards, controllerCard)
+				}
+			}
+			controllerCards = activeControllerCards
+		}
 	}
+
 	if len(controllerCards) > 0 {
 		t.Errorf("ERROR: Didn't find cpu card for controllerCards %s", controllerCards)
 	}
@@ -328,8 +362,8 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		lineCards = []string{}
 	} else {
 		for _, lc := range lineCards {
-			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-			if !compMtyVal && ok {
+			compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !compEmptyVal {
 				chassisLineCards = append(chassisLineCards, lc)
 			}
 		}
@@ -385,8 +419,8 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compEmptyVal {
 			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
@@ -402,12 +436,22 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 			timestamp := time.Now().Round(time.Second)
 			componentState := gnmi.Get(t, dut, query)
 			componentType := componentState.GetType()
+			componentPath := gnmi.OC().Component(component)
+
 			if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
 				t.Skipf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
 			}
-			if componentType == lineCardType && !gnmi.Get(t, dut, gnmi.OC().Component(component).Removable().State()) {
+
+			if componentType == lineCardType && !gnmi.Get(t, dut, componentPath.Removable().State()) {
 				t.Skipf("Skip the test on non-removable linecard.")
 			}
+
+			if deviations.SecondaryControllerCardMemoryUtilizationUnsupported(dut) {
+				if componentType == controllerCardType && gnmi.Get(t, dut, componentPath.RedundantRole().State()) == oc.Platform_ComponentRedundantRole_SECONDARY {
+					t.Skipf("INFO: Skipping test for secondary controller card component %s due to deviation secondary_controller_card_memory_utilization_unsupported", component)
+				}
+			}
+
 			memoryState := componentState.GetMemory()
 			if memoryState == nil {
 				t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
