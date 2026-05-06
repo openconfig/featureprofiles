@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -79,7 +80,7 @@ func NewISIS(t *testing.T, dut *ondatra.DUTDevice, ISISData *ISISGlobalParams, b
 	isisV6Afi.Enabled = ygot.Bool(true)
 
 	for _, in := range ISISData.ISISInterfaceNames {
-		if deviations.ExplicitInterfaceInDefaultVRF(dut) && !strings.Contains(in, ".") {
+		if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(in, ".") {
 			in += ".0"
 		}
 		fmt.Println("Adding ISIS interface: ", in)
@@ -188,5 +189,46 @@ func handleSingleTopologyDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnm
 		gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, deviations.DefaultNetworkInstance(dut)).Config(), protocol)
 	default:
 		t.Fatalf("Single ISIS topology deviation not supported for vendor: %s", dut.Vendor())
+	}
+}
+
+// GenerateDynamicRouteWithISIS configures the DUT to generate dynamic routes using ISIS as the trigger protocol.
+func GenerateDynamicRouteWithISIS(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		var cliConfig strings.Builder
+
+		cliConfig.WriteString(`
+    configure terminal
+    router general
+    control-functions
+
+    { "cmd": "code unit ipv4_generate_default_conditionally", "input": "function ipv4_generate_route_conditionally()\n{\nif source_protocol is ISIS and prefix match prefix_list_v4 TRIGGER_ROUTE {\nreturn true;\n}\n}\nEOF"}
+    { "cmd": "code unit ipv6_generate_route_conditionally", "input": "function ipv6_generate_route_conditionally()\n{\nif source_protocol is ISIS and prefix match prefix_list_v6 TRIGGER_ROUTE_IPV6 {\nreturn true;\n}\n}\nEOF"}
+    compile
+    commit
+    dynamic prefix-list ipv4_generate_route
+    match vrf default source-protocol any rcf ipv4_generate_route_conditionally()
+    prefix-list ipv4 GENERATED_ROUTE
+    !
+    dynamic prefix-list ipv6_generate_route
+    match vrf default source-protocol any rcf ipv6_generate_route_conditionally()
+    prefix-list ipv6 GENERATED_ROUTE_IPV6
+    !
+    router general
+    vrf default
+      routes dynamic prefix-list ipv4_generate_route install drop
+      routes dynamic prefix-list ipv6_generate_route install drop
+    !
+    router isis DEFAULT
+    redistribute dynamic
+    !
+    router bgp 1
+    redistribute dynamic
+    !`)
+		helpers.GnmiCLIConfig(t, dut, cliConfig.String())
+	default:
+		t.Fatalf("Generate dynamic route with ISIS not supported for vendor: %s", dut.Vendor())
 	}
 }

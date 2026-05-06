@@ -141,6 +141,8 @@ var (
 
 	bgpName = "BGP"
 
+	// PortCount1 use this for topology of 1 ports
+	PortCount1 PortCount = 1
 	// PortCount2 use this for topology of 2 ports
 	PortCount2 PortCount = 2
 	// PortCount4 use this for topology of 4 ports
@@ -216,6 +218,7 @@ type VrfBGPState struct {
 	NeighborIPs         []string
 }
 
+// BMPConfigParams holds the parameters to bgp BMP collector
 type BMPConfigParams struct {
 	DutAS        uint32
 	BGPObj       *oc.NetworkInstance_Protocol_Bgp
@@ -224,6 +227,8 @@ type BMPConfigParams struct {
 	StationAddr  string
 	StationPort  uint16
 	StatsTimeOut uint16
+	PrePolicy    bool
+	PostPolicy   bool
 }
 
 // NewBGPSession creates a new BGPSession using the default global config, and
@@ -238,6 +243,11 @@ func NewBGPSession(t *testing.T, pc PortCount, ni *string) *BGPSession {
 		OndatraDUTPorts: make([]*ondatra.Port, int(pc)),
 		OndatraATEPorts: make([]*ondatra.Port, int(pc)),
 		ATEIntfs:        make([]gosnappi.Device, int(pc)),
+	}
+
+	if pc == PortCount1 {
+		conf.DUTPorts = []*attrs.Attributes{dutPort1}
+		conf.ATEPorts = []*attrs.Attributes{atePort1}
 	}
 
 	if pc == PortCount4 {
@@ -691,6 +701,24 @@ func handleMaxPrefixesDeviation(t *testing.T, dut *ondatra.DUTDevice, _ *gnmi.Se
 	return nil
 }
 
+// DeviationBgpRibStreamingConfigRequired updates required config for BGP RIB streaming
+func DeviationBgpRibStreamingConfigRequired(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Log("Executing CLI commands for BGP RIB streaming config")
+		bgpRibStreamingConfig := `
+		management api models
+		provider bgp
+		bgp-rib
+		ipv4-unicast
+		ipv6-unicast
+		`
+		helpers.GnmiCLIConfig(t, dut, bgpRibStreamingConfig)
+	default:
+		t.Fatalf("DeviationBgpRibStreamingConfigRequired not implemented for vendor %v", dut.Vendor())
+	}
+}
+
 // sameAS checks if all neighbors have the same local and peer AS.
 func sameAS(nbrs []*BgpNeighbor) bool {
 	for _, nbr := range nbrs {
@@ -705,13 +733,25 @@ func sameAS(nbrs []*BgpNeighbor) bool {
 }
 
 // handleMultipathDeviation implements the deviation logic whether multipath config
-// at the afisafi level is supported or not. It updates the sb with the necessary
-// configuration.
-func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cfg BGPNeighborsConfig) error {
+// at the afisafi level is supported or not. It updates the root object with the
+// necessary configuration.
+func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, cfg BGPNeighborsConfig) error {
 	t.Helper()
-	root := &oc.Root{}
 	bgp := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp()
-
+	// Handle MultipathUnderAfiSafi deviation and Configure Multipath for Cisco
+	if deviations.EnableMultipathUnderAfiSafi(dut) {
+		switch dut.Vendor() {
+		case ondatra.CISCO:
+			global := bgp.GetOrCreateGlobal()
+			// set the maxpaths as 2 as we can expect max of 2 paths in the test.
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateEbgp().MaximumPaths = ygot.Uint32(2)
+			return nil
+		default:
+			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
+		}
+	}
+	// Handle MultipathUnsupportedNeighborOrAfisafi deviation and Configure Multipath for Juniper
 	if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 		switch dut.Vendor() {
 		case ondatra.JUNIPER:
@@ -719,7 +759,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 				SetEnabled(true)
 			bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateUseMultiplePaths().
 				SetEnabled(true)
-			gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 			return nil
 		default:
 			return fmt.Errorf("deviation not expected for vendor %v", dut.Vendor())
@@ -740,7 +779,6 @@ func handleMultipathDeviation(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.Set
 	bgp.GetOrCreatePeerGroup(cfg.PeerGrpNameV6).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).
 		GetOrCreateUseMultiplePaths().
 		SetEnabled(true)
-	gnmi.BatchUpdate(sb, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Config(), root.GetNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP"))
 	return nil
 }
 
@@ -801,7 +839,7 @@ func CreateBGPNeighbors(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch,
 	applyPolicyV6.SetImportPolicy([]string{ALLOW})
 	applyPolicyV6.SetExportPolicy([]string{ALLOW})
 
-	if err := handleMultipathDeviation(t, dut, sb, cfg); err != nil {
+	if err := handleMultipathDeviation(t, dut, root, cfg); err != nil {
 		return err
 	}
 
@@ -1629,9 +1667,11 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 	t.Helper()
 	if deviations.BMPOCUnsupported(dut) {
 
+		bmpConfig := new(strings.Builder)
+
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			bmpConfig := new(strings.Builder)
+
 			fmt.Fprintf(bmpConfig, `
 				router bgp %d
 				bgp monitoring
@@ -1641,13 +1681,33 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 				statistics
 				connection address %s
 				connection mode active port %d
-				`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
+					`, cfgParams.DutAS, cfgParams.Source, cfgParams.StationAddr, cfgParams.StationPort)
 
 			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+
+			if cfgParams.PrePolicy {
+				t.Log("Configured BMP station with pre-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes pre-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if cfgParams.PostPolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+					router bgp %d
+					monitoring station BMP_STN
+					export-policy received routes post-policy
+					`, cfgParams.DutAS)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
 		}
 	} else {
-		// TODO: BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
-		t.Log("BMP support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
+		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
+		t.Log("BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.")
 		// // === BMP Configuration ===
 		// bmp := cfgParams.BGPObj.Global.GetOrCreateBmp()
 		// bmp.LocalAddress = ygot.String(cfgParams.LocalAddr)
@@ -1678,5 +1738,68 @@ func ConfigureBMPAccessList(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Se
  			permit tcp any eq %[1]d any`, cfgParams.StationPort)
 
 		helpers.GnmiCLIConfig(t, dut, bmpAclConfig.String())
+	}
+}
+
+// SetPortAttr sets port attributes for specified DUT and ATE ports.
+func SetPortAttr(ports []string, dutAttr *attrs.Attributes, ateAttr *attrs.Attributes) {
+	if dutAttr == nil && ateAttr == nil {
+		return
+	}
+
+	dutPortMap := map[string]*attrs.Attributes{
+		"port1": dutPort1,
+		"port2": dutPort2,
+		"port3": dutPort3,
+		"port4": dutPort4,
+	}
+	atePortMap := map[string]*attrs.Attributes{
+		"port1": atePort1,
+		"port2": atePort2,
+		"port3": atePort3,
+		"port4": atePort4,
+	}
+
+	// Update DUT ports if dutAttr is provided
+	if dutAttr != nil {
+		for _, port := range ports {
+			if p, ok := dutPortMap[port]; ok {
+				updateAttributes(p, dutAttr)
+			}
+		}
+	}
+
+	// Update ATE ports if ateAttr is provided
+	if ateAttr != nil {
+		for _, port := range ports {
+			if p, ok := atePortMap[port]; ok {
+				updateAttributes(p, ateAttr)
+			}
+		}
+	}
+}
+
+// updateAttributes update attribute values
+func updateAttributes(oldAttr, newAttr *attrs.Attributes) {
+	if newAttr.Name != "" {
+		oldAttr.Name = newAttr.Name
+	}
+	if newAttr.IPv4 != "" {
+		oldAttr.IPv4 = newAttr.IPv4
+	}
+	if newAttr.IPv6 != "" {
+		oldAttr.IPv6 = newAttr.IPv6
+	}
+	if newAttr.IPv4Len != 0 {
+		oldAttr.IPv4Len = newAttr.IPv4Len
+	}
+	if newAttr.IPv6Len != 0 {
+		oldAttr.IPv6Len = newAttr.IPv6Len
+	}
+	if newAttr.MAC != "" {
+		oldAttr.MAC = newAttr.MAC
+	}
+	if newAttr.Desc != "" {
+		oldAttr.Desc = newAttr.Desc
 	}
 }
