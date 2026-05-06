@@ -14,4 +14,3 @@ platform_exceptions: {
     containerz_plugin_rpc_unsupported: true
   }
 }
-}
