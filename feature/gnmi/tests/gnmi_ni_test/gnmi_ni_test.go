@@ -58,7 +58,6 @@ func TestGNMIAdditionalNetworkInstance(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	batch := &gnmi.SetBatch{}
 	ConfigureDUT(batch, t, dut)
-	//ConfigureAdditionalNetworkInstance(batch, t, dut, customVRFName)
 	ConfigureAdditionalNetworkInstance(batch, t, dut, customVRFName)
 	t.Log("\nApplying configuration to DUT\n")
 	batch.Set(t, dut)
