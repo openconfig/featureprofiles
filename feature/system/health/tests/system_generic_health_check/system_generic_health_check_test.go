@@ -738,7 +738,9 @@ func TestInterfaceStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
 			}
-			if root.GetCounters().InFcsErrors == nil {
+			if deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+				t.Logf("Skipping InFcsErrors check due to InterfaceCountersInFcsErrorsUnsupported devaiation.")
+			} else if root.GetCounters().InFcsErrors == nil {
 				t.Errorf("ERROR: Counter InFcsErrors is not present")
 			} else {
 				t.Logf("INFO: Counter InFcsErrors: %d", root.GetCounters().GetInFcsErrors())
@@ -760,42 +762,51 @@ func TestInterfacesubIntfs(t *testing.T) {
 				if !present {
 					t.Fatalf("ERROR: subIntf index value doesn't exist")
 				}
+
 				subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
-				IntfPath := gnmi.OC().Interface(intf)
+				intfPath := gnmi.OC().Interface(intf)
 				subIntfState := gnmi.Get(t, dut, subIntfPath.State())
 				subIntf := subIntfState.GetName()
 
 				t.Run(subIntf, func(t *testing.T) {
-					intfState := gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
-					if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
-						t.Errorf("ERROR: Oper status is not up")
-					} else {
-						t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
-					}
+					t.Run("OperStatus", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
+								t.Errorf("ERROR: Oper status is not up")
+							} else {
+								t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
+							}
+						}
+					})
 
-					if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
-						t.Errorf("ERROR: Admin status is not up")
-					} else {
-						t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
-					}
+					t.Run("AdminStatus", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
+								t.Errorf("ERROR: Admin status is not up")
+							} else {
+								t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
+							}
+						}
+					})
 
-					if subIntfState.Description == nil {
-						t.Errorf("ERROR: Description is not present")
-					} else {
-						t.Logf("INFO: Description: %s", subIntfState.GetDescription())
-					}
+					t.Run("Description", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.Description == nil {
+								t.Errorf("ERROR: Description is not present")
+							} else {
+								t.Logf("INFO: Description: %s", subIntfState.GetDescription())
+							}
+						}
+					})
 
-					if subIntfState.GetCounters().OutOctets == nil && intfState.GetCounters().OutOctets == nil {
-						t.Errorf("ERROR: Counter OutOctets is not present on interface %s, %s", subIntf, intf)
-					}
-
-					if subIntfState.GetCounters().InMulticastPkts == nil && intfState.GetCounters().InMulticastPkts == nil {
-						t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
-					}
-
-					counters := IntfPath.Counters()
-					parentCounters := gnmi.OC().Interface(intf).Counters()
-
+					subIntfCounterPath := subIntfPath.Counters()
+					intfCounterPath := intfPath.Counters()
 					cases := []struct {
 						desc          string
 						counter       ygnmi.SingletonQuery[uint64]
@@ -803,33 +814,43 @@ func TestInterfacesubIntfs(t *testing.T) {
 					}{
 						{
 							desc:          "InDiscards",
-							counter:       counters.InDiscards().State(),
-							parentCounter: parentCounters.InDiscards().State(),
+							counter:       subIntfCounterPath.InDiscards().State(),
+							parentCounter: intfCounterPath.InDiscards().State(),
 						},
 						{
 							desc:          "InErrors",
-							counter:       counters.InErrors().State(),
-							parentCounter: parentCounters.InErrors().State(),
+							counter:       subIntfCounterPath.InErrors().State(),
+							parentCounter: intfCounterPath.InErrors().State(),
 						},
 						{
 							desc:          "InUnknownProtos",
-							counter:       counters.InUnknownProtos().State(),
-							parentCounter: parentCounters.InUnknownProtos().State(),
+							counter:       subIntfCounterPath.InUnknownProtos().State(),
+							parentCounter: intfCounterPath.InUnknownProtos().State(),
+						},
+						{
+							desc:          "InMulticastPkts",
+							counter:       subIntfCounterPath.InMulticastPkts().State(),
+							parentCounter: intfCounterPath.InMulticastPkts().State(),
 						},
 						{
 							desc:          "OutDiscards",
-							counter:       counters.OutDiscards().State(),
-							parentCounter: parentCounters.OutDiscards().State(),
+							counter:       subIntfCounterPath.OutDiscards().State(),
+							parentCounter: intfCounterPath.OutDiscards().State(),
 						},
 						{
 							desc:          "OutErrors",
-							counter:       counters.OutErrors().State(),
-							parentCounter: parentCounters.OutErrors().State(),
+							counter:       subIntfCounterPath.OutErrors().State(),
+							parentCounter: intfCounterPath.OutErrors().State(),
+						},
+						{
+							desc:          "OutOctets",
+							counter:       subIntfCounterPath.OutOctets().State(),
+							parentCounter: intfCounterPath.OutOctets().State(),
 						},
 						{
 							desc:          "InFcsErrors",
-							counter:       counters.InFcsErrors().State(),
-							parentCounter: parentCounters.InFcsErrors().State(),
+							counter:       subIntfCounterPath.InFcsErrors().State(),
+							parentCounter: intfCounterPath.InFcsErrors().State(),
 						},
 					}
 					t.Logf("Verifying counters for Interfaces: %s", interfaces)
@@ -837,6 +858,8 @@ func TestInterfacesubIntfs(t *testing.T) {
 						t.Run(c.desc, func(t *testing.T) {
 							if c.desc == "InUnknownProtos" && deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
 								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
+							} else if c.desc == "InFcsErrors" && deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_fcs_errors_unsupported")
 							}
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 								t.Logf("INFO: %s: %d", c.counter, val)
