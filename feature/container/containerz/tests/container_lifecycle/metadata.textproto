@@ -8,18 +8,10 @@ testbed: TESTBED_DUT
 
 platform_exceptions: {
   platform: {
-    vendor: ARISTA
-  }
-  deviations: {
-    containerz_oc_unsupported: true
-  }
-}
-
-platform_exceptions: {
-  platform: {
     vendor: CISCO
   }
   deviations: {
     containerz_plugin_rpc_unsupported: true
   }
+}
 }

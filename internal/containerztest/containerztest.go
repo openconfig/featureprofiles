@@ -35,7 +35,6 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		if deviations.ContainerzOCUnsupported(dut) {
 			dut.Config().New().WithAristaText(`
 				management api gnoi
 				service containerz
@@ -45,7 +44,6 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 					 vrf mgmt
 				!
 			`).Append(t)
-		}
 		dut.Config().New().WithAristaText(`
 			ipv6 access-list restrict-access-ipv6
 			  ! open port for cntrsrv from PROD
