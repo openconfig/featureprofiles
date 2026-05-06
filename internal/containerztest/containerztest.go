@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/openconfig/containerz/client"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
