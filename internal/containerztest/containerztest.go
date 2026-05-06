@@ -35,7 +35,7 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 	gnoiClient := dut.RawAPIs().GNOI(t)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-			dut.Config().New().WithAristaText(`
+		dut.Config().New().WithAristaText(`
 				management api gnoi
 				service containerz
 				  transport gnmi default
