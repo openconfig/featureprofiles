@@ -742,6 +742,17 @@ func TestAuthz3(t *testing.T) {
 	if resp.GetCreatedOn() != expCreatedOn {
 		t.Errorf("CreatedOn Value has Changed in Authz.Get response")
 	}
+
+	// Telemetry validation
+	serverName := "DEFAULT"
+	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != expVersion {
+		t.Errorf("Expected telemetry version %s after 30s, got %s", expVersion, versionTele)
+	}
+	if createdOnTele != expCreatedOn {
+		t.Errorf("Expected telemetry createdOn %d after 30s, got %d", expCreatedOn, createdOnTele)
+	}
 	if !cmp.Equal(&newpolicy, finalPolicy) {
 		t.Fatalf("Not Expecting Policy Mismatch before and after the Wait):\n%s", cmp.Diff(&newpolicy, finalPolicy))
 	}
@@ -830,6 +841,17 @@ func TestAuthz4(t *testing.T) {
 	}
 	if resp.GetCreatedOn() != expCreatedOn {
 		t.Errorf("Created On has Changed to %v from Expected Created On %v after Reboot Trigger", resp.GetCreatedOn(), expCreatedOn)
+	}
+
+	// Telemetry validation after reboot
+	serverName := "DEFAULT"
+	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != expVersion {
+		t.Errorf("Expected telemetry version %s after reboot, got %s", expVersion, versionTele)
+	}
+	if createdOnTele != expCreatedOn {
+		t.Errorf("Expected telemetry createdOn %d after reboot, got %d", expCreatedOn, createdOnTele)
 	}
 	// Verify all results match per the above table for policy policy-normal-1
 	setUpBaseline(t, dut)

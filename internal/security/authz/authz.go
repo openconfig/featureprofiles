@@ -296,10 +296,13 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 	if hardVerify {
 		serverName := "DEFAULT"
 		var counterPath ygnmi.SingletonQuery[uint64]
+		var timePath ygnmi.SingletonQuery[uint64]
 		if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
 			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessAccepts().State()
+			timePath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).LastAccessAccept().State()
 		} else {
 			counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessRejects().State()
+			timePath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).LastAccessReject().State()
 		}
 
 		getCounter := func() uint64 {
@@ -310,7 +313,16 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			return val
 		}
 
+		getTime := func() uint64 {
+			val, ok := gnmi.Lookup(t, dut, timePath).Val()
+			if !ok {
+				return 0
+			}
+			return val
+		}
+
 		valBefore := getCounter()
+		timeBefore := getTime()
 
 		opts := []grpc.DialOption{grpc.WithTransportCredentials(credentials.NewTLS(spiffe.TLSConf))}
 		err := rpc.Exec(context.Background(), dut, opts)
@@ -323,9 +335,16 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 		t.Logf("The execution of rpc %s for user %s on dut %v is finished as expected, want error: %v, got error: %v ", rpc.Path, spiffe.ID, dut.Name(), expectedExecErr, err)
 
 		valAfter := getCounter()
+		timeAfter := getTime()
 
 		if valAfter != valBefore+1 {
 			t.Errorf("Expected counter %s to increment from %d to %d, got %d", rpc.Path, valBefore, valBefore+1, valAfter)
+		}
+		if timeAfter < timeBefore {
+			t.Errorf("Expected timestamp %s to be >= %d, got %d", rpc.Path, timeBefore, timeAfter)
+		}
+		if timeAfter == 0 {
+			t.Errorf("Expected timestamp %s to be > 0 after call", rpc.Path)
 		}
 	}
 }
