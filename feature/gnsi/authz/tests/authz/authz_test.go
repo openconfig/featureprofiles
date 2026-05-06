@@ -731,11 +731,29 @@ func TestAuthz3(t *testing.T) {
 	// Version and Created On Field Verification
 	t.Logf("Performing Authz.Get request on device %s", dut.Name())
 	gnsiC := dut.RawAPIs().GNSI(t)
+
+	serverName := "DEFAULT"
+	getCounterPath := gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc("/gnsi.authz.v1.Authz/Get").AccessAccepts().State()
+	getVal := func() uint64 {
+		val, ok := gnmi.Lookup(t, dut, getCounterPath).Val()
+		if !ok {
+			return 0
+		}
+		return val
+	}
+	valBefore := getVal()
+
 	resp, err := gnsiC.Authz().Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed on device %s", dut.Name())
 	}
 	t.Logf("Authz.Get response is %s", resp)
+
+	valAfter := getVal()
+	if valAfter != valBefore+1 {
+		t.Errorf("Expected gNSI.Get counter to increment from %d to %d, got %d", valBefore, valBefore+1, valAfter)
+	}
+
 	if resp.GetVersion() != expVersion {
 		t.Errorf("Version has Changed in Authz.Get response")
 	}
@@ -744,7 +762,6 @@ func TestAuthz3(t *testing.T) {
 	}
 
 	// Telemetry validation
-	serverName := "DEFAULT"
 	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
 	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
 	if versionTele != expVersion {
@@ -831,11 +848,29 @@ func TestAuthz4(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create GNSI Connection %v", err)
 	}
+
+	serverName := "DEFAULT"
+	getCounterPath := gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc("/gnsi.authz.v1.Authz/Get").AccessAccepts().State()
+	getVal := func() uint64 {
+		val, ok := gnmi.Lookup(t, dut, getCounterPath).Val()
+		if !ok {
+			return 0
+		}
+		return val
+	}
+	valBefore := getVal()
+
 	resp, err := gnsiC.Authz().Get(context.Background(), &authzpb.GetRequest{})
 	if err != nil {
 		t.Fatalf("Authz.Get request is failed with Error %v", err)
 	}
 	t.Logf("Authz.Get response is %s", resp)
+
+	valAfter := getVal()
+	if valAfter != valBefore+1 {
+		t.Errorf("Expected gNSI.Get counter to increment from %d to %d, got %d", valBefore, valBefore+1, valAfter)
+	}
+
 	if resp.GetVersion() != expVersion {
 		t.Errorf("Version has Changed to %v from Expected Version %v after Reboot Trigger", resp.GetVersion(), expVersion)
 	}
@@ -844,7 +879,6 @@ func TestAuthz4(t *testing.T) {
 	}
 
 	// Telemetry validation after reboot
-	serverName := "DEFAULT"
 	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
 	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
 	if versionTele != expVersion {
