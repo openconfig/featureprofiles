@@ -279,6 +279,7 @@ func TestClientCert(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s:STATUS:Failed to load client cert: %v", logTime, err)
 			}
+			setupService.VerifyClientCertSpiffeID(t, tc.clientCertFile)
 			if tc.newTLScreds {
 				t.Logf("%s:STATUS:%sCreating new TLS credentials for client connection.", logTime, tc.desc)
 				//Load the prior client keypair for new client TLS credentials.
@@ -286,6 +287,7 @@ func TestClientCert(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s:STATUS:%s:Failed to load previous client cert: %v.", logTime, tc.desc, err)
 				}
+				setupService.VerifyClientCertSpiffeID(t, prevClientCertFile)
 				oldPkcs7certs, oldPkcs7data, err := setupService.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
 					t.Fatalf("%s:STATUS:%s:Failed to load previous trust bundle,data %v with %v.", logTime, tc.desc, oldPkcs7data, err)

@@ -377,6 +377,42 @@ func ReadDecodeServerCertificate(t *testing.T, serverCertzFile string) (san stri
 	return san
 }
 
+// VerifyClientCertSpiffeID reads a PEM-encoded client certificate from the specified file,
+// decodes it, parses the x509 certificate, and verifies that it contains a valid SPIFFE ID
+// in its Subject Alternative Name (SAN) URIs.
+func VerifyClientCertSpiffeID(t *testing.T, clientCertFile string) {
+	t.Helper()
+	if _, err := os.Stat(clientCertFile); os.IsNotExist(err) {
+		t.Fatalf("Client certificate file does not exist: %v", clientCertFile)
+	}
+	certBytes, err := os.ReadFile(clientCertFile)
+	if err != nil {
+		t.Fatalf("Failed to read client certificate: %v", err)
+	}
+	block, _ := pem.Decode(certBytes)
+	if block == nil {
+		t.Fatalf("Failed to parse PEM block containing the client certificate: %s", clientCertFile)
+	}
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse client certificate: %v", err)
+	}
+
+	var spiffeID string
+	for _, uri := range cert.URIs {
+		if uri.Scheme == "spiffe" {
+			spiffeID = uri.String()
+			break
+		}
+	}
+
+	if spiffeID == "" {
+		t.Errorf("Client certificate %s does not contain a valid SPIFFE ID in Subject Alternative Name (SAN) URIs", clientCertFile)
+	} else {
+		t.Logf("Successfully verified SPIFFE ID in client certificate %s: %s", clientCertFile, spiffeID)
+	}
+}
+
 // VerifyGnsi function to validate the gNSI service RPC after successful rotation.
 // VerifyGnsi establishes a gRPC connection to a gNSI server using TLS and user credentials,
 // then performs an authorization check via the Authz service. It verifies the connection
