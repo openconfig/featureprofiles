@@ -1307,6 +1307,10 @@ message Metadata {
     // Arista: https://issuetracker.google.com/issues/508656197
     bool secondary_controller_card_memory_utilization_unsupported = 417;
 
+    // Device does not support interface counters in fcs errors
+    // Arista: https://issuetracker.google.com/issues/508304903
+    bool interface_counters_in_fcs_errors_unsupported = 418;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
