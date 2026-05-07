@@ -737,8 +737,8 @@ func TestAuthz2(t *testing.T) {
 				t.Logf("Authz.Rotate upload was successful, receiving response ...")
 			}
 			_, err = rotateStream.Recv()
-			if err != nil {
-				t.Fatalf("Expected Error while receiving rotate request reply %v", err)
+			if err == nil {
+				t.Fatalf("Expected Error while receiving rotate request reply for invalid policy, got nil")
 			}
 
 			t.Run("Verification of Policy for read_only user to deny gRIBI Get before closing stream", func(t *testing.T) {
