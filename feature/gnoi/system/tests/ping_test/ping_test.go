@@ -17,11 +17,11 @@ package ping_test
 import (
 	"context"
 	"io"
-	"net/netip"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -434,7 +434,7 @@ func TestGNOIPing(t *testing.T) {
 					StdDevZero = false
 				}
 
-				if !ipEqual(responses[i].Source, tc.expectedReply.Source) {
+				if !iputil.IPEqual(responses[i].Source, tc.expectedReply.Source) {
 					t.Errorf("Ping reply source: got %v, want %v", responses[i].Source, tc.expectedReply.Source)
 				}
 
@@ -475,15 +475,6 @@ func TestGNOIPing(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ipEqual(got, want string) bool {
-	gotIP, errG := netip.ParseAddr(got)
-	wantIP, errW := netip.ParseAddr(want)
-	if errG == nil && errW == nil {
-		return gotIP == wantIP
-	}
-	return got == want
 }
 
 func fetchResponses(c spb.System_PingClient) ([]*spb.PingResponse, error) {

@@ -17,12 +17,12 @@ package traceroute_test
 import (
 	"context"
 	"io"
-	"net/netip"
 	"testing"
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
@@ -258,7 +258,7 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 
 			t.Logf("Verify that the fields are only correctly filled in for the first message.")
-			if !ipEqual(resps[0].DestinationAddress, tc.traceRequest.Destination) {
+			if !iputil.IPEqual(resps[0].DestinationAddress, tc.traceRequest.Destination) {
 				t.Errorf("Traceroute Destination: got %v, want %v", resps[0].DestinationAddress, tc.traceRequest.Destination)
 			}
 			if tc.traceRequest.MaxTtl > 0 && resps[0].Hops != tc.traceRequest.MaxTtl {
@@ -285,15 +285,6 @@ func TestGNOITraceroute(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ipEqual(got, want string) bool {
-	gotIP, errG := netip.ParseAddr(got)
-	wantIP, errW := netip.ParseAddr(want)
-	if errG == nil && errW == nil {
-		return gotIP == wantIP
-	}
-	return got == want
 }
 
 func fetchTracerouteResponses(c spb.System_TracerouteClient) ([]*spb.TracerouteResponse, error) {
