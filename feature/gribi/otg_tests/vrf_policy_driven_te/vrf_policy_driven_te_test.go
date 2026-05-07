@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -2404,6 +2405,10 @@ func TestGribiDecap(t *testing.T) {
 	}
 
 	t.Run("Apply vrf selectioin policy W to DUT port-1", func(t *testing.T) {
+		if dut.Vendor() == ondatra.ARISTA {
+			cliConfig := "vrf selection policy\n next-hop decapsulation vrf\n!\n"
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		}
 		configureVrfSelectionPolicyW(t, dut)
 	})
 
