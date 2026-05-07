@@ -269,7 +269,6 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 				ssh.Password(auth.Password),
 				ssh.KeyboardInteractive(sshInteractive(auth.Password)),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	case binding.KeyAuth:
 		signer, err := ssh.ParsePrivateKey(auth.Key)
@@ -281,7 +280,6 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	case binding.CertificateAuth:
 		signer, err := ssh.ParsePrivateKey(auth.PrivateKey)
@@ -301,27 +299,26 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	default:
 		return nil, fmt.Errorf("ssh auth type %T not supported yet", auth)
 	}
-	sc, err := createSSHClient(config, d.r.ssh(d.dev))
+	sc, err := createSSHClient(config, d.r.ssh(d.dev), hkCallback)
 	if err != nil {
 		return nil, err
 	}
 	return newSSH(sc, hk)
 }
 
-func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
+func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options, callbacks ...ssh.HostKeyCallback) (*ssh.Client, error) {
 	if sshOpts.SkipVerify {
-		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		config.HostKeyCallback = combineHostKeyCallbacks(append(callbacks, ssh.InsecureIgnoreHostKey())...)
 	} else {
 		cb, err := knownHostsCallback()
 		if err != nil {
 			return nil, err
 		}
-		config.HostKeyCallback = cb
+		config.HostKeyCallback = combineHostKeyCallbacks(append(callbacks, cb)...)
 	}
 	return ssh.Dial("tcp", sshOpts.Target, config)
 }
@@ -715,4 +712,16 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 		}
 	}
 	return knownhosts.New(files...)
+}
+
+// combineHostKeyCallbacks tries multiple callbacks and fails if any one callback fails.
+func combineHostKeyCallbacks(callbacks ...ssh.HostKeyCallback) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		for _, cb := range callbacks {
+			if err := cb(hostname, remote, key); err != nil {
+				return fmt.Errorf("host key checks failed, last error: %v", err)
+			}
+		}
+		return nil
+	}
 }
