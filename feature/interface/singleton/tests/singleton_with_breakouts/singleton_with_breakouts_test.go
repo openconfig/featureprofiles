@@ -16,7 +16,6 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
