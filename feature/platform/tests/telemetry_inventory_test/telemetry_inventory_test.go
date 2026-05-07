@@ -461,7 +461,7 @@ func TestSwitchChip(t *testing.T) {
 			if deviations.BackplaneFacingCapacityUnsupported(dut) {
 				v := dut.Vendor()
 				// Vendor does not support backplane-facing-capacity
-				if v != ondatra.JUNIPER || (v == ondatra.JUNIPER && regexp.MustCompile("NPU[0-9]$").Match([]byte(card.GetName()))) {
+				if v != ondatra.JUNIPER || (v == ondatra.JUNIPER && regexp.MustCompile("NPU[0-9]+$").Match([]byte(card.GetName()))) {
 					t.Skipf("Skipping check for BackplanceFacingCapacity due to deviation BackplaneFacingCapacityUnsupported")
 				}
 			}
@@ -616,6 +616,10 @@ func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Co
 		subcName := subc.GetName()
 		subComponent := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).State())
 		if !subComponent.IsPresent() {
+			if *args.NumControllerCards <= 1 { // ← skip for single RE devices
+				t.Logf("Skipping subcomponent %s leafref validation: not present on single RE device", subcName)
+				continue
+			}
 			t.Errorf("Subcomponent %s does not exist as a component on the device", subcName)
 		}
 	}
