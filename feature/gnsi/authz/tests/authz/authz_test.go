@@ -741,8 +741,9 @@ func TestAuthz2(t *testing.T) {
 				t.Fatalf("Expected Error while receiving rotate request reply for invalid policy, got nil")
 			}
 
-			t.Run("Verification of Policy for read_only user to deny gRIBI Get before closing stream", func(t *testing.T) {
-				Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
+			t.Run("Verification of Policy for read_only user to allow gRIBI Get and deny gNMI Get before closing stream", func(t *testing.T) {
+				Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GribiGet, &authz.HardVerify{})
+				Verify(t, dut, spiffeCertReadOnly, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{}, &authz.HardVerify{})
 			})
 
 			// Close the Stream
