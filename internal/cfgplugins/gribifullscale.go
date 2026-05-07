@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
@@ -371,6 +372,11 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, NumPort2VLANs)
 	vrfBatch.Set(t, dut)
 	// TODO: VRF selection policy must be configured (Fix: 500317744 defect).
+
+	if dut.Vendor() == ondatra.ARISTA {
+		cliConfig := "vrf selection policy\n next-hop decapsulation vrf\n!\n"
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	}
 	ConfigureVRFSelectionPolicy(t, dut)
 }
 
