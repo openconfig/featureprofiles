@@ -20,6 +20,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -35,8 +36,8 @@ import (
 	authzpb "github.com/openconfig/gnsi/authz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -60,6 +61,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *authz.Spiffe, rpc *gnx
 	serverName := "DEFAULT"
 	var counterPath ygnmi.SingletonQuery[uint64]
 	var timePath ygnmi.SingletonQuery[uint64]
+	namePath := gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).Name().State()
 	if expectedRes == authzpb.ProbeResponse_ACTION_PERMIT {
 		counterPath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).AccessAccepts().State()
 		timePath = gnmi.OC().System().GrpcServer(serverName).AuthzPolicyCounters().Rpc(rpc.Path).LastAccessAccept().State()
@@ -98,6 +100,23 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *authz.Spiffe, rpc *gnx
 		if timeAfter == 0 {
 			t.Errorf("Expected timestamp %s to be > 0 after call", rpc.Path)
 		}
+		nameVal, ok := gnmi.Lookup(t, dut, namePath).Val()
+		if !ok || nameVal != rpc.Path {
+			t.Errorf("Expected RPC name in telemetry to be %s, got %s (ok: %t)", rpc.Path, nameVal, ok)
+		}
+	}
+}
+
+// verifyPolicyMetadata validates the active policy version and creation time in telemetry.
+func verifyPolicyMetadata(t testing.TB, dut *ondatra.DUTDevice, expVersion string, expCreatedOn uint64) {
+	serverName := "DEFAULT"
+	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != expVersion {
+		t.Errorf("Expected telemetry version %s, got %s", expVersion, versionTele)
+	}
+	if createdOnTele != expCreatedOn {
+		t.Errorf("Expected telemetry createdOn %d, got %d", expCreatedOn, createdOnTele)
 	}
 }
 
@@ -296,6 +315,7 @@ func TestAuthz1(t *testing.T) {
 				Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GnmiGet)
 			})
 		})
+		verifyPolicyMetadata(t, dut, "policy-everyone-can-gnmi-not-gribi_v1", uint64(100))
 
 		// Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get
 		t.Run("Verification of Policy for cert_user_admin is allowed gNMI Get and denied gRIBI Get (Probe after finalize)", func(t *testing.T) {
@@ -328,6 +348,7 @@ func TestAuthz1(t *testing.T) {
 				Verify(t, dut, certAdminSpiffe, gnxi.RPCs.GribiGet)
 			})
 		})
+		verifyPolicyMetadata(t, dut, "policy-everyone-can-gribi-not-gnmi_v1", uint64(100))
 
 		t.Run("Verification of cert_deny_all is denied to issue gRIBI.Get and cert_user_admin is allowed to issue `gRIBI.Get` (Probe after finalize)", func(t *testing.T) {
 			Verify(t, dut, getSpiffe(t, dut, "cert_deny_all"), gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
@@ -360,6 +381,7 @@ func TestAuthz1(t *testing.T) {
 				Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet, &authz.ExceptDeny{})
 			})
 		})
+		verifyPolicyMetadata(t, dut, "policy-gribi-get_v1", uint64(100))
 
 		// Verification of Policy for read_only to allow gRIBI Get and to deny gNMI Get (Probe after finalize - 1)
 		Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet)
@@ -376,12 +398,15 @@ func TestAuthz1(t *testing.T) {
 		}
 		newpolicy.AddAllowRules("base", []string{*testInfraID}, []*gnxi.RPC{gnxi.RPCs.AllRPC})
 		// Rotate the policy.
-		newpolicy.RotateWithOptions(t, dut, uint64(time.Now().Unix()), fmt.Sprintf("v0.%v", (time.Now().UnixNano())), false, func() {
+		expVersion := fmt.Sprintf("v0.%v", (time.Now().UnixNano()))
+		expCreatedOn := uint64(time.Now().Unix())
+		newpolicy.RotateWithOptions(t, dut, expCreatedOn, expVersion, false, func() {
 			t.Run("Verification of Policy BEFORE finalize (Probe only) - 2", func(t *testing.T) {
 				Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GribiGet, &authz.ExceptDeny{})
 				Verify(t, dut, readOnlySpiffe, gnxi.RPCs.GnmiGet)
 			})
 		})
+		verifyPolicyMetadata(t, dut, expVersion, expCreatedOn)
 
 		// Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Probe after finalize - 2)
 		t.Run("Verification of Policy for read-only to deny gRIBI Get and allow gNMI Get (Probe after finalize)", func(t *testing.T) {
@@ -426,6 +451,7 @@ func TestAuthz1(t *testing.T) {
 				}
 			})
 		})
+		verifyPolicyMetadata(t, dut, "policy-normal-1_v1", uint64(100))
 
 		// Verify all results match per the above table for policy policy-normal-1
 		verifyAuthTable(t, dut, authTable)
@@ -456,6 +482,7 @@ func TestAuthz1(t *testing.T) {
 				}
 			})
 		})
+		verifyPolicyMetadata(t, dut, "policy-prefix-suffix-match_v1", uint64(100))
 
 		// Verification (Probe after finalize)
 		for certName, spiffe := range usersMap {
@@ -977,6 +1004,15 @@ func TestAuthz4(t *testing.T) {
 	}
 	if resp.GetCreatedOn() != expCreatedOn {
 		t.Errorf("Created On has Changed to %v from Expected Created On %v after Reboot Trigger", resp.GetCreatedOn(), expCreatedOn)
+	}
+
+	var finalPolicy authz.AuthorizationPolicy
+	err = json.Unmarshal([]byte(resp.GetPolicy()), &finalPolicy)
+	if err != nil {
+		t.Fatalf("Failed to unmarshal policy content after reboot: %v", err)
+	}
+	if !cmp.Equal(&newpolicy, &finalPolicy) {
+		t.Fatalf("Policy content mismatch after reboot. Diff:\n%s", cmp.Diff(&newpolicy, &finalPolicy))
 	}
 
 	// Telemetry validation after reboot
