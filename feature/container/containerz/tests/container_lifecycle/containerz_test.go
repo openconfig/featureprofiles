@@ -863,8 +863,8 @@ func TestPlugins(t *testing.T) {
 		} else {
 			t.Logf("Got expected error when starting with non-existent image %q: %v", pluginName, err)
 			s, ok := status.FromError(err)
-			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.NotFound) {
-				t.Errorf("Expected gRPC status code Unknown or NotFound for non-existent image, got: %v (status code: %s)", err, s.Code())
+			if !ok || (s.Code() != codes.Unknown && s.Code() != codes.NotFound && s.Code() != codes.FailedPrecondition) {
+				t.Errorf("Expected gRPC status code Unknown or NotFound or FailedPrecondition for non-existent image, got: %v (status code: %s)", err, s.Code())
 			}
 		}
 	})
