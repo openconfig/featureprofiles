@@ -184,6 +184,8 @@ func newChassisEntity(t *testing.T, dutID, serial string, controlCards []string)
 			BootConfig: &emproto.BootConfig{
 				VendorConfig: []byte(vendorConfig(t, dutID)),
 			},
+			// The current public Bootz server requires AuthZ inventory to be present
+			// when resolving bootstrap data, even for this minimum-config workflow.
 			GnsiConfig: &emproto.GNSIConfig{
 				AuthzUpload: bootzAuthzUpload(),
 			},
