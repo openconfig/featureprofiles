@@ -41,6 +41,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
+	authzpb "github.com/openconfig/gnsi/authz"
 	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	frpb "github.com/openconfig/gnoi/factory_reset"
 	"github.com/openconfig/ondatra"
@@ -86,6 +87,10 @@ const (
 	bootzStartTimeout    = 30 * time.Minute
 	bootzCompleteTimeout = 60 * time.Minute
 	bootupTimeout        = 30 * time.Minute
+
+	authzPolicyVersion   = "20260508-bootz-authz"
+	authzPolicyCreatedOn = uint64(1694813669807)
+	authzPolicyJSON      = `{"name":"simple_authz_policy","allow_rules":[{"name":"allow_all","source":{"principals":["*"]},"request":{"paths":["*"]}}]}`
 )
 
 func TestMain(m *testing.M) {
@@ -115,6 +120,10 @@ func TestMain(m *testing.M) {
 
 // TestBootz1_3ValidMinimumConfig verifies bootz-1.3 from README.md.
 func TestBootz1_3ValidMinimumConfig(t *testing.T) {
+	runBootzPositiveTest(t, nil)
+}
+
+func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTDevice, *statusTracker)) {
 	dut := ondatra.DUT(t, *dutID)
 
 	chassis := getChassisSerial(t, dut)
@@ -160,6 +169,9 @@ func TestBootz1_3ValidMinimumConfig(t *testing.T) {
 	awaitBootzStatus(t, dut, oc.Bootz_Status_BOOTZ_OK, bootupTimeout)
 	validateBootzTelemetry(t, dut, preLastAttempt, tracker.bootstrapDataChecksum())
 	validateSoftwareVersion(t, dut, preVersion)
+	if postBootz != nil {
+		postBootz(t, dut, tracker)
+	}
 }
 
 func newChassisEntity(t *testing.T, dutID, serial string, controlCards []string) *emproto.Chassis {
@@ -172,12 +184,23 @@ func newChassisEntity(t *testing.T, dutID, serial string, controlCards []string)
 			BootConfig: &emproto.BootConfig{
 				VendorConfig: []byte(vendorConfig(t, dutID)),
 			},
+			GnsiConfig: &emproto.GNSIConfig{
+				AuthzUpload: bootzAuthzUpload(),
+			},
 		},
 	}
 	for _, serial := range controlCards {
 		entity.ControllerCards = append(entity.ControllerCards, &emproto.ControlCard{SerialNumber: serial})
 	}
 	return entity
+}
+
+func bootzAuthzUpload() *authzpb.UploadRequest {
+	return &authzpb.UploadRequest{
+		Version:   authzPolicyVersion,
+		CreatedOn: authzPolicyCreatedOn,
+		Policy:    authzPolicyJSON,
+	}
 }
 
 func newEntityManager(t *testing.T, entity *emproto.Chassis, secArtifacts *bootzsvc.SecurityArtifacts) *entitymanager.InMemoryEntityManager {
@@ -275,8 +298,12 @@ func (s *statusTracker) interceptor() grpc.UnaryServerInterceptor {
 		case *bootzpb.GetBootstrapDataRequest:
 			_ = r
 			s.bootstrapRequests++
-			if br, ok := resp.(*bootzpb.GetBootstrapDataResponse); ok && len(br.GetSerializedBootstrapData()) > 0 {
-				sum := sha256.Sum256(br.GetSerializedBootstrapData())
+			if br, ok := resp.(*bootzpb.GetBootstrapDataResponse); ok {
+				serialized := br.GetSerializedBootstrapData()
+				if len(serialized) == 0 {
+					return resp, nil
+				}
+				sum := sha256.Sum256(serialized)
 				s.checksum = fmt.Sprintf("%x", sum[:])
 			}
 		case *bootzpb.ReportStatusRequest:
