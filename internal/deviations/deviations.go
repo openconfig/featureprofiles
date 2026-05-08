@@ -2153,3 +2153,18 @@ func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice)
 func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
 }
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
+
+// NexthopGroupPseudowireCountersOcUnsupported returns true if oc is not supported
+func NexthopGroupPseudowireCountersOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNexthopGroupPseudowireCountersOcUnsupported()
+}
