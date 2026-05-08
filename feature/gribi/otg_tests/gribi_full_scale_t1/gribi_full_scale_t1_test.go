@@ -93,13 +93,6 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
 	ctx := context.Background()
-
-	if res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show ver"); err == nil {
-		t.Logf("Output of 'show ver':\n%s", res.Output())
-	} else {
-		t.Logf("Failed to run 'show ver': %v", err)
-	}
-
 	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
 	cfgplugins.ConfigureDUT(t, dut)
 
@@ -137,19 +130,19 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 		cfgplugins.BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, numEncapDefaultNHGT1, numUniqueEncapNHT1)
 	})
 
-	// testCases := []trafficTestCase{
-	// 	{Name: "FixedSize_64B", UseIMIX: false},
-	// 	{Name: "IMIX_Profile", UseIMIX: true},
-	// }
+	testCases := []trafficTestCase{
+		{Name: "FixedSize_64B", UseIMIX: false},
+		{Name: "IMIX_Profile", UseIMIX: true},
+	}
 
-	// for _, tc := range testCases {
-	// 	t.Run(tc.Name, func(t *testing.T) {
-	// 		if tc.UseIMIX {
-	// 			t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
-	// 		} else {
-	// 			t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
-	// 		}
-	// 		cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX)
-	// 	})
-	// }
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.UseIMIX {
+				t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
+			} else {
+				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
+			}
+			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX)
+		})
+	}
 }

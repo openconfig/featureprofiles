@@ -365,19 +365,18 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.InterfaceConfigVRFBeforeAddress(dut) {
 		t.Log("Configure/update Network Instance type")
 		dutConfNIPath := d.NetworkInstance(deviations.DefaultNetworkInstance(dut))
-		gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
+		gnmi.BatchUpdate(vrfBatch, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	}
 	// Configure sub-interfaces on port1 (1 VLAN) and port2 (640 VLANs).
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, DUTPort1IPv4Start, DUTPort1IPv6Start, StartVLANPort1, NumPort1VLANs)
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, NumPort2VLANs)
-	vrfBatch.Set(t, dut)
 	// TODO: VRF selection policy must be configured (Fix: 500317744 defect).
-
 	if dut.Vendor() == ondatra.ARISTA {
 		cliConfig := "vrf selection policy\n next-hop decapsulation vrf\n!\n"
 		helpers.GnmiCLIConfig(t, dut, cliConfig)
 	}
-	ConfigureVRFSelectionPolicy(t, dut)
+	ConfigureVRFSelectionPolicy(t, dut, vrfBatch)
+	vrfBatch.Set(t, dut)
 }
 
 // ConfigureDUTSubinterfaces creates multiple VLAN-tagged sub-interfaces on dut port, deriving IPv4/IPv6 addresses from the provided prefixes.
@@ -461,10 +460,11 @@ func CreateGRIBIScaleVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.S
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
+	vrfBatch.Set(t, dut)
 }
 
 // ConfigureVRFSelectionPolicy configures vrf_selection_policy_c on DUT port1.
-func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch) {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
@@ -545,7 +545,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
-	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
+	gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
 }
 
 // ConfigureOTG builds and returns the OTG config for both ATE ports. port1: 1 sub-interface; port2: 640 VLAN sub-interfaces.
