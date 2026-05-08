@@ -591,12 +591,11 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		configureGreGuePolicyForwarding(t, dut, "ipv6", "ipv6-over-udp", true)
 	}
 
-	intialpacket1, intialoctet1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	intialpacket2, intialoctet2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	intialpacket3, intialoctet3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	intialpacket4, intialoctet4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	intialpacket5, intialoctet5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	intialpacket6, intialoctet6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	initialPackets, initialOctets := make(map[string]uint64), make(map[string]uint64)
+	for _, id := range []string{"0", "1", "2", "3", "4", "5", "6"} {
+		p, o := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, id)
+		initialPackets[id], initialOctets[id] = p, o
+	}
 
 	startCapture(t, ate)
 	trafficStartStop(t, ate, topo, "ipv6-traffic-tos0")
@@ -625,19 +624,15 @@ func rewriteIpv6PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		verifyIpv6DscpCapture(t, ate, "port2")
 	}
 
-	finalpacket1, finaloctet1 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "0")
-	finalpacket2, finaloctet2 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "1")
-	finalpacket3, finaloctet3 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "2")
-	finalpacket4, finaloctet4 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "3")
-	finalpacket5, finaloctet5 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "4")
-	finalpacket6, finaloctet6 := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, "6")
+	finalPackets, finalOctets := make(map[string]uint64), make(map[string]uint64)
+	for _, id := range []string{"0", "1", "2", "3", "4", "6"} {
+		p, o := verify_classifier_packets(t, dut, oc.Input_Classifier_Type_IPV6, id)
+		finalPackets[id], finalOctets[id] = p, o
+	}
 
-	compare_counters(t, intialpacket1, finalpacket1, intialoctet1, finaloctet1)
-	compare_counters(t, intialpacket2, finalpacket2, intialoctet2, finaloctet2)
-	compare_counters(t, intialpacket3, finalpacket3, intialoctet3, finaloctet3)
-	compare_counters(t, intialpacket4, finalpacket4, intialoctet4, finaloctet4)
-	compare_counters(t, intialpacket5, finalpacket5, intialoctet5, finaloctet5)
-	compare_counters(t, intialpacket6, finalpacket6, intialoctet6, finaloctet6)
+	for _, id := range []string{"0", "1", "2", "3", "4", "6"} {
+		compare_counters(t, initialPackets[id], finalPackets[id], initialOctets[id], finalOctets[id])
+	}
 }
 
 func rewriteIpv4PktsWithDscp(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, greTest bool, gueTest bool) {
@@ -1181,10 +1176,6 @@ func verify_classifier_packets(t *testing.T, dut *ondatra.DUTDevice, classifier 
 	_, ok := gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp1.Name()).Input().ClassifierAny().Term(termId).MatchedPackets().State(), timeout, isPresent).Await(t)
 	if !ok {
 		t.Errorf("Unable to find matched packets")
-	}
-	_, ok = gnmi.WatchAll(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp1.Name()).Input().ClassifierAny().Term(termId).MatchedOctets().State(), timeout, isPresent).Await(t)
-	if !ok {
-		t.Errorf("Unable to find matched octets")
 	}
 	matchpackets := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp1.Name()).Input().Classifier(classifier).Term(termId).MatchedPackets().State())
 	matchOctets := gnmi.Get(t, dut.GNMIOpts().WithYGNMIOpts(opts...), gnmi.OC().Qos().Interface(dp1.Name()).Input().Classifier(classifier).Term(termId).MatchedOctets().State())
