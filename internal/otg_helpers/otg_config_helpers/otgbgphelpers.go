@@ -469,7 +469,7 @@ func CreateBGPASPath(asNumbers []uint32, segmentType gosnappi.BgpAsPathSegmentTy
 func ConfigureISIS(t *testing.T, dev gosnappi.Device, attrs *ISISAttrs) gosnappi.DeviceIsisRouter {
 	t.Helper()
 	isis := dev.Isis().SetName(attrs.Name).SetSystemId(attrs.SystemID)
-	isis.Basic().SetHostname(attrs.Hostname).SetLearnedLspFilter(true)
+	isis.Basic().SetHostname(attrs.Hostname).SetLearnedLspFilter(false)
 	isis.Advanced().SetAreaAddresses(attrs.AreaAddresses)
 
 	for _, intfAttrs := range attrs.Interfaces {
