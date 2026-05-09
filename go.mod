@@ -16,6 +16,7 @@ require (
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/kr/pretty v0.3.1
 	github.com/open-traffic-generator/snappi/gosnappi v1.45.0
+	github.com/openconfig/bootz v0.6.1
 	github.com/openconfig/containerz v0.0.0-20251127123343-8882cbca4a2d
 	github.com/openconfig/entity-naming v0.0.0-20251204192329-8cf2fdebf3c1
 	github.com/openconfig/functional-translators v0.0.0-20260121084228-b2e67ece1e44
@@ -76,8 +77,10 @@ require (
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/chappjc/logrus-prefix v0.0.0-20180227015900-3a1d64819adb // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
+	github.com/coredhcp/coredhcp v0.0.0-20250729125302-4593bd5854a0 // indirect
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/cyphar/filepath-securejoin v0.2.5 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
@@ -110,6 +113,7 @@ require (
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.7 // indirect
 	github.com/imdario/mergo v0.3.15 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/insomniacslk/dhcp v0.0.0-20250417080101-5f8cf70e8c5f // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -118,6 +122,9 @@ require (
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mgutz/ansi v0.0.0-20200706080929-d51e80ef957d // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -126,20 +133,22 @@ require (
 	github.com/networkop/meshnet-cni v0.3.1-0.20230525201116-d7c306c635cf // indirect
 	github.com/open-traffic-generator/keng-operator v0.3.28 // indirect
 	github.com/openconfig/attestz v0.6.3 // indirect
-	github.com/openconfig/bootz v0.6.1 // indirect
 	github.com/openconfig/grpctunnel v0.1.0 // indirect
 	github.com/openconfig/lemming/operator v0.2.0 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
+	github.com/rifflock/lfshook v0.0.0-20180920164130-b9218ef580f5 // indirect
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/scrapli/scrapligo v1.1.11 // indirect
 	github.com/scrapli/scrapligocfg v1.0.0 // indirect
 	github.com/sergi/go-diff v1.3.2-0.20230802210424-5b0b94c5c0d3 // indirect
 	github.com/sirikothe/gotextfsm v1.0.1-0.20200816110946-6aa2cfd355e4 // indirect
+	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/skeema/knownhosts v1.3.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
@@ -147,7 +156,9 @@ require (
 	github.com/srl-labs/srl-controller v0.6.1 // indirect
 	github.com/srl-labs/srlinux-scrapli v0.6.0 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/u-root/uio v0.0.0-20240224005618-d2acac8f3701 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
+	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352 // indirect
 	go.opencensus.io v0.24.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.39.0 // indirect
@@ -186,3 +197,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.2.3 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/openconfig/bootz => github.com/b4firex/bootz v0.0.0-20260507204559-1ca8730c2dde
