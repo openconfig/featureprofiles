@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/big"
 	"net"
+	"net/netip"
 )
 
 // GenerateIPs creates list of n IPs using ipBlock
@@ -247,4 +248,15 @@ func IncrementMAC(startMAC string, i int) (string, error) {
 		return "", fmt.Errorf("failed to generate MAC address")
 	}
 	return macs[0], nil
+}
+
+// IPEqual compares two strings by parsing them as IP addresses for semantic equality.
+// If parsing fails for either, it falls back to a standard direct string comparison.
+func IPEqual(got, want string) bool {
+	gotIP, errG := netip.ParseAddr(got)
+	wantIP, errW := netip.ParseAddr(want)
+	if errG == nil && errW == nil {
+		return gotIP == wantIP
+	}
+	return got == want
 }
