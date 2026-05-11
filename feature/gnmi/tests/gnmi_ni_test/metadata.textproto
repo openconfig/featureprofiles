@@ -38,5 +38,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    default_ni_gnmi_server_name: "gnmi_gnoi_gnsi"
   }
 }
