@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "8a04d024-82b3-4bff-9c7c-27f4cccdf452"
+plan_id: "AFT-6.2"
+description: "AFT Prefix Filtering Dual-Stack"
+testbed: TESTBED_DUT_ATE_2LINKS

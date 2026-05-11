@@ -1,7 +1,7 @@
 # proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 
-uuid: "f7bcfa59-dd84-4998-aa54-243dde4a99db"
-plan_id: "certz-1"
-description: "gNSI Client Certificate Tests"
+uuid: "3cf4e073-148a-4b92-b12c-1bfb4d5dce61"
+plan_id: "AFT-6.1"
+description: "AFT Prefix Filtering"
 testbed: TESTBED_DUT_ATE_2LINKS

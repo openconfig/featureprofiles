@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package setupservice is scoped only to be used for scripts in path
+// Package setup_service is scoped only to be used for scripts in path
 // feature/security/gnsi/certz/tests/client_certificates
 // Do not use elsewhere.
-package setupservice
+package setup_service
 
 import (
 	"context"
