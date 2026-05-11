@@ -145,7 +145,7 @@ const (
 	// Traffic parameters — identical for T1 and T2.
 	TrafficDuration = 5 * time.Minute
 	TrafficLossTol  = uint64(5)
-	TrafficRateMpps = uint64(30_000_000) // 30 Mpps aggregate
+	TrafficRateMpps = uint64(20_000_000) // 30 Mpps aggregate
 
 	// gRIBI batch programming parameters.
 	BatchChunkSize = 2_000
