@@ -62,3 +62,10 @@ rpcs:
    gribi:
       gRIBI.Get:
 ```
+
+## Canonical OC
+
+```json
+{
+  "name": "system_g_protocol_test"
+}
