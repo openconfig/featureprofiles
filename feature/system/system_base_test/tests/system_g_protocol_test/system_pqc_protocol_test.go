@@ -75,12 +75,7 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 // TestPQCGNMIClient validates that the DUT listens on standard gNMI Port and supports PQC.
 func TestPQCGNMIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var conn *grpc.ClientConn
-	if deviations.NonStandardGRPCPort(dut) {
-		conn = dialPQCConn(t, dut, introspect.GNMI, 9339, true)
-	} else {
-		conn = dialPQCConn(t, dut, introspect.GNMI, 9339, false)
-	}
+	conn := dialPQCConn(t, dut, introspect.GNMI, 9339, deviations.NonStandardGRPCPort(dut))
 	defer conn.Close()
 	c := gpb.NewGNMIClient(conn)
 
@@ -105,12 +100,7 @@ func TestPQCGNMIClient(t *testing.T) {
 // TestPQCGNOIClient validates that the DUT listens on standard gNOI Port and supports PQC.
 func TestPQCGNOIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var conn *grpc.ClientConn
-	if deviations.NonStandardGRPCPort(dut) {
-		conn = dialPQCConn(t, dut, introspect.GNOI, 9339, true)
-	} else {
-		conn = dialPQCConn(t, dut, introspect.GNOI, 9339, false)
-	}
+	conn := dialPQCConn(t, dut, introspect.GNOI, 9339, deviations.NonStandardGRPCPort(dut))
 	defer conn.Close()
 	c := spb.NewSystemClient(conn)
 	if _, err := c.Ping(context.Background(), &spb.PingRequest{}); err != nil {
@@ -121,12 +111,7 @@ func TestPQCGNOIClient(t *testing.T) {
 // TestPQCGNSIClient validates that the DUT listens on standard gNSI Port and supports PQC.
 func TestPQCGNSIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	var conn *grpc.ClientConn
-	if deviations.NonStandardGRPCPort(dut) {
-		conn = dialPQCConn(t, dut, introspect.GNSI, 9339, true)
-	} else {
-		conn = dialPQCConn(t, dut, introspect.GNSI, 9339, false)
-	}
+	conn := dialPQCConn(t, dut, introspect.GNSI, 9339, deviations.NonStandardGRPCPort(dut))
 	defer conn.Close()
 	c := authzpb.NewAuthzClient(conn)
 	rsp, err := c.Get(context.Background(), &authzpb.GetRequest{})
@@ -134,9 +119,9 @@ func TestPQCGNSIClient(t *testing.T) {
 		statusError, _ := status.FromError(err)
 		if statusError.Code() == codes.FailedPrecondition {
 			t.Logf("Expected error FAILED_PRECONDITION seen for authz Get Request.")
-		} else {
-			t.Errorf("Unexpected error during authz Get Request.")
+			return
 		}
+		t.Fatalf("Unexpected error during authz Get Request: %v", err)
 	}
 	t.Logf("gNSI authz get response is %s", rsp)
 }
@@ -144,7 +129,7 @@ func TestPQCGNSIClient(t *testing.T) {
 // TestPQCGRIBIClient validates that the DUT listens on standard gRIBI Port and supports PQC.
 func TestPQCGRIBIClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialPQCConn(t, dut, introspect.GRIBI, 9340, false)
+	conn := dialPQCConn(t, dut, introspect.GRIBI, 9340, deviations.NonStandardGRPCPort(dut))
 	defer conn.Close()
 	c := gribipb.NewGRIBIClient(conn)
 	if _, err := c.Get(context.Background(), &gribipb.GetRequest{}); err != nil {
@@ -155,7 +140,7 @@ func TestPQCGRIBIClient(t *testing.T) {
 // TestPQCP4RTClient validates that the DUT listens on standard P4RT Port and supports PQC.
 func TestPQCP4RTClient(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	conn := dialPQCConn(t, dut, introspect.P4RT, 9559, false)
+	conn := dialPQCConn(t, dut, introspect.P4RT, 9559, deviations.NonStandardGRPCPort(dut))
 	defer conn.Close()
 	c := p4rtpb.NewP4RuntimeClient(conn)
 	if deviations.P4RTCapabilitiesUnsupported(dut) {
