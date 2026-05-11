@@ -120,18 +120,24 @@ func TestManagementHA1(t *testing.T) {
 	if dut.Vendor() != ondatra.NOKIA && dut.Vendor() != ondatra.JUNIPER {
 		bs.DUTConf.GetOrCreateNetworkInstance(mgmtVRFName).SetRouteDistinguisher(fmt.Sprintf("%d:%d", cfgplugins.DutAS, 100))
 	}
-	bs.PushAndStart(t)
+	if err := bs.PushDUT(t); err != nil {
+		t.Fatalf("Failed to push DUT BGP config: %v", err)
+	}
+
+	configureLoopbackOnDUT(t, bs.DUT)
+	advertiseDUTLoopbackToATE(t, bs.DUT, bs)
+	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
+	configureImportExportBGPPolicy(t, bs, dut)
+	createFlowV6(t, bs)
+	bs.ATE.OTG().PushConfig(t, bs.ATETop)
+	bs.ATE.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 	if verfied := verifyDUTBGPEstablished(t, bs.DUT, mgmtVRFName); verfied {
 		t.Log("DUT BGP sessions established")
 	} else {
 		t.Fatalf("BGP sessions not established")
 	}
 	cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
-
-	configureLoopbackOnDUT(t, bs.DUT)
-	advertiseDUTLoopbackToATE(t, bs.DUT, bs)
-	configureStaticRoute(t, bs.DUT, bs.ATEPorts[2].IPv6)
-	configureImportExportBGPPolicy(t, bs, dut)
 
 	// This restores both ports ensuring a clean state before execution of each test.
 	restoreState := func(t *testing.T) {
@@ -149,10 +155,10 @@ func TestManagementHA1(t *testing.T) {
 		} else {
 			t.Fatalf("BGP sessions not established")
 		}
+		cfgplugins.VerifyOTGBGPEstablished(t, bs.ATE)
 	}
 
 	t.Run("traffic received by port1 or port2", func(t *testing.T) {
-		createFlowV6(t, bs)
 		otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 		bs.ATE.OTG().StartTraffic(t)
 		time.Sleep(30 * time.Second)
@@ -167,8 +173,6 @@ func TestManagementHA1(t *testing.T) {
 
 	t.Run("traffic received by port2", func(t *testing.T) {
 		defer restoreState(t)
-
-		createFlowV6(t, bs)
 
 		// Disable port1 to force traffic to port2
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
@@ -189,8 +193,6 @@ func TestManagementHA1(t *testing.T) {
 
 	t.Run("traffic received by port3", func(t *testing.T) {
 		defer restoreState(t)
-
-		createFlowV6(t, bs)
 
 		// Disable BOTH Port 1 and Port 2 to force traffic to Port 3 (Static Route)
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Enabled().Config(), false)
@@ -213,8 +215,6 @@ func TestManagementHA1(t *testing.T) {
 
 	t.Run("traffic received by port1", func(t *testing.T) {
 		defer restoreState(t)
-
-		createFlowV6(t, bs)
 
 		// Disable Port 2 to force traffic to Port 1
 		gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Enabled().Config(), false)
@@ -260,10 +260,6 @@ func createFlowV6(t *testing.T, bs *cfgplugins.BGPSession) {
 	v6.Dst().Increment().SetStart(prefixesStart).SetCount(1)
 	icmp1 := v6Flow.Packet().Add().Icmpv6()
 	icmp1.SetEcho(gosnappi.NewFlowIcmpv6Echo())
-
-	bs.ATE.OTG().PushConfig(t, bs.ATETop)
-	bs.ATE.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, bs.ATE.OTG(), bs.ATETop, "IPv6")
 }
 
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, nextHopIP string) {
