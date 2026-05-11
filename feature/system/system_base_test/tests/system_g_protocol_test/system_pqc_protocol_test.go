@@ -62,11 +62,9 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 	}
 
 	target := fmt.Sprintf("%s:%d", dialer.DialTarget, dialer.DevicePort)
-	conn, err := grpc.DialContext(ctx, target,
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-		grpc.WithBlock())
+	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	if err != nil {
-		t.Fatalf("grpc.Dial failed to: %q, error: %v", target, err)
+		t.Fatalf("grpc.NewClient failed to: %q, error: %v", target, err)
 	}
 	t.Logf("Successfully dialed %s on %s with PQC", svc, target)
 	return conn
