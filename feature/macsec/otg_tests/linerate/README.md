@@ -15,7 +15,7 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
          │          │   100G   │          │   100G    │          │   100G    │          │     
          │         1├──────────│1        2├───────────┤2        1├───────────┤2         │     
          │          │          │          │           │          │           │          │     
-         │   ATE1   │   400G   │   DUT11  │   400G    │   DUT2   │   400G    │   ATE    │     
+         │   ATE    │   400G   │   DUT11  │   400G    │   DUT2   │   400G    │   ATE    │     
          │         3├──────────│3        4├───────────┤4        3├───────────┤4         │     
          │          │          │          │           │          │           │          │     
          │          │          │          │           │          │           │          │     
