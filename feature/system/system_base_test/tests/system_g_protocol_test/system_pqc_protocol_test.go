@@ -21,7 +21,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
