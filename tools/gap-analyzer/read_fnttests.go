@@ -22,7 +22,7 @@ import (
 )
 
 // Base URL for Google AI Gemini Public API
-const geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+const geminiAPIURL = "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s"
 
 // --- Structs for parsing metadata.textproto ---
 
@@ -40,7 +40,8 @@ type FNTTest struct {
 
 // APIPart corresponds to a part of the content request/response.
 type APIPart struct {
-	Text string `json:"text"`
+	Text    string `json:"text"`
+	Thought bool   `json:"thought,omitempty"`
 }
 
 // APIContent corresponds to content in the request/response.
@@ -281,9 +282,28 @@ Result in JSON format:
 	}
 
 	// Unmarshal the actual gap result JSON from the candidate text
+	var resultText string
+	for _, part := range apiResp.Candidates[0].Content.Parts {
+		if !part.Thought {
+			resultText = part.Text
+			break
+		}
+	}
+	if resultText == "" {
+		return false, "", fmt.Errorf("gemini returned no valid answer in response parts")
+	}
+
+	cleanText := strings.TrimSpace(resultText)
+	if strings.HasPrefix(cleanText, "```json") {
+		cleanText = strings.TrimPrefix(cleanText, "```json")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	} else if strings.HasPrefix(cleanText, "```") {
+		cleanText = strings.TrimPrefix(cleanText, "```")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	}
+
 	var gapResult GapResult
-	resultText := apiResp.Candidates[0].Content.Parts[0].Text
-	if err := json.Unmarshal([]byte(resultText), &gapResult); err != nil {
+	if err := json.Unmarshal([]byte(cleanText), &gapResult); err != nil {
 		return false, "", fmt.Errorf("failed to unmarshal gap result json '%s': %w", resultText, err)
 	}
 
