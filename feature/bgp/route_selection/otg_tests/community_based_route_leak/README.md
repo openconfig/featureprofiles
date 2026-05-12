@@ -37,8 +37,8 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 1.  Create a non-default VRF named `URPF` with `L3VRF` type.
 2.  Assign DUT:Port2 to the `URPF` network instance. Keep DUT:Port1 in the Default network instance.
 3.  Configure eBGP sessions:
-    *   Global BGP session between DUT:Port1 (AS 65003) and ATE:Port1 (AS 65001).
-    *   BGP session in `URPF` VRF between DUT:Port2 (AS 65003) and ATE:Port2 (AS 65002).
+    *   Global BGP session between DUT:Port1 (AS 64498) and ATE:Port1 (AS 64496).
+    *   BGP session in `URPF` VRF between DUT:Port2 (AS 64498) and ATE:Port2 (AS 64497).
 4.  Configure a BGP community set containing the standard communities:
     *   `64500:1`
     *   `64500:2`
@@ -47,8 +47,8 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 ### ATE Configuration
 
 *   Peering sessions:
-    *   **Session 1**: ATE:Port1 (AS 65001) peers to DUT:Port1.
-    *   **Session 2**: ATE:Port2 (AS 65002) peers to DUT:Port2.
+    *   **Session 1**: ATE:Port1 (AS 64496) peers to DUT:Port1.
+    *   **Session 2**: ATE:Port2 (AS 64497) peers to DUT:Port2.
 *   **ATE Traffic flow**:
     *   Traffic is generated from ATE:Port2 (URPF) to the prefixes advertised by ATE:Port1 (Default).
     *   PPS: 10,000, frame size: 256 bytes.
@@ -59,7 +59,7 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 #### TE-6.5.1: Dynamic Route Leak on BGP COMMUNITY_1 Match
 
-1.  From ATE:Port1, advertise a list of prefixes (e.g., `100.1.1.0/24` and `2001:db8:1::/48`) containing BGP community `64500:1`.
+1.  From ATE:Port1, advertise a list of prefixes (e.g., `192.0.2.0/24` and `2001:db8:1::/48`) containing BGP community `64500:1`.
 2.  Verify using state paths that the advertised routes are installed in both the Default routing instance table and dynamically imported into the `URPF` routing instance table.
 3.  Initiate traffic from ATE:Port2 to the advertised prefixes.
 4.  **Verification**:
@@ -69,7 +69,7 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 #### TE-6.5.2: Dynamic Route Leak on BGP COMMUNITY_2 Match
 
-1.  From ATE:Port1, advertise a new list of prefixes (e.g., `100.2.2.0/24` and `2001:db8:2::/48`) containing BGP community `64500:2`.
+1.  From ATE:Port1, advertise a new list of prefixes (e.g., `198.51.100.0/24` and `2001:db8:2::/48`) containing BGP community `64500:2`.
 2.  Verify that the routes are dynamically imported into the `URPF` VRF table.
 3.  Initiate traffic from ATE:Port2 to these prefixes.
 4.  **Verification**:
@@ -78,7 +78,7 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 #### TE-6.5.3: Dynamic Route Leak on Compound Match (Both Communities)
 
-1.  From ATE:Port1, advertise prefixes (e.g., `100.3.3.0/24` and `2001:db8:3::/48`) containing *both* communities `64500:1` and `64500:2`.
+1.  From ATE:Port1, advertise prefixes (e.g., `203.0.113.0/24` and `2001:db8:3::/48`) containing *both* communities `64500:1` and `64500:2`.
 2.  Verify using state paths that the routes are installed dynamically in the URPF routing instance table.
 3.  Initiate traffic from ATE:Port2 to these prefixes.
 4.  **Verification**:
