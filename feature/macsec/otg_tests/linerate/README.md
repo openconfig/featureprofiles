@@ -32,9 +32,9 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
 * All links between ATE and DUT will run MACSec. DUT will receive and transmit MACSec encrypted traffic.
 
 ### MACsec
-* Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the aggregate bundle links connecting ATE ports and DUT:
-    * Define first Policy(1) to cover must-secure scenario, as defined below
-    * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for both Policy(1) and Policy(2)
+* Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the physical links connecting ATE ports and DUT:
+    * Define the Policy(1) to cover must-secure scenario, as defined below
+    * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for Policy(1)
     * Each pre-shared key must have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
     * Set CAK as encrypted/hidden in the running configuration
     * Use 256 bit cipher GCM-AES-256-XPN and an associated 64 char CAK-CKN pair
@@ -42,8 +42,8 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
     * Set Security association key rekey interval: 30 seconds (test only)
     * Set MACsec confidentiality offset: 0
     * Set Replay Protection Window (out-of-sequence protection) size: 64
-    * Include ICV indicator:True
-    * Include SCI:True
+    * Include ICV indicator: True
+    * Include SCI: True
     * Set maximum value of Association Number: 3 (NOTE: This is currently not configurable and is not included in the test cases)
 
 ### MSEC-1.2.1 - Line Rate Performance with 64B Frames
@@ -108,7 +108,7 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
               "include-sci": true,
               "key-server-priority": 15,
               "macsec-cipher-suite": [
-                "GCM_AES_256"
+                "GCM_AES_XPN_256"
               ],
               "name": "line_rate_policy",
               "sak-rekey-interval": 30
