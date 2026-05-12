@@ -51,8 +51,6 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 			t.Fatalf("DUT is not listening on standard port for %q: got %d, want %d", svc, dialer.DevicePort, wantPort)
 		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
 
 	// Custom TLS config for PQC
 	// 0x6399 is the code point for X25519Kyber768Draft00
