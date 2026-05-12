@@ -72,7 +72,7 @@ rpcs:
          "motd-banner": "<string>",
          "login-banner": "<string>",
          "hostname": "<string>",
-         "current-datetime": "",
+         "current-datetime": "2022-01-01T00:00:00Z",
          "boot-time": "0"
       }
    }
