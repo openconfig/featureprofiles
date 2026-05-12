@@ -22,7 +22,7 @@ import (
 )
 
 // Base URL for Google AI Gemini Public API
-const geminiAPIURL = "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s"
+const geminiAPIURL = "https://generativelanguage.googleapis.com/v1alpha/models/%s:generateContent?key=%s"
 
 // --- Structs for parsing metadata.textproto ---
 
