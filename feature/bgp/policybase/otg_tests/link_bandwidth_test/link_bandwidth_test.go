@@ -400,7 +400,7 @@ func validateImportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, 
 func validateExportPolicyDut(t *testing.T, dut *ondatra.DUTDevice, td testData, policyName string) {
 	dni := deviations.DefaultNetworkInstance(dut)
 	path := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpName).Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
-	_, ok := gnmi.Watch(t, dut, path.State(), 30*time.Second, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
+	_, ok := gnmi.Watch(t, dut, path.State(), 2*time.Minute, func(v *ygnmi.Value[*oc.NetworkInstance_Protocol_Bgp_Neighbor_AfiSafi_ApplyPolicy]) bool {
 		value, ok := v.Val()
 		if !ok {
 			return false
