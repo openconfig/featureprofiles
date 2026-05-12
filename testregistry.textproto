@@ -2415,7 +2415,7 @@ test: {
 test: {
   id: "gNMI-1.29"
   description: "Pipeline Counters Drops Test"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_vendor_drop_test/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/README.md"
 }
 test: {
   id: "TE-18.4"
