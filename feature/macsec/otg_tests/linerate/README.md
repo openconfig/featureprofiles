@@ -6,33 +6,33 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
 
 ## Testbed type
 
-* `topologies/atedut_4.testbed`
+* `topologies/atedutdutate.testbed`
 
 ```
-                                                                        
-       ┌──────────┐           ┌──────────┐          ┌──────────┐        
-       │          │           │          │          │          │        
-       │          │   100G    │          │   100G   │          │        
-       │          ├───────────┤1        3├──────────┤          │        
-       │          │           │          │          │          │        
-       │   ATE    │   400G    │   DUT    │   400G   │   ATE    │        
-       │          ├───────────┤2        4├──────────┤          │        
-       │          │           │          │          │          │        
-       │          │           │          │          │          │        
-       └──────────┘           └──────────┘          └──────────┘        
-                                                                        
-
+                                                                                              
+         ┌──────────┐          ┌──────────┐           ┌──────────┐           ┌──────────┐     
+         │          │          │          │           │          │           │          │     
+         │          │   100G   │          │   100G    │          │   100G    │          │     
+         │         1├──────────│1        2├───────────┤2        1├───────────┤2         │     
+         │          │          │          │           │          │           │          │     
+         │   ATE1   │   400G   │   DUT11  │   400G    │   DUT2   │   400G    │   ATE    │     
+         │         3├──────────│3        4├───────────┤4        3├───────────┤4         │     
+         │          │          │          │           │          │           │          │     
+         │          │          │          │           │          │           │          │     
+         └──────────┘          └──────────┘           └──────────┘           └──────────┘     
+                                                                                              
+ 
 ```
 
 ## Procedure
 
 ### Test environment setup
 
-* Connect the ATE to the DUT via two 100G/400G interfaces. All the below tests need to send traffic between a pair of 100G ports (port 1 and 3) or a pair of 400G ports (port 2 and 4). No oversubscription being tested as part of these tests.
-* All links between ATE and DUT will run MACSec. DUT will receive and transmit MACSec encrypted traffic.
+* Connect the ATE to the DUT1 and DUT2,respectively, as per the testbed layout using 1x100G and 1x400G interfaces. Also connect DUT1 and DUT2 using 1x100G and 1x400G interface. All the below tests need to send traffic between a pair of 100G ports (ate:port1->dut1:port1->dut2:port2->ate:port2) or a pair of 400G ports (ate:port3->dut1:port3->dut2:port4->ate:port4). No oversubscription being tested as part of these tests.
+* All links between DUT1 and DUT2 will run MACSec. DUT1 will receive unencrypted packets from ATE1 and transmit MACSec encrypted traffic towards DUT2.
 
 ### MACsec
-* Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the physical links connecting ATE ports and DUT:
+* Configure MACsec Static Connectivity Association Key (CAK) Mode on both ends of the physical links connecting DUT1 and DUT2:
     * Define the Policy(1) to cover must-secure scenario, as defined below
     * Define 5 pre-shared keys (with overlapping time of 1 minute and lifetime of 2 minutes) for Policy(1)
     * Each pre-shared key must have a unique Connectivity Association Key Name(CKN) and Connectivity Association Key(CAK)
@@ -95,6 +95,48 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
             }
           },
           "name": "Ethernet1/1"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet1/3",
+            "replay-protection": 64
+          },
+          "mka": {
+            "config": {
+              "key-chain": "macsec_keychain",
+              "mka-policy": "line_rate_policy"
+            }
+          },
+          "name": "Ethernet1/3"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet2/1",
+            "replay-protection": 64
+          },
+          "mka": {
+            "config": {
+              "key-chain": "macsec_keychain",
+              "mka-policy": "line_rate_policy"
+            }
+          },
+          "name": "Ethernet2/1"
+        },
+        {
+          "config": {
+            "enable": true,
+            "name": "Ethernet2/2",
+            "replay-protection": 64
+          },
+          "mka": {
+            "config": {
+              "key-chain": "macsec_keychain",
+              "mka-policy": "line_rate_policy"
+            }
+          },
+          "name": "Ethernet2/2"
         }
       ]
     },
@@ -128,7 +170,7 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
 * Step 3 - Verify zero packet loss and consistent throughput.
 
 ### MSEC-1.2.3 - Line Rate Performance with Jumbo Frames
-* Step 1 - Configure the DUT interfaces to support a MTU of 9216 bytes.
+* Step 1 - Configure the DUT1<->DUT2 interfaces to support a MTU of 9216 bytes.
 * Step 2 - Generate line-rate traffic with 9000-byte frames.
 * Step 3 - Verify that the hardware correctly handles large encrypted payloads without fragmentation or loss.
 
