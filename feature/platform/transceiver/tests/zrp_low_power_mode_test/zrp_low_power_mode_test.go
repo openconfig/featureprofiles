@@ -23,6 +23,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/samplestream"
 	"github.com/openconfig/ondatra"
@@ -32,7 +33,6 @@ import (
 
 const (
 	intUpdateTime                 = 5 * time.Minute
-	samplingInterval              = 10 * time.Second
 	targetOutputPowerdBm          = -3
 	targetOutputPowerTolerancedBm = 1
 	targetFrequencyMHz            = 193100000
@@ -40,7 +40,8 @@ const (
 )
 
 var (
-	operationalModeFlag = flag.Int("operational_mode", 5, "vendor-specific operational-mode for the channel")
+	samplingInterval    = 10 * time.Second
+	operationalModeFlag = flag.Int("operational_mode", 0, "vendor-specific operational-mode for the channel")
 	operationalMode     uint16
 )
 
@@ -89,20 +90,11 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 }
 
 func TestLowPowerMode(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
-	dp1 := dut.Port(t, "port1")
-	dp2 := dut.Port(t, "port2")
-	t.Logf("dut1: %v", dut)
-	t.Logf("dut1 dp1 name: %v", dp1.Name())
-	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
-	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
-	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
-	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	operationalMode = uint16(*operationalModeFlag)
+	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
+	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -147,7 +139,9 @@ func TestLowPowerMode(t *testing.T) {
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 			validateStreamOutput(t, allStream)
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
-			samplingInterval := time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
+				samplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+			}
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), samplingInterval)
 			defer opInst.Close()
 			if opInstN := opInst.Next(); opInstN != nil {

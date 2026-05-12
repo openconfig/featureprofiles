@@ -1,4 +1,4 @@
-# TRANSCEIVER-3 (400ZR_PLUS): Telemetry: 400ZR_PLUS Optics firmware version streaming
+# TRANSCEIVER-3.2: Telemetry: 400ZR_PLUS Optics firmware version streaming
 
 ## Summary
 
@@ -29,8 +29,19 @@ Validate 400ZR_PLUS optics module reports correct firmware version.
 
     *  /platform/components/component/state/firmware-version
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/state/firmware-version:
+    platform_type: [TRANSCEIVER]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/transceiver:
 rpcs:
   gnmi:
     gNMI.Get:

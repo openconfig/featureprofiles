@@ -1,7 +1,0 @@
-# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
-# proto-message: Metadata
-
-uuid:  "d69c4f39-8c4f-4188-ac00-65d171d8c97f"
-plan_id:  "TE-6.3"
-description:  "Route Leakage between Non Default VRF"
-testbed:  TESTBED_DUT_ATE_2LINKS

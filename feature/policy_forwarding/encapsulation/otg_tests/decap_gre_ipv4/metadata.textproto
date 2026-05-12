@@ -5,3 +5,15 @@ uuid:  "dc18d70e-7aae-4292-bdf1-c99fd6ed8e79"
 plan_id:  "PF-1.3"
 description:  "Policy-based IPv4 GRE Decapsulation"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    static_protocol_name: "STATIC"
+    interface_enabled: true
+    default_network_instance: "default"
+    static_mpls_lsp_oc_unsupported: true
+    gre_decapsulation_oc_unsupported: true
+  }
+}

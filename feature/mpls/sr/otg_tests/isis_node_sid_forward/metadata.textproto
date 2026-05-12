@@ -19,5 +19,15 @@ platform_exceptions:  {
     isis_counter_manual_address_drop_from_areas_unsupported:  true
     isis_counter_part_changes_unsupported:  true
     isis_metric_style_telemetry_unsupported:  true
+    sid_per_interface_counter_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: CISCO
+  }
+  deviations: {
+    isis_srgb_srlb_unsupported: true
+    sid_per_interface_counter_unsupported: true
   }
 }

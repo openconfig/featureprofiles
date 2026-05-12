@@ -34,6 +34,7 @@ platform_exceptions: {
     static_protocol_name: "STATIC"
     interface_enabled: true
     default_network_instance: "default"
+    reorder_calls_for_vendor_compatibilty: true
   }
 }
 platform_exceptions: {

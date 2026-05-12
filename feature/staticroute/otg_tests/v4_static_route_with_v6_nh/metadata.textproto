@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "c356db98-353f-4e56-b242-902f5310a799"
+plan_id: "RT-1.66"
+description: "IPv4 Static Route with IPv6 Next-Hop"
+testbed: TESTBED_DUT_ATE_4LINKS

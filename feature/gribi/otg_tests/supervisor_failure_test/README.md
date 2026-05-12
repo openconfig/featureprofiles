@@ -64,3 +64,9 @@ rpcs:
 ## Minimum DUT Required
 
 vRX - Virtual Router Device
+
+
+## Canonical OC
+```json
+{}
+```   

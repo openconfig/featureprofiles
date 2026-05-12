@@ -1,4 +1,4 @@
-# TRANSCEIVER-1: Telemetry: 400ZR Chromatic Dispersion(CD) telemetry values streaming
+# TRANSCEIVER-1.1: Telemetry: 400ZR Chromatic Dispersion(CD) telemetry values streaming
 
 ## Summary
 
@@ -79,8 +79,31 @@ The test must be repeated for each supported operational-mode or as agreed betwe
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/min
 *   /platform/components/component/optical-channel/state/chromatic-dispersion/max
 
+### Canonical OC
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/optical-channel/config/frequency:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/config/operational-mode:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/config/target-output-power:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/state/chromatic-dispersion/avg:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/state/chromatic-dispersion/instant:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/state/chromatic-dispersion/max:
+    platform_type: [OPTICAL_CHANNEL]
+  /components/component/optical-channel/state/chromatic-dispersion/min:
+    platform_type: [OPTICAL_CHANNEL]
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/state/transceiver:
 rpcs:
   gnmi:
     gNMI.Get:

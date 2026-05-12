@@ -5,3 +5,13 @@ uuid:  "1d9e8ec9-669c-493f-9952-2d4a30dec42e"
 plan_id:  "RT-7.6"
 description:  "BGP Link Bandwidth Community - Cumulative"
 testbed:  TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    aggregate_bandwidth_policy_action_unsupported: true
+    auto_link_bandwidth_unsupported: true
+    advertised_cumulative_lbw_oc_unsupported: true
+  }
+}

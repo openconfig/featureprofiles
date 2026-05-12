@@ -41,64 +41,18 @@ OnChange Subscription Test for Breakout Interfaces
 
   * Issue a reboot to the device and check if all the paths can be subscribed to.
 
-## Canonical OC
+### PLT-1.3.5 Check Notifications for updates on a new Linecard power up
 
+  * Clear the old subscription and make a gNMI power down to any one of the linecard
+  * Now create a new Subscription to the device
+  * Issue a gNMI powerup to the earlier powered down card
+  * Validate if the received Notifications have updates for change in port state of the links that powered up
+
+#### Canonical OC
 ```json
-{
-  "components": {
-    "component": [
-      {
-        "name": "Linecard0",
-        "state": {
-          "name": "Linecard0",
-          "oper-status": "ACTIVE"
-        },
-        "integrated-circuit": {
-          "state": {
-            "node-id": "IC0"
-          }
-        }
-      }
-    ]
-  },
-  "interfaces": {
-    "interface": [
-      {
-        "name": "Ethernet1",
-        "state": {
-          "id": "Ethernet1",
-          "admin-status": "UP",
-          "oper-status": "UP",
-          "forwarding-viable": "true"
-        },
-        "ethernet": {
-          "state": {
-            "port-speed": "SPEED_100G",
-            "mac-address": "00:1A:2B:3C:4D:5E"
-          }
-        }
-      }
-    ]
-  },
-  "lacp": {
-    "interfaces": {
-      "interface": [
-        {
-         "name": "Ethernet1",
-          "members": {
-            "member": [
-              {
-                "interface": "Ethernet1"
-              }
-            ]
-          }
-        }
-      ]
-    }
-  }
-}
-```
-
+{}
+```    
+ 
 ## OpenConfig Path and RPC Coverage
 
 ```yaml

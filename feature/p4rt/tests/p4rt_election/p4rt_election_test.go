@@ -345,6 +345,7 @@ func TestUnsetElectionid(t *testing.T) {
 			wantStatus: codes.NotFound,
 		},
 	}
+
 	if deviations.P4rtUnsetElectionIDPrimaryAllowed(dut) {
 		// For P4 Runtime server implementations that allow unset election id update the
 		// expected status to OK for primary and INVALID_ARGUMENT for the secondary
@@ -353,6 +354,7 @@ func TestUnsetElectionid(t *testing.T) {
 		clients[0].wantStatus = codes.OK
 		clients[1].wantStatus = codes.InvalidArgument
 	}
+
 	// Connect 2 clients to same deviceID with unset electionId.
 	for _, test := range clients {
 		t.Run(test.desc, func(t *testing.T) {
@@ -464,12 +466,7 @@ func TestPrimaryReconnect(t *testing.T) {
 			wantStatus: codes.OK,
 		},
 	}
-	if deviations.P4rtBackupArbitrationResponseCode(dut) {
-		// Change the expected status code to ALREADY_EXISTS for deviant implementations
-		// that send ALREADY_EXISTS instead of NOT_FOUND to secondary clients when there
-		// is no primary
-		testCases[1].wantStatus = codes.AlreadyExists
-	}
+
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
 			resp, terminated, err := streamP4RTArb(&test)
@@ -723,12 +720,6 @@ func TestArbitrationUpdate(t *testing.T) {
 		// After updating electionID, statusCode also changes
 		// to secondary without a primary
 		test.wantStatus = codes.NotFound
-		if deviations.P4rtBackupArbitrationResponseCode(dut) {
-			// Change the expected status code to ALREADY_EXISTS for deviant implementations
-			// that send ALREADY_EXISTS instead of NOT_FOUND to secondary clients when there
-			// is no primary.
-			test.wantStatus = codes.AlreadyExists
-		}
 
 		resp, terminated, err = streamP4RTArb(&test)
 		if err != nil {
