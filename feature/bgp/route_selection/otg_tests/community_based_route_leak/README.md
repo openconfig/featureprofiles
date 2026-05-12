@@ -4,10 +4,10 @@
 
 Validate the router's (DUT) capability to dynamically leak routes between VRFs (Virtual Routing and Forwarding instances) based on BGP communities. Specifically, this test verifies that routing information can be dynamically exported from the Default/Global routing instance to a non-default URPF VRF when the routes contain any of the following standard BGP communities:
 
-*   `65532:10100` (AS15169.INTERNAL)
-*   `65532:10110` (AS15169.EXTERNAL)
-*   `65532:10730` (AS139070.EXTERNAL)
-*   `65532:10740` (AS139190.EXTERNAL)
+*   `64500:10100` (COMMUNITY_INTERNAL)
+*   `64500:10110` (COMMUNITY_EXTERNAL)
+*   `64500:10730` (COMMUNITY_PARTNER_A)
+*   `64500:10740` (COMMUNITY_PARTNER_B)
 
 The leaked routes must retain all relevant BGP attributes (such as MED, AS path, Local Pref, etc.) during the VRF leaking process.
 
@@ -40,10 +40,10 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
     *   Global BGP session between DUT:Port1 (AS 65003) and ATE:Port1 (AS 65001).
     *   BGP session in `URPF` VRF between DUT:Port2 (AS 65003) and ATE:Port2 (AS 65002).
 4.  Configure a BGP community set containing the standard communities:
-    *   `65532:10100`
-    *   `65532:10110`
-    *   `65532:10730`
-    *   `65532:10740`
+    *   `64500:10100`
+    *   `64500:10110`
+    *   `64500:10730`
+    *   `64500:10740`
 5.  Configure a routing policy that matches any community in the defined set, and dynamically imports matching routes from the Default instance into the `URPF` instance, retaining BGP attributes. Apply this import policy to the `URPF` network instance.
 
 ### ATE Configuration
@@ -61,7 +61,7 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 #### TE-6.5.1: Dynamic Route Leak on BGP Community Match
 
-1.  From ATE:Port1, advertise a list of prefixes (e.g., `100.1.1.0/24` and `2001:db8:1::/48`) containing one of the matching communities (e.g., `65532:10100`).
+1.  From ATE:Port1, advertise a list of prefixes (e.g., `100.1.1.0/24` and `2001:db8:1::/48`) containing one of the matching communities (e.g., `64500:10100`).
 2.  Verify using state paths that the advertised routes are installed in both the Default routing instance table and dynamically imported into the `URPF` routing instance table.
 3.  Initiate traffic from ATE:Port2 to the advertised prefixes.
 4.  **Verification**:
@@ -71,7 +71,7 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 #### TE-6.5.2: No Route Leak on Community Absence
 
-1.  From ATE:Port1, advertise a new list of prefixes (e.g., `100.2.2.0/24` and `2001:db8:2::/48`) containing either *no communities* or a non-matching community (e.g., `65532:9999`).
+1.  From ATE:Port1, advertise a new list of prefixes (e.g., `100.2.2.0/24` and `2001:db8:2::/48`) containing either *no communities* or a non-matching community (e.g., `64500:9999`).
 2.  Verify that the routes are installed in the Default instance but *not* imported/leaked into the `URPF` VRF table.
 3.  Initiate traffic from ATE:Port2 to these prefixes.
 4.  **Verification**:
@@ -128,10 +128,10 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
               "config": {
                 "community-set-name": "leak-communities",
                 "community-member": [
-                  "65532:10100",
-                  "65532:10110",
-                  "65532:10730",
-                  "65532:10740"
+                  "64500:10100",
+                  "64500:10110",
+                  "64500:10730",
+                  "64500:10740"
                 ]
               }
             }
