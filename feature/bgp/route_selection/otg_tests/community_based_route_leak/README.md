@@ -4,12 +4,12 @@
 
 Validate the router's (DUT) capability to dynamically leak routes between VRFs (Virtual Routing and Forwarding instances) based on BGP communities. Specifically, this test verifies that routing information can be dynamically exported from the Default/Global routing instance to a non-default URPF VRF when the routes contain any of the following standard BGP communities:
 
-*   `64500:10100` (COMMUNITY_INTERNAL)
-*   `64500:10110` (COMMUNITY_EXTERNAL)
-*   `64500:10730` (COMMUNITY_PARTNER_A)
-*   `64500:10740` (COMMUNITY_PARTNER_B)
+*   `64500:1` (COMMUNITY_1)
+*   `64500:2` (COMMUNITY_2)
 
 The leaked routes must retain all relevant BGP attributes (such as MED, AS path, Local Pref, etc.) during the VRF leaking process.
+
+The routing policy imports a route if it matches **ANY** of the communities in the configured set (logical OR). This test ensures proper route leaking under single matches, compound matches, and partial community withdrawals.
 
 ## Testbed Type
 
@@ -40,10 +40,8 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
     *   Global BGP session between DUT:Port1 (AS 65003) and ATE:Port1 (AS 65001).
     *   BGP session in `URPF` VRF between DUT:Port2 (AS 65003) and ATE:Port2 (AS 65002).
 4.  Configure a BGP community set containing the standard communities:
-    *   `64500:10100`
-    *   `64500:10110`
-    *   `64500:10730`
-    *   `64500:10740`
+    *   `64500:1`
+    *   `64500:2`
 5.  Configure a routing policy that matches any community in the defined set, and dynamically imports matching routes from the Default instance into the `URPF` instance, retaining BGP attributes. Apply this import policy to the `URPF` network instance.
 
 ### ATE Configuration
@@ -59,32 +57,52 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
 
 ### Test Cases
 
-#### TE-6.5.1: Dynamic Route Leak on BGP Community Match
+#### TE-6.5.1: Dynamic Route Leak on BGP COMMUNITY_1 Match
 
-1.  From ATE:Port1, advertise a list of prefixes (e.g., `100.1.1.0/24` and `2001:db8:1::/48`) containing one of the matching communities (e.g., `64500:10100`).
+1.  From ATE:Port1, advertise a list of prefixes (e.g., `100.1.1.0/24` and `2001:db8:1::/48`) containing BGP community `64500:1`.
 2.  Verify using state paths that the advertised routes are installed in both the Default routing instance table and dynamically imported into the `URPF` routing instance table.
 3.  Initiate traffic from ATE:Port2 to the advertised prefixes.
 4.  **Verification**:
-    *   DUT dynamically leaks the matching routes to URPF.
+    *   DUT dynamically leaks the routes containing `64500:1` to URPF.
     *   Traffic flows with 0% packet loss.
     *   Leaked routes on the DUT URPF instance retain their BGP attributes (MED and AS path must match the ones advertised from ATE:Port1).
 
-#### TE-6.5.2: No Route Leak on Community Absence
+#### TE-6.5.2: Dynamic Route Leak on BGP COMMUNITY_2 Match
 
-1.  From ATE:Port1, advertise a new list of prefixes (e.g., `100.2.2.0/24` and `2001:db8:2::/48`) containing either *no communities* or a non-matching community (e.g., `64500:9999`).
-2.  Verify that the routes are installed in the Default instance but *not* imported/leaked into the `URPF` VRF table.
+1.  From ATE:Port1, advertise a new list of prefixes (e.g., `100.2.2.0/24` and `2001:db8:2::/48`) containing BGP community `64500:2`.
+2.  Verify that the routes are dynamically imported into the `URPF` VRF table.
 3.  Initiate traffic from ATE:Port2 to these prefixes.
 4.  **Verification**:
-    *   No routes are leaked.
-    *   100% traffic loss is observed.
+    *   DUT dynamically leaks the routes containing `64500:2` to URPF.
+    *   Traffic flows with 0% packet loss.
 
-#### TE-6.5.3: Dynamic Route Removal on Community Withdrawal
+#### TE-6.5.3: Dynamic Route Leak on Compound Match (Both Communities)
 
-1.  Update the advertisements from ATE:Port1 in case **TE-6.5.1** by withdrawing the matching BGP community from the routes.
-2.  Verify that the routes are dynamically removed from the URPF routing table (retaining them only in the Default instance routing table).
-3.  Initiate traffic from ATE:Port2 to the prefixes.
+1.  From ATE:Port1, advertise prefixes (e.g., `100.3.3.0/24` and `2001:db8:3::/48`) containing *both* communities `64500:1` and `64500:2`.
+2.  Verify using state paths that the routes are installed dynamically in the URPF routing instance table.
+3.  Initiate traffic from ATE:Port2 to these prefixes.
 4.  **Verification**:
-    *    Leaked routes are dynamically withdrawn and removed.
+    *   DUT dynamically leaks the routes containing both communities to URPF.
+    *   Traffic flows with 0% packet loss.
+
+#### TE-6.5.4: Route Retention on Partial Community Withdrawal
+
+1.  Start with routes advertised in **TE-6.5.3** (containing both `64500:1` and `64500:2` and leaked to URPF).
+2.  Withdraw the community `64500:1` from the advertisements, while keeping `64500:2` attached to the prefixes.
+3.  Verify that the routes are *retained* in the URPF routing table, as they still match `64500:2`.
+4.  Initiate traffic from ATE:Port2.
+5.  **Verification**:
+    *   Leaked routes are retained post partial community withdrawal.
+    *   Traffic continues to flow with 0% packet loss.
+
+#### TE-6.5.5: Dynamic Route Removal on Complete Community Withdrawal
+
+1.  Start with routes from **TE-6.5.4** (now containing only `64500:2`).
+2.  Withdraw the remaining community `64500:2` from the advertised prefixes (so the routes no longer have any matching communities).
+3.  Verify that the routes are dynamically removed from the URPF routing table (remaining only in the Default instance routing table).
+4.  Initiate traffic from ATE:Port2.
+5.  **Verification**:
+    *   Leaked routes are dynamically withdrawn and removed.
     *   100% traffic loss is observed.
 
 ---
@@ -128,10 +146,8 @@ C[ATE:Port2] <--eBGP (URPF VRF)--> D[DUT:Port2];
               "config": {
                 "community-set-name": "leak-communities",
                 "community-member": [
-                  "64500:10100",
-                  "64500:10110",
-                  "64500:10730",
-                  "64500:10740"
+                  "64500:1",
+                  "64500:2"
                 ]
               }
             }
