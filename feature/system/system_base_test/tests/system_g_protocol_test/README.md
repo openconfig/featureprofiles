@@ -67,5 +67,19 @@ rpcs:
 
 ```json
 {
-  "name": "system_g_protocol_test"
+   "system": {
+      "state": {
+         "motd-banner": "<string>",
+         "login-banner": "<string>",
+         "hostname": "<string>",
+         "current-datetime": "",
+         "boot-time": 0,
+         "clock": {
+            "state": {
+               "timezone-name": "UTC"
+            }
+         }
+      }
+   }
 }
+```
