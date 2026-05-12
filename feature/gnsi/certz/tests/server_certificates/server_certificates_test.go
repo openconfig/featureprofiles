@@ -31,7 +31,7 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
+	scriptPath               = "../../test_data/"
 	timeOutVar time.Duration = 2 * time.Minute
 )
 
@@ -70,9 +70,10 @@ func TestServerCert(t *testing.T) {
 	password := creds.RPCPassword()
 	t.Logf("Validation of all services that are using gRPC before server certificate rotation.")
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
+	dirPath := t.TempDir()
 	//Generate testdata certificates.
 	t.Logf("%s:STATUS:Generation of test data certificates.", logTime)
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	if err := setupService.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", logTime, err)
 	}
 	//Create a certz client.
@@ -300,7 +301,7 @@ func TestServerCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", logTime)
 	//Cleanup of test data.
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+	if err := setupService.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./cleanup.sh", dirPath); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", logTime, err)
 	}
 	t.Logf("%s:STATUS:Test completed!", logTime)

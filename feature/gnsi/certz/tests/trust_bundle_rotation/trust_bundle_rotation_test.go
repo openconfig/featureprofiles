@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
+	scriptPath               = "../../test_data/"
 	timeOutVar time.Duration = 2 * time.Minute
 )
 
@@ -135,14 +135,15 @@ func TestTrustBundleRotation(t *testing.T) {
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
 
+	dirPath := t.TempDir()
 	// Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", logTime)
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./mk_cas.sh", dirPath); err != nil {
 		t.Fatalf("Generation of testdata certificates failed!: %v", err)
 	}
 	defer func() {
 		t.Logf("%s:Cleanup of test data.", logTime)
-		if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+		if err := setup_service.TestdataMakeCleanup(t, scriptPath, timeOutVar, "./cleanup.sh", dirPath); err != nil {
 			t.Logf("Cleanup of testdata certificates failed!: %v", err)
 		}
 	}()
