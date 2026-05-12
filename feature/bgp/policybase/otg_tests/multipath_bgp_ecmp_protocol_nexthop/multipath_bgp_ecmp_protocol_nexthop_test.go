@@ -368,31 +368,6 @@ type bgpNeighbor struct {
 	localAddress string
 }
 
-// enableMultipath enables multipath for the given DUT device with the given maximum paths.
-func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
-	dni := deviations.DefaultNetworkInstance(dut)
-	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
-	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
-	bgp := bgpProto.GetOrCreateBgp()
-	cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
-	if !deviations.IbgpMultipathPathUnsupported(dut) {
-		if deviations.EnableMultipathUnderAfiSafi(dut) {
-			if ipv4 {
-				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-			} else {
-				bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-			}
-		} else {
-			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-		}
-	} else {
-		t.Logf("CLI config: \n%v", cliConfig)
-		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
-		helpers.GnmiCLIConfig(t, dut, cliConfig)
-		time.Sleep(30 * time.Second)
-	}
-}
-
 // bgpCreateNbr creates a BGP neighbor configuration for the DUT with multiple paths.
 // TODO: Add support for multiple paths and local address.
 func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bool) *oc.NetworkInstance_Protocol {
