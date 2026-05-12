@@ -410,7 +410,7 @@ rpcs:
   "system": {
     "bootz": {
       "state": {
-        "last-boot-attempt": "",
+        "last-boot-attempt": "0",
         "error-count": "0",
         "status": "BOOTZ_OK",
         "checksum": ""
