@@ -1189,7 +1189,6 @@ message Metadata {
     // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
     // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
     bool explicitly_apply_allow_all_import_policy = 389;
-
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429234443
     // Functional translator to be used for QoS paths
     string qos_ft = 390;
@@ -1310,6 +1309,18 @@ message Metadata {
     // Device does not support interface counters in fcs errors
     // Arista: https://issuetracker.google.com/issues/508304903
     bool interface_counters_in_fcs_errors_unsupported = 418;
+    
+    // Arista: b/495544007
+    // Devices that do not support mpls static pseudowire OC
+    bool mpls_static_pseudowire_oc_unsupported = 419;
+
+    // Arista: b/495549829
+    // Devices that do not support vlan client encapsulation OC
+    bool vlan_client_encapsulation_oc_unsupported = 420;
+
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/489348278
+    // Devices that do not support nexthp-group counters OC
+    bool nexthop_group_pseudowire_counters_oc_unsupported = 421;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
