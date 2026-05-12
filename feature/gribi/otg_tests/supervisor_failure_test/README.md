@@ -22,16 +22,15 @@ Ensure that gRIBI entries are persisted over supervisor failure.
 make it become leader. Ensure that no error is reported from the gRIBI
 server.
 
-* Add 100 `IPv4Entry`s for prefixes (e.g., `203.0.113.0/24` through `203.0.113.99/24`) pointing to ATE port-2 via
-`gRIBI-A`. Ensure that the entries are active through AFT telemetry and correct
-ACKs are received.
+* Add 50 `IPv4Entry`s (starting at `203.0.113.1/32`) and 50 `IPv6Entry`s
+(starting at `2001:db8:203:0:113::1/128`) pointing to ATE port-2 via
+`gRIBI-A`. Ensure that the entries are active through AFT telemetry and correct ACK is received.
 
-* Send traffic from ATE port-1 to the 100 prefixes, and ensure traffic
+* Send traffic from ATE port-1 to the 100 prefixes (50 IPv4 and 50 IPv6), and ensure traffic
 flows 100% and reaches ATE port-2.
 
-* Validate: Traffic continues to be forwarded between ATE port-1 and ATE
-port-2 during supervisor switchover triggered using gNOI
-`SwitchControlProcessor`.
+* Validate: Supervisor switchover is triggered using gNOI `SwitchControlProcessor`.
+Ensure gRIBI entries persist over switchover and traffic contniues to be forwarded.
 
 * Following reconnection of a gRIBI client to the new master supervisor, ensure
 the 100 prefixes pointing to ATE port-2 are present and traffic
@@ -39,9 +38,12 @@ flows 100% from ATE port-1 to ATE port-2.
 
 ### TE-8.2.2 - Post Switchover FIB Programming Validation
 
-* Add another 100 `IPv4Entry`s for new prefixes (e.g., `203.0.114.0/24` through `203.0.114.99/24`) pointing to ATE port-2. Ensure that these new entries are active through AFT telemetry and correct ACKs are received.
+* Add another 50 `IPv4Entry`s (starting at `203.0.114.1/32`) and 50
+`IPv6Entry`s (starting at `2001:db8:203:0:114::1/128`) pointing to ATE
+port-2. Ensure that these new entries are active through AFT telemetry and correct ACKs are received.
 
-* Send traffic from ATE port-1 to the additional 100 prefixes, and ensure traffic flows 100% and reaches ATE port-2 to verify that the FIB is programmed correctly after the switchover.
+* Send traffic to all 200 prefixes (100 initial + 100 post-switchover) and
+ensure traffic flows 100% from ATE port-1 to ATE port-2.
 
 ## OpenConfig Path and RPC Coverage
 
