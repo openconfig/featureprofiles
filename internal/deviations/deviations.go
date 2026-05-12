@@ -2120,3 +2120,51 @@ func CarrierFt(dut *ondatra.DUTDevice) string {
 func FabricFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFabricFt()
 }
+
+// MacsecStateFt returns the functional translator name for macsec state telemetry.
+func MacsecStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecStateFt()
+}
+
+// MacsecCountersFt returns the functional translator name for macsec counters telemetry.
+func MacsecCountersFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecCountersFt()
+}
+
+// EnableMplsStaticOnInterface returns true if device needs MPLS Static enabled explicitly on ingress/egress interface
+func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
+}
+
+// Device does not support secondary controller card CPU utilization
+// Arista: https://issuetracker.google.com/issues/508666262
+func SecondaryControllerCardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardCpuUtilizationUnsupported()
+}
+
+// Device does not support secondary controller card memory utilization
+// Arista: https://issuetracker.google.com/issues/508656197
+func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardMemoryUtilizationUnsupported()
+}
+
+// Device does not support interface counters in fcs errors
+// Arista: https://issuetracker.google.com/issues/508304903
+func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
+}
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
+
+// NexthopGroupPseudowireCountersOcUnsupported returns true if oc is not supported
+func NexthopGroupPseudowireCountersOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNexthopGroupPseudowireCountersOcUnsupported()
+}
