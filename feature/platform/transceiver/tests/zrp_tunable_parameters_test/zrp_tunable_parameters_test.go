@@ -22,11 +22,6 @@ func TestMain(m *testing.M) {
 }
 
 func Test400ZRPlusTunableFrequency(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
@@ -55,8 +50,18 @@ func Test400ZRPlusTunableFrequency(t *testing.T) {
 		t.Run(tc.description, func(t *testing.T) {
 			for freq := tc.startFreq; freq <= tc.endFreq; freq += tc.freqStep {
 				t.Run(fmt.Sprintf("Freq: %v", freq), func(t *testing.T) {
+					opticalChannel1Config := &oc.Component_OpticalChannel{
+						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
+						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(operationalMode)}
+					opticalChannel2Config := &oc.Component_OpticalChannel{
+						TargetOutputPower: ygot.Float64(tc.targetOutputPower),
+						Frequency:         ygot.Uint64(freq),
+						OperationalMode:   ygot.Uint16(operationalMode)}
+
 					if deviations.OperationalModeUnsupported(dut) {
-						operationalMode = 0
+						opticalChannel1Config.OperationalMode = nil
+						opticalChannel2Config.OperationalMode = nil
 					}
 
 					transceiver.TunableParamsTest(t, &transceiver.TunableParams{
@@ -71,11 +76,6 @@ func Test400ZRPlusTunableFrequency(t *testing.T) {
 }
 
 func Test400ZRPlusTunableOutputPower(t *testing.T) {
-	if operationalModeFlag != nil {
-		operationalMode = uint16(*operationalModeFlag)
-	} else {
-		t.Fatalf("Please specify the vendor-specific operational-mode flag")
-	}
 	dut := ondatra.DUT(t, "dut")
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
@@ -103,9 +103,39 @@ func Test400ZRPlusTunableOutputPower(t *testing.T) {
 	for _, tc := range tests {
 		for top := tc.startTargetOutputPower; top <= tc.endTargetOutputPower; top += tc.targetOutputPowerStep {
 			t.Run(fmt.Sprintf("Target Power: %v", top), func(t *testing.T) {
-				if deviations.OperationalModeUnsupported(dut) {
-					operationalMode = 0
+				opticalChannel1Config := &oc.Component_OpticalChannel{
+					TargetOutputPower: ygot.Float64(top),
+					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(operationalMode),
 				}
+				opticalChannel2Config := &oc.Component_OpticalChannel{
+					TargetOutputPower: ygot.Float64(top),
+					Frequency:         ygot.Uint64(tc.frequency),
+					OperationalMode:   ygot.Uint16(operationalMode),
+				}
+				if deviations.OperationalModeUnsupported(dut) {
+					opticalChannel1Config.OperationalMode = nil
+					opticalChannel2Config.OperationalMode = nil
+				}
+				gnmi.Replace(t, dut, gnmi.OC().Component(oc1).OpticalChannel().Config(), opticalChannel1Config)
+				gnmi.Replace(t, dut, gnmi.OC().Component(oc2).OpticalChannel().Config(), opticalChannel2Config)
+
+				gotOPoc1, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc1).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+					outPower, ok := val.Val()
+					return ok && outPower == top
+				}).Await(t)
+				if !ok {
+					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc1, top)
+				}
+				gotOPoc2, ok := gnmi.Watch(t, dut, gnmi.OC().Component(oc2).OpticalChannel().TargetOutputPower().State(), 2*time.Minute, func(val *ygnmi.Value[float64]) bool {
+					outPower, ok := val.Val()
+					return ok && outPower == top
+				}).Await(t)
+				if !ok {
+					t.Fatalf("ERROR:Got output power: %v, but wanted output power: %v", gotOPoc2, top)
+				}
+				gnmi.Await(t, dut, gnmi.OC().Interface(p1.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(p2.Name()).OperStatus().State(), interfaceTimeout, oc.Interface_OperStatus_UP)
 
 				transceiver.TunableParamsTest(t, &transceiver.TunableParams{
 					OpMode:      operationalMode,
