@@ -407,6 +407,19 @@ rpcs:
 
 ```json
 {
+<<<<<<< Updated upstream
   "name": "bootz"
+=======
+  "system": {
+    "bootz": {
+      "state": {
+        "last-boot-attempt": "<timestamp>",
+        "error-count": "<uint>",
+        "status": "<BootzStatusEnum>",
+        "checksum": "<base64>"
+      }
+    }
+  }
+>>>>>>> Stashed changes
 }
 ```
