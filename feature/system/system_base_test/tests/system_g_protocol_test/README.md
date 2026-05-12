@@ -73,7 +73,7 @@ rpcs:
          "login-banner": "<string>",
          "hostname": "<string>",
          "current-datetime": "",
-         "boot-time": 0,
+         "boot-time": "0",
          "clock": {
             "state": {
                "timezone-name": "UTC"
