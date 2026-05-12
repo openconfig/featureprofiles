@@ -3,6 +3,6 @@
 
 uuid: "d0256233-8b9b-4b07-a40d-1e163eb0f47e"
 plan_id: "gNMI-1.29"
-description: "Pipeline Counters Vendor Drops Test"
+description: "Pipeline Counters Drops Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: TAGS_TRANSIT
