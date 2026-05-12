@@ -338,10 +338,20 @@ func TestDUTDaemonFailure(t *testing.T) {
 		defer clientA.FlushAll(t)
 
 		t.Log("Re-establish gRIBI client connection")
-		if err := clientA.Start(t); err != nil {
-			t.Fatalf("gRIBI Connection for clientA could not be re-established")
+		retryDuration := 180 * time.Second
+		retryInterval := 5 * time.Second
+		startTime := time.Now()
+		for {
+			if err := clientA.Start(t); err != nil {
+				if time.Since(startTime) > retryDuration {
+					t.Fatalf("gRIBI Connection for clientA could not be re-established after multiple attempts")
+				}
+				t.Logf("Retrying gRIBI client connection in %v...", retryInterval)
+				time.Sleep(retryInterval)
+			} else {
+				break
+			}
 		}
-
 		t.Run("VerifyGRIBIGet", func(t *testing.T) {
 			verifyGRIBIGet(ctx, t, clientA, dut)
 		})

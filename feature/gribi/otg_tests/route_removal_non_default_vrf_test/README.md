@@ -51,6 +51,25 @@ N/A
 *   gRIBI
     *   Flush
 
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths intended to be covered by this test.
+
+```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /network-instances/network-instance/config/description:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
+rpcs:
+  gnmi:
+    gNMI.Set:
+    gNMI.Subscribe:
+```
 ## Minimum DUT platform requirement
 
 vRX

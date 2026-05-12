@@ -47,7 +47,7 @@ const (
 )
 
 var (
-	p4InfoFile                       = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile                       = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	streamName                       = "p4rt"
 	gdpInLayers  layers.EthernetType = 0x6007
 	deviceID                         = uint64(1)
@@ -231,6 +231,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			agg.Enabled = ygot.Bool(true)
 		}
 		s := agg.GetOrCreateSubinterface(0)
+		if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
+			s1 := agg.GetOrCreateSubinterface(1)
+			s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
+			if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+				s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
+				agg.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
+			}
+		}
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
@@ -253,14 +261,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 			e := i.GetOrCreateEthernet()
 			e.AggregateId = ygot.String(aggID)
 			i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-			if a.hasVlan && deviations.P4RTGdpRequiresDot1QSubinterface(dut) {
-				s1 := i.GetOrCreateSubinterface(1)
-				s1.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(vlanID)
-				if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
-					s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().SetVlanId(10)
-					i.GetOrCreateAggregation().GetOrCreateSwitchedVlan().SetNativeVlan(10)
-				}
-			}
 			if deviations.InterfaceEnabled(dut) {
 				i.Enabled = ygot.Bool(true)
 			}

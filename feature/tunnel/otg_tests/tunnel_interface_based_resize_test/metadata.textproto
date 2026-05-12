@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "bf4120d7-6de4-4aa5-9071-3f14948a8847"
+plan_id:  "TUN-1.6"
+description:  "Tunnel End Point Resize for Ecapsulation - Interface Based GRE Tunnel"
+testbed:  TESTBED_DUT_ATE_2LINKS

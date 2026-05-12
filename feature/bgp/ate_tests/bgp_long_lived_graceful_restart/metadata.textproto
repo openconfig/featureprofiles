@@ -11,6 +11,7 @@ platform_exceptions: {
   }
   deviations: {
     ipv4_missing_enabled: true
+    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {
@@ -18,9 +19,11 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    missing_value_for_defaults:  true
+    bgp_graceful_restart_under_afi_safi_unsupported: true
+    bgp_config_during_graceful_restart_unsupported: true
   }
 }
 platform_exceptions: {
@@ -36,7 +39,6 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
-    route_policy_under_afi_unsupported: true
     omit_l2_mtu: true
     interface_config_vrf_before_address: true
     deprecated_vlan_id: true
@@ -44,6 +46,8 @@ platform_exceptions: {
     require_routed_subinterface_0: true
     default_network_instance: "default"
     bgp_llgr_oc_undefined: true
+    routing_restart_via_gnoi_unsupported: true
+    missing_value_for_defaults: true
   }
 }
 tags: TAGS_AGGREGATION

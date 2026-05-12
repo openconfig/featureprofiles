@@ -17,6 +17,8 @@
     *	Verify that IPv4 and IPv6 prefixes that are advertised by ATE correctly installed into DUTs route and forwarding table.
     *	TODO-Verify that the metrics of the IPv4 and IPv6 prefixes is 63.
     *	Ensure that IPv4 and IPv6 prefixes that are advertised as part of an (emulated) neighboring system are installed into the DUT routing table, and validate that packets are sent and received to them.
+    * Disable ldpigpsync for global and interface level and verify that this
+    does not impact the metrics configured on the interfaces.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
@@ -51,8 +53,10 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/afi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/safi-name:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/afi-safi/af/config/enabled:
-
-  ## Telemetry Parameter Coverage
+  /network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/config/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/config/enabled:
+  
+## Telemetry Parameter Coverage
   /network-instances/network-instance/protocols/protocol/isis/levels/level/state/metric-style:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/neighbor-ipv4-address:
@@ -86,6 +90,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/part-changes:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/seq-num-skips:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/system-level-counters/state/spf-runs:
+  /network-instances/network-instance/protocols/protocol/isis/global/mpls/igp-ldp-sync/state/enabled:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/mpls/igp-ldp-sync/state/enabled:
 
 rpcs:
   gnmi:

@@ -17,10 +17,10 @@ platform_exceptions: {
     isis_interface_afi_unsupported: true
     missing_isis_interface_afi_safi_enable: true
     isis_require_same_l1_metric_with_l2_metric: true
-    route_policy_under_afi_unsupported: true
     static_protocol_name: "STATIC"
     rib_wecmp: true
     explicit_port_speed: true
+    global_max_ecmp_paths_unsupported: true
   }
 }
 platform_exceptions: {
@@ -41,5 +41,19 @@ platform_exceptions: {
   }
   deviations: {
     isis_level_enabled: true
+    predefined_max_ecmp_paths: true
+    wecmp_set_weight_unsupported: true
+    interface_ref_interface_id_format: true
   }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    missing_isis_interface_afi_safi_enable: true
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    aggregate_atomic_update: true 
+ }
 }

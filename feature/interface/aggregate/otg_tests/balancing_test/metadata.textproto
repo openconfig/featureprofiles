@@ -4,7 +4,7 @@
 uuid: "20355cc3-7994-4e15-843e-1f2687900726"
 plan_id: "RT-5.3"
 description: "Aggregate Balancing"
-testbed: TESTBED_DUT_ATE_9LINKS_LAG
+testbed: TESTBED_DUT_ATE_8LINKS_LAG
 platform_exceptions: {
   platform: {
     vendor: CISCO
@@ -19,10 +19,10 @@ platform_exceptions: {
     vendor: NOKIA
   }
   deviations: {
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     aggregate_atomic_update: true
     interface_enabled: true
+    static_protocol_name: "static"
   }
 }
 platform_exceptions: {
@@ -33,5 +33,7 @@ platform_exceptions: {
     aggregate_atomic_update: true
     interface_enabled: true
     default_network_instance: "default"
+    static_protocol_name: "STATIC"
+    omit_l2_mtu: true
   }
 }
