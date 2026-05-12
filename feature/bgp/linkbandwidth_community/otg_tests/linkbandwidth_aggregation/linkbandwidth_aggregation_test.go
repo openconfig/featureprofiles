@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package linkbandwidthaggregation implements RT-7.6.
-package linkbandwidthaggregation
+package linkbandwidth_aggregation_test
 
 import (
 	"bytes"
