@@ -2569,7 +2569,7 @@ test: {
   exec: " "
 }
 test: {
-  id: "MEC-1.2"
+  id: "MSEC-1.2"
   description: "MACsec Line Rate Performance Verification"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/macsec/otg_tests/linerate/README.md"
   exec: " "
