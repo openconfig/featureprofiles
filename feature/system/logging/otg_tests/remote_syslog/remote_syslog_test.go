@@ -531,4 +531,3 @@ func validatePackets(t *testing.T, filename string) {
 		t.Errorf("sflow packets not found: v4 %v, v6 %v", foundV4, foundV6)
 	}
 }
-
