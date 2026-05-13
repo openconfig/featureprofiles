@@ -1,4 +1,4 @@
-# gNMI-2.1: gNMI Resiliency Test
+# gNMI-1.7: gNMI Resiliency Test
 
 ## Summary
 
@@ -21,7 +21,7 @@ gNMI Set operations replacing configuration trees can time out (domain convergen
 1. Establish a `gNMI.Subscribe` ON_CHANGE session for the `/components/component/state/oper-status` leaf
 1. Establish a concurrent background goroutine that issues a `gNMI.Get` request with `data_type=CONFIG` for the entire tree every 60 seconds.
 
-### gNMI-2.1.1 - Verify gNMI Set completes successfully during LC soft OIR under load
+### gNMI-1.7.1 - Verify gNMI Set completes successfully during LC soft OIR under load
 
 1. Generate a configuration that applies an extensive update across multiple interfaces to simulate a production-grade configuration replace, guideline below:
     1. Configuring 8 Interfaces (Ethernet1/1 to Ethernet1/8):
@@ -455,9 +455,9 @@ gNMI Set operations replacing configuration trees can time out (domain convergen
 }
 ```
 
-1. Trigger soft OIR on one linecard by setting `/components/component[name=<LC_NAME>]/config/power-admin-state` to `POWER_DISABLED`.
+1. Trigger soft OIR on one linecard by setting `/components/component/linecard[name=<LC_NAME>]/config/power-admin-state` to `POWER_DISABLED`.
 1. Use `gnmi.Watch` with `.Await` to confirm the operational status `/components/component/state/oper-status` of the affected linecards transitions to `DISABLED` or `INACTIVE`.
-1. Re-enable the linecards by setting `/components/component[name=<LC_NAME>]/config/power-admin-state` to `POWER_ENABLED`.
+1. Re-enable the linecards by setting `/components/component/linecard[name=<LC_NAME>]/config/power-admin-state` to `POWER_ENABLED`.
 1. Immediately push the large configuration generated in Step 1 to the DUT using `gNMI.Set` with the `REPLACE` option.
 1. Validation with pass/fail criteria:
     1. The `gNMI.Set` request MUST succeed without throwing a deadline-exceeded or timeout error.
@@ -472,9 +472,9 @@ paths used for test setup are not listed here.
 
 ```yaml 
 paths:
-  /components/component/config/power-admin-state:
+  /components/component/linecard/config/power-admin-state:
     platform_type: ["LINECARD"]
-  /components/component/state/oper-status:
+  /components/component/linecard/state/power-admin-state:
     platform_type: ["LINECARD"]
   /system/state/last-configuration-timestamp:
   /interfaces/interface/config/description:
