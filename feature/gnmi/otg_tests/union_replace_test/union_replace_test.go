@@ -139,7 +139,7 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 	// Wait for the MTU to be removed (i.e., not equal to 1500).
-	gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), 1*time.Minute, func(val *ygnmi.Value[uint16]) bool {
+	gnmi.Watch(t, dut, gnmi.OC().Interface(portName).Mtu().State(), awaitTimeOut, func(val *ygnmi.Value[uint16]) bool {
 		m, present := val.Val()
 		if !present {
 			t.Logf("Got MTU not present, want 1500.")
