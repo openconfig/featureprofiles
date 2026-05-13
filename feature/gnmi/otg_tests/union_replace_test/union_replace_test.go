@@ -554,8 +554,8 @@ func TestUnionReplace3_6(t *testing.T) {
 	// PortSpeed state leaf was not affected by the new configuration and reflects the actual
 	// operating speed of the port.
 	foundSpeed := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().State())
-	if foundSpeed != targetSpeed || foundSpeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
-		t.Errorf("DUT port1 PortSpeed state: got %v, want %v or unknown", foundSpeed, targetSpeed)
+	if foundSpeed != beforeSpeed && foundSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
+		t.Errorf("DUT port1 PortSpeed state: got %v, want %v or unknown", foundSpeed, beforeSpeed)
 	}
 
 	want := oc.Interface_OperStatus_DOWN
