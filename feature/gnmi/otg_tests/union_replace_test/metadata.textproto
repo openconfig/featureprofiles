@@ -3,7 +3,7 @@
 
 uuid: "912d6fc8-5245-419a-9ae9-7da432a46cdf"
 plan_id: "gNMI-3"
-description: "union_replace test"
+description: "union_replace"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
