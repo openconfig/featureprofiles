@@ -32,12 +32,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -178,7 +178,7 @@ func TestRemoteSyslog(t *testing.T) {
 				}
 				// Delete interfaces from the default network instance before adding them to VRF.
 				for _, intf := range []string{p1.Name(), p2.Name(), lb} {
-gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf).Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf).Config())
 				}
 				createAndAddInterfacesToVRF(t, dut, tc.vrf, []string{p1.Name(), p2.Name(), lb}, []uint32{0, 0, 0})
 			}
@@ -533,13 +533,13 @@ func validatePackets(t *testing.T, filename string) {
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
-if ipv4.SrcIP.Equal(loopbackV4) {
+			if ipv4.SrcIP.Equal(loopbackV4) {
 				foundV4 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-if ipv6.SrcIP.Equal(loopbackV6) {
+			if ipv6.SrcIP.Equal(loopbackV6) {
 				foundV6 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 			}
