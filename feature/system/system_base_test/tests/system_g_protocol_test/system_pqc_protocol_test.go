@@ -52,10 +52,9 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 	}
 
 	// Custom TLS config for PQC
-	// 0x6399 is the code point for X25519Kyber768Draft00
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
-		CurvePreferences:   []tls.CurveID{0x6399, tls.X25519, tls.CurveP256},
+		CurvePreferences:   []tls.CurveID{tls.X25519MLKEM768, tls.X25519, tls.CurveP256},
 	}
 
 	target := fmt.Sprintf("%s:%d", dialer.DialTarget, dialer.DevicePort)
