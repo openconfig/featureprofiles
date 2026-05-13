@@ -540,7 +540,7 @@ if ipv4.SrcIP.Equal(loopbackV4) {
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-			if ipv6.SrcIP.Equal(loopbackV6) || ipv6.SrcIP.Equal(dutSrcV6) {
+if ipv6.SrcIP.Equal(loopbackV6) {
 				foundV6 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 			}
