@@ -3938,3 +3938,27 @@ deviations: {
   }
 }
 
+deviations: {
+  name: "per_flow_load_balancing_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
+
+deviations: {
+  name: "bgp_multipath_paths_under_peer_group_unsupported"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: ""
+    platform: {
+      vendor: CISCO
+      software_version_regex: "*.*"
+    }
+  }
+}
+
