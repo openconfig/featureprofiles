@@ -6,6 +6,7 @@ plan_id: "gNMI-1.29"
 description: "Pipeline Counters Drops Test"
 testbed: TESTBED_DUT_ATE_2LINKS
 tags: TAGS_TRANSIT
+<<<<<<< HEAD
 
 platform_exceptions {
   platform {
@@ -15,3 +16,5 @@ platform_exceptions {
     ciscoxr_vendordrop_ft: "ciscoxr-vendordrops-ft"
   }
 }
+=======
+>>>>>>> main
