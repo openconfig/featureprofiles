@@ -15,7 +15,6 @@
 package remote_syslog_test
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
@@ -31,8 +30,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/helpers/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -106,33 +105,12 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-func pushNokiaCliConfig(t *testing.T, dut *ondatra.DUTDevice, config string) {
-	t.Helper()
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	gnmiClient := dut.RawAPIs().GNMI(t)
-	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
-		t.Fatalf("Failed to push Nokia CLI config via gNMI Set: %v", err)
-	}
-}
-
 func TestRemoteSyslog(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	if dut.Vendor() == ondatra.NOKIA {
-		pushNokiaCliConfig(t, dut, "set / system logging subsystem-facility local7")
+		helpers.GnmiCLIConfig(t, dut, "set / system logging subsystem-facility local7")
 		t.Cleanup(func() {
-			pushNokiaCliConfig(t, dut, "delete / system logging subsystem-facility")
+			helpers.GnmiCLIConfig(t, dut, "delete / system logging subsystem-facility")
 		})
 	}
 	p1 := dut.Port(t, "port1")
@@ -177,8 +155,9 @@ func TestRemoteSyslog(t *testing.T) {
 					t.Skipf("skipping the unsupported non-default VRF testcase")
 				}
 				// Delete interfaces from the default network instance before adding them to VRF.
+
 				for _, intf := range []string{p1.Name(), p2.Name(), lb} {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf).Config())
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf+".0").Config())
 				}
 				createAndAddInterfacesToVRF(t, dut, tc.vrf, []string{p1.Name(), p2.Name(), lb}, []uint32{0, 0, 0})
 			}
@@ -264,7 +243,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 // configureDUTLoopback configures the loopback interface on the DUT
 func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, vrfName *string) {
 	t.Helper()
-	// lb = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
 	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
 	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
@@ -516,6 +494,7 @@ func processCapture(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config
 	validatePackets(t, pcapFile.Name())
 }
 
+// DUT Source IP targets alongside Loopback IPs for accurate routing validation.
 func validatePackets(t *testing.T, filename string) {
 	handle, err := pcap.OpenOffline(filename)
 	if err != nil {
@@ -525,6 +504,8 @@ func validatePackets(t *testing.T, filename string) {
 
 	loopbackV4 := net.ParseIP(dutLoopback.IPv4)
 	loopbackV6 := net.ParseIP(dutLoopback.IPv6)
+	dutSrcV4 := net.ParseIP(dutSrc.IPv4)
+	dutSrcV6 := net.ParseIP(dutSrc.IPv6)
 
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
@@ -533,21 +514,21 @@ func validatePackets(t *testing.T, filename string) {
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
-			if ipv4.SrcIP.Equal(loopbackV4) {
+			if ipv4.SrcIP.Equal(loopbackV4) || ipv4.SrcIP.Equal(dutSrcV4) {
 				foundV4 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-			if ipv6.SrcIP.Equal(loopbackV6) {
+			if ipv6.SrcIP.Equal(loopbackV6) || ipv6.SrcIP.Equal(dutSrcV6) {
 				foundV6 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 			}
 		}
-
 	}
 
 	if !foundV4 {
 		t.Errorf("sflow packets not found: v4 %v, v6 %v", foundV4, foundV6)
 	}
 }
+
