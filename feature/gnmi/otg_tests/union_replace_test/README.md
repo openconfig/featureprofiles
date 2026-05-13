@@ -288,7 +288,6 @@ set using CLI.
 
 ```json
 {
-{
   "components": {
     "component": [
       {
