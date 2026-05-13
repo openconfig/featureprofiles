@@ -295,9 +295,9 @@ func CertzRotate(ctx context.Context, t *testing.T, newcaCert *x509.CertPool, ce
 		time.Sleep(30 * time.Second) //waiting 30s for gnmi config propagation//
 	}
 	if scale {
-	// waiting 180s for large scale certs to propagate after rotate response
-	t.Logf("STATUS:%s waiting 180s for large-scale 1000certs to propagate", time.Now())
-	time.Sleep(180 * time.Second)
+	        // waiting 180s for large scale certs to propagate after rotate response
+	        t.Logf("STATUS:%s waiting 180s for large-scale 1000certs to propagate", time.Now())
+	        time.Sleep(180 * time.Second)
         }
 	//Verify gNSI service with new TLS credentials in loop with retries before finalize.
 	if success = VerifyGnsi(t, newcaCert, san, serverAddr, username, password, newclientCert, mismatch); !success {
