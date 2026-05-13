@@ -525,8 +525,7 @@ func validatePackets(t *testing.T, filename string) {
 
 	loopbackV4 := net.ParseIP(dutLoopback.IPv4)
 	loopbackV6 := net.ParseIP(dutLoopback.IPv6)
-	dutSrcV4 := net.ParseIP(dutSrc.IPv4)
-	dutSrcV6 := net.ParseIP(dutSrc.IPv6)
+
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	foundV4 := false
