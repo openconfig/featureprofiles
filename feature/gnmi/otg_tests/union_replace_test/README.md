@@ -5,7 +5,7 @@
 The tests defined here will cover the basic operation of `union_replace` to
 add, remove and change configuration and the scenarios defined in [gNMI
 union_replace section
-5.3](google.com/url?q=https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-union_replace.md%2353-union-behavior-options&sa=D&source=docs&ust=1778631692989790&usg=AOvVaw0vo1CKDv7mnCB5jeUMD9zb).
+5.3](https://github.com/openconfig/reference/blob/master/rpc/gnmi/gnmi-union_replace.md#53-union-behavior-options).
 The goal is to catch bugs related to add/remove/change actions and avoid the
 complexity of attempting to test all combinations of features and their
 configuration items.
