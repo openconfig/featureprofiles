@@ -15,6 +15,7 @@
 package remote_syslog_test
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 const (
@@ -104,12 +106,50 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+func pushNokiaCliConfig(t *testing.T, dut *ondatra.DUTDevice, config string) {
+	t.Helper()
+	gpbSetRequest := &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
+		t.Fatalf("Failed to push Nokia CLI config via gNMI Set: %v", err)
+	}
+}
+
 func TestRemoteSyslog(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+	if dut.Vendor() == ondatra.NOKIA {
+		pushNokiaCliConfig(t, dut, "set / system logging subsystem-facility local7")
+		t.Cleanup(func() {
+			pushNokiaCliConfig(t, dut, "delete / system logging subsystem-facility")
+		})
+	}
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	ate := ondatra.ATE(t, "ate")
-	lb = netutil.LoopbackInterface(t, dut, 0)
+	for i := 0; i < 10; i++ {
+		tempLb := netutil.LoopbackInterface(t, dut, i)
+		lo := gnmi.OC().Interface(tempLb).Subinterface(0)
+		ipv4Addrs := gnmi.LookupAll(t, dut, lo.Ipv4().AddressAny().State())
+		if len(ipv4Addrs) == 0 {
+			lb = tempLb
+			break
+		}
+	}
+	if lb == "" {
+		t.Fatalf("Failed to find a free loopback interface")
+	}
 
 	top := configureATE(t, ate)
 	createFlow(t, top, true)
@@ -136,11 +176,15 @@ func TestRemoteSyslog(t *testing.T) {
 				if deviations.SyslogNonDefaultVrfUnsupported(dut) {
 					t.Skipf("skipping the unsupported non-default VRF testcase")
 				}
+				// Delete interfaces from the default network instance before adding them to VRF.
+				for _, intf := range []string{p1.Name(), p2.Name(), lb} {
+					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf + ".0").Config())
+				}
 				createAndAddInterfacesToVRF(t, dut, tc.vrf, []string{p1.Name(), p2.Name(), lb}, []uint32{0, 0, 0})
 			}
 
 			configureDUT(t, dut, &tc.vrf)
-			configureDUTLoopback(t, dut)
+			configureDUTLoopback(t, dut, &tc.vrf)
 			configureStaticRoute(t, dut, tc.vrf)
 			configureSyslog(t, dut, tc.vrf)
 			ate.OTG().StartProtocols(t)
@@ -165,10 +209,17 @@ func TestRemoteSyslog(t *testing.T) {
 			processCapture(t, ate, top)
 
 			t.Cleanup(func() {
+				gnmi.Delete(t, dut, gnmi.OC().System().Logging().Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v4Route+"/30").Config())
 				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, "DEFAULT").Static(v6Route+"/126").Config())
 				if tc.vrf != deviations.DefaultNetworkInstance(dut) {
 					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(tc.vrf).Config())
+					// Restore default network instance association
+					if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+						fptest.AssignToNetworkInstance(t, dut, p1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+						fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
+					}
 				}
 				flipATEPort(t, dut, ate, top, "port2", true)
 			})
@@ -188,13 +239,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, vrfName *string) {
 		fptest.SetPortSpeed(t, dp1)
 		fptest.SetPortSpeed(t, dp2)
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-	}
-
-	if vrfName == nil {
+	if vrfName == nil || *vrfName == deviations.DefaultNetworkInstance(dut) {
 		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+			fptest.AssignToNetworkInstance(t, dut, dp1.Name(), deviations.DefaultNetworkInstance(dut), 0)
+			fptest.AssignToNetworkInstance(t, dut, dp2.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 }
 
@@ -212,7 +262,7 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 }
 
 // configureDUTLoopback configures the loopback interface on the DUT
-func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
+func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, vrfName *string) {
 	t.Helper()
 	// lb = netutil.LoopbackInterface(t, dut, 0)
 	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
@@ -242,7 +292,9 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
+		if vrfName == nil || *vrfName == deviations.DefaultNetworkInstance(dut) {
+			fptest.AssignToNetworkInstance(t, dut, lb, deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 }
 
@@ -254,7 +306,7 @@ func createAndAddInterfacesToVRF(t *testing.T, dut *ondatra.DUTDevice, vrfname s
 		i.Name = ygot.String(intfName)
 		i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
 		i.Description = ygot.String(fmt.Sprintf("Port %s", strconv.Itoa(index+1)))
-		if intfName == netutil.LoopbackInterface(t, dut, 0) {
+		if intfName == lb {
 			i.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
 			i.Description = ygot.String(fmt.Sprintf("Port %s", intfName))
 		}
@@ -473,6 +525,8 @@ func validatePackets(t *testing.T, filename string) {
 
 	loopbackV4 := net.ParseIP(dutLoopback.IPv4)
 	loopbackV6 := net.ParseIP(dutLoopback.IPv6)
+	dutSrcV4 := net.ParseIP(dutSrc.IPv4)
+	dutSrcV6 := net.ParseIP(dutSrc.IPv6)
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	foundV4 := false
@@ -480,13 +534,13 @@ func validatePackets(t *testing.T, filename string) {
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
-			if ipv4.SrcIP.Equal(loopbackV4) {
+			if ipv4.SrcIP.Equal(loopbackV4) || ipv4.SrcIP.Equal(dutSrcV4) {
 				foundV4 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 			}
 		} else if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-			if ipv6.SrcIP.Equal(loopbackV6) {
+			if ipv6.SrcIP.Equal(loopbackV6) || ipv6.SrcIP.Equal(dutSrcV6) {
 				foundV6 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv6.TrafficClass, len(ipv6.Payload), len(ipv6.Contents), ipv6.Length)
 			}
