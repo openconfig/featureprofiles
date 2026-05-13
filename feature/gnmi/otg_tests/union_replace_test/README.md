@@ -134,6 +134,8 @@ be accepted and applied by the DUT.
 
 ## gNMI-3.7 - union_replace rejected with error in CLI with OC
 
+TODO: implement this test in a future pull request
+
 Verify a DUT rejects and rolls back a gnmi.Set union_replace with an invalid
 configuration in origin CLI.  Verify the original configuration is preserved.
 
@@ -170,10 +172,14 @@ Steps
 
 ### gnmi-3.7.1 reference validation error in OC
 
+TODO: implement this test in a future pull request
+
 The invalid configuration is OC which references a BGP neighbor import policy
 that does not exist.
 
 ### gnmi-3.7.2 reference which validates but is an error in OC
+
+TODO: implement this test in a future pull request
 
 The invalid configuration is OC which references an qos queue on an interface
 which does not exist.
@@ -184,6 +190,8 @@ The invalid configuration is CLI which references a BGP neighbor import policy
 that does not exist.
 
 ## gNMI-3.8 - union_replace rejected with error due to configuration item overlap
+
+TODO: implement this test in a future pull request
 
 This test verifies union_replace option 1 or 2 behavior for resolving
 overlapping configuration items between OC and CLI.  Generate the following
@@ -227,6 +235,8 @@ Test where the overlap is
 
 ## gNMI-3.9 CLI and OC non-overlap in same OC configuration tree
 
+TODO: implement this test in a future pull request
+
 These configurations should be accepted and applied successfully by the DUT.
 
 ### gnmi-3.9.1 interface and MTU in OC and interface description in CLI
@@ -243,6 +253,8 @@ Steps
   provided by the CLI and OC respectively.
 
 ## gNMI-3.10 - union_replace accepted with missing hardware
+
+TODO: implement this test in a future pull request
 
 Configure an interface with a missing transceiver module.  The interface with
 the missing transceiver is expected to contain “config” leaves with the desired
@@ -262,12 +274,111 @@ breakout mode and port speed are set to the target values.
 * Verify the state for the interface is oper-state DOWN.
 * Verify all other CLI and OC config leaves are unchanged.
 
-## gnmi3.6.1  verify configuration with OC hardware missing is accepted
+## gnmi3.10.1  verify configuration with OC hardware missing is accepted
 
 Perform the steps where a configuration D.2 where the port-speed and breakout
 set using OC.
 
-### gnmi3.6.2  verify configuration with CLI hardware missing is accepted
+### gnmi3.10.2  verify configuration with CLI hardware missing is accepted
 
 Perform the steps where a configuration D.2 where the port-speed and breakout
 set using CLI.
+
+## Canonical OC
+
+```json
+{
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "Port0"
+        },
+        "name": "Port0",
+        "port": {
+          "breakout-mode": {
+            "groups": {
+              "group": [
+                {
+                  "config": {
+                    "breakout-speed": "SPEED_50GB",
+                    "index": 1,
+                    "num-breakouts": 2,
+                    "num-physical-channels": 2
+                  },
+                  "index": 1
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "config": {
+          "name": "Port0-Transceiver"
+        },
+        "name": "Port0-Transceiver",
+        "state": {
+          "parent": "Port0",
+          "type": "TRANSCEIVER"
+        },
+        "transceiver": {
+          "state": {
+            "form-factor": "QSFP28"
+          }
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "First 50G breakout",
+          "mtu": 1500,
+          "name": "eth0/0"
+        },
+        "ethernet": {
+          "config": {
+            "port-speed": "SPEED_50GB"
+          }
+        },
+        "name": "eth0/0"
+      },
+      {
+        "config": {
+          "description": "Second 50G breakout with wrong port-speed",
+          "name": "eth0/1"
+        },
+        "ethernet": {
+          "config": {
+            "port-speed": "SPEED_100GB"
+          }
+        },
+        "name": "eth0/1"
+      }
+    ]
+  }
+}
+```
+
+## OpenConfig Path and RPC Coverage
+
+```yaml
+paths:
+  ## Config Paths ##
+  /interfaces/interface/config/mtu:
+  /interfaces/interface/ethernet/config/port-speed:
+
+  ## State Paths ##
+  /interfaces/interface/state/mtu:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/ethernet/state/port-speed:
+
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+```
+

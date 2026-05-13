@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/encoding/protojson"
-	"github.com/openconfig/featureprofiles/internal/attrs/attrs"
+	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/helpers"
