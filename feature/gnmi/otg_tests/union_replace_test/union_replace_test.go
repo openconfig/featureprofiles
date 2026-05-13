@@ -135,7 +135,7 @@ func setCLINoMTU(t *testing.T, dut *ondatra.DUTDevice, portName string) {
 	if dut.Vendor() == ondatra.ARISTA {
 		cliConfig = fmt.Sprintf("configure terminal\ninterface %s\nno mtu\n", portName)
 	} else {
-		t.Errorf("Unsupported vendor: %v", dut.Vendor())
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 	// Wait for the MTU to be removed (i.e., not equal to 1500).
