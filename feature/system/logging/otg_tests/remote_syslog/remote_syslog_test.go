@@ -178,7 +178,7 @@ func TestRemoteSyslog(t *testing.T) {
 				}
 				// Delete interfaces from the default network instance before adding them to VRF.
 				for _, intf := range []string{p1.Name(), p2.Name(), lb} {
-					gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf + ".0").Config())
+gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Interface(intf).Config())
 				}
 				createAndAddInterfacesToVRF(t, dut, tc.vrf, []string{p1.Name(), p2.Name(), lb}, []uint32{0, 0, 0})
 			}
