@@ -82,8 +82,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6N
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
 github.com/creack/pty v1.1.18 h1:n56/Zwd5o6whRC5PMGretI4IdRLlmBXYNjScPaBgsbY=
 github.com/creack/pty v1.1.18/go.mod h1:MOBLtS5ELjhRRrroQr9kyvTxUAFNvYEK993ew/Vr4O4=
-github.com/cyphar/filepath-securejoin v0.4.1 h1:JyxxyPEaktOD+GAnqIqTf9A8tHyAG22rowi7HkoSU1s=
-github.com/cyphar/filepath-securejoin v0.4.1/go.mod h1:Sdj7gXlvMcPZsbhwhQ33GguGLDGQL7h7bg04C/+u9jI=
+github.com/cyphar/filepath-securejoin v0.6.1 h1:5CeZ1jPXEiYt3+Z6zqprSAgSWiggmpVyciv8syjIpVE=
+github.com/cyphar/filepath-securejoin v0.6.1/go.mod h1:A8hd4EnAeyujCJRrICiOWqjS1AX0a9kM5XL+NwKoYSc=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc h1:U9qPSI2PIWSS1VwoXQT9A3Wy9MM3WgvqSxFWenqJduM=
@@ -134,8 +134,8 @@ github.com/gliderlabs/ssh v0.3.8 h1:a4YXD1V7xMF9g5nTkdfnja3Sxy1PVDCj1Zg4Wb8vY6c=
 github.com/gliderlabs/ssh v0.3.8/go.mod h1:xYoytBv1sV0aL3CavoDuJIQNURXkkfPA/wxQ1pL1fAU=
 github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 h1:+zs/tPmkDkHx3U66DAb0lQFJrpS6731Oaa12ikc+DiI=
 github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376/go.mod h1:an3vInlBmSxCcxctByoQdvwPiA7DTK7jaaFDBTtu0ic=
-github.com/go-git/go-billy/v5 v5.8.0 h1:I8hjc3LbBlXTtVuFNJuwYuMiHvQJDq1AT6u4DwDzZG0=
-github.com/go-git/go-billy/v5 v5.8.0/go.mod h1:RpvI/rw4Vr5QA+Z60c6d6LXH0rYJo0uD5SqfmrrheCY=
+github.com/go-git/go-billy/v5 v5.9.0 h1:jItGXszUDRtR/AlferWPTMN4j38BQ88XnXKbilmmBPA=
+github.com/go-git/go-billy/v5 v5.9.0/go.mod h1:jCnQMLj9eUgGU7+ludSTYoZL/GGmii14RxKFj7ROgHw=
 github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399 h1:eMje31YglSBqCdIqdhKBW8lokaMrL3uTkpGYlE2OOT4=
 github.com/go-git/go-git-fixtures/v4 v4.3.2-0.20231010084843-55a94097c399/go.mod h1:1OCfN199q1Jm3HZlxleg+Dw/mwps2Wbk9frAWm+4FII=
 github.com/go-git/go-git/v5 v5.17.1 h1:WnljyxIzSj9BRRUlnmAU35ohDsjRK0EKmL0evDqi5Jk=
@@ -313,8 +313,6 @@ github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56 h1:bHMTFwX3NL1oM
 github.com/openconfig/gnoigo v0.0.0-20250918224707-fee0fe3eee56/go.mod h1:PgqVu5G015PY0iHZZ/EGCJwAmSpL2IEj3fuRuZEY90w=
 github.com/openconfig/gnpsi v0.3.2 h1:+bl1bXMOTrWOcGydWB+8wGgvxlgvL8Y6joAiWFU5sog=
 github.com/openconfig/gnpsi v0.3.2/go.mod h1:+Qj2PwadJ/jvGkH6H/A3XO9ZRKQRVtl3A30ubwz0M18=
-github.com/openconfig/gnsi v1.9.0 h1:DokjN2rvzrP9/sMexBtigq6XkeKO8cPzzQmF8HQcVLQ=
-github.com/openconfig/gnsi v1.9.0/go.mod h1:mvfo1wUBFfojkHrD8kKqVV8Epoyq1Vt1Qpkj2hif6ow=
 github.com/openconfig/gnsi v1.9.1 h1:0XpYlG/99YWVIm6gFTVkxlwiXcU/tBla9MDLChLNBMM=
 github.com/openconfig/gnsi v1.9.1/go.mod h1:r1OgFdQdbVB6PdamWM6nW85MKLlRCYwCd9Gx/tm2/Gw=
 github.com/openconfig/gocloser v0.0.0-20251119232641-34bca749fdb3 h1:HsTKOBZeQw/Rt8KmxFY578pVZDIgeem50jzv4BjrTR8=
@@ -702,5 +700,3 @@ sigs.k8s.io/structured-merge-diff/v4 v4.2.3 h1:PRbqxJClWWYMNV1dhaG4NsibJbArud9kF
 sigs.k8s.io/structured-merge-diff/v4 v4.2.3/go.mod h1:qjx8mGObPmV2aSZepjQjbmb2ihdVs8cGKBraizNC69E=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=
 sigs.k8s.io/yaml v1.3.0/go.mod h1:GeOyir5tyXNByN85N/dRIT9es5UQNerPYEKK56eTBm8=
-go.mozilla.org/pkcs7 v0.9.0 h1:yM4/HS9dYv7ri2biPtxt8ikvB37a980dg69/pKmS+eI=
-go.mozilla.org/pkcs7 v0.9.0/go.mod h1:SNgMg+EgDFwmvSmLRTNKC5fegJjB7v23qTQ0XLGUNHk=

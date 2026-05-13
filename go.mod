@@ -6,7 +6,7 @@ require (
 	cloud.google.com/go/pubsub v1.45.1
 	cloud.google.com/go/storage v1.49.0
 	github.com/cisco-open/go-p4 v0.1.2
-	github.com/go-git/go-billy/v5 v5.8.0
+	github.com/go-git/go-billy/v5 v5.9.0
 	github.com/go-git/go-git/v5 v5.17.1
 	github.com/golang/glog v1.2.5
 	github.com/google/go-cmp v0.7.0
@@ -80,7 +80,7 @@ require (
 	github.com/cloudflare/circl v1.6.3 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
 	github.com/creack/pty v1.1.18 // indirect
-	github.com/cyphar/filepath-securejoin v0.4.1 // indirect
+	github.com/cyphar/filepath-securejoin v0.6.1 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/drivenets/cdnos-controller v1.7.4 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.2 // indirect
