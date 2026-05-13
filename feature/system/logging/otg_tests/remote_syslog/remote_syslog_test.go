@@ -534,7 +534,7 @@ func validatePackets(t *testing.T, filename string) {
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ipv4, _ := ipLayer.(*layers.IPv4)
-			if ipv4.SrcIP.Equal(loopbackV4) || ipv4.SrcIP.Equal(dutSrcV4) {
+if ipv4.SrcIP.Equal(loopbackV4) {
 				foundV4 = true
 				t.Logf("tos %d, payload %d, content %d, length %d", ipv4.TOS, len(ipv4.Payload), len(ipv4.Contents), ipv4.Length)
 			}
