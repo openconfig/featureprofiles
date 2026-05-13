@@ -9,7 +9,7 @@ Validate 400ZR_PLUS modules report correct inventory information.
 *   Plug in the ZR_PLUS module in the host port and make sure the transceiver 
     state is enabled and host is able to detect the module.
 *   With the module recognized verify it reports correct inventory
-    information by subscribing ON_CHANGE to the following telemetry paths. test
+    information by subscribing ON_CHANGE to the following telemetry paths.
 
     *   /platform/components/component/state/serial-no
     *   /platform/components/component/state/part-no
