@@ -32,7 +32,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/featureprofiles/ondatra"
-	"github.com/openconfig/featureprofiles/ondatra"
 
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 
