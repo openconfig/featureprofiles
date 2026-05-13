@@ -1926,6 +1926,11 @@ func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
 }
 
+// CiscoxrVendordropFt returns the functional translator to be used for translating Cisco XR vendor drop counters.
+func CiscoxrVendordropFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrVendordropFt()
+}
+
 // BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
 // there is no routing policy or default policy configured.
 func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
