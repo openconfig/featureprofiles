@@ -1322,6 +1322,15 @@ message Metadata {
     // Devices that do not support nexthp-group counters OC
     bool nexthop_group_pseudowire_counters_oc_unsupported = 421;
 
+    // Devices that do not support per flow load balancing
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/512818490
+    bool per_flow_load_balancing_unsupported = 422;
+
+    // Devices that do not support multipath under bgp peer-group
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/512818868
+    bool bgp_multipath_paths_under_peer_group_unsupported = 423;
+
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
