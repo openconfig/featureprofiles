@@ -48,7 +48,6 @@ var (
 	prevClientCertFile  string          = ""
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
-	logTime             string          = time.Now().String() //Timestamp
 	expectedResult      bool            = true
 )
 
