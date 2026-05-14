@@ -41,6 +41,7 @@ func TestMain(m *testing.M) {
 
 const (
 	ipv4PrefixLen = 30
+	ipv6PrefixLen = 126
 	mtu           = 1500
 	ppsRate       = 1000
 	flowDuration  = 5 * time.Second
@@ -52,6 +53,8 @@ var (
 		MAC:     "00:11:11:11:11:11",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::1",
+		IPv6Len: ipv6PrefixLen,
 		MTU:     mtu,
 	}
 
@@ -60,6 +63,8 @@ var (
 		MAC:     "00:22:22:22:22:22",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::2",
+		IPv6Len: ipv6PrefixLen,
 		MTU:     mtu,
 	}
 
@@ -68,6 +73,8 @@ var (
 		MAC:     "00:33:33:33:33:33",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::5",
+		IPv6Len: ipv6PrefixLen,
 		MTU:     mtu,
 	}
 
@@ -76,6 +83,8 @@ var (
 		MAC:     "00:44:44:44:44:44",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::6",
+		IPv6Len: ipv6PrefixLen,
 		MTU:     mtu,
 	}
 )
