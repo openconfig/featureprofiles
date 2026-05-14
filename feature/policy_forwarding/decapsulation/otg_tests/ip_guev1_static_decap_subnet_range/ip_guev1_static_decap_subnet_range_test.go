@@ -69,6 +69,7 @@ const (
 	innerTTL        = uint32(50)
 	outerTTL        = uint32(70)
 	srcPortValue    = 30000
+	fixedPackets    = 10000
 )
 
 var (
@@ -120,6 +121,7 @@ type testCase struct {
 	trafficDestIp     string
 	trafficShouldPass bool
 	verifyCounters    bool
+	isPassThrough     bool
 }
 
 func TestIpGueStaticDecapsulation(t *testing.T) {
@@ -186,6 +188,7 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     atePort2.IPv6,
 			trafficShouldPass: true,
 			verifyCounters:    false,
+			isPassThrough:     true,
 		},
 		{
 			name:              "PF-1.4.6: Inner IPV6 GUE Pass-through (Negative)",
@@ -195,15 +198,16 @@ func TestIpGueStaticDecapsulation(t *testing.T) {
 			trafficDestIp:     atePort2.IPv6,
 			trafficShouldPass: true,
 			verifyCounters:    false,
+			isPassThrough:     true,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.ipType == "ipv4" {
-				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
+				gueDecapInnerIpv4Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters, tc.isPassThrough)
 			} else {
-				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters)
+				gueDecapInnerIpv6Traffic(t, dut, ate, topo, ate.OTG(), tc.ateGuePort, tc.dutGuePort, tc.trafficDestIp, tc.trafficShouldPass, tc.verifyCounters, tc.isPassThrough)
 			}
 		})
 	}
@@ -470,7 +474,7 @@ func verifyPolicerMatchedPackets(t *testing.T, dut *ondatra.DUTDevice, otgConfig
 }
 
 // gueDecapInnerIpv4Traffic configures and validates GUE decapsulation for inner IPv4 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
+func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters, isPassThrough bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
 	flow := configureIPv4Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv4")
@@ -482,14 +486,18 @@ func gueDecapInnerIpv4Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if isPassThrough {
+			verifyPassThroughOuterHeader(t, ate, "port2")
+		} else {
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
 }
 
 // gueDecapInnerIpv6Traffic configures and validates GUE decapsulation for inner IPv6 traffic, including optional traffic and counter verification.
-func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters bool) {
+func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, topo gosnappi.Config, otgConfig *otg.OTG, ateUdpPort, dutUdpPort int, destIp string, trafficValidation, verifyCounters, isPassThrough bool) {
 	trafficID := fmt.Sprintf("Gue-Decap-Flow1-%v", ateUdpPort)
 	flow := configureIPv6Traffic(t, ate, topo, trafficID, destIp, ateUdpPort)
 	configureDutWithGueDecap(t, dut, dutUdpPort, "ipv6")
@@ -501,7 +509,11 @@ func gueDecapInnerIpv6Traffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra
 	stopCapture(t, ate)
 	if trafficValidation {
 		verifyTrafficFlow(t, ate, trafficID, true)
-		verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		if isPassThrough {
+			verifyPassThroughOuterHeader(t, ate, "port2")
+		} else {
+			verifyCaptureDscpTtlValue(t, ate, "port2", int(innerDscpValue), int(innerTTL-1))
+		}
 	} else {
 		verifyTrafficFlow(t, ate, trafficID, false)
 	}
@@ -553,7 +565,7 @@ func configureIPv4Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	innerIpHeader.TimeToLive().SetValue(innerTTL)
 	flow.Size().SetFixed(uint32(packetSize))
 	flow.Rate().SetPps(packetPerSecond)
-	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	return flow
 }
 
@@ -578,11 +590,11 @@ func configureIPv6Traffic(t *testing.T, ate *ondatra.ATEDevice, topo gosnappi.Co
 	innerIpHeader := flow.Packet().Add().Ipv6()
 	innerIpHeader.Src().SetValue(ipv6Src)
 	innerIpHeader.Dst().SetValue(ipv6Dst)
-	innerIpHeader.TrafficClass().SetValue(innerDscpValue)
+	innerIpHeader.TrafficClass().SetValue(innerDscpValue << 2)
 	innerIpHeader.HopLimit().SetValue(innerTTL)
 	flow.Size().SetFixed(uint32(packetSize))
 	flow.Rate().SetPps(packetPerSecond)
-	flow.Duration().FixedPackets().SetPackets(packetPerSecond)
+	flow.Duration().FixedPackets().SetPackets(fixedPackets)
 	return flow
 }
 
@@ -624,6 +636,37 @@ func verifyCaptureDscpTtlValue(t *testing.T, ate *ondatra.ATEDevice, port string
 		}
 	}
 	t.Fatalf("ERROR: Could not find packet with matching inner source IP (%s or %s) in capture", ipv4Src, ipv6Src)
+}
+
+// verifyPassThroughOuterHeader validates that packets forwarded without decapsulation still carry the outer
+// IPv6 header and a UDP layer, confirming GUE encapsulation is intact.
+func verifyPassThroughOuterHeader(t *testing.T, ate *ondatra.ATEDevice, port string) {
+	t.Helper()
+	pcapfilename := processCapture(t, ate, port)
+	handle, err := pcap.OpenOffline(pcapfilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer handle.Close()
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	outerSrc := net.ParseIP(atePort1.IPv6)
+	outerDst := net.ParseIP(atePort2.IPv6)
+	for packet := range packetSource.Packets() {
+		ip6Layer := packet.Layer(layers.LayerTypeIPv6)
+		if ip6Layer == nil {
+			continue
+		}
+		ip6, _ := ip6Layer.(*layers.IPv6)
+		if !ip6.SrcIP.Equal(outerSrc) || !ip6.DstIP.Equal(outerDst) {
+			continue
+		}
+		if packet.Layer(layers.LayerTypeUDP) == nil {
+			continue
+		}
+		t.Logf("PASS: Pass-through packet retains outer IPv6 header (src=%s, dst=%s) and UDP layer", atePort1.IPv6, atePort2.IPv6)
+		return
+	}
+	t.Fatalf("ERROR: Could not find pass-through packet with outer IPv6 src=%s dst=%s and UDP layer in capture", atePort1.IPv6, atePort2.IPv6)
 }
 
 // waitForBGPSession waits for BGP neighbors to reach the expected session state within a fixed timeout. It validates BGPv4 neighbor session state under the default network instance.
