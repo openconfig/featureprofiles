@@ -507,13 +507,12 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	bgpPrefixes := gnmi.GetAll[*otgtelemetry.BgpPeer_UnicastIpv4Prefix](t, ate.OTG(), gnmi.OTG().BgpPeer("atePort2.BGP4.peer").UnicastIpv4PrefixAny().State())
 	found := false
 	var errMsg string
+	parts := strings.Split(routePrefix, "/")
+	prefixAddr := parts[0]
+	prefixLen, _ := strconv.Atoi(parts[1])
 
 	for _, bgpPrefix := range bgpPrefixes {
 		t.Logf("Received prefix %s/%d", bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength())
-
-		parts := strings.Split(routePrefix, "/")
-		prefixAddr := parts[0]
-		prefixLen, _ := strconv.Atoi(parts[1])
 		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == prefixAddr && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == uint32(prefixLen) {
 
 			found = true
