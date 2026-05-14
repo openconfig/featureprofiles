@@ -1468,6 +1468,7 @@ type Metadata_Deviations struct {
 	// Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
 	ContainerzRetrieveLogsUnsupported bool `protobuf:"varint,426,opt,name=containerz_retrieve_logs_unsupported,json=containerzRetrieveLogsUnsupported,proto3" json:"containerz_retrieve_logs_unsupported,omitempty"`
 	// Device does not support L2 unicast COPP counter validation.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/493487459
 	CoppL2UnicastUnsupported bool `protobuf:"varint,427,opt,name=copp_l2_unicast_unsupported,json=coppL2UnicastUnsupported,proto3" json:"copp_l2_unicast_unsupported,omitempty"`
 }
 

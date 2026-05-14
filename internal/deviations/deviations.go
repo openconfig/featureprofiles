@@ -2198,6 +2198,7 @@ func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // CoppL2UnicastUnsupported returns true if the device does not support L2 unicast COPP counter validation.
+// Arista: https://partnerissuetracker.corp.google.com/issues/493487459
 func CoppL2UnicastUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetCoppL2UnicastUnsupported()
 }

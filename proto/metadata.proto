@@ -1343,6 +1343,7 @@ message Metadata {
     bool containerz_retrieve_logs_unsupported = 426;
 
     // Device does not support L2 unicast COPP counter validation.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/493487459
     bool copp_l2_unicast_unsupported = 427;
 
     // Reserved field numbers and identifiers.
