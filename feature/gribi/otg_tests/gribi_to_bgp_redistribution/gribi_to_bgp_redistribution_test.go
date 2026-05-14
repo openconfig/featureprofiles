@@ -245,10 +245,10 @@ func configureRoutingPolicies(t *testing.T, dut *ondatra.DUTDevice) {
 	// ----------------------------
 	// ATTACH EXPORT POLICY TO BGP
 	// ----------------------------
-	policy := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
+	policy := root.GetOrCreateNetworkInstance(vrfName).GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").GetOrCreateBgp().GetOrCreateNeighbor(atePort2.IPv4).GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateApplyPolicy()
 	policy.SetExportPolicy([]string{bgpExportPol})
 	policy.SetDefaultExportPolicy(oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE)
-	path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
+	path := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 
 	gnmi.BatchReplace(batch, path.Config(), policy)
 
@@ -316,7 +316,7 @@ func appendDrainPolicyToExport(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	nbrPath := gnmi.OC().NetworkInstance(vrfName).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(atePort2.IPv4).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy()
 	exportPolicies := []string{drainPolicy, bgpExportPol}
-	gnmi.Update(t, dut, nbrPath.ExportPolicy().Config(), exportPolicies)
+	gnmi.Replace(t, dut, nbrPath.ExportPolicy().Config(), exportPolicies)
 }
 
 // removeDrainPolicyFromExport removes the drain policy from the BGP export chain.
@@ -511,7 +511,10 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	for _, bgpPrefix := range bgpPrefixes {
 		t.Logf("Received prefix %s/%d", bgpPrefix.GetAddress(), bgpPrefix.GetPrefixLength())
 
-		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == v4RoutePrefix && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == v4RoutePrefixLen {
+		parts := strings.Split(routePrefix, "/")
+		prefixAddr := parts[0]
+		prefixLen, _ := strconv.Atoi(parts[1])
+		if bgpPrefix.Address != nil && bgpPrefix.GetAddress() == prefixAddr && bgpPrefix.PrefixLength != nil && bgpPrefix.GetPrefixLength() == uint32(prefixLen) {
 
 			found = true
 
@@ -548,7 +551,7 @@ func validateRoutingPolicyV4(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	}
 
 	if !found {
-		msg := fmt.Sprintf("prefix %s/%d not received on OTG", v4RoutePrefix, v4RoutePrefixLen)
+		msg := fmt.Sprintf("prefix %s not received on OTG", routePrefix)
 		errMsg += msg
 	}
 
