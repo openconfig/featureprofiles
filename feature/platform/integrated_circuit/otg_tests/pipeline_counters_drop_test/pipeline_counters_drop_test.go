@@ -314,6 +314,7 @@ func TestCiscoVendorDrops(t *testing.T) {
 		counters := readVendorDropCounters(t, dut)
 
 		dropReason := "L3_ROUTE_LOOKUP_FAILED"
+		// The README specifies to check for a non-negative value. We do not check for >= 0 explicitly because the counter value is a uint64, which is always non-negative by definition.
 		if val, ok := counters[dropReason]; ok {
 			t.Logf("Counter %s found with value: %d", dropReason, val)
 		} else {
@@ -404,6 +405,7 @@ func TestCiscoVendorDrops(t *testing.T) {
 		counters := readVendorDropCounters(t, dut)
 
 		dropReason := "MPLS_TE_MIDPOINT_LDP_LABELS_MISS"
+		// The README specifies to check for a non-negative value. We do not check for >= 0 explicitly because the counter value is a uint64, which is always non-negative by definition.
 		if val, ok := counters[dropReason]; ok {
 			t.Logf("Counter %s found with value: %d", dropReason, val)
 		} else {
