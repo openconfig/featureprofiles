@@ -31,11 +31,11 @@ import (
 	"testing"
 	"time"
 
+	bootztypes "github.com/openconfig/bootz/common/types"
 	bootzpb "github.com/openconfig/bootz/proto/bootz"
 	bootzsrv "github.com/openconfig/bootz/server"
 	"github.com/openconfig/bootz/server/entitymanager"
 	emproto "github.com/openconfig/bootz/server/entitymanager/proto/entity"
-	bootzsvc "github.com/openconfig/bootz/server/service"
 	artifacts "github.com/openconfig/bootz/testdata"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -145,7 +145,6 @@ func runBootzPositiveTest(t *testing.T, postBootz func(*testing.T, *ondatra.DUTD
 		*bootzAddr,
 		em,
 		secArtifacts,
-		&bootzsrv.DisableBootstrapStream{},
 		&bootzsrv.InterceptorOpts{BootzInterceptor: tracker.interceptor()},
 	)
 	if err != nil {
@@ -205,14 +204,14 @@ func bootzAuthzUpload() *authzpb.UploadRequest {
 	}
 }
 
-func newEntityManager(t *testing.T, entity *emproto.Chassis, secArtifacts *bootzsvc.SecurityArtifacts) *entitymanager.InMemoryEntityManager {
+func newEntityManager(t *testing.T, entity *emproto.Chassis, secArtifacts *bootztypes.SecurityArtifacts) *entitymanager.InMemoryEntityManager {
 	t.Helper()
 
 	em, err := entitymanager.New("", secArtifacts)
 	if err != nil {
 		t.Fatalf("failed to initialize Bootz entity manager: %v", err)
 	}
-	if err := em.ReplaceDevice(&bootzsvc.EntityLookup{
+	if err := em.ReplaceDevice(&bootztypes.EntityLookup{
 		Manufacturer: entity.GetManufacturer(),
 		SerialNumber: entity.GetSerialNumber(),
 	}, entity); err != nil {
@@ -221,7 +220,7 @@ func newEntityManager(t *testing.T, entity *emproto.Chassis, secArtifacts *bootz
 	return em
 }
 
-func generateSecurityArtifacts(t *testing.T, chassisSerial string, controlCards []string, advertisedAddr string) *bootzsvc.SecurityArtifacts {
+func generateSecurityArtifacts(t *testing.T, chassisSerial string, controlCards []string, advertisedAddr string) *bootztypes.SecurityArtifacts {
 	t.Helper()
 
 	serverName := hostFromAddress(advertisedAddr)
@@ -251,7 +250,7 @@ func generateSecurityArtifacts(t *testing.T, chassisSerial string, controlCards 
 		t.Fatalf("failed to generate TLS keypair: %v", err)
 	}
 
-	ovs := bootzsvc.OVList{}
+	ovs := bootztypes.OVList{}
 	for _, serial := range serials {
 		ov, err := artifacts.NewOwnershipVoucher("json", serial, pdc, vendorCA, vendorCAPrivateKey)
 		if err != nil {
@@ -260,7 +259,7 @@ func generateSecurityArtifacts(t *testing.T, chassisSerial string, controlCards 
 		ovs[serial] = ov
 	}
 
-	return &bootzsvc.SecurityArtifacts{
+	return &bootztypes.SecurityArtifacts{
 		OwnerCert:             ownerCert,
 		OwnerCertPrivateKey:   ownerPrivateKey,
 		PDC:                   pdc,
