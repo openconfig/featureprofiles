@@ -22,7 +22,7 @@ import (
 )
 
 // Base URL for Google AI Gemini Public API
-const geminiAPIURL = "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s"
+const geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
 
 // --- Structs for parsing metadata.textproto ---
 
@@ -99,7 +99,7 @@ var (
 	// apiKey specifies the API Key for Gemini API.
 	apiKey = flag.String("api-key", os.Getenv("GEMINI_API_KEY"), "API Key for Google AI Gemini API. Can also be set via GEMINI_API_KEY env var.")
 	// model specifies the Gemini model to use for gap analysis.
-	model = flag.String("model", "gemini-2.5-pro", "The public Gemini model to use.")
+	model = flag.String("model", "gemini-3.1-pro-preview", "The public Gemini model to use.")
 	// featureprofilesRoot specifies the root directory for searching feature profiles tests.
 	featureprofilesRoot = flag.String("featureprofiles-root", ".", "Root directory for searching tests (e.g., '.' for repo root).")
 	// changedFilesStr specifies a comma-separated list of changed files to analyze.
