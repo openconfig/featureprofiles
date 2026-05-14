@@ -30,7 +30,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -107,12 +106,7 @@ func TestMain(m *testing.M) {
 
 func TestRemoteSyslog(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	if dut.Vendor() == ondatra.NOKIA {
-		helpers.GnmiCLIConfig(t, dut, "set / system logging subsystem-facility local7")
-		t.Cleanup(func() {
-			helpers.GnmiCLIConfig(t, dut, "delete / system logging subsystem-facility")
-		})
-	}
+
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
 	ate := ondatra.ATE(t, "ate")
