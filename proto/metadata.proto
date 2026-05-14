@@ -1405,6 +1405,7 @@ message Metadata {
     uint32 max_out_fib_route_count = 441;
 
     // Device does not support L2 unicast COPP counter validation.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/493487459
     bool copp_l2_unicast_unsupported = 442;
 
     // Reserved field numbers and identifiers.

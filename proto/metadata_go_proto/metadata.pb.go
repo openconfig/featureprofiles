@@ -1508,6 +1508,7 @@ type Metadata_Deviations struct {
 	// Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
 	MaxOutFibRouteCount uint32 `protobuf:"varint,441,opt,name=max_out_fib_route_count,json=maxOutFibRouteCount,proto3" json:"max_out_fib_route_count,omitempty"`
 	// Device does not support L2 unicast COPP counter validation.
+	// Arista: https://partnerissuetracker.corp.google.com/issues/493487459
 	CoppL2UnicastUnsupported bool `protobuf:"varint,442,opt,name=copp_l2_unicast_unsupported,json=coppL2UnicastUnsupported,proto3" json:"copp_l2_unicast_unsupported,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache

@@ -157,9 +157,9 @@ func extractPlatformFromResponse(t *testing.T, resp *gpb.GetResponse) string {
 	return ""
 }
 
-func getPlatformConfig(t *testing.T, gnmiClient gpb.GNMIClient) *platformConfig {
+func getPlatformConfig(t *testing.T, ctx context.Context, gnmiClient gpb.GNMIClient) *platformConfig {
 	t.Helper()
-	resp, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
+	resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "components"},
@@ -497,7 +497,7 @@ func TestCoppSystem(t *testing.T) {
 		return
 	}
 
-	platCfg := getPlatformConfig(t, gnmiClient)
+	platCfg := getPlatformConfig(t, ctx, gnmiClient)
 
 	ce := &commonEntities{
 		dut:        dut,
