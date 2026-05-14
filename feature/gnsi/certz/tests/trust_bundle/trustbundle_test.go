@@ -62,7 +62,7 @@ func TestTrustBundleCert(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name() //returns the device name.
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
-		t.Fatalf("%s:STATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", time.Now().String(), err, dut.Name())
+		t.Fatalf("STATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", err, dut.Name())
 	}
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
