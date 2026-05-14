@@ -1330,6 +1330,8 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/512818868
     bool bgp_multipath_paths_under_peer_group_unsupported = 423;
 
+    // Functional translator for Cisco XR vendor drop counters.
+    string ciscoxr_vendordrop_ft = 424;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
