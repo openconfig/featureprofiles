@@ -168,6 +168,88 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
+## PF-1.19.v6: Validate decapsulation of MPLS over GUE with an IPv6 outer header
+
+### Test Setup
+1. Connect the DUT to the ATE matching the testbed topology.
+2. Port 1 acts as the ingress interface for GUE traffic.
+3. Port 2 acts as the egress interface for the inner payload.
+
+### Configuration
+1. Configure IPv6 subinterfaces on both the ingress and egress ports (Port 1 and Port 2).
+2. Configure a Policy-Based Routing (PBR) rule on the DUT to identify incoming GUE traffic. The match criteria must include:
+    * The outer IPv6 Destination Address (DUT's IPv6 IP).
+    * IPv6 Next Header set to UDP (17).
+    * Specific UDP destination port indicating GUE.
+3. Apply the decapsulation action by configuring `/network-instances/network-instance[name=default]/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance` pointing to the appropriate routing network instance (e.g., `default`) that will process the inner payload.
+
+#### Canonical OC Configuration
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "policy-id": "gue-v6-decap-policy",
+                "config": {
+                  "policy-id": "gue-v6-decap-policy"
+                },
+                "rules": {
+                  "rule": [
+                    {
+                      "sequence-id": 10,
+                      "config": {
+                        "sequence-id": 10
+                      },
+                      "ipv6": {
+                        "config": {
+                          "destination-address": "2001:db8::1/128",
+                          "protocol": 17
+                        }
+                      },
+                      "transport": {
+                        "config": {
+                          "destination-port": 6080
+                        }
+                      },
+                      "action": {
+                        "config": {
+                          "decap-network-instance": "default"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Telemetry (gNMI Subscribe)
+* Subscribe to ingress and egress interface packet counters:
+  * `/interfaces/interface/state/counters/in-pkts`
+  * `/interfaces/interface/state/counters/out-pkts`
+* Subscribe to PBR rule match counters (if supported by the platform) to verify the policy is hit:
+  * `/network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts`
+
+### Traffic Execution
+1. Generate MPLS over GUE traffic from the ATE on Port 1.
+2. Ensure the outer header is IPv6 with the Source IP set to the ATE and the Destination IP set to the DUT's IPv6 address.
+3. Construct the inner payload as standard IPv4 or IPv6 routed traffic destined for an ATE subnet connected to the egress port (Port 2).
+
+### Pass/Fail Criteria
+* **Pass**: The DUT correctly identifies the GUE traffic, strips the IPv6 outer header, the UDP header, and the MPLS labels. It performs a route lookup on the inner payload and forwards it out the egress port (Port 2). The ATE receives the pristine inner payload on Port 2 with zero packet loss. The matched PBR rule counters and interface transit counters increment accordingly.
+* **Fail**: Packets are dropped at the ingress interface, the DUT forwards the packet without decapsulating, or the DUT crashes due to IPv6 GUE decap parsing errors.
+
 ## Canonical OC
 ```json
 {
@@ -260,6 +342,10 @@ paths:
     
   # Config paths for GRE decap
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-mpls-in-udp:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decap-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/destination-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/config/protocol:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/transport/config/destination-port:
 
   /interfaces/interface/state/counters/in-discards:
   /interfaces/interface/state/counters/in-errors:
