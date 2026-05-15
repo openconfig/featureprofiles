@@ -210,6 +210,14 @@ entries, parameterized by key scaling dimensions.
 - ipv6_flow_base = “2015:aa8::”
 - ipv6_prefix_base = “2015:aa8::/128”
 
+**Inner IPv4 Destinations (Additions for Scale):**
+- `ipv4_flow_base` = "192.0.2.1"
+- `ipv4_prefix_base` = "192.0.2.1/32" (will be incremented to generate scale prefixes)
+
+**Outer IPv4 Encapsulation (New for Profile 6):**
+- `outer_ipv4_src` = "198.51.100.1"
+- `outer_ipv4_dst_base` = "203.0.113.1" (will be incremented to generate 32K unique destinations)
+
 **Traffic Parameters:**
 
 - traffic_duration = “15 seconds”
@@ -219,6 +227,14 @@ entries, parameterized by key scaling dimensions.
 
 - nh_id_start = “201”
 - nhg_id_start = “10”
+
+**Scale Parameters for New Profiles:**
+- `profile6_total_nhs` = "32,000"
+- `profile6_nhs_per_nhg` = "16"
+- `profile6_vrfs` = "1024"
+- `profile7_total_nhs` = "26,000"
+- `profile7_nhs_per_nhg` = "16"
+- `profile7_vrfs` = "1024"
 
 ## Procedure
 
@@ -255,6 +271,9 @@ these dimensions.
 - **Multi-VRF Distribution:** In multi-VRF profiles, both NHGs and
   prefixes are distributed across the different VRFs as specified in
   each profile.
+- **Next Hops (NHs):** Total number of NHs programmed. **Constraint: Maximum 20,000 total NHs** (for baseline profiles). 
+  > [!NOTE]
+  > Profiles 6 and 7 are designed to push beyond this baseline constraint to test higher scaling limits of 32,000 and 26,000 Next Hops respectively.
 
 **Important Note on AFT Entry Placement**
 
@@ -335,23 +354,14 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 
 - **Goal:** Test gRIBI control plane QPS scaling and impact on
   dataplane. Uses Profile 1 as the base state.
-
 - **Network Instances (VRFs):** 1 DEFAULT VRF and 1 non-default VRF.
-
 - **Total NHGs:** 20,000.
-
 - **NHs per NHG:** 1.
-
 - **MPLS Labels:** 1.
-
 - **Total Prefixes:** 20,000.
-
 - **Unique (Dest IP + MPLS) Tuples:** 20,000.
-
 - **Prefix Mapping:** 1:1.
-
 - **Total NHs:** 20,000 (20,000 NHGs × 1 NH/NHG = 20,000 total NHs).
-
 - **gRIBI Operations:** Program/Modify the full 20k entries (1 Prefix +
   1 NHG + 1 NH = 3 operations per entry = 60k operations total).
 
@@ -367,6 +377,36 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
   update sequence, where traffic for a modified prefix is seamlessly
   forwarded using either the old or the new state, without being
   dropped.
+
+#### Profile 6 (Multi-VRF IPv4 Tunnels - 16-way ECMP)
+
+*   **Goal:** Scale across multiple VRFs with unique labels per VRF using IPv4 outer headers and 16-way ECMP.
+*   **Network Instances (VRFs):** 1024.
+*   **Total NHGs:** 2,000 (distributed across VRFs, ~2 NHGs/VRF).
+*   **NHs per NHG:** 16.
+*   **Total NHs:** 32,000 (2,000 NHGs × 16 NHs/NHG = 32,000 total NHs).
+*   **MPLS Labels:** 1024 unique labels (1 label assigned per VRF).
+*   **Total Prefixes:** 32,000 (distributed across VRFs).
+*   **Outer Header:** IPv4 (Tunnel destination).
+*   **Unique (Dest IP + MPLS) Tuples:** 32,000.
+*   **Prefix Mapping:** 16 unique prefixes -> 1 unique NHG (16:1 mapping, repeated 2,000 times).
+*   **Inner IP Reuse:** Required.
+*   **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
+
+#### Profile 7 (Multi-VRF IPv6 Tunnels - 16-way ECMP)
+
+*   **Goal:** Scale across multiple VRFs with unique labels per VRF using IPv6 outer headers and 16-way ECMP.
+*   **Network Instances (VRFs):** 1024.
+*   **Total NHGs:** 1,625 (distributed across VRFs, ~1.5 NHGs/VRF).
+*   **NHs per NHG:** 16.
+*   **Total NHs:** 26,000 (1,625 NHGs × 16 NHs/NHG = 26,000 total NHs).
+*   **MPLS Labels:** 1024 unique labels (1 label assigned per VRF).
+*   **Total Prefixes:** 26,000 (distributed across VRFs).
+*   **Outer Header:** IPv6 (Tunnel destination).
+*   **Unique (Dest IP + MPLS) Tuples:** 26,000.
+*   **Prefix Mapping:** 16 unique prefixes -> 1 unique NHG (16:1 mapping, repeated 1,625 times).
+*   **Inner IP Reuse:** Required.
+*   **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
 
 #### TE-18.3.1 - Single VRF Validation (Profiles 1, 4)
 
@@ -438,6 +478,32 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 
 - Stop high-rate programming and measure steady-state loss again.
 
+#### TE-18.3.5 - Multi-VRF IPv4 Tunnel Scale Validation (Profile 6)
+
+*   Program all gRIBI entries across all specified VRFs according to **Profile 6** (32K NHs, 16 NHs/NHG, 1024 VRFs) using baseline rate/batch.
+*   Validate `FIB_PROGRAMMED` status for all entries.
+*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv4 outer header and 16-way ECMP configuration.
+*   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
+*   Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label and **IPv4 outer header**.
+*   Verify traffic is distributed across the 16 next-hops within a group.
+*   Measure packet loss (target: <= 1% steady state).
+*   Delete all gRIBI entries.
+*   Verify AFT state shows entries removed across VRFs.
+*   Verify traffic loss is 100%.
+
+#### TE-18.3.6 - Multi-VRF IPv6 Tunnel Scale Validation (Profile 7)
+
+*   Program all gRIBI entries across all specified VRFs according to **Profile 7** (26K NHs, 16 NHs/NHG, 1024 VRFs) using baseline rate/batch.
+*   Validate `FIB_PROGRAMMED` status for all entries.
+*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 16-way ECMP configuration.
+*   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
+*   Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label and **IPv6 outer header**.
+*   Verify traffic is distributed across the 16 next-hops within a group.
+*   Measure packet loss (target: <= 1% steady state).
+*   Delete all gRIBI entries.
+*   Verify AFT state shows entries removed across VRFs.
+*   Verify traffic loss is 100%.
+
 ## Canonical OC
 ```json
 {}
@@ -460,6 +526,12 @@ paths:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
   /network-instances/network-instance/afts/next-hops/next-hop/state/ip-address: # NH IP
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-ip:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/src-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dst-udp-port:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/ip-ttl:
+  /network-instances/network-instance/afts/next-hops/next-hop/encap-headers/encap-header/udp-v4/state/dscp:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/state/id:
   /network-instances/network-instance/afts/next-hop-groups/next-hop-group/next-hops/next-hop/state/index:
   /interfaces/interface/subinterfaces/subinterface/ipv4/neighbors/neighbor/state/link-layer-address:
