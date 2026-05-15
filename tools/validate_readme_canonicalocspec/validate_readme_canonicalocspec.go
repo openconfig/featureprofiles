@@ -104,6 +104,7 @@ func isValidOC(canonicalOC ygot.GoStruct) error {
 }
 
 func main() {
+	flag.Parse()
 	fileCount := flag.NArg()
 	var files []string
 	switch {
