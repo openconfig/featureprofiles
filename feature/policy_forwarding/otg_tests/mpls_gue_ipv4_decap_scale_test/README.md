@@ -84,7 +84,7 @@ Ensure the routing table contains valid routes for the inner payloads to egress 
                       },
                       "action": {
                         "config": {
-                          "decapsulate-mpls-in-udp": "openconfig-network-instance-types:MPLS"
+                          "decapsulate-mpls-in-udp": true
                         }
                       }
                     }
