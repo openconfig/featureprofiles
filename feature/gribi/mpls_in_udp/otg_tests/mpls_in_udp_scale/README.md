@@ -211,12 +211,12 @@ entries, parameterized by key scaling dimensions.
 - ipv6_prefix_base = “2015:aa8::/128”
 
 **Inner IPv4 Destinations (Additions for Scale):**
-- `ipv4_flow_base` = "192.0.2.1"
-- `ipv4_prefix_base` = "192.0.2.1/32" (will be incremented to generate scale prefixes)
+- `ipv4_flow_base` = "100.64.0.1"
+- `ipv4_prefix_base` = "100.64.0.1/32" (will be incremented to generate scale prefixes)
 
 **Outer IPv4 Encapsulation (New for Profile 6):**
 - `outer_ipv4_src` = "198.51.100.1"
-- `outer_ipv4_dst_base` = "203.0.113.1" (will be incremented to generate 32K unique destinations)
+- `outer_ipv4_dst_base` = "100.65.0.1" (will be incremented to generate 32K unique destinations)
 
 **Traffic Parameters:**
 
