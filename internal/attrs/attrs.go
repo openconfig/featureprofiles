@@ -21,6 +21,7 @@ package attrs
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
