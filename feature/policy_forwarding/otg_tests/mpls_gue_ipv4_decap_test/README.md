@@ -218,6 +218,7 @@ Verify:
                       },
                       "action": {
                         "config": {
+                          "decapsulate-mpls-in-udp": true,
                           "decap-network-instance": "default"
                         }
                       }
