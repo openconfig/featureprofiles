@@ -489,14 +489,14 @@ func TestUnionReplace3_3_2_changeCLIConfig(t *testing.T) {
 	}).Await(t)
 }
 
-// TestUnionReplace3_6 tests the gNMI union_replace accepted with hardware mismatch.
+// TestUnionReplace3_6_1 tests the gNMI union_replace accepted with hardware mismatch.
 // load the cli config from DUT
 // generate OC config for 1 DUT 100Gbps port but set port speed to 10Gbps (intentionally mismatch)
 // build the union replace request with the cli config and OC config
 // send the request to the DUT
 // verify the DUT OC config contains the port speed of 10Gbps
 // verify the DUT OC /interfaces/interface/state/oper-status is DOWN
-func TestUnionReplace3_6(t *testing.T) {
+func TestUnionReplace3_6_1(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	setCLIunionReplace(t, dut)
 	sb := &gnmi.SetBatch{}
@@ -521,12 +521,107 @@ func TestUnionReplace3_6(t *testing.T) {
 			These Arista EOS CLI commands would allow EOS to accept the port speed mismatch but are not
 			included as they are not accepted as a deviation.
 			system l1
-		   unsupported speed action warn
+		      unsupported speed action warn
 	*/
 
 	// add configuration of the OC interface to the SetBatch
 	configOCInterface(t, sb, dut)
 	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), targetSpeed)
+	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().DuplexMode().Config(), oc.Ethernet_DuplexMode_FULL)
+	t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
+
+	// send the request to the DUT.
+	setResult := sb.Set(t, dut)
+	t.Logf("SetResult:\n%s", prettyPrintYgnmiResult(setResult))
+
+	// Verify the port speed CONFIG leaf is the before speed.  It is expected that the port speed config
+	// leaf is updated to the target speed.
+	gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().Config(), awaitTimeOut, func(val *ygnmi.Value[oc.E_IfEthernet_ETHERNET_SPEED]) bool {
+		speed, present := val.Val()
+		if !present {
+			t.Logf("PortSpeed config not present. Want: %v, got: not present", targetSpeed)
+			return false
+		}
+		if speed != targetSpeed {
+			t.Logf("PortSpeed config not set to target speed. Want: %v, got: %v", targetSpeed, speed)
+			return false
+		}
+		t.Logf("PortSpeed config is set to target speed: %v", speed)
+		return true
+	}).Await(t)
+
+	// Verify the port speed state leaf is the beforeSpeed or UNKNOWN.   It is expected that the
+	// PortSpeed state leaf was not affected by the new configuration and reflects the actual
+	// operating speed of the port.
+	foundSpeed := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().State())
+	if foundSpeed != beforeSpeed && foundSpeed != oc.IfEthernet_ETHERNET_SPEED_SPEED_UNKNOWN {
+		t.Errorf("DUT port1 PortSpeed state: got %v, want %v or unknown", foundSpeed, beforeSpeed)
+	}
+
+	want := oc.Interface_OperStatus_DOWN
+	gnmi.Watch(t, dut, gnmi.OC().Interface(dp1.Name()).OperStatus().State(), awaitTimeOut, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		status, present := val.Val()
+		if !present {
+			t.Logf("OperStatus not present yet")
+			return false
+		}
+		if status != want {
+			t.Logf("OperStatus not in expected state.  Want: %v, got: %v", want, status)
+			return false
+		}
+		t.Logf("OperStatus is in expected state: %v", status)
+		return true
+	}).Await(t)
+
+}
+
+// TestUnionReplace3_6_2 tests the gNMI union_replace accepted with hardware mismatch using CLI.
+// load the cli config from DUT
+// generate CLI config for 1 DUT 100Gbps port but set port speed to 10Gbps (intentionally mismatch)
+// build the union replace request with the cli config and OC config
+// send the request to the DUT
+// verify the DUT OC config contains the port speed of 10Gbps
+// verify the DUT OC /interfaces/interface/state/oper-status is DOWN
+func TestUnionReplace3_6_2(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	setCLIunionReplace(t, dut)
+	sb := &gnmi.SetBatch{}
+	targetSpeed := oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
+
+	// confirm the testbed defined and DUT reported port speed are not the target speed.
+	dp1 := dut.Port(t, "port1")
+	speedCurrent := portSpeed[dp1.Speed()]
+	t.Logf("DUT %v port speed defined in the testbed is %v", dp1.Name(), speedCurrent)
+	beforeSpeed := gnmi.Get(t, dut, gnmi.OC().Interface(dp1.Name()).Ethernet().PortSpeed().State())
+	t.Logf("DUT reported PortSpeed state before any changes: %v", beforeSpeed)
+
+	if speedCurrent == targetSpeed {
+		t.Fatalf("Need a different topology for this test. DUT port %q current port speed must not be %q", dp1.Name(), targetSpeed)
+	}
+
+	t.Logf("Configuring DUT port %q to mismatched port-speed %q using gNMI union_replace CLI.", dp1.Name(), targetSpeed)
+	// get the cli config from DUT, modify it to introduce the port speed mismatch, and add it to the SetBatch.
+	clicfg1 := cliConfig(t, dut)
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		clicfg1 += fmt.Sprintf("interface %s\nspeed 10g\n", dp1.Name())
+	case ondatra.CISCO:
+		clicfg1 += fmt.Sprintf("interface %s\nspeed 10000\n", dp1.Name())
+	case ondatra.JUNIPER:
+		clicfg1 += fmt.Sprintf("set interfaces %s speed 10g\n", dp1.Name())
+	default:
+		t.Errorf("Unsupported vendor: %v", dut.Vendor())
+	}
+	gnmi.BatchUnionReplaceCLI(sb, "cli", clicfg1)
+	/*
+			These Arista EOS CLI commands would allow EOS to accept the port speed mismatch but are not
+			included as they are not accepted as a deviation.
+			system l1
+		   unsupported speed action warn
+	*/
+
+	// add configuration of the OC interface to the SetBatch
+	configOCInterface(t, sb, dut)
 	gnmi.BatchUnionReplace(sb, gnmi.OC().Interface(dp1.Name()).Ethernet().DuplexMode().Config(), oc.Ethernet_DuplexMode_FULL)
 	t.Logf("Generated BatchUnionReplace: %#v\n", sb.String())
 
