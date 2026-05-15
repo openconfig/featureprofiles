@@ -42,10 +42,8 @@ platform_exceptions: {
     vendor: CISCO
   }
   deviations: {
-    ipv4_missing_enabled: true
     default_bgp_instance_name: "default"
     interface_ref_config_unsupported: true
-    interface_enabled: true
     interface_ref_interface_id_format: true
     missing_isis_interface_afi_safi_enable: true
     enable_multipath_under_afi_safi: true

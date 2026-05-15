@@ -159,3 +159,19 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	return buildCliConfigRequest(config)
 }
+
+// GetRouterTime gets the current time from the router via gNMI to avoid clock skew issues.
+func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
+	t.Helper()
+	routerTimeStr := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+	startTime, err := time.Parse(time.RFC3339Nano, routerTimeStr)
+	if err != nil {
+		// Fallback to RFC3339 if nano precision is not available.
+		startTime, err = time.Parse(time.RFC3339, routerTimeStr)
+		if err != nil {
+			t.Fatalf("Failed parsing router current-datetime %q: %v", routerTimeStr, err)
+		}
+	}
+	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
+	return startTime
+}

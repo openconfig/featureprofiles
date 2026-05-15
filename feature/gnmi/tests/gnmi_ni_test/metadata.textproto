@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     interface_enabled: true
     default_network_instance: "default"
+    grpc_server_services_unsupported: true
   }
 }
 platform_exceptions: {
@@ -37,5 +38,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
+    default_ni_gnmi_server_name: "gnmi_gnoi_gnsi"
   }
 }

@@ -23,6 +23,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
@@ -186,6 +187,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure Community Sets on DUT
 	for _, communitySet := range communitySets {
 		configureCommunitySet(t, dut, communitySet)
+	}
+
+	if deviations.BgpRibStreamingConfigRequired(dut) {
+		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
 	}
 }
 
