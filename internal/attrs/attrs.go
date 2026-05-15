@@ -21,13 +21,14 @@ package attrs
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	log "github.com/golang/glog"
 )
 
 // Attributes bundles some common attributes for devices and/or interfaces.
