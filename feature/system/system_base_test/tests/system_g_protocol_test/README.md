@@ -10,8 +10,13 @@ Each test will require the DUT configured with a basic service configuration tha
 should be provided as part of the basic configuration.  This setup should also include
 any security setup for connecting to the services.
 
-The default setup should expect a CA signed certifate and trust bundle which can be
+The default setup should expect a CA signed certificate and trust bundle which can be
 used for mTLS.
+
+The PQC client tests validate the ability of the system to negotiate a PQC based TLS 
+cipher suite for each of the g* APIs.  These tests will need to utilize PQC-enabled
+clients to validate the connection.  Each of these tests should fail if the server
+cannot negotiate a PQC cipher suite.
 
 | Protocol  | Port  |
 | --------- | ----- |
@@ -40,8 +45,6 @@ used for mTLS.
 2. Each test will then create a client to those services and valid each service is properly
    listening on the standard port.
 3. Validate client properly connects and execute a simple RPC to validate no errors are returned.
-
-## OpenConfig Path and RPC Coverage
 
 ## OpenConfig Path and RPC Coverage
 
