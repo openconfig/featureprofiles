@@ -930,6 +930,9 @@ Test-case RT-1.36.1 above.
 The following configuration steps are additions to the configuration done on
 Test-case RT-1.36.2 above.
 
+This test validates the propagation of AIGP when the next-hop
+between peers is changed using the bgp next-hop-self feature.
+
 #### Effective Emulated Test Topology
 
 ```text
@@ -953,28 +956,10 @@ Test-case RT-1.36.2 above.
 
 #### Create BGP export policy
 
-*  Create a route-policy named default-export-v4
+*  Create a route-policy named export-next-hop-self
     * Create a statement named test-statement
     * Create the following actions
-      * set-next-hop 198.55.1.1
-      * accept the route
-
-*  Create a route-policy named default-export-v6
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 2001:db8:50::1
-      * accept the route
-
-*  Create a route-policy named non-default-export-v4
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 198.55.2.1
-      * accept the route
-
-*  Create a route-policy named non-default-export-v6
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 2001:db8:60::1
+      * set-next-hop SELF
       * accept the route
 
 #### Configure ISIS
@@ -1005,9 +990,9 @@ Test-case RT-1.36.2 above.
 
 * Remove test-export-policy in the export direction on both 198.51.100.18 and
   2001:db8::18 which is in their export direction
-* Configure the route-policy default-export-v4 in the export
+* Configure the route-policy export-next-hop-self in the export
   direction on 198.51.100.18
-* Configure the route-policy default-export-v6 in the export
+* Configure the route-policy export-next-hop-self in the export
   direction on 2001:db8::18
 * Create the following BGP peers with their peer-group (these BGP peering will
   be established towards DUT 2 on test-originate NI)
@@ -1019,9 +1004,9 @@ Test-case RT-1.36.2 above.
 * Undo the connect route to BGP redistribution that was done on test-case RT-1.36.1
 * Remove test-export-policy in the export direction on both 198.51.100.22 and
   2001:db8::22 which is in their export direction
-* Configure the route-policy non-default-export-v4 in the
+* Configure the route-policy export-next-hop-self in the
   export direction on 198.51.100.22
-* Configure the route-policy non-default-export-v6 in the
+* Configure the route-policy export-next-hop-self in the
   export direction on 2001:db8::22
 * Create the following BGP peers with their peer-group (these BGP peering will
   be established towards DUT 2 on test-originate NI)
@@ -1208,7 +1193,7 @@ Test-case RT-1.36.1 above.
       "policy-definition": [
         {
           "config": {
-            "name": "default-export-v4"
+            "name": "export-next-hop-self"
           },
           "statements": {
             "statement": [
@@ -1219,79 +1204,7 @@ Test-case RT-1.36.1 above.
                 "actions": {
                   "bgp-actions": {
                     "config": {
-                      "set-next-hop": "198.55.1.1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "default-export-v6"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "2001:db8:50::1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "non-default-export-v4"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "198.55.2.1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "non-default-export-v6"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "2001:db8:60::1"
+                      "set-next-hop": "SELF"
                     }
                   },
                   "config": {
@@ -1371,7 +1284,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "default-export-v4"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1384,7 +1297,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "default-export-v6"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1577,7 +1490,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "non-default-export-v4"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1590,7 +1503,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "non-default-export-v6"
+                            "export-next-hop-self"
                           ]
                         }
                       }
