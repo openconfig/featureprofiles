@@ -1571,8 +1571,7 @@ func validatePrefixRouteOrigin(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, 
 			return false
 		}).Await(t)
 		if !ok {
-			pfx, _ := prefix.Val()
-			t.Fatalf("Prefix not updated with the origin. Got %v, want %v", pfx.GetOrigin(), wantOrigin)
+			t.Fatalf("Prefix not updated with the origin. Got %v, want %v", prefix, wantOrigin)
 		}
 	}
 	if !foundPrefix {
