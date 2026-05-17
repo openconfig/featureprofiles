@@ -252,7 +252,7 @@ type trapStats struct {
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
-	// TODO: Add traffic drop check 
+	// TODO: Add traffic drop check
 	if dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
