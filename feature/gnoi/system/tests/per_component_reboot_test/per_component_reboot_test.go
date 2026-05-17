@@ -53,8 +53,6 @@ const (
 )
 
 var (
-	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
-
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -240,15 +238,6 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
 	ip.Dst().SetValue(ateDst.IPv4) // Route THROUGH the DUT to the second ATE port
-}
-
-// trapStats represents a single row of trap statistics.
-type trapStats struct {
-	dev      int
-	trapcode int
-	name     string
-	count    int
-	rate     int
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
