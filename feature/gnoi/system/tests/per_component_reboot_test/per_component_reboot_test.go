@@ -53,6 +53,8 @@ const (
 )
 
 var (
+	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
+
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -210,7 +212,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// createTrafficFlows creates the traffic flows for each PBR policy.
+// traffic flows creation
 func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) {
 	t.Helper()
 
@@ -225,19 +227,32 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 	flow.Size().SetFixed(flowPacketSize)
 	flow.Duration().Continuous()
 
+	// Ethernet Layer
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	dutDstInterface := dut.Port(t, "port1").Name()
-	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+
+	// Target the MAC of the interface where traffic enters the DUT
+	dutIngressPort := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutIngressPort).Ethernet().MacAddress().State())
 	eth.Dst().SetValue(dstMac)
 
+	// IPv4 Layer
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
-	ip.Dst().SetValue(dutSrc.IPv4)
+	ip.Dst().SetValue(ateDst.IPv4) // Route THROUGH the DUT to the second ATE port
+}
+
+// trapStats represents a single row of trap statistics.
+type trapStats struct {
+	dev      int
+	trapcode int
+	name     string
+	count    int
+	rate     int
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
-	// TODO: Add traffic drop check for other vendors
+	// TODO: Add traffic drop check 
 	if dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
@@ -257,40 +272,20 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	initialCounters := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).Counters().State())
 	initialInPkts := initialCounters.GetInPkts()
 	t.Logf("initial incoming packets: %v", initialInPkts)
+
+	portName := dut.Port(t, "port1").Name()
+	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(portName).HardwarePort().State())
+	parent := checkParentComponent(t, dut, hardwarePort)
 	t.Log("Start protocols and traffic")
 	otgObj.StartProtocols(t)
 	otgObj.StartTraffic(t)
-	// New code begins here to use gnmi get instead of CLI to get the cda trap stats
-	// get hardware port of port1
-	portName := dut.Port(t, "port1").Name()
-	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(portName).HardwarePort().State())
-	//get the parent of the hardware port
-	parent := checkParentComponent(t, dut, hardwarePort)
-	//gnmi get for the below leaf for the parent pfe
-	//Report fail if the value is non zero
-	//Example : components/component[name=FPC0:PIC0:NPU1]/properties/property[name=epp-epc-cfg-common-trapcode-dual-hash-miss-pps]/state/value: 0
-	property := "epp-epc-cfg-common-trapcode-dual-hash-miss"
-	count := gnmi.Get(t, dut, gnmi.OC().Component(parent).Property(property).State()).GetValue()
-	t.Logf("property is %s count  value is %d", property, count)
-	property = "epp-epc-cfg-common-trapcode-dual-hash-miss-pps"
-	val := gnmi.Get(t, dut, gnmi.OC().Component(parent).Property(property).State()).GetValue()
-	rate := 0
-	switch v := val.(type) {
-	case oc.UnionUint64:
-		rate = int(v)
-	case oc.UnionInt64:
-		rate = int(v)
-	case oc.UnionFloat64:
-		rate = int(v)
-	default:
-		t.Fatalf("Error extracting epp-epc-cfg-common-trapcode-dual-hash-miss-pps,could not type assert union. union: %v", val)
-	}
-	t.Logf("rate value is %d", rate)
-	if rate != 0 {
-		t.Errorf("found non-zero rate for stat: %s, rate: %d", property, rate)
-	}
-	// New code ends here
 
+	//Capture AdverseAggregate drop value
+	adverseAggrDrop := gnmi.Get(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State())
+	if adverseAggrDrop != 0 {
+		t.Errorf("found non-zero value  %d for adverse-aggregate drop", adverseAggrDrop)
+	}
+	t.Logf("found value  %d for adverse-aggregate counter", adverseAggrDrop)
 	t.Log("Stop traffic")
 	otgObj.StopTraffic(t)
 	t.Log("Stop protocols")
