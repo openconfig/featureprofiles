@@ -2413,6 +2413,11 @@ test: {
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
 }
 test: {
+  id: "gNMI-1.29"
+  description: "Pipeline Counters Drops Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/README.md"
+}
+test: {
   id: "TE-18.4"
   description: "ECMP hashing on outer and inner packets with MPLSoUDP encapsulation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gribi/mpls_in_udp/otg_tests/mpls_over_udp_tunnel_hashing_test/README.md"
