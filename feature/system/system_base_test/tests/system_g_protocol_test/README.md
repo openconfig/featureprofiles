@@ -30,16 +30,16 @@ cannot negotiate a PQC cipher suite.
 
 | ID          | Case         | Result          |
 | ----------- | ------------ | --------------- |
-| service-1.1 | gNMI client  | gNMI Get works  |
-| service-1.2 | gNOI client  | gNOI system Time works |
-| service-1.3 | gNSI client  | gNSI authz Get works |
-| service-1.4 | gRIBI client | gRIBI Get works |
-| service-1.5 | p4rt client  | P4RT Capabilities works |
-| service-1.6 | gNMI PQC client   | gNMI Get works  |
-| service-1.7 | gNOI PQC client   | gNOI system Time works |
-| service-1.8 | gNSI PQC client   | gNSI authz Get works |
-| service-1.9 | gRIBI PQC client   | gRIBI Get works |
-| service-1.10 | p4rt PQC client   | P4RT Capabilities works |
+| service-1.1 | gNMI client  | gNMI Get works with standard TLS Cipher Suite |
+| service-1.2 | gNOI client  | gNOI system Time works with standard TLS Cipher Suite |
+| service-1.3 | gNSI client  | gNSI authz Get works with standard TLS Cipher Suite |
+| service-1.4 | gRIBI client | gRIBI Get works with standard TLS Cipher Suite |
+| service-1.5 | p4rt client  | P4RT Capabilities works with standard TLS Cipher Suite |
+| service-1.6 | gNMI PQC client   | gNMI Get works with PQC TLS Cipher Suite |
+| service-1.7 | gNOI PQC client   | gNOI system Time works with PQC TLS Cipher Suite |
+| service-1.8 | gNSI PQC client   | gNSI authz Get works with PQC TLS Cipher Suite |
+| service-1.9 | gRIBI PQC client   | gRIBI Get works with PQC TLS Cipher Suite |
+| service-1.10 | p4rt PQC client   | P4RT Capabilities works with PQC TLS Cipher Suite |
 
 1. Configure DUT with service configurations for all required services
 2. Each test will then create a client to those services and valid each service is properly
