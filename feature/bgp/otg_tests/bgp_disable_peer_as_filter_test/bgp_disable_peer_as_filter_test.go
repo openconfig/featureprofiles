@@ -115,8 +115,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // configureBGP configures BGP neighbors
-func configureBGP(t *testing.T, dut *ondatra.DUTDevice) {
+func configureBGP(t *testing.T, dut *ondatra.DUTDevice, atePort2AS uint32) {
 	t.Helper()
+
 	dutOcRoot := &oc.Root{}
 	ni1 := dutOcRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	niProto := ni1.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
@@ -138,7 +139,7 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// Peer Group 2 for ATE Port 2
 	pg2 := bgp.GetOrCreatePeerGroup(peerGrpName2)
-	pg2.SetPeerAs(ateAS2)
+	pg2.SetPeerAs(atePort2AS)
 	pg2.SetPeerGroupName(peerGrpName2)
 	pg2af4 := pg2.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	pg2af4.SetEnabled(true)
@@ -165,7 +166,7 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure neighbor for ATE Port 2
 	nbr2v4 := bgp.GetOrCreateNeighbor(atePort2.IPv4)
 	nbr2v4.SetPeerGroup(peerGrpName2)
-	nbr2v4.SetPeerAs(ateAS2)
+	nbr2v4.SetPeerAs(atePort2AS)
 	nbr2v4.SetEnabled(true)
 	af2v4 := nbr2v4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af2v4.SetEnabled(true)
@@ -174,7 +175,7 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice) {
 
 	nbr2v6 := bgp.GetOrCreateNeighbor(atePort2.IPv6)
 	nbr2v6.SetPeerGroup(peerGrpName2)
-	nbr2v6.SetPeerAs(ateAS2)
+	nbr2v6.SetPeerAs(atePort2AS)
 	nbr2v6.SetEnabled(true)
 	af2v6nbr := nbr2v6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 	af2v6nbr.SetEnabled(true)
@@ -202,8 +203,9 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) err
 }
 
 // configureOTG sets up ATE interfaces and BGP protocols
-func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32) gosnappi.Config {
+func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, atePort2AS uint32) gosnappi.Config {
 	t.Helper()
+
 	config := gosnappi.NewConfig()
 	port1 := config.Ports().Add().SetName("port1")
 	port2 := config.Ports().Add().SetName("port2")
@@ -217,7 +219,7 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32) gosnappi.Config {
 	atePort1IPv6 := atePort1Eth.Ipv6Addresses().Add().SetName(atePort1.Name + ".IPv6")
 	atePort1IPv6.SetAddress(atePort1.IPv6).SetGateway(dutPort1.IPv6).SetPrefix(uint32(atePort1.IPv6Len))
 
-	// ATE Port 2 configuration (AS 64497)
+	// ATE Port 2 configuration (AS specified by atePort2AS parameter)
 	atePort2Dev := config.Devices().Add().SetName(atePort2.Name)
 	atePort2Eth := atePort2Dev.Ethernets().Add().SetName(atePort2.Name + ".Eth").SetMac(atePort2.MAC)
 	atePort2Eth.Connection().SetPortName(port2.Name())
@@ -239,11 +241,11 @@ func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32) gosnappi.Config {
 	// BGP on ATE Port 2
 	atePort2Bgp := atePort2Dev.Bgp().SetRouterId(atePort2IPv4.Address())
 	atePort2Bgp4Peer := atePort2Bgp.Ipv4Interfaces().Add().SetIpv4Name(atePort2IPv4.Name()).Peers().Add().SetName(atePort2.Name + ".BGP4.peer")
-	atePort2Bgp4Peer.SetPeerAddress(dutPort2.IPv4).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
+	atePort2Bgp4Peer.SetPeerAddress(dutPort2.IPv4).SetAsNumber(atePort2AS).SetAsType(gosnappi.BgpV4PeerAsType.EBGP)
 	atePort2Bgp4Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	atePort2Bgp6Peer := atePort2Bgp.Ipv6Interfaces().Add().SetIpv6Name(atePort2IPv6.Name()).Peers().Add().SetName(atePort2.Name + ".BGP6.peer")
-	atePort2Bgp6Peer.SetPeerAddress(dutPort2.IPv6).SetAsNumber(ateAS2).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
+	atePort2Bgp6Peer.SetPeerAddress(dutPort2.IPv6).SetAsNumber(atePort2AS).SetAsType(gosnappi.BgpV6PeerAsType.EBGP)
 	atePort2Bgp6Peer.LearnedInformationFilter().SetUnicastIpv4Prefix(true).SetUnicastIpv6Prefix(true)
 
 	// Configure IPv4 routes on ATE Port 1 with specified AS path
@@ -410,6 +412,7 @@ type testCase struct {
 	expectedASPath      []uint32
 	verifyASPath        bool
 	peerGroup           bool
+	atePort2AS          uint32 // AS number for ATE Port 2
 }
 
 func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
@@ -419,7 +422,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 
 	t.Run("Setting up DUT and BGP on DUT", func(t *testing.T) {
 		configureDUT(t, dut)
-		configureBGP(t, dut)
+		configureBGP(t, dut, ateAS2)
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
@@ -434,6 +437,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			disablePeerASFilter: false,
 			verifyASPath:        false,
 			peerGroup:           false,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.2: Enable disable-peer-as-filter at neighbor level",
@@ -442,6 +446,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			disablePeerASFilter: true,
 			verifyASPath:        false,
 			peerGroup:           false,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.3: Test Originating Peer AS",
@@ -451,6 +456,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS2, ateAS4},
 			verifyASPath:        true,
 			peerGroup:           false,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.4: Private AS Number Scenario",
@@ -460,18 +466,30 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS3, ateAS4},
 			verifyASPath:        true,
 			peerGroup:           false,
+			atePort2AS:          ateAS3, // Private AS 64512 for Port 2
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+
+			// Reconfigure BGP with appropriate AS for Port 2
+			configureDUT(t, dut)
+			configureBGP(t, dut, tc.atePort2AS)
+
 			// Configure BGP with appropriate settings
 			b := &gnmi.SetBatch{}
-			tc.setupFunc(t, dut, b, cfgplugins.BGPConfig{ApplyOnPeerGroup: false, DutAS: dutAS})
+			bgpConfig := cfgplugins.BGPConfig{
+				ApplyOnPeerGroup: false,
+				DutAS:            dutAS,
+				PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
+				NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
+			}
+			tc.setupFunc(t, dut, b, bgpConfig)
 			b.Set(t, dut)
 
 			// Configure ATE and establish BGP sessions
-			config := configureOTG(t, otgClient, tc.asSeg)
+			config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
 
 			// Verify BGP sessions are established
 			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
@@ -503,7 +521,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 
 	t.Run("Setting up DUT and BGP", func(t *testing.T) {
 		configureDUT(t, dut)
-		configureBGP(t, dut)
+		configureBGP(t, dut, ateAS2)
 	})
 
 	t.Run("Configure DEFAULT network instance", func(t *testing.T) {
@@ -518,6 +536,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			disablePeerASFilter: false,
 			verifyASPath:        false,
 			peerGroup:           true,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.5.2: Enable disable-peer-as-filter at peer group level",
@@ -526,6 +545,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			disablePeerASFilter: true,
 			verifyASPath:        false,
 			peerGroup:           true,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.5.3: Test Originating Peer AS",
@@ -535,6 +555,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS2, ateAS4},
 			verifyASPath:        true,
 			peerGroup:           true,
+			atePort2AS:          ateAS2,
 		},
 		{
 			name:                "RT-1.71.5.4: Private AS Number Scenario",
@@ -544,18 +565,30 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			expectedASPath:      []uint32{dutAS, ateAS1, ateAS3, ateAS4},
 			verifyASPath:        true,
 			peerGroup:           true,
+			atePort2AS:          ateAS3, // Private AS 64512 for Port 2
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+
+			// Reconfigure BGP with appropriate AS for Port 2
+			configureDUT(t, dut)
+			configureBGP(t, dut, tc.atePort2AS)
+
 			// Configure BGP with appropriate settings
 			b := &gnmi.SetBatch{}
-			tc.setupFunc(t, dut, b, cfgplugins.BGPConfig{ApplyOnPeerGroup: true, DutAS: dutAS})
+			bgpConfig := cfgplugins.BGPConfig{
+				ApplyOnPeerGroup: true,
+				DutAS:            dutAS,
+				PeerGroupNames:   []string{peerGrpName1, peerGrpName2},
+				NeighborIPs:      []string{atePort1.IPv4, atePort2.IPv4, atePort1.IPv6, atePort2.IPv6},
+			}
+			tc.setupFunc(t, dut, b, bgpConfig)
 			b.Set(t, dut)
 
 			// Configure ATE and establish BGP sessions
-			config := configureOTG(t, otgClient, tc.asSeg)
+			config := configureOTG(t, otgClient, tc.asSeg, tc.atePort2AS)
 
 			// Verify BGP sessions are established
 			if err := verifyBGPTelemetry(t, dut, []string{atePort1.IPv4, atePort1.IPv6, atePort2.IPv4, atePort2.IPv6}); err != nil {
