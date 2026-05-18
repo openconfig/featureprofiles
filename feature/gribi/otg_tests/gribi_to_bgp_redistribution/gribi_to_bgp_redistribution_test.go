@@ -116,7 +116,6 @@ type OTGBGPPrefix struct {
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
-	configureHardwareInit(t, dut)
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -484,21 +483,6 @@ func verifyOTGBGPEstablished(t *testing.T, ate *ondatra.ATEDevice) {
 		t.Fatalf("BGP sessions not established: got %v", val)
 	}
 	t.Log("OTG BGP sessions established")
-}
-
-// configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
-func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	features := []cfgplugins.FeatureType{
-		cfgplugins.FeatureVrfSelectionExtended,
-		cfgplugins.FeaturePolicyForwarding,
-	}
-	for _, feature := range features {
-		hardwareInitCfg := cfgplugins.NewDUTHardwareInit(t, dut, feature)
-		if hardwareInitCfg != "" {
-			cfgplugins.PushDUTHardwareInitConfig(t, dut, hardwareInitCfg)
-		}
-	}
 }
 
 // validateRoutingPolicyV4 verifies the correctness of the IPv4 BGP export routing policy applied on the DUT and its effects observed on the ATE.
