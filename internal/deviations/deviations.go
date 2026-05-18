@@ -2190,4 +2190,3 @@ func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
 }
-
