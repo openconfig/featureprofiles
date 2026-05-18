@@ -13,7 +13,6 @@ platform_exceptions: {
   deviations: {
     oc_aaa_user_role_leaf_string_type_unsupported: true
     acctz_shell_cmd_accounting_unsupported: true
-    acctz_records_authz_status_deny_unsupported: true
   }
 }
 platform_exceptions: {
@@ -37,3 +36,15 @@ platform_exceptions: {
     acctz_record_session_channel_id_unsupported: true
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    acctz_shell_cmd_accounting_unsupported: true
+    acctz_record_fail_command_unsupported: true
+    acctz_record_fail_grpc_unsupported: true
+  }
+}
+
