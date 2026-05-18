@@ -2186,6 +2186,7 @@ func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 
 // LACPInterfaceMemberStateInterfaceUnsupported returns true if the device does not support
 // /lacp/interfaces/interface/members/member/state/interface.
+// Nokia: https://issuetracker.google.com/514181497
 func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
 }
