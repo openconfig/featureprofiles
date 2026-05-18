@@ -1339,6 +1339,7 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // ContainerzRetrieveLogsUnsupported returns true if Containerz log retrieval is unsupported.
+// https://partnerissuetracker.corp.google.com/issues/510547636
 func ContainerzRetrieveLogsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzRetrieveLogsUnsupported()
 }
