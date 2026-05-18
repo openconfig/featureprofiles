@@ -29,11 +29,19 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance string
-	Prefix          string
-	NextHops        map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	IPType          string
-	NextHopAddr     string
+	NetworkInstance  string
+	Prefix           string
+	NextHops         map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType           string
+	NextHopAddr      string
+	NexthopGroup     bool
+	NexthopGroupName string
+	Metric           uint32
+	Recurse          bool
+	T                *testing.T
+	TrafficType      oc.E_Aft_EncapsulationHeaderType
+	PolicyName       string
+	Rule             string
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -60,14 +68,37 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 		Name:       ygot.String(deviations.StaticProtocolName(d)),
 	}
 	s := c.GetOrCreateStatic(cfg.Prefix)
-	for k, v := range cfg.NextHops {
-		nh := s.GetOrCreateNextHop(k)
-		nh.NextHop = v
+	if cfg.NexthopGroup {
+		if deviations.StaticRouteToNHGOCUnsupported(d) {
+			switch d.Vendor() {
+			case ondatra.ARISTA:
+				cli := fmt.Sprintf(`ipv6 route %s nexthop-group %s`, cfg.Prefix, cfg.NexthopGroupName)
+				helpers.GnmiCLIConfig(cfg.T, d, cli)
+				staticRouteToNextHopGroupCLI(cfg.T, d, *cfg)
+			default:
+				return s, fmt.Errorf("deviation StaticRouteToNHGOCUnsupported is not handled for the dut: %s", d.Vendor())
+			}
+		} else {
+			nhg := s.GetOrCreateNextHopGroup()
+			nhg.SetName(cfg.NexthopGroupName)
+		}
 	}
-	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
-	gnmi.BatchUpdate(batch, sp.Config(), c)
-	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
-
+	if cfg.NextHops != nil {
+		for k, v := range cfg.NextHops {
+			nh := s.GetOrCreateNextHop(k)
+			nh.SetIndex(k)
+			nh.NextHop = v
+			if cfg.Metric != 0 {
+				nh.SetMetric(cfg.Metric)
+			}
+			if cfg.Recurse {
+				nh.SetRecurse(cfg.Recurse)
+			}
+		}
+		sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+		gnmi.BatchUpdate(batch, sp.Config(), c)
+		gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
+	}
 	return s, nil
 }
 
@@ -93,6 +124,34 @@ func StaticRouteNextNetworkInstance(t *testing.T, dut *ondatra.DUTDevice, cfg *S
 	} else {
 		spNetInst.GetOrCreateNextHop("0").SetNextNetworkInstance("DEFAULT")
 		spNetInst.GetOrCreateNextHop("0").SetNextHop(oc.UnionString(cfg.Prefix))
+	}
+}
+
+// staticRouteToNextHopGroupCLI configures routes to a next-hop-group for gue encapsulation
+func staticRouteToNextHopGroupCLI(t *testing.T, dut *ondatra.DUTDevice, params StaticRouteCfg) {
+	t.Helper()
+	groupType := ""
+
+	switch params.TrafficType {
+	case oc.Aft_EncapsulationHeaderType_UDPV4:
+		groupType = "ipv4"
+	case oc.Aft_EncapsulationHeaderType_UDPV6:
+		groupType = "ipv6"
+	}
+
+	// Configure traffic policy
+	cli := ""
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cli = fmt.Sprintf(`
+				traffic-policies
+				traffic-policy %s
+      			match %s %s
+         		actions
+            	redirect next-hop group %s`, params.PolicyName, params.Rule, groupType, params.NexthopGroupName)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("Unsupported vendor %s for native command support for deviation 'policy-forwarding config'", dut.Vendor())
 	}
 }
 
