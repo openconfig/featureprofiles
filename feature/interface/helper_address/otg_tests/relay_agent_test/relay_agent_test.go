@@ -44,8 +44,8 @@ func TestMain(m *testing.M) {
 const (
 	ipv4PrefixLen           = 30
 	ipv6PrefixLen           = 126
-	dhcpLeaseStartAddress   = "192.0.2.34"
-	dhcpLeaseGateway        = "192.0.2.33"
+	dhcpLeaseStartAddress   = "10.1.2.34"
+	dhcpLeaseGateway        = "10.1.2.33"
 	dhcpLeasePrefixLen      = 27
 	dhcpV6LeaseStartAddress = "2001:db8:a:1::2"
 	dhcpV6LeasePrefixLen    = 64
@@ -59,7 +59,7 @@ var (
 	dutP1 = attrs.Attributes{
 		Name:    "dutP1",
 		Desc:    "dhcp-relay-port",
-		IPv4:    "192.0.2.33",
+		IPv4:    "10.1.2.33",
 		IPv6:    "2001:db8:a:1::1",
 		IPv4Len: dhcpLeasePrefixLen,
 		IPv6Len: dhcpV6LeasePrefixLen,
@@ -76,7 +76,7 @@ var (
 	dutP3 = attrs.Attributes{
 		Name:    "dutP3",
 		Desc:    "dutate-2",
-		IPv4:    "192.0.2.253",
+		IPv4:    "10.1.2.253",
 		IPv6:    "2001:db8:a:2::2",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
@@ -85,7 +85,7 @@ var (
 	ateP3 = attrs.Attributes{
 		Name:    "ateP3",
 		MAC:     "02:00:02:01:01:02",
-		IPv4:    "192.0.2.254",
+		IPv4:    "10.1.2.254",
 		IPv6:    "2001:db8:a:2::1",
 		IPv4Len: ipv4PrefixLen,
 		IPv6Len: ipv6PrefixLen,
@@ -461,7 +461,7 @@ func (tc *testCase) deleteInterfaceConfig(t *testing.T) {
 			cfgplugins.DeleteAggregate(t, tc.dut, tc.aggID, dutAggPorts)
 		}
 	} else {
-		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[0].Name()).Config())
+		gnmi.Delete(t, tc.dut, gnmi.OC().Interface(tc.dutPorts[0].Name()).Subinterface(dutP1.ID).Config())
 	}
 }
 
