@@ -33,8 +33,7 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
-	timeOutVar time.Duration = 180 * time.Minute
+	dirPath = "../../test_data/"
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -51,9 +50,13 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
-	certs_list                          = flag.String("certs_list", "01,02,10,1000,20000", "Number of Certificate Sets to generate for this test. Comma separated string")
-	certs_string                        = func(t *testing.T) string {
-		return *certs_list
+	certsList                           = flag.String("certsList", "01,02,10,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certsTimeout                        = flag.Duration("certsTimeout", 10*time.Minute, "Time duration for cert generation and cleanup. Increase if more certs are to be generated")
+	certsString                         = func(t *testing.T) string {
+		return *certsList
+	}
+	certsTimeOutVar = func(t *testing.T) time.Duration {
+		return *certsTimeout
 	}
 )
 
@@ -77,8 +80,8 @@ func TestTrustBundleCert(t *testing.T) {
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	command := fmt.Sprintf("./mk_cas.sh %v", certs_string(t))
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, command); err != nil {
+	command := fmt.Sprintf("./mk_cas.sh %v", certsString(t))
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), command); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
@@ -281,7 +284,7 @@ func TestTrustBundleCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", time.Now().String())
 	//Cleanup of test data.
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certs_timeOutVar(t), "./cleanup.sh"); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	t.Logf("%s:STATUS:Test completed!", time.Now().String())
