@@ -261,14 +261,13 @@ func IPEqual(got, want string) bool {
 	return got == want
 }
 
-// generateIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
+// generateIPv6 creates IPv6 Entries given the totalCount and starting prefix
 func GenerateIPv6(startIP string, count uint64) ([]string, error) {
 	if startIP == "" {
 		return nil, fmt.Errorf("invalid IPv6 address")
 	}
 
 	_, netCIDR, _ := net.ParseCIDR(startIP)
-	fmt.Println(netCIDR)
 
 	if netCIDR == nil {
 		return nil, fmt.Errorf("parsed CIDR is nil for input: %s", startIP)

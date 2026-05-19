@@ -53,8 +53,6 @@ Validations = []packetvalidationhelpers.ValidationType{
 2. Validate the IPV6 header (ValidateIPv6Header).
 */
 
-var packetSourceObj *gopacket.PacketSource
-
 // IPv4 and IPv6 are the IP protocol types.
 const (
 	IPv4 = "IPv4"
@@ -180,7 +178,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 	if _, err := f.Write(bytes); err != nil {
 		return fmt.Errorf("could not write bytes to pcap file: %v", err)
 	}
-	defer os.Remove(f.Name()) // Clean up the temporary file
+	// defer os.Remove(f.Name()) // Clean up the temporary file
 	f.Close()
 
 	handle, err := pcap.OpenOffline(f.Name())
@@ -280,8 +278,10 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ip.TTL != packetVal.IPv4Layer.TTL {
 				return fmt.Errorf("IP TTL value is altered to: %d, expected: %d", ip.TTL, packetVal.IPv4Layer.TTL)
 			}
-			if ip.TOS != packetVal.IPv4Layer.Tos {
-				return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
+			if packetVal.IPv4Layer.Tos != 0 {
+				if ip.TOS != packetVal.IPv4Layer.Tos {
+					return fmt.Errorf("DSCP(TOS) value is altered to: %d, expected: %d", ip.TOS, packetVal.IPv4Layer.Tos)
+				}
 			}
 			// If validation is successful for one packet, we can return.
 			return nil
@@ -308,8 +308,10 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 			if ipv6.HopLimit != packetVal.IPv6Layer.HopLimit {
 				return fmt.Errorf("IPv6 HopLimit value is altered to: %d. Expected: %d", ipv6.HopLimit, packetVal.IPv6Layer.HopLimit)
 			}
-			if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
-				return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+			if packetVal.IPv6Layer.TrafficClass != 0 {
+				if ipv6.TrafficClass != packetVal.IPv6Layer.TrafficClass {
+					return fmt.Errorf("traffic class value is altered to: %d. expected: %d", ipv6.TrafficClass, packetVal.IPv6Layer.TrafficClass)
+				}
 			}
 			if packetVal.IPv6Layer.NextHeader != 0 {
 				if uint32(ipv6.NextHeader) != packetVal.IPv6Layer.NextHeader {

@@ -330,7 +330,12 @@ var (
 		PortName:    "port1",
 		CaptureName: "decapCapture",
 		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv4Header},
-		IPv6Layer:   outerGUEIPLayerIPv6,
+	}
+
+	decapValidationv6 = &packetvalidationhelpers.PacketValidation{
+		PortName:    "port1",
+		CaptureName: "decapCapture",
+		Validations: []packetvalidationhelpers.ValidationType{packetvalidationhelpers.ValidateIPv6Header},
 	}
 )
 
@@ -957,14 +962,8 @@ func validateAFTCounters(t *testing.T, dut *ondatra.DUTDevice, isV4 bool, routeI
 }
 
 func testTrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config, flowNames map[string][]string, dscpVal string) {
-	t.Log("Validate IPv6 GUE encapsulation and decapsulation")
+	t.Logf("Validating flow migrated to %s", dscpVal)
 	sendTrafficCapture(t, ate, flowNames["v4"])
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flow := range flowNames["v4"] {
-		verifyTrafficFlow(t, ate, flow)
-	}
 
 	// Validating GUEv6 encapsulation and decapsulation for v4 traffic
 	t.Log("Validate GUE encapsulation with ipv4 traffic")
@@ -997,19 +996,48 @@ func testTrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 
 	t.Log("Validate GUE encapsulation with ipv6 traffic")
 	sendTrafficCapture(t, ate, flowNames["v6"])
-	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
-
-	for _, flow := range flowNames["v6"] {
-		verifyTrafficFlow(t, ate, flow)
-	}
 
 	encapValidationv6.IPv6Layer.TrafficClass = uint8(dscpValue[dscpVal])
 	if err := validatePacket(t, ate, encapValidationv6); err != nil {
 		t.Errorf("capture and validatePackets failed (): %q", err)
 	}
 
+	t.Log("Validate GUE Decapsulation with v6 traffic")
+	decapInnerv6 := *innerGUEIPLayerIPv6
+	decapInnerv6.NextHeader = 0
+	decapInnerv6.TrafficClass = uint8(dscpValue[dscpVal])
+	decapValidationv6.IPv6Layer = &decapInnerv6
+	if err := validatePacket(t, ate, decapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed: %q", err)
+	} else {
+		t.Log("GUE decapsulated packets are received")
+	}
+
 	// Validate the counters received on ATE and DUT are same
 	validateOutCounters(t, dut, ate.OTG())
+}
+
+func testDecapTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
+
+	t.Log("Validate GUE Decapsulation with v4 traffic")
+	decapInner := *innerGUEIPLayerIPv4
+	decapInner.SkipProtocolCheck = true
+	decapValidation.IPv4Layer = &decapInner
+
+	if err := validatePacket(t, ate, decapValidation); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	} else {
+		t.Log("GUE decapsulated packets are received")
+	}
+
+	decapInnerv6 := *innerGUEIPLayerIPv6
+	decapInnerv6.NextHeader = 0
+	decapValidationv6.IPv6Layer = &decapInnerv6
+	if err := validatePacket(t, ate, decapValidationv6); err != nil {
+		t.Errorf("capture and validatePackets failed (): %q", err)
+	} else {
+		t.Log("GUE decapsulated packets are received")
+	}
 }
 
 func configureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
@@ -1649,11 +1677,7 @@ func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		"v6": {},
 	}
 
-	otgConfig.Flows().Clear()
-
 	for _, flow := range flowsets {
-		otgConfig.Flows().Append(flowGroups[flow].Flows[0:2]...)
-
 		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[0].Name())
 		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[1].Name())
 	}
@@ -1671,6 +1695,11 @@ func testBE1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
 	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 1, 7)
 
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
 	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "BE1")
 
 }
@@ -1684,11 +1713,7 @@ func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		"v6": {},
 	}
 
-	otgConfig.Flows().Clear()
-
 	for _, flow := range flowsets {
-		otgConfig.Flows().Append(flowGroups[flow].Flows[2:4]...)
-
 		flowNames["v4"] = append(flowNames["v4"], flowGroups[flow].Flows[2].Name())
 		flowNames["v6"] = append(flowNames["v6"], flowGroups[flow].Flows[3].Name())
 	}
@@ -1706,6 +1731,11 @@ func testAF1TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
 	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 2, 7)
 
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
 	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF1")
 }
 
@@ -1718,13 +1748,9 @@ func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		"v6": {},
 	}
 
-	otgConfig.Flows().Clear()
-
-	otgConfig.Flows().Append(flowGroups["flowSet1"].Flows[4:]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet1"].Flows[4].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet1"].Flows[5].Name())
 
-	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[4:6]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[4].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[5].Name())
 
@@ -1740,6 +1766,11 @@ func testAF2TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
 	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 3, 7)
 
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
 	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF2")
 }
 
@@ -1752,13 +1783,9 @@ func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		"v6": {},
 	}
 
-	otgConfig.Flows().Clear()
-
-	otgConfig.Flows().Append(flowGroups["flowSet2"].Flows[0:2]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[0].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[1].Name())
 
-	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[6:8]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[6].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[7].Name())
 
@@ -1775,6 +1802,11 @@ func testAF3TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
 	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 4, 7)
 
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
+
 	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF3")
 }
 
@@ -1787,13 +1819,9 @@ func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 		"v6": {},
 	}
 
-	otgConfig.Flows().Clear()
-
-	otgConfig.Flows().Append(flowGroups["flowSet2"].Flows[2:]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet2"].Flows[2].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet2"].Flows[3].Name())
 
-	otgConfig.Flows().Append(flowGroups["flowSet5"].Flows[8:10]...)
 	flowNames["v4"] = append(flowNames["v4"], flowGroups["flowSet5"].Flows[8].Name())
 	flowNames["v6"] = append(flowNames["v6"], flowGroups["flowSet5"].Flows[9].Name())
 
@@ -1809,6 +1837,11 @@ func testAF4TrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.
 	time.Sleep(10 * time.Second)
 	// Validating routes to prefixes learnt from $ATE2_C.IBGP.v6/128
 	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 5, 7)
+
+	sendTrafficCapture(t, ate, []string{"all"})
+
+	otgutils.LogFlowMetrics(t, ate.OTG(), otgConfig)
+	otgutils.LogPortMetrics(t, ate.OTG(), otgConfig)
 
 	testTrafficMigration(t, dut, ate, otgConfig, flowNames, "AF4")
 }
@@ -1843,6 +1876,9 @@ func testDUTDecapNode(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevi
 			verifyTrafficFlow(t, ate, flow.Name())
 		}
 	}
+
+	testDecapTraffic(t, dut, ate, otgConfig)
+
 }
 
 func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
@@ -1881,6 +1917,9 @@ func testTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 			verifyTrafficFlow(t, ate, flow.Name())
 		}
 	}
+
+	testDecapTraffic(t, dut, ate, otgConfig)
+
 }
 
 func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
@@ -1947,7 +1986,7 @@ func testIbgpTunnelEndpointRemoved(t *testing.T, dut *ondatra.DUTDevice, ate *on
 			verifyTrafficFlow(t, ate, flow.Name())
 		}
 	}
-
+	testDecapTraffic(t, dut, ate, otgConfig)
 }
 
 func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
@@ -2010,4 +2049,5 @@ func testEstablishIBGPoverEBGP(t *testing.T, dut *ondatra.DUTDevice, ate *ondatr
 			verifyTrafficFlow(t, ate, flow.Name())
 		}
 	}
+	testDecapTraffic(t, dut, ate, otgConfig)
 }
