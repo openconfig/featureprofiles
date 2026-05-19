@@ -441,12 +441,12 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
 		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
 		if txPackets == 0 {
-			t.Logf("TxPkts = 0, want > 0")
+			t.Fatalf("TxPkts = 0, want > 0")
 		}
 		lostPackets := txPackets - rxPackets
 		lossPct := lostPackets * 100 / txPackets
 		if lossPct > tolerancePct {
-			t.Logf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
+			t.Fatalf("Traffic Loss Pct for Flow %s: got %v, want max %v pct failure", flow.Name(), lossPct, tolerancePct)
 		} else {
 			t.Logf("Traffic Test Passed! for flow %s", flow.Name())
 		}
