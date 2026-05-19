@@ -1452,8 +1452,15 @@ type Metadata_Deviations struct {
 	BgpMultipathPathsUnderPeerGroupUnsupported bool `protobuf:"varint,423,opt,name=bgp_multipath_paths_under_peer_group_unsupported,json=bgpMultipathPathsUnderPeerGroupUnsupported,proto3" json:"bgp_multipath_paths_under_peer_group_unsupported,omitempty"`
 	// Functional translator for Cisco XR vendor drop counters.
 	CiscoxrVendordropFt string `protobuf:"bytes,424,opt,name=ciscoxr_vendordrop_ft,json=ciscoxrVendordropFt,proto3" json:"ciscoxr_vendordrop_ft,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	// Device does not support
+	// /lacp/interfaces/interface/members/member/state/interface.
+	// Nokia: https://issuetracker.google.com/514181497
+	LacpInterfaceMemberStateInterfaceUnsupported bool `protobuf:"varint,425,opt,name=lacp_interface_member_state_interface_unsupported,json=lacpInterfaceMemberStateInterfaceUnsupported,proto3" json:"lacp_interface_member_state_interface_unsupported,omitempty"`
+	// Device does not support retrieving Containerz logs.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
+	ContainerzRetrieveLogsUnsupported bool `protobuf:"varint,426,opt,name=containerz_retrieve_logs_unsupported,json=containerzRetrieveLogsUnsupported,proto3" json:"containerz_retrieve_logs_unsupported,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4209,6 +4216,20 @@ func (x *Metadata_Deviations) GetCiscoxrVendordropFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetLacpInterfaceMemberStateInterfaceUnsupported() bool {
+	if x != nil {
+		return x.LacpInterfaceMemberStateInterfaceUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetContainerzRetrieveLogsUnsupported() bool {
+	if x != nil {
+		return x.ContainerzRetrieveLogsUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4265,7 +4286,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x91\xed\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xcd\xee\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4277,7 +4298,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xdd\xe2\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x99\xe4\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4672,7 +4693,9 @@ const file_metadata_proto_rawDesc = "" +
 	"0nexthop_group_pseudowire_counters_oc_unsupported\x18\xa5\x03 \x01(\bR+nexthopGroupPseudowireCountersOcUnsupported\x12M\n" +
 	"#per_flow_load_balancing_unsupported\x18\xa6\x03 \x01(\bR\x1fperFlowLoadBalancingUnsupported\x12e\n" +
 	"0bgp_multipath_paths_under_peer_group_unsupported\x18\xa7\x03 \x01(\bR*bgpMultipathPathsUnderPeerGroupUnsupported\x123\n" +
-	"\x15ciscoxr_vendordrop_ft\x18\xa8\x03 \x01(\tR\x13ciscoxrVendordropFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x15ciscoxr_vendordrop_ft\x18\xa8\x03 \x01(\tR\x13ciscoxrVendordropFt\x12h\n" +
+	"1lacp_interface_member_state_interface_unsupported\x18\xa9\x03 \x01(\bR,lacpInterfaceMemberStateInterfaceUnsupported\x12P\n" +
+	"$containerz_retrieve_logs_unsupported\x18\xaa\x03 \x01(\bR!containerzRetrieveLogsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
