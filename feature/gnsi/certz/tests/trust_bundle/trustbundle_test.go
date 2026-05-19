@@ -18,6 +18,8 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
@@ -49,9 +51,14 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
+	certs_list                          = flag.String("certs_list", "01,02,10,1000,20000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certs_string                        = func(t *testing.T) string {
+		return *certs_list
+	}
 )
 
 func TestMain(m *testing.M) {
+	flag.Parse()
 	fptest.RunTests(m)
 }
 
@@ -70,7 +77,8 @@ func TestTrustBundleCert(t *testing.T) {
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
+	command := fmt.Sprintf("./mk_cas.sh %v", certs_string(t))
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, timeOutVar, command); err != nil {
 		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
