@@ -930,6 +930,9 @@ Test-case RT-1.36.1 above.
 The following configuration steps are additions to the configuration done on
 Test-case RT-1.36.2 above.
 
+This test validates the propagation of AIGP when the next-hop
+between peers is changed using the bgp next-hop-self feature.
+
 #### Effective Emulated Test Topology
 
 ```text
@@ -953,28 +956,10 @@ Test-case RT-1.36.2 above.
 
 #### Create BGP export policy
 
-*  Create a route-policy named default-export-v4
+*  Create a route-policy named export-next-hop-self
     * Create a statement named test-statement
     * Create the following actions
-      * set-next-hop 198.55.1.1
-      * accept the route
-
-*  Create a route-policy named default-export-v6
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 2001:db8:50::1
-      * accept the route
-
-*  Create a route-policy named non-default-export-v4
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 198.55.2.1
-      * accept the route
-
-*  Create a route-policy named non-default-export-v6
-    * Create a statement named test-statement
-    * Create the following actions
-      * set-next-hop 2001:db8:60::1
+      * set-next-hop SELF
       * accept the route
 
 #### Configure ISIS
@@ -1005,9 +990,9 @@ Test-case RT-1.36.2 above.
 
 * Remove test-export-policy in the export direction on both 198.51.100.18 and
   2001:db8::18 which is in their export direction
-* Configure the route-policy default-export-v4 in the export
+* Configure the route-policy export-next-hop-self in the export
   direction on 198.51.100.18
-* Configure the route-policy default-export-v6 in the export
+* Configure the route-policy export-next-hop-self in the export
   direction on 2001:db8::18
 * Create the following BGP peers with their peer-group (these BGP peering will
   be established towards DUT 2 on test-originate NI)
@@ -1019,9 +1004,9 @@ Test-case RT-1.36.2 above.
 * Undo the connect route to BGP redistribution that was done on test-case RT-1.36.1
 * Remove test-export-policy in the export direction on both 198.51.100.22 and
   2001:db8::22 which is in their export direction
-* Configure the route-policy non-default-export-v4 in the
+* Configure the route-policy export-next-hop-self in the
   export direction on 198.51.100.22
-* Configure the route-policy non-default-export-v6 in the
+* Configure the route-policy export-next-hop-self in the
   export direction on 2001:db8::22
 * Create the following BGP peers with their peer-group (these BGP peering will
   be established towards DUT 2 on test-originate NI)
@@ -1208,7 +1193,7 @@ Test-case RT-1.36.1 above.
       "policy-definition": [
         {
           "config": {
-            "name": "default-export-v4"
+            "name": "export-next-hop-self"
           },
           "statements": {
             "statement": [
@@ -1219,79 +1204,7 @@ Test-case RT-1.36.1 above.
                 "actions": {
                   "bgp-actions": {
                     "config": {
-                      "set-next-hop": "198.55.1.1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "default-export-v6"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "2001:db8:50::1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "non-default-export-v4"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "198.55.2.1"
-                    }
-                  },
-                  "config": {
-                    "policy-result": "ACCEPT_ROUTE"
-                  }
-                }
-              }
-            ]
-          }
-        },
-        {
-          "config": {
-            "name": "non-default-export-v6"
-          },
-          "statements": {
-            "statement": [
-              {
-                "config": {
-                  "name": "test-statement"
-                },
-                "actions": {
-                  "bgp-actions": {
-                    "config": {
-                      "set-next-hop": "2001:db8:60::1"
+                      "set-next-hop": "SELF"
                     }
                   },
                   "config": {
@@ -1371,7 +1284,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "default-export-v4"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1384,7 +1297,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "default-export-v6"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1577,7 +1490,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "non-default-export-v4"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1590,7 +1503,7 @@ Test-case RT-1.36.1 above.
                       "apply-policy": {
                         "config": {
                           "export-policy": [
-                            "non-default-export-v6"
+                            "export-next-hop-self"
                           ]
                         }
                       }
@@ -1811,42 +1724,43 @@ Test-case RT-1.36.1 above.
 The following configuration steps are additions to the configuration done on
 Test-case RT-1.36.3 above.
 
+#### Effective Emulated Test Topology
+
+```text
++-------------------------+ LAG2(vlan 30 and 40) [iBGP]    +-------------+          LAG2 [iBGP]          +---------+
+|  DUT2(test-originate NI)|===============================|  DUT 1(RR)   |===============================|  DUT 2  |
++-------------------------+                                +-------------+             ISIS              +---------+
+
+```
+
 ### DUT 1 - Generate Configuration
 
 #### ISIS Configuration - Default Network instance
 
-* Configure a ISIS metric of Zero on Lag 2 vlan 10 and lag 2 vlan 30 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 30 from the ISIS configuration instance named DEFAULT
 
 #### ISIS Configuration - test-instance Network instance
 
-* Configure a ISIS metric of Zero on Lag 2 vlan 20 and lag 2 vlan 40 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 40 from the ISIS configuration instance named DEFAULT
 
 ### DUT 2 - Generate Configuration
 
-##### ISIS Configuration - Default Network instance
-
-* Configure a ISIS metric of Zero on Lag 2 vlan 10 for both IPV4 and IPV6 address-family
-
-##### ISIS Configuration - test-instance Network instance
-
-* Configure a ISIS metric of Zero on Lag 2 vlan 20 for both IPV4 and IPV6 address-family
-
 ##### ISIS Configuration - test-originate Network instance
 
-* Configure a ISIS metric of Zero on lag 2 vlan 30 and vlan 40 for both IPV4 and IPV6 address-family
+* Remove Lag 2 vlan 30 and vlan 40 from the ISIS configuration instance named DEFAULT
+* Remove the ISIS configuration instance
 
 ### Testing Steps
 
 ###### ISIS testing step on DUT 1
 
-* In the DEFAULT network instance, fetch the ISIS metric on interfaces Lag 2 vlan 10 and lag 2 vlan 30
-* In test-instance Network instance, fetch the ISIS metric on Lag 2 vlan 20 and lag 2 vlan 40
+* In the DEFAULT network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 10
+* In test-instance Network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 20
 
 ###### ISIS testing step on DUT 2
 
-* In the DEFAULT network instance,fetch the ISIS metric on Lag 2 vlan 10
-* In test-instance Network instance,fetch the ISIS metric on Lag 2 vlan 20
-* In test-originate Network instance,fetch the ISIS metric on Lag 2 vlan 30 and vlan 40
+* In the DEFAULT network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 10
+* In test-instance Network instance, collect the ISIS level 2 adjacency state for Lag 2 vlan 20
 
 ##### BGP testing Steps on DUT 1
 
@@ -1862,13 +1776,15 @@ Test-case RT-1.36.3 above.
 
 ##### Pass criteria on DUT 1
 
-* All isis interface level metric must be zero
+* All ISIS adjacency states must be up in DEFAULT NI  
+* All ISIS adjacency states must be up in test-instance NI
 * In default NI,BGP routes received from 198.51.100.26 and 2001:db8::26 must have a AIGP metric of 200
 * In test-instance NI,BGP routes received from 198.51.100.30 and 2001:db8::30 must have a AIGP metric of 200
 
 ##### Pass criteria on DUT 2
 
-* All isis interface level metric must be zero
+* All ISIS adjacency states must be up in DEFAULT NI  
+* All ISIS adjacency states must be up in test-instance NI
 * In default NI,BGP routes received from 198.51.100.17 and 2001:db8::17 must have a AIGP metric of 201
 * In test-instance NI,BGP routes received from 198.51.100.21 and 2001:db8::21 must have a AIGP metric of 201
 
@@ -1929,8 +1845,7 @@ Test-case RT-1.36.4 above.
 ## RT-1.36.6 : AIGP propagation in BGP peer-group
 
 The following configuration steps are additions to the configuration done on
-Test-case RT-1.36.5 above( AIGP has been disabled on neighbor level and ISIS
-metric on link has been set to zero)
+Test-case RT-1.36.5 above
 
 ### DUT 1 - Generate Configuration
 
