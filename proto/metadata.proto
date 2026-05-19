@@ -1333,6 +1333,15 @@ message Metadata {
     // Functional translator for Cisco XR vendor drop counters.
     string ciscoxr_vendordrop_ft = 424;
 
+    // Device does not support
+    // /lacp/interfaces/interface/members/member/state/interface.
+    // Nokia: https://issuetracker.google.com/514181497
+    bool lacp_interface_member_state_interface_unsupported = 425;
+
+    // Device does not support retrieving Containerz logs.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
+    bool containerz_retrieve_logs_unsupported = 426;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
