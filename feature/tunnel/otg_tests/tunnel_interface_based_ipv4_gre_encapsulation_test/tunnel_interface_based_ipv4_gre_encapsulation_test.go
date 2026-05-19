@@ -320,6 +320,9 @@ interface %s
 	default:
 		t.Errorf("Tunnel endpoint configuration is not defined for \n%s", dut.Vendor())
 	}
+	if config != "" {
+		t.Logf("Push the CLI config:\n%s", config)
+	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
 
