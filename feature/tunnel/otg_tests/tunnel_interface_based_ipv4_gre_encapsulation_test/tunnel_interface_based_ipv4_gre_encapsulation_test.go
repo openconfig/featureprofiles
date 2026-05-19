@@ -115,9 +115,11 @@ func TestTunnelEncapsulationByGREOverIPv4WithLoadBalance(t *testing.T) {
 	dutIntf1.ConfigOCInterface(config.GetOrCreateInterface(dutPort1.Name()), dut)
 	dutIntf2.ConfigOCInterface(config.GetOrCreateInterface(dutPort2.Name()), dut)
 	dutIntf3.ConfigOCInterface(config.GetOrCreateInterface(dutPort3.Name()), dut)
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort1.Name()).Config(), config.GetOrCreateInterface(dutPort1.Name()))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort2.Name()).Config(), config.GetOrCreateInterface(dutPort2.Name()))
-	gnmi.Replace(t, dut, gnmi.OC().Interface(dutPort3.Name()).Config(), config.GetOrCreateInterface(dutPort3.Name()))
+	batch := &gnmi.SetBatch{}
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort1.Name()).Config(), config.GetOrCreateInterface(dutPort1.Name()))
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort2.Name()).Config(), config.GetOrCreateInterface(dutPort2.Name()))
+	gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort3.Name()).Config(), config.GetOrCreateInterface(dutPort3.Name()))
+	batch.Set(t, dut)
 
 	step := 0
 	var overlayIPv4Nh []string
@@ -312,6 +314,9 @@ interface %s
    tunnel mode gre`, tunnelName, tunnelIpv4address, Ipv4Mask, srcIntf, tunnelDst)
 	default:
 		t.Errorf("Tunnel endpoint configuration is not defined for \n%s", dut.Vendor())
+	}
+	if config != "" {
+		t.Logf("Push the CLI config:\n%s", config)
 	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
