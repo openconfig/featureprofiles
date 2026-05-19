@@ -333,58 +333,83 @@ func TestGenerateIPv6s(t *testing.T) {
 	}
 }
 
-func TestGenerateIPv6(t *testing.T) {
+func Test_IPEqual(t *testing.T) {
 	tests := []struct {
-		name    string
-		prefix  string
-		count   uint64
-		want    []string
-		wantErr bool
-	}{{
-		name:   "Generate single IPv6",
-		prefix: "2001:db8::1/64",
-		count:  1,
-		want:   []string{"2001:db8::1"},
-	}, {
-		name:   "Increment across boundary",
-		prefix: "2001:db8::ff/64",
-		count:  2,
-		want: []string{
-			"2001:db8::1",
-			"2001:db8:0:1::1",
-		},
-	}, {
-		name:   "Zero count",
-		prefix: "2001:db8::1/64",
-		count:  0,
-		want:   []string{"2001:db8::1"},
-	}, {
-		name:    "Invalid IPv6 address",
-		prefix:  "invalid",
-		count:   5,
-		want:    []string{},
-		wantErr: true,
-	}, {
-		name:    "IPv4 address given",
-		prefix:  "192.168.1.1/24",
-		count:   1,
-		want:    []string{},
-		wantErr: true,
-	}}
+		name     string
+		got      string
+		want     string
+		wantBool bool
+	}{
+		// IPv4 Cases
+		{"Valid IPv4 Match", "192.168.1.1", "192.168.1.1", true},
+		{"Valid IPv4 Mismatch", "192.168.1.1", "192.168.1.2", false},
+
+		// IPv6 Cases (Semantic Equality)
+		{"IPv6 Shorthand Match", "2001:db8::1", "2001:db8:0:0:0:0:0:1", true},
+		{"IPv6 Case Insensitivity", "2001:DB8::1", "2001:db8::1", true},
+		{"IPv6 Mismatch", "2001:db8::1", "2001:db8::2", false},
+
+		// Fallback String Comparison (Parsing Fails)
+		{"Hostname Fallback Match", "localhost", "localhost", true},
+		{"Hostname Fallback Mismatch", "example.com", "google.com", false},
+		{"Mixed IP and String", "127.0.0.1", "localhost", false},
+		{"Empty Strings", "", "", true},
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := GenerateIPv6(tt.prefix, tt.count)
-
-			if (err != nil) != tt.wantErr {
-				t.Fatalf("GenerateIPv6() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				if diff := cmp.Diff(tt.want, got); diff != "" {
-					t.Errorf("GenerateIPv6() mismatch (-want +got):\n%s", diff)
-				}
+			if result := IPEqual(tt.got, tt.want); result != tt.wantBool {
+				t.Errorf("IPEqual(%q, %q) = %v, want %v", tt.got, tt.want, result, tt.wantBool)
 			}
 		})
 	}
+}
+
+// generateIPv6Entries creates IPv6 Entries given the totalCount and starting prefix
+func GenerateIPv6(startIP string, count uint64) ([]string, error) {
+	if startIP == "" {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+
+	_, netCIDR, _ := net.ParseCIDR(startIP)
+	fmt.Println(netCIDR)
+
+	if netCIDR == nil {
+		return nil, fmt.Errorf("parsed CIDR is nil for input: %s", startIP)
+	}
+
+	// Ensure it's IPv6
+	ipBytes := netCIDR.IP.To16()
+	if ipBytes == nil || netCIDR.IP.To4() != nil {
+		return nil, fmt.Errorf("IPv4 address given, expected IPv6: %s", startIP)
+	}
+
+	maskSize, bits := netCIDR.Mask.Size()
+	if bits != 128 {
+		return nil, fmt.Errorf("expected IPv6 mask, got %d bits", bits)
+	}
+
+	ip := new(big.Int).SetBytes(ipBytes)
+	mask := new(big.Int).SetBytes(netCIDR.Mask)
+	networkIP := new(big.Int).And(ip, mask)
+
+	step := new(big.Int).Lsh(big.NewInt(1), uint(128-maskSize))
+	hostOffset := big.NewInt(1)
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128)
+
+	if count == 0 {
+		count = 1
+	}
+
+	entries := []string{}
+	for i := uint64(0); i < count; i++ {
+		nextInt := new(big.Int).Mul(new(big.Int).SetUint64(i), step)
+		nextInt.Add(nextInt, networkIP)
+		nextInt.Add(nextInt, hostOffset)
+		nextInt.Mod(nextInt, pmax)
+		ipv6 := nextInt.FillBytes(make([]byte, 16))
+		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", net.IP(ipv6), maskSize))
+		entries = append(entries, p.Addr().String())
+	}
+	return entries, nil
 }

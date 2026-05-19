@@ -1392,6 +1392,7 @@ type Metadata_Deviations struct {
 	// Device does not populate state on subinterface 0
 	// that is implicitly created.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/456175792
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/509766094
 	Subinterface_0StateUnsupported bool `protobuf:"varint,405,opt,name=subinterface_0_state_unsupported,json=subinterface0StateUnsupported,proto3" json:"subinterface_0_state_unsupported,omitempty"`
 	// Device does not support fragment punt drops.
 	// Arista: https://partnerissuetracker.corp.google.com/issues/502413665
@@ -1417,9 +1418,48 @@ type Metadata_Deviations struct {
 	CarrierFt string `protobuf:"bytes,411,opt,name=carrier_ft,json=carrierFt,proto3" json:"carrier_ft,omitempty"`
 	// Functional translator name for fabric error telemetry.
 	// Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
-	FabricFt      string `protobuf:"bytes,412,opt,name=fabric_ft,json=fabricFt,proto3" json:"fabric_ft,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	FabricFt string `protobuf:"bytes,412,opt,name=fabric_ft,json=fabricFt,proto3" json:"fabric_ft,omitempty"`
+	// Functional translator name for macsec state telemetry.
+	MacsecStateFt string `protobuf:"bytes,413,opt,name=macsec_state_ft,json=macsecStateFt,proto3" json:"macsec_state_ft,omitempty"`
+	// Functional translator name for macsec counters telemetry.
+	MacsecCountersFt string `protobuf:"bytes,414,opt,name=macsec_counters_ft,json=macsecCountersFt,proto3" json:"macsec_counters_ft,omitempty"`
+	// Device needs MPLS Static enabled explicitly on ingress/egress interface
+	EnableMplsStaticOnInterface bool `protobuf:"varint,415,opt,name=enable_mpls_static_on_interface,json=enableMplsStaticOnInterface,proto3" json:"enable_mpls_static_on_interface,omitempty"`
+	// Device does not support secondary controller card cpu telemetry
+	// Arista: https://issuetracker.google.com/issues/508666262
+	SecondaryControllerCardCpuUtilizationUnsupported bool `protobuf:"varint,416,opt,name=secondary_controller_card_cpu_utilization_unsupported,json=secondaryControllerCardCpuUtilizationUnsupported,proto3" json:"secondary_controller_card_cpu_utilization_unsupported,omitempty"`
+	// Device does not support secondary controller card memory telemetry
+	// Arista: https://issuetracker.google.com/issues/508656197
+	SecondaryControllerCardMemoryUtilizationUnsupported bool `protobuf:"varint,417,opt,name=secondary_controller_card_memory_utilization_unsupported,json=secondaryControllerCardMemoryUtilizationUnsupported,proto3" json:"secondary_controller_card_memory_utilization_unsupported,omitempty"`
+	// Device does not support interface counters in fcs errors
+	// Arista: https://issuetracker.google.com/issues/508304903
+	InterfaceCountersInFcsErrorsUnsupported bool `protobuf:"varint,418,opt,name=interface_counters_in_fcs_errors_unsupported,json=interfaceCountersInFcsErrorsUnsupported,proto3" json:"interface_counters_in_fcs_errors_unsupported,omitempty"`
+	// Arista: b/495544007
+	// Devices that do not support mpls static pseudowire OC
+	MplsStaticPseudowireOcUnsupported bool `protobuf:"varint,419,opt,name=mpls_static_pseudowire_oc_unsupported,json=mplsStaticPseudowireOcUnsupported,proto3" json:"mpls_static_pseudowire_oc_unsupported,omitempty"`
+	// Arista: b/495549829
+	// Devices that do not support vlan client encapsulation OC
+	VlanClientEncapsulationOcUnsupported bool `protobuf:"varint,420,opt,name=vlan_client_encapsulation_oc_unsupported,json=vlanClientEncapsulationOcUnsupported,proto3" json:"vlan_client_encapsulation_oc_unsupported,omitempty"`
+	// Partner issue: https://partnerissuetracker.corp.google.com/issues/489348278
+	// Devices that do not support nexthp-group counters OC
+	NexthopGroupPseudowireCountersOcUnsupported bool `protobuf:"varint,421,opt,name=nexthop_group_pseudowire_counters_oc_unsupported,json=nexthopGroupPseudowireCountersOcUnsupported,proto3" json:"nexthop_group_pseudowire_counters_oc_unsupported,omitempty"`
+	// Devices that do not support per flow load balancing
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/512818490
+	PerFlowLoadBalancingUnsupported bool `protobuf:"varint,422,opt,name=per_flow_load_balancing_unsupported,json=perFlowLoadBalancingUnsupported,proto3" json:"per_flow_load_balancing_unsupported,omitempty"`
+	// Devices that do not support multipath under bgp peer-group
+	// Cisco: https://partnerissuetracker.corp.google.com/issues/512818868
+	BgpMultipathPathsUnderPeerGroupUnsupported bool `protobuf:"varint,423,opt,name=bgp_multipath_paths_under_peer_group_unsupported,json=bgpMultipathPathsUnderPeerGroupUnsupported,proto3" json:"bgp_multipath_paths_under_peer_group_unsupported,omitempty"`
+	// Functional translator for Cisco XR vendor drop counters.
+	CiscoxrVendordropFt string `protobuf:"bytes,424,opt,name=ciscoxr_vendordrop_ft,json=ciscoxrVendordropFt,proto3" json:"ciscoxr_vendordrop_ft,omitempty"`
+	// Device does not support
+	// /lacp/interfaces/interface/members/member/state/interface.
+	// Nokia: https://issuetracker.google.com/514181497
+	LacpInterfaceMemberStateInterfaceUnsupported bool `protobuf:"varint,425,opt,name=lacp_interface_member_state_interface_unsupported,json=lacpInterfaceMemberStateInterfaceUnsupported,proto3" json:"lacp_interface_member_state_interface_unsupported,omitempty"`
+	// Device does not support retrieving Containerz logs.
+	// Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
+	ContainerzRetrieveLogsUnsupported bool `protobuf:"varint,426,opt,name=containerz_retrieve_logs_unsupported,json=containerzRetrieveLogsUnsupported,proto3" json:"containerz_retrieve_logs_unsupported,omitempty"`
+	unknownFields                     protoimpl.UnknownFields
+	sizeCache                         protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4091,6 +4131,104 @@ func (x *Metadata_Deviations) GetFabricFt() string {
 	return ""
 }
 
+func (x *Metadata_Deviations) GetMacsecStateFt() string {
+	if x != nil {
+		return x.MacsecStateFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetMacsecCountersFt() string {
+	if x != nil {
+		return x.MacsecCountersFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetEnableMplsStaticOnInterface() bool {
+	if x != nil {
+		return x.EnableMplsStaticOnInterface
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSecondaryControllerCardCpuUtilizationUnsupported() bool {
+	if x != nil {
+		return x.SecondaryControllerCardCpuUtilizationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetSecondaryControllerCardMemoryUtilizationUnsupported() bool {
+	if x != nil {
+		return x.SecondaryControllerCardMemoryUtilizationUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetInterfaceCountersInFcsErrorsUnsupported() bool {
+	if x != nil {
+		return x.InterfaceCountersInFcsErrorsUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetMplsStaticPseudowireOcUnsupported() bool {
+	if x != nil {
+		return x.MplsStaticPseudowireOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetVlanClientEncapsulationOcUnsupported() bool {
+	if x != nil {
+		return x.VlanClientEncapsulationOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetNexthopGroupPseudowireCountersOcUnsupported() bool {
+	if x != nil {
+		return x.NexthopGroupPseudowireCountersOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetPerFlowLoadBalancingUnsupported() bool {
+	if x != nil {
+		return x.PerFlowLoadBalancingUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpMultipathPathsUnderPeerGroupUnsupported() bool {
+	if x != nil {
+		return x.BgpMultipathPathsUnderPeerGroupUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetCiscoxrVendordropFt() string {
+	if x != nil {
+		return x.CiscoxrVendordropFt
+	}
+	return ""
+}
+
+func (x *Metadata_Deviations) GetLacpInterfaceMemberStateInterfaceUnsupported() bool {
+	if x != nil {
+		return x.LacpInterfaceMemberStateInterfaceUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetContainerzRetrieveLogsUnsupported() bool {
+	if x != nil {
+		return x.ContainerzRetrieveLogsUnsupported
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4147,7 +4285,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xa9\xe5\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xcd\xee\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4159,7 +4297,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf5\xda\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x99\xe4\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4542,7 +4680,21 @@ const file_metadata_proto_rawDesc = "" +
 	",default_subinterface_packet_counters_missing\x18\x99\x03 \x01(\bR(defaultSubinterfacePacketCountersMissing\x12\x1e\n" +
 	"\n" +
 	"carrier_ft\x18\x9b\x03 \x01(\tR\tcarrierFt\x12\x1c\n" +
-	"\tfabric_ft\x18\x9c\x03 \x01(\tR\bfabricFtJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\tfabric_ft\x18\x9c\x03 \x01(\tR\bfabricFt\x12'\n" +
+	"\x0fmacsec_state_ft\x18\x9d\x03 \x01(\tR\rmacsecStateFt\x12-\n" +
+	"\x12macsec_counters_ft\x18\x9e\x03 \x01(\tR\x10macsecCountersFt\x12E\n" +
+	"\x1fenable_mpls_static_on_interface\x18\x9f\x03 \x01(\bR\x1benableMplsStaticOnInterface\x12p\n" +
+	"5secondary_controller_card_cpu_utilization_unsupported\x18\xa0\x03 \x01(\bR0secondaryControllerCardCpuUtilizationUnsupported\x12v\n" +
+	"8secondary_controller_card_memory_utilization_unsupported\x18\xa1\x03 \x01(\bR3secondaryControllerCardMemoryUtilizationUnsupported\x12^\n" +
+	",interface_counters_in_fcs_errors_unsupported\x18\xa2\x03 \x01(\bR'interfaceCountersInFcsErrorsUnsupported\x12Q\n" +
+	"%mpls_static_pseudowire_oc_unsupported\x18\xa3\x03 \x01(\bR!mplsStaticPseudowireOcUnsupported\x12W\n" +
+	"(vlan_client_encapsulation_oc_unsupported\x18\xa4\x03 \x01(\bR$vlanClientEncapsulationOcUnsupported\x12f\n" +
+	"0nexthop_group_pseudowire_counters_oc_unsupported\x18\xa5\x03 \x01(\bR+nexthopGroupPseudowireCountersOcUnsupported\x12M\n" +
+	"#per_flow_load_balancing_unsupported\x18\xa6\x03 \x01(\bR\x1fperFlowLoadBalancingUnsupported\x12e\n" +
+	"0bgp_multipath_paths_under_peer_group_unsupported\x18\xa7\x03 \x01(\bR*bgpMultipathPathsUnderPeerGroupUnsupported\x123\n" +
+	"\x15ciscoxr_vendordrop_ft\x18\xa8\x03 \x01(\tR\x13ciscoxrVendordropFt\x12h\n" +
+	"1lacp_interface_member_state_interface_unsupported\x18\xa9\x03 \x01(\bR,lacpInterfaceMemberStateInterfaceUnsupported\x12P\n" +
+	"$containerz_retrieve_logs_unsupported\x18\xaa\x03 \x01(\bR!containerzRetrieveLogsUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
