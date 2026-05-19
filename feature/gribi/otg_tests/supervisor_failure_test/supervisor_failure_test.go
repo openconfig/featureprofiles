@@ -16,6 +16,7 @@ package supervisor_failure_test
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -25,12 +26,12 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gnoigo/system"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygot/ygot"
 
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -46,16 +47,12 @@ func TestMain(m *testing.M) {
 //
 // The testbed consists of ate:port1 -> dut:port1 and dut:port2 -> ate:port2
 //
-//   * ate:port1 -> dut:port1 subnet 192.0.2.0/30
-//   * ate:port2 -> dut:port2 subnet 192.0.2.4/30
-//
-//   * Destination network: 203.0.113.0/24
+//   * ate:port1 -> dut:port1 subnet 192.0.2.0/30 and 2001:db8::192:0:2:0/126
+//   * ate:port2 -> dut:port2 subnet 192.0.2.4/30 and 2001:db8::192:0:2:4/126
 
 const (
 	ipv4PrefixLen       = 30
-	ateDstNetCIDR       = "203.0.113.0/24"
-	ateDstNetStartIP    = "203.0.113.0"
-	staticNH            = "192.0.2.6"
+	ipv6PrefixLen       = 126
 	nhIndex             = 1
 	nhgIndex            = 42
 	controlcardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
@@ -63,7 +60,10 @@ const (
 	secondaryController = oc.Platform_ComponentRedundantRole_SECONDARY
 	switchTrigger       = oc.PlatformTypes_ComponentRedundantRoleSwitchoverReasonTrigger_USER_INITIATED
 	maxSwitchoverTime   = 900
-	flowName            = "Flow"
+	flowIPv4Initial     = "flow-ipv4-initial"
+	flowIPv6Initial     = "flow-ipv6-initial"
+	flowIPv4Post        = "flow-ipv4-post"
+	flowIPv6Post        = "flow-ipv6-post"
 )
 
 var (
@@ -71,6 +71,8 @@ var (
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:1",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort1 = attrs.Attributes{
@@ -78,12 +80,16 @@ var (
 		MAC:     "02:00:01:01:01:01",
 		IPv4:    "192.0.2.2",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:2",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	dutPort2 = attrs.Attributes{
 		Desc:    "dutPort2",
 		IPv4:    "192.0.2.5",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:5",
+		IPv6Len: ipv6PrefixLen,
 	}
 
 	atePort2 = attrs.Attributes{
@@ -91,40 +97,22 @@ var (
 		MAC:     "02:00:02:01:01:01",
 		IPv4:    "192.0.2.6",
 		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:db8::192:0:2:6",
+		IPv6Len: ipv6PrefixLen,
 	}
 )
-
-// configInterfaceDUT configures the interface with the Address.
-func configInterfaceDUT(i *oc.Interface, a *attrs.Attributes, dut *ondatra.DUTDevice) *oc.Interface {
-	i.Description = ygot.String(a.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
-		s4.Enabled = ygot.Bool(true)
-	}
-	s4a := s4.GetOrCreateAddress(a.IPv4)
-	s4a.PrefixLength = ygot.Uint8(ipv4PrefixLen)
-
-	return i
-}
 
 // configureDUT configures port1 and port2 on the DUT.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	d := gnmi.OC()
 
 	p1 := dut.Port(t, "port1")
-	i1 := &oc.Interface{Name: ygot.String(p1.Name())}
-	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), configInterfaceDUT(i1, &dutPort1, dut))
+	gnmi.Replace(t, dut, d.Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
 
 	p2 := dut.Port(t, "port2")
-	i2 := &oc.Interface{Name: ygot.String(p2.Name())}
-	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), configInterfaceDUT(i2, &dutPort2, dut))
+	gnmi.Replace(t, dut, d.Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, p1)
@@ -136,7 +124,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// configureATE configures port1 and port2 on the ATE and adding a flow with port1 as the source and port2 as destination
+// configureATE configures port1 and port2 on the ATE and defines 4 traffic flows
 func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	t.Helper()
 	top := gosnappi.NewConfig()
@@ -147,32 +135,62 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	atePort1.AddToOTG(top, p1, &dutPort1)
 	atePort2.AddToOTG(top, p2, &dutPort2)
 
-	flow := top.Flows().Add().SetName(flowName)
-	flow.Metrics().SetEnable(true)
-	e1 := flow.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
-	v4 := flow.Packet().Add().Ipv4()
-	v4.Src().SetValue(atePort1.IPv4)
-	v4.Dst().Increment().SetStart(ateDstNetStartIP).SetCount(250)
+	// 1. flow-ipv4-initial
+	f4i := top.Flows().Add().SetName(flowIPv4Initial)
+	f4i.Metrics().SetEnable(true)
+	f4i.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
+	f4i.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	v4i := f4i.Packet().Add().Ipv4()
+	v4i.Src().SetValue(atePort1.IPv4)
+	v4i.Dst().Increment().SetStart("203.0.113.1").SetCount(50)
+
+	// 2. flow-ipv6-initial
+	f6i := top.Flows().Add().SetName(flowIPv6Initial)
+	f6i.Metrics().SetEnable(true)
+	f6i.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
+	f6i.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+	v6i := f6i.Packet().Add().Ipv6()
+	v6i.Src().SetValue(atePort1.IPv6)
+	v6i.Dst().Increment().SetStart("2001:db8:203:0:113::1").SetCount(50)
+
+	// 3. flow-ipv4-post
+	f4p := top.Flows().Add().SetName(flowIPv4Post)
+	f4p.Metrics().SetEnable(true)
+	f4p.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
+	f4p.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv4"}).SetRxNames([]string{atePort2.Name + ".IPv4"})
+	v4p := f4p.Packet().Add().Ipv4()
+	v4p.Src().SetValue(atePort1.IPv4)
+	v4p.Dst().Increment().SetStart("203.0.114.1").SetCount(50)
+
+	// 4. flow-ipv6-post
+	f6p := top.Flows().Add().SetName(flowIPv6Post)
+	f6p.Metrics().SetEnable(true)
+	f6p.Packet().Add().Ethernet().Src().SetValue(atePort1.MAC)
+	f6p.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames([]string{atePort2.Name + ".IPv6"})
+	v6p := f6p.Packet().Add().Ipv6()
+	v6p.Src().SetValue(atePort1.IPv6)
+	v6p.Dst().Increment().SetStart("2001:db8:203:0:114::1").SetCount(50)
 
 	return top
 }
 
-// Function to verify traffic
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
-	txPkts := flowMetrics.GetOutPkts()
-	rxPkts := flowMetrics.GetInPkts()
+// verifyTraffic verifies the healthy transmission (0% loss) for specified flows.
+func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, flowNames []string) {
+	t.Helper()
+	for _, flowName := range flowNames {
+		flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).Counters().State())
+		txPkts := flowMetrics.GetOutPkts()
+		rxPkts := flowMetrics.GetInPkts()
 
-	if txPkts == 0 {
-		t.Errorf("txPackets is 0")
-		return
-	}
-	if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
-		t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
-	} else {
-		t.Logf("Traffic flows fine from ATE-port1 to ATE-port2")
+		if txPkts == 0 {
+			t.Errorf("Flow %s: txPackets is 0", flowName)
+			continue
+		}
+		if got := 100 * float32(txPkts-rxPkts) / float32(txPkts); got > 0 {
+			t.Errorf("LossPct for flow %s got %f, want 0", flowName, got)
+		} else {
+			t.Logf("Traffic flow %s is healthy (0%% loss)", flowName)
+		}
 	}
 }
 
@@ -185,16 +203,49 @@ type testArgs struct {
 	top     gosnappi.Config
 }
 
-// routeInstall configures a IPv4 entry through clientA. Ensure that the entry via ClientA
-// is active through AFT Telemetry.
-func routeInstall(ctx context.Context, t *testing.T, args *testArgs) {
-	// Add an IPv4Entry for 203.0.113.0/24 pointing to ATE port-2 via gRIBI-A,
-	// ensure that the entry is active through AFT telemetry
-	t.Logf("Add an IPv4Entry for %s pointing to ATE port-2 via gRIBI-A", ateDstNetCIDR)
+// programRoutes programs a list of IPv4 and IPv6 host routes via gRIBI.
+func programRoutes(t *testing.T, args *testArgs, ipv4s []string, ipv6s []string) {
 	vrf := deviations.DefaultNetworkInstance(args.dut)
-	args.clientA.AddNH(t, nhIndex, atePort2.IPv4, vrf, fluent.InstalledInRIB)
-	args.clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, vrf, fluent.InstalledInRIB)
-	args.clientA.AddIPv4(t, ateDstNetCIDR, nhgIndex, vrf, "", fluent.InstalledInRIB)
+	wantACK := fluent.InstalledInRIB
+
+	for _, ip := range ipv4s {
+		prefix := ip + "/32"
+		args.clientA.AddIPv4(t, prefix, nhgIndex, vrf, "", wantACK)
+	}
+	for _, ip := range ipv6s {
+		prefix := ip + "/128"
+		args.clientA.AddIPv6(t, prefix, nhgIndex, vrf, "", wantACK)
+	}
+}
+
+// verifyAftTelemetry verifies programmed prefixes are active in DUT AFT telemetry.
+func verifyAftTelemetry(t *testing.T, args *testArgs, ipv4s []string, ipv6s []string) {
+	t.Helper()
+	vrf := deviations.DefaultNetworkInstance(args.dut)
+
+	for _, ip := range ipv4s {
+		prefix := ip + "/32"
+		t.Logf("Verify prefix %s is active in AFT telemetry", prefix)
+		ipv4Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv4Entry(prefix)
+		if _, found := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Prefix %s missing in AFT telemetry", prefix)
+		}
+	}
+
+	for _, ip := range ipv6s {
+		prefix := ip + "/128"
+		t.Logf("Verify prefix %s is active in AFT telemetry", prefix)
+		ipv6Path := gnmi.OC().NetworkInstance(vrf).Afts().Ipv6Entry(prefix)
+		if _, found := gnmi.Watch(t, args.dut, ipv6Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+			value, present := val.Val()
+			return present && value.GetPrefix() == prefix
+		}).Await(t); !found {
+			t.Fatalf("Prefix %s missing in AFT telemetry", prefix)
+		}
+	}
 }
 
 // findSecondaryController finds out primary and secondary controllers
@@ -300,6 +351,12 @@ func TestSupFailure(t *testing.T) {
 	// Flush all entries before test.
 	clientA.FlushAll(t)
 
+	// Program shared Next Hop and Next Hop Group once.
+	vrf := deviations.DefaultNetworkInstance(dut)
+	wantACK := fluent.InstalledInRIB
+	clientA.AddNH(t, nhIndex, atePort2.IPv4, vrf, wantACK)
+	clientA.AddNHG(t, nhgIndex, map[uint64]uint64{nhIndex: 1}, vrf, wantACK)
+
 	args := &testArgs{
 		ctx:     ctx,
 		clientA: &clientA,
@@ -307,15 +364,25 @@ func TestSupFailure(t *testing.T) {
 		ate:     ate,
 		top:     top,
 	}
-	// Program a route and ensure AFT telemetry returns FIB_PROGRAMMED
-	routeInstall(ctx, t, args)
-	// Verify that static route(203.0.113.0/24) to ATE port-2 is preferred by the traffic.`
-	t.Logf("Starting traffic")
+
+	// Phase 1: TE-8.2.1 - Program and verify initial 100 prefixes
+	t.Log("Phase 1: Programming initial 50 IPv4 and 50 IPv6 prefixes...")
+	ipv4Initial := iputil.GenerateIPs("203.0.113.0/24", 51)[1:51]
+	ipv6Initial, err := iputil.GenerateIPv6s(net.ParseIP("2001:db8:203:0:113::1"), 50)
+	if err != nil {
+		t.Fatalf("Failed to generate initial IPv6 addresses: %v", err)
+	}
+
+	programRoutes(t, args, ipv4Initial, ipv6Initial)
+	verifyAftTelemetry(t, args, ipv4Initial, ipv6Initial)
+
+	// Verify that initial static routes are preferred by the traffic
+	t.Log("Starting traffic for initial flows...")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(15 * time.Second)
 	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	verifyTraffic(t, args.ate)
+	verifyTraffic(t, args.ate, []string{flowIPv4Initial, flowIPv6Initial})
 
 	controllers := cmp.FindComponentsByType(t, dut, controlcardType)
 	t.Logf("Found controller list: %v", controllers)
@@ -357,9 +424,6 @@ func TestSupFailure(t *testing.T) {
 	primaryAfterSwitch := secondaryBeforeSwitch
 	secondaryAfterSwitch := secondaryBeforeSwitch
 	validateTelemetry(t, dut, primaryAfterSwitch, secondaryAfterSwitch)
-	// Assume Controller Switchover happened, ensure traffic flows without loss.
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	// Retry starting the gribi client in a loop as switchover may reset the connection.
 
 	t.Log("Re-establish gRIBI client connection")
 	retryDuration := 320 * time.Second
@@ -377,19 +441,38 @@ func TestSupFailure(t *testing.T) {
 		}
 	}
 
-	// Verify the entry for 203.0.113.0/24 is active through AFT Telemetry.
-	t.Logf("Verify the entry for %s is active through AFT Telemetry.", ateDstNetCIDR)
-	ipv4Path := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().Ipv4Entry(ateDstNetCIDR)
-	if _, found := gnmi.Watch(t, args.dut, ipv4Path.State(), 2*time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
-		value, present := val.Val()
-		return present && value.GetPrefix() == ateDstNetCIDR
-	}).Await(t); !found {
-		t.Fatalf("Could not find prefix %s in telemetry AFT", ateDstNetCIDR)
-	}
-	t.Logf("ipv4-entry found for %s after controller switchover..", ateDstNetCIDR)
+	t.Log("Regaining gRIBI leadership on the new master supervisor...")
+	clientA.BecomeLeader(t)
 
+	t.Log("gRIBI client re-connected and became leader successfully. Sleeping 60 seconds to let gNMI and FIB stabilize...")
+	time.Sleep(60 * time.Second)
+
+	// Verify initial prefixes persist after switchover
+	t.Log("Verifying initial prefixes persist in telemetry after switchover...")
+	verifyAftTelemetry(t, args, ipv4Initial, ipv6Initial)
+
+	// Phase 2: TE-8.2.2 - Post-switchover FIB Programming Validation
+	t.Log("Phase 2: Programming post-switchover 50 IPv4 and 50 IPv6 prefixes...")
+	ipv4Post := iputil.GenerateIPs("203.0.114.0/24", 51)[1:51]
+	ipv6Post, err := iputil.GenerateIPv6s(net.ParseIP("2001:db8:203:0:114::1"), 50)
+	if err != nil {
+		t.Fatalf("Failed to generate post-switchover IPv6 addresses: %v", err)
+	}
+
+	programRoutes(t, args, ipv4Post, ipv6Post)
+	verifyAftTelemetry(t, args, ipv4Post, ipv6Post)
+
+	// Verify all 200 prefixes (100 initial + 100 post-switchover) receive traffic without loss
+	t.Log("Starting traffic for all flows...")
+	ate.OTG().StartTraffic(t)
+	time.Sleep(15 * time.Second)
+	ate.OTG().StopTraffic(t)
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
-	verifyTraffic(t, args.ate)
+	verifyTraffic(t, args.ate, []string{
+		flowIPv4Initial, flowIPv6Initial,
+		flowIPv4Post, flowIPv6Post,
+	})
+
 	ate.OTG().StopTraffic(t)
 	args.ate.OTG().StopProtocols(t)
 }
