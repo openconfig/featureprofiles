@@ -311,7 +311,7 @@ interface %s
    tunnel destination %s
    tunnel mode gre`, tunnelName, tunnelIpv4address, Ipv4Mask, srcIntf, tunnelDst)
 	default:
-		t.Fatalf("Tunnel endpoint configuration is not defined for %s", dut.Vendor())
+		t.Errorf("Tunnel endpoint configuration is not defined for \n%s", dut.Vendor())
 	}
 	gnmiClient := dut.RawAPIs().GNMI(t)
 	gpbSetRequest := buildCliConfigRequest(config)
