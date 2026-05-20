@@ -282,7 +282,7 @@ func testControllerCardRedundancy(t *testing.T, dut *ondatra.DUTDevice, controll
 	if deviations.SkipControllerCardPowerAdmin(dut) {
 		t.Skipf("Skipping test for controller card redundancy test as the device does not support controller card power up/down")
 	}
-	
+
 	// Collect active and standby controller cards before the switchover
 	rpStandbyBeforeSwitch, rpActiveBeforeSwitch := components.FindStandbyControllerCard(t, dut, controllerCards)
 
@@ -454,7 +454,7 @@ func testControllerCardLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, cont
 	if val, ok := watchTime.Await(t); !ok {
 		t.Fatalf("last-reboot-time was not populated within 5 minutes: got %v", val)
 	}
-	
+
 	// Get the last reboot time of the standby controller card after the reboot
 	lastRebootTimeAfter := gnmi.Get(t, dut, lastRebootTime.State())
 
