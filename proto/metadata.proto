@@ -1342,6 +1342,10 @@ message Metadata {
     // Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
     bool containerz_retrieve_logs_unsupported = 426;
 
+    // Device does not support setting transport-security to false under
+    // grpc-server config.  
+    bool grpc_transport_security_false_unsupported = 427;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

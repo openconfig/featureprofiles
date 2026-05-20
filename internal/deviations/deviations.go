@@ -2196,3 +2196,9 @@ func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
 }
+
+// GrpcTransportSecurityFalseUnsupported returns true if the device does not
+// support setting transport-security to false under grpc-server config.
+func GrpcTransportSecurityFalseUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGrpcTransportSecurityFalseUnsupported()
+}
