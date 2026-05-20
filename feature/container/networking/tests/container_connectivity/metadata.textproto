@@ -5,6 +5,16 @@ uuid: "dc9a9682-8ec1-4ca0-8f54-635d690bb488"
 plan_id: "CNTR-2"
 description: "Container network connectivity tests"
 testbed: TESTBED_DUT_DUT_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    containerz_oc_unsupported: true
+  }
+}
+
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
