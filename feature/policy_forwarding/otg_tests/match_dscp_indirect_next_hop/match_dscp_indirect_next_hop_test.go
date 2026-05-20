@@ -197,11 +197,16 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		np.SetPolicyId(name)
 		np.Type = oc.Policy_Type_PBR_POLICY
 
+		dscpSet := make([]uint8, len(pfMatchingDscpValues))
+		for i, v := range pfMatchingDscpValues {
+			dscpSet[i] = uint8(v)
+		}
+
 		npRule := np.GetOrCreateRule(uint32(1))
 		ip := npRule.GetOrCreateIpv4()
 		ip.SetSourceAddress(fmt.Sprintf("%s/32", ateP1.IPv4))
 		ip.SetDestinationAddress(fmt.Sprintf("%s/32", ipv4Dst))
-		ip.SetDscpSet(pfMatchingDscpValues)
+		ip.SetDscpSet(dscpSet)
 		npRuleAction := npRule.GetOrCreateAction()
 		npRuleAction.SetNextHop(ipvNHv4)
 
@@ -209,7 +214,7 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		ip1 := npRule1.GetOrCreateIpv6()
 		ip1.SetSourceAddress(fmt.Sprintf("%s/128", ateP1.IPv6))
 		ip1.SetDestinationAddress(fmt.Sprintf("%s/128", ipv6Dst))
-		ip1.SetDscpSet(pfMatchingDscpValues)
+		ip1.SetDscpSet(dscpSet)
 		npRuleAction1 := npRule1.GetOrCreateAction()
 		npRuleAction1.SetNextHop(ipvNHv6)
 
