@@ -260,3 +260,51 @@ func IPEqual(got, want string) bool {
 	}
 	return got == want
 }
+
+// generateIPv6 creates IPv6 Entries given the totalCount and starting prefix
+func GenerateIPv6(startIP string, count uint64) ([]string, error) {
+	if startIP == "" {
+		return nil, fmt.Errorf("invalid IPv6 address")
+	}
+
+	_, netCIDR, _ := net.ParseCIDR(startIP)
+
+	if netCIDR == nil {
+		return nil, fmt.Errorf("parsed CIDR is nil for input: %s", startIP)
+	}
+
+	// Ensure it's IPv6
+	ipBytes := netCIDR.IP.To16()
+	if ipBytes == nil || netCIDR.IP.To4() != nil {
+		return nil, fmt.Errorf("IPv4 address given, expected IPv6: %s", startIP)
+	}
+
+	maskSize, bits := netCIDR.Mask.Size()
+	if bits != 128 {
+		return nil, fmt.Errorf("expected IPv6 mask, got %d bits", bits)
+	}
+
+	ip := new(big.Int).SetBytes(ipBytes)
+	mask := new(big.Int).SetBytes(netCIDR.Mask)
+	networkIP := new(big.Int).And(ip, mask)
+
+	step := new(big.Int).Lsh(big.NewInt(1), uint(128-maskSize))
+	hostOffset := big.NewInt(1)
+	pmax := new(big.Int).Lsh(big.NewInt(1), 128)
+
+	if count == 0 {
+		count = 1
+	}
+
+	entries := []string{}
+	for i := uint64(0); i < count; i++ {
+		nextInt := new(big.Int).Mul(new(big.Int).SetUint64(i), step)
+		nextInt.Add(nextInt, networkIP)
+		nextInt.Add(nextInt, hostOffset)
+		nextInt.Mod(nextInt, pmax)
+		ipv6 := nextInt.FillBytes(make([]byte, 16))
+		p, _ := netip.ParsePrefix(fmt.Sprintf("%v/%d", net.IP(ipv6), maskSize))
+		entries = append(entries, p.Addr().String())
+	}
+	return entries, nil
+}
