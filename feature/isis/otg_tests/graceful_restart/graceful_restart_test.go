@@ -500,6 +500,11 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 
 	otg := ate.OTG()
 
+	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
+	port2isis.GracefulRestart().SetHelperMode(true)
+	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
 	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 
@@ -556,10 +561,12 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 		for {
 			var currentTime string
 			t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
+			otg.StartTraffic(t)
+			time.Sleep(sleepTime)
+			otg.StopTraffic(t)
 			if !verifyTraffic(t, otg, otgConfig, false) {
 				break
 			}
-			time.Sleep(60 * time.Second)
 			if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
 				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 			}); errMsg != nil {
@@ -573,6 +580,7 @@ func testISISWithControllerCardSwitchOver(t *testing.T, dut *ondatra.DUTDevice, 
 				t.Fatalf("time.Since(startSwitchover): got %v, want < %v", got, want)
 			}
 		}
+		time.Sleep(60 * time.Second)
 	}
 
 }
@@ -590,11 +598,12 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		"NeighborStateTypeExp":          "LEVEL_2",
 		"NeighborStateHoldTimeExp":      uint32(30),
 		"NeighborStateRestartStatusExp": "RUNNING",
-		"NeighborStateLastAttemptExp":   "UNAVAILABLE",
+		"NeighborStateLastAttemptExp":   "SUCCEEDED",
 	}
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().HelperOnly().Config(), false)
+	gnmi.Update(t, dut, dutConfPath.Global().GracefulRestart().Enabled().Config(), true)
 	port2isis.GracefulRestart().SetHelperMode(true)
 	otg.PushConfig(t, otgConfig)
 	otg.StartProtocols(t)
@@ -624,5 +633,6 @@ func testISISWithDUTRestart(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.A
 		}
 	}
 
+	verifyISISTelemetry(t, dut, []string{dut.Port(t, "port1").Name(), dut.Port(t, "port2").Name()}, false)
 	otgvalidationhelpers.ValidateOTGISISTelemetry(t, ate, expectedISISAdj)
 }
