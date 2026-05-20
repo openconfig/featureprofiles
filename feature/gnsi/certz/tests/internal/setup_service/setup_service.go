@@ -330,7 +330,7 @@ func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, ar
 		ctx, cancel = context.WithTimeout(ctx, timeout)
 		defer cancel()
 	}
-	cmd := exec.CommandContext(ctx, args)
+	cmd := exec.CommandContext(ctx, "/bin/sh", "-c", args)
 	cmd.Dir = dirPath
 	out, err := cmd.CombinedOutput()
 	if err != nil {

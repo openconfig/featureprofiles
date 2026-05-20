@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 
 const (
 	dirPath = "../../test_data/"
+	//timeOutVar time.Duration = 5 * time.Minute
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
@@ -61,7 +63,6 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	flag.Parse()
 	fptest.RunTests(m)
 }
 
@@ -72,7 +73,7 @@ func TestTrustBundleCert(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	serverAddr = dut.Name() //returns the device name.
 	if err := binding.DUTAs(dut.RawAPIs().BindingDUT(), &creds); err != nil {
-		t.Fatalf("STATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", err, dut.Name())
+		t.Fatalf("%s:STATUS:Failed to get DUT credentials using binding.DUTAs: %v. The binding for %s must implement the DUTCredentialer interface.", time.Now().String(), err, dut.Name())
 	}
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
@@ -80,9 +81,21 @@ func TestTrustBundleCert(t *testing.T) {
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	command := fmt.Sprintf("./mk_cas.sh %v", certsString(t))
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), command); err != nil {
-		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
+	dirs := strings.ReplaceAll(certsString(t), ",", " ")
+	t.Logf("%s:STATUS:Using DIRS=(%s) for mk_cas.sh", time.Now().String(), dirs)
+	sedCmd := fmt.Sprintf("sed -i.bak 's|^DIRS=(.*)|DIRS=(%s)|' mk_cas.sh", dirs)
+	// Replace DIRS in mk_cas.sh
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), sedCmd); err != nil {
+		t.Fatalf("%s:STATUS:Failed to apply DIRS replacement: %v", time.Now().String(), err)
+	}
+	// Execute mk_cas.sh to generate certificates
+	t.Logf("%s:STATUS:Generation of testdata certificates begins.", time.Now().String())
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), "./mk_cas.sh"); err != nil {
+		t.Fatalf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
+	}
+	// Restore original mk_cas.sh from backup
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), "mv mk_cas.sh.bak mk_cas.sh"); err != nil {
+		t.Logf("%s:STATUS:Failed to restore mk_cas.sh backup: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
 	ctx := context.Background()
