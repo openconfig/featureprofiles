@@ -27,8 +27,6 @@ import (
 	"time"
 
 	"github.com/kr/pretty"
-	clnt "github.com/openconfig/containerz/client"
-	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -41,6 +39,8 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/prototext"
+
+	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 )
 
 func TestMain(m *testing.M) {
@@ -48,7 +48,7 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	containerTar = flag.String("container_tar", "cntrsrv.tar", "The container tarball to deploy.")
+	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
 	// containerTarPath returns the path to the container tarball.
 	// This can be overridden for internal testing behavior using init().
 	containerTarPath = func(t *testing.T) string {
@@ -75,9 +75,7 @@ func setupContainer(t *testing.T, dut *ondatra.DUTDevice) func() {
 		Network:             "host",
 		PollForRunningState: true,
 	}
-	t.Logf("Starting container %q with host networking on port %d using tar %q", instanceName, cntrPort, containerTarPath(t))
 	_, cleanup := containerztest.Setup(ctx, t, dut, opts)
-	t.Logf("Container %q setup completed", instanceName)
 	return cleanup
 }
 
@@ -117,9 +115,6 @@ func TestDial(t *testing.T) {
 	// ready to accept connections. We retry the Ping RPC to handle this race
 	// condition.
 	var lastErr error
-	var retry int
-	containerz := dut.RawAPIs().GNOI(t).Containerz()
-	cli := clnt.NewClientFromStub(containerz)
 	for {
 		select {
 		case <-ctx.Done():
@@ -133,23 +128,8 @@ func TestDial(t *testing.T) {
 			return // Success
 		}
 		lastErr = err
-		retry++
-		t.Logf("Ping failed, retrying in 2 seconds... (attempt=%d, error=%v)", retry, err)
+		t.Logf("Ping failed, retrying in 2 seconds... (error: %v)", err)
 		time.Sleep(2 * time.Second)
-		if retry%3 == 0 {
-			listCh, listErr := cli.ListContainer(ctx, true, 0, map[string][]string{"name": {instanceName}})
-			if listErr != nil {
-				t.Logf("ListContainer during ping retry failed: %v", listErr)
-			} else {
-				for info := range listCh {
-					if info.Error != nil {
-						t.Logf("ListContainer stream error during retry: %v", info.Error)
-						continue
-					}
-					t.Logf("Retry container state: name=%s state=%s image=%s labels=%v", info.Name, info.State, info.ImageName, info.ID)
-				}
-			}
-		}
 	}
 }
 
