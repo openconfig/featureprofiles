@@ -340,7 +340,6 @@ func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, ar
 		}
 		t.Errorf("STATUS:Script failed: %v\nCommand output:\n%s", err, string(out))
 	}
-	t.Logf("STATUS: Script execution succeeded (output size: %d bytes)", len(out))
 	return nil
 }
 
