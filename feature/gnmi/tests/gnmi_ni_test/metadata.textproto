@@ -21,6 +21,7 @@ platform_exceptions: {
   }
   deviations: {
     default_ni_gnmi_server_name: "gnxi-default"
+    grpc_transport_security_false_unsupported: true
   }
 }
 platform_exceptions: {
