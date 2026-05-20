@@ -23,8 +23,19 @@ platform_exceptions:  {
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
+    hardware_model_regex:  "DCS-728.*|DCS-75.*|DCS-78.*"
   }
   deviations:  {
     interface_enabled:  true
+  }
+}
+platform_exceptions:  {
+  platform:  {
+    vendor:  ARISTA
+    hardware_model_regex:  "DCS-7050CX4.*"
+  }
+  deviations:  {
+    interface_enabled:  true
+    copp_l2_unicast_unsupported:  true
   }
 }

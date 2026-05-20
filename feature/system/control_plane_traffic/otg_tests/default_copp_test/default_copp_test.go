@@ -94,6 +94,7 @@ type flowParameters struct {
 type commonEntities struct {
 	dut        *ondatra.DUTDevice
 	ate        *ondatra.ATEDevice
+	platCfg    *platformConfig
 	gnmiClient gpb.GNMIClient
 	ctx        context.Context
 }
@@ -103,6 +104,89 @@ type coppSystemTestcase struct {
 	flowParams         flowParameters
 	increasedDropCount bool
 	counters           []string
+}
+
+const (
+	coppCounterPrefix    = "arista-platform-control-plane-traffic-counters:"
+	counterL3LpmOverflow = "l3LpmOverflow"
+	counterL2Unicast     = "l2Unicast"
+	counterIPUnicast     = "ipUnicast"
+	counterL2Broadcast   = "l2Broadcast"
+	counterLACP          = "lacp"
+)
+
+type platformConfig struct {
+	platformName string            // "sand" or "strata"
+	counterNames map[string]string // logical key -> actual counter name
+}
+
+var platformCounterNames = map[string]map[string]string{
+	"sand": {
+		counterL3LpmOverflow: "l3-lpm-overflow",
+		counterL2Unicast:     "l2-unicast",
+		counterIPUnicast:     "ip-unicast",
+		counterL2Broadcast:   "l2-broadcast",
+		counterLACP:          "lacp",
+	},
+	"strata": {
+		counterL3LpmOverflow: "glean",
+		counterL2Unicast:     "switched-tc3-tc5",
+		counterIPUnicast:     "self-ip",
+		counterL2Broadcast:   "other",
+		counterLACP:          "lacp",
+	},
+}
+
+func extractPlatformFromResponse(t *testing.T, resp *gpb.GetResponse) string {
+	t.Helper()
+	notifications := resp.GetNotification()
+	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
+		t.Fatal("extractPlatformFromResponse: empty gNMI response")
+	}
+	jsonData := notifications[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		t.Fatalf("extractPlatformFromResponse: failed to unmarshal JSON: %v", err)
+	}
+	for key := range data {
+		if strings.HasPrefix(key, coppCounterPrefix) {
+			return strings.TrimPrefix(key, coppCounterPrefix)
+		}
+	}
+	t.Fatalf("extractPlatformFromResponse: no platform key with prefix %q found in response", coppCounterPrefix)
+	return ""
+}
+
+func getPlatformConfig(t *testing.T, ctx context.Context, gnmiClient gpb.GNMIClient) *platformConfig {
+	t.Helper()
+	resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "components"},
+				{Name: "component"},
+				{Name: "integrated-circuit"},
+				{Name: "pipeline-counters"},
+				{Name: "control-plane-traffic"},
+				{Name: "vendor"},
+				{Name: "arista"},
+			},
+		}},
+		Type:     gpb.GetRequest_STATE,
+		Encoding: gpb.Encoding_JSON_IETF,
+	})
+	if err != nil {
+		t.Fatalf("getPlatformConfig: gNMI Get failed: %v", err)
+	}
+	platform := extractPlatformFromResponse(t, resp)
+	counters, ok := platformCounterNames[platform]
+	if !ok {
+		t.Fatalf("getPlatformConfig: detected platform %q has no counter mapping", platform)
+	}
+	t.Logf("getPlatformConfig: detected %q platform from OC path", platform)
+	return &platformConfig{
+		platformName: platform,
+		counterNames: counters,
+	}
 }
 
 // configInterfaceDUT configures the interface with the Addrs.
@@ -335,7 +419,7 @@ func (ce *commonEntities) getDroppedPktCounts(t *testing.T, counters []string) [
 				{Name: "control-plane-traffic"},
 				{Name: "vendor"},
 				{Name: "arista"},
-				{Name: "sand"},
+				{Name: ce.platCfg.platformName},
 				{Name: "state"},
 			},
 		}},
@@ -413,14 +497,18 @@ func TestCoppSystem(t *testing.T) {
 		return
 	}
 
+	platCfg := getPlatformConfig(t, ctx, gnmiClient)
+
 	ce := &commonEntities{
 		dut:        dut,
 		ate:        ate,
+		platCfg:    platCfg,
 		gnmiClient: gnmiClient,
 		ctx:        ctx,
 	}
 
 	ce.configureDUT(t)
+
 	// TODO [https://github.com/openconfig/featureprofiles/issues/4171]: Add test cases for BGP, LDP and LLDP traffic.
 	// Add test case for arista-platform-control-plane-traffic-counters:l3-destination-miss.
 	testCases := []coppSystemTestcase{
@@ -428,67 +516,70 @@ func TestCoppSystem(t *testing.T) {
 			name:               "CoppSystemL3LpmOverflowExceedingLimitTest",
 			flowParams:         flowParameters{pps: 20000, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: true,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l3-lpm-overflow"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL3LpmOverflow]},
 		},
 		{
 			name:               "CoppSystemL3LpmOverflowInLimitTest",
 			flowParams:         flowParameters{pps: 200, packetSize: 512, trafficLayer: 3, trafficType: "l3LpmOverflow"},
 			increasedDropCount: false,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l3-lpm-overflow"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL3LpmOverflow]},
 		},
 		{
 			name:               "CoppSystemL2UcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: true,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-unicast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Unicast]},
 		},
 		{
 			name:               "CoppSystemL2UcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2},
 			increasedDropCount: false,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-unicast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Unicast]},
 		},
 		{
 			name:               "CoppSystemIpUcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: true,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:ip-unicast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterIPUnicast]},
 		},
 		{
 			name:               "CoppSystemIpUcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 3, trafficType: "ipUcast", dstIPAddress: dutSrc.IPv4},
 			increasedDropCount: false,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:ip-unicast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterIPUnicast]},
 		},
 		{
 			name:               "CoppSystemL2BcastExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: true,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-broadcast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Broadcast]},
 		},
 		{
 			name:               "CoppSystemL2BcastInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "l2Bcast", dstMACAddress: broadcastMAC},
 			increasedDropCount: false,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:l2-broadcast"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterL2Broadcast]},
 		},
 		{
 			name:               "CoppSystemLacpExceedingLimitTest",
 			flowParams:         flowParameters{pps: 600000, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: true,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:lacp"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterLACP]},
 		},
 		{
 			name:               "CoppSystemLacpInLimitTest",
 			flowParams:         flowParameters{pps: 600, packetSize: 512, trafficLayer: 2, trafficType: "lacp"},
 			increasedDropCount: false,
-			counters:           []string{"arista-platform-control-plane-traffic-counters:lacp"},
+			counters:           []string{coppCounterPrefix + platCfg.counterNames[counterLACP]},
 		},
 	}
 
 	for idx := range testCases {
 		tc := &testCases[idx]
 		t.Run(tc.name, func(t *testing.T) {
+			if strings.HasPrefix(tc.name, "CoppSystemL2Ucast") && deviations.CoppL2UnicastUnsupported(ce.dut) {
+				t.Skip("L2 unicast COPP test not supported on this platform")
+			}
 			ce.testCoppSystemHelper(t, tc)
 		})
 	}
