@@ -16,10 +16,14 @@
 package mixed_oc_cli_origin_support_test
 
 import (
+	"context"
+	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/ygnmi/ygnmi"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -161,6 +165,54 @@ func TestQoSDependentCLISubtreeReplace(t *testing.T) {
 	testQoSWithCLIAndOCUpdates(t, dut, getTestcase(t, dut), true)
 }
 
+const coppCounterPrefix = "arista-platform-control-plane-traffic-counters:"
+
+func extractPlatformFromResponse(t *testing.T, resp *gpb.GetResponse) string {
+	t.Helper()
+	notifications := resp.GetNotification()
+	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
+		t.Fatal("extractPlatformFromResponse: empty gNMI response")
+	}
+	jsonData := notifications[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+	var data map[string]interface{}
+	if err := json.Unmarshal(jsonData, &data); err != nil {
+		t.Fatalf("extractPlatformFromResponse: failed to unmarshal JSON: %v", err)
+	}
+	for key := range data {
+		if strings.HasPrefix(key, coppCounterPrefix) {
+			return strings.TrimPrefix(key, coppCounterPrefix)
+		}
+	}
+	t.Fatalf("extractPlatformFromResponse: no platform key with prefix %q found in response", coppCounterPrefix)
+	return ""
+}
+
+func getAristaPlatform(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	gnmiClient := dut.RawAPIs().GNMI(t)
+	resp, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Elem: []*gpb.PathElem{
+				{Name: "components"},
+				{Name: "component"},
+				{Name: "integrated-circuit"},
+				{Name: "pipeline-counters"},
+				{Name: "control-plane-traffic"},
+				{Name: "vendor"},
+				{Name: "arista"},
+			},
+		}},
+		Type:     gpb.GetRequest_STATE,
+		Encoding: gpb.Encoding_JSON_IETF,
+	})
+	if err != nil {
+		t.Fatalf("getAristaPlatform: gNMI Get failed: %v", err)
+	}
+	platform := extractPlatformFromResponse(t, resp)
+	t.Logf("getAristaPlatform: detected %q platform from OC path", platform)
+	return platform
+}
+
 func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
 	tc := testCase{
 		queueName:        "TEST",
@@ -175,8 +227,11 @@ func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
 				t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 			}
 
-			nonOCConfig := `qos traffic-class 0 name target-group-TEST
-qos tx-queue 0 name TEST`
+			txQueueCmd := "qos tx-queue 0 name TEST"
+			if platform := getAristaPlatform(t, dut); platform == "strata" {
+				txQueueCmd = "qos uc-tx-queue 0 name TEST"
+			}
+			nonOCConfig := "qos traffic-class 0 name target-group-TEST\n" + txQueueCmd
 
 			gnmi.BatchUpdate(mixedQuery, nonOCConfigPath, nonOCConfig)
 		}
