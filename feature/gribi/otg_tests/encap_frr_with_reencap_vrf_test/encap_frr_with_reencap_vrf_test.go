@@ -616,7 +616,7 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
 	localAddressLeaf := dutlo0Attrs.IPv4
-	if dut.Vendor() == ondatra.CISCO {
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
 		localAddressLeaf = loopbackIntfName
 	}
 	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
@@ -739,7 +739,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
-		// Disable FEC for 100G-FR ports because Novus does not support it.
+	// Disable FEC for 100G-FR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
