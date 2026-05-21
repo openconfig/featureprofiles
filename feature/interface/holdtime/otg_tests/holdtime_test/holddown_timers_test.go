@@ -632,9 +632,6 @@ func TestTC5ShortDOWN(t *testing.T) {
 		t.Log("Bring OTG Interface Back UP")
 		OTGInterfaceUP(t, ate)
 
-		// Allow the stack a moment to settle after the "UP" command
-		// but before the 2s hold-down timer would have expired.
-		time.Sleep(500 * time.Millisecond)
 	})
 
 	t.Run("Verify Short Down Results", func(t *testing.T) {
@@ -656,7 +653,7 @@ func TestTC5ShortDOWN(t *testing.T) {
 
 		change2 := gnmi.Get(t, dut, gnmi.OC().Interface(aggID).State())
 
-		if *change2.LastChange >= *change1.LastChange && change2.OperStatus == change1.OperStatus {
+		if *change2.LastChange == *change1.LastChange && change2.OperStatus == change1.OperStatus {
 			t2 := getDutCurrentTime(t, dut)
 
 			// Dereference the value and convert to int64 before passing to time.Unix function
