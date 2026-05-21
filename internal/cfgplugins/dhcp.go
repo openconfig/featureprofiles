@@ -59,6 +59,34 @@ func DhcpRelayConfig(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch, cf
 
 			helpers.GnmiCLIConfig(t, dut, dhcpRelayConfig.String())
 		}
+	} else {
+		intfID := cfgParams.Interface
+
+		// Enable relay-agent globally (DHCPv4) + enable on the interface.
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcp().EnableRelayAgent().Config(), true)
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcp().Interface(intfID).Enable().Config(), true)
+
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcp().Interface(intfID).Id().Config(), intfID)
+
+		if cfgParams.IPv4HelperAddress != "" {
+			gnmi.BatchReplace(
+				sb,
+				gnmi.OC().RelayAgent().Dhcp().Interface(intfID).HelperAddress().Config(),
+				[]string{cfgParams.IPv4HelperAddress},
+			)
+		}
+
+		// Enable relay-agent globally (DHCPv6) + enable on the interface.
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcpv6().EnableRelayAgent().Config(), true)
+		gnmi.BatchReplace(sb, gnmi.OC().RelayAgent().Dhcpv6().Interface(intfID).Enable().Config(), true)
+
+		if cfgParams.IPv6HelperAddress != "" {
+			gnmi.BatchReplace(
+				sb,
+				gnmi.OC().RelayAgent().Dhcpv6().Interface(intfID).HelperAddress().Config(),
+				[]string{cfgParams.IPv6HelperAddress},
+			)
+		}
 	}
 	return sb
 }
