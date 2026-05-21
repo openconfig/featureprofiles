@@ -15,7 +15,8 @@ platform_exceptions:  {
     gribi_mac_override_with_static_arp: true
     interface_ref_interface_id_format: true
     pf_require_match_default_rule: true
-    pf_require_sequential_order_pbr_rules: true   
+    pf_require_sequential_order_pbr_rules: true
+    use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address: true
   }
 }
 platform_exceptions:  {
