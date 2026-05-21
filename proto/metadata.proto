@@ -782,6 +782,7 @@ message Metadata {
     bool macsec_unsupported = 279;
 
     // Arista b/390506900
+    // TODO: Add Cisco bug here
     bool gue_gre_decap_unsupported = 280;
 
     // Arista b/390506584

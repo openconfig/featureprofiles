@@ -28,5 +28,6 @@ platform_exceptions: {
     skip_setting_allow_multiple_as: true
     skip_isis_set_metric_style_type: true
     bgp_extended_community_set_unsupported: true
+    gue_gre_decap_unsupported: true
   }
 }
