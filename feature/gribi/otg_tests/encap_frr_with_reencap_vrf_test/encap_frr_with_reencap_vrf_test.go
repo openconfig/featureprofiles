@@ -23,6 +23,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -561,11 +562,28 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
-		intfName = intfName + ".0"
+	// Parse interface name to extract base interface and subinterface index
+	baseIntf := intfName
+	var subIdx uint32
+	if parts := strings.SplitN(intfName, ".", 2); len(parts) == 2 {
+		baseIntf = parts[0]
+		if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
+			subIdx = uint32(v)
+		}
 	}
 
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	// For deviations that require .0 suffix for base interfaces, ensure it's added
+	isisIntfName := intfName
+	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(intfName, ".") {
+		isisIntfName = intfName + ".0"
+	}
+
+	isisIntf := isis.GetOrCreateInterface(isisIntfName)
+	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		isisIntf.InterfaceRef = nil
+	}
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
@@ -601,7 +619,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if dut.Vendor() == ondatra.CISCO {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -614,7 +636,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) && deviations.InterfaceRefInterfaceIDFormat(dut) {
 		dutIntf = dutIntf + ".0"
 	}
 	nbrPath := statePath.Interface(dutIntf)
