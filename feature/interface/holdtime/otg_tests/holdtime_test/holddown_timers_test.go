@@ -640,10 +640,10 @@ func TestTC5ShortDOWN(t *testing.T) {
 	t.Run("Verify Short Down Results", func(t *testing.T) {
 
 		//poll for a short duration to ensure it settles on UP
-		gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 15 * time.Second, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+		gnmi.Watch(t, dut, gnmi.OC().Interface(aggID).OperStatus().State(), 15*time.Second, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
 			status, ok := val.Val()
 			return ok && status == oc.Interface_OperStatus_UP
-			}).Await(t)
+		}).Await(t)
 
 		// Start building the log message
 		logMessage := "Interface Status Timeline\n" +
