@@ -94,9 +94,7 @@ Generate a configuration D.2 with a port-speed mismatch in the OC which should b
 Generate a configuration D.2 with a port-speed mismatch in the CLI which should be accepted and applied by the DUT.
 
 ### gNMI-3.7 - union_replace rejected with error in CLI with OC
-Verify a DUT rejects and rolls back a gnmi.Set union_replace with an invalid configuration in origin CLI.  Verify the original configuration is preserved.  
-
-TODO: Decide what configuration error(s) to use.  I think we need cases where there is OC that fails leafref validation, but even more importantly, a scenario where the OC will validate, but contains a semantic error.  
+Verify a DUT rejects and rolls back a gnmi.Set union_replace with an invalid configuration in origin CLI or .  Verify the original configuration is preserved.  
 
 Simple issues like a value out of range or referencing a policy that doesn’t exist in the OC case will be caught with a validation of the structs.  Such an error  is likely a different code path in a DUT vs. processing a configuration that validates but has some semantic error.  
 
@@ -113,13 +111,10 @@ Steps
 1. Verify E.1 == E.3  (the configuration is unchanged).
 
 #### gnmi-3.7.1 reference validation error in OC
-The invalid configuration is OC which references a BGP neighbor import policy that does not exist.
+The invalid configuration is configuring MTU for non-existant interface in OC.
 
 #### gnmi-3.7.2 reference which validates but is an error in OC
-The invalid configuration is OC which references an qos queue on an interface which does not exist.
-
-#### gnmi-3.7.3 reference error in CLI
-The invalid configuration is CLI which references a BGP neighbor import policy that does not exist.
+The invalid configuration is configuring MTU for non-existant interface in CLI.
 
 ### gNMI-3.8 - union_replace rejected with error due to configuration item overlap
 This test verifies union_replace option 1 or 2 behavior for resolving overlapping configuration items between OC and CLI.  Generate the following configuration item combinations which have overlaps between CLI and OC.  For NOS which implement option 1, the DUT should return a gRPC error of `INVALID_ARGUMENT`.  For NOS with implement option 2, the configuration should be accepted, with the CLI value taking effect and the OC configuration leaf being accepted, but not applied as “state”.  
