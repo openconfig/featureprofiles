@@ -88,6 +88,9 @@ const (
 	setALLOWPolicy           = "ALLOW"
 	bgpMED                   = 25
 	aclStatement3            = "30"
+	gnmiRetryCount           = 3
+	gnmiDeleteRetryCount     = 3
+	gnmiSleepDuration        = 30 * time.Second
 )
 
 var (
@@ -202,7 +205,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 		t.Fatal(err)
 	}
 	st.GetOrCreateActions().PolicyResult = pr
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
 func configInterfaceDUT(t *testing.T, i *oc.Interface, me *attrs.Attributes, subIntfIndex uint32, vlan uint16, dut *ondatra.DUTDevice) {
@@ -280,8 +283,13 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 		fptest.SetPortSpeed(t, dut.Port(t, "port2"))
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
 		fptest.AssignToNetworkInstance(t, dut, i2.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		if deviations.RequireRoutedSubinterface0(dut) {
+			fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), 0)
+		}
+		for _, subIntf := range []uint32{10, 20, 30, 40, 50, 60} {
+			fptest.AssignToNetworkInstance(t, dut, i1.GetName(), deviations.DefaultNetworkInstance(dut), subIntf)
+		}
 	}
 }
 
@@ -638,7 +646,7 @@ func removeNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeighbor) {
 	t.Helper()
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 	for _, nbr := range nbrs {
-		gnmi.Delete(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
+		deleteWithRetry(t, dut, dutConfPath.Neighbor(nbr.neighborip).Config())
 	}
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
@@ -658,20 +666,20 @@ func setBgpPolicy(t *testing.T, dut *ondatra.DUTDevice, d *oc.Root) {
 		actions5.GetOrCreateBgpActions().SetMedAction = oc.BgpPolicy_BgpSetMedAction_SET
 	}
 	actions5.GetOrCreateBgpActions().SetLocalPref = ygot.Uint32(100)
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	updateWithRetry(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv4GrpName).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv4GrpName).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv6GrpName).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv6GrpName).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv4GrpName).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv4GrpName).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv6GrpName).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv6GrpName).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
 	} else {
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv4GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv4GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv6GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
-		gnmi.Update(t, dut, dutConfPath.PeerGroup(peerv6GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv4GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv4GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv6GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
+		updateWithRetry(t, dut, dutConfPath.PeerGroup(peerv6GrpName).AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW", setMEDPolicy})
 	}
 }
 
@@ -699,7 +707,7 @@ func configureDUTNewPeers(t *testing.T, dut *ondatra.DUTDevice, nbrs []*bgpNeigh
 		af6 := nv4.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 		af6.Enabled = ygot.Bool(false)
 	}
-	gnmi.Update(t, dut, dutConfPath.Config(), niProto)
+	updateWithRetry(t, dut, dutConfPath.Config(), niProto)
 	fptest.LogQuery(t, "DUT BGP Config", dutConfPath.Config(), gnmi.Get(t, dut, dutConfPath.Config()))
 }
 
@@ -751,26 +759,56 @@ func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Errorf("Expected Graceful restart timer: got %v, want %v", grTimerVal, grRestartTime)
 	}
 
-	if llgrTimer := gnmi.Get(t, dut, nbrPath.GracefulRestart().StaleRoutesTime().State()); llgrTimer != grStaleRouteTime {
-		t.Errorf("LLGR timer is incorrect, want %v, got %v", grStaleRouteTime, llgrTimer)
+	if !deviations.BgpLlgrOcUndefined(dut) {
+		if llgrTimer := gnmi.Get(t, dut, nbrPath.GracefulRestart().StaleRoutesTime().State()); llgrTimer != grStaleRouteTime {
+			t.Errorf("LLGR timer is incorrect, want %v, got %v", grStaleRouteTime, llgrTimer)
+		}
 	}
-	if grState := gnmi.Get(t, dut, nbrPath.GracefulRestart().Enabled().State()); grState != true {
+	grState, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().Enabled().State()).Val()
+	if !present && deviations.MissingValueForDefaults(dut) {
+		grState = true
+	} else if !present {
+		t.Errorf("Graceful restart enabled state is not present")
+	}
+	if grState != true {
 		t.Errorf("Graceful restart enabled state is incorrect, want true, got %v", grState)
 	}
-	if peerRestartTime := gnmi.Get(t, dut, nbrPath.GracefulRestart().PeerRestartTime().State()); peerRestartTime != 0 {
-		t.Errorf("Peer restart time is incorrect, want 0, got %v", peerRestartTime)
+	if !deviations.BgpLlgrOcUndefined(dut) {
+		peerRestartState, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().PeerRestarting().State()).Val()
+		if !present && deviations.MissingValueForDefaults(dut) {
+			peerRestartState = true
+		} else if !present {
+			t.Errorf("Graceful restart peer-restarting state is not present")
+		}
+		if peerRestartState != true {
+			peerRestartTime, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().PeerRestartTime().State()).Val()
+			if !present && deviations.MissingValueForDefaults(dut) {
+				peerRestartTime = 0
+			} else if !present {
+				t.Errorf("Peer restart time is not present")
+			}
+			if peerRestartTime != 0 {
+				t.Errorf("Peer restart time is incorrect, want 0, got %v", peerRestartTime)
+			}
+			t.Errorf("Peer restart state is incorrect, want true, got %v", peerRestartState)
+		}
+		if localRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().LocalRestarting().State()); localRestartState != false {
+			t.Errorf("Local restart state is incorrect, want false, got %v", localRestartState)
+		}
+		if grMode := gnmi.Get(t, dut, nbrPath.GracefulRestart().Mode().State()); grMode != oc.GracefulRestart_Mode_HELPER_ONLY && grMode != oc.GracefulRestart_Mode_BILATERAL {
+			t.Errorf("Graceful restart mode is incorrect, want %v or %v, got %v", oc.GracefulRestart_Mode_HELPER_ONLY, oc.GracefulRestart_Mode_BILATERAL, grMode)
+		}
 	}
-	if peerRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().PeerRestarting().State()); peerRestartState != true {
-		t.Errorf("Peer restart state is incorrect, want true , got %v", peerRestartState)
-	}
-	if localRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().LocalRestarting().State()); localRestartState != false {
-		t.Errorf("Local restart state is incorrect, want false, got %v", localRestartState)
-	}
-	if grMode := gnmi.Get(t, dut, nbrPath.GracefulRestart().Mode().State()); grMode != oc.GracefulRestart_Mode_HELPER_ONLY {
-		t.Errorf("Graceful restart mode is incorrect, want oc.GracefulRestart_Mode_HELPER_ONLY, got %v", grMode)
-	}
-	if nbrAfiSafiGrState := gnmi.Get(t, dut, nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GracefulRestart().Enabled().State()); nbrAfiSafiGrState != true {
-		t.Errorf("Neighbor AFI-SAFI graceful restart state is incorrect, want true, got %v", nbrAfiSafiGrState)
+	if !deviations.BgpGracefulRestartUnderAfiSafiUnsupported(dut) {
+		nbrAfiSafiGrState, present := gnmi.Lookup(t, dut, nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GracefulRestart().Enabled().State()).Val()
+		if !present && deviations.MissingValueForDefaults(dut) {
+			nbrAfiSafiGrState = true
+		} else if !present {
+			t.Errorf("Neighbor AFI-SAFI Graceful restart enabled state is not present")
+		}
+		if nbrAfiSafiGrState != true {
+			t.Errorf("Neighbor AFI-SAFI Graceful restart status: got %v, want Enabled", nbrAfiSafiGrState)
+		}
 	}
 }
 
@@ -789,6 +827,58 @@ func buildCliConfigRequest(config string) *gpb.SetRequest {
 		}},
 	}
 	return gpbSetRequest
+}
+
+func replaceWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {
+	t.Helper()
+	gnmiOperationWithRetry(t, "Replace", gnmiRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
+		}
+		_, err = ygnmi.Replace(context.Background(), c, q, val)
+		return err
+	})
+}
+
+func updateWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T], val T) {
+	t.Helper()
+	gnmiOperationWithRetry(t, "Update", gnmiRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
+		}
+		_, err = ygnmi.Update(context.Background(), c, q, val)
+		return err
+	})
+}
+
+func deleteWithRetry[T any](t *testing.T, dut *ondatra.DUTDevice, q ygnmi.ConfigQuery[T]) {
+	t.Helper()
+	gnmiOperationWithRetry(t, "Delete", gnmiDeleteRetryCount, func() error {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		c, err := ygnmi.NewClient(gnmiClient, ygnmi.WithTarget(dut.Name()))
+		if err != nil {
+			return fmt.Errorf("failed to create ygnmi client: %w", err)
+		}
+		_, err = ygnmi.Delete(context.Background(), c, q)
+		return err
+	})
+}
+
+func gnmiOperationWithRetry(t *testing.T, opName string, retryCount int, op func() error) {
+	t.Helper()
+	for i := 0; i < retryCount; i++ {
+		err := op()
+		if err == nil {
+			return
+		}
+		t.Logf("%s failed, retrying... Attempt %d/%d. Error: %v", opName, i+1, retryCount, err)
+		time.Sleep(gnmiSleepDuration)
+	}
+	t.Fatalf("%s failed after %d attempts", opName, retryCount)
 }
 
 func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
@@ -887,33 +977,45 @@ func TestTrafficWithGracefulRestartLLGR(t *testing.T) {
 		})
 
 		t.Run("Restart routing", func(t *testing.T) {
+			if deviations.RoutingRestartViaGnoiUnsupported(dut) {
+				t.Skip("Skipping routing restart via gNOI due to deviation")
+			}
 			gnoi.KillProcess(t, dut, gnoi.ROUTING, gnoi.SigTerm, true, true)
 		})
 
 		var bgpIxPeer []*ixnet.BGP
 		t.Run("configure 5 more new BGP peers", func(t *testing.T) {
+			if deviations.BgpConfigDuringGracefulRestartUnsupported(dut) {
+				t.Skip("Skipping BGP Peer configuration during graceful restart due to deviation")
+			}
 			configureDUTNewPeers(t, dut, dutNbrs)
 			bgpIxPeer = configureATENewPeers(t, topo, ateIntfList)
 		})
 
 		t.Run("Remove newly added 5 BGP peers", func(t *testing.T) {
+			if deviations.BgpConfigDuringGracefulRestartUnsupported(dut) {
+				t.Skip("Skipping BGP Peer removal during graceful restart due to deviation")
+			}
 			removeNewPeers(t, dut, dutNbrs)
 			removeATENewPeers(t, topo, bgpIxPeer)
 		})
 
 		t.Run("Remove policy configured", func(t *testing.T) {
+			if deviations.BgpConfigDuringGracefulRestartUnsupported(dut) {
+				t.Skip("Skipping BGP Policy removal during graceful restart due to deviation")
+			}
 			dutBgpV4PeerGroupPath := dutConfPath.Bgp().PeerGroup(peerv4GrpName)
 			dutBgpV6PeerGroupPath := dutConfPath.Bgp().PeerGroup(peerv6GrpName)
 			if deviations.RoutePolicyUnderAFIUnsupported(dut) {
-				gnmi.Replace(t, dut, dutBgpV4PeerGroupPath.ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV4PeerGroupPath.ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV6PeerGroupPath.ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV6PeerGroupPath.ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV4PeerGroupPath.ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV4PeerGroupPath.ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV6PeerGroupPath.ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV6PeerGroupPath.ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
 			} else {
-				gnmi.Replace(t, dut, dutBgpV4PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV4PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV6PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
-				gnmi.Replace(t, dut, dutBgpV6PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV4PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV4PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV6PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ImportPolicy().Config(), []string{"ALLOW"})
+				replaceWithRetry(t, dut, dutBgpV6PeerGroupPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).ApplyPolicy().ExportPolicy().Config(), []string{"ALLOW"})
 			}
 		})
 	})

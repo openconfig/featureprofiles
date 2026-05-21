@@ -16,6 +16,18 @@ Verify that GDP packets are punted with correct metadata.
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/integrated-circuit/config/node-id:
+    platform_type: [INTEGRATED_CIRCUIT]
+  /interfaces/interface/aggregation/switched-vlan/config/native-vlan:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
+  /interfaces/interface/subinterfaces/subinterface/vlan/match/single-tagged/config/vlan-id:
+  /lldp/config/enabled:
+  /system/mac-address/config/routing-mac:
 rpcs:
   gnmi:
     gNMI.Get:
