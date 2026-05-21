@@ -19,7 +19,7 @@ func TestMain(m *testing.M) {
 const (
 	customVRFName     = "customVRFName"
 	gNMIPort          = 50055
-	transportSecurity = false
+	transportSecurity = true
 )
 
 var (
