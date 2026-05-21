@@ -280,8 +280,6 @@
 ##### Validate test results
 *   Verify that the ATE receives the redistributed static route ```ipv4-route```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
-*   Validate that the traffic is received on ATE port-2
 
 ### RT-1.27.11 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute a NULL IPv4 static routes to BGP with a next-hop configured through route-policy
@@ -294,10 +292,10 @@
 *   Set a tag on the ```ipv4-drop-route``` to ```40```
         *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag
 ##### Configure BGP actions to set a next-hop
-*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set next-hop to ```192.168.1.9```
+*   For routing-policy ```route-policy-v4``` statement ```statement-v4``` set next-hop to ```192.168.1.10```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop
 ##### Verification
-*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` next-hop is set to ```192.168.1.9```
+*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` next-hop is set to ```192.168.1.10```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop
 ##### Validate the test results
 *   Validate that the ATE receives the redistributed static route ```ipv4-drop-route``` on the iBGP session between DUT-ATE port 3
@@ -507,8 +505,6 @@
 ##### Validate test results
 *   Verify that the ATE receives the redistributed static route ```ipv6-route```
     *   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/prefix
-*   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-*   Validate that the traffic is received on ATE port-2
 
 ### RT-1.27.22 [TODO: https://github.com/openconfig/featureprofiles/issues/2568]
 #### Redistribute a NULL IPv6 static routes to BGP with a next-hop configured through route-policy
@@ -521,10 +517,10 @@
 *   Set a tag on the ```ipv6-drop-route``` to 60
         *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/set-tag
 ##### Configure BGP actions to set a next-hop
-*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set next-hop to ```2001:DB8::9```
+*   For routing-policy ```route-policy-v6``` statement ```statement-v6``` set next-hop to ```2001:DB8::A```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-next-hop
 ##### Verification
-*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` next-hop is set to ```2001:DB8::9```
+*   Verify for routing-policy ```route-policy-v4``` statement ```statement-v4``` next-hop is set to ```2001:DB8::A```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/state/set-next-hop
 ##### Validate the test results
 *   Validate that the ATE receives the redistributed static route ```ipv4-drop-route``` on the iBGP session between DUT-ATE port 3

@@ -1163,11 +1163,10 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 	// Sending traffic to network via dut having static-route to drop it.
 	// Traffic must be dropped by the dut irrespective of the bgp advertised-route
 	// having updated next-hop, considering existing static-route is preferred over bgp.
-	// Commenting traffic validation for now
-	/*
-		sendTraffic(t, ate.OTG())
-		verifyTraffic(t, ate, otgConfig)
-	*/
+	// Uncommenting for gap_analysis. Pre-existing.
+
+	sendTraffic(t, ate.OTG())
+	verifyTraffic(t, ate, otgConfig)
 }
 
 // 1.27.23 and 1.27.28 setup function
