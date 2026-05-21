@@ -232,18 +232,14 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	// VRF Selection Policy for IPv6
 	p6 := pf.GetOrCreatePolicy(vrfPolicyv6)
 	p6.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-
 	r20 := p6.GetOrCreateRule(10)
 	r20.GetOrCreateIpv6().SetDestinationAddress("ff02::/16")
-
 	r21 := p6.GetOrCreateRule(20)
 	r21.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
 	r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
-
 	r22 := p6.GetOrCreateRule(30)
 	r22.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
 	r22.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
-
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfPolicyv6).Config(), p6)
 }
 
@@ -449,12 +445,9 @@ func TestPolicyBoundInterface(t *testing.T) {
 	t.Run("IPv6 Policy", func(t *testing.T) {
 		ate.OTG().StopProtocols(t)
 		ate.OTG().StartProtocols(t)
-		t.Logf("Waiting for ARP resolution before applying policy ...")
-		otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 		t.Log("Applying IPv6 policy")
 		applyPolicy(t, dut, p2.Name(), []string{vrfPolicyv6})
 		applyPolicy(t, dut, p3.Name(), []string{vrfPolicyv6})
-		t.Logf("Waiting for ARP resolution after applying policy ...")
 		otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 		t.Run("Initial traffic check IPv6", func(t *testing.T) {
 			flows := []flow{
