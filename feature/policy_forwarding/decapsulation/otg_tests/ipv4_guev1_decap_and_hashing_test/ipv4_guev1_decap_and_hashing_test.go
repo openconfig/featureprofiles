@@ -74,6 +74,7 @@ const (
 	policyID             = 1
 	trafficDuration      = 20
 	dutLoopbackName      = "Loopback0"
+	aggID1, aggID2       = "lag1", "lag2"
 )
 
 // IP Addresses and Attributes
@@ -113,7 +114,6 @@ var (
 	ate1LoopbackIP         = "172.16.1.0"
 	timeout                = 1 * time.Minute
 	lagTrafficDistribution = []uint64{50, 50}
-	aggID1, aggID2         string
 	constH1v4              = "198.51.100.1"
 	constH1v6              = "2001:db8:100::1"
 	constH2v4              = "198.51.110.1"
