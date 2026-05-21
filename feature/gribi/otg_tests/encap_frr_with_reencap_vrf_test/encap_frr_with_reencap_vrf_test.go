@@ -562,15 +562,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-	// Parse interface name to extract base interface and subinterface index
-	baseIntf := intfName
-	var subIdx uint32
-	if parts := strings.SplitN(intfName, ".", 2); len(parts) == 2 {
-		baseIntf = parts[0]
-		if v, err := strconv.ParseUint(parts[1], 10, 32); err == nil {
-			subIdx = uint32(v)
-		}
-	}
+
+	baseIntf := gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Name().Config())
+	subIdx := gnmi.Get(t, dut, gnmi.OC().Interface(baseIntf).Subinterface(0).Index().Config())
 
 	// For deviations that require .0 suffix for base interfaces, ensure it's added
 	isisIntfName := intfName
@@ -596,7 +590,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 		isisIntfLevelAfi.Enabled = nil
 	}
-
+	// Always populate interface-ref with base interface and subinterface index
+	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
 
@@ -636,7 +632,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) && deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		dutIntf = dutIntf + ".0"
 	}
 	nbrPath := statePath.Interface(dutIntf)
