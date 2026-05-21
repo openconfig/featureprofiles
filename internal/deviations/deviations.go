@@ -2232,3 +2232,8 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// QosUcTxQueue returns true if the device uses "qos uc-tx-queue" CLI syntax instead of "qos tx-queue".
+func QosUcTxQueue(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetQosUcTxQueue()
+}
