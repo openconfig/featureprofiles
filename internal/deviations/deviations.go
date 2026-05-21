@@ -1338,6 +1338,12 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
+// ContainerzRetrieveLogsUnsupported returns true if Containerz log retrieval is unsupported.
+// https://partnerissuetracker.corp.google.com/issues/510547636
+func ContainerzRetrieveLogsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRetrieveLogsUnsupported()
+}
+
 // NextHopGroupOCUnsupported returns true if devices do not support next-hop-group config
 func NextHopGroupOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNextHopGroupConfigUnsupported()
@@ -2189,4 +2195,10 @@ func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 // Nokia: https://issuetracker.google.com/514181497
 func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
+}
+
+// RequireTransportSecurity returns if device requires transport-security to be enabled.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
+func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
 }

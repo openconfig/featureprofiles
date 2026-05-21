@@ -1338,6 +1338,14 @@ message Metadata {
     // Nokia: https://issuetracker.google.com/514181497
     bool lacp_interface_member_state_interface_unsupported = 425;
 
+    // Device does not support retrieving Containerz logs.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/510547636
+    bool containerz_retrieve_logs_unsupported = 426;
+
+    // Device requires transport-security to be enabled on gRPC server.
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
+    bool require_transport_security = 427;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
