@@ -398,6 +398,7 @@ message Metadata {
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    // TODO CISCO: Add bug here
     bool skip_setting_allow_multiple_as = 140;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407

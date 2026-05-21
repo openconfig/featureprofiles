@@ -54,7 +54,7 @@ const (
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
 	ateSysID             = "64000000000"
-	UDPSrcPort           = 5996
+	UDPSrcPort           = 1000
 	UDPDstPort           = 6080
 	UDPDstPortNeg        = 6085
 	testSrcPort          = 14
@@ -113,8 +113,7 @@ var (
 	ate1LoopbackIP         = "172.16.1.0"
 	timeout                = 1 * time.Minute
 	lagTrafficDistribution = []uint64{50, 50}
-	aggID1                 = "Port-Channel1"
-	aggID2                 = "Port-Channel2"
+	aggID1, aggID2         string
 	constH1v4              = "198.51.100.1"
 	constH1v6              = "2001:db8:100::1"
 	constH2v4              = "198.51.110.1"
@@ -128,6 +127,11 @@ var (
 type Neighbor struct {
 	IPv4 string
 	IPv6 string
+}
+
+var AggregateInterfaceIDs = map[ondatra.Vendor]map[string]string{
+	ondatra.CISCO:  {aggID1: "Bundle-Ether1", aggID2: "Bundle-Ether2"},
+	ondatra.ARISTA: {aggID1: "Port-Channel1", aggID2: "Port-Channel2"},
 }
 
 func TestMain(m *testing.M) {
@@ -349,26 +353,32 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		dut.Port(t, "port3"),
 		dut.Port(t, "port4"),
 	}
-	aggIDsList = append(aggIDsList, aggID1)
-	cfgplugins.DeleteAggregate(t, dut, aggID1, dutAggPorts1)
+	aggIDsList = append(aggIDsList, AggregateInterfaceIDs[dut.Vendor()][(aggID1)])
+	//cfgplugins.DeleteAggregate(t, dut, AggregateInterfaceIDs[dut.Vendor()][(aggID1)], dutAggPorts1)
 	aggrBatch := &gnmi.SetBatch{}
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID1, DutLag: dutLag1, AggPorts: dutAggPorts1})
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: AggregateInterfaceIDs[dut.Vendor()][(aggID1)], DutLag: dutLag1, AggPorts: dutAggPorts1})
 	// Ports 5 and 6 will be part of LAG
 	dutAggPorts2 := []*ondatra.Port{
 		dut.Port(t, "port5"),
 		dut.Port(t, "port6"),
 	}
-	aggIDsList = append(aggIDsList, aggID2)
-	cfgplugins.DeleteAggregate(t, dut, aggID2, dutAggPorts2)
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID2, DutLag: dutLag2, AggPorts: dutAggPorts2})
+	aggIDsList = append(aggIDsList, AggregateInterfaceIDs[dut.Vendor()][(aggID2)])
+	//cfgplugins.DeleteAggregate(t, dut, AggregateInterfaceIDs[dut.Vendor()][(aggID2)], dutAggPorts2)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: AggregateInterfaceIDs[dut.Vendor()][(aggID2)], DutLag: dutLag2, AggPorts: dutAggPorts2})
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	cfgplugins.ConfigureLoadbalance(t, dut)
+	// TODO: remove this
+	if dut.Vendor() == ondatra.ARISTA {
+		cfgplugins.ConfigureLoadbalance(t, dut)
+	}
+	// Routing Policy (ALLOW) must be defined before BGP references it
+	rpPolicy := cfgplugins.ConfigureCommonBGPPolicies(t, dut)
+	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
 	// ISIS Configuration
 	cfgISIS := cfgplugins.ISISConfigBasic{
 		InstanceName: isisInstance,
 		AreaAddress:  dutAreaAddress,
 		SystemID:     dutSysID,
-		AggID:        aggID1,
+		AggID:        AggregateInterfaceIDs[dut.Vendor()][(aggID1)],
 		Ports:        []*ondatra.Port{p1, p2},
 		LoopbackIntf: dutLoopbackName,
 	}
@@ -700,7 +710,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	if immediateHeader {
 		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	} else {
-		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(10)
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(1000)
 	}
 	if incr == 13 || incr == 14 {
 		udpOuter.DstPort().SetValue(UDPDstPortNeg)
@@ -723,7 +733,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		if immediateHeader {
 			udpMiddle.SrcPort().SetValue(UDPSrcPort - 1)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
 
@@ -770,7 +780,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
+		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
