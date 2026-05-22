@@ -31,20 +31,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -877,6 +877,7 @@ func validateRedistributeIPv4DefaultRejectPolicy(t *testing.T, dut *ondatra.DUTD
 func validateRedistributeIPv6DefaultRejectPolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	validateRedistributeStatic(t, dut, !acceptRoute, !isV4, !metricPropagate)
 	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medZero, !shouldBePresent)
+	validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medZero, !shouldBePresent)
 }
 
 // 1.27.2 setup function
@@ -1278,6 +1279,12 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 
 	ipv6PrefixPolicyStatementAction := ipv6PrefixPolicyStatement.GetOrCreateActions()
 	ipv6PrefixPolicyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
+	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(64512)
+	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
+	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(1000))
+	if !deviations.BGPSetMedActionUnsupported(dut) {
+		ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
+	}
 
 	ipv6PrefixPolicyStatementConditionsPrefixes := ipv6PrefixPolicyStatement.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 	ipv6PrefixPolicyStatementConditionsPrefixes.SetPrefixSet("prefix-set-v6")
@@ -1285,11 +1292,11 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 
 	gnmi.Replace(t, dut, policyPath.Config(), redistributePolicyDefinition)
 
-	configureTableConnection(t, dut, !isV4, metricPropagate, redistributeStaticPolicyNameV6, oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
+	configureTableConnection(t, dut, !isV4, !metricPropagate, redistributeStaticPolicyNameV6, oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE)
 	if deviations.TcAttributePropagationUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			cfgplugins.DeviationCiscoRoutingPolicyBGPActionSetMed(t, dut, redistributeStaticPolicyNameV6, "statement-v6", "prefix-set-v6", medIPv6, "igp")
+			cfgplugins.DeviationCiscoRoutingPolicyBGPActionSetMed(t, dut, redistributeStaticPolicyNameV6, "statement-v6", "prefix-set-v6", 1000, "igp")
 		}
 	}
 
@@ -1301,7 +1308,7 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 func validateRedistributeIPv6RoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	validateRedistributeStatic(t, dut, acceptRoute, !isV4, metricPropagate)
 	validatePrefixSetRoutingPolicy(t, dut, !isV4)
-	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medIPv6, shouldBePresent)
+	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", 1000, shouldBePresent)
 }
 
 // 1.27.5 and 1.27.16 validation function
@@ -1579,9 +1586,9 @@ func validateRedistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDe
 	}
 
 	if isV4 {
-		validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.20.0", medZero, shouldBePresent)
+		validateLearnedIPv4Prefix(t, ate, atePort3.Name+".BGP4.peer", "192.168.20.0", medZero, shouldBePresent)
 	} else {
-		validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:64:64::", medZero, shouldBePresent)
+		validateLearnedIPv6Prefix(t, ate, atePort3.Name+".BGP6.peer", "2024:db8:64:64::", medZero, shouldBePresent)
 	}
 }
 
@@ -1888,7 +1895,27 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		{
 			name:     "1.27.13 redistribute-ipv6-route-policy",
 			setup:    func() { redistributeIPv6StaticRoutePolicy(t, dut, ate) },
-			validate: func() { validateRedistributeIPv6RoutePolicy(t, dut, ate) },
+			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				asn := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().Asn
+				repeatN := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().RepeatN
+				if asn == nil || *asn != 64512 {
+					t.Errorf("DUT state set-as-path-prepend ASN: got %v, want 64512", asn)
+				}
+				if repeatN == nil || *repeatN != 1 {
+					t.Errorf("DUT state set-as-path-prepend repeat-n: got %v, want 1", repeatN)
+				}
+				med := stmt.GetActions().GetBgpActions().GetSetMed()
+				matched := false
+				if u32, ok := med.(oc.UnionUint32); ok && uint32(u32) == 1000 {
+					matched = true
+				}
+				if !matched {
+					t.Errorf("DUT state set-med: got %v, want 1000", med)
+				}
+				validateRedistributeIPv6RoutePolicy(t, dut, ate)
+			},
 		},
 		// 1.27.14
 		{
