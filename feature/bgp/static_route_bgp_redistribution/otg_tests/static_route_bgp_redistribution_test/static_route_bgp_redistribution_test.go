@@ -525,6 +525,7 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 	if importPolicy != "" {
 		tc.SetImportPolicy([]string{importPolicy})
 	}
+	tc.SetDefaultImportPolicy(defaultImport)
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		tc.SetDisableMetricPropagation(!mPropagation)
 	}
@@ -552,6 +553,7 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 		if importPolicy != "" {
 			tc1.SetImportPolicy([]string{importPolicy})
 		}
+		tc1.SetDefaultImportPolicy(defaultImport)
 		if !deviations.SkipSettingDisableMetricPropagation(dut) {
 			tc1.SetDisableMetricPropagation(!mPropagation)
 		}
@@ -697,7 +699,13 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 	if tcState.GetAddressFamily() != af {
 		t.Fatal("address family not as expected or table connection but should be")
 	}
-
+	expectedDefaultImport := oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
+	if !acceptRoute {
+		expectedDefaultImport = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
+	}
+	if tcState.GetDefaultImportPolicy() != expectedDefaultImport {
+		t.Fatalf("Default import policy for table connection: got %v, want %v", tcState.GetDefaultImportPolicy(), expectedDefaultImport)
+	}
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
 		if mPropagation {
 			if tcState.GetDisableMetricPropagation() {
@@ -1765,6 +1773,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.5 redistribute-ipv4-route-policy-as-prepend",
 			setup: func() { redistributeStaticRoutePolicyWithASN(t, dut, isV4) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				asn := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().Asn
+				repeatN := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().RepeatN
+				if asn == nil || *asn != 64599 {
+					t.Errorf("DUT state set-as-path-prepend ASN: got %v, want 64599", asn)
+				}
+				if repeatN == nil || *repeatN != 3 {
+					t.Errorf("DUT state set-as-path-prepend repeat-n: got %v, want 3", repeatN)
+				}
 				validatePrefixASN(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", []uint32{64512, 64599, 64599, 64599})
 			},
 		},
@@ -1773,6 +1791,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.6 redistribute-ipv4-route-policy-med",
 			setup: func() { redistributeStaticRoutePolicyWithMED(t, dut, isV4, medNonZero) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				med := stmt.GetActions().GetBgpActions().GetSetMed()
+				matched := false
+				if u32, ok := med.(oc.UnionUint32); ok && uint32(u32) == medNonZero {
+					matched = true
+				}
+				if !matched {
+					t.Errorf("DUT state set-med: got %v, want %v", med, medNonZero)
+				}
 				validateLearnedIPv4Prefix(t, ate, atePort1.Name+".BGP4.peer", "192.168.10.0", medNonZero, shouldBePresent)
 			},
 		},
@@ -1781,6 +1809,12 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.7 redistribute-ipv4-route-policy-local-preference",
 			setup: func() { redistributeStaticRoutePolicyWithLocalPreference(t, dut, isV4, localPreference) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				lp := stmt.GetActions().GetBgpActions().GetSetLocalPref()
+				if lp != localPreference {
+					t.Errorf("DUT state set-local-pref: got %v, want %v", lp, localPreference)
+				}
 				validatePrefixLocalPreference(t, ate, isV4, atePort3.Name+".BGP4.peer", "192.168.10.0", localPreference)
 			},
 		},
@@ -1794,9 +1828,22 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		},
 		// 1.27.9
 		{
-			name:     "1.27.9 redistribute-ipv4-route-policy-unmatched-tag",
-			setup:    func() { redistributeStaticRoutePolicyWithTagSet(t, dut, isV4, 100) },
-			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, isV4, !shouldBePresent) },
+			name:  "1.27.9 redistribute-ipv4-route-policy-unmatched-tag",
+			setup: func() { redistributeStaticRoutePolicyWithTagSet(t, dut, isV4, 100) },
+			validate: func() {
+				tagSet := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet("tag-set-v4").State())
+				tagVals := tagSet.TagValue
+				foundTag := false
+				for _, tv := range tagVals {
+					if s, ok := tv.(oc.UnionString); ok && string(s) == "100" {
+						foundTag = true
+					}
+				}
+				if !foundTag {
+					t.Errorf("Tag-set tag-value 100 not found on DUT")
+				}
+				validateRedistributeRouteWithTagSet(t, dut, ate, isV4, !shouldBePresent)
+			},
 		},
 		// 1.27.10
 		{
@@ -1810,7 +1857,20 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				sendTraffic(t, ate.OTG())
 				verifyTraffic(t, ate, otgConfig)
 			},
-			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, isV4, shouldBePresent) },
+			validate: func() {
+				tagSet := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet("tag-set-v4").State())
+				tagVals := tagSet.TagValue
+				foundTag := false
+				for _, tv := range tagVals {
+					if s, ok := tv.(oc.UnionString); ok && string(s) == "40" {
+						foundTag = true
+					}
+				}
+				if !foundTag {
+					t.Errorf("Tag-set tag-value 40 not found on DUT")
+				}
+				validateRedistributeRouteWithTagSet(t, dut, ate, isV4, shouldBePresent)
+			},
 		},
 		// 1.27.11
 		{
@@ -1847,6 +1907,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.16 redistribute-ipv6-route-policy-as-prepend",
 			setup: func() { redistributeStaticRoutePolicyWithASN(t, dut, !isV4) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				asn := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().Asn
+				repeatN := stmt.GetActions().GetBgpActions().GetSetAsPathPrepend().RepeatN
+				if asn == nil || *asn != 64512 {
+					t.Errorf("DUT state set-as-path-prepend ASN: got %v, want 64512", asn)
+				}
+				if repeatN == nil || *repeatN != 1 {
+					t.Errorf("DUT state set-as-path-prepend repeat-n: got %v, want 1", repeatN)
+				}
 				validatePrefixASN(t, ate, !isV4, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", []uint32{64512, 64512})
 			},
 		},
@@ -1855,6 +1925,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.17 redistribute-ipv6-route-policy-med",
 			setup: func() { redistributeStaticRoutePolicyWithMED(t, dut, !isV4, medNonZero) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				med := stmt.GetActions().GetBgpActions().GetSetMed()
+				matched := false
+				if u32, ok := med.(oc.UnionUint32); ok && uint32(u32) == medNonZero {
+					matched = true
+				}
+				if !matched {
+					t.Errorf("DUT state set-med: got %v, want %v", med, medNonZero)
+				}
 				validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medNonZero, shouldBePresent)
 			},
 		},
@@ -1863,6 +1943,12 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.18 redistribute-ipv6-route-policy-local-preference",
 			setup: func() { redistributeStaticRoutePolicyWithLocalPreference(t, dut, !isV4, localPreference) },
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				lp := stmt.GetActions().GetBgpActions().GetSetLocalPref()
+				if lp != localPreference {
+					t.Errorf("DUT state set-local-pref: got %v, want %v", lp, localPreference)
+				}
 				validatePrefixLocalPreference(t, ate, !isV4, atePort3.Name+".BGP6.peer", "2024:db8:128:128::", localPreference)
 			},
 		},
@@ -1876,9 +1962,22 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		},
 		// 1.27.20
 		{
-			name:     "1.27.20 redistribute-ipv6-route-policy-unmatched-tag",
-			setup:    func() { redistributeStaticRoutePolicyWithTagSet(t, dut, !isV4, 100) },
-			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, !isV4, !shouldBePresent) },
+			name:  "1.27.20 redistribute-ipv6-route-policy-unmatched-tag",
+			setup: func() { redistributeStaticRoutePolicyWithTagSet(t, dut, !isV4, 100) },
+			validate: func() {
+				tagSet := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet("tag-set-v6").State())
+				tagVals := tagSet.TagValue
+				foundTag := false
+				for _, tv := range tagVals {
+					if s, ok := tv.(oc.UnionString); ok && string(s) == "100" {
+						foundTag = true
+					}
+				}
+				if !foundTag {
+					t.Errorf("Tag-set tag-value 100 not found on DUT")
+				}
+				validateRedistributeRouteWithTagSet(t, dut, ate, !isV4, !shouldBePresent)
+			},
 		},
 		// 1.27.21
 		{
@@ -1892,7 +1991,20 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				sendTraffic(t, ate.OTG())
 				verifyTraffic(t, ate, otgConfig)
 			},
-			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, !isV4, shouldBePresent) },
+			validate: func() {
+				tagSet := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().TagSet("tag-set-v6").State())
+				tagVals := tagSet.TagValue
+				foundTag := false
+				for _, tv := range tagVals {
+					if s, ok := tv.(oc.UnionString); ok && string(s) == "60" {
+						foundTag = true
+					}
+				}
+				if !foundTag {
+					t.Errorf("Tag-set tag-value 60 not found on DUT")
+				}
+				validateRedistributeRouteWithTagSet(t, dut, ate, !isV4, shouldBePresent)
+			},
 		},
 		// 1.27.22
 		{
@@ -1902,9 +2014,17 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		},
 		// 1.27.23
 		{
-			name:     "1.27.23 redistribute-ipv4-route-policy-origin egp",
-			setup:    func() { redistributeStaticRoutePolicyWithRouteOrigin(t, dut, isV4, oc.BgpPolicy_BgpOriginAttrType_EGP) },
-			validate: func() { validatePrefixRouteOrigin(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", "EGP") },
+			name:  "1.27.23 redistribute-ipv4-route-policy-origin egp",
+			setup: func() { redistributeStaticRoutePolicyWithRouteOrigin(t, dut, isV4, oc.BgpPolicy_BgpOriginAttrType_EGP) },
+			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_EGP {
+					t.Errorf("DUT state set-route-origin: got %v, want EGP", o)
+				}
+				validatePrefixRouteOrigin(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", "EGP")
+			},
 		},
 		// 1.27.24
 		{
@@ -1913,14 +2033,28 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				redistributeStaticRoutePolicyWithRouteOrigin(t, dut, !isV4, oc.BgpPolicy_BgpOriginAttrType_EGP)
 			},
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_EGP {
+					t.Errorf("DUT state set-route-origin: got %v, want EGP", o)
+				}
 				validatePrefixRouteOrigin(t, ate, !isV4, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", "EGP")
 			},
 		},
 		// 1.27.25
 		{
-			name:     "1.27.25 redistribute-ipv4-route-policy-origin igp",
-			setup:    func() { redistributeStaticRoutePolicyWithRouteOrigin(t, dut, isV4, oc.BgpPolicy_BgpOriginAttrType_IGP) },
-			validate: func() { validatePrefixRouteOrigin(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", "IGP") },
+			name:  "1.27.25 redistribute-ipv4-route-policy-origin igp",
+			setup: func() { redistributeStaticRoutePolicyWithRouteOrigin(t, dut, isV4, oc.BgpPolicy_BgpOriginAttrType_IGP) },
+			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_IGP {
+					t.Errorf("DUT state set-route-origin: got %v, want IGP", o)
+				}
+				validatePrefixRouteOrigin(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", "IGP")
+			},
 		},
 		// 1.27.26
 		{
@@ -1929,6 +2063,12 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				redistributeStaticRoutePolicyWithRouteOrigin(t, dut, !isV4, oc.BgpPolicy_BgpOriginAttrType_IGP)
 			},
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_IGP {
+					t.Errorf("DUT state set-route-origin: got %v, want IGP", o)
+				}
 				validatePrefixRouteOrigin(t, ate, !isV4, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", "IGP")
 			},
 		},
@@ -1939,6 +2079,12 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				redistributeStaticRoutePolicyWithRouteOrigin(t, dut, isV4, oc.BgpPolicy_BgpOriginAttrType_INCOMPLETE)
 			},
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV4).State())
+				stmt := pDef.GetStatement(policyStatementNameV4)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_INCOMPLETE {
+					t.Errorf("DUT state set-route-origin: got %v, want INCOMPLETE", o)
+				}
 				validatePrefixRouteOrigin(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", "INCOMPLETE")
 			},
 		},
@@ -1949,6 +2095,12 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				redistributeStaticRoutePolicyWithRouteOrigin(t, dut, !isV4, oc.BgpPolicy_BgpOriginAttrType_INCOMPLETE)
 			},
 			validate: func() {
+				pDef := gnmi.Get(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyNameV6).State())
+				stmt := pDef.GetStatement(policyStatementNameV6)
+				o := stmt.GetActions().GetBgpActions().GetSetRouteOrigin()
+				if o != oc.BgpPolicy_BgpOriginAttrType_INCOMPLETE {
+					t.Errorf("DUT state set-route-origin: got %v, want INCOMPLETE", o)
+				}
 				validatePrefixRouteOrigin(t, ate, !isV4, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", "INCOMPLETE")
 			},
 		},
