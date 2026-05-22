@@ -1281,7 +1281,7 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 	ipv6PrefixPolicyStatementAction.SetPolicyResult(oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE)
 	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(64512)
 	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
-	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(1000))
+	ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().SetSetMed(oc.UnionUint32(medNonZero))
 	if !deviations.BGPSetMedActionUnsupported(dut) {
 		ipv6PrefixPolicyStatementAction.GetOrCreateBgpActions().SetSetMedAction(oc.BgpPolicy_BgpSetMedAction_SET)
 	}
@@ -1296,7 +1296,7 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 	if deviations.TcAttributePropagationUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.CISCO:
-			cfgplugins.DeviationCiscoRoutingPolicyBGPActionSetMed(t, dut, redistributeStaticPolicyNameV6, "statement-v6", "prefix-set-v6", 1000, "igp")
+			cfgplugins.DeviationCiscoRoutingPolicyBGPActionSetMed(t, dut, redistributeStaticPolicyNameV6, "statement-v6", "prefix-set-v6", medNonZero, "igp")
 		}
 	}
 
@@ -1308,7 +1308,7 @@ func redistributeIPv6StaticRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate
 func validateRedistributeIPv6RoutePolicy(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	validateRedistributeStatic(t, dut, acceptRoute, !isV4, metricPropagate)
 	validatePrefixSetRoutingPolicy(t, dut, !isV4)
-	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", 1000, shouldBePresent)
+	validateLearnedIPv6Prefix(t, ate, atePort1.Name+".BGP6.peer", "2024:db8:128:128::", medNonZero, shouldBePresent)
 }
 
 // 1.27.5 and 1.27.16 validation function
@@ -1908,11 +1908,11 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 				}
 				med := stmt.GetActions().GetBgpActions().GetSetMed()
 				matched := false
-				if u32, ok := med.(oc.UnionUint32); ok && uint32(u32) == 1000 {
+				if u32, ok := med.(oc.UnionUint32); ok && uint32(u32) == medNonZero {
 					matched = true
 				}
 				if !matched {
-					t.Errorf("DUT state set-med: got %v, want 1000", med)
+					t.Errorf("DUT state set-med: got %v, want %v", med, medNonZero)
 				}
 				validateRedistributeIPv6RoutePolicy(t, dut, ate)
 			},
