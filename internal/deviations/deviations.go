@@ -2196,3 +2196,9 @@ func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
 func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
 }
+
+// RequireTransportSecurity returns if device requires transport-security to be enabled.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
+func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
+}
