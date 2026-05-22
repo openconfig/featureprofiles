@@ -31,20 +31,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-traffic-generator/snappi/gosnappi"
-	"github.com/openconfig/featureprofiles/internal/attrs"
-	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
-	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	"github.com/openconfig/ondatra"
-	"github.com/openconfig/ondatra/gnmi"
-	"github.com/openconfig/ondatra/gnmi/oc"
-	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
-	"github.com/openconfig/ondatra/otg"
-	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
+	"google3/third_party/golang/ygot/ygot/ygot"
+	"google3/third_party/open_traffic_generator/gosnappi/gosnappi"
+	"google3/third_party/openconfig/featureprofiles/internal/attrs/attrs"
+	"google3/third_party/openconfig/featureprofiles/internal/cfgplugins/cfgplugins"
+	"google3/third_party/openconfig/featureprofiles/internal/deviations/deviations"
+	"google3/third_party/openconfig/featureprofiles/internal/fptest/fptest"
+	"google3/third_party/openconfig/featureprofiles/internal/otgutils/otgutils"
+	gpb "google3/third_party/openconfig/gnmi/proto/gnmi/gnmi_go_proto"
+	"google3/third_party/openconfig/ondatra/gnmi/gnmi"
+	"google3/third_party/openconfig/ondatra/gnmi/oc/oc"
+	otgtelemetry "google3/third_party/openconfig/ondatra/gnmi/otg/otg"
+	"google3/third_party/openconfig/ondatra/ondatra"
+	"google3/third_party/openconfig/ondatra/otg/otg"
+	"google3/third_party/openconfig/ygnmi/ygnmi/ygnmi"
 )
 
 func TestMain(m *testing.M) {
@@ -308,6 +308,24 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	ateIBGPNeighborFourIPv6AFPolicy.SetImportPolicy([]string{"permit-all"})
 	ateIBGPNeighborFourIPv6AFPolicy.SetExportPolicy([]string{"permit-all"})
 
+	tcDirectV4 := networkInstance.GetOrCreateTableConnection(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED,
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		oc.Types_ADDRESS_FAMILY_IPV4,
+	)
+	tcDirectV4.SetImportPolicy([]string{"permit-all"})
+
+	tcDirectV6 := networkInstance.GetOrCreateTableConnection(
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED,
+		oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP,
+		oc.Types_ADDRESS_FAMILY_IPV6,
+	)
+	tcDirectV6.SetImportPolicy([]string{"permit-all"})
+
+	niPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Update(t, dut, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tcDirectV4)
+	gnmi.Update(t, dut, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tcDirectV6)
+
 	gnmi.Replace(t, dut, bgpPath.Config(), networkInstanceProtocolBgp)
 
 	if deviations.BgpRibStreamingConfigRequired(dut) {
@@ -362,6 +380,11 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 	devices := otgConfig.Devices().Items()
 	sortDevicesByName(devices)
+
+	devices[1].Ipv4Loopbacks().Add().SetName("ipv4-network").SetAddress("192.168.10.1").SetEthName("atePort2.Eth")
+	devices[1].Ipv4Loopbacks().Add().SetName("ipv4-drop-network").SetAddress("192.168.20.1").SetEthName("atePort2.Eth")
+	devices[1].Ipv6Loopbacks().Add().SetName("ipv6-network").SetAddress("2024:db8:128:128::1").SetEthName("atePort2.Eth")
+	devices[1].Ipv6Loopbacks().Add().SetName("ipv6-drop-network").SetAddress("2024:db8:64:64::1").SetEthName("atePort2.Eth")
 
 	// eBGP v4 session on Port1.
 	bgp := devices[0].Bgp().SetRouterId(atePort1.IPv4)
@@ -945,7 +968,7 @@ func redistributeStaticRoutePolicyWithASN(t *testing.T, dut *ondatra.DUTDevice, 
 	policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(1)
 
 	if isV4 {
-		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(65499)
+		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().Asn = ygot.Uint32(64599)
 		policyStatementAction.GetOrCreateBgpActions().GetOrCreateSetAsPathPrepend().SetRepeatN(3)
 	}
 
@@ -1131,13 +1154,13 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 	tagValue := "40"
 	policyStatementName := policyStatementNameV4
 	ipRoute := "192.168.20.0/24"
-	routeNextHop := "192.168.1.10"
+	routeNextHop := "192.168.1.9"
 	if !isV4 {
 		redistributeStaticPolicyName = redistributeStaticPolicyNameV6
 		tagValue = "60"
 		policyStatementName = policyStatementNameV6
 		ipRoute = "2024:db8:64:64::/64"
-		routeNextHop = "2001:DB8::A"
+		routeNextHop = "2001:DB8::9"
 	}
 
 	policyPath := gnmi.OC().RoutingPolicy().PolicyDefinition(redistributeStaticPolicyName)
@@ -1504,12 +1527,12 @@ func validateRedistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDe
 	redistributeStaticPolicyName := redistributeStaticPolicyNameV4
 	policyStatementName := policyStatementNameV4
 	addressFamily := oc.Types_ADDRESS_FAMILY_IPV4
-	nextHop := "192.168.1.10"
+	nextHop := "192.168.1.9"
 	if !isV4 {
 		redistributeStaticPolicyName = redistributeStaticPolicyNameV6
 		policyStatementName = policyStatementNameV6
 		addressFamily = oc.Types_ADDRESS_FAMILY_IPV6
-		nextHop = "2001:db8::a"
+		nextHop = "2001:db8::9"
 	}
 
 	if !deviations.TcSubscriptionUnsupported(dut) {
@@ -1742,7 +1765,7 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 			name:  "1.27.5 redistribute-ipv4-route-policy-as-prepend",
 			setup: func() { redistributeStaticRoutePolicyWithASN(t, dut, isV4) },
 			validate: func() {
-				validatePrefixASN(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", []uint32{64512, 65499, 65499, 65499})
+				validatePrefixASN(t, ate, isV4, atePort1.Name+".BGP4.peer", "192.168.10.0", []uint32{64512, 64599, 64599, 64599})
 			},
 		},
 		// 1.27.6
