@@ -453,6 +453,24 @@ func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
 	}
 }
 
+func verifyTrafficDropped(t *testing.T, ate *ondatra.ATEDevice, conf gosnappi.Config) {
+	otg := ate.OTG()
+	otgutils.LogFlowMetrics(t, otg, conf)
+	for _, flow := range conf.Flows().Items() {
+		recvMetric := gnmi.Get(t, otg, gnmi.OTG().Flow(flow.Name()).State())
+		txPackets := float32(recvMetric.GetCounters().GetOutPkts())
+		rxPackets := float32(recvMetric.GetCounters().GetInPkts())
+		if txPackets == 0 {
+			t.Fatalf("TxPkts = 0, want > 0")
+		}
+		if rxPackets > 0 {
+			t.Fatalf("Traffic for Flow %s: got %v rx packets, want 0 (dropped)", flow.Name(), rxPackets)
+		} else {
+			t.Logf("Traffic Test Passed! Flow %s was successfully dropped.", flow.Name())
+		}
+	}
+}
+
 // Configure table-connection with source as static-route and destination as bgp
 func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropagation bool, importPolicy string, defaultImport oc.E_RoutingPolicy_DefaultPolicyType) {
 	t.Helper()
@@ -1163,10 +1181,8 @@ func redistributeNullNextHopStaticRoute(t *testing.T, dut *ondatra.DUTDevice, at
 	// Sending traffic to network via dut having static-route to drop it.
 	// Traffic must be dropped by the dut irrespective of the bgp advertised-route
 	// having updated next-hop, considering existing static-route is preferred over bgp.
-	// Uncommenting for gap_analysis. Pre-existing.
-
 	sendTraffic(t, ate.OTG())
-	verifyTraffic(t, ate, otgConfig)
+	verifyTrafficDropped(t, ate, otgConfig)
 }
 
 // 1.27.23 and 1.27.28 setup function
@@ -1543,7 +1559,7 @@ func validatePrefixRouteOrigin(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, 
 	foundPrefix := false
 	if isV4 {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv4PrefixAny()
-		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 30*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
+		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 10*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
 			prefix, _ := val.Val()
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
@@ -1559,7 +1575,7 @@ func validatePrefixRouteOrigin(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, 
 		}
 	} else {
 		prefixPath := gnmi.OTG().BgpPeer(bgpPeerName).UnicastIpv6PrefixAny()
-		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 30*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+		prefix, ok := gnmi.WatchAll(t, ate.OTG(), prefixPath.State(), 10*time.Second, func(val *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
 			prefix, _ := val.Val()
 			if prefix.GetAddress() == subnet {
 				foundPrefix = true
@@ -1570,7 +1586,8 @@ func validatePrefixRouteOrigin(t *testing.T, ate *ondatra.ATEDevice, isV4 bool, 
 			return false
 		}).Await(t)
 		if !ok {
-			t.Fatalf("Prefix not updated with the origin. Got %v, want %v", prefix, wantOrigin)
+			pfx, _ := prefix.Val()
+			t.Fatalf("Prefix not updated with the origin. Got %v, want %v", pfx.GetOrigin(), wantOrigin)
 		}
 	}
 	if !foundPrefix {
@@ -1760,8 +1777,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		},
 		// 1.27.10
 		{
-			name:     "1.27.10 redistribute-ipv4-route-policy-matched-set",
-			setup:    func() { redistributeStaticRoutePolicyWithTagSet(t, dut, isV4, 40) },
+			name: "1.27.10 redistribute-ipv4-route-policy-matched-set",
+			setup: func() {
+				redistributeStaticRoutePolicyWithTagSet(t, dut, isV4, 40)
+				otgConfig := configureOTG(t, ate)
+				otgConfig = configureTrafficFlow(t, otgConfig, isV4, "StaticTagRoutesV4Flow", atePort1.Name+".IPv4", atePort2.Name+".IPv4", atePort1.MAC, atePort1.IPv4, "192.168.10.0")
+				ate.OTG().PushConfig(t, otgConfig)
+				ate.OTG().StartProtocols(t)
+				sendTraffic(t, ate.OTG())
+				verifyTraffic(t, ate, otgConfig)
+			},
 			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, isV4, shouldBePresent) },
 		},
 		// 1.27.11
@@ -1834,8 +1859,16 @@ func TestBGPStaticRouteRedistribution(t *testing.T) {
 		},
 		// 1.27.21
 		{
-			name:     "1.27.21 redistribute-ipv6-route-policy-matched-set",
-			setup:    func() { redistributeStaticRoutePolicyWithTagSet(t, dut, !isV4, 60) },
+			name: "1.27.21 redistribute-ipv6-route-policy-matched-set",
+			setup: func() {
+				redistributeStaticRoutePolicyWithTagSet(t, dut, !isV4, 60)
+				otgConfig := configureOTG(t, ate)
+				otgConfig = configureTrafficFlow(t, otgConfig, !isV4, "StaticTagRoutesV6Flow", atePort1.Name+".IPv6", atePort2.Name+".IPv6", atePort1.MAC, atePort1.IPv6, "2024:db8:128:128::")
+				ate.OTG().PushConfig(t, otgConfig)
+				ate.OTG().StartProtocols(t)
+				sendTraffic(t, ate.OTG())
+				verifyTraffic(t, ate, otgConfig)
+			},
 			validate: func() { validateRedistributeRouteWithTagSet(t, dut, ate, !isV4, shouldBePresent) },
 		},
 		// 1.27.22
