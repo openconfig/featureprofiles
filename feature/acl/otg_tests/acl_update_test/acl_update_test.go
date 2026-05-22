@@ -607,20 +607,24 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 		}
 	}
 
-	var matched uint64
+	matched := previouslyMatched
+	delta := uint64(0)
 	attempt := 1
-	var missingCounter bool
-	gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
+	missingCounter := true
+	_, counterOK := gnmi.Watch(t, dut, aclSetPath.AclEntry(entryID).State(), aclCounterTimeout, func(val *ygnmi.Value[*oc.Acl_AclSet_AclEntry]) bool {
 		e, present := val.Val()
 		if !present || e == nil {
-			missingCounter = true
 			return false
 		}
 		missingCounter = false
 		matched = e.GetMatchedPackets()
 		t.Logf("ACL entry %d attempt %d: matched=%d (previously=%d, expected delta>=%d)", entryID, attempt, matched, previouslyMatched, expectedPackets)
 		attempt++
-		return matched-previouslyMatched >= expectedPackets
+
+		if matched >= previouslyMatched {
+			delta = matched - previouslyMatched
+		}
+		return delta >= expectedPackets
 	}).Await(t)
 
 	if missingCounter {
@@ -628,8 +632,8 @@ func verifyACLCounters(t *testing.T, dut *ondatra.DUTDevice, fc flowConfig, expe
 	}
 
 	entryCounters[entryID] = matched
-	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, matched-previouslyMatched)
-	if matched-previouslyMatched < expectedPackets {
+	message := fmt.Sprintf("expected >= %d matched packets for ACL entry %d, got %d", expectedPackets, entryID, delta)
+	if !counterOK {
 		err := fmt.Errorf("ACL validation failed for flow %s: %s", fc.name, message)
 		t.Log(err.Error())
 		return err
