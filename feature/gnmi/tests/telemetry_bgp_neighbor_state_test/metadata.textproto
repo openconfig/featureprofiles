@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d"
+plan_id: "HA-1.0"
+description: "BGP Neighbor Telemetry Presence and Compliance"
+testbed: TESTBED_DUT
