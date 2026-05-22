@@ -706,7 +706,7 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	if !metricsPopulated {
 		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
 	}
-	
+
 	// These should have the majority of flows have ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 0; dscpValue < 48; dscpValue++ {
