@@ -574,12 +574,10 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	subIdx := gnmi.Get(t, dut, gnmi.OC().Interface(baseIntf).Subinterface(0).Index().Config())
 
 	isisIntfName := isisInterfaceID(dut, intfName)
-
 	isisIntf := isis.GetOrCreateInterface(isisIntfName)
-	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
-	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		isisIntf.InterfaceRef = nil
+	if !deviations.InterfaceRefConfigUnsupported(dut) {
+		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
+		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 	}
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -593,9 +591,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.MissingIsisInterfaceAfiSafiEnable(dut) {
 		isisIntfLevelAfi.Enabled = nil
 	}
-	// Always populate interface-ref with base interface and subinterface index
-	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
-	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
 }
 
