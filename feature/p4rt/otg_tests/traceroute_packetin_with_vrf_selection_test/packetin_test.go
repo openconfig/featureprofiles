@@ -202,7 +202,7 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 			gotPkts := 0
 			t.Logf("Start to decode packet and compare with expected packets.")
 			wantPacket := args.packetIO.GetPacketTemplate()
-			tolerance := 0.01
+			const tolerance = 0.01
 
 			for _, packet := range packets {
 				if packet != nil {
