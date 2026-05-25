@@ -236,7 +236,7 @@ func CaptureAndValidatePackets(t *testing.T, ate *ondatra.ATEDevice, packetVal *
 				return err
 			}
 		case ValidateBGPHeader:
-			if err := validateBGPHeader(t, packetSource, packetVal); err != nil {
+			if err := validateBGPHeader(t, packetVal.packetSourceObj, packetVal); err != nil {
 				return err
 			}
 		default:
