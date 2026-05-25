@@ -504,11 +504,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	baseIntf := gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Name().Config())
 	subIdx := gnmi.Get(t, dut, gnmi.OC().Interface(baseIntf).Subinterface(0).Index().Config())
 
-	// For deviations that require .0 suffix for base interfaces, ensure it's added.
-	isisIntfName := intfName
-	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(intfName, ".") {
-		isisIntfName = intfName + ".0"
-	}
+	isisIntfName := isisInterfaceID(dut, intfName)
 
 	isisIntf := isis.GetOrCreateInterface(isisIntfName)
 	isisIntf.Enabled = ygot.Bool(true)
@@ -528,6 +524,13 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
+}
+
+func isisInterfaceID(dut *ondatra.DUTDevice, intfName string) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) && !strings.Contains(intfName, ".") {
+		return intfName + ".0"
+	}
+	return intfName
 }
 
 func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -566,9 +569,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) && deviations.InterfaceRefInterfaceIDFormat(dut) {
-		dutIntf = dutIntf + ".0"
-	}
+	dutIntf = isisInterfaceID(dut, dutIntf)
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -1164,7 +1165,7 @@ func ChassisReboot(t *testing.T) {
 	}
 }
 
-// TestEncapFrr is to test Test FRR behaviors with encapsulation scenarios
+// TestEncapFrr is to test FRR behaviors with encapsulation scenarios
 func TestEncapFrr(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
