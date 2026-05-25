@@ -542,6 +542,13 @@ func staticARPWithMagicUniversalIP(t *testing.T, dut *ondatra.DUTDevice) {
 	sb.Set(t, dut)
 }
 
+func isisInterfaceID(dut *ondatra.DUTDevice, intfName string) string {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) && !strings.Contains(intfName, ".") {
+		return intfName + ".0"
+	}
+	return intfName
+}
+
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
@@ -566,11 +573,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	baseIntf := gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Name().Config())
 	subIdx := gnmi.Get(t, dut, gnmi.OC().Interface(baseIntf).Subinterface(0).Index().Config())
 
-	// For deviations that require .0 suffix for base interfaces, ensure it's added
-	isisIntfName := intfName
-	if (deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut)) && !strings.Contains(intfName, ".") {
-		isisIntfName = intfName + ".0"
-	}
+	isisIntfName := isisInterfaceID(dut, intfName)
 
 	isisIntf := isis.GetOrCreateInterface(isisIntfName)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
@@ -632,9 +635,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
+	dutIntf = isisInterfaceID(dut, dutIntf)
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
