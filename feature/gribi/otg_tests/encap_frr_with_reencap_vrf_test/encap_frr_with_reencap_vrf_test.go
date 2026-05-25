@@ -629,8 +629,9 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-
-	dutIntf = isisInterfaceID(dut, dutIntf)
+	if strings.Contains(dutIntf, ".") {
+		dutIntf = isisInterfaceID(dut, dutIntf)
+	}	
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
