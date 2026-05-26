@@ -390,11 +390,16 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR || p.PMD() == ondatra.PMD400GBASEFR4 {
 		e := i.GetOrCreateEthernet()
-		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		if p.PMD() == ondatra.PMD100GBASEFR {
+			e.AutoNegotiate = ygot.Bool(true) // Enable autoneg on 100G Single-Lambda FR!
+			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+		} else {
+			e.AutoNegotiate = ygot.Bool(false) // Keep disabled on 400G PAM4 to prevent clock-drift
+			e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+		}
 	}
 
 	ipv4, ok := portsIPv4[id]
@@ -858,9 +863,13 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 	t.Logf("configureOTG")
 	config := gosnappi.NewConfig()
 	pmd100GFRPorts := []string{}
+	pmd400GFRPorts := []string{}
 	for i, ap := range atePorts {
 		if ap.PMD() == ondatra.PMD100GBASEFR {
 			pmd100GFRPorts = append(pmd100GFRPorts, ap.ID())
+		}
+		if ap.PMD() == ondatra.PMD400GBASEFR4 {
+			pmd400GFRPorts = append(pmd400GFRPorts, ap.ID())
 		}
 		// DUT and ATE ports are connected by the same names.
 		dutid := fmt.Sprintf("dut:%s", ap.ID())
@@ -938,6 +947,14 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
 		autoNegotiate := l1Settings.AutoNegotiation()
 		autoNegotiate.SetRsFec(false)
+	}
+
+	// Disable auto-negotiation for 400G-FR4 ports to prevent link configuration sync mismatches.
+	if len(pmd400GFRPorts) > 0 {
+		l1Settings := config.Layer1().Add().SetName("L1_400G").SetPortNames(pmd400GFRPorts)
+		l1Settings.SetAutoNegotiate(false).SetSpeed("speed_400_gbps")
+		autoNegotiate := l1Settings.AutoNegotiation()
+		autoNegotiate.SetRsFec(true)
 	}
 
 	otg.PushConfig(t, config)
