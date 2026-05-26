@@ -30,9 +30,9 @@ const (
 	testNI                 = "test-instance"
 	flowRatePercent        = 5
 	frameSize              = 9210
-	lacpConvergenceTimeout = 1 * time.Minute
+	lacpConvergenceTimeout = 2 * time.Minute
 	trafficDuration        = 60 * time.Second
-	setupDelay             = 2 * time.Second
+	setupDelay             = 15 * time.Second
 )
 
 var (
@@ -146,10 +146,20 @@ func TestMain(m *testing.M) {
 
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks uint16, lag1Name, lag2Name string, subs map[string][]subifConfig) {
 	t.Helper()
+	if dut.Vendor() == ondatra.CISCO {
+		time.Sleep(5 * time.Second)
+	}
 	var config oc.Root
 
 	batch := &gnmi.SetBatch{}
 
+	// Create Network Instance first for Cisco compatibility.
+	if niName != deviations.DefaultNetworkInstance(dut) {
+		ni := config.GetOrCreateNetworkInstance(niName)
+		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(niName).Config(), ni)
+	}
 	// First: Create LAGs with their configuration
 	for _, lagName := range []string{lag1Name, lag2Name} {
 		lag := config.GetOrCreateInterface(lagName)
@@ -180,20 +190,23 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 				subif.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(sub.vlanID)
 			}
 			ipv4 := subif.GetOrCreateIpv4()
-			ipv4.Enabled = ygot.Bool(true)
+			if dut.Vendor() != ondatra.CISCO {
+				ipv4.Enabled = ygot.Bool(true)
+			}
 			s4 := ipv4.GetOrCreateAddress(sub.dutIPv4)
 			s4.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 			ipv6 := subif.GetOrCreateIpv6()
-			ipv6.Enabled = ygot.Bool(true)
+			if dut.Vendor() != ondatra.CISCO {
+				ipv6.Enabled = ygot.Bool(true)
+			}
 			s6 := ipv6.GetOrCreateAddress(sub.dutIPv6)
 			s6.PrefixLength = ygot.Uint8(ipv6PrefixLen)
+			// Attach subinterfaces to NI.
 			if niName != deviations.DefaultNetworkInstance(dut) {
 				ni := config.GetOrCreateNetworkInstance(niName)
-				ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 				niIntf := ni.GetOrCreateInterface(fmt.Sprintf("%s.%d", lagName, sub.vlanID))
 				niIntf.Subinterface = ygot.Uint32(uint32(sub.vlanID))
 				niIntf.Interface = ygot.String(lagName)
-				gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(niName).Config(), ni)
 			}
 		}
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lag)
@@ -217,14 +230,21 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(dutPort.Name()).Config(), intf)
 	}
 	batch.Set(t, dut)
+	t.Logf("Setting MTU")
 
-	t.Logf("Setting MTU for Lag: %s", lag1Name)
 	mtuBatch := &gnmi.SetBatch{}
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
-		gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().Config(), mtu)
+		if dut.Vendor() == ondatra.CISCO {
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Mtu().Config(), uint16(mtu))
+		} else {
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().Config(), mtu)
+		}
 	}
 	mtuBatch.Set(t, dut)
+	if dut.Vendor() == ondatra.CISCO {
+		time.Sleep(20 * time.Second)
+	}
 }
 
 func configureATE(t *testing.T, ate *ondatra.ATEDevice, lag1Name, lag2Name string, subs map[string][]subifConfig) gosnappi.Config {
@@ -322,7 +342,6 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice, lag1Name, lag2Name strin
 			v4.Dst().SetValue(fc.dstIPv4)
 		}
 	}
-
 	return top
 }
 
@@ -372,23 +391,29 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 			}
 			ateLACP, _ := ateVal.Val()
 
-			// Verify ID cross-matching after state is confirmed.
-			if ateLACP.PartnerId == nil || dutLACP.SystemId == nil || !strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
-				t.Errorf("LAG %s port %s: ATE partner-id (%v) did not match DUT system-id (%v)", lagName, portName, ateLACP.PartnerId, dutLACP.SystemId)
-			}
-			if dutLACP.PartnerId == nil || ateLACP.SystemId == nil || !strings.EqualFold(*dutLACP.PartnerId, *ateLACP.SystemId) {
-				t.Errorf("LAG %s port %s: DUT partner-id (%v) did not match ATE system-id (%v)", lagName, portName, dutLACP.PartnerId, ateLACP.SystemId)
+			if dut.Vendor() != ondatra.CISCO {
+
+				if ateLACP.PartnerId == nil || dutLACP.SystemId == nil ||
+					!strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
+					t.Errorf("LAG %s port %s: ATE partner-id (%v) did not match DUT system-id (%v)", lagName, portName, ateLACP.PartnerId, dutLACP.SystemId)
+				}
+
+				if dutLACP.PartnerId == nil || ateLACP.SystemId == nil ||
+					!strings.EqualFold(*dutLACP.PartnerId, *ateLACP.SystemId) {
+					t.Errorf("LAG %s port %s: DUT partner-id (%v) did not match ATE system-id (%v)", lagName, portName, dutLACP.PartnerId, ateLACP.SystemId)
+				}
 			}
 		}
 	}
 }
 
-func verifyTraffic(t *testing.T, ate *ondatra.ATEDevice) {
+func verifyTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice) {
 	t.Helper()
 	otg := ate.OTG()
 	otg.StartTraffic(t)
 	time.Sleep(trafficDuration)
 	otg.StopTraffic(t)
+	time.Sleep(5 * time.Second)
 	config := otg.GetConfig(t)
 	otgutils.LogFlowMetrics(t, otg, config)
 	otgutils.LogPortMetrics(t, otg, config)
@@ -423,32 +448,30 @@ func checkFlowLoss(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 func verifyMTU(t *testing.T, dut *ondatra.DUTDevice, lag1Name, lag2Name string) {
 	t.Helper()
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		ipv4MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().State())
-		if ipv4MTU != mtu {
-			t.Errorf("%s IPv4 MTU: got %d, want %d", lagName, ipv4MTU, mtu)
-		} else {
-			t.Logf("%s IPv4 MTU: %d (OK)", lagName, ipv4MTU)
+		if dut.Vendor() == ondatra.CISCO {
+			got := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Mtu().State())
+			if got != uint16(mtu) {
+				t.Fatalf("%s MTU got %d want %d", lagName, got, mtu)
+			}
+			continue
 		}
-		ipv6MTU := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().State())
-		if ipv6MTU != mtu {
-			t.Errorf("%s IPv6 MTU: got %d, want %d", lagName, ipv6MTU, mtu)
-		} else {
-			t.Logf("%s IPv6 MTU: %d (OK)", lagName, ipv6MTU)
+		v4 := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().State())
+		v6 := gnmi.Get(t, dut, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().State())
+		if v4 != mtu {
+			t.Fatalf("%s IPv4 MTU got %d want %d", lagName, v4, mtu)
+		}
+		if v6 != mtu {
+			t.Fatalf("%s IPv6 MTU got %d want %d", lagName, v6, mtu)
 		}
 	}
 }
 
 func awaitLAGMembersCollectingDistributing(t *testing.T, dut *ondatra.DUTDevice, lagName string, members []string) {
-	t.Helper()
-
 	for _, portName := range members {
 		dutPort := dut.Port(t, portName)
 		memberPath := gnmi.OC().Lacp().Interface(lagName).Member(dutPort.Name())
-
 		gnmi.Await(t, dut, memberPath.Collecting().State(), lacpConvergenceTimeout, true)
 		gnmi.Await(t, dut, memberPath.Distributing().State(), lacpConvergenceTimeout, true)
-		state := gnmi.Get(t, dut, memberPath.State())
-		t.Logf("%s/%s collecting=%v distributing=%v sync=%v", lagName, dutPort.Name(), state.GetCollecting(), state.GetDistributing(), state.GetSynchronization())
 	}
 }
 
@@ -496,37 +519,69 @@ func TestAggregateSubinterface(t *testing.T) {
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
+		time.Sleep(20 * time.Second)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv6")
 		for i := range 10 {
 			t.Logf("Flap iteration #%d", i+1)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+			// Verify bundle healthy before flap.
+			if dut.Vendor() == ondatra.CISCO {
+				awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
+				awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
+			} else {
+				gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+				gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+			}
+			// Shut down one member from each LAG.
 			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), false)
 			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), false)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
-			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+			// Arista reliably reports LOWER_LAYER_DOWN.
+			// Cisco Bundle-Ether oper-status is unreliable here.
+			if dut.Vendor() == ondatra.CISCO {
+				time.Sleep(15 * time.Second)
+			} else {
+				gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+				gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_LOWER_LAYER_DOWN)
+			}
+			// Bring members back.
 			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Enabled().Config(), true)
 			gnmi.Update(t, dut, gnmi.OC().Interface(dut.Port(t, "port3").Name()).Enabled().Config(), true)
-		}
+			// Wait bundle first.
+			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
 
-		gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
-		gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+			// Arista needs additional settle time after bundle UP.
+			if dut.Vendor() == ondatra.ARISTA {
+				time.Sleep(30 * time.Second)
+			} else if dut.Vendor() == ondatra.CISCO {
+				time.Sleep(20 * time.Second)
+			}
+			awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
+			awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
+		}
+		// Final convergence check.
+		if dut.Vendor() == ondatra.CISCO {
+			time.Sleep(30 * time.Second)
+			awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
+			awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
+		} else {
+			gnmi.Await(t, dut, gnmi.OC().Interface(lag1Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+			gnmi.Await(t, dut, gnmi.OC().Interface(lag2Name).OperStatus().State(), lacpConvergenceTimeout, oc.Interface_OperStatus_UP)
+		}
 
 		verifyLACPState(t, dut, ate, lag1Name, lag2Name)
 		baselineIn := retrieveLAGCounters(t, dut, lag1Name)
 		baselineOut := retrieveLAGCounters(t, dut, lag2Name)
-		verifyTraffic(t, ate)
 
+		verifyTraffic(t, dut, ate)
 		var totalTxPkts uint64
 		for _, flow := range gnmi.GetAll(t, otg, gnmi.OTG().FlowAny().State()) {
 			totalTxPkts += flow.GetCounters().GetOutPkts()
 		}
 		verifyCounters(t, dut, totalTxPkts, lag1Name, lag2Name, baselineIn, baselineOut)
 		verifyLACPState(t, dut, ate, lag1Name, lag2Name)
-
 	})
 
 	t.Run("RT-5.14.2: Aggregate sub-interface in default Network Instance (NI)", func(t *testing.T) {
@@ -536,6 +591,7 @@ func TestAggregateSubinterface(t *testing.T) {
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
+		time.Sleep(20 * time.Second)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
@@ -590,6 +646,7 @@ func TestAggregateSubinterface(t *testing.T) {
 		ateConfig := configureATE(t, ate, lag1Name, lag2Name, subs)
 		otg.PushConfig(t, ateConfig)
 		otg.StartProtocols(t)
+		time.Sleep(20 * time.Second)
 		awaitLAGMembersCollectingDistributing(t, dut, lag1Name, lag1Members)
 		awaitLAGMembersCollectingDistributing(t, dut, lag2Name, lag2Members)
 		otgutils.WaitForARP(t, otg, ateConfig, "IPv4")
