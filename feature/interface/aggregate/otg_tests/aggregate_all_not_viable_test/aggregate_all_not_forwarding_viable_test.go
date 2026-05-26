@@ -807,6 +807,7 @@ func changeMetric(t *testing.T, dut *ondatra.DUTDevice, intf string, metric uint
 	t.Logf("Updating ISIS metric of LAG2 equal to LAG3 ")
 	d := &oc.Root{}
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	netInstance.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
 	isis := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).GetOrCreateIsis()
 	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		intf += ".0"
@@ -946,11 +947,11 @@ func configureOTGBGP(t *testing.T, dev gosnappi.Device, agg *aggPortData, advV4,
 // configForwardingViable is to set forwarding viable on DUT ports
 func configForwardingViable(t *testing.T, dut *ondatra.DUTDevice, dutPorts []*ondatra.Port, forwardingViable bool) {
 	for _, port := range dutPorts {
-		if forwardingViable {
-			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
-		} else {
-			gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
-		}
+		// Ensure the interface "type" is present in the config; some DUTs
+		// require the mandatory 'type' statement when updating sub-leaves
+		// such as forwarding-viable. Set member ports to ethernetCsmacd.
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).Type().Config(), ethernetCsmacd)
+		gnmi.Update(t, dut, gnmi.OC().Interface(port.Name()).ForwardingViable().Config(), forwardingViable)
 	}
 }
 
