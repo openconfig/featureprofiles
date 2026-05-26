@@ -20,6 +20,7 @@ package cntr_test
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"strings"
@@ -38,6 +39,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/protobuf/encoding/prototext"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
@@ -90,7 +92,16 @@ func dialContainer(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, po
 		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
-	conn, err := dialer.DialGRPCWithPort(ctx, port)
+	var dialOpts []grpc.DialOption
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		// cntrsrv serves a self-signed TLS certificate. The binding defaults
+		// to insecure transport for container ports; override with TLS
+		// skip-verify so the handshake succeeds without a trusted CA.
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(
+			credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
+	}
+	conn, err := dialer.DialGRPCWithPort(ctx, port, dialOpts...)
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}
@@ -196,9 +207,14 @@ func TestDialLocal(t *testing.T) {
 	defer gribiClient.Close(t)
 	defer gribiClient.FlushAll(t)
 
-	//Program a sample gRIBI Entry on DUT for gRIBI Get query response.
-	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	// Program a sample gRIBI entry on DUT for gRIBI Get query response.
+	// When GribiDecapInDefaultNiUnsupported is set, the device cannot FIB-program
+	// a Decap NH in the DEFAULT network instance; the test accepts an empty gRIBI
+	// RIB (EOF) as a successful connection instead.
+	if !deviations.GribiDecapInDefaultNiUnsupported(dut) {
+		gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+		gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
+	}
 
 	tests := []struct {
 		desc     string

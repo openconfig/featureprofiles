@@ -22,6 +22,8 @@ import (
 
 	"github.com/openconfig/containerz/client"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -32,11 +34,24 @@ import (
 // Client returns a new containerz client.
 func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI(t)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		config := `
+				management api gnmi
+				  transport grpc iana
+				    port 9339
+				    ssl profile SELFSIGNED
+				    vrf mgmt
+				    authorization requests
+				!
+				ipv6 access-list restrict-access-ipv6
+				  10030 permit tcp any any eq 60061
+				  20000 permit ipv6 any any
+				system control-plane
+				  ipv6 access-group restrict-access-ipv6 vrf MGMT in
+			`
 		if deviations.ContainerzOCUnsupported(dut) {
-			dut.Config().New().WithAristaText(`
+			config += `
 				management api gnoi
 				service containerz
 				  transport gnmi default
@@ -44,15 +59,20 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 				  container runtime
 					 vrf mgmt
 				!
-			`).Append(t)
+			`
 		}
-		dut.Config().New().WithAristaText(`
-			ipv6 access-list restrict-access-ipv6
-			  ! open port for cntrsrv from PROD
-			  permit tcp any any eq 60061
-		`).Append(t)
-		t.Logf("Waiting for device to ingest its config.")
-		time.Sleep(time.Minute)
+		helpers.GnmiCLIConfig(t, dut, config)
+		// Configuring the containerz gNOI service may cause Octa to restart,
+		// making gNMI temporarily unavailable. Retry write memory until it
+		// succeeds or we exceed the deadline.
+		gnmiSaveWithRetry(t, dut, 2*time.Minute)
+		waitForGNOI(t, dut, 2*time.Minute)
+		// EOS's system control-plane ACL is accepted by EOS but may not translate
+		// to a kernel firewall rule on all EOS versions. Insert a direct ip6tables
+		// ACCEPT rule into the management namespace as a reliable fallback. The
+		// default INPUT policy in ns-mgmt is DROP for unlisted ports.
+		dut.CLI().Run(t, "enable\nbash sudo ip netns exec ns-mgmt ip6tables -I EOS_INPUT 1 -p tcp --dport 60061 -j ACCEPT")
+		t.Log("Opened container port 60061 in EOS management namespace ip6tables.")
 	case ondatra.CISCO:
 		dut.Config().New().WithCiscoText(`
 			appmgr docker allow-sensitive-paths
@@ -68,7 +88,79 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
 	}
 
-	return client.NewClientFromStub(gnoiClient.Containerz())
+	// Re-dial gNOI after config push -- configuring the containerz service may
+	// have restarted Octa, making any prior gNOI connection stale. Use the
+	// fresh clients directly rather than GNOI(t), which would return the stale
+	// entry from Ondatra's cache and produce Unavailable errors on the next RPC.
+	freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Logf("gNOI re-dial in Client() failed (non-fatal): %v", err)
+		freshClients = dut.RawAPIs().GNOI(t)
+	}
+	return client.NewClientFromStub(freshClients.Containerz())
+}
+
+// waitForGNOI polls DialGNOI until the gNOI endpoint is reachable or the
+// timeout elapses. Used after a config push that may restart Octa.
+func waitForGNOI(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		// Use a short per-call timeout so DialGNOI does not block indefinitely
+		// while the containerz service is restarting after a config push.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
+		cancel()
+		if err == nil {
+			t.Log("containerz gNOI service is reachable.")
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("containerz gNOI service did not become reachable within %v after config push", timeout)
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// gnmiSaveWithRetry retries "write memory" via gNMI until it succeeds or the
+// deadline elapses. This handles transient Octa restarts after config changes.
+func gnmiSaveWithRetry(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for attempt := 1; ; attempt++ {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		req, err := buildGNMICLISetRequest("write memory")
+		if err != nil {
+			t.Fatalf("Cannot build gNMI SetRequest for write memory: %v", err)
+		}
+		_, err = gnmiClient.Set(context.Background(), req)
+		if err == nil {
+			t.Logf("write memory succeeded (attempt %d)", attempt)
+			return
+		}
+		t.Logf("write memory attempt %d failed: %v", attempt, err)
+		if time.Now().After(deadline) {
+			t.Fatalf("write memory did not succeed within %v (last error: %v)", timeout, err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// buildGNMICLISetRequest builds a gNMI SetRequest with CLI origin.
+func buildGNMICLISetRequest(config string) (*gpb.SetRequest, error) {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}, nil
 }
 
 // StartContainerOptions holds parameters for starting a container.
@@ -232,10 +324,21 @@ func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts Start
 
 	return cli, func() {
 		Stop(ctx, t, cli, opts.InstanceName)
+		// Remove the container so it does not persist on the DUT in STOPPED
+		// state. Without removal, Docker may restart a previously-running
+		// container on its next daemon restart, contaminating subsequent tests.
+		if err := cli.RemoveContainer(ctx, opts.InstanceName, true); err != nil {
+			s, _ := status.FromError(err)
+			if s.Code() != codes.NotFound {
+				t.Logf("RemoveContainer %s encountered an issue: %v", opts.InstanceName, err)
+			}
+		} else {
+			t.Logf("Container %s removed successfully.", opts.InstanceName)
+		}
 	}
 }
 
-// Stop stops and removes a container instance.
+// Stop stops a container instance.
 func Stop(ctx context.Context, t *testing.T, cli *client.Client, instNameToStop string) {
 	t.Helper()
 	t.Logf("Attempting to stop container %s", instNameToStop)
@@ -258,28 +361,44 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 	defer cancel()
 
 	for {
-		listContCh, err := cli.ListContainer(pollCtx, true, 0, map[string][]string{"name": {instanceName}})
+		// Use a per-call timeout so one slow RPC does not consume the entire budget.
+		callCtx, callCancel := context.WithTimeout(pollCtx, 30*time.Second)
+		listContCh, err := cli.ListContainer(callCtx, true, 0, map[string][]string{"name": {instanceName}})
 		if err != nil {
-			return fmt.Errorf("unable to list container %s during polling: %w", instanceName, err)
+			callCancel()
+			t.Logf("ListContainer call for %s failed (will retry): %v", instanceName, err)
+			if pollCtx.Err() != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+			}
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
 		var containerIsRunning bool
+		var lastErr error
 		for info := range listContCh {
 			if info.Error != nil {
-				return fmt.Errorf("error message received while listing container %s during polling: %w", instanceName, info.Error)
+				lastErr = info.Error
+				t.Logf("ListContainer stream error for %s (will retry): %v", instanceName, info.Error)
+				break
 			}
+			t.Logf("ListContainer found: name=%s, image=%s, state=%s", info.Name, info.ImageName, info.State)
 			if (info.Name == instanceName || info.Name == "/"+instanceName) && info.State == cpb.ListContainerResponse_RUNNING.String() {
 				t.Logf("Container %s confirmed RUNNING.", instanceName)
 				containerIsRunning = true
 				break
 			}
 		}
+		callCancel()
 
 		if containerIsRunning {
 			return nil
 		}
 
 		if pollCtx.Err() != nil {
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING (last error: %v)", instanceName, lastErr)
+			}
 			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 		}
 		time.Sleep(5 * time.Second)

@@ -1365,6 +1365,10 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+    // Device does not support Decap NH in the DEFAULT network instance for gRIBI.
+    // When true, the test skips AddNH/AddNHG and accepts an empty gRIBI RIB (EOF) as
+    // proof of connectivity.
+    bool gribi_decap_in_default_ni_unsupported = 433;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

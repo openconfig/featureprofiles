@@ -12,14 +12,14 @@ platform_exceptions: {
   }
   deviations: {
     containerz_oc_unsupported: true
+    gribi_decap_in_default_ni_unsupported: true
   }
 }
-
 platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
   deviations: {
     localhost_for_containerz: true
-  }  
+  }
 }
