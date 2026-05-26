@@ -47,6 +47,7 @@ platform_exceptions: {
     default_network_instance: "default"
     bgp_llgr_oc_undefined: true
     routing_restart_via_gnoi_unsupported: true
+    missing_value_for_defaults: true
   }
 }
 tags: TAGS_AGGREGATION

@@ -89,7 +89,7 @@ const (
 	bgpMED                   = 25
 	aclStatement3            = "30"
 	gnmiRetryCount           = 3
-	gnmiDeleteRetryCount     = 10
+	gnmiDeleteRetryCount     = 3
 	gnmiSleepDuration        = 30 * time.Second
 )
 
@@ -764,26 +764,50 @@ func verifyGracefulRestart(t *testing.T, dut *ondatra.DUTDevice) {
 			t.Errorf("LLGR timer is incorrect, want %v, got %v", grStaleRouteTime, llgrTimer)
 		}
 	}
-	if grState := gnmi.Get(t, dut, nbrPath.GracefulRestart().Enabled().State()); grState != true {
+	grState, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().Enabled().State()).Val()
+	if !present && deviations.MissingValueForDefaults(dut) {
+		grState = true
+	} else if !present {
+		t.Errorf("Graceful restart enabled state is not present")
+	}
+	if grState != true {
 		t.Errorf("Graceful restart enabled state is incorrect, want true, got %v", grState)
 	}
-	if peerRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().PeerRestarting().State()); peerRestartState != true {
-		if peerRestartTime := gnmi.Get(t, dut, nbrPath.GracefulRestart().PeerRestartTime().State()); peerRestartTime != 0 {
-			t.Errorf("Peer restart time is incorrect, want 0, got %v", peerRestartTime)
+	if !deviations.BgpLlgrOcUndefined(dut) {
+		peerRestartState, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().PeerRestarting().State()).Val()
+		if !present && deviations.MissingValueForDefaults(dut) {
+			peerRestartState = true
+		} else if !present {
+			t.Errorf("Graceful restart peer-restarting state is not present")
+		}
+		if peerRestartState != true {
+			peerRestartTime, present := gnmi.Lookup(t, dut, nbrPath.GracefulRestart().PeerRestartTime().State()).Val()
+			if !present && deviations.MissingValueForDefaults(dut) {
+				peerRestartTime = 0
+			} else if !present {
+				t.Errorf("Peer restart time is not present")
+			}
+			if peerRestartTime != 0 {
+				t.Errorf("Peer restart time is incorrect, want 0, got %v", peerRestartTime)
+			}
+			t.Errorf("Peer restart state is incorrect, want true, got %v", peerRestartState)
+		}
+		if localRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().LocalRestarting().State()); localRestartState != false {
+			t.Errorf("Local restart state is incorrect, want false, got %v", localRestartState)
+		}
+		if grMode := gnmi.Get(t, dut, nbrPath.GracefulRestart().Mode().State()); grMode != oc.GracefulRestart_Mode_HELPER_ONLY && grMode != oc.GracefulRestart_Mode_BILATERAL {
+			t.Errorf("Graceful restart mode is incorrect, want %v or %v, got %v", oc.GracefulRestart_Mode_HELPER_ONLY, oc.GracefulRestart_Mode_BILATERAL, grMode)
 		}
 	}
-	if peerRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().PeerRestarting().State()); peerRestartState != true {
-		t.Errorf("Peer restart state is incorrect, want true , got %v", peerRestartState)
-	}
-	if localRestartState := gnmi.Get(t, dut, nbrPath.GracefulRestart().LocalRestarting().State()); localRestartState != false {
-		t.Errorf("Local restart state is incorrect, want false, got %v", localRestartState)
-	}
-	if grMode := gnmi.Get(t, dut, nbrPath.GracefulRestart().Mode().State()); grMode != oc.GracefulRestart_Mode_HELPER_ONLY && grMode != oc.GracefulRestart_Mode_BILATERAL {
-		t.Errorf("Graceful restart mode is incorrect, want %v or %v, got %v", oc.GracefulRestart_Mode_HELPER_ONLY, oc.GracefulRestart_Mode_BILATERAL, grMode)
-	}
 	if !deviations.BgpGracefulRestartUnderAfiSafiUnsupported(dut) {
-		if nbrAfiSafiGrState := gnmi.Get(t, dut, nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GracefulRestart().Enabled().State()); nbrAfiSafiGrState != true {
-			t.Errorf("Neighbor AFI-SAFI graceful restart state is incorrect, want true, got %v", nbrAfiSafiGrState)
+		nbrAfiSafiGrState, present := gnmi.Lookup(t, dut, nbrPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GracefulRestart().Enabled().State()).Val()
+		if !present && deviations.MissingValueForDefaults(dut) {
+			nbrAfiSafiGrState = true
+		} else if !present {
+			t.Errorf("Neighbor AFI-SAFI Graceful restart enabled state is not present")
+		}
+		if nbrAfiSafiGrState != true {
+			t.Errorf("Neighbor AFI-SAFI Graceful restart status: got %v, want Enabled", nbrAfiSafiGrState)
 		}
 	}
 }
