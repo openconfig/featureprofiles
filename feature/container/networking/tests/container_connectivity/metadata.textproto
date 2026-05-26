@@ -13,6 +13,7 @@ platform_exceptions: {
   deviations: {
     containerz_oc_unsupported: true
     gribi_decap_in_default_ni_unsupported: true
+    containerz_tls_insecure_skip_verify: true
   }
 }
 platform_exceptions: {

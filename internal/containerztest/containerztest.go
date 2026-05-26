@@ -43,12 +43,6 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 				    ssl profile SELFSIGNED
 				    vrf mgmt
 				    authorization requests
-				!
-				ipv6 access-list restrict-access-ipv6
-				  10030 permit tcp any any eq 60061
-				  20000 permit ipv6 any any
-				system control-plane
-				  ipv6 access-group restrict-access-ipv6 vrf MGMT in
 			`
 		if deviations.ContainerzOCUnsupported(dut) {
 			config += `
@@ -67,12 +61,11 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		// succeeds or we exceed the deadline.
 		gnmiSaveWithRetry(t, dut, 2*time.Minute)
 		waitForGNOI(t, dut, 2*time.Minute)
-		// EOS's system control-plane ACL is accepted by EOS but may not translate
-		// to a kernel firewall rule on all EOS versions. Insert a direct ip6tables
-		// ACCEPT rule into the management namespace as a reliable fallback. The
-		// default INPUT policy in ns-mgmt is DROP for unlisted ports.
+		// EOS management namespace (ns-mgmt) has a default DROP policy.
+		// A per-VRF CP ACL could open port 60061, but the AclAgent restart
+		// race (BUG54186) silently drops rules on some EOS versions. Use a
+		// direct ip6tables rule as the reliable alternative.
 		dut.CLI().Run(t, "enable\nbash sudo ip netns exec ns-mgmt ip6tables -I EOS_INPUT 1 -p tcp --dport 60061 -j ACCEPT")
-		t.Log("Opened container port 60061 in EOS management namespace ip6tables.")
 	case ondatra.CISCO:
 		dut.Config().New().WithCiscoText(`
 			appmgr docker allow-sensitive-paths
@@ -92,7 +85,9 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 	// have restarted Octa, making any prior gNOI connection stale. Use the
 	// fresh clients directly rather than GNOI(t), which would return the stale
 	// entry from Ondatra's cache and produce Unavailable errors on the next RPC.
-	freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer dialCancel()
+	freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
 	if err != nil {
 		t.Logf("gNOI re-dial in Client() failed (non-fatal): %v", err)
 		freshClients = dut.RawAPIs().GNOI(t)
@@ -133,7 +128,9 @@ func gnmiSaveWithRetry(t *testing.T, dut *ondatra.DUTDevice, timeout time.Durati
 		if err != nil {
 			t.Fatalf("Cannot build gNMI SetRequest for write memory: %v", err)
 		}
-		_, err = gnmiClient.Set(context.Background(), req)
+		setCtx, setCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err = gnmiClient.Set(setCtx, req)
+		setCancel()
 		if err == nil {
 			t.Logf("write memory succeeded (attempt %d)", attempt)
 			return
@@ -323,11 +320,15 @@ func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts Start
 	t.Logf("Container %q started successfully.", opts.InstanceName)
 
 	return cli, func() {
-		Stop(ctx, t, cli, opts.InstanceName)
+		// Use a fresh context so cleanup succeeds even if the test context was
+		// canceled (e.g. on timeout).
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cleanupCancel()
+		Stop(cleanupCtx, t, cli, opts.InstanceName)
 		// Remove the container so it does not persist on the DUT in STOPPED
 		// state. Without removal, Docker may restart a previously-running
 		// container on its next daemon restart, contaminating subsequent tests.
-		if err := cli.RemoveContainer(ctx, opts.InstanceName, true); err != nil {
+		if err := cli.RemoveContainer(cleanupCtx, opts.InstanceName, true); err != nil {
 			s, _ := status.FromError(err)
 			if s.Code() != codes.NotFound {
 				t.Logf("RemoveContainer %s encountered an issue: %v", opts.InstanceName, err)
