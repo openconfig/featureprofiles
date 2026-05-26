@@ -1,10 +1,10 @@
-// Copyright 2023 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      hfdp://www.apache.org/licenses/LICENSE-2.0
+//      http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,6 +15,7 @@
 package fabric_redundancy_test
 
 import (
+	"context"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -28,6 +29,8 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	"github.com/openconfig/functional-translators/registrar"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -152,19 +155,9 @@ func createFlow(flowName string, flowSize uint32, ipv6 string) gosnappi.Flow {
 	return flow
 }
 
-func configureDUTPort(
-	t *testing.T,
-	dut *ondatra.DUTDevice,
-	port *ondatra.Port,
-	portAttrs *attrs.Attributes,
-) {
-	gnmi.Replace(
-		t,
-		dut,
-		gnmi.OC().Interface(port.Name()).Config(),
-		portAttrs.NewOCInterface(port.Name(), dut),
-	)
-
+func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port, portAttrs *attrs.Attributes) {
+	intf := portAttrs.NewOCInterface(port.Name(), dut)
+	gnmi.Replace(t, dut, gnmi.OC().Interface(port.Name()).Config(), intf)
 	if deviations.ExplicitPortSpeed(dut) {
 		fptest.SetPortSpeed(t, port)
 	}
@@ -217,6 +210,78 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	}
 
 	return otgConfig
+}
+
+func readFabricBlockCounters(t *testing.T, dut *ondatra.DUTDevice) map[string]map[string]float64 {
+	ctx := context.Background()
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+	if err != nil {
+		t.Fatalf("Failed to dial gNMI: %v", err)
+	}
+
+	ft, ok := registrar.FunctionalTranslatorRegistry[deviations.FabricFt(dut)]
+	if !ok {
+		t.Fatalf("Functional translator %q not found.", deviations.FabricFt(dut))
+	}
+
+	var nativePaths []*gpb.Path
+	for _, paths := range ft.OutputToInputMap() {
+		nativePaths = append(nativePaths, paths...)
+	}
+
+	if len(nativePaths) == 0 {
+		t.Fatalf("No native paths found for functional translator %q", deviations.FabricFt(dut))
+	}
+
+	resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+		Path:     nativePaths,
+		Type:     gpb.GetRequest_STATE,
+		Encoding: gpb.Encoding_JSON_IETF,
+	})
+	if err != nil {
+		t.Fatalf("Failed to get native paths: %v", err)
+	}
+
+	counters := make(map[string]map[string]float64)
+
+	for _, notification := range resp.GetNotification() {
+		dummySR := &gpb.SubscribeResponse{
+			Response: &gpb.SubscribeResponse_Update{
+				Update: notification,
+			},
+		}
+		translatedSR, err := ft.Translate(dummySR)
+		if err != nil {
+			t.Errorf("Translation Failed: %v", err)
+		}
+		if translatedSR == nil {
+			continue
+		}
+		translatedNotification := translatedSR.GetUpdate()
+		if translatedNotification == nil {
+			continue
+		}
+		for _, update := range translatedNotification.GetUpdate() {
+			path := update.GetPath()
+			elems := path.GetElem()
+			if len(elems) < 8 {
+				continue
+			}
+			if elems[0].GetName() == "components" && elems[1].GetName() == "component" {
+				compName := elems[1].GetKey()["name"]
+				if elems[2].GetName() == "integrated-circuit" && elems[6].GetName() == "fabric-block-error" {
+					errorName := elems[6].GetKey()["name"]
+					val := update.GetVal().GetUintVal()
+
+					if _, ok := counters[compName]; !ok {
+						counters[compName] = make(map[string]float64)
+					}
+					counters[compName][errorName] = float64(val)
+				}
+			}
+		}
+	}
+	return counters
 }
 
 func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string, od otgData) {
@@ -351,8 +416,6 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
-	t.Logf("Waiting for 120s after power disable...")
-	time.Sleep(120 * time.Second)
 	if deviations.ConfigLeafCreateRequired(dut) {
 		c := gnmi.OC().Component(fabric)
 		config = c.Fabric().PowerAdminState().Config()
@@ -373,9 +436,6 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", fabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 120s after power enable...")
-	time.Sleep(120 * time.Second)
-
 	lastReboofdimeAfter := gnmi.Get(t, dut, lastReboofdime.State())
 
 	if lastReboofdimeBefore > lastReboofdimeAfter {
@@ -391,6 +451,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	od.otg.PushConfig(t, od.otgConfig)
 	time.Sleep(time.Second * 120)
 
+	configureDUT(t, dut)
 	disabledFabric := ""
 	// Create a new random source with a specific seed
 	source := rand.NewSource(time.Now().UnixNano())
@@ -398,6 +459,10 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 
 	// Generate a random index within the range of the slice
 	randomIndex := random.Intn(len(fabrics))
+
+	t.Logf("Starting protocols and checking the ARP to make sure the ARP is resolved")
+	od.otg.StartProtocols(t)
+	od.waitInterface(t)
 
 	// Access the fabric at the random index
 	disabledFabric = fabrics[randomIndex]
@@ -415,6 +480,8 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	time.Sleep(120 * time.Second)
 
 	od.otg.StartProtocols(t)
+	otgutils.WaitForARP(t, od.otg, od.otgConfig, "IPv4")
+
 	od.waitInterface(t)
 
 	sleepTime := time.Duration(packetsToSend/uint32(ppsRate)) + 5
@@ -471,9 +538,43 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 		t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", disabledFabric, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 	}
 
-	t.Logf("Waiting for 120s after power enable...")
-	time.Sleep(120 * time.Second)
+}
 
+// Note: We are accepting extra unused parameters to comply with the interface of test loop.
+func testFabricErrorTelemetryPresence(t *testing.T, dut *ondatra.DUTDevice, _ []string, _ otgData) {
+	expectedPlaneCounters := []string{
+		"uncorrectable-error-cells",
+		"unicast-lost-cells",
+		"multicast-lost-cells",
+		"parity-error-cells",
+		"asic-internal-drops",
+	}
+
+	expectedPortCounters := []string{
+		"rx-bad-crc",
+		"rx-errors",
+		"tx-fifo-unrun",
+	}
+
+	counters := readFabricBlockCounters(t, dut)
+
+	if len(counters) == 0 {
+		t.Errorf("No fabric block counters returned at all!")
+	}
+
+	for compName, compCounters := range counters {
+		expected := expectedPlaneCounters
+		if strings.Contains(compName, ":") {
+			expected = expectedPortCounters
+		}
+		for _, leaf := range expected {
+			if _, ok := compCounters[leaf]; !ok {
+				t.Fatalf("Counter %s missing on component %s", leaf, compName)
+			} else {
+				t.Logf("Counter %s is present on component %s", leaf, compName)
+			}
+		}
+	}
 }
 
 func TestFabricRedundancy(t *testing.T) {
@@ -565,6 +666,16 @@ func TestFabricRedundancy(t *testing.T) {
 			fabrics:  fabrics,
 			testFunc: testFabricLastRebootTime,
 		},
+	}
+
+	if deviations.FabricFt(dut) != "" {
+		testCases = append(testCases, testCase{
+			name:     "TEST 4: Fabric error telemetry",
+			fabrics:  fabrics,
+			testFunc: testFabricErrorTelemetryPresence,
+		})
+	} else {
+		t.Logf("Skipping testFabricErrorTelemetryPresence: This test checks for non-standard OpenConfig paths that require FabricFt, which is not present on this device.")
 	}
 
 	// Run the test cases.

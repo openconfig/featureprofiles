@@ -2,6 +2,6 @@
 # proto-message: Metadata
 
 uuid:  "0ced37e8-9765-4ed1-8a55-06819d6ee95c"
-plan_id:  "Certz-2"
+plan_id:  "CERTZ-2"
 description:  "Server Certificate"
 testbed:  TESTBED_DUT_ATE_2LINKS

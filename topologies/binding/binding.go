@@ -30,6 +30,7 @@ import (
 	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/gnoigo"
+	gnpsipb "github.com/openconfig/gnpsi/proto/gnpsi"
 	grpb "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra/binding"
 	"github.com/openconfig/ondatra/binding/grpcutil"
@@ -43,6 +44,10 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+)
+
+const (
+	gnmiRecvMsgSizeDefault = 100 * 1024 * 1024 // 100 MB
 )
 
 var (
@@ -170,12 +175,54 @@ func (d *staticDUT) reset(ctx context.Context) error {
 	return resetGRIBI(ctx, d)
 }
 
+func (d *staticDUT) PushConfig(ctx context.Context, config string, reset bool) error {
+	if reset {
+		if err := resetGNMI(ctx, d); err != nil {
+			return err
+		}
+	}
+	if config == "" {
+		return nil
+	}
+
+	setRequest := &gpb.SetRequest{Update: []*gpb.Update{
+		{
+			Path: &gpb.Path{
+				Origin: "cli",
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		},
+	}}
+
+	gnmiClient, err := d.DialGNMI(ctx)
+	if err != nil {
+		return err
+	}
+	if _, err := gnmiClient.Set(ctx, setRequest); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (d *staticDUT) DialGNMI(ctx context.Context, opts ...grpc.DialOption) (gpb.GNMIClient, error) {
 	conn, err := dialConn(ctx, d, introspect.GNMI, opts)
 	if err != nil {
 		return nil, err
 	}
 	return gpb.NewGNMIClient(conn), nil
+}
+
+func (d *staticDUT) DialGNPSI(ctx context.Context, opts ...grpc.DialOption) (gnpsipb.GNPSIClient, error) {
+	conn, err := dialConn(ctx, d, introspect.GNPSI, opts)
+	if err != nil {
+		return nil, err
+	}
+	return gnpsipb.NewGNPSIClient(conn), nil
 }
 
 func (d *staticDUT) DialGNOI(ctx context.Context, opts ...grpc.DialOption) (gnoigo.Clients, error) {
@@ -256,7 +303,6 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 				ssh.Password(auth.Password),
 				ssh.KeyboardInteractive(sshInteractive(auth.Password)),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	case binding.KeyAuth:
 		signer, err := ssh.ParsePrivateKey(auth.Key)
@@ -268,7 +314,6 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	case binding.CertificateAuth:
 		signer, err := ssh.ParsePrivateKey(auth.PrivateKey)
@@ -288,27 +333,26 @@ func (d *staticDUT) DialSSH(_ context.Context, sshAuth binding.SSHAuth) (binding
 			Auth: []ssh.AuthMethod{
 				ssh.PublicKeys(signer),
 			},
-			HostKeyCallback: hkCallback,
 		}
 	default:
 		return nil, fmt.Errorf("ssh auth type %T not supported yet", auth)
 	}
-	sc, err := createSSHClient(config, d.r.ssh(d.dev))
+	sc, err := createSSHClient(config, d.r.ssh(d.dev), hkCallback)
 	if err != nil {
 		return nil, err
 	}
 	return newSSH(sc, hk)
 }
 
-func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options) (*ssh.Client, error) {
+func createSSHClient(config *ssh.ClientConfig, sshOpts *bindpb.Options, callbacks ...ssh.HostKeyCallback) (*ssh.Client, error) {
 	if sshOpts.SkipVerify {
-		config.HostKeyCallback = ssh.InsecureIgnoreHostKey()
+		config.HostKeyCallback = combineHostKeyCallbacks(append(callbacks, ssh.InsecureIgnoreHostKey())...)
 	} else {
 		cb, err := knownHostsCallback()
 		if err != nil {
 			return nil, err
 		}
-		config.HostKeyCallback = cb
+		config.HostKeyCallback = combineHostKeyCallbacks(append(callbacks, cb)...)
 	}
 	return ssh.Dial("tcp", sshOpts.Target, config)
 }
@@ -330,6 +374,11 @@ func (a *staticATE) Dialer(svc introspect.Service) (*introspect.Dialer, error) {
 		return nil, fmt.Errorf("no known ATE service %v", svc)
 	}
 	bopts := a.r.grpc(a.dev, params)
+	// For scale tests, ATE gNMI might receive large data. Set a larger default
+	// max receive message size if not already configured.
+	if bopts.MaxRecvMsgSize == 0 {
+		bopts.MaxRecvMsgSize = gnmiRecvMsgSizeDefault
+	}
 	return makeDialer(params, bopts)
 }
 
@@ -697,4 +746,16 @@ func knownHostsCallback() (ssh.HostKeyCallback, error) {
 		}
 	}
 	return knownhosts.New(files...)
+}
+
+// combineHostKeyCallbacks tries multiple callbacks and fails if any one callback fails.
+func combineHostKeyCallbacks(callbacks ...ssh.HostKeyCallback) ssh.HostKeyCallback {
+	return func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+		for _, cb := range callbacks {
+			if err := cb(hostname, remote, key); err != nil {
+				return fmt.Errorf("host key checks failed, last error: %v", err)
+			}
+		}
+		return nil
+	}
 }

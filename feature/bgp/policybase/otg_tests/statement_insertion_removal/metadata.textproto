@@ -26,4 +26,12 @@ platform_exceptions:  {
     default_network_instance:  "default"
   }
 }
+platform_exceptions:  {
+  platform:  {
+    vendor:  CISCO
+  }
+  deviations:  {
+    bgp_community_type_slice_input_unsupported: true
+  }
+}
 tags:  TAGS_DATACENTER_EDGE

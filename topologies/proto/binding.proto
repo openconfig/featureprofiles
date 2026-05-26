@@ -101,6 +101,8 @@ message Device {
 
   // Software version of the device.
   string software_version = 21;
+
+  Options gnpsi = 22;
 }
 
 // Dial options.

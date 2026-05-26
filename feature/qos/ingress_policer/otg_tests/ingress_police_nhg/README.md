@@ -28,268 +28,6 @@ Use TE-18.1 test environment setup.
 * Generate config to apply classifer and scheduler to DUT subinterface.
 * Use gnmi.Replace to push the config to the DUT.
 
-```json
-{
-  #
-  # A classifer is created to match packets belonging to certain
-  # next-hop-groups and map them either forwarding-group input_dest_A or
-  # input_dest_B
-  "openconfig-qos": {
-    "classifers": [
-      {
-        "classifer": "“dest_A”",
-        "config": {
-          "name": "“dest_A”"
-        },
-        "terms": [
-          {
-            "term": null,
-            "config": {
-              "id": "match_1_dest_A1"
-            },
-            "conditions": {
-              "next-hop-group": {
-                "config": {
-                  # TODO: new OC path needed, string related to /afts/next-hop-groups/next-hop-group/state/next-hop-group-id
-                  "name": "nhg_A1"
-                }
-              }
-            },
-            "actions": {
-              "config": {
-                "target-group": "input_dest_A"
-              }
-            }
-          },
-          {
-            "term": null,
-            "config": {
-              "id": "match_1_dest_A2"
-            },
-            "conditions": {
-              "next-hop-group": {
-                "config": {
-                  "name": "nhg_A2"
-                }
-              }
-            },
-            "actions": {
-              "config": {
-                "target-group": "input_dest_A"
-              }
-            }
-          }
-        ]
-      },
-      {
-        "classifer": "“dest_B”",
-        "config": {
-          "name": "“dest_B”"
-        },
-        "terms": [
-          {
-            "term": null,
-            "config": {
-              "id": "match_1_dest_B1"
-            },
-            "conditions": {
-              "next-hop-group": {
-                "config": {
-                  "name": "nhg_B1"
-                }
-              }
-            },
-            "actions": {
-              "config": {
-                "target-group": "input_dest_B"
-              }
-            }
-          },
-          {
-            "term": null,
-            "config": {
-              "id": "match_1_dest_B2"
-            },
-            "conditions": {
-              "next-hop-group": {
-                "config": {
-                  "name": "nhg_B2"
-                }
-              }
-            },
-            "actions": {
-              "config": {
-                "target-group": "input_dest_B"
-              }
-            }
-          }
-        ]
-      }
-    ],
-    #
-    # Forwarding groups are created named input_dest_A and input_dest_B.
-    # These are mapped to 'fake' queues 
-    "forwarding-groups": [
-      {
-        "forwarding-group": "input_dest_A",
-        "config": {
-          "name": "input_dest_A",
-          "output-queue": "dummy_input_queue_A"
-        }
-      },
-      {
-        "forwarding-group": "input_dest_B",
-        "config": {
-          "name": "input_dest_B",
-          "output-queue": "dummy_input_queue_B"
-        }
-      }
-    ],
-    "queues": [
-      {
-        "queue": null,
-        "config": {
-          "name": "dummy_input_queue_A"
-        }
-      },
-      {
-        "queue": null,
-        "config": {
-          "name": "dummy_input_queue_B"
-        }
-      }
-    ],
-    #
-    # Two scheduler policies are created, limit_1Gb and limit_2Gb
-    # and are associated with the dummy queue they are servicing.
-    "scheduler-policies": [
-      {
-        "scheduler-policy": null,
-        "config": {
-          "name": "limit_1Gb"
-        },
-        "schedulers": [
-          {
-            "scheduler": null,
-            "config": {
-              "sequence": 1,
-              "type": "ONE_RATE_TWO_COLOR"
-            },
-            "inputs": [
-              {
-                "input": "my input policer 1Gb",
-                "config": {
-                  "id": "my input policer 1Gb",
-                  "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_A"
-                }
-              }
-            ],
-            "one-rate-two-color": {
-              "config": {
-                "cir": 1000000000,
-                "bc": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": true
-                }
-              }
-            }
-          }
-        ]
-      },
-      {
-        "scheduler-policy": null,
-        "config": {
-          "name": "limit_2Gb"
-        },
-        "schedulers": [
-          {
-            "scheduler": null,
-            "config": {
-              "sequence": 1,
-              "type": "ONE_RATE_TWO_COLOR"
-            },
-            "inputs": [
-              {
-                "input": "my input policer 2Gb",
-                "config": {
-                  "id": "my input policer 2Gb",
-                  "input-type": "QUEUE",
-                  "queue": "dummy_input_queue_B"
-                }
-              }
-            ],
-            "one-rate-two-color": {
-              "config": {
-                "cir": 2000000000,
-                "bc": 100000,
-                "queuing-behavior": "POLICE"
-              },
-              "exceed-action": {
-                "config": {
-                  "drop": true
-                }
-              }
-            }
-          }
-        ]
-      }
-    ],
-    #
-    # Interfaces input are mapped to the desired classifier and scheduler.
-    "interfaces": [
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "PortChannel1.100"
-        },
-        "input": {
-          "classifiers": [
-            {
-              "classifier": null,
-              "config": {
-                "name": "dest_A",
-                "type": "IPV4"
-              }
-            }
-          ],
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_A_1Gb"
-            }
-          }
-        }
-      },
-      {
-        "interface": null,
-        "config": {
-          "interface-id": "PortChannel1.200"
-        },
-        "input": {
-          "classifiers": [
-            {
-              "classifier": null,
-              "config": {
-                "name": "dest_B",
-                "type": "IPV4"
-              }
-            }
-          ],
-          "scheduler-policy": {
-            "config": {
-              "name": "limit_group_B_1Gb"
-            }
-          }
-        }
-      }
-    ]
-  }
-}
-```
-
 ### DP-2.2.2 push gRIBI AFT encapsulation rules with next-hop-group-id
 
 Create a gRIBI client and send this proto message to the DUT to create AFT
@@ -372,7 +110,7 @@ NH#201 -> {
     * Validate that flow dest_A experiences ~50% packet loss (+/- 1%)
   * Stop traffic
 
-### DP-2.2.3 IPv6 flow label validiation
+### DP-2.2.4 IPv6 flow label validiation
 
   * Send 100 packets for flow A and flow B.  (Use an OTG fixed packet count flow)
   * When the outer packet is IPv6, the flow-label should be inspected on the ATE.
@@ -383,6 +121,163 @@ NH#201 -> {
       * flow B have the same flow label
       * flow A and B labels do not match
 
+# Canonical OC
+TODO: The following OC is a placeholder and should not be implemented.  It is only included here as a another reference for the configuration items.  The Canonical OC will be redesigned to follow policy-forwarding `MATCH_ACTION` after https://github.com/openconfig/public/pull/1417/ is merged to the OpenConfig data models.
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "Input Interface",
+          "name": "port1"
+        },
+        "name": "port1"
+      }
+    ]
+  },
+  "qos": {
+    "classifiers": {
+      "classifier": [
+        {
+          "config": {
+            "name": "match-dscp-to-police",
+            "type": "IPV4"
+          },
+          "name": "match-dscp-to-police",
+          "terms": {
+            "term": [
+              {
+                "actions": {
+                  "config": {
+                    "target-group": "fg-policer"
+                  }
+                },
+                "conditions": {
+                  "ipv4": {
+                    "config": {
+                      "dscp": 34
+                    }
+                  }
+                },
+                "config": {
+                  "id": "term1"
+                },
+                "id": "term1"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "forwarding-groups": {
+      "forwarding-group": [
+        {
+          "config": {
+            "name": "fg-policer",
+            "output-queue": "q-dummy"
+          },
+          "name": "fg-policer"
+        }
+      ]
+    },
+    "interfaces": {
+      "interface": [
+        {
+          "config": {
+            "interface-id": "port1"
+          },
+          "input": {
+            "classifiers": {
+              "classifier": [
+                {
+                  "config": {
+                    "name": "match-dscp-to-police",
+                    "type": "IPV4"
+                  },
+                  "type": "IPV4"
+                }
+              ]
+            },
+            "queues": {
+              "queue": [
+                {
+                  "config": {
+                    "name": "q-dummy"
+                  },
+                  "name": "q-dummy"
+                }
+              ]
+            },
+            "scheduler-policy": {
+              "config": {
+                "name": "policer"
+              }
+            }
+          },
+          "interface-id": "port1"
+        }
+      ]
+    },
+    "queues": {
+      "queue": [
+        {
+          "config": {
+            "name": "q-dummy"
+          },
+          "name": "q-dummy"
+        }
+      ]
+    },
+    "scheduler-policies": {
+      "scheduler-policy": [
+        {
+          "config": {
+            "name": "policer"
+          },
+          "name": "policer",
+          "schedulers": {
+            "scheduler": [
+              {
+                "config": {
+                  "sequence": 1,
+                  "type": "ONE_RATE_TWO_COLOR"
+                },
+                "inputs": {
+                  "input": [
+                    {
+                      "config": {
+                        "id": "in-policer",
+                        "input-type": "QUEUE",
+                        "queue": "q-dummy"
+                      },
+                      "id": "in-policer"
+                    }
+                  ]
+                },
+                "one-rate-two-color": {
+                  "config": {
+                    "bc": 1000000,
+                    "cir": "1000000000",
+                    "queuing-behavior": "POLICE"
+                  },
+                  "exceed-action": {
+                    "config": {
+                      "drop": true
+                    }
+                  }
+                },
+                "sequence": 1
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}
+```
 
 #### OpenConfig Path and RPC Coverage
 
