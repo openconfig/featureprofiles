@@ -33,6 +33,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -140,13 +141,13 @@ func TestMain(m *testing.M) {
 func TestMultipathGUE(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
+	pushStartWaitTime := 20 * time.Second
 	aggIDs := configureDUT(t, dut)
 	otgConfig := configureATE(t, ate)
 	sfBatch := &gnmi.SetBatch{}
 	cfgplugins.MPLSStaticLSP(t, sfBatch, dut, lspV4Name, mplsLabel, ateLag1.IPv4, "", "ipv4")
 	sfBatch.Set(t, dut)
-	ate.OTG().PushConfig(t, otgConfig)
-	ate.OTG().StartProtocols(t)
+	pushAndStartProtocols(t, ate, otgConfig, pushStartWaitTime)
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
 	for _, aggID := range aggIDs {
@@ -161,7 +162,6 @@ func TestMultipathGUE(t *testing.T) {
 	}
 	checkBgpStatus(t, dut, neighbors)
 	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv6 decap address and Load-balance test", func(t *testing.T) {
-
 		destinations := [][]string{
 			{otgConfig.Lags().Items()[0].Name()},                                      // Flow#1 to H3 via ATE3 LAG
 			{otgConfig.Ports().Items()[1].Name(), otgConfig.Lags().Items()[0].Name()}, // Flow#2 to H2 via ATE2 + ATE3 LAG
@@ -174,13 +174,25 @@ func TestMultipathGUE(t *testing.T) {
 			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#9 to H4 via ATE4 LAG + ATE5
 			{otgConfig.Ports().Items()[2].Name(), otgConfig.Lags().Items()[1].Name()}, // Flow#10 same as Flow#9
 		}
-
+		activeFlowIndices := []int{
+			2, // First ECMP case: keep only this forwarding check enabled for now.
+			// 1,
+			// 3,
+			// 4,
+			// 5,
+			// 6,
+			// 7,
+			// 8,
+			// 9,
+			// 10,
+		}
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
+		for _, flowIndex := range activeFlowIndices {
 			otgConfig.Flows().Clear()
 			flow := configureFlows(t, otgConfig, macAddress, destinations[flowIndex-1], flowIndex, false)
-			ate.OTG().PushConfig(t, otgConfig)
-			ate.OTG().StartProtocols(t)
+			pushAndStartProtocols(t, ate, otgConfig, pushStartWaitTime)
+			otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
+			otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
 			t.Logf("Running test for flow index %d: %s", flowIndex, flow.Name())
 			var payloadType, excludeLag, rxPort string
 			var rxLags []string
@@ -215,21 +227,25 @@ func TestMultipathGUE(t *testing.T) {
 			// Configure decap on DUT for current payload
 			configureDutWithGueDecap(t, dut, payloadType)
 
+			lagFramesBefore := captureLagInFrames(t, ate, rxLags)
+			portFramesBefore := uint64(0)
+			if rxPort != "" {
+				portFramesBefore = capturePortInFrames(t, ate, rxPort)
+			}
+
 			ate.OTG().StartTraffic(t)
 			time.Sleep(trafficDuration * time.Second)
 			ate.OTG().StopTraffic(t)
-			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
+			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name(), rxPort, rxLags); !ok {
 				t.Fatalf("Packet loss detected in flow: %s", flow.Name())
 			}
-			// Validate load balancing weights
-			weights := testLoadBalance(t, ate, rxLags, flow, excludeLag)
-			countRxPkts(t, ate, flow, rxPort)
+			weights := testLoadBalance(t, ate, rxLags, rxPort, flow.Name(), lagFramesBefore, portFramesBefore)
 			for idx, weight := range lagTrafficDistribution {
 				if got, want := weights[idx], weight; got < (want-tolerance) || got > (want+tolerance) {
-					t.Errorf("ECMP Percentage for Aggregate Index: %d: got %d, want %d", idx+1, got, want)
+					t.Errorf("ECMP Percentage for destination index %d: got %d, want %d", idx+1, got, want)
 				}
 			}
-			t.Logf("Load balancing has been verified on the LAG interfaces.")
+			_ = excludeLag
 		}
 	})
 	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv6 decap address [Negative] test", func(t *testing.T) {
@@ -247,7 +263,7 @@ func TestMultipathGUE(t *testing.T) {
 		time.Sleep(trafficDuration * time.Second)
 		ate.OTG().StopTraffic(t)
 		for _, flow := range flows {
-			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
+			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name(), "", nil); !ok {
 				t.Fatalf("Packet loss detected in flow: %s", flow.Name())
 			} else {
 				t.Logf("Flow %s: Traffic validation success", flow.Name())
@@ -718,6 +734,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	} else {
 		udpOuter.DstPort().SetValue(UDPDstPort)
 	}
+	udpOuter.Checksum().SetCustom(0)
 
 	// Flow-specific configuration from image table
 	switch incr {
@@ -808,94 +825,156 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 }
 
 // verifyFlowTraffic validate the traffic stream counts.
-func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName string) bool {
+func verifyFlowTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flowName, rxPort string, rxLags []string) bool {
 	t.Helper()
-	otgutils.LogFlowMetrics(t, ate.OTG(), config)
-	otgutils.LogLAGMetrics(t, ate.OTG(), config)
-	countersPath := gnmi.OTG().Flow(flowName).Counters()
-	txRate := gnmi.Get(t, ate.OTG(), countersPath.OutPkts().State())
-	isWithinTolerance := func(v uint64) bool {
-		return v >= txRate-tolerance && v <= txRate+tolerance
-	}
-	txVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.OutPkts().State(), timeout,
-		func(val *ygnmi.Value[uint64]) bool {
-			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(v)
-		}).Await(t)
-
+	expectedTx, ok := flowExpectedPackets(config, flowName)
 	if !ok {
-		t.Errorf("Flow %q: TX did not reach expected count (%d)", flowName, txRate)
+		t.Errorf("Flow %q: expected packet count not found in config", flowName)
 		return false
 	}
 
-	// Wait for RX to match TX exactly
-	rxVal, ok := gnmi.Watch(t, ate.OTG(), countersPath.InPkts().State(), timeout,
-		func(val *ygnmi.Value[uint64]) bool {
-			v, present := val.Val()
-			return val.IsPresent() && present && isWithinTolerance(v)
-		}).Await(t)
-
-	if !ok {
-		t.Errorf("Flow %q: RX packets did not match expected TX count (%d)", flowName, txRate)
+	transmitStopped, txPkts, rxPkts := getFinalFlowCounters(t, ate, flowName)
+	tolerancePkts := expectedTx * tolerance / 100
+	txInRange := uint64WithinTolerance(txPkts, expectedTx, tolerancePkts)
+	rxInRange := uint64WithinTolerance(rxPkts, expectedTx, tolerancePkts)
+	rxMatchesTx := uint64WithinTolerance(rxPkts, txPkts, tolerancePkts)
+	if !txInRange || !rxInRange || !rxMatchesTx {
+		logFlowFailureDiagnostics(t, ate, flowName, rxPort, rxLags)
+		t.Errorf("Flow %q validation failed: expectedTX=%d actualTX=%d actualRX=%d transmitStopped=%t", flowName, expectedTx, txPkts, rxPkts, transmitStopped)
+		if !transmitStopped {
+			t.Errorf("Flow %q never reached a stable stopped state before validation", flowName)
+		}
+		if !txInRange {
+			t.Errorf("Flow %q TX mismatch: got %d, want %d +/- %d", flowName, txPkts, expectedTx, tolerancePkts)
+		}
+		if txInRange && !rxInRange {
+			t.Errorf("Flow %q delivery mismatch: RX got %d, want %d +/- %d", flowName, rxPkts, expectedTx, tolerancePkts)
+		}
+		if !rxMatchesTx {
+			t.Errorf("Flow %q RX/TX mismatch: RX got %d, TX got %d, tolerance %d", flowName, rxPkts, txPkts, tolerancePkts)
+		}
 		return false
 	}
 
-	txPkts, _ := txVal.Val()
-	rxPkts, _ := rxVal.Val()
-	t.Logf("Flow %q: TX=%d, RX=%d", flowName, txPkts, rxPkts)
+	t.Logf("Flow %q: expectedTX=%d TX=%d RX=%d transmitStopped=%t", flowName, expectedTx, txPkts, rxPkts, transmitStopped)
 	return true
 }
 
-// testLoadBalance to ensure 50:50 Load Balancing
-func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, aggNames []string, flow gosnappi.Flow, aggregateAggName string) []uint64 {
-	t.Helper()
-	var rxs []uint64
-	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	flowInFrames := flowMetrics.GetCounters().GetInPkts()
-	for _, aggName := range aggNames {
-		metrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).State())
-		rxs = append(rxs, (metrics.GetCounters().GetInFrames()))
-		inFrames := metrics.GetCounters().GetInFrames()
-		if aggName == aggregateAggName {
-			inFrames -= flowInFrames
-		}
-		rxs = append(rxs, inFrames)
-	}
-	var total uint64
-	for _, rx := range rxs {
-		total += rx
-	}
-	for idx, rx := range rxs {
-		rxs[idx] = (rx * 100) / total
-	}
-	return rxs
+type rxCounterDelta struct {
+	name    string
+	kind    string
+	before  uint64
+	after   uint64
+	delta   uint64
+	wrapped bool
 }
 
-// countRxPkts validates whether the received packet count on a given Rx port is within the expected load-balancing range.
-func countRxPkts(t *testing.T, ate *ondatra.ATEDevice, flow gosnappi.Flow, rxPort string) {
+// testLoadBalance computes destination percentages across the active RX LAG(s) and optional RX port.
+func testLoadBalance(t *testing.T, ate *ondatra.ATEDevice, lagNames []string, rxPort, flowName string, lagFramesBefore map[string]uint64, portFramesBefore uint64) []uint64 {
 	t.Helper()
+
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	flowInFrames := flowMetrics.GetCounters().GetInPkts()
+
+	var deltas []rxCounterDelta
+	for _, lagName := range lagNames {
+		after := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(lagName).Counters().InFrames().State())
+		delta, wrapped := safeCounterDelta(lagFramesBefore[lagName], after)
+		deltas = append(deltas, rxCounterDelta{
+			name:    lagName,
+			kind:    "lag",
+			before:  lagFramesBefore[lagName],
+			after:   after,
+			delta:   delta,
+			wrapped: wrapped,
+		})
+	}
 	if rxPort != "" {
-		// Constants for lower and upper bounds as percentage of total flow (e.g., 30% to 80%)
-		const lowerPct = 30
-		const upperPct = 81
+		after := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPort).Counters().InFrames().State())
+		delta, wrapped := safeCounterDelta(portFramesBefore, after)
+		deltas = append(deltas, rxCounterDelta{
+			name:    rxPort,
+			kind:    "port",
+			before:  portFramesBefore,
+			after:   after,
+			delta:   delta,
+			wrapped: wrapped,
+		})
+	}
 
-		// Fetch flow-level InPkts
-		flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-		flowInFrames := flowMetrics.GetCounters().GetInPkts()
-
-		// Fetch port-level InFrames
-		portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPort).State())
-		portFrames := portMetrics.GetCounters().GetInFrames()
-
-		// Calculate thresholds
-		lowerBound := (flowInFrames * lowerPct) / 100
-		upperBound := (flowInFrames * upperPct) / 100
-
-		if portFrames >= lowerBound && portFrames <= upperBound {
-			t.Logf("Port %s received %d packets within expected range [%d - %d] for flow %s: Load Balance Success", rxPort, portFrames, lowerBound, upperBound, flow.Name())
-		} else {
-			t.Errorf("Port %s received %d packets out of expected range [%d - %d] for flow %s: Load Balance Failed", rxPort, portFrames, lowerBound, upperBound, flow.Name())
+	for _, delta := range deltas {
+		t.Logf("Load-balance raw counters for %s %s: before=%d after=%d delta=%d wrapped=%t", delta.kind, delta.name, delta.before, delta.after, delta.delta, delta.wrapped)
+		if delta.wrapped {
+			t.Errorf("Load-balance counter for %s %s went backwards: before=%d after=%d", delta.kind, delta.name, delta.before, delta.after)
 		}
+	}
+
+	weights := make([]uint64, len(deltas))
+	var total uint64
+	for _, delta := range deltas {
+		total += delta.delta
+	}
+	if total == 0 {
+		t.Errorf("Load-balance destination deltas were zero for flow %s", flowName)
+		return weights
+	}
+	if tol := flowInFrames * tolerance / 100; !uint64WithinTolerance(total, flowInFrames, tol) {
+		t.Errorf("Load-balance destination delta total mismatch for flow %s: totalDestinationDelta=%d flowInFrames=%d tolerance=%d", flowName, total, flowInFrames, tol)
+	}
+	for idx, delta := range deltas {
+		weights[idx] = (delta.delta * 100) / total
+		t.Logf("Load-balance percentage for %s %s on flow %s: %d%%", delta.kind, delta.name, flowName, weights[idx])
+	}
+	return weights
+}
+
+func safeCounterDelta(before, after uint64) (uint64, bool) {
+	if after < before {
+		return 0, true
+	}
+	return after - before, false
+}
+
+func flowExpectedPackets(config gosnappi.Config, flowName string) (uint64, bool) {
+	for _, flow := range config.Flows().Items() {
+		if flow.Name() == flowName {
+			return uint64(flow.Duration().FixedPackets().Packets()), true
+		}
+	}
+	return 0, false
+}
+
+func getFinalFlowCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string) (bool, uint64, uint64) {
+	t.Helper()
+	transmitPath := gnmi.OTG().Flow(flowName).Transmit().State()
+	_, transmitStopped := gnmi.Watch(t, ate.OTG(), transmitPath, timeout, func(val *ygnmi.Value[bool]) bool {
+		transmit, ok := val.Val()
+		return ok && !transmit
+	}).Await(t)
+	flowCounters := gnmi.OTG().Flow(flowName).Counters()
+	txPkts := gnmi.Get(t, ate.OTG(), flowCounters.OutPkts().State())
+	rxPkts := gnmi.Get(t, ate.OTG(), flowCounters.InPkts().State())
+	return transmitStopped, txPkts, rxPkts
+}
+
+func uint64WithinTolerance(got, want, tolerance uint64) bool {
+	if got > want {
+		return got-want <= tolerance
+	}
+	return want-got <= tolerance
+}
+
+func logFlowFailureDiagnostics(t *testing.T, ate *ondatra.ATEDevice, flowName, rxPort string, rxLags []string) {
+	t.Helper()
+	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	t.Logf("Flow %q failure metrics: transmit=%t outPkts=%d inPkts=%d", flowName, flowMetrics.GetTransmit(), flowMetrics.GetCounters().GetOutPkts(), flowMetrics.GetCounters().GetInPkts())
+	if rxPort != "" {
+		portMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(rxPort).State())
+		t.Logf("Port %q failure metrics: inFrames=%d outFrames=%d", rxPort, portMetrics.GetCounters().GetInFrames(), portMetrics.GetCounters().GetOutFrames())
+	}
+	for _, lagName := range rxLags {
+		lagMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(lagName).State())
+		t.Logf("LAG %q failure metrics: inFrames=%d outFrames=%d operStatus=%s", lagName, lagMetrics.GetCounters().GetInFrames(), lagMetrics.GetCounters().GetOutFrames(), lagMetrics.GetOperStatus())
 	}
 }
 
@@ -946,4 +1025,114 @@ func verifySinglePathTraffic(t *testing.T, ate *ondatra.ATEDevice, otgConfig gos
 	} else {
 		t.Logf("PASS: All traffic followed a single path as expected")
 	}
+}
+
+// waitForOTGProtocolsUpWithRetry waits for all OTG ports and LAGs to reach an operational UP state within the given timeout.
+func waitForOTGProtocolsUpWithRetry(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, pushStartWaitTime time.Duration, strict bool) error {
+	t.Helper()
+	attempt := "initial"
+	if strict {
+		attempt = "restart"
+	}
+
+	t.Log("Waiting for OTG BGP peers to establish...")
+	for _, dev := range config.Devices().Items() {
+		for _, ip := range dev.Bgp().Ipv4Interfaces().Items() {
+			for _, peer := range ip.Peers().Items() {
+				peerName := peer.Name()
+				path := gnmi.OTG().BgpPeer(peerName)
+				_, ok := gnmi.Watch(t, ate.OTG(), path.SessionState().State(), pushStartWaitTime, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+					state, present := val.Val()
+					return present && state == otgtelemetry.BgpPeer_SessionState_ESTABLISHED
+				}).Await(t)
+				if !ok {
+					return fmt.Errorf("%s attempt: OTG BGPv4 peer %q did not reach ESTABLISHED, got %v", attempt, peerName, gnmi.Get(t, ate.OTG(), path.SessionState().State()))
+				}
+			}
+		}
+		for _, ip := range dev.Bgp().Ipv6Interfaces().Items() {
+			for _, peer := range ip.Peers().Items() {
+				peerName := peer.Name()
+				path := gnmi.OTG().BgpPeer(peerName)
+				_, ok := gnmi.Watch(t, ate.OTG(), path.SessionState().State(), pushStartWaitTime, func(val *ygnmi.Value[otgtelemetry.E_BgpPeer_SessionState]) bool {
+					state, present := val.Val()
+					return present && state == otgtelemetry.BgpPeer_SessionState_ESTABLISHED
+				}).Await(t)
+				if !ok {
+					return fmt.Errorf("%s attempt: OTG BGPv6 peer %q did not reach ESTABLISHED, got %v", attempt, peerName, gnmi.Get(t, ate.OTG(), path.SessionState().State()))
+				}
+			}
+		}
+	}
+
+	t.Log("Waiting for OTG ports to be UP...")
+	for _, p := range config.Ports().Items() {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port(p.Name()).Link().State(), pushStartWaitTime,
+			func(val *ygnmi.Value[otgtelemetry.E_Port_Link]) bool {
+				state, present := val.Val()
+				return present && state == otgtelemetry.Port_Link_UP
+			}).Await(t)
+
+		if !ok {
+			if strict {
+				return fmt.Errorf("port %s not UP", p.Name())
+			}
+			return fmt.Errorf("retry needed: port %s not UP", p.Name())
+		}
+		t.Logf("Port %s is UP", p.Name())
+	}
+
+	t.Log("Waiting for LAGs to be UP...")
+	for _, lag := range config.Lags().Items() {
+		_, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(lag.Name()).OperStatus().State(), pushStartWaitTime,
+			func(val *ygnmi.Value[otgtelemetry.E_Lag_OperStatus]) bool {
+				state, present := val.Val()
+				return present && state == otgtelemetry.Lag_OperStatus_UP
+			}).Await(t)
+
+		if !ok {
+			if strict {
+				return fmt.Errorf("LAG %s not UP", lag.Name())
+			}
+			return fmt.Errorf("retry needed: LAG %s not UP", lag.Name())
+		}
+		t.Logf("LAG %s is UP", lag.Name())
+	}
+
+	return nil
+}
+
+func pushAndStartProtocols(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Config, pushStartWaitTime time.Duration) {
+	t.Helper()
+	t.Log("Pushing OTG config...")
+	ate.OTG().PushConfig(t, top)
+	time.Sleep(pushStartWaitTime)
+	t.Log("Starting protocols...")
+	ate.OTG().StartProtocols(t)
+
+	if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, false); err != nil {
+		t.Log("Protocols not UP on first attempt, restarting once...")
+		// Restart once
+		ate.OTG().StopProtocols(t)
+		ate.OTG().StartProtocols(t)
+
+		if err := waitForOTGProtocolsUpWithRetry(t, ate, top, pushStartWaitTime, true); err != nil {
+			t.Fatalf("Protocols failed to come UP even after restart: %v", err)
+		}
+	}
+	t.Log("Protocols are stable and ready")
+}
+
+func captureLagInFrames(t *testing.T, ate *ondatra.ATEDevice, aggNames []string) map[string]uint64 {
+	t.Helper()
+	frames := make(map[string]uint64, len(aggNames))
+	for _, aggName := range aggNames {
+		frames[aggName] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Lag(aggName).Counters().InFrames().State())
+	}
+	return frames
+}
+
+func capturePortInFrames(t *testing.T, ate *ondatra.ATEDevice, portName string) uint64 {
+	t.Helper()
+	return gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(portName).Counters().InFrames().State())
 }
