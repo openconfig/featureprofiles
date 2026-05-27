@@ -141,7 +141,6 @@ func TestLowPowerMode(t *testing.T) {
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
 			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
-
 			validateStreamOutput(t, allStream)
 
 			opticalChannelName := components.OpticalChannelComponentFromPort(t, dut, dp)
