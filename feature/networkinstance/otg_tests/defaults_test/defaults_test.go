@@ -140,8 +140,6 @@ func TestDefaultAddressFamilies(t *testing.T) {
 	v6.Src().SetValue(atePort1.IPv6)
 	v6.Dst().SetValue(atePort2.IPv6)
 
-	ate.OTG().PushConfig(t, top)
-
 	cases := []struct {
 		desc   string
 		niName string
@@ -178,7 +176,7 @@ func TestDefaultAddressFamilies(t *testing.T) {
 
 			fptest.LogQuery(t, "test configuration", gnmi.OC().Config(), d)
 			gnmi.Update(t, dut, gnmi.OC().Config(), d)
-
+			ate.OTG().PushConfig(t, top)
 			ate.OTG().StartProtocols(t)
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 			otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
