@@ -97,7 +97,9 @@ paths:
   /system/state/boot-time:
   /system/state/current-datetime:
   /components/component/state/oper-status:
+    platform_type: ["CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "LINECARD", "POWER_SUPPLY"]
   /components/component/state/software-version:
+    platform_type: ["BIOS", "BOOT_LOADER", "OPERATING_SYSTEM"]
   /components/component/integrated-circuit/config/node-id:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /interfaces/interface/config/id:
@@ -109,7 +111,6 @@ rpcs:
     gNMI.Subscribe:
   gnoi:
     system.System.Reboot:
-    system.System.CancelReboot:
 ```
 
 ## Required DUT platform
