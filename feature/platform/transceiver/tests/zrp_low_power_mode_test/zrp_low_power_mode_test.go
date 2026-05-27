@@ -97,7 +97,6 @@ func TestLowPowerMode(t *testing.T) {
 	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
-			samplingInterval := 10 * time.Second
 			dp := dut.Port(t, port)
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_UP)
 
@@ -141,6 +140,7 @@ func TestLowPowerMode(t *testing.T) {
 			cfgplugins.ToggleInterface(t, dut, dp.Name(), false)
 			// Wait for interface to go down.
 			gnmi.Await(t, dut, gnmi.OC().Interface(dp.Name()).OperStatus().State(), intUpdateTime, oc.Interface_OperStatus_DOWN)
+			time.Sleep(3 * samplingInterval) // Wait an extra sample interval to ensure the device has time to process the change.
 
 			validateStreamOutput(t, allStream)
 
@@ -149,7 +149,8 @@ func TestLowPowerMode(t *testing.T) {
 			// FIXED: Use deviation check to avoid blocking on unsupported devices
 			currentSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+				// Removed extra time.Second multiplier in optical channel interval state check
+				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
 
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), currentSamplingInterval)
