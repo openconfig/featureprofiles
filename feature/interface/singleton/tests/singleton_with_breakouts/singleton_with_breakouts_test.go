@@ -16,6 +16,7 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -78,6 +79,10 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.P
 	}
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+	desc := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Description().State())
+	if desc != "" {
+		i.Description = ygot.String(desc)
+	}
 	return i
 }
 
@@ -133,6 +138,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
 		}
 	}
+	fmt.Printf("DBG: DUT components matrix pre reboot: %v\n", preCompMatrix)
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 	var currentTime string
@@ -176,6 +182,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 				postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
 			}
 		}
+		fmt.Printf("DBG: DUT components matrix post reboot: %v\n", postCompMatrix)
 		if len(preRebootCompStatus) == len(postRebootCompStatus) {
 			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
 				t.Logf("All components on the DUT are in responsive state")
