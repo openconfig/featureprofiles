@@ -16,7 +16,6 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -138,7 +137,6 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
 		}
 	}
-	fmt.Printf("DBG: DUT components matrix pre reboot: %v\n", preCompMatrix)
 	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
 	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
 	var currentTime string
@@ -182,7 +180,6 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 				postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
 			}
 		}
-		fmt.Printf("DBG: DUT components matrix post reboot: %v\n", postCompMatrix)
 		if len(preRebootCompStatus) == len(postRebootCompStatus) {
 			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
 				t.Logf("All components on the DUT are in responsive state")
