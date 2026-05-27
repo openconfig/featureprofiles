@@ -157,9 +157,9 @@ func extractPlatformFromResponse(t *testing.T, resp *gpb.GetResponse) string {
 	return ""
 }
 
-func getPlatformConfig(t *testing.T, ctx context.Context, gnmiClient gpb.GNMIClient) *platformConfig {
+func getPlatformConfig(t *testing.T, gnmiClient gpb.GNMIClient) *platformConfig {
 	t.Helper()
-	resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
+	resp, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "components"},
@@ -401,19 +401,41 @@ func removeAfterLastSlash(str string) string {
 	return str[:lastSlashIndex]
 }
 
+func (ce *commonEntities) getComponentKey(t *testing.T) string {
+	t.Helper()
+
+	p1 := ce.dut.Port(t, dutIncomingPort)
+	pName := removeAfterLastSlash(p1.Name())
+
+	// COPP counters are owned by the switching ASIC in the Component hierarchy.
+	// Search starts from the Ethernet port to identify the proper ASIC for
+	// multichip systems.
+	cur := pName
+	componentKey := cur
+	for {
+		parent := gnmi.Get(t, ce.dut, gnmi.OC().Component(cur).Parent().State())
+		parentType := gnmi.Get(t, ce.dut, gnmi.OC().Component(parent).Type().State())
+		if parentType == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT {
+			componentKey = parent
+			break
+		}
+		cur = parent
+	}
+
+	return componentKey
+}
+
 // getDroppedPktCounts returns the dropped packet counts for the given counters.
 func (ce *commonEntities) getDroppedPktCounts(t *testing.T, counters []string) []float64 {
 	t.Helper()
-	p1 := ce.dut.Port(t, dutIncomingPort)
-	pName := removeAfterLastSlash(p1.Name())
-	ethernetPort := gnmi.Get(t, ce.dut, gnmi.OC().Component(pName).Parent().State())
-	switchName := gnmi.Get(t, ce.dut, gnmi.OC().Component(ethernetPort).Parent().State())
+
+	componentKey := ce.getComponentKey(t)
 
 	getResponse, err := ce.gnmiClient.Get(context.Background(), &gpb.GetRequest{
 		Path: []*gpb.Path{{
 			Elem: []*gpb.PathElem{
 				{Name: "components"},
-				{Name: "component", Key: map[string]string{"name": switchName}},
+				{Name: "component", Key: map[string]string{"name": componentKey}},
 				{Name: "integrated-circuit"},
 				{Name: "pipeline-counters"},
 				{Name: "control-plane-traffic"},
@@ -497,7 +519,7 @@ func TestCoppSystem(t *testing.T) {
 		return
 	}
 
-	platCfg := getPlatformConfig(t, ctx, gnmiClient)
+	platCfg := getPlatformConfig(t, gnmiClient)
 
 	ce := &commonEntities{
 		dut:        dut,
