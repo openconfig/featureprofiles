@@ -456,8 +456,8 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 		gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP4.peer").UnicastIpv4PrefixAny().State(),
 		time.Minute,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv4Prefix]) bool {
-			bgpPrefix, _ := v.Val()
-			if bgpPrefix.GetAddress() == v4Prefix {
+			bgpPrefix, present := v.Val()
+			if present && bgpPrefix.GetAddress() == v4Prefix {
 				found = true
 				t.Logf("Prefix recevied on OTG is correct, got  Address %s, want prefix %v", bgpPrefix.GetAddress(), v4Prefix)
 				freshVal := gnmi.Lookup(t, td.ate.OTG(),
@@ -483,6 +483,10 @@ func validateRouteCommunityV4Prefix(t *testing.T, td testData, community, v4Pref
 						return false
 					}
 				case "100:100":
+					if len(bgpPrefix.Community) == 0 {
+						t.Logf("community is empty, expected 100:100")
+						return false
+					}
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
@@ -556,8 +560,8 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 		gnmi.OTG().BgpPeer(td.otgP2.Name()+".BGP6.peer").UnicastIpv6PrefixAny().State(),
 		time.Minute,
 		func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
-			bgpPrefix, _ := v.Val()
-			if bgpPrefix.GetAddress() == v6Prefix {
+			bgpPrefix, present := v.Val()
+			if present && bgpPrefix.GetAddress() == v6Prefix {
 				found = true
 				t.Logf("Prefix recevied on OTG is correct, got prefix:%v , want prefix %v", bgpPrefix.GetAddress(), v6Prefix)
 				freshVal := gnmi.Lookup(t, td.ate.OTG(),
@@ -576,6 +580,10 @@ func validateRouteCommunityV6Prefix(t *testing.T, td testData, community, v6Pref
 						return false
 					}
 				case "100:100":
+					if len(bgpPrefix.Community) == 0 {
+						t.Logf("community is empty, expected 100:100")
+						return false
+					}
 					for _, gotCommunity := range bgpPrefix.Community {
 						t.Logf("community AS:%d val: %d", gotCommunity.GetCustomAsNumber(), gotCommunity.GetCustomAsValue())
 						if gotCommunity.GetCustomAsNumber() != 100 || gotCommunity.GetCustomAsValue() != 100 {
