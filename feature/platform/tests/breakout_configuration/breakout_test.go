@@ -196,8 +196,8 @@ func configureOTG(t *testing.T,
 	// Show the OTG Config
 	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
-	ate.OTG().StartProtocols(t)
 	time.Sleep(time.Second * 30)
+	ate.OTG().StartProtocols(t)
 
 	return top
 }
@@ -210,6 +210,8 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	// Decide which group index to use based on the device type
 	switch dut.Vendor() {
 	case ondatra.CISCO:
+		schemaValue = 0
+	case ondatra.JUNIPER:
 		schemaValue = 0
 	default:
 		schemaValue = 1
@@ -253,6 +255,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 
 	for _, tc := range cases {
+		time.Sleep(10 * time.Second) // Add delay between test cases to allow device to stabilize
 
 		tc := tc // Capture range variable
 		t.Run(fmt.Sprintf("Starting case for %d X %v", tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
@@ -268,7 +271,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			}
 
 			BreakoutPortFullName := dut.Port(t, portID).Name()
-			t.Log("Breakout Interface Convention is: ", BreakoutPortFullName)
+			t.Logf("Breakout Interface Convention is: %s", BreakoutPortFullName)
 			expectedBreakOutPortConvention := extractPortPrefixRegex(BreakoutPortFullName)
 
 			switch dut.Vendor() {
@@ -279,9 +282,9 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				componentNameList = []string{breakOutCompName}
 
 			case ondatra.JUNIPER:
-				// Add Juniper-specific implementation here
-				t.Logf("Juniper implementation for breakout components not yet available")
-				t.Skip("Skipping test for Juniper devices")
+				breakOutCompName = gnmi.Get(t, dut, gnmi.OC().Interface(BreakoutPortFullName).HardwarePort().State())
+				t.Logf("Breakout port full interface name is: %s, hardware port component is: %s", BreakoutPortFullName, breakOutCompName)
+				componentNameList = []string{breakOutCompName}
 
 			case ondatra.ARISTA:
 				breakOutCompName, fullInterfaceName, foundComp = getCompName(dut, dutPort1.IPv4, expectedBreakOutPortConvention, t)
@@ -339,6 +342,13 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 								tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
 							return
 						}
+					case ondatra.JUNIPER:
+						t.Logf("sending breakout port %s to Juniper support check", BreakoutPortFullName)
+						if !isBreakoutSupported(t, dut, BreakoutPortFullName, tc.numbreakouts, tc.breakoutspeed, tc.numPhysicalChannels) {
+							t.Skipf("Skipping test case %dx%s: Configuration not supported",
+								tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
+							return
+						}
 					}
 				}
 
@@ -378,6 +388,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					batch.Set(t, dut)
 
 				} else {
+					t.Logf("Applying breakout config for %s: %dx%s", componentName, tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
 					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
 					gnmi.Replace(t, dut, path.Config(), configContainer)
 				}
@@ -409,6 +420,22 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
+					var breakOutPorts []string
+					var err error
+					switch dut.Vendor() {
+					case ondatra.JUNIPER:
+						breakOutPorts, err = findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
+					default:
+						// Use the detected breakout interface full name for other vendors
+						breakOutPorts, err = findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
+					}
+					if err != nil {
+						t.Fatal(err)
+					}
+
+					if dut.Vendor() == ondatra.CISCO {
+						sortBreakoutPorts(breakOutPorts)
+					}
 
 					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
 					if err != nil {
@@ -513,12 +540,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Run(fmt.Sprintf("Replace//component[%v]/config/port/ %v*%v",
 					componentName, tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					path := gnmi.OC().Component(componentName)
+					time.Sleep(10 * time.Second) // Add delay between test cases to allow device to stabilize
 					gnmi.Replace(t, dut, path.Config(), portContainer)
 				})
 
 				t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config",
 					componentName), func(t *testing.T) {
 					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+					time.Sleep(10 * time.Second) // Add delay between test cases to allow device to stabilize
 					if deviations.FrBreakoutFix(dut) {
 						deleteBreakoutConfig(t, dut, componentName)
 					} else {
