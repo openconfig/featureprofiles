@@ -22,6 +22,7 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: ARISTA
+    hardware_model_regex:  "DCS-78.*|DCS-72.*|ceos"
   }
   deviations: {
     omit_l2_mtu: true
@@ -29,6 +30,20 @@ platform_exceptions: {
     default_network_instance: "default"
     fragment_punt_unsupported: true
     fragment_punt_pkts_unsupported: true
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex:  "DCS-7050.*"
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+    fragment_punt_unsupported: true
+    fragment_punt_pkts_unsupported: true
+    fragment_total_drops_unsupported: true
   }
 }
 platform_exceptions: {
