@@ -722,10 +722,15 @@ func validateTrafficPerACLConfig(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	passingFlowConfig := flowConfigMap[expectPass][0]
 	passingFlowConfig.name += "-update"
 	t.Logf("Configuring %s and updating ACL on the fly", passingFlowConfig.name)
+	effectiveMaxDroppedPackets := maxDroppedPackets
+	factor := deviations.ACLUpdateDelayFactor(dut)
+	if factor > 0 {
+		effectiveMaxDroppedPackets *= factor
+	}
 	if err := configureFlow(t, top, passingFlowConfig); err != nil {
 		testErrors = append(testErrors, err)
 	} else {
-		if err := sendAndVerifyTraffic(t, dut, ate, top, aclUpdateParams, passingFlowConfig, expectPass, maxDroppedPackets); err != nil {
+		if err := sendAndVerifyTraffic(t, dut, ate, top, aclUpdateParams, passingFlowConfig, expectPass, effectiveMaxDroppedPackets); err != nil {
 			testErrors = append(testErrors, err)
 		}
 	}
