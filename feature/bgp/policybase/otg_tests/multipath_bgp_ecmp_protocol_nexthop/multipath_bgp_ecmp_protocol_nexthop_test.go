@@ -343,7 +343,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bo
 		DUTArea:             isisAreaAddr,
 		DUTSysID:            isisSysID,
 		NetworkInstanceName: deviations.DefaultNetworkInstance(dut),
-		ISISInterfaceNames:  []string{p2.Name(), p3.Name(), p4.Name()},
+		ISISInterfaceNames:  []string{p2.Name(), p3.Name(), p4.Name(), loopbackIntfName},
 	}
 	isisBatch := &gnmi.SetBatch{}
 	cfgplugins.NewISIS(t, dut, isisData, isisBatch)
@@ -353,6 +353,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bo
 	t.Logf("Now configuring BGP config on DUT")
 	// Configure BGP neighbors and peer groups on DUT.
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+
 	gnmi.Delete(t, dut, dutConfPath.Config())
 	dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, ipv4, ipv6, multipath)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
@@ -727,8 +728,8 @@ func verifyECMPLoadBalance(t *testing.T, ate *ondatra.ATEDevice, pc int, expecte
 	got := 0
 	for i := 2; i <= pc; i++ {
 		framesRx := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, "port"+strconv.Itoa(i)).ID()).Counters().InFrames().State())
-		if framesRx <= lbToleranceFms {
-			t.Logf("Skip: Traffic through port%d interface is %d", i, framesRx)
+		if framesRx <= min {
+			t.Errorf("Traffic through port%d interface is %d, which is less than the expected range: %d - %d", i, framesRx, min, max)
 			continue
 		}
 		if int64(min) < int64(framesRx) && int64(framesRx) < int64(max) {
