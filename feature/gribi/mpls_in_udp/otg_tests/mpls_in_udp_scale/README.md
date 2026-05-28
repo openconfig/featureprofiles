@@ -215,8 +215,18 @@ entries, parameterized by key scaling dimensions.
 - `ipv4_prefix_base` = "100.64.0.1/32" (will be incremented to generate scale prefixes)
 
 **Outer IPv4 Encapsulation (New for Profile 6):**
-- `outer_ipv4_src` = "198.51.100.1"
-- `outer_ipv4_dst_base` = "100.65.0.1" (will be incremented to generate 32K unique destinations)
+- `outer_ipv4_src` = "198.51.100.1" (will be incremented to generate 32 unique source IPs, rotated across VRFs)
+- `outer_ipv4_dst_base` = "100.65.0.1" (will be incremented to generate 4,000 unique destinations)
+
+** Inner IPv6 Destinations (For Profile 7):
+
+- `ipv6_flow_base` = "2001:db8:64::1"
+- `ipv6_prefix_base` = "2001:db8:64::1/128" (will be incremented to generate 32,000 scale prefixes)
+
+** Outer IPv6 Encapsulation (Profile 7):
+
+- `outer_ipv6_src_base` = "2001:db8:100::1" (will be incremented to generate 32 unique source IPs, rotated across VRFs)
+- `outer_ipv6_dst_base` = "2001:db8:200::1" (will be incremented to generate 4,000 unique destinations)
 
 **Traffic Parameters:**
 
@@ -230,11 +240,13 @@ entries, parameterized by key scaling dimensions.
 
 **Scale Parameters for New Profiles:**
 - `profile6_total_nhs` = "32,000"
-- `profile6_nhs_per_nhg` = "16"
-- `profile6_vrfs` = "1024"
-- `profile7_total_nhs` = "26,000"
-- `profile7_nhs_per_nhg` = "16"
-- `profile7_vrfs` = "1024"
+- `profile6_total_nhgs` = "4000"
+- `profile6_nhs_per_nhg` = "8"
+- `profile6_vrfs` = "1000"
+- `profile7_total_nhs` = "32,000"
+- `profile7_total_nhgs` = "4000"
+- `profile7_nhs_per_nhg` = "8"
+- `profile7_vrfs` = "1000"
 
 ## Procedure
 
@@ -273,7 +285,7 @@ these dimensions.
   each profile.
 - **Next Hops (NHs):** Total number of NHs programmed. **Constraint: Maximum 20,000 total NHs** (for baseline profiles). 
   > [!NOTE]
-  > Profiles 6 and 7 are designed to push beyond this baseline constraint to test higher scaling limits of 32,000 and 26,000 Next Hops respectively.
+  > Profiles 6 and 7 are designed to push beyond this baseline constraint to test higher scaling limits of 32,000 Next Hops.
 
 **Important Note on AFT Entry Placement**
 
@@ -480,7 +492,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 
 #### TE-18.3.5 - Multi-VRF IPv4 Tunnel Scale Validation (Profile 6)
 
-*   Program all gRIBI entries across all specified VRFs according to **Profile 6** (32K NHs, 16 NHs/NHG, 1024 VRFs) using baseline rate/batch.
+*   Program all gRIBI entries across all specified VRFs according to **Profile 6** (32K NHs, 8 NHs/NHG, 1000 VRFs) using baseline rate/batch.
 *   Validate `FIB_PROGRAMMED` status for all entries.
 *   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv4 outer header and 16-way ECMP configuration.
 *   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
@@ -493,7 +505,7 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
 
 #### TE-18.3.6 - Multi-VRF IPv6 Tunnel Scale Validation (Profile 7)
 
-*   Program all gRIBI entries across all specified VRFs according to **Profile 7** (26K NHs, 16 NHs/NHG, 1024 VRFs) using baseline rate/batch.
+*   Program all gRIBI entries across all specified VRFs according to **Profile 7** (32K NHs, 8 NHs/NHG, 1000 VRFs) using baseline rate/batch.
 *   Validate `FIB_PROGRAMMED` status for all entries.
 *   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 16-way ECMP configuration.
 *   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
