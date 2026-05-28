@@ -9,7 +9,7 @@ testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model_regex:  "DCS-78.*|DCS-72.*|ceos"
+    hardware_model_regex: "DCS-728.*|DCS-75.*|DCS-78.*|ceos"
   }
   deviations: {
     interface_enabled: true
@@ -22,7 +22,7 @@ platform_exceptions: {
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model_regex:  "DCS-7050.*"
+    hardware_model_regex: "DCS-7050.*"
   }
   deviations: {
     interface_enabled: true
