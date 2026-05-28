@@ -390,35 +390,37 @@ A key requirement for all test profiles is the separation of gRIBI-programmed AF
   forwarded using either the old or the new state, without being
   dropped.
 
-#### Profile 6 (Multi-VRF IPv4 Tunnels - 16-way ECMP)
+#### Profile 6 (Multi-VRF IPv4 Tunnels - 8-way ECMP)
 
-*   **Goal:** Scale across multiple VRFs with unique labels per VRF using IPv4 outer headers and 16-way ECMP.
-*   **Network Instances (VRFs):** 1024.
-*   **Total NHGs:** 2,000 (distributed across VRFs, ~2 NHGs/VRF).
-*   **NHs per NHG:** 16.
-*   **Total NHs:** 32,000 (2,000 NHGs × 16 NHs/NHG = 32,000 total NHs).
-*   **MPLS Labels:** 1024 unique labels (1 label assigned per VRF).
-*   **Total Prefixes:** 32,000 (distributed across VRFs).
-*   **Outer Header:** IPv4 (Tunnel destination).
-*   **Unique (Dest IP + MPLS) Tuples:** 32,000.
-*   **Prefix Mapping:** 16 unique prefixes -> 1 unique NHG (16:1 mapping, repeated 2,000 times).
-*   **Inner IP Reuse:** Required.
-*   **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
+* **Goal:** Scale across multiple VRFs with unique labels per NHG, using Source IP for entropy within the NHG, and   
+limited Destination IPs per VRF.
+* **Network Instances (VRFs):** 1000.
+* **Total NHGs:** 4,000 (distributed across VRFs, 4 NHGs/VRF).
+* **NHs per NHG:** 8.
+* **Total NHs:** 32,000 (4,000 NHGs × 8 NHs/NHG = 32,000 total NHs).
+* **MPLS Labels:** 4,000 unique labels (1 label assigned per NHG).
+* **Total Prefixes:** 32,000 (distributed across VRFs).
+* **Outer Header:** IPv4 (Tunnel destination).
+* **Unique (Src IP + Dest IP + MPLS) Tuples:** 32,000.
+* **Prefix Mapping:** 8 unique prefixes -> 1 unique NHG (8:1 mapping, repeated 4,000 times).
+* **Inner IP Reuse:** Required.
+* **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
 
-#### Profile 7 (Multi-VRF IPv6 Tunnels - 16-way ECMP)
+#### Profile 7 (Multi-VRF IPv6 Tunnels - 8-way ECMP)
 
-*   **Goal:** Scale across multiple VRFs with unique labels per VRF using IPv6 outer headers and 16-way ECMP.
-*   **Network Instances (VRFs):** 1024.
-*   **Total NHGs:** 1,625 (distributed across VRFs, ~1.5 NHGs/VRF).
-*   **NHs per NHG:** 16.
-*   **Total NHs:** 26,000 (1,625 NHGs × 16 NHs/NHG = 26,000 total NHs).
-*   **MPLS Labels:** 1024 unique labels (1 label assigned per VRF).
-*   **Total Prefixes:** 26,000 (distributed across VRFs).
-*   **Outer Header:** IPv6 (Tunnel destination).
-*   **Unique (Dest IP + MPLS) Tuples:** 26,000.
-*   **Prefix Mapping:** 16 unique prefixes -> 1 unique NHG (16:1 mapping, repeated 1,625 times).
-*   **Inner IP Reuse:** Required.
-*   **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
+* **Goal:** Scale across multiple VRFs with unique labels per NHG, using Source IP for entropy within the NHG, and limited Destination IPs per VRF using IPv6 outer headers.
+* **Network Instances (VRFs):** 1000.
+* **Total NHGs:** 4,000 (distributed across VRFs, 4 NHGs/VRF).
+* **NHs per NHG:** 8.
+* **Total NHs:** 32,000 (4,000 NHGs × 8 NHs/NHG = 32,000 total NHs).
+* **MPLS Labels:** 4,000 unique labels (1 label assigned per NHG).
+* **Total Prefixes:** 32,000 IPv6 prefixes (distributed across VRFs).
+* **Outer Header:** IPv6 (Tunnel destination).
+* **Unique (Src IP + Dest IP + MPLS) Tuples:** 32,000.
+* **Prefix Mapping:** 8 unique prefixes -> 1 unique NHG (8:1 mapping, repeated 4,000 times).
+* **Inner IP Reuse:** Required.
+* **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
+
 
 #### TE-18.3.1 - Single VRF Validation (Profiles 1, 4)
 
