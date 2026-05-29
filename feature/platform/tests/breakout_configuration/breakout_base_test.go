@@ -247,11 +247,13 @@ func findNewPortNames(dut *ondatra.DUTDevice, t *testing.T, originalPortName str
 		return newPortNames, nil
 
 	case ondatra.JUNIPER:
+		basePortName := originalPortName
+		if lastColonIndex := strings.LastIndex(originalPortName, ":"); lastColonIndex != -1 {
+			basePortName = originalPortName[:lastColonIndex]
+		}
 		newPortNames := make([]string, numBreakouts)
 		for i := 0; i < int(numBreakouts); i++ {
-			//portID := originalPortName + ":" + strconv.Itoa(i)
-			newPortNames[i] = originalPortName + ":" + strconv.Itoa(i)
-			//newPortNames[i] = portID
+			newPortNames[i] = basePortName + ":" + strconv.Itoa(i)
 			t.Logf("Breakout port # %d name '%s'", i, newPortNames[i])
 		}
 		return newPortNames, nil
