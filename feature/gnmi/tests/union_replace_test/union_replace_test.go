@@ -75,40 +75,6 @@ func configOCInterface(t *testing.T, sb *gnmi.SetBatch, dut *ondatra.DUTDevice) 
 	gnmi.BatchUnionReplace(sb, inf.Config(), i)
 }
 
-func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
-	// Build config with Origin set to cli and Ascii encoded config.
-	gpbSetRequest := &gpb.SetRequest{
-		Update: []*gpb.Update{{
-			Path: &gpb.Path{
-				Origin: "cli",
-				Elem:   []*gpb.PathElem{},
-			},
-			Val: &gpb.TypedValue{
-				Value: &gpb.TypedValue_AsciiVal{
-					AsciiVal: config,
-				},
-			},
-		}},
-	}
-	return gpbSetRequest, nil
-}
-
-func buildGNMICliSubscribe(cmd string) *gpb.SubscribeRequest {
-	return &gpb.SubscribeRequest{
-		Request: &gpb.SubscribeRequest_Subscribe{
-			Subscribe: &gpb.SubscriptionList{
-				Subscription: []*gpb.Subscription{{
-					Path: &gpb.Path{
-						Origin: "cli",
-						Elem:   []*gpb.PathElem{{Name: cmd}},
-					},
-				}},
-				Mode: gpb.SubscriptionList_STREAM,
-			},
-		},
-	}
-}
-
 // prettyPrintYgnmiResult formats a *ygnmi.Result as JSON for logging.
 // Note: ygnmi.Result contains a protobuf (SetResponse) rather than YANG data,
 // so it is formatted as standard JSON via protojson rather than RFC7951.
