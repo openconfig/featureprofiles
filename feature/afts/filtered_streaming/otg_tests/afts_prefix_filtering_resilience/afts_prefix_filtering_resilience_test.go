@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -41,8 +40,6 @@ const (
 	vrfName            = "VRF-A"
 	ipv4Policy         = "POLICY-PREFIX-SET-A"
 	ipv6Policy         = "POLICY-PREFIX-SET-B"
-	ipv4Pfx            = "POLICY-PREFIX-SET-A"
-	ipv6Pfx            = "POLICY-PREFIX-SET-B"
 	matchAllPolicy     = "POLICY-MATCH-ALL"
 	vrfAPolicy         = "POLICY-PREFIX-SET-VRF-A"
 	scaleIPv4Routes    = 5000
@@ -142,7 +139,7 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	batch := configureDUT(t, dut)
-	configurePolicies(t, dut)
+	configurePolicies(t, dut, batch)
 	configureStaticRoutes(t, dut, batch)
 	topo, interfaceNamesList := configureATE(t, ate)
 	ate.OTG().PushConfig(t, topo)
@@ -584,40 +581,45 @@ func isExpectedReconnectError(err error) bool {
 }
 
 // configurePolicies configures routing policies.
-func configurePolicies(t *testing.T, dut *ondatra.DUTDevice) {
+func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	createMatchAllPolicy(rp)
-	createPrefixSetPolicy(rp, ipv4Pfx, ipv4Policy, "exact", policyIPv4Prefixes)
-	createVRFAPolicy(rp)
-	createPrefixSetPolicy(rp, ipv6Pfx, ipv6Policy, "exact", defaultIPv6Prefixes)
+	createMatchAllPolicy(t, rp)
+	createPrefixSetPolicy(t, rp, ipv4Policy, ipv4Policy, "exact", policyIPv4Prefixes)
+	createVRFAPolicy(t, rp)
+	createPrefixSetPolicy(t, rp, ipv6Policy, ipv6Policy, "exact", defaultIPv6Prefixes)
 	configureGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy, deviations.DefaultNetworkInstance(dut))
-	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
+	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
+	batch.Set(t, dut)
 }
 
 // createMatchAllPolicy creates POLICY-MATCH-ALL.
-func createMatchAllPolicy(rp *oc.RoutingPolicy) {
+func createMatchAllPolicy(t *testing.T, rp *oc.RoutingPolicy) {
+	t.Helper()
 	pd := rp.GetOrCreatePolicyDefinition(matchAllPolicy)
 
-	stmt, _ := pd.AppendNewStatement("10")
-
+	stmt, err := pd.AppendNewStatement("10")
+	if err != nil {
+		t.Fatalf("Failed to append statement: %v", err)
+	}
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 }
 
 // createPrefixSetPolicy creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
-func createPrefixSetPolicy(rp *oc.RoutingPolicy, prefixSetName, policyName, matchMode string, prefixes []string) {
+func createPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, prefixSetName, policyName, matchMode string, prefixes []string) {
+	t.Helper()
 	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
 
 	for _, prefix := range prefixes {
-		addPrefix(ps, prefix, matchMode)
+		addPrefix(t, ps, prefix, matchMode)
 	}
 
 	pd := rp.GetOrCreatePolicyDefinition(policyName)
 
 	stmt, err := pd.AppendNewStatement("10")
 	if err != nil {
-		return
+		t.Fatalf("Failed to append statement: %v", err)
 	}
 	match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 
@@ -626,15 +628,18 @@ func createPrefixSetPolicy(rp *oc.RoutingPolicy, prefixSetName, policyName, matc
 }
 
 // createVRFAPolicy creates POLICY-PREFIX-SET-VRF-A.
-func createVRFAPolicy(rp *oc.RoutingPolicy) {
-	ps := rp.GetOrCreateDefinedSets().
-		GetOrCreatePrefixSet("PREFIX-SET-VRF-A")
+func createVRFAPolicy(t *testing.T, rp *oc.RoutingPolicy) {
+	t.Helper()
+	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("PREFIX-SET-VRF-A")
 
-	addPrefix(ps, vrfPfx1, "24..32")
+	addPrefix(t, ps, vrfPfx1, "24..32")
 
 	pd := rp.GetOrCreatePolicyDefinition(vrfAPolicy)
 
-	stmt, _ := pd.AppendNewStatement("10")
+	stmt, err := pd.AppendNewStatement("10")
+	if err != nil {
+		t.Fatalf("Failed to append statement: %v", err)
+	}
 
 	match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 
@@ -644,7 +649,8 @@ func createVRFAPolicy(rp *oc.RoutingPolicy) {
 }
 
 // addPrefix adds prefix-set entry.
-func addPrefix(ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix, maskRange string) {
+func addPrefix(t *testing.T, ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix, maskRange string) {
+	t.Helper()
 	p := ps.GetOrCreatePrefix(prefix, maskRange)
 
 	p.IpPrefix = ygot.String(prefix)
@@ -859,9 +865,9 @@ func validateScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			}
 
 			if tc.ipv4 {
-				configureGlobalFilterPolicies(t, dut, tc.policyName, tc.policyName, deviations.DefaultNetworkInstance(dut))
+				configureGlobalFilterPolicies(t, dut, tc.policyName, "", deviations.DefaultNetworkInstance(dut))
 			} else {
-				configureGlobalFilterPolicies(t, dut, tc.policyName, tc.policyName, deviations.DefaultNetworkInstance(dut))
+				configureGlobalFilterPolicies(t, dut, "", tc.policyName, deviations.DefaultNetworkInstance(dut))
 			}
 
 			// ------------------------------------------------------------
@@ -1107,7 +1113,7 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Adding matched route to DEFAULT")
 	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), "198.51.100.1/32", "1002", atePort1.IPv4)
 
-	mustVerifyPrefixEventuallyPresent(t, dut, collector1, "198.51.100.1/32")
+	mustVerifyPrefixesEventuallyPresent(t, dut, collector1, []string{"198.51.100.1/32"}, 60*time.Second)
 
 	mustVerifyPrefixAbsent(t, dut, collector2, "198.51.100.1/32")
 
@@ -1120,7 +1126,7 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 
 	mustAddSingleStaticRoute(t, dut, vrfName, "100.64.1.128/25", "1003", atePort1.IPv4)
 
-	mustVerifyPrefixEventuallyPresent(t, dut, collector2, "100.64.1.128/25")
+	mustVerifyPrefixesEventuallyPresent(t, dut, collector2, []string{"100.64.1.128/25"}, 60*time.Second)
 
 	mustVerifyPrefixAbsent(t, dut, collector1, "100.64.1.128/25")
 
@@ -1234,28 +1240,6 @@ func mustValidatePrefixAbsentFromCollectors(t *testing.T, dut *ondatra.DUTDevice
 	}
 }
 
-// mustVerifyPrefixEventuallyPresent waits until prefix appears.
-func mustVerifyPrefixEventuallyPresent(t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefix string) {
-	t.Helper()
-	_, ok := gnmi.Watch(t, dut, gnmi.OC().System().State(), 60*time.Second,
-		func(val *ygnmi.Value[*oc.System]) bool {
-			aft, err := session.ToAFT(t, dut)
-			if err != nil {
-				return false
-			}
-
-			_, present := aft.Prefixes[prefix]
-			return present
-		},
-	).Await(t)
-
-	if !ok {
-		t.Fatalf("Timed out waiting for prefix %s", prefix)
-	}
-
-	t.Logf("Observed expected prefix %s", prefix)
-}
-
 // mustVerifyPrefixAbsent validates prefix absent.
 func mustVerifyPrefixAbsent(t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefix string) {
 	t.Helper()
@@ -1272,31 +1256,10 @@ func mustVerifyPrefixAbsent(t *testing.T, dut *ondatra.DUTDevice, session *aftca
 // mustVerifyPrefixesEventuallyPresent validates all prefixes appear.
 func mustVerifyPrefixesEventuallyPresent(t *testing.T, dut *ondatra.DUTDevice, session *aftcache.AFTStreamSession, prefixes []string, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		aft, err := session.ToAFT(t, dut)
-		if err != nil {
-
-			// acceptable if stream restarted after policy change
-			if isExpectedReconnectError(err) {
-				t.Logf("Collector stream restarted after policy change: %v", err)
-				continue
-			}
-			t.Fatalf("Unexpected ToAFT error: %v", err)
-		}
-
-		allPresent := true
-		for _, pfx := range prefixes {
-			if _, ok := aft.Prefixes[pfx]; !ok {
-				allPresent = false
-				break
-			}
-		}
-
-		if allPresent {
-			t.Log("All expected prefixes received")
-			return
-		}
+	wantPrefixes := make(map[string]bool)
+	for _, pfx := range prefixes {
+		wantPrefixes[pfx] = true
 	}
-	t.Fatalf("Timed out waiting for expected prefixes")
+	stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, nil)
+	session.ListenUntil(t.Context(), t, timeout, stoppingCondition)
 }
