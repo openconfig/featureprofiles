@@ -420,15 +420,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
-					var breakOutPorts []string
-					var err error
-					switch dut.Vendor() {
-					case ondatra.JUNIPER:
-						breakOutPorts, err = findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
-					default:
-						// Use the detected breakout interface full name for other vendors
-						breakOutPorts, err = findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
-					}
+					breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
 					if err != nil {
 						t.Fatal(err)
 					}
