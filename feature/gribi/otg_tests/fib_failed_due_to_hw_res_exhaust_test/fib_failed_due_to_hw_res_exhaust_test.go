@@ -111,7 +111,7 @@ var (
 	fibPassedDstRoute      string
 	fibFailedDstRoute      string
 	fibFailedDstRouteInHex string
-	routeCountModelList    = []string{"PTX10002-36QDD"}
+	routeCountModelList    = []string{"PTX10002-36QDD", "PTX12008"}
 
 	vendorUpdatedSpecRoutecount = map[ondatra.Vendor]uint32{
 		ondatra.JUNIPER: 3750000,
