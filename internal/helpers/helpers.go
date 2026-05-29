@@ -160,24 +160,18 @@ func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	return buildCliConfigRequest(config)
 }
 
-// GetGnmiCLIOutput sets config built with buildCliConfigRequest and returns the output.
-func ExecuteShowCLI(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.GetResponse {
-	getReq := &gpb.GetRequest{
-		Path: []*gpb.Path{
-			{
-				Origin: "cli",
-				Elem: []*gpb.PathElem{
-					{Name: config},
-				},
-			},
-		},
-		Encoding: gpb.Encoding_ASCII,
-		Type:     gpb.GetRequest_ALL,
-	}
-
-	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), getReq)
+// GetRouterTime gets the current time from the router via gNMI to avoid clock skew issues.
+func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
+	t.Helper()
+	routerTimeStr := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+	startTime, err := time.Parse(time.RFC3339Nano, routerTimeStr)
 	if err != nil {
-		t.Fatalf("gnmiClient.Get() with unexpected error: %v", err)
+		// Fallback to RFC3339 if nano precision is not available.
+		startTime, err = time.Parse(time.RFC3339, routerTimeStr)
+		if err != nil {
+			t.Fatalf("Failed parsing router current-datetime %q: %v", routerTimeStr, err)
+		}
 	}
-	return resp
+	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
+	return startTime
 }

@@ -28,6 +28,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -53,12 +54,14 @@ var (
 
 func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
+
+	setupVendorSpecificAcctzConfig(t, dut)
+
 	acctz.SetupUsers(t, dut, true)
 	var records []*acctzpb.RecordResponse
 
-	// Put enough time between the test starting and any prior events so we can easily know where
-	// our records start.
-	startTime := time.Now().Add(-10 * time.Second)
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 
 	newRecords := acctz.SendSuccessCliCommand(t, dut, *staticBinding)
 	records = append(records, newRecords...)
@@ -76,7 +79,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 
 	// Get gNSI record subscribe client.
 	requestTimestamp := &timestamppb.Timestamp{
-		Seconds: 0,
+		Seconds: startTime.Unix(),
 		Nanos:   0,
 	}
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
@@ -200,7 +203,7 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if resp.record.GetSessionInfo().GetChannelId() == "" {
+		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
 		}
 
@@ -221,5 +224,19 @@ func TestAccountzRecordSubscribeNonGRPC(t *testing.T) {
 	t.Logf("recordIdx: %d, len(records): %d", recordIdx, len(records))
 	if recordIdx != len(records) {
 		t.Fatal("Did not process all records.")
+	}
+}
+
+// setupVendorSpecificAcctzConfig applies vendor-specific accounting configuration needed
+// before running acctz tests.
+func setupVendorSpecificAcctzConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		// Enable CLI command accounting to ensure records are generated for CLI commands.
+		helpers.GnmiCLIConfig(t, dut, "aaa accounting commands default start-stop local\naaa authorization commands default none\n")
+		// Increase gRPC accounting queue size to avoid record loss
+		// during longer test executions with background activity.
+		helpers.GnmiCLIConfig(t, dut, "grpc\n aaa accounting queue-size 512\n")
 	}
 }
