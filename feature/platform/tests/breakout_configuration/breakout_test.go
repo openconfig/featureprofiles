@@ -192,6 +192,7 @@ func configureOTG(t *testing.T,
 			break
 		}
 	}
+
 	// Show the OTG Config
 	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
