@@ -1466,7 +1466,7 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 	}
 }
 
-// ciscoGueDecapCLIConfig configures GUEDEcapConfig for Cisco
+// ciscoGueDecapCLIConfig configures GUE decap config for Cisco
 func ciscoGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
 	t.Helper()
 

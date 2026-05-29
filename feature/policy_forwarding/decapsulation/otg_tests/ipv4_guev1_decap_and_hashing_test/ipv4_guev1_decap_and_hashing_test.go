@@ -334,7 +334,6 @@ func TestMultipathGUE(t *testing.T) {
 
 // configureDUT configures all DUT aspects.
 func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
-	t.Helper()
 	d := gnmi.OC()
 	p1 := dut.Port(t, "port1")
 	p2 := dut.Port(t, "port2")
@@ -385,10 +384,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 	//cfgplugins.DeleteAggregate(t, dut, AggregateInterfaceIDs[dut.Vendor()][(aggID2)], dutAggPorts2)
 	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: AggregateInterfaceIDs[dut.Vendor()][(aggID2)], DutLag: dutLag2, AggPorts: dutAggPorts2})
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	// TODO: remove this
-	if dut.Vendor() == ondatra.ARISTA {
-		cfgplugins.ConfigureLoadbalance(t, dut)
-	}
+	cfgplugins.ConfigureLoadbalance(t, dut)
 	// Routing Policy (ALLOW) must be defined before BGP references it
 	rpPolicy := cfgplugins.ConfigureCommonBGPPolicies(t, dut)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
@@ -951,9 +947,9 @@ func getFinalFlowCounters(t *testing.T, ate *ondatra.ATEDevice, flowName string)
 		transmit, ok := val.Val()
 		return ok && !transmit
 	}).Await(t)
-	flowCounters := gnmi.OTG().Flow(flowName).Counters()
-	txPkts := gnmi.Get(t, ate.OTG(), flowCounters.OutPkts().State())
-	rxPkts := gnmi.Get(t, ate.OTG(), flowCounters.InPkts().State())
+	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
+	txPkts := flowState.GetCounters().GetOutPkts()
+	rxPkts := flowState.GetCounters().GetInPkts()
 	return transmitStopped, txPkts, rxPkts
 }
 
@@ -982,8 +978,9 @@ func logFlowFailureDiagnostics(t *testing.T, ate *ondatra.ATEDevice, flowName, r
 func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config, flow gosnappi.Flow) bool {
 	t.Helper()
 	otgutils.LogFlowMetrics(t, ate.OTG(), config)
-	rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-	txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	rxPkts := flowState.GetCounters().GetInPkts()
+	txPkts := flowState.GetCounters().GetOutPkts()
 	lostPkt := txPkts - rxPkts
 	if got := (lostPkt * 100 / txPkts); got >= tolerance {
 		return false
@@ -1106,7 +1103,7 @@ func pushAndStartProtocols(t *testing.T, ate *ondatra.ATEDevice, top gosnappi.Co
 	t.Helper()
 	t.Log("Pushing OTG config...")
 	ate.OTG().PushConfig(t, top)
-	time.Sleep(pushStartWaitTime)
+	time.Sleep(5 * time.Second)
 	t.Log("Starting protocols...")
 	ate.OTG().StartProtocols(t)
 

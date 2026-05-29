@@ -29,5 +29,8 @@ platform_exceptions: {
     skip_isis_set_metric_style_type: true
     bgp_extended_community_set_unsupported: true
     gue_gre_decap_unsupported: true
+    enable_multipath_under_afi_safi: true
+    route_policy_under_afi_unsupported: true
+    skip_afi_safi_path_for_bgp_multiple_as: true
   }
 }
