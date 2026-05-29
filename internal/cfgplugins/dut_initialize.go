@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -26,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 )
 
 type FeatureType int
@@ -1360,5 +1362,52 @@ func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string
 		helpers.GnmiCLIConfig(t, dut, counterCli)
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	}
+}
+
+// BackUpConfig saves the current running configuration from the DUT into the specified file on local flash storage.
+func BackUpConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Saving running-config to %s", fileName)
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("copy running-config flash:%s", fileName))
+	}
+}
+
+// RestoreOCConfig restores the DUT configuration using the provided OpenConfig root configuration previously collected via BackupOCConfig.
+func RestoreConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cmd := fmt.Sprintf("configure replace flash:%s", fileName)
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				helpers.GnmiCLIConfig(t, dut, cmd)
+			})
+			// Success.
+			if errMsg == nil {
+				t.Logf("Successfully restored DUT config from flash:%s", fileName)
+				return
+			}
+			errStr := *errMsg
+			// EOS still booting internally.
+			if strings.Contains(errStr, "system not yet initialized") {
+				t.Logf("DUT not fully initialized yet, retrying config restore...")
+				if time.Now().After(deadline) {
+					t.Fatalf("Timed out waiting for DUT initialization: %v", errStr)
+				}
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			// Ignore Octa informational warnings.
+			if strings.Contains(errStr, "Octa agent") {
+				t.Logf("Ignoring Octa informational warning during config restore: %v", errStr)
+				return
+			}
+			// Real failure.
+			t.Fatalf("Failed to restore DUT config: %v", errStr)
+		}
 	}
 }
