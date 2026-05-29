@@ -193,10 +193,9 @@ func configureOTG(t *testing.T,
 		}
 	}
 
-	// Show the OTG Config
-	t.Log("Complete configuration:", top.String())
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(time.Second * 30)
 	time.Sleep(time.Second * 30)
 
 	return top
