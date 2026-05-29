@@ -227,7 +227,12 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	configureRoutePolicy(t, dut, rplName, rplType)
+	// Configure DUT and ATE with ISIS and BGP.
+	// configureRoutePolicy(t, dut, rplName, rplType)
+	// configureDUT(t, dut)
+
+	// otg := ate.OTG()
+	// top := configureOTG(t, otg)
 
 	testCases := []testCase{
 		{
@@ -257,32 +262,53 @@ func TestMultipathBGPEcmpProtocolNexthop(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
+			configureRoutePolicy(t, dut, rplName, rplType)
+			configureDUT(t, dut)
 
-			configureDUT(t, dut, tc.ipv4, tc.ipv6, tc.multipath)
 			otg := ate.OTG()
 			top := configureOTG(t, otg)
 
-			verifyBGPSessionTelemetry(t, dut)
-			var prefType string
 			if tc.ipv4 {
-				prefType = "ipv4"
-				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
-			} else {
-				prefType = "ipv6"
-				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
+				t.Logf("Validating traffic test for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+					enableMultipath(t, dut, maxpaths, true)
+				} else {
+					t.Logf("Multipath is disabled for IPv4 prefixes: [%s, %d]", prefixMin, prefixLen)
+				}
+				verifyBGPSessionTelemetry(t, dut)
+				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IP, ateP3Lo0IP, ateP4Lo0IP}, 1, true)
+				otg.StartTraffic(t)
+				time.Sleep(30 * time.Second)
+				otg.StopTraffic(t)
+				otgutils.LogFlowMetrics(t, otg, top)
+				otgutils.LogPortMetrics(t, otg, top)
+				verifyTraffic(t, ate, "ipv4", 0)
+				checkPacketLoss(t, ate, "ipv4")
+				if tc.multipath {
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
-
-			otg.StartTraffic(t)
-			time.Sleep(30 * time.Second)
-			otg.StopTraffic(t)
-			otgutils.LogFlowMetrics(t, otg, top)
-			otgutils.LogPortMetrics(t, otg, top)
-
-			verifyTraffic(t, ate, prefType, 0)
-			checkPacketLoss(t, ate, prefType)
-
-			if tc.multipath {
-				verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+			if tc.ipv6 {
+				t.Logf("Validating traffic test for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+				if tc.multipath {
+					t.Logf("Multipath is enabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+					enableMultipath(t, dut, maxpaths, false)
+				} else {
+					t.Logf("Multipath is disabled for IPv6 prefixes: [%s, %d]", prefixV6Min, prefixV6Len)
+				}
+				verifyBGPSessionTelemetry(t, dut)
+				verifyBGPPrefixesTelemetry(t, dut, []string{ateP2Lo0IPv6, ateP3Lo0IPv6, ateP4Lo0IPv6}, 1, false)
+				otg.StartTraffic(t)
+				time.Sleep(30 * time.Second)
+				otg.StopTraffic(t)
+				otgutils.LogFlowMetrics(t, otg, top)
+				otgutils.LogPortMetrics(t, otg, top)
+				verifyTraffic(t, ate, "ipv6", 0)
+				checkPacketLoss(t, ate, "ipv6")
+				if tc.multipath {
+					verifyECMPLoadBalance(t, ate, int(cfgplugins.PortCount4), 3)
+				}
 			}
 		})
 	}
@@ -300,7 +326,7 @@ func configureRoutePolicy(t *testing.T, dut *ondatra.DUTDevice, name string, pr 
 	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
 
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bool) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	// Configure DUT port 1 with IPv4 and IPv6 addresses.
 	// This is the DUT side of ATE port 1 used for sending traffic. Source traffic
@@ -355,7 +381,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bo
 	dutConfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
 
 	gnmi.Delete(t, dut, dutConfPath.Config())
-	dutConf := bgpCreateNbr(t, dutAS, ateAS, dut, ipv4, ipv6, multipath)
+	dutConf := bgpCreateNbr(dutAS, ateAS, dut)
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 	t.Logf("BGP config applied on DUT")
 	time.Sleep(30 * time.Second)
@@ -369,9 +395,86 @@ type bgpNeighbor struct {
 	localAddress string
 }
 
+// enableMultipath enables multipath for the given DUT device with the given maximum paths.
+func enableMultipath(t *testing.T, dut *ondatra.DUTDevice, maxpaths uint32, ipv4 bool) {
+	dni := deviations.DefaultNetworkInstance(dut)
+	bgpPath := gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP")
+	bgpProto := gnmi.Get(t, dut, bgpPath.Config())
+	bgp := bgpProto.GetOrCreateBgp()
+	cliConfig := ""
+	if deviations.PerFlowLoadBalancingUnsupported(dut) {
+		cliConfig = fmt.Sprintf(`
+				policy-options {
+					policy-statement LBPOLICY {
+						then load-balance per-packet;
+					}
+				}
+				routing-options {
+					forwarding-table {
+						export LBPOLICY;
+					}
+				}
+				protocols {
+					bgp {
+						group %s {
+							multipath;
+						}
+					}
+				}
+			`, peerGrpName1)
+		t.Logf("Now applying CLI config for applicable vendor on DUT %s, sleep for 10 seconds", dut.Vendor())
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(10 * time.Second)
+	}
+	if deviations.BgpMultipathPathsUnderPeerGroupUnsupported(dut) {
+		instanceStr := "instance BGP"
+		cliConfig = fmt.Sprintf(`
+				router bgp %v %s
+					address-family ipv4 unicast
+					maximum-paths ibgp %v
+					address-family ipv6 unicast
+					maximum-paths ibgp %v
+					neighbor-group %s
+						address-family ipv4 unicast
+						multipath
+						address-family ipv6 unicast
+						multipath
+			`, dutAS, instanceStr, maxpaths, maxpaths, peerGrpName1)
+		t.Logf("Now applying CLI config for applicable vendor on DUT %s, sleep for 10 seconds", dut.Vendor())
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(10 * time.Second)
+	}
+
+	if !deviations.IbgpMultipathPathUnsupported(dut) {
+		if deviations.EnableMultipathUnderAfiSafi(dut) {
+			if ipv4 {
+				if dut.Vendor() == ondatra.CISCO {
+					gnmi.Replace(t, dut, bgpPath.Bgp().Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths().Config(), maxpaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				}
+			} else {
+				if dut.Vendor() == ondatra.CISCO {
+					gnmi.Replace(t, dut, bgpPath.Bgp().Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).UseMultiplePaths().Ibgp().MaximumPaths().Config(), maxpaths)
+				} else {
+					bgp.GetOrCreateGlobal().GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+				}
+			}
+		} else {
+			bgp.GetOrCreateGlobal().GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
+		}
+	} else {
+		cliConfig = fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
+		t.Logf("CLI config: \n%v", cliConfig)
+		t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+		time.Sleep(30 * time.Second)
+	}
+}
+
 // bgpCreateNbr creates a BGP neighbor configuration for the DUT with multiple paths.
 // TODO: Add support for multiple paths and local address.
-func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, ipv4, ipv6, multipath bool) *oc.NetworkInstance_Protocol {
+func bgpCreateNbr(localAs, peerAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
 	nbr1v4 := &bgpNeighbor{as: ateAS, neighborip: ateP2Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
 	nbr2v4 := &bgpNeighbor{as: ateAS, neighborip: ateP3Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
 	nbr3v4 := &bgpNeighbor{as: ateAS, neighborip: ateP4Lo0IP, isV4: true, peerGrp: peerGrpName1, localAddress: dutlo0Attrs.IPv4}
@@ -389,27 +492,6 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 	global.As = ygot.Uint32(dutAS)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Enabled = ygot.Bool(true)
 	global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).Enabled = ygot.Bool(true)
-
-	if multipath && !deviations.BgpMaxMultipathPathsUnsupported(dut) {
-		cliConfig := fmt.Sprintf("router bgp %v\nmaximum-paths %v\n", dutAS, maxpaths)
-		if !deviations.IbgpMultipathPathUnsupported(dut) {
-			if deviations.EnableMultipathUnderAfiSafi(dut) {
-				if ipv4 {
-					global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-				} else {
-					global.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-				}
-			} else {
-				global.GetOrCreateUseMultiplePaths().GetOrCreateIbgp().MaximumPaths = ygot.Uint32(maxpaths)
-			}
-		} else {
-			t.Logf("CLI config: \n%v", cliConfig)
-			t.Logf("Now applying CLI config on DUT, sleep for 30 seconds")
-			helpers.GnmiCLIConfig(t, dut, cliConfig)
-			time.Sleep(30 * time.Second)
-		}
-	}
-
 	pg1 := bgp.GetOrCreatePeerGroup(peerGrpName1)
 	pg1.PeerAs = ygot.Uint32(ateAS)
 	pg1.PeerGroupName = ygot.String(peerGrpName1)
@@ -428,8 +510,14 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 		bgpNbr.PeerGroup = ygot.String(peerGrpName1)
 		bgpNbr.Enabled = ygot.Bool(true)
 		if nbr.localAddress != "" {
+			localAddressLeaf := nbr.localAddress
+			if nbr.isV4 == true {
+				if dut.Vendor() == ondatra.CISCO {
+					localAddressLeaf = loopbackIntfName
+				}
+			}
 			bgpNbrT := bgpNbr.GetOrCreateTransport()
-			bgpNbrT.LocalAddress = ygot.String(nbr.localAddress)
+			bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 		}
 		if nbr.isV4 == true {
 			af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
@@ -442,7 +530,6 @@ func bgpCreateNbr(t *testing.T, localAs, peerAs uint32, dut *ondatra.DUTDevice, 
 			af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
 			af6.Enabled = ygot.Bool(true)
 		}
-
 	}
 	return niProto
 }
