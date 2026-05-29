@@ -599,6 +599,8 @@ func installDecapEntry(t *testing.T, args *testArgs, nhIndex, nhgIndex uint64, p
 	decapNH := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(args.dut)).
 		WithIndex(nhIndex).WithDecapsulateHeader(fluent.IPinIP)
 	if deviations.DecapNHWithNextHopNIUnsupported(args.dut) {
+		// Omit WithNextHopNetworkInstance (metadata decap_nh_with_nexthop_ni_unsupported).
+	} else {
 		decapNH.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(args.dut))
 	}
 	args.client.Modify().AddEntry(t,

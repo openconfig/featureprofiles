@@ -25,7 +25,8 @@ platform_exceptions:  {
     no_mix_of_tagged_and_untagged_subinterfaces:  true
     explicit_interface_in_default_vrf:  true
     interface_enabled:  true
-    override_default_nh_scale: true 
+    override_default_nh_scale: true
+    decap_nh_with_nexthop_ni_unsupported: true
   }
 }
 platform_exceptions:  {
