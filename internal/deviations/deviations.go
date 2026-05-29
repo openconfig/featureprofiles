@@ -2234,6 +2234,7 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
 }
 
+<<<<<<< HEAD
 // P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
 // Nokia: b/445494680
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
@@ -2292,4 +2293,9 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 		return routeCount
 	}
 	return 2500000
+=======
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+>>>>>>> 43b83fbe (Adding test for AFT-6.2)
 }
