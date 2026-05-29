@@ -744,7 +744,13 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				return false, nil
 			}
 			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
-
+			noIPv4NHValidation := len(wantIPV4NHs) == 0
+			noIPv6NHValidation := len(wantIPV6NHs) == 0
+			if noIPv4NHValidation && noIPv6NHValidation {
+				t.Logf("%s Prefix validation completed successfully. "+"Skipping NH validation because no NH expectations were provided.", prefix)
+				t.Logf("%s Initial sync stopping condition took %.2f sec", prefix, time.Since(start).Seconds())
+				return true, nil
+			}
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0

@@ -1509,6 +1509,11 @@ type Metadata_Deviations struct {
 	MaxOutFibRouteCount uint32 `protobuf:"varint,441,opt,name=max_out_fib_route_count,json=maxOutFibRouteCount,proto3" json:"max_out_fib_route_count,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
+	// Arista: b/514565554
+	// Devices that do not support afts global filter policy OC
+	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,432,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4381,6 +4386,13 @@ func (x *Metadata_Deviations) GetMaxOutFibRouteCount() uint32 {
 		return x.MaxOutFibRouteCount
 	}
 	return 0
+}
+
+func (x *Metadata_Deviations) GetAftsGlobalFilterPolicyOcUnsupported() bool {
+	if x != nil {
+		return x.AftsGlobalFilterPolicyOcUnsupported
+	}
+	return false
 }
 
 type Metadata_PlatformExceptions struct {
