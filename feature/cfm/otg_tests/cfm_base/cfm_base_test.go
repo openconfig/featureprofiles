@@ -105,13 +105,13 @@ var (
 	transitLagData = []*cfgplugins.DUTAggData{
 		{
 			Attributes:  dut1TransitIntf,
-			DutPortsIdx: []int{2},
+			DutPortsIdx: []int{3},
 			LacpParams:  lacpParams,
 			AggType:     oc.IfAggregate_AggregationType_LACP,
 		},
 		{
 			Attributes:  dut2TransitIntf,
-			DutPortsIdx: []int{0},
+			DutPortsIdx: []int{3},
 			LacpParams:  lacpParams,
 			AggType:     oc.IfAggregate_AggregationType_LACP,
 		},
@@ -135,7 +135,7 @@ var (
 		},
 		{
 			Attributes:      dut2custIntf,
-			OndatraPortsIdx: []int{1, 2},
+			OndatraPortsIdx: []int{0, 1},
 			LacpParams:      lacpParams,
 			AggType:         oc.IfAggregate_AggregationType_STATIC,
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
@@ -194,7 +194,7 @@ var (
 	agg2 = &otgconfighelpers.Port{
 		Name:        "Port-Channel3",
 		AggMAC:      "02:00:01:01:01:02",
-		MemberPorts: []string{"port3", "port4"},
+		MemberPorts: []string{"port5", "port6"},
 		Interfaces:  []*otgconfighelpers.InterfaceProperties{otgIntf2},
 		LagID:       2,
 		IsLag:       true,
@@ -255,13 +255,13 @@ var (
 
 	encapValidation = []*packetvalidationhelpers.PacketValidation{
 		{
-			PortName:    "port5",
+			PortName:    "port3",
 			Validations: Validations,
 			IPv4Layer:   OuterGREIPLayerIPv4DUT1,
 			MPLSLayer:   controlWordMPLS,
 		},
 		{
-			PortName:    "port6",
+			PortName:    "port7",
 			Validations: Validations,
 			IPv4Layer:   OuterGREIPLayerIPv4DUT2,
 			MPLSLayer:   controlWordMPLS,
@@ -271,12 +271,12 @@ var (
 	dutTestData = []dutData{
 		{
 			custPort:         []string{"port1", "port2"},
-			transitPort:      []string{"port3"},
+			transitPort:      []string{"port4"},
 			neighborPortIPv4: "192.168.20.2",
 			subinterface:     10,
 			tunnelDst:        tunnelDestination1,
 			staticTunnelDst:  staticTunnelDst1,
-			capturePort:      "port4",
+			capturePort:      "port3",
 			cfmCfg: []cfgplugins.MaintenanceDomainConfig{
 				{
 					DomainName: "D1",
@@ -301,13 +301,13 @@ var (
 			},
 		},
 		{
-			custPort:         []string{"port2", "port3"},
-			transitPort:      []string{"port1"},
+			custPort:         []string{"port1", "port2"},
+			transitPort:      []string{"port4"},
 			neighborPortIPv4: "192.168.20.1",
 			subinterface:     10,
 			tunnelDst:        tunnelDestination2,
 			staticTunnelDst:  staticTunnelDst2,
-			capturePort:      "port4",
+			capturePort:      "port3",
 			cfmCfg: []cfgplugins.MaintenanceDomainConfig{
 				{
 					DomainName: "D1",
@@ -498,7 +498,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	}
 
 	// Configuring dummy ports for monitor session to capture packets of DUT interfaces
-	for _, port := range []string{"port5", "port6"} {
+	for _, port := range []string{"port3", "port7"} {
 		portObj := otgConfig.Ports().Add().SetName(port)
 		port1Dev := otgConfig.Devices().Add().SetName(port + ".dev")
 		port1Eth := port1Dev.Ethernets().Add().SetName(port + ".Eth")
@@ -986,7 +986,7 @@ func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 	sfBatch := &gnmi.SetBatch{}
 	for index, data := range dutTestData {
 		dutLagData := custLagData[index]
-		dutIPs, err := iputil.GenerateIPsWithStep(dutLagData.SubInterfaces[0].IPv4Address.String(), 1002, "0.0.1.0")
+		dutIPs, err := iputil.GenerateIPsWithStep(dutLagData.SubInterfaces[0].IPv4Address.String(), 10, "0.0.1.0")
 		if err != nil {
 			t.Errorf("failed to generate DUT IPs: %s", err)
 		}

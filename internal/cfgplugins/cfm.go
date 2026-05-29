@@ -346,7 +346,6 @@ func ValidateAlarmDetection(t *testing.T, dut *ondatra.DUTDevice, cfg Maintenanc
 			rdiFlag := re.FindStringSubmatch(output)
 			if len(rdiFlag) > 1 {
 				rdiStatus := strings.TrimSpace(rdiFlag[1])
-				t.Logf("Type: %T, Value: %q", rdiStatus, rdiStatus)
 				if rdiStatus != "true" {
 					t.Errorf("defect or fault condition has been detected, expected RDI state: true, got: %s", rdiStatus)
 				} else {

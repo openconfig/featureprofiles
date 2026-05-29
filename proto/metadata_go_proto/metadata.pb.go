@@ -58,6 +58,7 @@ const (
 	Metadata_TESTBED_DUT_2LINKS            Metadata_Testbed = 15
 	Metadata_TESTBED_DUT_ATE_34LINKS       Metadata_Testbed = 16
 	Metadata_TESTBED_DUT_ATE_8LINKS_LAG    Metadata_Testbed = 17
+	Metadata_TESTBED_DUT_DUT_ATE_8LINKS    Metadata_Testbed = 18
 )
 
 // Enum value maps for Metadata_Testbed.
@@ -81,6 +82,7 @@ var (
 		15: "TESTBED_DUT_2LINKS",
 		16: "TESTBED_DUT_ATE_34LINKS",
 		17: "TESTBED_DUT_ATE_8LINKS_LAG",
+		18: "TESTBED_DUT_DUT_ATE_8LINKS",
 	}
 	Metadata_Testbed_value = map[string]int32{
 		"TESTBED_UNSPECIFIED":           0,
@@ -101,6 +103,7 @@ var (
 		"TESTBED_DUT_2LINKS":            15,
 		"TESTBED_DUT_ATE_34LINKS":       16,
 		"TESTBED_DUT_ATE_8LINKS_LAG":    17,
+		"TESTBED_DUT_DUT_ATE_8LINKS":    18,
 	}
 )
 
@@ -4136,7 +4139,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x98\xe5\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xb8\xe5\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4535,7 +4538,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
 	"\n" +
 	"deviations\x18\x02 \x01(\v2'.openconfig.testing.Metadata.DeviationsR\n" +
-	"deviations\"\x80\x04\n" +
+	"deviations\"\xa0\x04\n" +
 	"\aTestbed\x12\x17\n" +
 	"\x13TESTBED_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vTESTBED_DUT\x10\x01\x12\x1a\n" +
@@ -4555,7 +4558,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\x16TESTBED_DUT_800ZR_PLUS\x10\x0e\x12\x16\n" +
 	"\x12TESTBED_DUT_2LINKS\x10\x0f\x12\x1b\n" +
 	"\x17TESTBED_DUT_ATE_34LINKS\x10\x10\x12\x1e\n" +
-	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\"m\n" +
+	"\x1aTESTBED_DUT_ATE_8LINKS_LAG\x10\x11\x12\x1e\n" +
+	"\x1aTESTBED_DUT_DUT_ATE_8LINKS\x10\x12\"m\n" +
 	"\x04Tags\x12\x14\n" +
 	"\x10TAGS_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TAGS_AGGREGATION\x10\x01\x12\x18\n" +
