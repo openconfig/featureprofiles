@@ -2,7 +2,6 @@
 package packetvalidationhelpers
 
 import (
-	"encoding/binary"
 	"fmt"
 	"os"
 	"testing"
@@ -106,11 +105,6 @@ type PacketValidation struct {
 	// Validations is a list of validations to perform on the captured packets.
 	Validations     []ValidationType
 	packetSourceObj *gopacket.PacketSource
-}
-
-// VlanLayer is a struct to hold the vlan layer parameters
-type VlanLayer struct {
-	VlanID uint16
 }
 
 // VlanLayer is a struct to hold the vlan layer parameters

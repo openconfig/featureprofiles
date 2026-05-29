@@ -126,7 +126,7 @@ var (
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
+					VlanEnable:    ygot.Bool(false),
 					IPv4Address:   net.ParseIP("192.168.10.2"),
 					IPv4PrefixLen: plenIPv4,
 					IPv6PrefixLen: plenIPv6,
@@ -141,7 +141,7 @@ var (
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
+					VlanEnable:    ygot.Bool(false),
 					IPv4Address:   net.ParseIP("192.168.30.2"),
 					IPv4PrefixLen: plenIPv4,
 					IPv6PrefixLen: plenIPv6,
@@ -543,15 +543,17 @@ func sendTrafficCapture(t *testing.T, ate *ondatra.ATEDevice) {
 	packetvalidationhelpers.StopCapture(t, ate, cs)
 }
 
-func verifyLoadBalanceAcrossGre(t *testing.T, packetSource *gopacket.PacketSource) {
+func verifyLoadBalanceAcrossGre(t *testing.T, packetSource []*gopacket.PacketSource) {
 	t.Log("Validating traffic equally load-balanced across GRE destinations")
 	tunnelCount := 16
 
 	srcIPs := make(map[string]int)
-	for packet := range packetSource.Packets() {
-		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
-			ipv4, _ := ipLayer.(*layers.IPv4)
-			srcIPs[ipv4.SrcIP.String()]++
+	for _, pkt := range packetSource {
+		for packet := range pkt.Packets() {
+			if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
+				ipv4, _ := ipLayer.(*layers.IPv4)
+				srcIPs[ipv4.SrcIP.String()]++
+			}
 		}
 	}
 
@@ -566,7 +568,7 @@ func verifyLoadBalanceAcrossGre(t *testing.T, packetSource *gopacket.PacketSourc
 	t.Errorf("error: traffic was not load-balanced across %d GRE sources", uniqueCount)
 }
 
-func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) error {
+func validateCfmPacket(t *testing.T, packetSource *gopacket.PacketSource, expectedInterval uint8, verifyRDIBit bool) error {
 	t.Helper()
 	t.Log("Starting CFM packet integrity validation")
 
@@ -579,7 +581,7 @@ func validateCfmPacket(t *testing.T, expectedInterval uint8, verifyRDIBit bool) 
 	// Interval: CCM interval configured on DUT
 
 	var cfmData []byte
-	packetSource := packetvalidationhelpers.SourceObj()
+	// packetSource := packetvalidationhelpers.SourceObj()
 
 	// TODO: Verify increasing sequence number for consequent CCM packets.
 	// var lastSequenceNumber uint32
@@ -797,6 +799,8 @@ func TestCFMBase(t *testing.T) {
 }
 
 func testCFMEstablishment(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
+
 	createflow(otgConfig, &flow, true)
 	ate.OTG().PushConfig(t, otgConfig)
 	sendTrafficCapture(t, ate)
@@ -811,24 +815,30 @@ func testCFMEstablishment(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, ot
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
 			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
-	verifyLoadBalanceAcrossGre(t, packetvalidationhelpers.SourceObj())
+	verifyLoadBalanceAcrossGre(t, packetSource)
 }
 
 func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
 	var dutData dutData
+	var packetSource = []*gopacket.PacketSource{}
+
 	sendTrafficCapture(t, ate)
 
 	for _, v := range encapValidation {
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
 			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	interval := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
-	if err := validateCfmPacket(t, interval, false); err != nil {
-		t.Errorf("error: validation of cfm packets failed: %q", err)
+	for _, pkt := range packetSource {
+		if err := validateCfmPacket(t, pkt, interval, false); err != nil {
+			t.Errorf("error: validation of cfm packets failed: %q", err)
+		}
 	}
 
 	// Configure Wrong MD level on on endpoint
@@ -855,6 +865,7 @@ func testCFMPacket(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig
 
 // testCFM114 verifies RDI flag set on CE-PE fault.
 func testCFMAlarm(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig gosnappi.Config, flow otgconfighelpers.Flow) {
+	var packetSource = []*gopacket.PacketSource{}
 	dutData := dutTestData[0]
 	dutData.cfmCfg[0].RemoveDomain = true
 	dutData.cfmCfg[0].Level = 5
@@ -874,11 +885,14 @@ func testCFMAlarm(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 		if err := packetvalidationhelpers.CaptureAndValidatePackets(t, ate, v); err != nil {
 			t.Errorf("error: capture And ValidatePackets Failed (): %q", err)
 		}
+		packetSource = append(packetSource, packetvalidationhelpers.SourceObj(v))
 	}
 
 	interval := ccmIntervalMap[dutTestData[0].cfmCfg[0].Assocs[0].CcmInterval]
-	if err := validateCfmPacket(t, interval, false); err != nil {
-		t.Errorf("error: validation of cfm packets failed: %q", err)
+	for _, pkt := range packetSource {
+		if err := validateCfmPacket(t, pkt, interval, false); err != nil {
+			t.Errorf("error: validation of cfm packets failed: %q", err)
+		}
 	}
 
 	cfgplugins.ValidateAlarmDetection(t, dutTestData[1].dut, dutTestData[1].cfmCfg[0])
@@ -986,7 +1000,7 @@ func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 	sfBatch := &gnmi.SetBatch{}
 	for index, data := range dutTestData {
 		dutLagData := custLagData[index]
-		dutIPs, err := iputil.GenerateIPsWithStep(dutLagData.SubInterfaces[0].IPv4Address.String(), 10, "0.0.1.0")
+		dutIPs, err := iputil.GenerateIPsWithStep(dutLagData.SubInterfaces[0].IPv4Address.String(), 1002, "0.0.1.0")
 		if err != nil {
 			t.Errorf("failed to generate DUT IPs: %s", err)
 		}

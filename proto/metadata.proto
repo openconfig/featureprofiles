@@ -1274,14 +1274,6 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429169079
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
-    
-    // Devices that do not support mpls static pseudowire OC
-    // Arista: b/495544007
-    bool mpls_static_pseudowire_oc_unsupported = 409;
-
-    // Devices that do not support vlan client encapsulation OC
-    // Arista: b/495549829
-    bool vlan_client_encapsulation_oc_unsupported = 410;
 
     // Device Does not support session channel id
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
