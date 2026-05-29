@@ -33,7 +33,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
 
-	log "github.com/golang/glog"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
