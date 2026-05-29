@@ -175,3 +175,25 @@ func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
 	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
 	return startTime
 }
+
+// GetGnmiCLIOutput sets config built with buildCliConfigRequest and returns the output.
+func ExecuteShowCLI(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.GetResponse {
+	getReq := &gpb.GetRequest{
+		Path: []*gpb.Path{
+			{
+				Origin: "cli",
+				Elem: []*gpb.PathElem{
+					{Name: config},
+				},
+			},
+		},
+		Encoding: gpb.Encoding_ASCII,
+		Type:     gpb.GetRequest_ALL,
+	}
+
+	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), getReq)
+	if err != nil {
+		t.Fatalf("gnmiClient.Get() with unexpected error: %v", err)
+	}
+	return resp
+}
