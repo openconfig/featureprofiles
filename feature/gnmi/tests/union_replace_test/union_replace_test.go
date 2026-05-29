@@ -32,8 +32,6 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 )
 
 func TestMain(m *testing.M) {
