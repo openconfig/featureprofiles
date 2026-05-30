@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -449,15 +448,34 @@ func TestPushAndVerifyInterfaceConfig(t *testing.T) {
 	}
 
 	t.Logf("Fetch interface config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
-	if val, present := gnmi.LookupConfig(t, dut, dc).Val(); present {
-		if reflect.DeepEqual(val, in) {
-			t.Logf("Interface config Want and Got matched")
-			fptest.LogQuery(t, fmt.Sprintf("%s from Get", dutPort), dc, val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dc)
+	intfPath := gnmi.OC().Interface(dutPortName)
+	if got := gnmi.Get(t, dut, intfPath.Description().Config()); got != dutAttrs.Desc {
+		t.Errorf("Interface %v description: got %v, want %v", dutPortName, got, dutAttrs.Desc)
+	}
+	if got := gnmi.Get(t, dut, intfPath.Type().Config()); got != oc.IETFInterfaces_InterfaceType_ethernetCsmacd {
+		t.Errorf("Interface %v type: got %v, want ethernetCsmacd", dutPortName, got)
+	}
+	if deviations.InterfaceEnabled(dut) {
+		if got, present := gnmi.LookupConfig(t, dut, intfPath.Enabled().Config()).Val(); !present {
+			if !deviations.MissingValueForDefaults(dut) {
+				t.Errorf("Interface %v enabled: leaf absent, want true", dutPortName)
+			}
+		} else if !got {
+			t.Errorf("Interface %v enabled: got false, want true", dutPortName)
 		}
-	} else {
-		t.Errorf("Config %v Get() failed", dc)
+	}
+	subPath := intfPath.Subinterface(0).Ipv4()
+	if got := gnmi.Get(t, dut, subPath.Address(dutAttrs.IPv4).PrefixLength().Config()); got != dutAttrs.IPv4Len {
+		t.Errorf("Interface %v subinterface 0 IPv4 prefix-length: got %v, want %v", dutPortName, got, dutAttrs.IPv4Len)
+	}
+	if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if got, present := gnmi.LookupConfig(t, dut, subPath.Enabled().Config()).Val(); !present {
+			if !deviations.MissingValueForDefaults(dut) {
+				t.Errorf("Interface %v subinterface 0 IPv4 enabled: leaf absent, want true", dutPortName)
+			}
+		} else if !got {
+			t.Errorf("Interface %v subinterface 0 IPv4 enabled: got false, want true", dutPortName)
+		}
 	}
 }
 
@@ -495,15 +513,51 @@ func TestPushAndVerifyBGPConfig(t *testing.T) {
 	gnmi.Replace(t, dut, dutConfPath.Config(), dutConf)
 
 	t.Logf("Fetch BGP config from the DUT using Get RPC and verify it matches with the config that was pushed earlier")
-	if val, present := gnmi.LookupConfig(t, dut, dutConfPath.Config()).Val(); present {
-		if reflect.DeepEqual(val, dutConf) {
-			t.Logf("BGP config Want and Got matched")
-			fptest.LogQuery(t, "BGP fetched from DUT using Get()", dutConfPath.Config(), val)
-		} else {
-			t.Errorf("Config %v Get() value not matching with what was Set()", dutConfPath.Config())
+	bgpPath := dutConfPath.Bgp()
+	nbr := bgpNbr1
+
+	// Global
+	if got := gnmi.Get(t, dut, bgpPath.Global().As().Config()); got != uint32(bgpGlobalAttrs.dutAS) {
+		t.Errorf("BGP global AS: got %v, want %v", got, bgpGlobalAttrs.dutAS)
+	}
+	if got := gnmi.Get(t, dut, bgpPath.Global().RouterId().Config()); got != dutSrc.IPv4 {
+		t.Errorf("BGP global router-id: got %v, want %v", got, dutSrc.IPv4)
+	}
+	afiSafiPath := bgpPath.Global().AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
+	implicitValue := deviations.BgpDefaultVrfIPv4UnicastAfiSafiEnabledLeafMissing(dut)
+	if got, present := gnmi.LookupConfig(t, dut, afiSafiPath.Enabled().Config()).Val(); !present {
+		if implicitValue == "" {
+			t.Errorf("BGP global afi-safi IPV4_UNICAST enabled: leaf absent, want true")
+		} else if implicitValue != "true" {
+			t.Errorf("BGP global afi-safi IPV4_UNICAST enabled: leaf absent, implicit value is false, want true")
 		}
-	} else {
-		t.Errorf("Config %v Get() failed", dutConfPath.Config())
+	} else if !got {
+		t.Errorf("BGP global afi-safi IPV4_UNICAST enabled: got false, want true")
+	}
+
+	// PeerGroup
+	pgPath := bgpPath.PeerGroup(bgpGlobalAttrs.peerGrpNamev4)
+	if got := gnmi.Get(t, dut, pgPath.PeerAs().Config()); got != uint32(bgpGlobalAttrs.ateAS) {
+		t.Errorf("BGP peer-group %v peer-as: got %v, want %v", bgpGlobalAttrs.peerGrpNamev4, got, bgpGlobalAttrs.ateAS)
+	}
+	if got := gnmi.Get(t, dut, pgPath.PeerGroupName().Config()); got != bgpGlobalAttrs.peerGrpNamev4 {
+		t.Errorf("BGP peer-group name: got %v, want %v", got, bgpGlobalAttrs.peerGrpNamev4)
+	}
+
+	// Neighbor
+	nbrPath := bgpPath.Neighbor(nbr.neighborip)
+	if got := gnmi.Get(t, dut, nbrPath.PeerAs().Config()); got != uint32(nbr.peerAs) {
+		t.Errorf("BGP neighbor %v peer-as: got %v, want %v", nbr.neighborip, got, nbr.peerAs)
+	}
+	if got := gnmi.Get(t, dut, nbrPath.PeerGroup().Config()); got != bgpGlobalAttrs.peerGrpNamev4 {
+		t.Errorf("BGP neighbor %v peer-group: got %v, want %v", nbr.neighborip, got, bgpGlobalAttrs.peerGrpNamev4)
+	}
+	if got, present := gnmi.LookupConfig(t, dut, nbrPath.Enabled().Config()).Val(); !present {
+		if !deviations.MissingValueForDefaults(dut) {
+			t.Errorf("BGP neighbor %v enabled: leaf absent, want true", nbr.neighborip)
+		}
+	} else if !got {
+		t.Errorf("BGP neighbor %v enabled: got false, want true", nbr.neighborip)
 	}
 }
 
