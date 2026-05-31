@@ -23,7 +23,6 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
