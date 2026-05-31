@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -60,9 +60,9 @@ const (
 	descCLIDescP2    = "cli-desc-p2"
 
 	bgpProtocolName = "BGP"
-	bgpASOC         = uint32(65100)
-	bgpASCLI        = uint32(65200)
-	rejectedPeerAS  = uint32(65001)
+	bgpASOC         = uint32(64496)
+	bgpASCLI        = uint32(64497)
+	rejectedPeerAS  = uint32(64498)
 	badPolicyOC     = "NON_EXISTENT_POLICY"
 	badPolicyCLI    = "NON_EXISTENT_POLICY_CLI"
 	badQueueName    = "NON_EXISTENT_QUEUE_999"
@@ -115,6 +115,16 @@ func firstInterfaceWithoutTransceiver(t *testing.T, dut *ondatra.DUTDevice) stri
 
 	t.Fatalf("unable to find an Ethernet interface with no transceiver connected")
 	return ""
+}
+
+func operStatusNoTransceiver(t *testing.T, dut *ondatra.DUTDevice) oc.E_Interface_OperStatus {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		return oc.Interface_OperStatus_NOT_PRESENT
+	default:
+		return oc.Interface_OperStatus_DOWN
+	}
 }
 
 func baselineCLIConfig(t *testing.T, dut *ondatra.DUTDevice) string {
@@ -328,12 +338,11 @@ func verifyCLIMTU(t *testing.T, dut *ondatra.DUTDevice, intfName string, wantMTU
 
 func verifyInterfaceNotPresent(t *testing.T, dut *ondatra.DUTDevice, intfName string) error {
 	t.Helper()
-	v := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).Description().State())
-	if v.IsPresent() {
-		val, _ := v.Val()
-		if val != "" {
-			return fmt.Errorf("interface %s should not have description after deletion, got %q", intfName, val)
-		}
+	_, ok := gnmi.Watch(t, dut, gnmi.OC().Interface(intfName).State(), awaitStateTimeout, func(v *ygnmi.Value[*oc.Interface]) bool {
+		return !v.IsPresent()
+	}).Await(t)
+	if !ok {
+		return fmt.Errorf("interface %s should not be present after deletion", intfName)
 	}
 	return nil
 }
@@ -381,6 +390,25 @@ func cliInterfaceConfig(t *testing.T, dut *ondatra.DUTDevice, opts cliInterfaceC
 	}
 }
 
+func breakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, baseIntfName string, noOfIntfs uint8) []string {
+	t.Helper()
+	var intfs []string
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		lastIndex := strings.LastIndex(baseIntfName, "/")
+		if lastIndex == -1 {
+			t.Fatalf("invalid interface name format: %s", baseIntfName)
+		}
+		baseName := baseIntfName[:lastIndex]
+		for index := range noOfIntfs {
+			intfs = append(intfs, fmt.Sprintf("%s/%d", baseName, index+1))
+		}
+	default:
+		t.Logf("unsupported vendor %v for breakout interfaces", dut.Vendor())
+	}
+	return intfs
+}
+
 func ocBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, intfName string) {
 	t.Helper()
 	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).HardwarePort().State()).Val()
@@ -418,6 +446,7 @@ func TestUnionReplace(t *testing.T) {
 	sharedBaseline = baselineCLIConfig(t, dut)
 	connectivityCLI = extractConnectivityCLI(t, dut, sharedBaseline)
 	interfaceWithoutTransceiver := firstInterfaceWithoutTransceiver(t, dut)
+	noTransceiverOperStatus := operStatusNoTransceiver(t, dut)
 	t.Logf("First interface without transceiver: %s", interfaceWithoutTransceiver)
 	resetConfig := func() {
 		t.Log("Resetting baseline configuration")
@@ -797,7 +826,7 @@ func TestUnionReplace(t *testing.T) {
 					var badCLI string
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
-						badCLI = fmt.Sprintf("router bgp 65000\n  neighbor %s remote-as %d\n  address-family ipv4\n    neighbor %s route-map %s in\n", badNeighborCLI, rejectedPeerAS, badNeighborCLI, badPolicyCLI)
+						badCLI = fmt.Sprintf("router bgp %d\n  neighbor %s remote-as %d\n  address-family ipv4\n    neighbor %s route-map %s in\n", bgpASCLI, badNeighborCLI, rejectedPeerAS, badNeighborCLI, badPolicyCLI)
 					default:
 						t.Fatalf("CLI error test not implemented for vendor %v", dut.Vendor())
 					}
@@ -1060,26 +1089,16 @@ func TestUnionReplace(t *testing.T) {
 				t.Log("Generate OC delta with port-speed and breakout-mode for missing-hardware interface")
 				ocDelta := &oc.Root{}
 				ocBreakoutMode(t, dut, ocDelta, interfaceWithoutTransceiver)
-				intf := ocDelta.GetOrCreateInterface(interfaceWithoutTransceiver)
-				intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-				eth := intf.GetOrCreateEthernet()
-				eth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB
-				eth.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				eth.AutoNegotiate = ygot.Bool(false)
 
-				intfNameParts := strings.Split(interfaceWithoutTransceiver, "/")
-				breakoutIntfNum, err := strconv.Atoi(intfNameParts[1])
-				if err != nil {
-					return fmt.Errorf("failed to parse interface name %s: %w", interfaceWithoutTransceiver, err)
+				for _, breakoutIntfName := range breakoutInterfaces(t, dut, interfaceWithoutTransceiver, breakoutNumGroups) {
+					t.Logf("Adding breakout configuration for interface %s", breakoutIntfName)
+					breakoutIntf := ocDelta.GetOrCreateInterface(breakoutIntfName)
+					breakoutIntf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+					brEth := breakoutIntf.GetOrCreateEthernet()
+					brEth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB
+					brEth.DuplexMode = oc.Ethernet_DuplexMode_FULL
+					brEth.AutoNegotiate = ygot.Bool(false)
 				}
-				breakoutIntfName := fmt.Sprintf("%s/%d", intfNameParts[0], breakoutIntfNum+1)
-				breakoutIntf := ocDelta.GetOrCreateInterface(breakoutIntfName)
-				breakoutIntf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-				brEth := breakoutIntf.GetOrCreateEthernet()
-				brEth.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB
-				brEth.DuplexMode = oc.Ethernet_DuplexMode_FULL
-				brEth.AutoNegotiate = ygot.Bool(false)
-
 				t.Log("Push via union_replace and verify accepted")
 				if err := unionReplace(t, dut, ocUpdate(t, ocDelta)); err != nil {
 					t.Logf("union_replace rejected: %v", err)
@@ -1088,7 +1107,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Verify configuration applied and interface oper-status")
 				errs = append(errs, verifyPortSpeed(t, dut, interfaceWithoutTransceiver, oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB))
-				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, oc.Interface_OperStatus_NOT_PRESENT))
+				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, noTransceiverOperStatus))
 				return errors.Join(errs...)
 			},
 		},
@@ -1113,7 +1132,7 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Verify configuration applied")
 				errs = append(errs, verifyPortSpeed(t, dut, interfaceWithoutTransceiver, oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB))
-				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, oc.Interface_OperStatus_NOT_PRESENT))
+				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, noTransceiverOperStatus))
 				return errors.Join(errs...)
 			},
 		},
