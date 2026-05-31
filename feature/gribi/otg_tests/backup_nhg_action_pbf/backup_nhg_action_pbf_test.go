@@ -246,7 +246,7 @@ func TestBackupNHGAction(t *testing.T) {
 	}
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(vrfA)
+		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy(policyID)
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
@@ -255,7 +255,7 @@ func TestBackupNHGAction(t *testing.T) {
 		p1 := dut.Port(t, "port1")
 		intf := pf.GetOrCreateInterface(p1.Name())
 		intf.ApplyVrfSelectionPolicy = ygot.String(policyID)
-		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrfA).PolicyForwarding().Config(), pf)
+		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Config(), pf)
 	}
 
 	addStaticRoute(t, dut)
