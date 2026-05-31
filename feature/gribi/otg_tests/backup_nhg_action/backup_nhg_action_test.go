@@ -215,7 +215,7 @@ func configureNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 	for _, vrf := range vrfs {
 		ni := c.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-		if vrf == vrfA {
+		if vrf == vrfA && !deviations.BackupNHGRequiresVrfWithDecap(dut) {
 			p1 := dut.Port(t, "port1")
 			niIntf := ni.GetOrCreateInterface(p1.Name())
 			niIntf.Subinterface = ygot.Uint32(0)

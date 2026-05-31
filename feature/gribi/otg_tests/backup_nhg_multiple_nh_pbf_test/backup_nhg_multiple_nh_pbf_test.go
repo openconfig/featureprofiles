@@ -186,8 +186,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
 
 	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
-		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+		ocRoot := &oc.Root{}
+		ni := ocRoot.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 		pf := ni.GetOrCreatePolicyForwarding()
 		fp1 := pf.GetOrCreatePolicy("match-ipip")
 		fp1.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
