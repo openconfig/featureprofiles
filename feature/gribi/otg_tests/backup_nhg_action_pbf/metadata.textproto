@@ -36,6 +36,7 @@ platform_exceptions: {
     interface_config_vrf_before_address: true
     interface_enabled: true
     default_network_instance: "default"
+    backup_nhg_requires_vrf_with_decap: true
   }
 }
 tags: TAGS_DATACENTER_EDGE
