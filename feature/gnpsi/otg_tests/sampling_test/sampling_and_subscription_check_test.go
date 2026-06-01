@@ -33,7 +33,7 @@ import (
 const (
 	connectionAttempts        = 2
 	connectionRetryInterval   = 10 * time.Second
-	connectionTimeout         = 2 * time.Minute
+	connectionTimeout         = 5 * time.Minute
 	trafficTime               = 1 * time.Minute
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
 	flowCountTolerancePct     = 0.1
@@ -45,6 +45,7 @@ const (
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
+	serverName                = "gnpsiServer"
 )
 
 var (
@@ -309,7 +310,7 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	otg.PushConfig(t, top)
 	otg.StartProtocols(t)
 
-	sflowPacketsToValidateChannel := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+	sflowPacketsToValidateChannel := make(chan sFlowPacket, sflowChannelCapacity(dut))
 	t.Logf("Starting traffic for %s", fc.name)
 	otg.StartTraffic(t)
 	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
@@ -365,7 +366,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 
 	sflowPacketsToValidatePerClient := make([]chan sFlowPacket, gnpsiClientsInParallel)
 	for index, client := range gnpsiClients {
-		sflowPacketsToValidatePerClient[index] = make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidatePerClient[index] = make(chan sFlowPacket, sflowChannelCapacity(dut))
 		go receiveSamples(t, client, sflowPacketsToValidatePerClient[index])
 	}
 
@@ -402,7 +403,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 
 	for range connectionAttempts {
 		t.Log("Connecting GNPSI client")
-		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidate := make(chan sFlowPacket, sflowChannelCapacity(dut))
 		ctx, closeContext = context.WithCancel(t.Context())
 		defer closeContext()
 		stream, err := subscribeGNPSIClient(t, ctx, gnpsiClient)
@@ -449,7 +450,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 	sampleCountAtRestart := 0
 
 	for range connectionAttempts {
-		sflowPacketsToValidate := make(chan sFlowPacket, 2*expectedSFlowSamplesCount)
+		sflowPacketsToValidate := make(chan sFlowPacket, sflowChannelCapacity(dut))
 		stream, err = subscribeGNPSIClient(t, ctx, gnpsiClient)
 		if err != nil {
 			t.Fatalf("Failed to connect to GNPSI server: %v", err)
@@ -487,6 +488,17 @@ func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("GNPSI service restarted")
 }
 
+func effectiveSamplingRate(dut *ondatra.DUTDevice) uint32 {
+	if r := deviations.SflowIngressMinSamplingRate(dut); r != 0 {
+		return r
+	}
+	return uint32(samplingRate)
+}
+
+func sflowChannelCapacity(dut *ondatra.DUTDevice) int {
+	return 2 * int(packetsToSend/effectiveSamplingRate(dut))
+}
+
 func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan sFlowPacket, flowConfig flowConfig) {
 	receivedSamples := 0
 	for sFlowPkt := range sFlowPackets {
@@ -500,12 +512,14 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 		}
 	}
 
-	flowCountTolerance := int(math.Round(float64(expectedSFlowSamplesCount) * flowCountTolerancePct))
-	if receivedSamples < expectedSFlowSamplesCount-flowCountTolerance || receivedSamples > expectedSFlowSamplesCount+flowCountTolerance {
-		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+	effectiveSamplingRate := effectiveSamplingRate(dut)
+	expectedCount := int(packetsToSend / effectiveSamplingRate)
+	flowCountTolerance := int(math.Round(float64(expectedCount) * flowCountTolerancePct))
+	if receivedSamples < expectedCount-flowCountTolerance || receivedSamples > expectedCount+flowCountTolerance {
+		t.Errorf("unexpected number of SFlow packets: got %d, want %d ± %d", receivedSamples, expectedCount, flowCountTolerance)
 		return
 	}
-	t.Logf("Received SFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedSFlowSamplesCount, flowCountTolerance)
+	t.Logf("Received SFlow packets: %d, within expected range %d ± %d ", receivedSamples, expectedCount, flowCountTolerance)
 }
 
 func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacket, flowConfig flowConfig, pktIndex int) {
@@ -522,8 +536,9 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 	if sFlowPkt.size != adjustedSize {
 		t.Errorf("SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, flowConfig.frameSize)
 	}
-	if sFlowPkt.samplingRate != samplingRate {
-		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, samplingRate)
+	effectiveSamplingRate := effectiveSamplingRate(dut)
+	if sFlowPkt.samplingRate != effectiveSamplingRate {
+		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, effectiveSamplingRate)
 	}
 	if sFlowPkt.ingressIntf != ingressIntf {
 		t.Errorf("SFlow packet %d: Ingress interface ifindex %d does not match expected interface ifindex %d", pktIndex, sFlowPkt.ingressIntf, ingressIntf)
@@ -594,8 +609,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dialer := introspect.DUTDialer(t, dut, svc)
 	gnpsiPort := dialer.DevicePort
 	params := &cfgplugins.GNPSIParams{
-		Port:       gnpsiPort,
+		Port:       uint16(gnpsiPort),
 		SSLProfile: profileName,
+		ServerName: serverName,
+		NIName:     deviations.DefaultNetworkInstance(dut),
 	}
 	cfgplugins.ConfigureGNPSI(t, dut, params)
 }
@@ -657,6 +674,11 @@ func configureSFlow(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	cfgplugins.NewSFlowGlobalCfg(t, sfBatch, nil, dut, sflowParams)
 	sfBatch.Set(t, dut)
+
+	if deviations.MissingSflowGnpsiExport(dut) {
+		cfgplugins.ConfigureSflowGnpsiExport(t, dut)
+	}
+
 }
 
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {

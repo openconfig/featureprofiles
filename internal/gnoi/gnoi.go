@@ -45,6 +45,7 @@ var (
 			OCAGENT: "emsd",
 			P4RT:    "emsd",
 			ROUTING: "emsd",
+			GNPSI:   "emsd",
 		},
 		ondatra.JUNIPER: {
 			GRIBI:   "rpd",
