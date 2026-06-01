@@ -488,12 +488,15 @@ func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("GNPSI service restarted")
 }
 
-func sflowChannelCapacity(dut *ondatra.DUTDevice) int {
-	rate := uint32(samplingRate)
+func effectiveSamplingRate(dut *ondatra.DUTDevice) uint32 {
 	if r := deviations.SflowIngressMinSamplingRate(dut); r != 0 {
-		rate = r
+		return r
 	}
-	return 2 * int(packetsToSend/rate)
+	return uint32(samplingRate)
+}
+
+func sflowChannelCapacity(dut *ondatra.DUTDevice) int {
+	return 2 * int(packetsToSend/effectiveSamplingRate(dut))
 }
 
 func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan sFlowPacket, flowConfig flowConfig) {
@@ -509,10 +512,7 @@ func checkSFlowPackets(t *testing.T, dut *ondatra.DUTDevice, sFlowPackets chan s
 		}
 	}
 
-	effectiveSamplingRate := uint32(samplingRate)
-	if r := deviations.SflowIngressMinSamplingRate(dut); r != 0 {
-		effectiveSamplingRate = r
-	}
+	effectiveSamplingRate := effectiveSamplingRate(dut)
 	expectedCount := int(packetsToSend / effectiveSamplingRate)
 	flowCountTolerance := int(math.Round(float64(expectedCount) * flowCountTolerancePct))
 	if receivedSamples < expectedCount-flowCountTolerance || receivedSamples > expectedCount+flowCountTolerance {
@@ -536,10 +536,7 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 	if sFlowPkt.size != adjustedSize {
 		t.Errorf("SFlow packet size %d does not match expected frame size %d", sFlowPkt.size, flowConfig.frameSize)
 	}
-	effectiveSamplingRate := uint32(samplingRate)
-	if r := deviations.SflowIngressMinSamplingRate(dut); r != 0 {
-		effectiveSamplingRate = r
-	}
+	effectiveSamplingRate := effectiveSamplingRate(dut)
 	if sFlowPkt.samplingRate != effectiveSamplingRate {
 		t.Errorf("SFlow packet %d: Sampling rate %d does not match expected rate %d", pktIndex, sFlowPkt.samplingRate, effectiveSamplingRate)
 	}
