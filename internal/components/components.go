@@ -23,12 +23,15 @@ import (
 	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/gnmi/oc/ocpath"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -111,6 +114,80 @@ func FindMatchingStrings(components []string, r *regexp.Regexp) []string {
 		}
 	}
 	return s
+}
+
+// AwaitSwitchoverReady waits for the active controller to report switchover-ready.
+// The active supervisor's switchover-ready leaf accurately reflects whether the
+// standby is ready to take over; the standby's own leaf is not reliably maintained.
+func AwaitSwitchoverReady(t *testing.T, dut *ondatra.DUTDevice, active string, timeout time.Duration) {
+	t.Helper()
+	switchoverReady := gnmi.OC().Component(active).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), timeout, true)
+	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
+}
+
+// DoSwitchover triggers a control processor switchover to the specified standby,
+// retrying on gRPC Unavailable. Per the gRPC spec, Unavailable signals the client
+// to back off and retry the same call -- the device may not yet be ready to accept
+// the switchover RPC even though switchover-ready is true. Retries stop when the
+// RPC succeeds, the device becomes unreachable (switchover executing), or the
+// timeout expires.
+func DoSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
+	t.Helper()
+	t.Logf("Switching control processor to %s...", standby)
+
+	retryTimeout := 5 * time.Minute
+	deadline := time.Now().Add(retryTimeout)
+
+	switchReq := &spb.SwitchControlProcessorRequest{
+		ControlProcessor: GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
+	}
+
+	for {
+		var sysClient spb.SystemClient
+		if dut.Vendor() == ondatra.ARISTA {
+			// Fresh dial on every attempt: after a prior switchover the Ondatra gNOI
+			// cache may point to the old active (now standby). A fresh dial always
+			// reaches the current active.
+			if freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background()); err == nil {
+				sysClient = freshClients.System()
+			} else {
+				t.Logf("gNOI fresh dial failed, falling back to cached client: %v", err)
+				sysClient = dut.RawAPIs().GNOI(t).System()
+			}
+		} else {
+			sysClient = dut.RawAPIs().GNOI(t).System()
+		}
+
+		_, err := sysClient.SwitchControlProcessor(context.Background(), switchReq)
+		if err == nil {
+			t.Logf("SwitchControlProcessor succeeded.")
+			return
+		}
+		t.Logf("SwitchControlProcessor returned: %v", err)
+
+		if status.Code(err) == codes.Unavailable {
+			// Check if the device went unreachable -- if so, the switchover is
+			// already executing and the caller's waitForSwitchover will handle the rest.
+			dialCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, dialErr := dut.RawAPIs().BindingDUT().DialGNMI(dialCtx)
+			cancel()
+			if dialErr != nil {
+				t.Logf("Device unreachable after Unavailable -- switchover is executing.")
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Logf("SwitchControlProcessor retries exhausted after %v.", retryTimeout)
+				return
+			}
+			t.Logf("Device still reachable, retrying SwitchControlProcessor in 30s...")
+			time.Sleep(30 * time.Second)
+			continue
+		}
+
+		// Non-retryable error -- log and return, let the caller's verification fail.
+		return
+	}
 }
 
 // GetSubcomponentPath creates a gNMI path based on the component name.
