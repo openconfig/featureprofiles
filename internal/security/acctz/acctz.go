@@ -1647,7 +1647,9 @@ func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
 	case ondatra.ARISTA:
 		cliCommand = "aaa accounting commands all default start-stop logging"
 	}
-	helpers.GnmiCLIConfig(t, dut, cliCommand)
+	if cliCommand != "" {
+		helpers.GnmiCLIConfig(t, dut, cliCommand)
+	}
 }
 
 func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {

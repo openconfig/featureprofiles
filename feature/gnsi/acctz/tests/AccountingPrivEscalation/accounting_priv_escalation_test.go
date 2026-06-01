@@ -62,7 +62,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 	var recordIdx int
 	var lastTimestampUnixMillis int64
 	var loginRecords []*acctzpb.RecordResponse
-	r := make(chan recordRequestResult)
+	r := make(chan recordRequestResult, 1)
 
 	popts := []cmp.Option{protocmp.Transform(),
 		protocmp.IgnoreFields(&acctzpb.RecordResponse{}, "timestamp", "task_ids", "component_name"),
@@ -80,8 +80,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 		}
 
 		go func(r chan recordRequestResult) {
-			var response *acctzpb.RecordResponse
-			response, err = acctzSubClient.Recv()
+			response, err := acctzSubClient.Recv()
 			r <- recordRequestResult{
 				record: response,
 				err:    err,
@@ -104,6 +103,12 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 
 		if resp.err != nil {
 			t.Fatalf("Failed receiving record response, error: %s", resp.err)
+		}
+		if resp.record == nil {
+			t.Fatalf("Received nil record response")
+		}
+		if resp.record.Timestamp == nil {
+			t.Fatalf("Record timestamp is nil, Record Details: %s", prettyPrint(resp.record))
 		}
 
 		sessionStatus := resp.record.GetSessionInfo().GetStatus()
