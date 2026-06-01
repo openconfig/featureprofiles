@@ -145,17 +145,13 @@ func DoSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 
 	for {
 		var sysClient spb.SystemClient
-		if dut.Vendor() == ondatra.ARISTA {
-			// Fresh dial on every attempt: after a prior switchover the Ondatra gNOI
-			// cache may point to the old active (now standby). A fresh dial always
-			// reaches the current active.
-			if freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background()); err == nil {
-				sysClient = freshClients.System()
-			} else {
-				t.Logf("gNOI fresh dial failed, falling back to cached client: %v", err)
-				sysClient = dut.RawAPIs().GNOI(t).System()
-			}
+		// Fresh dial on every attempt: after a prior switchover the Ondatra gNOI
+		// cache may point to the old active (now standby). A fresh dial always
+		// reaches the current active.
+		if freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background()); err == nil {
+			sysClient = freshClients.System()
 		} else {
+			t.Logf("gNOI fresh dial failed, falling back to cached client: %v", err)
 			sysClient = dut.RawAPIs().GNOI(t).System()
 		}
 
@@ -177,7 +173,7 @@ func DoSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 				return
 			}
 			if time.Now().After(deadline) {
-				t.Logf("SwitchControlProcessor retries exhausted after %v.", retryTimeout)
+				t.Fatalf("SwitchControlProcessor retries exhausted after %v: %v", retryTimeout, err)
 				return
 			}
 			t.Logf("Device still reachable, retrying SwitchControlProcessor in 30s...")
@@ -185,8 +181,8 @@ func DoSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 			continue
 		}
 
-		// Non-retryable error -- log and return, let the caller's verification fail.
-		return
+		// Non-retryable error
+		t.Fatalf("SwitchControlProcessor failed with non-retryable error: %v", err)
 	}
 }
 
