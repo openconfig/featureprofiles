@@ -2226,3 +2226,7 @@ func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
 func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
 }
+
+func MissingSflowGnpsiExport(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSflowGnpsiExport()
+}

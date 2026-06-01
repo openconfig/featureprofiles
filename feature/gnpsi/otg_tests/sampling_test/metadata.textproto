@@ -24,6 +24,7 @@ platform_exceptions:  {
   deviations:  {
     default_network_instance:  "default"
     sflow_ingress_min_sampling_rate: 262144
+    missing_sflow_gnpsi_export: true
   }
 }
 tags:  TAGS_AGGREGATION
