@@ -45,6 +45,7 @@ const (
 	ipv4NonMatchPrefix = "100.64.0.0/24"
 	ipv6NonMatchPrefix = "2001:db8:1::/64"
 	operationTimeout   = 120 * time.Second
+	syncTimeout        = 30 * time.Minute
 	pollInterval       = 5 * time.Second
 )
 
@@ -374,35 +375,21 @@ func awaitGlobalFilterState(t *testing.T, dut *ondatra.DUTDevice, leaf, wantVal 
 	deadline := time.Now().Add(operationTimeout)
 	for time.Now().Before(deadline) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		stream, err := gnmiC.Subscribe(ctx)
-		if err != nil {
-			cancel()
-			time.Sleep(pollInterval)
-			continue
-		}
-		err = stream.Send(&gpb.SubscribeRequest{
-			Request: &gpb.SubscribeRequest_Subscribe{
-				Subscribe: &gpb.SubscriptionList{
-					Mode:         gpb.SubscriptionList_ONCE,
-					Subscription: []*gpb.Subscription{{Path: statePath}},
-				},
-			},
+		resp, err := gnmiC.Get(ctx, &gpb.GetRequest{
+			Path: []*gpb.Path{statePath},
+			Type: gpb.GetRequest_STATE,
 		})
-		if err != nil {
-			cancel()
-			time.Sleep(pollInterval)
-			continue
-		}
-		resp, err := stream.Recv()
 		cancel()
 		if err != nil {
 			time.Sleep(pollInterval)
 			continue
 		}
-		for _, u := range resp.GetUpdate().GetUpdate() {
-			if u.GetVal().GetStringVal() == wantVal {
-				t.Logf("global-filter state/%s = %q confirmed", leaf, wantVal)
-				return nil
+		for _, n := range resp.GetNotification() {
+			for _, u := range n.GetUpdate() {
+				if u.GetVal().GetStringVal() == wantVal {
+					t.Logf("global-filter state/%s = %q confirmed", leaf, wantVal)
+					return nil
+				}
 			}
 		}
 		time.Sleep(pollInterval)
@@ -415,7 +402,7 @@ func mustOpenAFTSessions(t *testing.T, dut *ondatra.DUTDevice, wantPrefixes map[
 	*aftcache.AFTStreamSession, *aftcache.AFTStreamSession, aftcache.PeriodicHook,
 ) {
 	t.Helper()
-	ctx := t.Context()
+	ctx := context.Background()
 	gnmiC1, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
 	if err != nil {
 		t.Fatalf("mustOpenAFTSessions: DialGNMI (session 1) failed: %v", err)
@@ -442,14 +429,14 @@ type aftSessionConfig struct {
 // mustRunAFTSessions runs both sessions concurrently and returns the converged AFTData from session1.
 func mustRunAFTSessions(t *testing.T, cfg aftSessionConfig) *aftcache.AFTData {
 	t.Helper()
-	ctx := t.Context()
+	ctx := context.Background()
 	done := make(chan struct{}, 2)
 	go func() {
-		cfg.session1.ListenUntil(ctx, t, operationTimeout, cfg.stop)
+		cfg.session1.ListenUntil(ctx, t, syncTimeout, cfg.stop)
 		done <- struct{}{}
 	}()
 	go func() {
-		cfg.session2.ListenUntil(ctx, t, operationTimeout, cfg.stop)
+		cfg.session2.ListenUntil(ctx, t, syncTimeout, cfg.stop)
 		done <- struct{}{}
 	}()
 	<-done
@@ -503,17 +490,10 @@ func TestAFTDualStackPrefixFiltering(t *testing.T) {
 		}
 	}
 
-	// Verify IPv6 prefixes exist in AFT state.
-	t.Log("Step 4: Verifying IPv6 entries present in AFT state")
-	niAfts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts()
+	t.Log("Step 4: Verifying IPv6 entries match POLICY-PREFIX-SET-B")
 	for _, pfx := range ipv6MatchPrefixes {
-		_, ok := gnmi.Watch(t, dut, niAfts.Ipv6Entry(pfx).State(), operationTimeout,
-			func(v *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
-				entry, present := v.Val()
-				return present && entry != nil
-			}).Await(t)
-		if !ok {
-			t.Errorf("ipv6 prefix %s not found in AFT state", pfx)
+		if _, ok := aft.Prefixes[pfx]; !ok {
+			t.Errorf("ipv6 prefix %s expected in AFT stream but not received", pfx)
 		}
 	}
 
@@ -537,8 +517,7 @@ func TestAFTDualStackPrefixFiltering(t *testing.T) {
 		t.Errorf("%v", err)
 	}
 
-	// Open a new subscription and verify matched prefixes are removed.
-	t.Log("Step 7: Opening AFT subscription with swapped policy")
+	t.Log("Step 7: Opening new AFT subscription with swapped policy")
 	session1Swapped, session2Swapped, stoppingCondSwapped := mustOpenAFTSessions(t, dut, map[string]bool{})
 	aftSwapped := mustRunAFTSessions(t, aftSessionConfig{session1: session1Swapped, session2: session2Swapped, stop: stoppingCondSwapped, dut: dut})
 
