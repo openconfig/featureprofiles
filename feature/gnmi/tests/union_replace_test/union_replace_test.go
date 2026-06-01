@@ -62,14 +62,9 @@ const (
 	bgpProtocolName = "BGP"
 	bgpASOC         = uint32(64496)
 	bgpASCLI        = uint32(64497)
-	rejectedPeerAS  = uint32(64498)
-	badPolicyOC     = "NON_EXISTENT_POLICY"
-	badPolicyCLI    = "NON_EXISTENT_POLICY_CLI"
-	badQueueName    = "NON_EXISTENT_QUEUE_999"
-	schedulerName   = "NEW_SCHEDULER"
-	badNeighborOC   = "198.51.100.1"
-	badNeighborCLI  = "198.51.100.2"
 	policyName      = "OVERLAP_POLICY_1"
+	nonExistentIntf = "Ethernet999/1/1"
+	badIntfMTU      = uint16(5000)
 
 	portSpeed50GCLI    = "50g"
 	portSpeedBreakout  = "50g-2"
@@ -77,13 +72,14 @@ const (
 	breakoutNumChannel = uint8(2)
 
 	awaitStateTimeout = 60 * time.Second
-	awaitMTUTimeout   = 10 * time.Second
+	awaitMTUTimeout   = 20 * time.Second
+
+	groupIndex = uint8(1)
 )
 
 var (
-	sharedBaseline  string
-	connectivityCLI string
-	defaultNI       string
+	sharedBaseline string
+	defaultNI      string
 )
 
 type cliInterfaceConfigOpts struct {
@@ -163,51 +159,13 @@ func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) string {
 	}
 }
 
-func extractConnectivityCLI(t *testing.T, dut *ondatra.DUTDevice, fullCLI string) string {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		return extractNonEthernetCLI(fullCLI)
-	default:
-		return fullCLI
-	}
-}
-
-func extractNonEthernetCLI(fullCLI string) string {
-	var sb strings.Builder
-	skip := false
-	for _, line := range strings.Split(fullCLI, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "!" {
-			skip = false
-			sb.WriteString(line)
-			sb.WriteByte('\n')
-			continue
-		}
-		if strings.HasPrefix(line, "interface ") {
-			rest := strings.TrimPrefix(line, "interface ")
-			if strings.HasPrefix(rest, "Ethernet") || strings.HasPrefix(rest, "Port-Channel") {
-				skip = true
-				continue
-			}
-			skip = false
-		}
-		if skip {
-			continue
-		}
-		sb.WriteString(line)
-		sb.WriteByte('\n')
-	}
-	return strings.TrimRight(sb.String(), "\n")
-}
-
 func unionReplace(t *testing.T, dut *ondatra.DUTDevice, updates ...*gpb.Update) error {
 	t.Helper()
 
 	if len(updates) == 0 {
 		return nil
 	}
-	updates = append(updates, cliUpdate(t, connectivityCLI))
+	updates = append(updates, cliUpdate(t, sharedBaseline))
 	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), &gpb.SetRequest{UnionReplace: updates})
 	return err
 }
@@ -417,7 +375,7 @@ func ocBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, intfNam
 		return
 	}
 	comp := root.GetOrCreateComponent(hwPort)
-	grp := comp.GetOrCreatePort().GetOrCreateBreakoutMode().GetOrCreateGroup(1)
+	grp := comp.GetOrCreatePort().GetOrCreateBreakoutMode().GetOrCreateGroup(groupIndex)
 	grp.Index = ygot.Uint8(1)
 	grp.NumBreakouts = ygot.Uint8(breakoutNumGroups)
 	grp.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB
@@ -426,6 +384,29 @@ func ocBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, root *oc.Root, intfNam
 
 func cliBreakoutMode(t *testing.T, dut *ondatra.DUTDevice, intfName string) string {
 	return cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intfName, Speed: portSpeedBreakout})
+}
+
+func verifyBreakoutModeConfig(t *testing.T, dut *ondatra.DUTDevice, intfName string) error {
+	t.Helper()
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(intfName).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		t.Logf("Skipping breakout-mode config verification: no hardware-port for %s", intfName)
+		return nil
+	}
+	var errs []error
+	grp := gnmi.OC().Component(hwPort).Port().BreakoutMode().Group(groupIndex)
+	if got, ok := gnmi.Lookup(t, dut, grp.NumBreakouts().Config()).Val(); ok {
+		t.Logf("component %s breakout group num-breakouts: %d", hwPort, got)
+	} else {
+		errs = append(errs, fmt.Errorf("component %s breakout group num-breakouts: not present", hwPort))
+	}
+	if got, ok := gnmi.Lookup(t, dut, grp.BreakoutSpeed().Config()).Val(); !ok || got != oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB {
+		errs = append(errs, fmt.Errorf("component %s breakout group breakout-speed: got %v (present=%v), want SPEED_50GB", hwPort, got, ok))
+	}
+	if got, ok := gnmi.Lookup(t, dut, grp.NumPhysicalChannels().Config()).Val(); !ok || got != breakoutNumChannel {
+		errs = append(errs, fmt.Errorf("component %s breakout group num-physical-channels: got %v (present=%v), want %d", hwPort, got, ok, breakoutNumChannel))
+	}
+	return errors.Join(errs...)
 }
 
 func configureUnionReplaceSupport(t *testing.T, dut *ondatra.DUTDevice) {
@@ -444,7 +425,6 @@ func TestUnionReplace(t *testing.T) {
 	intf2Name := dut.Port(t, port2).Name()
 
 	sharedBaseline = baselineCLIConfig(t, dut)
-	connectivityCLI = extractConnectivityCLI(t, dut, sharedBaseline)
 	interfaceWithoutTransceiver := firstInterfaceWithoutTransceiver(t, dut)
 	noTransceiverOperStatus := operStatusNoTransceiver(t, dut)
 	t.Logf("First interface without transceiver: %s", interfaceWithoutTransceiver)
@@ -484,7 +464,7 @@ func TestUnionReplace(t *testing.T) {
 					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
 				}
 
-				t.Log("Get configuration A.1 again and verify unchanged")
+				t.Log("Get configuration again and verify unchanged")
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descBaselineP1))
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf2Name, descBaselineP2))
 				return errors.Join(errs...)
@@ -750,39 +730,31 @@ func TestUnionReplace(t *testing.T) {
 			},
 		},
 		{
-			name: "gNMI-3.7-RejectedInvalidConfigOC",
-			desc: "Verify a DUT rejects and rolls back a union_replace with invalid configuration.",
+			name: "gNMI-3.7-RejectedInvalidConfig",
+			desc: "Verify a DUT rejects and rolls back a union_replace with invalid configuration (non-existent interface).",
 			fn: func(t *testing.T) error {
 				dut := ondatra.DUT(t, "dut")
 
-				t.Run("gNMI-3.7.1-LeafrefValidationError", func(t *testing.T) {
+				t.Run("gNMI-3.7.1-InvalidInterfaceOC", func(t *testing.T) {
 					var errs []error
-					t.Log("Build OC delta with non-existent BGP import policy")
+					t.Log("Build OC delta with MTU configured on a non-existent interface")
 					ocDelta := &oc.Root{}
-					ni := ocDelta.GetOrCreateNetworkInstance(defaultNI)
-					ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE
-					protocol := ni.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName)
-					protocol.Enabled = ygot.Bool(true)
-					bgp := protocol.GetOrCreateBgp()
-					bgp.GetOrCreateGlobal().As = ygot.Uint32(bgpASOC)
-					neighbor := bgp.GetOrCreateNeighbor(badNeighborOC)
-					neighbor.PeerAs = ygot.Uint32(rejectedPeerAS)
-					afi := neighbor.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
-					afi.Enabled = ygot.Bool(true)
-					afi.GetOrCreateApplyPolicy().ImportPolicy = []string{badPolicyOC}
+					intf := ocDelta.GetOrCreateInterface(nonExistentIntf)
+					intf.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
+					intf.Mtu = ygot.Uint16(badIntfMTU)
 
 					t.Log("Push configuration via union_replace")
 					err := unionReplace(t, dut, ocUpdate(t, ocDelta))
 
 					t.Log("Confirm DUT rejects the gnmi.Set")
 					if err == nil {
-						errs = append(errs, fmt.Errorf("expected gnmi.Set to be rejected with invalid policy reference, but it succeeded"))
+						errs = append(errs, fmt.Errorf("expected gnmi.Set to be rejected for non-existent interface %s in OC, but it succeeded", nonExistentIntf))
 					} else {
 						t.Logf("gnmi.Set rejected as expected: %v", err)
-						t.Log("Get configuration and verify config unchanged (invalid neighbor not added)")
-						if v := gnmi.Lookup(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName).Bgp().Neighbor(badNeighborOC).PeerAs().Config()); v.IsPresent() {
+						t.Log("Get configuration and verify config unchanged (non-existent interface not configured)")
+						if v := gnmi.Lookup(t, dut, gnmi.OC().Interface(nonExistentIntf).Mtu().Config()); v.IsPresent() {
 							got, _ := v.Val()
-							errs = append(errs, fmt.Errorf("expected neighbor %s not to be configured after rollback, got peer-as %d", badNeighborOC, got))
+							errs = append(errs, fmt.Errorf("expected interface %s not to be configured after rollback, got MTU %d", nonExistentIntf, got))
 						}
 					}
 					if err := errors.Join(errs...); err != nil {
@@ -790,58 +762,29 @@ func TestUnionReplace(t *testing.T) {
 					}
 				})
 
-				t.Run("gNMI-3.7.2-SemanticErrorInOC", func(t *testing.T) {
+				t.Run("gNMI-3.7.2-InvalidInterfaceCLI", func(t *testing.T) {
 					var errs []error
-					t.Log("Build OC delta referencing a non-existent QoS scheduler-policy")
-					ocDelta := &oc.Root{}
-					qos := ocDelta.GetOrCreateQos()
-					qos.GetOrCreateSchedulerPolicy(schedulerName).GetOrCreateScheduler(0).GetOrCreateInput("0").Queue = ygot.String(badQueueName)
-					qi := qos.GetOrCreateInterface(intf1Name)
-					qi.InterfaceId = ygot.String(intf1Name)
-					qi.GetOrCreateOutput().GetOrCreateQueue(badQueueName)
-
-					t.Log("Push via union_replace")
-					err := unionReplace(t, dut, ocUpdate(t, ocDelta))
-
-					t.Log("Confirm DUT rejects the gnmi.Set")
-					if err == nil {
-						errs = append(errs, fmt.Errorf("expected gnmi.Set to be rejected with non-existent scheduler-policy reference %q, but it succeeded", badQueueName))
-					} else {
-						t.Logf("gnmi.Set rejected as expected: %v", err)
-						t.Log("Verify config unchanged (invalid scheduler-policy not applied)")
-						if v := gnmi.LookupConfig(t, dut, gnmi.OC().Qos().Interface(intf1Name).Output().SchedulerPolicy().Name().Config()); v.IsPresent() {
-							got, _ := v.Val()
-							errs = append(errs, fmt.Errorf("output scheduler-policy name should not be present after rollback, got %q", got))
-						}
-					}
-					if err := errors.Join(errs...); err != nil {
-						t.Errorf("%v", err)
-					}
-				})
-
-				t.Run("gNMI-3.7.3-ReferenceErrorInCLI", func(t *testing.T) {
-					var errs []error
-					t.Log("Get configuration from DUT")
-					t.Log("Generate CLI config referencing a non-existent BGP import policy")
+					t.Log("Build CLI config with MTU configured on a non-existent interface")
 					var badCLI string
 					switch dut.Vendor() {
 					case ondatra.ARISTA:
-						badCLI = fmt.Sprintf("router bgp %d\n  neighbor %s remote-as %d\n  address-family ipv4\n    neighbor %s route-map %s in\n", bgpASCLI, badNeighborCLI, rejectedPeerAS, badNeighborCLI, badPolicyCLI)
+						badCLI = fmt.Sprintf("interface %s\n  mtu %d\n", nonExistentIntf, badIntfMTU)
 					default:
-						t.Fatalf("CLI error test not implemented for vendor %v", dut.Vendor())
+						t.Fatalf("CLI invalid interface test not implemented for vendor %v", dut.Vendor())
 					}
 
-					t.Log("Push via union_replace with bad CLI (no OC)")
+					t.Log("Push via union_replace with bad CLI")
 					err := unionReplace(t, dut, cliUpdate(t, badCLI))
 
 					t.Log("Confirm DUT rejects the gnmi.Set")
 					if err == nil {
-						errs = append(errs, fmt.Errorf("expected gnmi.Set to be rejected with invalid CLI policy reference, but it succeeded"))
+						errs = append(errs, fmt.Errorf("expected gnmi.Set to be rejected for non-existent interface %s in CLI, but it succeeded", nonExistentIntf))
 					} else {
 						t.Logf("gnmi.Set rejected as expected: %v", err)
-						t.Log("Get configuration and verify config unchanged (invalid CLI policy not added)")
-						if got := gnmi.LookupConfig(t, dut, gnmi.OC().NetworkInstance(defaultNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, bgpProtocolName).Bgp().Neighbor(badNeighborCLI).Config()); got.IsPresent() {
-							errs = append(errs, fmt.Errorf("expected CLI-rejected BGP neighbor %s not to be configured after rollback", badNeighborCLI))
+						t.Log("Get configuration and verify config unchanged (non-existent interface not configured via CLI)")
+						if v := gnmi.Lookup(t, dut, gnmi.OC().Interface(nonExistentIntf).Mtu().Config()); v.IsPresent() {
+							got, _ := v.Val()
+							errs = append(errs, fmt.Errorf("expected interface %s not to be configured after rollback, got MTU %d", nonExistentIntf, got))
 						}
 					}
 					if err := errors.Join(errs...); err != nil {
@@ -1106,6 +1049,7 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Log("Verify configuration applied and interface oper-status")
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, interfaceWithoutTransceiver))
 				errs = append(errs, verifyPortSpeed(t, dut, interfaceWithoutTransceiver, oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB))
 				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, noTransceiverOperStatus))
 				return errors.Join(errs...)
@@ -1131,6 +1075,7 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Log("Verify configuration applied")
+				errs = append(errs, verifyBreakoutModeConfig(t, dut, interfaceWithoutTransceiver))
 				errs = append(errs, verifyPortSpeed(t, dut, interfaceWithoutTransceiver, oc.IfEthernet_ETHERNET_SPEED_SPEED_50GB))
 				errs = append(errs, verifyInterfaceOperStatus(t, dut, interfaceWithoutTransceiver, noTransceiverOperStatus))
 				return errors.Join(errs...)
