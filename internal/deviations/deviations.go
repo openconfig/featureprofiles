@@ -2227,6 +2227,8 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
 }
 
+// MissingSflowGnpsiExport returns true if GNPSI SFlow export is not configured by default
+// Cisco: https://partnerissuetracker.corp.google.com/issues/517961843
 func MissingSflowGnpsiExport(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetMissingSflowGnpsiExport()
 }
