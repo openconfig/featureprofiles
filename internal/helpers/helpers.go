@@ -159,3 +159,29 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 	return buildCliConfigRequest(config)
 }
+
+// GetRouterTime gets the current time from the router via gNMI to avoid clock skew issues.
+func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
+	t.Helper()
+	routerTimeStr := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+	startTime, err := time.Parse(time.RFC3339Nano, routerTimeStr)
+	if err != nil {
+		// Fallback to RFC3339 if nano precision is not available.
+		startTime, err = time.Parse(time.RFC3339, routerTimeStr)
+		if err != nil {
+			t.Fatalf("Failed parsing router current-datetime %q: %v", routerTimeStr, err)
+		}
+	}
+	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
+	return startTime
+}
+
+// RunCliCommand runs a CLI command on the DUT and returns the output.
+func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
+	}
+	return output.Output()
+}
