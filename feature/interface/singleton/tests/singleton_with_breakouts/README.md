@@ -12,7 +12,7 @@ This test requires a DUT with the following setup
   * 1x100G-FR
   * 2x400G-FR4
   * 2x400G-LR4
-  * 8x100G-XDR4
+  * 8x100G-LR
 * ATE connections are not required.
 
 ## Procedure
