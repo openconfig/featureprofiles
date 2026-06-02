@@ -226,9 +226,9 @@ func BuildVRFConfig(dut *ondatra.DUTDevice, egressIPs []string, param Param) []*
 		if idx != 0 && idx%reEncapNHGRatio == 0 {
 			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
 			nhgID = idPool.NextNHGID()
-			nhgEntry = fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault).AddNextHop(nhID, 1)
-			vrfDefault.NHGs = append(vrfDefault.NHGs, nhgEntry)
+			nhgEntry = fluent.NextHopGroupEntry().WithID(nhgID).WithNetworkInstance(defaultVRF).WithBackupNHG(nhgDecapToDefault)
 		}
+		nhgEntry = nhgEntry.AddNextHop(nhID, 1)
 		vrfRConf.V4Entries = append(vrfRConf.V4Entries,
 			fluent.IPv4Entry().WithPrefix(ip+"/32").WithNextHopGroup(nhgID).WithNetworkInstance(VRFR).WithNextHopGroupNetworkInstance(defaultVRF),
 		)
