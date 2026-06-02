@@ -150,16 +150,16 @@ func TestComponentStatus(t *testing.T) {
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
 	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
+		if !compEmptyVal {
 			fabrics = append(fabrics, f)
 		}
 	}
 	fabricCards = fabrics
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compEmptyVal {
 			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
@@ -173,8 +173,8 @@ func TestComponentStatus(t *testing.T) {
 	// check oper-status of the components is Active.
 	for _, component := range checkComponents {
 		t.Run(component, func(t *testing.T) {
-			compMtyVal, compMtyPresent := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
-			if compMtyPresent && compMtyVal {
+			compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(component).Empty().State()).Val()
+			if compEmptyVal {
 				t.Skipf("INFO: Skip status check as %s is empty", component)
 			}
 			val, present := gnmi.Lookup(t, dut, gnmi.OC().Component(component).OperStatus().State()).Val()
@@ -189,7 +189,8 @@ func TestComponentStatus(t *testing.T) {
 			}
 
 			componentName := map[string]string{"name": component}
-			req := &hpb.GetRequest{
+
+			checkReq := &hpb.CheckRequest{
 				Path: &tpb.Path{
 					Origin: "openconfig",
 					Elem: []*tpb.PathElem{
@@ -201,11 +202,30 @@ func TestComponentStatus(t *testing.T) {
 					},
 				},
 			}
-			validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+			checkResponse, err := gnoiClient.Healthz().Check(context.Background(), checkReq)
 			if err != nil {
 				t.Errorf("ERROR: %v", err)
 			} else {
-				t.Logf("INFO: Component %s Healthz Status: %s", component, validResponse.GetComponent().Status)
+				t.Logf("INFO: Component %s Healthz Check Status: %s", component, checkResponse.GetStatus().GetStatus())
+			}
+
+			getReq := &hpb.GetRequest{
+				Path: &tpb.Path{
+					Origin: "openconfig",
+					Elem: []*tpb.PathElem{
+						{Name: "components"},
+						{
+							Name: "component",
+							Key:  componentName,
+						},
+					},
+				},
+			}
+			getResponse, err := gnoiClient.Healthz().Get(context.Background(), getReq)
+			if err != nil {
+				t.Errorf("ERROR: %v", err)
+			} else {
+				t.Logf("INFO: Component %s Healthz Get Status: %s", component, getResponse.GetComponent().GetStatus())
 			}
 		})
 	}
@@ -253,6 +273,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 					t.Errorf("ERROR: can't find parent information for CPU card %v", component)
 				}
 
+				t.Logf("controller: %s, parent: %s, cpu: %s", controllerCards, cpuParent, cpu)
 				if slices.Contains(controllerCards, cpuParent) {
 					// Remove parent from the list of check cards.
 					controllerCards = removeElement(controllerCards, cpuParent)
@@ -267,7 +288,20 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 			})
 
 		}
+
+		if deviations.SecondaryControllerCardCpuUtilizationUnsupported(dut) {
+			var activeControllerCards []string
+			for _, controllerCard := range controllerCards {
+				if gnmi.Get(t, dut, gnmi.OC().Component(controllerCard).RedundantRole().State()) == oc.Platform_ComponentRedundantRole_SECONDARY {
+					t.Logf("INFO: Ignoring controller card component %s due to deviation secondary_controller_card_cpu_utilization_unsupported.", controllerCard)
+				} else {
+					activeControllerCards = append(activeControllerCards, controllerCard)
+				}
+			}
+			controllerCards = activeControllerCards
+		}
 	}
+
 	if len(controllerCards) > 0 {
 		t.Errorf("ERROR: Didn't find cpu card for controllerCards %s", controllerCards)
 	}
@@ -328,8 +362,8 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		lineCards = []string{}
 	} else {
 		for _, lc := range lineCards {
-			compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-			if !compMtyVal && ok {
+			compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+			if !compEmptyVal {
 				chassisLineCards = append(chassisLineCards, lc)
 			}
 		}
@@ -385,8 +419,8 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	chassisLineCards := make([]string, 0)
 	for _, lc := range lineCards {
-		compMtyVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
-		if !compMtyVal && ok {
+		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(lc).Empty().State()).Val()
+		if !compEmptyVal {
 			chassisLineCards = append(chassisLineCards, lc)
 		}
 	}
@@ -402,12 +436,22 @@ func TestComponentsNoHighMemoryUtilization(t *testing.T) {
 			timestamp := time.Now().Round(time.Second)
 			componentState := gnmi.Get(t, dut, query)
 			componentType := componentState.GetType()
+			componentPath := gnmi.OC().Component(component)
+
 			if componentType == lineCardType && deviations.LinecardMemoryUtilizationUnsupported(dut) {
 				t.Skipf("INFO: Skipping test for linecard component %s due to deviation linecard_memory_utilization_unsupported", component)
 			}
-			if componentType == lineCardType && !gnmi.Get(t, dut, gnmi.OC().Component(component).Removable().State()) {
+
+			if componentType == lineCardType && !gnmi.Get(t, dut, componentPath.Removable().State()) {
 				t.Skipf("Skip the test on non-removable linecard.")
 			}
+
+			if deviations.SecondaryControllerCardMemoryUtilizationUnsupported(dut) {
+				if componentType == controllerCardType && gnmi.Get(t, dut, componentPath.RedundantRole().State()) == oc.Platform_ComponentRedundantRole_SECONDARY {
+					t.Skipf("INFO: Skipping test for secondary controller card component %s due to deviation secondary_controller_card_memory_utilization_unsupported", component)
+				}
+			}
+
 			memoryState := componentState.GetMemory()
 			if memoryState == nil {
 				t.Errorf("ERROR: %s - Device: %s - %s: %-40s - Type: %-20s - Memory data not available",
@@ -694,7 +738,9 @@ func TestInterfaceStatus(t *testing.T) {
 			} else {
 				t.Logf("INFO: Counter OutErrors: %d", root.GetCounters().GetOutErrors())
 			}
-			if root.GetCounters().InFcsErrors == nil {
+			if deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+				t.Logf("Skipping InFcsErrors check due to InterfaceCountersInFcsErrorsUnsupported devaiation.")
+			} else if root.GetCounters().InFcsErrors == nil {
 				t.Errorf("ERROR: Counter InFcsErrors is not present")
 			} else {
 				t.Logf("INFO: Counter InFcsErrors: %d", root.GetCounters().GetInFcsErrors())
@@ -716,42 +762,51 @@ func TestInterfacesubIntfs(t *testing.T) {
 				if !present {
 					t.Fatalf("ERROR: subIntf index value doesn't exist")
 				}
+
 				subIntfPath := gnmi.OC().Interface(intf).Subinterface(subIntfIndex)
-				IntfPath := gnmi.OC().Interface(intf)
+				intfPath := gnmi.OC().Interface(intf)
 				subIntfState := gnmi.Get(t, dut, subIntfPath.State())
 				subIntf := subIntfState.GetName()
 
 				t.Run(subIntf, func(t *testing.T) {
-					intfState := gnmi.Get(t, dut, gnmi.OC().Interface(intf).State())
-					if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
-						t.Errorf("ERROR: Oper status is not up")
-					} else {
-						t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
-					}
+					t.Run("OperStatus", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.OperStatus == oc.Interface_OperStatus_NOT_PRESENT {
+								t.Errorf("ERROR: Oper status is not up")
+							} else {
+								t.Logf("INFO: Oper status: %s", subIntfState.GetOperStatus())
+							}
+						}
+					})
 
-					if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
-						t.Errorf("ERROR: Admin status is not up")
-					} else {
-						t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
-					}
+					t.Run("AdminStatus", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.AdminStatus == oc.Interface_AdminStatus_UNSET {
+								t.Errorf("ERROR: Admin status is not up")
+							} else {
+								t.Logf("INFO: Admin status: %s", subIntfState.GetAdminStatus())
+							}
+						}
+					})
 
-					if subIntfState.Description == nil {
-						t.Errorf("ERROR: Description is not present")
-					} else {
-						t.Logf("INFO: Description: %s", subIntfState.GetDescription())
-					}
+					t.Run("Description", func(t *testing.T) {
+						if deviations.Subinterface0StateUnsupported(dut) && subIntfIndex == 0 {
+							t.Skipf("Skipping test due to deviation subinterface_0_state_unsupported")
+						} else {
+							if subIntfState.Description == nil {
+								t.Errorf("ERROR: Description is not present")
+							} else {
+								t.Logf("INFO: Description: %s", subIntfState.GetDescription())
+							}
+						}
+					})
 
-					if subIntfState.GetCounters().OutOctets == nil && intfState.GetCounters().OutOctets == nil {
-						t.Errorf("ERROR: Counter OutOctets is not present on interface %s, %s", subIntf, intf)
-					}
-
-					if subIntfState.GetCounters().InMulticastPkts == nil && intfState.GetCounters().InMulticastPkts == nil {
-						t.Errorf("ERROR: Counter InMulticastPkts is not present on interface %s, %s", subIntf, intf)
-					}
-
-					counters := IntfPath.Counters()
-					parentCounters := gnmi.OC().Interface(intf).Counters()
-
+					subIntfCounterPath := subIntfPath.Counters()
+					intfCounterPath := intfPath.Counters()
 					cases := []struct {
 						desc          string
 						counter       ygnmi.SingletonQuery[uint64]
@@ -759,33 +814,43 @@ func TestInterfacesubIntfs(t *testing.T) {
 					}{
 						{
 							desc:          "InDiscards",
-							counter:       counters.InDiscards().State(),
-							parentCounter: parentCounters.InDiscards().State(),
+							counter:       subIntfCounterPath.InDiscards().State(),
+							parentCounter: intfCounterPath.InDiscards().State(),
 						},
 						{
 							desc:          "InErrors",
-							counter:       counters.InErrors().State(),
-							parentCounter: parentCounters.InErrors().State(),
+							counter:       subIntfCounterPath.InErrors().State(),
+							parentCounter: intfCounterPath.InErrors().State(),
 						},
 						{
 							desc:          "InUnknownProtos",
-							counter:       counters.InUnknownProtos().State(),
-							parentCounter: parentCounters.InUnknownProtos().State(),
+							counter:       subIntfCounterPath.InUnknownProtos().State(),
+							parentCounter: intfCounterPath.InUnknownProtos().State(),
+						},
+						{
+							desc:          "InMulticastPkts",
+							counter:       subIntfCounterPath.InMulticastPkts().State(),
+							parentCounter: intfCounterPath.InMulticastPkts().State(),
 						},
 						{
 							desc:          "OutDiscards",
-							counter:       counters.OutDiscards().State(),
-							parentCounter: parentCounters.OutDiscards().State(),
+							counter:       subIntfCounterPath.OutDiscards().State(),
+							parentCounter: intfCounterPath.OutDiscards().State(),
 						},
 						{
 							desc:          "OutErrors",
-							counter:       counters.OutErrors().State(),
-							parentCounter: parentCounters.OutErrors().State(),
+							counter:       subIntfCounterPath.OutErrors().State(),
+							parentCounter: intfCounterPath.OutErrors().State(),
+						},
+						{
+							desc:          "OutOctets",
+							counter:       subIntfCounterPath.OutOctets().State(),
+							parentCounter: intfCounterPath.OutOctets().State(),
 						},
 						{
 							desc:          "InFcsErrors",
-							counter:       counters.InFcsErrors().State(),
-							parentCounter: parentCounters.InFcsErrors().State(),
+							counter:       subIntfCounterPath.InFcsErrors().State(),
+							parentCounter: intfCounterPath.InFcsErrors().State(),
 						},
 					}
 					t.Logf("Verifying counters for Interfaces: %s", interfaces)
@@ -793,6 +858,8 @@ func TestInterfacesubIntfs(t *testing.T) {
 						t.Run(c.desc, func(t *testing.T) {
 							if c.desc == "InUnknownProtos" && deviations.InterfaceCountersInUnknownProtosUnsupported(dut) {
 								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_unknown_protos_unsupported")
+							} else if c.desc == "InFcsErrors" && deviations.InterfaceCountersInFcsErrorsUnsupported(dut) {
+								t.Skipf("INFO: Skipping test due to deviation interface_counters_in_fcs_errors_unsupported")
 							}
 							if val, present := gnmi.Lookup(t, dut, c.counter).Val(); present {
 								t.Logf("INFO: %s: %d", c.counter, val)
