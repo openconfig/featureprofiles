@@ -10,6 +10,9 @@ This test requires a DUT with the following setup
   * 4x100G-DR4+
   * 1x100G-LR
   * 1x100G-FR
+  * 2x400G-FR4
+  * 2x400G-LR4
+  * 8x100G-XDR4
 * ATE connections are not required.
 
 ## Procedure
