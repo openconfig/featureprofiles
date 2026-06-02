@@ -267,6 +267,9 @@ func TestCommunitySet(t *testing.T) {
 			if tc.desc == "Testing with no_3_comms" && deviations.CommunityInvertAnyUnsupported(bs.DUT) {
 				t.Skip("Skipping community match invert testcase")
 			}
+			if tc.desc == "Testing with all_3_comms" && deviations.MatchCommunitySetMatchSetOptionsAllUnsupported(bs.DUT) {
+				t.Skip("Skipping community match ALL testcase")
+			}
 
 			configureImportBGPPolicy(t, bs.DUT, ipv4, ipv6, tc.communitySetName, tc.communityMatch, tc.matchSetOptions)
 			sleepTime := time.Duration(totalPackets/trafficPps) + 2

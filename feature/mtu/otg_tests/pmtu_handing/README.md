@@ -35,9 +35,10 @@ Run traffic flows to IPV4-DST with the sizes at 50% linerate for 30 seconds:
 
 Verify:
 * Ensure that ATE Port-1 receives ICMP type-3, code-4 for packet of every flow sent.
-* DUT pipeline counters report fragment packet discards.
-* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
-  traffic is permitted.
+* Verify that DUT pipeline counters report fragment packet discards.
+* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment traffic is permitted.
+  * Verify `fragment-punt-pkts` telemetry counts the number of packets successfully punted to the CPU.
+  * Verify `fragment-punt` telemetry accounts for the number of packets dropped due to policing/rate-limiting to the CPU.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
 #### Canonical OC
@@ -56,8 +57,9 @@ Run traffic flows to IPV6-DST with the sizes at 50% linerate for 30 seconds:
 
 * Ensure that ATE Port-1 receives ICMPv6 type-2 code-0 for packet of every flow sent.
 * Verify that DUT pipeline counters report fragment packet discards.
-* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment  
-  traffic is permitted.
+* Verify the amount of traffic forwarded and dropped to the control-plane and compare to the amount of packets sent. Default rate-limiting of fragment traffic is permitted.
+  * Verify `fragment-punt-pkts` telemetry counts the number of packets successfully punted to the CPU.
+  * Verify `fragment-punt` telemetry accounts for the number of packets dropped due to policing/rate-limiting to the CPU.
 * Verify that post-test CPU utilization does not exceed the pre-test baseline by more than 10%.
 
 #### Canonical OC
@@ -77,6 +79,10 @@ paths:
     /components/component/integrated-circuit/pipeline-counters/drop/state/packet-processing-aggregate:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
     /components/component/integrated-circuit/pipeline-counters/drop/lookup-block/state/fragment-total-drops:
+      platform_type: [ "INTEGRATED_CIRCUIT" ]
+    /components/component/integrated-circuit/pipeline-counters/drop/host-interface-block/state/fragment-punt:
+      platform_type: [ "INTEGRATED_CIRCUIT" ]
+    /components/component/integrated-circuit/pipeline-counters/packet/host-interface-block/state/fragment-punt-pkts:
       platform_type: [ "INTEGRATED_CIRCUIT" ]
 
 
