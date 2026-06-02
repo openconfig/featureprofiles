@@ -53,7 +53,8 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 
 	// Custom TLS config for PQC
 	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
+		MinVersion:   tls.VersionTLS13,
+        MaxVersion:   tls.VersionTLS13,
 		CurvePreferences:   []tls.CurveID{tls.X25519MLKEM768, tls.X25519, tls.CurveP256},
 	}
 
