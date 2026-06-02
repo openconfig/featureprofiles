@@ -23,6 +23,7 @@ import (
 
 	cpb "github.com/openconfig/gnoi/containerz"
 	gspb "github.com/openconfig/gnoi/system"
+	"github.com/openconfig/gnoigo"
 )
 
 var (
@@ -932,10 +933,17 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	volName := "test-coldreboot-vol"
 	tag := "latest"
 
+	// postRebootClients is set by VerifyPersistence so the cleanup can use a
+	// fresh gNOI connection instead of the stale pre-reboot Ondatra cache.
+	var postRebootClients gnoigo.Clients
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
-		// Re-initialize client in case of connection loss
-		cli := containerztest.Client(t, dut)
+		var cli *client.Client
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		} else {
+			cli = containerztest.Client(t, dut)
+		}
 		if err := cli.RemoveContainer(ctx, instanceName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove container %q: %v", instanceName, err)
 		}
@@ -976,6 +984,10 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
 			t.Fatalf("Failed to deploy and start container: %v", err)
 		}
+
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			containerztest.SaveConfig(t, dut)
+		}
 	})
 
 	t.Run("ColdReboot", func(t *testing.T) {
@@ -993,44 +1005,19 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 
 	t.Run("VerifyPersistence", func(t *testing.T) {
-		t.Log("Waiting for DUT to reboot and reconnect...")
+		// alreadyDown=true: the ColdReboot subtest sent the reboot command and
+		// waited for TCP timeout. The device may have already rebooted and come
+		// back up before polling starts; treat first successful poll as recovery.
+		postRebootClients = containerztest.WaitForReboot(t, dut, true)
 
-		// Wait for reboot.
-		maxRebootTime := 8 * time.Minute
-		ticker := time.NewTicker(30 * time.Second)
-		defer ticker.Stop()
-		timeout := time.After(maxRebootTime)
-		var deviceWentDown bool
-
-	rebootLoop:
-		for {
-			select {
-			case <-timeout:
-				t.Fatalf("Timeout exceeded: DUT did not reboot within %v seconds.", maxRebootTime)
-			case <-ticker.C:
-				// use GNOI to refresh the stale cached connection post reboot.
-				sysClient := dut.RawAPIs().GNOI(t).System()
-				_, err := sysClient.Time(ctx, &gspb.TimeRequest{})
-				if err != nil {
-					if !deviceWentDown {
-						t.Logf("Device is now unreachable. Waiting for it to come back up.")
-						deviceWentDown = true
-					}
-				} else {
-					if deviceWentDown {
-						t.Logf("Device rebooted successfully.")
-						break rebootLoop
-					}
-					t.Logf("Device is still reachable; reboot hasn't started yet.")
-				}
-			}
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		} else {
+			cli = containerztest.Client(t, dut)
 		}
 
-		// Poll for container state.
-		cli = containerztest.Client(t, dut)
-
-		// Use a generous timeout for the device to come back up and the container to start.
-		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, 5*time.Minute); err != nil {
+		timeout := 5 * time.Minute
+		if err := containerztest.WaitForRunning(ctx, t, cli, instanceName, timeout); err != nil {
 			t.Errorf("Container persistence failed: %v", err)
 		}
 

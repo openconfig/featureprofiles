@@ -1508,8 +1508,22 @@ type Metadata_Deviations struct {
 	// be verified against a trusted CA. When true, dialContainer uses TLS with
 	// InsecureSkipVerify instead of plaintext transport.
 	ContainerzTlsInsecureSkipVerify bool `protobuf:"varint,442,opt,name=containerz_tls_insecure_skip_verify,json=containerzTlsInsecureSkipVerify,proto3" json:"containerz_tls_insecure_skip_verify,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	// Extra minutes the device needs beyond the 5-minute base timeout for
+	// switchover-related waits (post-switchover verification, switchover-ready
+	// polling, and SwitchControlProcessor retry). Supervisors may restart
+	// containerz/Octa after a switchover; the new active needs extra time for
+	// Docker state to settle. Default 0 means no extra delay beyond 5 minutes.
+	SwitchoverStabilizeDelayM uint32 `protobuf:"varint,443,opt,name=switchover_stabilize_delay_m,json=switchoverStabilizeDelayM,proto3" json:"switchover_stabilize_delay_m,omitempty"`
+	// Device requires a fresh DialGNOI call after a supervisor switchover
+	// because the Ondatra gNOI cache still points at the old active.
+	// Tracking: https://github.com/openconfig/ondatra/issues/145
+	GnoiRequiresFreshDialAfterSwitchover bool `protobuf:"varint,444,opt,name=gnoi_requires_fresh_dial_after_switchover,json=gnoiRequiresFreshDialAfterSwitchover,proto3" json:"gnoi_requires_fresh_dial_after_switchover,omitempty"`
+	// Device requires explicit "write memory" before reboot to persist
+	// containerz config, and must skip config re-push after reboot to avoid
+	// restarting the management stack during warmup.
+	ContainerzRequireExplicitConfigSave bool `protobuf:"varint,445,opt,name=containerz_require_explicit_config_save,json=containerzRequireExplicitConfigSave,proto3" json:"containerz_require_explicit_config_save,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
+	sizeCache                           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4391,6 +4405,27 @@ func (x *Metadata_Deviations) GetContainerzTlsInsecureSkipVerify() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetSwitchoverStabilizeDelayM() uint32 {
+	if x != nil {
+		return x.SwitchoverStabilizeDelayM
+	}
+	return 0
+}
+
+func (x *Metadata_Deviations) GetGnoiRequiresFreshDialAfterSwitchover() bool {
+	if x != nil {
+		return x.GnoiRequiresFreshDialAfterSwitchover
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetContainerzRequireExplicitConfigSave() bool {
+	if x != nil {
+		return x.ContainerzRequireExplicitConfigSave
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4447,7 +4482,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xab\xf9\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x9e\xfb\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4459,7 +4494,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xf7\xee\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xea\xf0\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4872,7 +4907,10 @@ const file_metadata_proto_rawDesc = "" +
 	"&lacp_interface_fallback_oc_unsupported\x18\xb7\x03 \x01(\bR\"lacpInterfaceFallbackOcUnsupported\x12H\n" +
 	" vlan_subinterface_oc_unsupported\x18\xb8\x03 \x01(\bR\x1dvlanSubinterfaceOcUnsupported\x125\n" +
 	"\x17max_out_fib_route_count\x18\xb9\x03 \x01(\rR\x13maxOutFibRouteCount\x12M\n" +
-	"#containerz_tls_insecure_skip_verify\x18\xba\x03 \x01(\bR\x1fcontainerzTlsInsecureSkipVerifyJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"#containerz_tls_insecure_skip_verify\x18\xba\x03 \x01(\bR\x1fcontainerzTlsInsecureSkipVerify\x12@\n" +
+	"\x1cswitchover_stabilize_delay_m\x18\xbb\x03 \x01(\rR\x19switchoverStabilizeDelayM\x12X\n" +
+	")gnoi_requires_fresh_dial_after_switchover\x18\xbc\x03 \x01(\bR$gnoiRequiresFreshDialAfterSwitchover\x12U\n" +
+	"'containerz_require_explicit_config_save\x18\xbd\x03 \x01(\bR#containerzRequireExplicitConfigSaveJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +

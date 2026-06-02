@@ -24,11 +24,19 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	cpb "github.com/openconfig/gnoi/containerz"
+)
+
+const (
+	maxRebootTime      = 30 * time.Minute
+	rebootPollInterval = 30 * time.Second
 )
 
 // Client returns a new containerz client.
@@ -93,6 +101,25 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		freshClients = dut.RawAPIs().GNOI(t)
 	}
 	return client.NewClientFromStub(freshClients.Containerz())
+}
+
+// SaveConfig saves running-config to startup-config so it persists across reboots.
+func SaveConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	helpers.GnmiCLIConfig(t, dut, "write memory")
+}
+
+// ClientWithoutConfig returns a containerz client without pushing any config.
+// Use after a reboot when the config was already saved to startup-config.
+// Pass the fresh gnoigo.Clients returned by WaitForReboot or waitForSwitchover
+// to bypass the stale pre-reboot connection in Ondatra's cache. Pass nil to
+// fall back to GNOI(t) (suitable for cleanup paths where no fresh clients exist).
+func ClientWithoutConfig(t *testing.T, dut *ondatra.DUTDevice, clients gnoigo.Clients) *client.Client {
+	t.Helper()
+	if clients != nil {
+		return client.NewClientFromStub(clients.Containerz())
+	}
+	return client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
 }
 
 // waitForGNOI polls DialGNOI until the gNOI endpoint is reachable or the
@@ -403,5 +430,64 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 		}
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// WaitForReboot polls the DUT until it is reachable after a reboot and returns
+// fresh gNOI clients. Set alreadyDown=true when the reboot was triggered by a
+// prior subtest and the down state may have been missed (e.g., the ColdReboot
+// subtest waited for TCP timeout, during which the device already rebooted and
+// came back up). When alreadyDown=true the first successful poll is treated as
+// post-reboot recovery instead of "reboot hasn't started yet."
+func WaitForReboot(t *testing.T, dut *ondatra.DUTDevice, alreadyDown bool) gnoigo.Clients {
+	t.Helper()
+	startReboot := time.Now()
+	t.Log("Polling DUT for reboot completion...")
+	ticker := time.NewTicker(rebootPollInterval)
+	defer ticker.Stop()
+	timeout := time.After(maxRebootTime)
+	deviceWentDown := alreadyDown
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatalf("DUT did not reboot within %v", maxRebootTime)
+		case <-ticker.C:
+			// Always probe with a short-timeout DialGNMI before gnmi.Get to
+			// avoid blocking on a stale half-open TCP connection during reboot.
+			dialCtx, dialCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, dialErr := dut.RawAPIs().BindingDUT().DialGNMI(dialCtx)
+			dialCancel()
+			if dialErr != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for it to come back up.")
+					deviceWentDown = true
+				}
+				t.Logf("Time elapsed %.0f seconds, GNMI dial failed: %v", time.Since(startReboot).Seconds(), dialErr)
+				continue
+			}
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			})
+			if errMsg != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for it to come back up.")
+					deviceWentDown = true
+				}
+				t.Logf("Time elapsed %.0f seconds, DUT not reachable yet.", time.Since(startReboot).Seconds())
+			} else {
+				if deviceWentDown {
+					t.Logf("Device rebooted successfully. Boot time: %.0f seconds.", time.Since(startReboot).Seconds())
+					dialCtx, dialCancel := context.WithTimeout(context.Background(), 15*time.Second)
+					defer dialCancel()
+					freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+					if err != nil {
+						t.Logf("gNOI re-dial after reboot failed (non-fatal): %v", err)
+					}
+					return freshClients
+				}
+				t.Log("Device is still reachable; reboot hasn't started yet.")
+			}
+		}
 	}
 }
