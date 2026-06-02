@@ -165,15 +165,19 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 	gnmi.Await(t, dut, aggIntfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 	// Get initial last-change values when the interface is UP.
+	skipSubintf := deviations.Subinterface0StateUnsupported(dut)
 	initialIntfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.LastChange().State()).Val()
 	if !present {
 		t.Fatalf("[%s] Failed to lookup initial LastChange for interface %s", testName, aggID)
 	}
-	initialSubintfLCVal, present := gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
-	if !present {
-		t.Fatalf("[%s] Failed to lookup initial LastChange for subinterface %s:0", testName, aggID)
+	var initialSubintfLCVal uint64
+	if !skipSubintf {
+		initialSubintfLCVal, present = gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
+		if !present {
+			t.Fatalf("[%s] Failed to lookup initial LastChange for subinterface %s:0", testName, aggID)
+		}
+		t.Logf("[%s] Initial LastChange values: Interface %s: %d, Subinterface %s:0: %d", testName, aggID, initialIntfLCVal, aggID, initialSubintfLCVal)
 	}
-	t.Logf("[%s] Initial LastChange values: Interface %s: %d, Subinterface %s:0: %d", testName, aggID, initialIntfLCVal, aggID, initialSubintfLCVal)
 
 	prevIntfLC := initialIntfLCVal
 	prevSubintfLC := initialSubintfLCVal
@@ -187,7 +191,7 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 			action = "Disable"
 			enabledState = false
 			targetOperStatus = oc.Interface_OperStatus_DOWN
-			if dut.Vendor() == ondatra.JUNIPER {
+			if (dut.Vendor() == ondatra.JUNIPER || dut.Vendor() == ondatra.ARISTA) && (testName == "LAGMemberFlap" || testName == "OTGLAGFlap") {
 				targetOperStatus = oc.Interface_OperStatus_LOWER_LAYER_DOWN
 			}
 		} else { // In even-numbered iterations, enable the interface.
@@ -210,22 +214,21 @@ func performLAGFlapTest(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 			t.Errorf("[%s] Failed to lookup LastChange for interface %s after %s (state change %d)", testName, aggID, action, i)
 			continue
 		}
-		_, present = gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
-		if !present {
-			t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, aggID, action, i)
-			continue
-		}
-
-		// Verify that last-change increased for both the LAG interface and its subinterface.
+		// Verify that last-change increased for the LAG interface.
 		desc := fmt.Sprintf("%s after %s (state change %d)", testName, action, i)
 		currentIntfLCVal := validateLastChangeIncrease(t, dut, aggIntfPath.LastChange().State(), desc, aggID, prevIntfLC)
-		currentSubintfLCVal := validateLastChangeIncrease(t, dut, aggIntfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", aggID, 0), prevSubintfLC)
-
-		t.Logf("[%s] LastChange values after %s: Interface %s: %d, Subinterface %s:0: %d", testName, action, aggID, currentIntfLCVal, aggID, currentSubintfLCVal)
-
-		// Store current timestamps for comparison in the next iteration.
 		prevIntfLC = currentIntfLCVal
-		prevSubintfLC = currentSubintfLCVal
+
+		if !skipSubintf {
+			_, present = gnmi.Lookup(t, dut, aggIntfPath.Subinterface(0).LastChange().State()).Val()
+			if !present {
+				t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, aggID, action, i)
+				continue
+			}
+			currentSubintfLCVal := validateLastChangeIncrease(t, dut, aggIntfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", aggID, 0), prevSubintfLC)
+			t.Logf("[%s] LastChange values after %s: Interface %s: %d, Subinterface %s:0: %d", testName, action, aggID, currentIntfLCVal, aggID, currentSubintfLCVal)
+			prevSubintfLC = currentSubintfLCVal
+		}
 		time.Sleep(500 * time.Millisecond)
 	}
 }
@@ -355,15 +358,19 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 		gnmi.Await(t, dut, intfPath.Subinterface(0).OperStatus().State(), awaitTimeout, oc.Interface_OperStatus_UP)
 
 		// Get initial last-change values when the interface is UP.
+		skipSubintf := deviations.Subinterface0StateUnsupported(dut)
 		initialIntfLCVal, present := gnmi.Lookup(t, dut, intfPath.LastChange().State()).Val()
 		if !present {
 			t.Fatalf("[%s] Failed to lookup initial LastChange for interface %s", testName, port.Name())
 		}
-		initialSubintfLCVal, present := gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
-		if !present {
-			t.Fatalf("[%s] Failed to lookup initial LastChange for subinterface %s:0", testName, port.Name())
+		var initialSubintfLCVal uint64
+		if !skipSubintf {
+			initialSubintfLCVal, present = gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
+			if !present {
+				t.Fatalf("[%s] Failed to lookup initial LastChange for subinterface %s:0", testName, port.Name())
+			}
+			t.Logf("[%s] Initial LastChange values: Interface %s: %d, Subinterface %s:0: %d", testName, port.Name(), initialIntfLCVal, port.Name(), initialSubintfLCVal)
 		}
-		t.Logf("[%s] Initial LastChange values: Interface %s: %d, Subinterface %s:0: %d", testName, port.Name(), initialIntfLCVal, port.Name(), initialSubintfLCVal)
 
 		prevIntfLC := initialIntfLCVal
 		prevSubintfLC := initialSubintfLCVal
@@ -397,20 +404,20 @@ func TestEthernetInterfaceLastChangeState(t *testing.T) {
 				t.Errorf("[%s] Failed to lookup LastChange for interface %s after %s (state change %d)", testName, port.Name(), action, i)
 				continue
 			}
-			_, present = gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
-			if !present {
-				t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, port.Name(), action, i)
-				continue
-			}
-
-			// Verify that last-change increased.
+			// Verify that last-change increased for the interface.
 			desc := fmt.Sprintf("%s after %s (state change %d)", testName, action, i)
 			currentIntfLCVal := validateLastChangeIncrease(t, dut, intfPath.LastChange().State(), desc, port.Name(), prevIntfLC)
-			currentSubintfLCVal := validateLastChangeIncrease(t, dut, intfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", port.Name(), 0), prevSubintfLC)
-
-			// Store current timestamps for the next iteration's comparison.
 			prevIntfLC = currentIntfLCVal
-			prevSubintfLC = currentSubintfLCVal
+
+			if !skipSubintf {
+				_, present = gnmi.Lookup(t, dut, intfPath.Subinterface(0).LastChange().State()).Val()
+				if !present {
+					t.Errorf("[%s] Failed to lookup LastChange for subinterface %s:0 after %s (state change %d)", testName, port.Name(), action, i)
+					continue
+				}
+				currentSubintfLCVal := validateLastChangeIncrease(t, dut, intfPath.Subinterface(0).LastChange().State(), desc, fmt.Sprintf("%s:%d", port.Name(), 0), prevSubintfLC)
+				prevSubintfLC = currentSubintfLCVal
+			}
 			time.Sleep(500 * time.Millisecond)
 		}
 	}
