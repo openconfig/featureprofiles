@@ -53,8 +53,9 @@ func dialPQCConn(t *testing.T, dut *ondatra.DUTDevice, svc introspect.Service, w
 
 	// Custom TLS config for PQC
 	tlsConfig := &tls.Config{
-		MinVersion:   tls.VersionTLS13,
-		MaxVersion:   tls.VersionTLS13,
+		MinVersion: tls.VersionTLS13,
+		MaxVersion: tls.VersionTLS13,
+		// Add specific curve preferences
 		CurvePreferences:   []tls.CurveID{tls.X25519MLKEM768, tls.X25519, tls.CurveP256},
 	}
 
@@ -77,8 +78,7 @@ func TestPQCGNMIClient(t *testing.T) {
 	var req *gpb.GetRequest
 	if deviations.GNMIGetOnRootUnsupported(dut) {
 		req = &gpb.GetRequest{
-			Path: []*gpb.Path{{
-				Elem: []*gpb.PathElem{}}},
+			Path: []*gpb.Path{{Elem: []*gpb.PathElem{}}},
 			Type:     gpb.GetRequest_CONFIG,
 			Encoding: gpb.Encoding_JSON_IETF,
 		}
