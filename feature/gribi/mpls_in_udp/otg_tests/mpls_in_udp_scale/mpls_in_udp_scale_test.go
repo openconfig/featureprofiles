@@ -23,7 +23,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
-	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/gribigo/client"
@@ -989,18 +988,6 @@ func TestMPLSinUDPScale(t *testing.T) {
 	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: ifs})
 
 	dutPort1Mac := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
-	// Disable hardware nexthop proxying for Arista devices to ensure FIB-ACK works correctly.
-	// See: https://partnerissuetracker.corp.google.com/issues/422275961
-	if deviations.DisableHardwareNexthopProxy(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			const aristaDisableNHGProxyCLI = "ip hardware fib next-hop proxy disabled"
-			helpers.GnmiCLIConfig(t, dut, aristaDisableNHGProxyCLI)
-		default:
-			t.Errorf("Deviation DisableHardwareNexthopProxy is not handled for the dut: %v", dut.Vendor())
-		}
-	}
-
 	t.Run("Profile-1-Single VRF", func(t *testing.T) {
 		if err := configureVRFProfiles(ctx, t, ateConfig, dut, ate, []string{deviations.DefaultNetworkInstance(dut), vrfsList[1]}, profileSingleVRF, false, dutPort1Mac); err != nil {
 			t.Fatalf("configureVrfProfiles failed: %v", err)
