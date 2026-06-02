@@ -2029,20 +2029,7 @@ deviations: {
     }
   }
 }
-deviations: {
-  name: "disable_hardware_nexthop_proxy"
-  type: DEVIATION_TYPE_UNSPECIFIED
-  platforms: {
-    issue_url: ""
-    platform: {
-      vendor: ARISTA
-      software_version_regex: "*.*"
-    }
-    clis: {
-      commands: "ip hardware fib next-hop proxy disabled"
-    }
-  }
-}
+
 deviations: {
   name: "isis_mpls_unsupported"
   type: DEVIATION_TYPE_PATH
