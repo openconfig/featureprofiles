@@ -247,10 +247,10 @@ entries, parameterized by key scaling dimensions.
 - `profile7_total_nhgs` = "4000"
 - `profile7_nhs_per_nhg` = "8"
 - `profile7_vrfs` = "1000"
-- `profile8_total_nhs` = "10,240"
-- `profile8_total_nhgs` = "10"
+- `profile8_total_nhs` = "20,480"
+- `profile8_total_nhgs` = "20"
 - `profile8_nhs_per_nhg` = "1024"
-- `profile8_vrfs` = "10"
+- `profile8_vrfs` = "20"
 
 ## Procedure
 
@@ -427,19 +427,16 @@ limited Destination IPs per VRF.
 
 #### Profile 8 (Multi-NHG MoUDP IPv6 Tunnels - 1024 Tunnels per NHG)
 
-* **Goal:** Scale using MoUDP (MPLS over UDP) tunnels with IPv6 outer headers, structured into blocks within high-capacity NHGs, with each NHG mapped to a distinct VRF.
-* **Network Instances (VRFs):** 10 (1:1 mapping, each NHG is mapped to exactly 1 VRF).
-* **Total NHGs:** 10.
+* **Goal:** Scale using MoUDP tunnels with IPv6 outer headers, increasing the number of NHGs to reach target scale.
+* **Network Instances (VRFs):** 20.
+* **Total NHGs:** 20.
 * **NHs per NHG:** 1024.
-* **Total NHs:** 10,240 (10 NHGs × 1024 NHs/NHG).
-* **MPLS Labels:** 160 unique labels (16 unique labels per NHG × 10 NHGs).
-* **Destination IPs:** 160 unique IPv6 addresses (16 unique Dest IPs per NHG × 10 NHGs).
-* **Source IPs:** 64 unique IPv6 addresses (A single pool of 64 IPs, reused/rotated per block of 64 tunnels).
-* **Outer Header:** IPv6 with MoUDP (MPLS over UDP).
-* **Unique (Src IP + Dest IP + Label) Tuples:** 10,240.
-* **Prefix Mapping:** (Assuming a scale similar to previous profiles, e.g., 8 prefixes per NHG, resulting in 80 total prefixes, or whatever fits your test intent).
-* **Inner IP Reuse:** Required.
-* **gRIBI Rate/Batch:** Baseline - QPS not the primary focus here.
+* **Total NHs:** 20,480 (20 NHGs × 1024 NHs/NHG).
+* **MPLS Labels:** 320 unique labels (16 unique labels per NHG × 20 NHGs).
+* **Destination IPs:** 320 unique IPv6 addresses (16 unique Dest IPs per NHG × 20 NHGs).
+* **Source IPs:** 64 unique IPv6 addresses (Reused/rotated per block of 64 tunnels).
+* **Outer Header:** IPv6 with MoUDP.
+* **Unique (Src IP + Dest IP + Label) Tuples:** 20,480.
 
 #### TE-18.3.1 - Single VRF Validation (Profiles 1, 4)
 
@@ -515,7 +512,7 @@ limited Destination IPs per VRF.
 
 *   Program all gRIBI entries across all specified VRFs according to **Profile 6** (32K NHs, 8 NHs/NHG, 1000 VRFs) using baseline rate/batch.
 *   Validate `FIB_PROGRAMMED` status for all entries.
-*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv4 outer header and 16-way ECMP configuration.
+*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv4 outer header and 8-way ECMP configuration.
 *   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
 *   Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label and **IPv4 outer header**.
 *   Verify traffic is distributed across the 16 next-hops within a group.
@@ -526,9 +523,9 @@ limited Destination IPs per VRF.
 
 #### TE-18.3.6 - Multi-VRF IPv6 Tunnel Scale Validation (Profile 7)
 
-*   Program all gRIBI entries across all specified VRFs according to **Profile 8** (10,240 NHs, 10 NHs/NHG, 1,024 NHs per NHG, 10 VRFs) using baseline rate/batch.
+*   Program all gRIBI entries across all specified VRFs according to **Profile 8** (32K NHs, 8 NHs/NHG, 1000 VRFs) using baseline rate/batch.
 *   Validate `FIB_PROGRAMMED` status for all entries.
-*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 16-way ECMP configuration.
+*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 8-way ECMP configuration.
 *   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
 *   Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label and **IPv6 outer header**.
 *   Verify traffic is distributed across the 16 next-hops within a group.
@@ -539,12 +536,12 @@ limited Destination IPs per VRF.
 
 #### TE-18.3.7 - Multi-VRF IPv6 Tunnel Scale Validation (Profile 8)
 
-*   Program all gRIBI entries across all specified VRFs according to **Profile 7** (32K NHs, 8 NHs/NHG, 1000 VRFs) using baseline rate/batch.
+*   Program all gRIBI entries across all specified VRFs according to **Profile 7** (20,480 NHs, 1,024 NHs per NHG, 20 NHGs, 20 VRFs) using baseline rate/batch.
 *   Validate `FIB_PROGRAMMED` status for all entries.
-*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 16-way ECMP configuration.
+*   Verify AFT state on DUT for a sample of entries within different VRFs, confirming IPv6 outer header and 1204-way ECMP configuration.
 *   Send traffic matching programmed prefixes, ensuring traffic is directed to the correct VRF.
 *   Verify traffic is received with correct MPLS-over-UDP encapsulation, including the VRF-specific MPLS label and **IPv6 outer header**.
-*   Verify traffic is distributed across the 16 next-hops within a group.
+*   Verify traffic is distributed across the 1024 next-hops within a group.
 *   Measure packet loss (target: <= 1% steady state).
 *   Delete all gRIBI entries.
 *   Verify AFT state shows entries removed across VRFs.
