@@ -5,6 +5,16 @@ uuid: "2f616c3d-852d-4180-8860-dbc16b09a1ba"
 plan_id: "CNTR-3"
 description: "Container Supervisor Failover"
 testbed: TESTBED_DUT
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    containerz_oc_unsupported: true
+  }
+}
+
 platform_exceptions: {
   platform: {
     vendor: NOKIA
