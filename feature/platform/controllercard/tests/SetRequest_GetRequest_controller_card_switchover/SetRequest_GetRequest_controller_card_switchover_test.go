@@ -50,9 +50,9 @@ const (
 	lastRequestTime                 = 120 * time.Second
 	maxResponseTime                 = 150 * time.Second
 	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
-	globalRouterID                  = "198.18.2.1"
+	globalRouterID                  = "192.18.2.1"
 	peerASN                         = 64501
-	localASN                        = 65536
+	localASN                        = 65501
 	IPv4PrefixLen                   = 31
 	IPv6PrefixLen                   = 127
 	isisInstance                    = "DEFAULT"
@@ -225,7 +225,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	for i := 0; i < params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
 			Desc:    fmt.Sprintf("LAG Interface %d", i+1),
-			IPv4:    fmt.Sprintf("198.18.%d.1", i+1),
+			IPv4:    fmt.Sprintf("192.18.%d.1", i+1),
 			IPv6:    fmt.Sprintf("2001:db8::%d:1", i+1),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
@@ -271,7 +271,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	pg.PeerGroupName = ygot.String(bgpPeerGrpName)
 
 	for i := 5; i < params.NumBGPNeighbors+5; i++ {
-		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("198.18.2.%d", i))
+		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("192.18.2.%d", i))
 		bgpNbrV4.PeerGroup = ygot.String(bgpPeerGrpName)
 		bgpNbrV4.PeerAs = ygot.Uint32(peerASN)
 		bgpNbrV4.Enabled = ygot.Bool(true)
@@ -399,7 +399,7 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 			t.Fatalf("gNMI agent did not become responsive: %v", err)
 		}
 	}
-	
+
 	var setResponseTime time.Time
 	var setErr error
 	for attempt := 1; attempt <= 4; attempt++ {
@@ -430,8 +430,8 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	getRequest := buildGetRequest(t)
 
 	ctxWithTimeout, cancelWithTimeout := context.WithTimeout(context.Background(), getRequestTimeout)
-	_, err := gnmiClient.Get(ctxWithTimeout, getRequest)
 	defer cancelWithTimeout()
+	_, err := gnmiClient.Get(ctxWithTimeout, getRequest)
 	if err != nil {
 		t.Fatalf("Error getting config: %v", err)
 	}
@@ -488,4 +488,3 @@ func sendSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, s
 
 	return set(ctxTimeout, t, dut)
 }
-
