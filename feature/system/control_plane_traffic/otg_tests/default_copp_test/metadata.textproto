@@ -32,7 +32,7 @@ platform_exceptions:  {
 platform_exceptions:  {
   platform:  {
     vendor:  ARISTA
-    hardware_model_regex:  "DCS-7050CX4.*"
+    hardware_model_regex:  "DCS-7050.*"
   }
   deviations:  {
     interface_enabled:  true
