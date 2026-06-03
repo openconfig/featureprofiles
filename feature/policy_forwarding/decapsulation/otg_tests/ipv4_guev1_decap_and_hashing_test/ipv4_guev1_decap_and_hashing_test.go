@@ -727,7 +727,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	}
 	udpOuter := flow.Packet().Add().Udp()
 	if mode == flowEntropyBaseline {
-		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(1000)
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(1024)
 	} else {
 		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	}
@@ -754,9 +754,9 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 
 		udpMiddle := flow.Packet().Add().Udp()
 		if mode == flowEntropyBaseline {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1024)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1024)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
 
@@ -826,7 +826,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
+		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1024)
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
@@ -1064,11 +1064,16 @@ func verifyTrafficFlowNegCase(t *testing.T, ate *ondatra.ATEDevice, config gosna
 	flowState := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
 	rxPkts := flowState.GetCounters().GetInPkts()
 	txPkts := flowState.GetCounters().GetOutPkts()
-	lostPkt := txPkts - rxPkts
-	if got := (lostPkt * 100 / txPkts); got >= tolerance {
-		return false
+	if txPkts == 0 {
+		t.Errorf("Flow %s: no packets transmitted in negative-case validation", flow.Name())
+		return true
 	}
-	return true
+	tolerancePkts := txPkts * tolerance / 100
+	if rxPkts > tolerancePkts {
+		t.Logf("Flow %s: expected near-total drop, got tx=%d rx=%d tolerance=%d", flow.Name(), txPkts, rxPkts, tolerancePkts)
+		return true
+	}
+	return false
 }
 
 // verifySinglePathTraffic validates that a single flow hashes to exactly one of its eligible egress buckets.
