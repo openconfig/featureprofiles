@@ -50,7 +50,7 @@ const (
 	lastRequestTime                 = 120 * time.Second
 	maxResponseTime                 = 150 * time.Second
 	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
-	globalRouterID                  = "192.18.2.1"
+	globalRouterID                  = "198.18.2.1"
 	peerASN                         = 64501
 	localASN                        = 65501
 	IPv4PrefixLen                   = 31
