@@ -458,10 +458,9 @@ func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 			time.Sleep(sleepTimeBtwAttempts)
 		}
 		ctxWithTimeout, cancelWithTimeout := context.WithTimeout(ctx, getRequestTimeout)
-		defer cancelWithTimeout()
-
 		t.Logf("Checking if gNMI is responsive on attempt %d", attempt)
 		_, err = gnmiClient.Get(ctxWithTimeout, getRequest)
+		cancelWithTimeout()
 		if err == nil {
 			t.Logf("gNMI agent is responsive!")
 			break
