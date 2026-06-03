@@ -1061,6 +1061,7 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 		})
 		flows = append(flows, f6)
 	}
+
 	return flows
 }
 
