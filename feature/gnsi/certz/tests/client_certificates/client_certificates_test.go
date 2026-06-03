@@ -101,7 +101,7 @@ func TestClientCert(t *testing.T) {
 	} else {
 		t.Logf("%sSTATUS:new profileID %s is seen in sslprofile list", logTime, testProfile)
 	}
-	cases := []struct {
+	tests := []struct {
 		desc            string
 		serverCertFile  string
 		serverKeyFile   string
@@ -252,7 +252,7 @@ func TestClientCert(t *testing.T) {
 			newTLScreds:     true,
 		},
 	}
-	for _, tc := range cases {
+	for _, tc := range tests {
 		t.Run(tc.desc, func(t *testing.T) {
 			t.Logf("%s:STATUS:Starting test case: %s", logTime, tc.desc)
 			//Read the serverSAN (Subject Alternative Name) from the certificate used for TLS verification.
