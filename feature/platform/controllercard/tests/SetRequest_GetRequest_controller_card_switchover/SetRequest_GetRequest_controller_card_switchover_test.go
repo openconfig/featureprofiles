@@ -51,7 +51,7 @@ const (
 	lastRequestTime                 = 120 * time.Second
 	maxResponseTime                 = 150 * time.Second
 	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
-	globalRouterID                  = "192.18.2.1"
+	globalRouterID                  = "198.18.2.1"
 	peerASN                         = 64501
 	localASN                        = 65501
 	IPv4PrefixLen                   = 31
@@ -274,7 +274,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	pg.PeerGroupName = ygot.String(bgpPeerGrpName)
 
 	for i := 5; i < params.NumBGPNeighbors+5; i++ {
-		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("192.18.2.%d", i))
+		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("198.18.2.%d", i))
 		bgpNbrV4.PeerGroup = ygot.String(bgpPeerGrpName)
 		bgpNbrV4.PeerAs = ygot.Uint32(peerASN)
 		bgpNbrV4.Enabled = ygot.Bool(true)
