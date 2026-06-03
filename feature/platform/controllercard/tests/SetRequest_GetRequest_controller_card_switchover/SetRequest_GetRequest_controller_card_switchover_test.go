@@ -37,7 +37,6 @@ import (
 	oc "github.com/openconfig/ondatra/gnmi/oc"
 )
 
-
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
@@ -491,4 +490,3 @@ func sendSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, s
 
 	return set(ctxTimeout, t, dut)
 }
-
