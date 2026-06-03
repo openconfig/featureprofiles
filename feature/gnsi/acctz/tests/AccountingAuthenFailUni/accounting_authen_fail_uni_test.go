@@ -39,6 +39,7 @@ import (
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	gribi "github.com/openconfig/gribi/v1/proto/service"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
@@ -50,9 +51,6 @@ import (
 )
 
 const (
-	portGRPC            = 9339
-	portGRIBI           = 9340
-	portP4RT            = 9559
 	ipProtoTCP          = 6
 	successPassword     = "verysecurepasswordTest123!"
 	wrongPassword       = "definitelywrongpassword999"
@@ -73,17 +71,15 @@ const (
 	pingCount           = 1
 	metadataKeyUsername = "username"
 	metadataKeyPassword = "password"
+	defaultGRPCPort     = "9339"
+	defaultGRIBIPort    = "9340"
+	defaultP4RTPort     = "9559"
 )
 
 var (
-	// serviceTable maps each gRPC service to its port, proto enum, and exerciser RPC.
-	serviceTable = []serviceEntry{
-		{name: "gnmi", port: portGRPC, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI, rpcFn: rpcGNMI},
-		{name: "gnoi", port: portGRPC, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI, rpcFn: rpcGNOI},
-		{name: "gnsi", port: portGRPC, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI, rpcFn: rpcGNSI},
-		{name: "gribi", port: portGRIBI, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI, rpcFn: rpcGRIBI},
-		{name: "p4rt", port: portP4RT, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT, rpcFn: rpcP4RT},
-	}
+	// serviceTable maps each gRPC service to its binding-supplied target (host:port),
+	// proto enum, and exerciser RPC. Populated at test-start by buildServiceTable.
+	serviceTable []serviceEntry
 
 	// scenarioTable defines the credential-failure scenarios applied to every service. certFailure=true rows present a wrong TLS cert instead of password credentials.
 	scenarioTable = []scenarioEntry{
@@ -98,7 +94,7 @@ var (
 // serviceEntry describes one gRPC service under test.
 type serviceEntry struct {
 	name    string
-	port    int
+	target  string // host:port resolved from the binding file at runtime
 	svcType acctzpb.GrpcService_GrpcServiceType
 	rpcFn   func(*testing.T, rpcConfig) error
 }
@@ -193,13 +189,37 @@ type deviceRecordsConfig struct {
 	deadline time.Duration
 }
 
+// buildServiceTable builds the gRPC service table using service targets from the DUT binding.
+func buildServiceTable(t *testing.T, dut *ondatra.DUTDevice) []serviceEntry {
+	t.Helper()
+	host := dut.Name()
+	gnmiTarget := introspect.DUTDialer(t, dut, introspect.GNMI).DialTarget
+	if gnmiTarget == "" {
+		gnmiTarget = net.JoinHostPort(host, defaultGRPCPort)
+	}
+	gribiTarget := introspect.DUTDialer(t, dut, introspect.GRIBI).DialTarget
+	if gribiTarget == "" {
+		gribiTarget = net.JoinHostPort(host, defaultGRIBIPort)
+	}
+	p4rtTarget := introspect.DUTDialer(t, dut, introspect.P4RT).DialTarget
+	if p4rtTarget == "" {
+		p4rtTarget = net.JoinHostPort(host, defaultP4RTPort)
+	}
+	return []serviceEntry{
+		{name: "gnmi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI, rpcFn: rpcGNMI},
+		{name: "gnoi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI, rpcFn: rpcGNOI},
+		{name: "gnsi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNSI, rpcFn: rpcGNSI},
+		{name: "gribi", target: gribiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GRIBI, rpcFn: rpcGRIBI},
+		{name: "p4rt", target: p4rtTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_P4RT, rpcFn: rpcP4RT},
+	}
+}
+
 // TestMain initializes and runs all tests using the featureprofiles test framework.
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// testCase is one row in the table-driven test: a (service x scenario) pair
-// together with the connection metadata recorded after the dial attempt.
+// testCase defines a service/scenario test case and its dial result.
 type testCase struct {
 	name string
 	svc  serviceEntry
@@ -208,27 +228,28 @@ type testCase struct {
 }
 
 // TestAccountingAuthenFailUni validates authentication-failure accounting across
-// all per-transaction gRPC services using the canonical table-driven pattern.
+// all per-transaction gRPC services discovered from the DUT binding.
 func TestAccountingAuthenFailUni(t *testing.T) {
-	var (
-		dut            = ondatra.DUT(t, "dut")
-		wrongCert      tls.Certificate
-		t0             time.Time
-		tests          []testCase
-		acctzUsername  string
-		acctzPassword  string
-		acctzTarget    string
-		acctzConn      *grpc.ClientConn
-		acctzSubClient grpc.ServerStreamingClient[acctzpb.RecordResponse]
-		gotRecords     []*acctzpb.RecordResponse
-		usedRecord     []bool
-		err            error
-	)
+	dut := ondatra.DUT(t, "dut")
+	wrongCert := tls.Certificate{}
+	t0 := time.Time{}
+	tests := []testCase{}
+	acctzUsername := ""
+	acctzPassword := ""
+	acctzTarget := ""
+	acctzConn := (*grpc.ClientConn)(nil)
+	acctzSubClient := (grpc.ServerStreamingClient[acctzpb.RecordResponse])(nil)
+	gotRecords := ([]*acctzpb.RecordResponse)(nil)
+	usedRecord := ([]bool)(nil)
+	err := error(nil)
+
+	// Populate the package-level serviceTable using targets from the binding file.
+	serviceTable = buildServiceTable(t, dut)
 
 	setupTestUser(t, dut)
 
 	wrongCert = mustGenerateWrongClientCert(t)
-	mustVerifyServiceConnectivity(t, dut)
+	mustVerifyServiceConnectivity(t, dut, serviceTable)
 
 	// Step 1 (README): record T0.
 	t0 = time.Now().Add(-t0Offset)
@@ -250,7 +271,7 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	// Step 2 (README): dial each test-case, record connection metadata.
 	for i := range tests {
 		rec, ok := dialAndFail(t, dialConfig{
-			target:      fmt.Sprintf("%s:%d", dut.Name(), tests[i].svc.port),
+			target:      tests[i].svc.target,
 			username:    tests[i].sc.user,
 			password:    tests[i].sc.pass,
 			testName:    tests[i].name,
@@ -265,7 +286,8 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 
 	// Step 3-4 (README): establish gNSI connection, call RecordSubscribe(T0), collect records.
 	acctzUsername, acctzPassword = dutRPCCredentials(dut)
-	acctzTarget = fmt.Sprintf("%s:%d", dut.Name(), portGRPC)
+	// Reuse the gNMI/gNSI target (same host:port) for the acctz connection.
+	acctzTarget = serviceTable[0].target
 	acctzConn, err = grpc.NewClient(
 		acctzTarget,
 		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -326,12 +348,9 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 	}
 }
 
-// runVerifySubtest finds and validates the DUT accounting record for one
-// (service x scenario) test case. It returns all validation failures as errors
-// so the caller's t.Run closure can report them, keeping this helper free of
-// direct t.Errorf calls.
+// runVerifySubtest matches and validates the accounting record for a test case.
 func runVerifySubtest(cfg subtestConfig) []error {
-	var matched *acctzpb.RecordResponse
+	matched := (*acctzpb.RecordResponse)(nil)
 	for j, resp := range cfg.gotRecords {
 		if !cfg.usedRecord[j] && matchRecord(matchRecordConfig{resp: resp, conn: cfg.res.rec}) {
 			cfg.usedRecord[j] = true
@@ -434,13 +453,12 @@ func rpcP4RT(t *testing.T, cfg rpcConfig) error {
 	return nil
 }
 
-// mustVerifyServiceConnectivity confirms reachability to all services with
-// valid credentials before the failure-scenario phase begins.
-func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice) {
+// mustVerifyServiceConnectivity verifies connectivity to all configured services.
+func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice, serviceTable []serviceEntry) {
 	t.Helper()
 	username, password := dutRPCCredentials(dut)
 	for _, svc := range serviceTable {
-		target := fmt.Sprintf("%s:%d", dut.Name(), svc.port)
+		target := svc.target
 		conn, err := grpc.NewClient(
 			target,
 			grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -463,11 +481,9 @@ func mustVerifyServiceConnectivity(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-// dialAndFail performs a single credential-failure dial attempt.
-// When cfg.certFailure is true it presents cfg.wrongCert instead of password auth.
-// Returns the recorded connection metadata and true; or zero value and false if setup failed.
+// dialAndFail performs a failed authentication attempt and records connection metadata.
 func dialAndFail(t *testing.T, cfg dialConfig) (connRecord, bool) {
-	var used bool
+	used := false
 
 	t.Helper()
 
@@ -586,13 +602,11 @@ func matchRecord(cfg matchRecordConfig) bool {
 func deviceRecords(cfg deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 	cfg.t.Helper()
 
-	var (
-		records []*acctzpb.RecordResponse
-		rChan   = make(chan struct {
-			record *acctzpb.RecordResponse
-			err    error
-		})
-	)
+	records := ([]*acctzpb.RecordResponse)(nil)
+	rChan := make(chan struct {
+		record *acctzpb.RecordResponse
+		err    error
+	})
 
 	go func() {
 		defer close(rChan)
@@ -627,16 +641,12 @@ func deviceRecords(cfg deviceRecordsConfig) ([]*acctzpb.RecordResponse, error) {
 	}
 }
 
-// verifyAuthenFailRecord validates a DUT accounting record against the expected
-// connection metadata per the README requirements. All failures are returned as
-// a slice so the caller can report them via t.Errorf inside a t.Run subtest.
+// verifyAuthenFailRecord validates an authentication-failure accounting record.
 func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
-	var (
-		validationErrs []error
-		resp           = cfg.resp
-		conn           = cfg.conn
-		t0             = cfg.t0
-	)
+	validationErrs := ([]error)(nil)
+	resp := cfg.resp
+	conn := cfg.conn
+	t0 := cfg.t0
 	add := func(format string, args ...any) {
 		validationErrs = append(validationErrs, fmt.Errorf(format, args...))
 	}
@@ -749,8 +759,7 @@ func verifyAuthenFailRecord(cfg verifyRecordConfig) []error {
 	return validationErrs
 }
 
-// cleanupTestUser deletes the provisioned test user via gNMI OC. It is extracted
-// here to avoid nesting an anonymous function inside the t.Cleanup call.
+// cleanupTestUser removes the test user from the DUT.
 func cleanupTestUser(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	userPath := gnmi.OC().System().Aaa().Authentication().User(acctzlib.SuccessUsername)
