@@ -52,7 +52,7 @@ const (
 	bgpPeerGrpName                  = "BGP-PEER-GROUP1"
 	globalRouterID                  = "198.18.2.1"
 	peerASN                         = 64501
-	localASN                        = 65501
+	localASN                        = 65536
 	IPv4PrefixLen                   = 31
 	IPv6PrefixLen                   = 127
 	isisInstance                    = "DEFAULT"
