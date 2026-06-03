@@ -513,7 +513,7 @@ func createAndSendTrafficFlows(t *testing.T, args *testArgs, decapEntries []stri
 
 	t.Logf("Starting traffic")
 	args.ate.OTG().StartTraffic(t)
-	time.Sleep(30 * time.Second)
+	time.Sleep(15 * time.Second)
 	t.Logf("Stop traffic")
 	args.ate.OTG().StopTraffic(t)
 
