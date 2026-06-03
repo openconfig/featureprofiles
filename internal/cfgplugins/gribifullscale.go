@@ -1060,6 +1060,7 @@ func BuildTransitFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 
 		f := newFlow(fmt.Sprintf("transit_encap_te_vrf_%d", vi))
 
+		// TODO: Set dest MAC
 		f.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
 
 		outer := f.Packet().Add().Ipv4()
