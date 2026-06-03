@@ -2227,6 +2227,13 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
 }
 
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+// Nokia: b/445494680
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
+
+// Skip Authz verification of GnoiSystemPing rpc
 func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
 }
