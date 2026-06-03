@@ -1200,8 +1200,8 @@ type Metadata_Deviations struct {
 	// Device does not support sid_per_interface_counter_unsupported
 	// Cisco b/447350490
 	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
-	//  Juniper does not support localhost yet
-	//  b/448173472
+	// Juniper does not support localhost yet
+	// b/448173472
 	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
 	// Juniper: b/434633267
 	// Devices that do not support oc path for aggregate bandwidth policy
@@ -1476,8 +1476,8 @@ type Metadata_Deviations struct {
 	// Device requires p4rt table entries to be configured for each new primary controller
 	// Nokia: b/445494680
 	P4RtExplicitTableEntryPerController bool `protobuf:"varint,432,opt,name=p4rt_explicit_table_entry_per_controller,json=p4rtExplicitTableEntryPerController,proto3" json:"p4rt_explicit_table_entry_per_controller,omitempty"`
-	SkipGnoiPingRpcAuthzVerification    bool `protobuf:"varint,433,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_ve     rification,omitempty"`
-  unknownFields                       protoimpl.UnknownFields
+	SkipGnoiPingRpcAuthzVerification    bool `protobuf:"varint,433,opt,name=skip_gnoi_ping_rpc_authz_verification,json=skipGnoiPingRpcAuthzVerification,proto3" json:"skip_gnoi_ping_rpc_authz_verification,omitempty"`
+	unknownFields                       protoimpl.UnknownFields
 	sizeCache                           protoimpl.SizeCache
 }
 
@@ -4293,8 +4293,8 @@ func (x *Metadata_Deviations) GetP4RtExplicitTableEntryPerController() bool {
 func (x *Metadata_Deviations) GetSkipGnoiPingRpcAuthzVerification() bool {
 	if x != nil {
 		return x.SkipGnoiPingRpcAuthzVerification
-  }
-return false
+	}
+	return false
 }
 
 type Metadata_PlatformExceptions struct {
@@ -4767,9 +4767,9 @@ const file_metadata_proto_rawDesc = "" +
 	"'extended_route_retention_oc_unsupported\x18\xac\x03 \x01(\bR#extendedRouteRetentionOcUnsupported\x12I\n" +
 	"!exrr_stale_route_time_unsupported\x18\xad\x03 \x01(\bR\x1dexrrStaleRouteTimeUnsupported\x12Q\n" +
 	"%gnoi_bgp_graceful_restart_unsupported\x18\xae\x03 \x01(\bR!gnoiBgpGracefulRestartUnsupported\x12:\n" +
-  "\x19dhcp_relay_oc_unsupported\x18\xaf\x03 \x01(\bR\x16dhcpRelayOcUnsupported\x12V\n" +
-  "(p4rt_explicit_table_entry_per_controller\x18\xb0\x03 \x01(\bR#p4rtExplicitTableEntryPerController\x12P\n" +
-  "%skip_gnoi_ping_rpc_authz_verification\x18\xb1\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"\x19dhcp_relay_oc_unsupported\x18\xaf\x03 \x01(\bR\x16dhcpRelayOcUnsupported\x12V\n" +
+	"(p4rt_explicit_table_entry_per_controller\x18\xb0\x03 \x01(\bR#p4rtExplicitTableEntryPerController\x12P\n" +
+	"%skip_gnoi_ping_rpc_authz_verification\x18\xb1\x03 \x01(\bR skipGnoiPingRpcAuthzVerificationJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
