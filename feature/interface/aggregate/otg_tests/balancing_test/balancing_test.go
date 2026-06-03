@@ -525,7 +525,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		}
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
-		v6.FlowLabel().Increment().SetStart(0).SetStep(1).SetCount(1048575)
+		v6.FlowLabel().Increment().SetStart(1).SetStep(1).SetCount(1048575)
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 		ipType = "IPv6"
@@ -533,7 +533,7 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 
 	tcp := flow.Packet().Add().Tcp()
 	tcp.SrcPort().Increment().SetStart(1).SetStep(1).SetCount(65534)
-	tcp.DstPort().Increment().SetStart(1).SetStep(1).SetCount(65534)
+	tcp.DstPort().SetValue(123)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
