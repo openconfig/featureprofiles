@@ -109,6 +109,7 @@ var (
 	host2IPv4Start = "198.51.110.0"
 	host2IPv6Start = "2001:db8:110::"
 	host3IPv4Start = "198.51.120.0"
+	host3IPv6Start = "2001:db8:120::"
 	host4IPv4Start = "198.51.130.0"
 	host4IPv6Start = "2001:db8:130::"
 	ate1LoopbackIP = "172.16.1.0"
@@ -501,13 +502,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		ate.Port(t, "port3"),
 		ate.Port(t, "port4"),
 	}
-	configureLAGDevice(t, ateConfig, ateLag1, dutLag1, ateAggPorts1, 1, ate3AS, false, true, "lag1", host2IPv4Start, host2IPv6Start, host3IPv4Start)
+	configureLAGDevice(t, ateConfig, ateLag1, dutLag1, ateAggPorts1, 1, ate3AS, false, true, "lag1", host2IPv4Start, host2IPv6Start, host3IPv4Start, host3IPv6Start)
 	// ATE LAG2 (EBGP)
 	ateAggPorts2 := []*ondatra.Port{
 		ate.Port(t, "port5"),
 		ate.Port(t, "port6"),
 	}
-	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "")
+	configureLAGDevice(t, ateConfig, ateLag2, dutLag2, ateAggPorts2, 2, ate4AS, true, false, "lag2", host4IPv4Start, host4IPv6Start, "", "")
 	configureATEDevice(t, ateConfig, ate5Port, ateP7, dutP7, ate5AS, loopbackPfxLen, true, false, false, host4IPv4Start, host4IPv6Start, ate1LoopbackIP, ateSysID+"2")
 	return ateConfig
 }
@@ -556,7 +557,7 @@ func configureATEDevice(t *testing.T, cfg gosnappi.Config, port gosnappi.Port, a
 }
 
 // configureLAGDevice configures the Lags along with the associated protocols.
-func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, lagID, asn uint32, isEBGP, isISIS bool, lagName, hostPrefixV4, hostPrefixV6, host3PrefixV4 string) {
+func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.Attributes, dutAttrs attrs.Attributes, atePorts []*ondatra.Port, lagID, asn uint32, isEBGP, isISIS bool, lagName, hostPrefixV4, hostPrefixV6, host3PrefixV4, host3PrefixV6 string) {
 	t.Helper()
 	lag := ateConfig.Lags().Add().SetName(lagName)
 	lag.Protocol().Static().SetLagId(lagID)
@@ -598,6 +599,7 @@ func configureLAGDevice(t *testing.T, ateConfig gosnappi.Config, lagAttrs attrs.
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag1.Name+".Host2.v4", hostPrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
 		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag1.Name+".Host2.v6", hostPrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag1.Name+".Host3.v4", host3PrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
+		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag1.Name+".Host3.v6", host3PrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
 	} else {
 		addBGPRoutes(v4Peer.V4Routes().Add(), ateLag2.Name+".Host4.v4", hostPrefixV4, advertisedIPv4PfxLen, flowCount, ipv4.Address())
 		addBGPRoutes(v6Peer.V6Routes().Add(), ateLag2.Name+".Host4.v6", hostPrefixV6, advertisedIPv6PfxLen, flowCount, ipv6.Address())
