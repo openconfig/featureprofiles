@@ -221,7 +221,6 @@ func TestMultipathGUE(t *testing.T) {
 		}
 	})
 	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv6 decap address [Negative] test", func(t *testing.T) {
-		t.Skip()
 		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -243,7 +242,6 @@ func TestMultipathGUE(t *testing.T) {
 		}
 	})
 	t.Run("PF-1.22.3: GUE Decapsulation over non-matching UDP decap port [Negative] test", func(t *testing.T) {
-		t.Skip()
 		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -265,7 +263,6 @@ func TestMultipathGUE(t *testing.T) {
 		}
 	})
 	t.Run("PF-1.22.4: Verify the Immediate next header's L4 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Skip()
 		t.Log("Starting test: Verify that immediate next header's L4 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
@@ -280,7 +277,6 @@ func TestMultipathGUE(t *testing.T) {
 		}
 	})
 	t.Run("PF-1.22.5: Verify the Immediate next header's L3 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Skip()
 		t.Log("Starting test: Verify that immediate next header's L3 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		for flowIndex := 1; flowIndex <= 10; flowIndex++ {
