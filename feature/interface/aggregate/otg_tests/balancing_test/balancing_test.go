@@ -18,7 +18,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"sort"
 	"strconv"
@@ -358,23 +357,6 @@ func incrementMAC(mac string, i int) (string, error) {
 	return newMac.String(), nil
 }
 
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
-}
-
-func generateRandomFlowLabelList(count int) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(1048575-1) + 1)
-	}
-	return a
-}
-
 func (tc *testCase) configureATE(t *testing.T) {
 	if len(tc.atePorts) < 2 {
 		t.Fatalf("Testbed requires at least 2 ports, got: %v", tc.atePorts)
@@ -543,15 +525,15 @@ func (tc *testCase) testFlow(t *testing.T, l3header string) {
 		}
 		flow.TxRx().Device().SetTxNames([]string{i1 + ".IPv6"}).SetRxNames([]string{i2 + ".IPv6"})
 		v6 := flow.Packet().Add().Ipv6()
-		v6.FlowLabel().SetValues(generateRandomFlowLabelList(250000))
+		v6.FlowLabel().Increment().SetStart(0).SetStep(1).SetCount(1048575)
 		v6.Src().SetValue(ateSrc.IPv6)
 		v6.Dst().SetValue(ateDst.IPv6)
 		ipType = "IPv6"
 	}
 
 	tcp := flow.Packet().Add().Tcp()
-	tcp.SrcPort().SetValues(generateRandomPortList(65534))
-	tcp.DstPort().SetValues(generateRandomPortList(65534))
+	tcp.SrcPort().Increment().SetStart(1).SetStep(1).SetCount(65534)
+	tcp.DstPort().Increment().SetStart(1).SetStep(1).SetCount(65534)
 	tc.ate.OTG().PushConfig(t, tc.top)
 	tc.ate.OTG().StartProtocols(t)
 
