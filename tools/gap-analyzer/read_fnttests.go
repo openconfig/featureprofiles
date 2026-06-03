@@ -40,7 +40,8 @@ type FNTTest struct {
 
 // APIPart corresponds to a part of the content request/response.
 type APIPart struct {
-	Text string `json:"text"`
+	Text    string `json:"text"`
+	Thought bool   `json:"thought,omitempty"`
 }
 
 // APIContent corresponds to content in the request/response.
@@ -98,7 +99,7 @@ var (
 	// apiKey specifies the API Key for Gemini API.
 	apiKey = flag.String("api-key", os.Getenv("GEMINI_API_KEY"), "API Key for Google AI Gemini API. Can also be set via GEMINI_API_KEY env var.")
 	// model specifies the Gemini model to use for gap analysis.
-	model = flag.String("model", "gemini-2.5-pro", "The public Gemini model to use.")
+	model = flag.String("model", "gemini-3-flash-preview", "The public Gemini model to use.")
 	// featureprofilesRoot specifies the root directory for searching feature profiles tests.
 	featureprofilesRoot = flag.String("featureprofiles-root", ".", "Root directory for searching tests (e.g., '.' for repo root).")
 	// changedFilesStr specifies a comma-separated list of changed files to analyze.
@@ -281,9 +282,28 @@ Result in JSON format:
 	}
 
 	// Unmarshal the actual gap result JSON from the candidate text
+	var resultText string
+	for _, part := range apiResp.Candidates[0].Content.Parts {
+		if !part.Thought {
+			resultText = part.Text
+			break
+		}
+	}
+	if resultText == "" {
+		return false, "", fmt.Errorf("gemini returned no valid answer in response parts")
+	}
+
+	cleanText := strings.TrimSpace(resultText)
+	if strings.HasPrefix(cleanText, "```json") {
+		cleanText = strings.TrimPrefix(cleanText, "```json")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	} else if strings.HasPrefix(cleanText, "```") {
+		cleanText = strings.TrimPrefix(cleanText, "```")
+		cleanText = strings.TrimSuffix(strings.TrimSpace(cleanText), "```")
+	}
+
 	var gapResult GapResult
-	resultText := apiResp.Candidates[0].Content.Parts[0].Text
-	if err := json.Unmarshal([]byte(resultText), &gapResult); err != nil {
+	if err := json.Unmarshal([]byte(cleanText), &gapResult); err != nil {
 		return false, "", fmt.Errorf("failed to unmarshal gap result json '%s': %w", resultText, err)
 	}
 
