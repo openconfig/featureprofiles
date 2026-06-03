@@ -271,7 +271,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	pg.PeerGroupName = ygot.String(bgpPeerGrpName)
 
 	for i := 5; i < params.NumBGPNeighbors+5; i++ {
-		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("192.18.2.%d", i))
+		bgpNbrV4 := bgp.GetOrCreateNeighbor(fmt.Sprintf("198.18.2.%d", i))
 		bgpNbrV4.PeerGroup = ygot.String(bgpPeerGrpName)
 		bgpNbrV4.PeerAs = ygot.Uint32(peerASN)
 		bgpNbrV4.Enabled = ygot.Bool(true)
