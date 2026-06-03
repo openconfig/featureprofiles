@@ -225,7 +225,7 @@ func buildConfigBatch(t *testing.T, dut *ondatra.DUTDevice) {
 	for i := 0; i < params.NumLAGInterfaces; i++ {
 		lagInterfaceAttrs := attrs.Attributes{
 			Desc:    fmt.Sprintf("LAG Interface %d", i+1),
-			IPv4:    fmt.Sprintf("192.18.%d.1", i+1),
+			IPv4:    fmt.Sprintf("198.18.%d.1", i+1),
 			IPv6:    fmt.Sprintf("2001:db8::%d:1", i+1),
 			IPv4Len: IPv4PrefixLen,
 			IPv6Len: IPv6PrefixLen,
