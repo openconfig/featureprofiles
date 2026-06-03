@@ -2234,6 +2234,7 @@ func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 }
 
 // QosUcTxQueue returns true if the device uses "qos uc-tx-queue" CLI syntax instead of "qos tx-queue".
+// Tracking issue: https://partnerissuetracker.corp.google.com/issues/493488247
 func QosUcTxQueue(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetQosUcTxQueue()
 }

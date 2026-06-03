@@ -1477,6 +1477,7 @@ type Metadata_Deviations struct {
 	// Nokia: b/445494680
 	P4RtExplicitTableEntryPerController bool `protobuf:"varint,432,opt,name=p4rt_explicit_table_entry_per_controller,json=p4rtExplicitTableEntryPerController,proto3" json:"p4rt_explicit_table_entry_per_controller,omitempty"`
 	// Device uses "qos uc-tx-queue" CLI syntax instead of "qos tx-queue".
+	// https://partnerissuetracker.corp.google.com/issues/493488247
 	QosUcTxQueue  bool `protobuf:"varint,433,opt,name=qos_uc_tx_queue,json=qosUcTxQueue,proto3" json:"qos_uc_tx_queue,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

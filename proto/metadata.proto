@@ -1366,6 +1366,7 @@ message Metadata {
     bool p4rt_explicit_table_entry_per_controller = 432;
 
     // Device uses "qos uc-tx-queue" CLI syntax instead of "qos tx-queue".
+    // https://partnerissuetracker.corp.google.com/issues/493488247
     bool qos_uc_tx_queue = 433;
 
     // Reserved field numbers and identifiers.
