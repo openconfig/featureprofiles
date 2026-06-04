@@ -375,11 +375,10 @@ func configureTunnelInterface(t *testing.T, intf string, unit int, tunnelSrc str
 		config = configureTunnelEndPoints(intf, unit, tunnelSrc, tunnelDst, tunnelIpv6address, Ipv6Mask)
 	case ondatra.CISCO:
 		config = configureTunnelEndPointsCisco(intf, unit, tunnelDst, tunnelIpv6address, Ipv6Mask)
-		t.Logf("Push the CLI config:\n%s", config)
-
 	default:
 		t.Fatalf("Tunnel endpoint configuration is not defined for %s", dut.Vendor())
 	}
+	t.Logf("Push the CLI config for %s:\n%s", dut.Vendor(), config)
 	if config == "" {
 		t.Fatalf("Generated empty tunnel endpoint config for %s", dut.Vendor())
 	}
