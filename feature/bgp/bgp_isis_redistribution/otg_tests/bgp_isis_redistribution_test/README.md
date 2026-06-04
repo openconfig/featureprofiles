@@ -121,6 +121,114 @@
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
 *   Validate that the traffic is received on ATE port-2
+##### Verify BGP and Static redistribution persistence after process restart
+
+*   Configure a static route on the DUT for IPv4 prefix ```192.168.10.0/25```
+    with the next-hop set to ATE port-2.
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
+*   Advertise a more-specific IPv4 prefix ```192.168.10.0/28``` via BGP from
+    ATE port-1, ensuring the route resolves to the same next-hop as the
+    static route.
+*   Configure source protocol ```STATIC``` to be redistributed to ```ISIS```.
+    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
+*   Verify on the ATE that both prefixes (```192.168.10.0/25``` from Static
+    and ```192.168.10.0/28``` from BGP) are received and present in the
+    IS-IS link-state database.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
+*   Restart the routing process on the DUT (e.g., via gNOI or system reboot).
+*   Wait for the BGP and IS-IS sessions to fully reconverge.
+*   Validate that the IS-IS on ATE still receives both the redistributed
+    Static prefix (```192.168.10.0/25```) and the redistributed BGP prefix
+    (```192.168.10.0/28```) without any loss.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Initiate traffic from ATE port-1 to the DUT destined to both prefixes
+    (```192.168.10.0/25``` and ```192.168.10.0/28```).
+*   Validate that the traffic is successfully received on ATE port-2.
+
+#### Canonical OC
+```json
+{
+  "openconfig-network-instance:network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "protocols": {
+          "protocol": [
+            {
+              "identifier": "openconfig-policy-types:ISIS",
+              "name": "DEFAULT",
+              "config": {
+                "identifier": "openconfig-policy-types:ISIS",
+                "name": "DEFAULT"
+              }
+            },
+            {
+              "identifier": "openconfig-policy-types:STATIC",
+              "name": "DEFAULT",
+              "static-routes": {
+                "static": [
+                  {
+                    "prefix": "192.168.10.0/25",
+                    "config": {
+                      "prefix": "192.168.10.0/25"
+                    },
+                    "next-hops": {
+                      "next-hop": [
+                        {
+                          "index": "0",
+                          "config": {
+                            "index": "0",
+                            "next-hop": "192.168.10.1"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "tables": {
+          "table": [
+            {
+              "protocol": "openconfig-policy-types:STATIC",
+              "address-family": "openconfig-types:IPV4",
+              "config": {
+                "protocol": "openconfig-policy-types:STATIC",
+                "address-family": "openconfig-types:IPV4"
+              }
+            },
+            {
+              "protocol": "openconfig-policy-types:ISIS",
+              "address-family": "openconfig-types:IPV4",
+              "config": {
+                "protocol": "openconfig-policy-types:ISIS",
+                "address-family": "openconfig-types:IPV4"
+              }
+            }
+          ]
+        },
+        "table-connections": {
+          "table-connection": [
+            {
+              "src-protocol": "openconfig-policy-types:STATIC",
+              "dst-protocol": "openconfig-policy-types:ISIS",
+              "address-family": "openconfig-types:IPV4",
+              "config": {
+                "src-protocol": "openconfig-policy-types:STATIC",
+                "dst-protocol": "openconfig-policy-types:ISIS",
+                "address-family": "openconfig-types:IPV4"
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+```
 
 ### RT-1.28.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS
@@ -289,6 +397,7 @@
 
 ## Config parameter coverage
 
+*   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
 *   /network-instances/network-instance/protocols/protocol/bgp/global/config
 *   /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/
 
@@ -344,6 +453,7 @@
 *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
 
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
 
 ## Protocol/RPC Parameter Coverage
@@ -364,6 +474,7 @@ paths used for test setup are not listed here.
 ```yaml 
 paths:
   ## Config paths
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
   /routing-policy/policy-definitions/policy-definition/config/name:
@@ -403,6 +514,9 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix:
 
 rpcs:
   gnmi:
