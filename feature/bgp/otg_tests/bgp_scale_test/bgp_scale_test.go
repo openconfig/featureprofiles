@@ -1690,7 +1690,7 @@ func configureDUTBGP(t *testing.T, as uint32, nbrs []*bgpNeighbor, dut *ondatra.
 		cfgplugins.WithGlobalAfiSafiEnabled(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST, true),
 		cfgplugins.WithExternalRouteDistance(9),
 	}
-	if dut.Vendor() != ondatra.JUNIPER {
+	if !deviations.BgpMaxMultipathPathsUnsupported(dut) {
 		globalOpts = append(globalOpts, cfgplugins.WithGlobalEBGPMultipath(64))
 	}
 	cfgplugins.ConfigureGlobal(bgp, dut, globalOpts...)
