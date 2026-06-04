@@ -71,9 +71,6 @@ const (
 	pingCount           = 1
 	metadataKeyUsername = "username"
 	metadataKeyPassword = "password"
-	defaultGRPCPort     = "9339"
-	defaultGRIBIPort    = "9340"
-	defaultP4RTPort     = "9559"
 )
 
 var (
@@ -192,19 +189,9 @@ type deviceRecordsConfig struct {
 // buildServiceTable builds the gRPC service table using service targets from the DUT binding.
 func buildServiceTable(t *testing.T, dut *ondatra.DUTDevice) []serviceEntry {
 	t.Helper()
-	host := dut.Name()
 	gnmiTarget := introspect.DUTDialer(t, dut, introspect.GNMI).DialTarget
-	if gnmiTarget == "" {
-		gnmiTarget = net.JoinHostPort(host, defaultGRPCPort)
-	}
 	gribiTarget := introspect.DUTDialer(t, dut, introspect.GRIBI).DialTarget
-	if gribiTarget == "" {
-		gribiTarget = net.JoinHostPort(host, defaultGRIBIPort)
-	}
 	p4rtTarget := introspect.DUTDialer(t, dut, introspect.P4RT).DialTarget
-	if p4rtTarget == "" {
-		p4rtTarget = net.JoinHostPort(host, defaultP4RTPort)
-	}
 	return []serviceEntry{
 		{name: "gnmi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNMI, rpcFn: rpcGNMI},
 		{name: "gnoi", target: gnmiTarget, svcType: acctzpb.GrpcService_GRPC_SERVICE_TYPE_GNOI, rpcFn: rpcGNOI},
@@ -231,9 +218,6 @@ type testCase struct {
 // all per-transaction gRPC services discovered from the DUT binding.
 func TestAccountingAuthenFailUni(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	wrongCert := tls.Certificate{}
-	t0 := time.Time{}
-	tests := []testCase{}
 	acctzUsername := ""
 	acctzPassword := ""
 	acctzTarget := ""
@@ -248,16 +232,16 @@ func TestAccountingAuthenFailUni(t *testing.T) {
 
 	setupTestUser(t, dut)
 
-	wrongCert = mustGenerateWrongClientCert(t)
+	wrongCert := mustGenerateWrongClientCert(t)
 	mustVerifyServiceConnectivity(t, dut, serviceTable)
 
 	// Step 1 (README): record T0.
-	t0 = time.Now().Add(-t0Offset)
+	t0 := time.Now().Add(-t0Offset)
 	t.Logf("T0 = %v", t0)
 
 	// Build the canonical test table by expanding the (service x scenario)
 	// cross-product. Each row drives one t.Run subtest below.
-	tests = make([]testCase, 0, len(serviceTable)*len(scenarioTable))
+	tests := make([]testCase, 0, len(serviceTable)*len(scenarioTable))
 	for _, svc := range serviceTable {
 		for _, sc := range scenarioTable {
 			tests = append(tests, testCase{
