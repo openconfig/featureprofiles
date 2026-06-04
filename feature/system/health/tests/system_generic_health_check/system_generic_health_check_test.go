@@ -60,6 +60,7 @@ const (
 	lineCardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	fabricCardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
@@ -148,6 +149,7 @@ func TestComponentStatus(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
+	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
 	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
@@ -166,6 +168,7 @@ func TestComponentStatus(t *testing.T) {
 	lineCards = chassisLineCards
 	checkComponents := append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
+	checkComponents = append(checkComponents, chassisCards...)
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
@@ -241,7 +244,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
-	if len(controllerCards) == 0 || len(cpuCards) == 0 {
+	if len(controllerCards) == 0 && len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
 	if deviations.CPUUtilizationQueryAgainstBaseControllerCardComponent(dut) {
@@ -332,9 +335,11 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 				}
 			}
 		}
+
 		if len(baseLCs) == 0 {
 			t.Errorf("ERROR: No Cisco linecard CPU base components found")
 		}
+
 		// Skip non-removable linecards
 		var removable []string
 		for _, lc := range baseLCs {
