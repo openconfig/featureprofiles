@@ -106,7 +106,7 @@
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 
 ### RT-1.28.2 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
-#### Matching IPv4 BGP prefixes in a prefix-set should be redistributed to IS-IS
+#### Matching IPv4 BGP prefixes in a prefix-set should be redistributed to IS-IS and persist after routing daemon restart alongside Static routes
 ---
 ##### Replace the previously configured prefix and mask in prefix-set configured in RT-1.28.1
 *   For prefix-set ```prefix-set-v4``` replace the ip-prefix to ```192.168.10.0/24``` and masklength is set to ```exact```
@@ -121,6 +121,40 @@
     *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv4-network``` i.e. ```192.168.10.0/24```
 *   Validate that the traffic is received on ATE port-2
+##### Initial Setup for Static Route and Policy
+*   Configure a static route for `ipv4-network-static` i.e. `192.168.20.0/24` on the DUT with the next-hop matching the BGP route's next-hop.
+*   Configure a routing policy definition with the name `static-to-isis`
+    *   /routing-policy/policy-definitions/policy-definition/config/name
+*   For routing-policy `static-to-isis` configure a statement with the name `statement-static`
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
+*   For routing-policy `static-to-isis` statement `statement-static` set policy-result as `ACCEPT_ROUTE`
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
+*   For routing-policy `static-to-isis` statement `statement-static` set IS-IS level to `2`
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/isis-actions/config/set-level
+##### Configure Static to IS-IS L2 redistribution
+*   Set address-family to `IPV4`
+    *   /network-instances/network-instance/table-connections/table-connection/config/address-family
+*   Configure source protocol to `STATIC`
+    *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
+*   Configure destination protocol to `ISIS`
+    *   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol
+*   Apply routing policy `static-to-isis` for redistribution to IS-IS
+    *   /network-instances/network-instance/table-connections/table-connection/config/import-policy
+##### Pre-restart Verification
+*   Verify that the IS-IS on ATE receives both the redistributed BGP route `192.168.10.0/24` and the redistributed Static route `192.168.20.0/24`.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Initiate traffic from ATE port-1 to the DUT and destined to both `192.168.10.0/24` and `192.168.20.0/24`.
+*   Validate that the traffic is received on ATE port-2.
+##### Restart Routing Process
+*   Trigger a restart of the routing process on the DUT.
+*   Wait for the IS-IS and BGP adjacencies to return to the `UP` state.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/adjacencies/adjacency/state/adjacency-state
+    *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
+##### Post-restart Verification
+*   Verify that the IS-IS on ATE *still* receives both the redistributed BGP route `192.168.10.0/24` and the redistributed Static route `192.168.20.0/24`.
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
+*   Initiate traffic from ATE port-1 to the DUT and destined to both `192.168.10.0/24` and `192.168.20.0/24`.
+*   Validate that the traffic is received on ATE port-2 without continuous loss after convergence.
 
 ### RT-1.28.3 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv4: Non matching BGP community in a community-set should not be redistributed to IS-IS
@@ -287,6 +321,12 @@
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## Config parameter coverage
 
 *   /network-instances/network-instance/protocols/protocol/bgp/global/config
@@ -345,6 +385,8 @@
 
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+*   /network-instances/network-instance/protocols/protocol/isis/levels/level/adjacencies/adjacency/state/adjacency-state
+*   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state
 
 ## Protocol/RPC Parameter Coverage
 
@@ -403,6 +445,8 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/state/disable-metric-propagation:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-set-name:
   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member:
+  /network-instances/network-instance/protocols/protocol/isis/levels/level/adjacencies/adjacency/state/adjacency-state:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 
 rpcs:
   gnmi:
