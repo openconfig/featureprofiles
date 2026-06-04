@@ -809,7 +809,7 @@ message Metadata {
 
     // Arista b/390506907
     bool interface_policy_forwarding_unsupported = 289;
-    
+
     // UseOldOCPathStaticLspNh for devices that do not support the new OC path for static lsp next-hops
     // issues/404301960
     bool use_old_oc_path_static_lsp_nh = 290;
@@ -1081,7 +1081,7 @@ message Metadata {
     // Devices that require no-php flag for ISIS SR prefix and node segments
     // Arista: b/462580165 requires no-php for receiving packet with self advertised label
     bool isis_sr_no_php_required = 360;
-    
+
     // Device does not support match-set-options leaf with ALL for match-community-set
     // Arista: b/335739231
     bool match_community_set_match_set_options_all_unsupported = 361;
@@ -1132,7 +1132,7 @@ message Metadata {
 
     // Device does not support transceiver state leaf.
     bool transceiver_state_unsupported = 374;
-    
+
     // Cisco: https://partnerissuetracker.corp.google.com/issues/478070225
     bool subnet_mask_change_required = 375;
 
@@ -1185,7 +1185,7 @@ message Metadata {
     // Devices that do not support configuring weight for wecmp
     // Juniper b/450154047
     bool wecmp_set_weight_unsupported = 388;
-    
+
     // Device does not support default import policy so we need to explicitly apply "allow-all" import policy
     // Cisco: https://partnerissuetracker.corp.google.com/issues/479056256
     bool explicitly_apply_allow_all_import_policy = 389;
@@ -1284,7 +1284,7 @@ message Metadata {
     // Functional translator to be used for carrier-transitions paths.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
     string carrier_ft = 411;
-    
+
     // Functional translator name for fabric error telemetry.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
     string fabric_ft = 412;
@@ -1309,7 +1309,7 @@ message Metadata {
     // Device does not support interface counters in fcs errors
     // Arista: https://issuetracker.google.com/issues/508304903
     bool interface_counters_in_fcs_errors_unsupported = 418;
-    
+
     // Arista: b/495544007
     // Devices that do not support mpls static pseudowire OC
     bool mpls_static_pseudowire_oc_unsupported = 419;
@@ -1361,6 +1361,9 @@ message Metadata {
     // https://partnerissuetracker.corp.google.com/issues/497757203
     bool dhcp_relay_oc_unsupported = 431;
 
+    // Device requires p4rt table entries to be configured for each new primary controller
+    // Nokia: b/445494680
+    bool p4rt_explicit_table_entry_per_controller = 432;
 
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
