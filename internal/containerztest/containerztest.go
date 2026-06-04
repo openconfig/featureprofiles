@@ -53,9 +53,16 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		`).Append(t)
 		t.Logf("Waiting for device to ingest its config.")
 		time.Sleep(time.Minute)
-	case ondatra.NOKIA, ondatra.CISCO:
-		break
-	case ondatra.JUNIPER:
+	case ondatra.CISCO:
+		dut.Config().New().WithCiscoText(`
+			appmgr docker allow-sensitive-paths
+			ipv6 access-list restrict-access-ipv6
+			  ! open port for cntrsrv from PROD
+			  permit tcp any any eq 60061
+		`).Append(t)
+		t.Logf("Waiting for device to ingest its config.")
+		time.Sleep(time.Minute)
+	case ondatra.NOKIA, ondatra.JUNIPER:
 		break
 	default:
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
@@ -72,11 +79,13 @@ type StartContainerOptions struct {
 	InstanceName        string
 	Command             string
 	Ports               []string
+	Volumes             []string
 	RemoveExistingImage bool
 	PollForRunningState bool
 	PollTimeout         time.Duration
 	PollInterval        time.Duration
 	Network             string
+	RestartPolicyName   string
 }
 
 // withDefaults returns a new StartContainerOptions with default values applied
@@ -105,6 +114,9 @@ func (o StartContainerOptions) withDefaults() StartContainerOptions {
 	}
 	if res.PollInterval == 0 {
 		res.PollInterval = 5 * time.Second // Also used for fixed sleep if not polling
+	}
+	if res.RestartPolicyName == "" {
+		res.RestartPolicyName = "Always"
 	}
 	// Boolean fields (RemoveExistingImage, PollForRunningState) default to false (their zero value).
 	return res
@@ -177,13 +189,19 @@ func DeployAndStart(ctx context.Context, t *testing.T, cli *client.Client, opts 
 	t.Logf("Image %s:%s verified successfully after push.", opts.ImageName, opts.ImageTag)
 
 	// 5. Start the container.
-	t.Logf("Starting container %s with image %s:%s, command '%s', ports %v.", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Ports)
+	t.Logf("Starting container %s with image %s:%s, command '%s', ports %v, volumes %v, network %s, restart policy %s", opts.InstanceName, opts.ImageName, opts.ImageTag, opts.Command, opts.Ports, opts.Volumes, opts.Network, opts.RestartPolicyName)
 	var startOpts []client.StartOption
 	if len(opts.Ports) > 0 {
 		startOpts = append(startOpts, client.WithPorts(opts.Ports))
 	}
+	if len(opts.Volumes) > 0 {
+		startOpts = append(startOpts, client.WithVolumes(opts.Volumes))
+	}
 	if opts.Network != "" {
 		startOpts = append(startOpts, client.WithNetwork(opts.Network))
+	}
+	if opts.RestartPolicyName != "" {
+		startOpts = append(startOpts, client.WithRestartPolicy(opts.RestartPolicyName))
 	}
 
 	startResp, err := cli.StartContainer(ctx, opts.ImageName, opts.ImageTag, opts.Command, opts.InstanceName, startOpts...)
