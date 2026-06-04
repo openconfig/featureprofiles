@@ -340,7 +340,7 @@
     *   /network-instances/network-instance/table-connections/table-connection/config/import-policy
 ##### Validate test results
 *   Validate that the IS-IS on ATE does not receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
 
 ### RT-1.28.6 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### Matching IPv6 BGP prefixes in a prefix-set should be redistributed to IS-IS
@@ -355,7 +355,7 @@
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/state/masklength-range
 ##### Validate test results
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
 
@@ -377,7 +377,7 @@
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
 ##### Validate test results
 *   Validate that the IS-IS on ATE does not receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
 
 ### RT-1.28.8 [TODO: https://github.com/openconfig/featureprofiles/issues/2570]
 #### IPv6: Matching BGP community in a community-set should be redistributed to IS-IS
@@ -390,8 +390,8 @@
     *   /routing-policy/defined-sets/bgp-defined-sets/community-sets/community-set/state/community-member
 ##### Validate test results
 *   Validate that the IS-IS on ATE receives the redistributed BGP route for network ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
-    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/metric
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
+    *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/metric
 *   Initiate traffic from ATE port-1 to the DUT and destined to ```ipv6-network``` i.e. ```2024:db8:128:128::/64```
 *   Validate that the traffic is received on ATE port-2
 
@@ -454,7 +454,7 @@
 
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/prefix
 *   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv4-reachability/prefixes/prefix/state/metric
-*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/extended-ipv6-reachability/prefixes/prefix/state/prefix
+*   /network-instances/network-instance/protocols/protocol/isis/levels/level/link-state-database/lsp/tlvs/tlv/ipv6-reachability/prefixes/prefix/state/prefix
 
 ## Protocol/RPC Parameter Coverage
 
