@@ -2256,6 +2256,7 @@ func configureOTGISIS(t *testing.T, name string, dev gosnappi.Device, atePort at
 				Metric:      10,
 			},
 		},
+		SetLearnedLspFilter: false,
 	}
 	isis := otgconfighelpers.ConfigureISIS(t, dev, isisAttrs)
 	loopbackV4, eMsg := atePort.ip4Loopback(i)
