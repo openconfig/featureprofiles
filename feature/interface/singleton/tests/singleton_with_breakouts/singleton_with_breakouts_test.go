@@ -54,7 +54,7 @@ func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
 	if !rebootCheck {
 		breakoutPorts = configureDUT(t, dut)
 	} else {
-		breakoutPorts = getBreakoutPortsInfo(t, dut)
+		breakoutPorts = breakoutPortsInfo(t, dut)
 	}
 
 	expectedInterfaceCount := buildExpectedCounts(t, dut, breakoutPorts)
@@ -105,7 +105,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo 
 	return breakoutPorts
 }
 
-func getBreakoutPortsInfo(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
+func breakoutPortsInfo(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
 	breakoutPorts := make(map[string]breakoutInfo)
 	for _, port := range dut.Ports() {
 		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
