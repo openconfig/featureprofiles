@@ -64,7 +64,7 @@ func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
 
 	if !rebootCheck {
 		// Step 3: Configure breakout interfaces
-		configureBreakoutInterfaces(t, dut, breakoutPorts, discoveredInterfaces)
+		mustConfigureBreakoutInterfaces(t, dut, breakoutPorts, discoveredInterfaces)
 
 		// Verify again after configuration
 		verifyAndCollectInterfaces(t, dut, expectedInterfaceCount)
@@ -270,7 +270,7 @@ func verifyAndCollectInterfaces(t *testing.T, dut *ondatra.DUTDevice, expectedIn
 	return discoveredInterfaces
 }
 
-func configureBreakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo, discoveredInterfaces map[string][]string) {
+func mustConfigureBreakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo, discoveredInterfaces map[string][]string) {
 	topo := gnmi.OC()
 	for hwPort, info := range breakoutPorts {
 		intfNames, present := discoveredInterfaces[hwPort]
