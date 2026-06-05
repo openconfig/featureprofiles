@@ -125,7 +125,7 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 		descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
 		if present {
 			descStr := strings.ToUpper(descVal)
-			if strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") {
+			if strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") || strings.Contains(descStr, "2XDR4") {
 				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 			}
 			if strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
