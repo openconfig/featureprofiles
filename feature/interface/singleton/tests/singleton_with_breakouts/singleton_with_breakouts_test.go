@@ -37,27 +37,34 @@ const (
 	maxCompWaitTime = 900
 )
 
+type breakoutInfo struct {
+	numBreakouts    uint8
+	speed           oc.E_IfEthernet_ETHERNET_SPEED
+	numPhysChannels uint8
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 // Method to run baseLine test.
 func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
-	var expectedInterfaceCount map[string]int
-	var breakoutHardwarePorts map[string]bool
+	var breakoutPorts map[string]breakoutInfo
 
 	if !rebootCheck {
-		expectedInterfaceCount, breakoutHardwarePorts = configureDUT(t, dut)
+		breakoutPorts = configureDUT(t, dut)
 	} else {
-		expectedInterfaceCount, breakoutHardwarePorts = getExpectedInterfaceCount(t, dut)
+		breakoutPorts = getBreakoutPortsInfo(t, dut)
 	}
+
+	expectedInterfaceCount := buildExpectedCounts(t, dut, breakoutPorts)
 
 	// Step 2: Discover and verify interfaces (Subscribe)
 	discoveredInterfaces := verifyAndCollectInterfaces(t, dut, expectedInterfaceCount)
 
 	if !rebootCheck {
 		// Step 3: Configure breakout interfaces
-		configureBreakoutInterfaces(t, dut, breakoutHardwarePorts, discoveredInterfaces)
+		configureBreakoutInterfaces(t, dut, breakoutPorts, discoveredInterfaces)
 
 		// Verify again after configuration
 		verifyAndCollectInterfaces(t, dut, expectedInterfaceCount)
@@ -65,10 +72,9 @@ func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
 }
 
 // Method to configure DUT interfaces along with breakout configurations.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice) (map[string]int, map[string]bool) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
 	topo := gnmi.OC()
-	expectedInterfaceCount := make(map[string]int)
-	breakoutHardwarePorts := make(map[string]bool)
+	breakoutPorts := make(map[string]breakoutInfo)
 
 	for _, port := range dut.Ports() {
 		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
@@ -85,34 +91,47 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) (map[string]int, map[str
 			gnmi.Replace(t, dut, topo.Component(hardwarePort).Config(), comp)
 			t.Logf("Configured Port=%v with PMD=%v, Speed=%v with breakout configuration num_of_breakouts=%v, break_out_speed=%v", port.Name(), port.PMD(), port.Speed(), numBreakouts, speed)
 
-			expectedInterfaceCount[hardwarePort] = int(numBreakouts)
-			breakoutHardwarePorts[hardwarePort] = true
+			breakoutPorts[hardwarePort] = breakoutInfo{
+				numBreakouts:    numBreakouts,
+				speed:           speed,
+				numPhysChannels: numPhysChannels,
+			}
 		} else {
 			i := configureInterfaceDUT(t, dut, port)
 			gnmi.Replace(t, dut, topo.Interface(port.Name()).Config(), i)
 			t.Logf("Configured Port=%v with PMD =%v", port.Name(), port.PMD())
-
-			expectedInterfaceCount[hardwarePort] = 1
 		}
 	}
-	return expectedInterfaceCount, breakoutHardwarePorts
+	return breakoutPorts
 }
 
-func getExpectedInterfaceCount(t *testing.T, dut *ondatra.DUTDevice) (map[string]int, map[string]bool) {
-	expectedInterfaceCount := make(map[string]int)
-	breakoutHardwarePorts := make(map[string]bool)
-
+func getBreakoutPortsInfo(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
+	breakoutPorts := make(map[string]breakoutInfo)
 	for _, port := range dut.Ports() {
 		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
-		numBreakouts, _, _ := breakoutConfig(t, dut, port)
+		numBreakouts, speed, numPhysChannels := breakoutConfig(t, dut, port)
 		if numBreakouts > 0 {
-			expectedInterfaceCount[hardwarePort] = int(numBreakouts)
-			breakoutHardwarePorts[hardwarePort] = true
-		} else {
-			expectedInterfaceCount[hardwarePort] = 1
+			breakoutPorts[hardwarePort] = breakoutInfo{
+				numBreakouts:    numBreakouts,
+				speed:           speed,
+				numPhysChannels: numPhysChannels,
+			}
 		}
 	}
-	return expectedInterfaceCount, breakoutHardwarePorts
+	return breakoutPorts
+}
+
+func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo) map[string]int {
+	expectedCounts := make(map[string]int)
+	for _, port := range dut.Ports() {
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		if info, isBreakout := breakoutPorts[hardwarePort]; isBreakout {
+			expectedCounts[hardwarePort] = int(info.numBreakouts)
+		} else {
+			expectedCounts[hardwarePort] = 1
+		}
+	}
+	return expectedCounts
 }
 
 func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED, uint8) {
@@ -251,20 +270,23 @@ func verifyAndCollectInterfaces(t *testing.T, dut *ondatra.DUTDevice, expectedIn
 	return discoveredInterfaces
 }
 
-func configureBreakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, breakoutHardwarePorts map[string]bool, discoveredInterfaces map[string][]string) {
+func configureBreakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo, discoveredInterfaces map[string][]string) {
 	topo := gnmi.OC()
-	for hwPort := range breakoutHardwarePorts {
+	for hwPort, info := range breakoutPorts {
 		intfNames, present := discoveredInterfaces[hwPort]
 		if !present {
 			t.Errorf("No interfaces discovered for breakout hardware port %s", hwPort)
 			continue
 		}
 		for _, intfName := range intfNames {
-			t.Logf("Configuring breakout interface %s (pointing to %s)", intfName, hwPort)
+			t.Logf("Configuring breakout interface %s (pointing to %s) with speed %v", intfName, hwPort, info.speed)
 			i := &oc.Interface{
 				Name:    ygot.String(intfName),
 				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
 				Enabled: ygot.Bool(true),
+				Ethernet: &oc.Interface_Ethernet{
+					PortSpeed: info.speed,
+				},
 			}
 			gnmi.Replace(t, dut, topo.Interface(intfName).Config(), i)
 		}
