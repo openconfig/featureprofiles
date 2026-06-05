@@ -4262,6 +4262,10 @@ func (x *Metadata_Deviations) GetRequireTransportSecurity() bool {
 func (x *Metadata_Deviations) GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress() bool {
 	if x != nil {
 		return x.UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress
+			}
+	return false
+}
+
 func (x *Metadata_Deviations) GetExtendedRouteRetentionOcUnsupported() bool {
 	if x != nil {
 		return x.ExtendedRouteRetentionOcUnsupported
