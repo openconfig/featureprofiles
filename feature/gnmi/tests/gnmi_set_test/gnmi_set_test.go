@@ -16,6 +16,7 @@ package gnmi_set_test
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -23,8 +24,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"flag"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -76,6 +75,7 @@ type Options struct {
 type breakout struct {
 	breakoutSpeed       oc.E_IfEthernet_ETHERNET_SPEED
 	numPhysicalChannels uint8
+	childInterfaceName  string
 }
 
 // showRunningConfig gets the running config from the router
@@ -345,7 +345,6 @@ func TestDeleteNonDefaultVRF(t *testing.T) {
 		config.DeleteNetworkInstance(vrf)
 		ni := config.GetOrCreateNetworkInstance(vrf)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-
 		id1 := attachInterface(dut, ni, p1.Name(), 0)
 		id2 := attachInterface(dut, ni, p2.Name(), 0)
 
@@ -919,11 +918,11 @@ func (rootOp) shouldSkip() bool { return *skipRootOp }
 
 func (op rootOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *pushScope) {
 	t.Helper()
-	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "RootOp", gnmi.OC().Config(), config)
 	dut := ondatra.DUT(t, "dut")
 	if deviations.AddMissingBaseConfigViaCli(dut) {
 		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+			setStaticRouteRecurseForPhysicalInterface(config)
 			addMissingConfigForRootReplace(t, dev, config)
 		}
 	} else {
@@ -940,13 +939,14 @@ func (containerOp) shouldSkip() bool { return *skipContainerOp }
 
 func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, _ *pushScope) {
 	t.Helper()
-	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "ContainerOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
+	supContainerConfig := map[string]breakout{}
 	if deviations.AddMissingBaseConfigViaCli(ondatra.DUT(t, "dut")) {
 		if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
-			supContainerConfig := addMissingConfigForContainerReplace(t, dev)
+			setStaticRouteRecurseForPhysicalInterface(config)
+			supContainerConfig = addMissingConfigForContainerReplace(t, dev, config)
 			for port, data := range supContainerConfig {
 				gnmi.Update(t, ondatra.DUT(t, "dut"), gnmi.OC().Component(port).Config(), &oc.Component{
 					Name: ygot.String(port),
@@ -957,7 +957,6 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 				gp.NumBreakouts = ygot.Uint8(data.numPhysicalChannels)
 				bmp := gnmi.OC().Component(port).Port().BreakoutMode()
 				gnmi.BatchReplace(batch, bmp.Config(), bmode)
-				time.Sleep(5 * time.Second)
 				// Also set Name for each breakout child port to satisfy leafref constraints
 				for i := 0; i < int(data.numPhysicalChannels); i++ {
 					childPortName := fmt.Sprintf("%s/%d", port, i)
@@ -971,6 +970,9 @@ func (op containerOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root,
 	gnmi.BatchReplace(batch, interfacesQuery, &Interfaces{Interface: config.Interface})
 	gnmi.BatchReplace(batch, networkInstancesQuery, &NetworkInstances{NetworkInstance: config.NetworkInstance})
 	batch.Set(t, dev)
+	if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO && len(supContainerConfig) > 0 {
+		checkBreakoutPortsOnline(t, dev, supContainerConfig)
+	}
 }
 
 // itemOp pushes individual configuration items in the same SetRequest.
@@ -981,13 +983,14 @@ func (itemOp) shouldSkip() bool { return *skipItemOp }
 
 func (op itemOp) push(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root, scope *pushScope) {
 	t.Helper()
-	setStaticRouteRecurseForPhysicalInterface(config)
 	fptest.WriteQuery(t, "ItemOp", gnmi.OC().Config(), config)
 
 	batch := &gnmi.SetBatch{}
 	var out strings.Builder
 	fmt.Fprintln(&out, "ItemOp SetRequest:")
-
+	if ondatra.DUT(t, "dut").Vendor() == ondatra.CISCO {
+		setStaticRouteRecurseForPhysicalInterface(config)
+	}
 	for _, iname := range scope.interfaces {
 		iface := config.GetInterface(iname)
 		if iface != nil {
@@ -1133,15 +1136,25 @@ func removeStatementsBetweenWords(inputStr, startWord, endWord string, opts ...*
 	return strings.Join(result, "\n")
 }
 
-func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) map[string]breakout {
+func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts, config *oc.Root) map[string]breakout {
 	intfsState := gnmi.GetAll(t, dev, gnmi.OC().InterfaceAny().State())
 	breakoutPortsMap := make(map[string]breakout) // which holds map of optic: {BreakoutSpeed:10, NumBreakouts:4}
 	port := make(map[string]uint8)
+	targetInterfaces := map[string]bool{}
 	var trackspeed oc.E_IfEthernet_ETHERNET_SPEED
+
+	if config != nil {
+		for name := range config.Interface {
+			targetInterfaces[name] = true
+		}
+	}
 
 	for _, intf := range intfsState {
 		t.Logf("interface: %v", intf)
 		if intf.HardwarePort == nil || intf.PhysicalChannel == nil {
+			continue
+		}
+		if !targetInterfaces[intf.GetName()] {
 			continue
 		}
 		hwp := intf.GetHardwarePort()
@@ -1170,20 +1183,25 @@ func addMissingConfigForContainerReplace(t testing.TB, dev gnmi.DeviceOrOpts) ma
 
 			_, keyExists := breakoutPortsMap[intf.GetHardwarePort()]
 			if !keyExists && speed == oc.IfEthernet_ETHERNET_SPEED_UNSET {
-				if intf.GetEthernet().PortSpeed.String() == "SPEED_800GB" {
+				if intf.GetEthernet().GetPortSpeed().String() == "SPEED_800GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_400GB" {
+				} else if intf.GetEthernet().GetPortSpeed().String() == "SPEED_400GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_100GB" {
+				} else if intf.GetEthernet().GetPortSpeed().String() == "SPEED_100GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-				} else if intf.GetEthernet().PortSpeed.String() == "SPEED_10GB" {
+				} else if intf.GetEthernet().GetPortSpeed().String() == "SPEED_10GB" {
 					trackspeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB
 				}
 			}
 			hwPort := intf.GetHardwarePort()
 			numChannels := port[hwPort] + 1
 			port[hwPort] = numChannels
-			breakoutPortsMap[hwPort] = breakout{numPhysicalChannels: numChannels, breakoutSpeed: trackspeed}
+			// Extract parent interface name by removing the breakout index suffix (e.g., "FourHundredGigE0/0/0/22" from "FourHundredGigE0/0/0/22/0")
+			childIntfName := intf.GetName()
+			if idx := strings.LastIndex(childIntfName, "/"); idx >= 0 {
+				childIntfName = childIntfName[:idx]
+			}
+			breakoutPortsMap[hwPort] = breakout{numPhysicalChannels: numChannels, breakoutSpeed: trackspeed, childInterfaceName: childIntfName}
 		}
 	}
 	return breakoutPortsMap
@@ -1235,6 +1253,29 @@ func isPhysicalInterface(config *oc.Root, ifName string) bool {
 		return true
 	default:
 		return false
+	}
+}
+func checkBreakoutPortsOnline(t testing.TB, dev gnmi.DeviceOrOpts, supContainerConfig map[string]breakout) {
+	t.Helper()
+
+	const timeout = 3 * time.Minute
+	for _, data := range supContainerConfig {
+		// bmp := gnmi.OC().Component(port).Port().BreakoutMode()
+		// // Check if num-breakouts state is available; log if not, but don't fail.
+		// if numBreakouts, ok := gnmi.Lookup(t, dev, bmp.Group(0).NumBreakouts().State()).Val(); ok {
+		// 	if numBreakouts != data.numPhysicalChannels {
+		// 		t.Logf("Breakout mode num-breakouts for port %s: got %v, want %v", port, numBreakouts, data.numPhysicalChannels)
+		// 	}
+		// } else {
+		// 	t.Logf("Breakout mode num-breakouts state not available for port %s", port)
+		// }
+		for i := 0; i < int(data.numPhysicalChannels); i++ {
+			childPortName := fmt.Sprintf("%s/%d", data.childInterfaceName, i)
+			t.Logf("DBG: Checking breakout interface %s", childPortName)
+			if got, ok := gnmi.Await(t, dev, gnmi.OC().Interface(childPortName).OperStatus().State(), timeout, oc.Interface_OperStatus_UP).Val(); !ok {
+				t.Errorf("Breakout interface %s did not come online in %v, got oper-status=%v", childPortName, timeout, got)
+			}
+		}
 	}
 }
 
