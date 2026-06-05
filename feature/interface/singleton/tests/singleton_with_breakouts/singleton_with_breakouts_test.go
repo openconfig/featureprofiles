@@ -28,8 +28,8 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
-	"github.com/openconfig/ygot/ygot"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 const (
@@ -158,10 +158,7 @@ func matchHardwarePort(state, expected string) bool {
 		return true
 	}
 	trimmedExpected := strings.TrimSuffix(expected, "-Port")
-	if strings.HasPrefix(state, trimmedExpected+"/") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(state, trimmedExpected+"/")
 }
 
 func removeString(slice []string, s string) []string {
