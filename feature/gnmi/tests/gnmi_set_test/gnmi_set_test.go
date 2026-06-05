@@ -1260,15 +1260,6 @@ func checkBreakoutPortsOnline(t testing.TB, dev gnmi.DeviceOrOpts, supContainerC
 
 	const timeout = 3 * time.Minute
 	for _, data := range supContainerConfig {
-		// bmp := gnmi.OC().Component(port).Port().BreakoutMode()
-		// // Check if num-breakouts state is available; log if not, but don't fail.
-		// if numBreakouts, ok := gnmi.Lookup(t, dev, bmp.Group(0).NumBreakouts().State()).Val(); ok {
-		// 	if numBreakouts != data.numPhysicalChannels {
-		// 		t.Logf("Breakout mode num-breakouts for port %s: got %v, want %v", port, numBreakouts, data.numPhysicalChannels)
-		// 	}
-		// } else {
-		// 	t.Logf("Breakout mode num-breakouts state not available for port %s", port)
-		// }
 		for i := 0; i < int(data.numPhysicalChannels); i++ {
 			childPortName := fmt.Sprintf("%s/%d", data.childInterfaceName, i)
 			t.Logf("DBG: Checking breakout interface %s", childPortName)
