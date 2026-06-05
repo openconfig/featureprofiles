@@ -83,6 +83,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo 
 			comp := &oc.Component{Name: &hardwarePort}
 			bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
 			group := bmode.GetOrCreateGroup(1)
+			group.Index = ygot.Uint8(1)
 			group.BreakoutSpeed = speed
 			group.NumBreakouts = ygot.Uint8(numBreakouts)
 			if !deviations.NumPhysyicalChannelsUnsupported(dut) {
@@ -135,19 +136,23 @@ func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map
 }
 
 func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED, uint8) {
-	if port.PMD() == ondatra.PMD400GBASEDR4 {
+	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+	descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
+	descStr := ""
+	if present {
+		descStr = strings.ToUpper(descVal)
+	}
+
+	if port.PMD() == ondatra.PMD400GBASEDR4 || (port.Speed() == ondatra.Speed400Gb && strings.Contains(descStr, "100G")) {
 		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 	}
 
 	if port.Speed() == ondatra.Speed800Gb || port.PMD() == ondatra.PMD800GBASEZR || port.PMD() == ondatra.PMD800GBASEZRP {
-		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
-		descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
 		if present {
-			descStr := strings.ToUpper(descVal)
-			if strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") || strings.Contains(descStr, "2XDR4") {
+			if strings.Contains(descStr, "100G") || strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") {
 				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
 			}
-			if strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
+			if strings.Contains(descStr, "400G") || strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
 				return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
 			}
 		}
@@ -378,6 +383,9 @@ func TestSingletonWithBreakouts(t *testing.T) {
 	})
 	t.Run("RT-8.2 - Reboot test", func(tb *testing.T) {
 		rebootDUT(tb, dut)
+		// Verify persistence first
 		baseLineTest(tb, dut, true)
+		// Then repeat RT-8.1 (configure and verify again)
+		baseLineTest(tb, dut, false)
 	})
 }
