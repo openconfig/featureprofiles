@@ -12,6 +12,7 @@ platform_exceptions: {
   deviations: {
     explicit_interface_in_default_vrf: true
     interface_enabled: true
+    p4rt_explicit_table_entry_per_controller:  true
   }
 }
 platform_exceptions: {
