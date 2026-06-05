@@ -16,6 +16,7 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,22 +53,46 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[stri
 	topo := gnmi.OC()
 	for _, port := range dut.Ports() {
 		portsConfigured[port.Name()] = false
-		if port.PMD() == ondatra.PMD400GBASEDR4 {
-			numOfBreakouts := uint8(4)
+		numBreakouts, speed := breakoutConfig(t, dut, port)
+		if numBreakouts > 0 {
 			hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
 			comp := &oc.Component{Name: &hardwarePort}
 			bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
 			group := bmode.GetOrCreateGroup(1)
-			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-			group.NumBreakouts = ygot.Uint8(numOfBreakouts)
+			group.BreakoutSpeed = speed
+			group.NumBreakouts = ygot.Uint8(numBreakouts)
 			gnmi.Replace(t, dut, topo.Component(hardwarePort).Config(), comp)
-			t.Logf("Configured Port=%v with  PMD = %v with breakout configuration num_of_breakouts= %v , break_out_speed=%v ", port.Name(), port.PMD(), numOfBreakouts, group.BreakoutSpeed)
+			t.Logf("Configured Port=%v with PMD=%v, Speed=%v with breakout configuration num_of_breakouts=%v, break_out_speed=%v", port.Name(), port.PMD(), port.Speed(), numBreakouts, speed)
 		} else {
 			i := configureInterfaceDUT(t, dut, port)
 			gnmi.Replace(t, dut, topo.Interface(port.Name()).Config(), i)
 			t.Logf("Configured Port=%v with PMD =%v", port.Name(), port.PMD())
 		}
 	}
+}
+
+func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED) {
+	if port.PMD() == ondatra.PMD400GBASEDR4 {
+		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+	}
+
+	if port.Speed() == ondatra.Speed800Gb || port.PMD() == ondatra.PMD800GBASEZR || port.PMD() == ondatra.PMD800GBASEZRP {
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
+		if present {
+			descStr := strings.ToUpper(descVal)
+			if strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") {
+				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
+			}
+			if strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
+				return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+			}
+		}
+		t.Logf("Could not detect breakout mode from description %q, defaulting to 2x400G", descVal)
+		return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB
+	}
+
+	return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET
 }
 
 // Method to configure the interface.
