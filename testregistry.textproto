@@ -202,11 +202,6 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/cfm/otg_tests/cfm_base/README.md"
 }
 test: {
-  id: "CL-1.1"
-  description: "FNT Codelab covering basic interface setup."
-  readme: ""
-}
-test: {
   id: "CNTR-1"
   description: "Basic container lifecycle via `gnoi.Containerz`."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/container/containerz/tests/container_lifecycle/README.md"
@@ -2452,6 +2447,11 @@ test: {
   description: "Telemetry: Interface openconfig validation."
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/README.md"
   exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnmi/tests/telemetry_interfaces_test/telemetry_interfaces_test.go"
+}
+test: {
+  id: "gNMI-1.29"
+  description: "Pipeline Counters Drops Test"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/platform/integrated_circuit/otg_tests/pipeline_counters_drop_test/README.md"
 }
 test: {
   id: "gNMI-1.3"
