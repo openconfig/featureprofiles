@@ -2208,6 +2208,8 @@ func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
 // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
 func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}
+
 // ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
 // Use the deviation if BGP Extension Route Retention configuration is not available via OC
 func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
