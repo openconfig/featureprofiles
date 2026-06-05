@@ -59,3 +59,48 @@ rpcs:
     gNMI.Subscribe:
 ```
 
+## Canonical OC
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "port-1"
+        },
+        "name": "port-1",
+        "port": {
+          "breakout-mode": {
+            "groups": {
+              "group": [
+                {
+                  "config": {
+                    "breakout-speed": "SPEED_100GB",
+                    "index": 1,
+                    "num-breakouts": 4
+                  },
+                  "index": 1
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "enabled": true,
+          "name": "et-1/1/1",
+          "type": "ethernetCsmacd"
+        },
+        "name": "et-1/1/1"
+      }
+    ]
+  }
+}
+```
+
+
