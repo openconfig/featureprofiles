@@ -553,6 +553,29 @@ func testNoCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *on
 		}
 	}
 
+	// Wait for ALL tagged metrics to populate first
+	deadline := time.Now().Add(45 * time.Second)
+	metricsPopulated := false
+	for time.Now().Before(deadline) {
+		allFound := true
+		for dscpValue := 0; dscpValue < 64; dscpValue++ {
+			etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)).TaggedMetricAny()
+			vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
+			if len(vals) == 0 || !vals[0].IsPresent() {
+				allFound = false
+				break
+			}
+		}
+		if allFound {
+			metricsPopulated = true
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+	if !metricsPopulated {
+		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
+	}
+
 	for dscpValue := 0; dscpValue < 64; dscpValue++ {
 		etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, atePort2.Name)).TaggedMetricAny()
 		ets := gnmi.GetAll(t, ate.OTG(), etPath.State())
@@ -654,6 +677,35 @@ func testCongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	}
 
 	var congestedFlowCount int
+
+	// Wait for ALL tagged metrics across both ports to populate first
+	deadline := time.Now().Add(45 * time.Second)
+	metricsPopulated := false
+	for time.Now().Before(deadline) {
+		allFound := true
+		for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+			for dscpValue := 0; dscpValue < 64; dscpValue++ {
+				etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
+				vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
+				if len(vals) == 0 || !vals[0].IsPresent() {
+					allFound = false
+					break
+				}
+			}
+			if !allFound {
+				break
+			}
+		}
+		if allFound {
+			metricsPopulated = true
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	if !metricsPopulated {
+		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
+	}
 
 	// These should have the majority of flows have ecn set.
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
@@ -788,6 +840,35 @@ func testNC1CongestionValidateFlows(t *testing.T, dut *ondatra.DUTDevice, ate *o
 	}
 
 	var congestedFlowCount int
+
+	// Wait for ALL 48-63 tagged metrics to populate first
+	deadline := time.Now().Add(45 * time.Second)
+	metricsPopulated := false
+	for time.Now().Before(deadline) {
+		allFound := true
+		for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
+			for dscpValue := 48; dscpValue < 64; dscpValue++ {
+				etPath := gnmi.OTG().Flow(fmt.Sprintf("dscp-%d-%s", dscpValue, sourceAtePort.Name)).TaggedMetricAny()
+				vals := gnmi.LookupAll(t, ate.OTG(), etPath.State())
+				if len(vals) == 0 || !vals[0].IsPresent() {
+					allFound = false
+					break
+				}
+			}
+			if !allFound {
+				break
+			}
+		}
+		if allFound {
+			metricsPopulated = true
+			break
+		}
+		time.Sleep(2 * time.Second)
+	}
+
+	if !metricsPopulated {
+		t.Fatalf("Timed out waiting for tagged metrics to populate on the ATE")
+	}
 
 	for _, sourceAtePort := range []*attrs.Attributes{atePort2, atePort3} {
 		for dscpValue := 48; dscpValue < 64; dscpValue++ {

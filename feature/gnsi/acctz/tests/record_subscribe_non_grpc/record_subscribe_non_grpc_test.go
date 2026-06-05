@@ -234,7 +234,7 @@ func setupVendorSpecificAcctzConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.CISCO:
 		// Enable CLI command accounting to ensure records are generated for CLI commands.
-		helpers.GnmiCLIConfig(t, dut, "aaa accounting commands default start-stop local\n")
+		helpers.GnmiCLIConfig(t, dut, "aaa accounting commands default start-stop local\naaa authorization commands default none\n")
 		// Increase gRPC accounting queue size to avoid record loss
 		// during longer test executions with background activity.
 		helpers.GnmiCLIConfig(t, dut, "grpc\n aaa accounting queue-size 512\n")
