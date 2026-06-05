@@ -130,7 +130,7 @@ Verify:
 
 ### RT-3.53.4: IPv6 traffic GUE encapsulation with explicit ToS configuration on tunnel
 
-*   Modify the flows in `RT-3.53.3` to use IPv6 destination IPv6-DST-NET and
+*   Modify the flows in `RT-3.53.3` to use IPv6 destination IPv6-DST-NET and set the ToS on the packets from ATE and
     repeat the traffic generation and validation.
 
 ### RT-3.53.5: IPv4 traffic GUE encapsulation with explicit TTL configuration on tunnel
@@ -326,6 +326,8 @@ paths:
 
     # telemetry
     /interfaces/interface/state/counters/out-unicast-pkts:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/counters/packets-forwarded:
+    /network-instances/network-instance/afts/next-hops/next-hop/state/counters/octets-forwarded:
 
 
 rpcs:
