@@ -901,7 +901,7 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
@@ -924,7 +924,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if !deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
+	if deviations.IPv4MissingEnabled(dut) {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
@@ -935,7 +935,6 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	}
 
 	agg.GetOrCreateAggregation().LagType = l.AggType
-	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
@@ -948,6 +947,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		lacpPath := gnmi.OC().Lacp().Interface(aggID)
 		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
 	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
@@ -1094,7 +1094,7 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	// IPv4 Configuration
 	if ipv4Addr != "" {
 		s4 := s.GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ipv4Addr)
@@ -1104,7 +1104,7 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	// IPv6 Configuration
 	if ipv6Addr != "" {
 		s6 := s.GetOrCreateIpv6()
-		if deviations.InterfaceEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			s6.Enabled = ygot.Bool(true)
 		}
 		s6a := s6.GetOrCreateAddress(ipv6Addr)
