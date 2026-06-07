@@ -1365,6 +1365,10 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+
+    // Device reports resource utilization at the chassis component level
+    // rather than at the integrated-circuit component level.
+    bool use_chassis_aggregate_utilization = 433;
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }

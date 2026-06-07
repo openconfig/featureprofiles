@@ -2232,3 +2232,10 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// UseChassisAggregateUtilization returns true for devices that report resource
+// utilization at the chassis component level rather than at the
+// integrated-circuit component level.
+func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
+}

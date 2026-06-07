@@ -157,7 +157,7 @@ func TestResourceUtilization(t *testing.T) {
 		UsedThresholdUpperClear: ygot.Uint8(usedThresholdUpperClear),
 	})
 	var comps []string
-	if dut.Vendor() == ondatra.ARISTA {
+	if deviations.UseChassisAggregateUtilization(dut) {
 		comps = []string{"Chassis"}
 	} else {
 		comps = components.FindActiveComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_INTEGRATED_CIRCUIT)
@@ -233,7 +233,7 @@ func TestResourceUtilization(t *testing.T) {
 // awaitUtilization polls the utilization resource until the predicate function returns true
 // or the timeout expires. Returns the final utilization snapshot, or nil if timed out.
 func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate func(uint8) bool) *utilization {
-	if dut.Vendor() == ondatra.ARISTA {
+	if deviations.UseChassisAggregateUtilization(dut) {
 		return awaitChassisUtilization(t, dut, predicate)
 	}
 
@@ -329,7 +329,7 @@ func componentUtilizations(t *testing.T, dut *ondatra.DUTDevice, comps []string)
 	t.Helper()
 	utzs := map[string]*utilization{}
 
-	if dut.Vendor() == ondatra.ARISTA {
+	if deviations.UseChassisAggregateUtilization(dut) {
 		for _, c := range comps {
 			utzs[c] = chassisAggregateUtilization(t, dut)
 		}

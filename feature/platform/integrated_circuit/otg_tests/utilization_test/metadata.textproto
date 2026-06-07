@@ -14,6 +14,7 @@ platform_exceptions: {
     default_network_instance: "default"
     mismatched_hardware_resource_name_in_component: true
     bgp_missing_oc_max_prefixes_configuration: true
+    use_chassis_aggregate_utilization: true
   }
 }
 platform_exceptions: {
