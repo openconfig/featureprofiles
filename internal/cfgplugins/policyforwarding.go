@@ -868,6 +868,8 @@ func DecapGroupConfigGre(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 
 // DecapGroupConfigGue configures the interface decap-group for GUE.
 func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkInstance_PolicyForwarding, ocPFParams OcPolicyForwardingParams) {
+	// TODO: change this name to GueGreDecapUnsupportedViaOC
+	// TODO: /openconfig-network-instance:network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/config/decapsulate-gue
 	if deviations.GueGreDecapUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
@@ -877,6 +879,8 @@ func DecapGroupConfigGue(t *testing.T, dut *ondatra.DUTDevice, pf *oc.NetworkIns
 			} else {
 				helpers.GnmiCLIConfig(t, dut, decapGroupGUEArista)
 			}
+		case ondatra.CISCO:
+			ciscoGueDecapCLIConfig(t, dut, ocPFParams)
 		default:
 			t.Logf("Unsupported vendor %s for native command support for deviation 'decap-group config'", dut.Vendor())
 		}
@@ -1460,4 +1464,48 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 		prefixSet.GetOrCreatePrefix(strings.Join(params.SrcPrefix, " "), "exact")
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(params.PolicyName).Config(), prefixSet)
 	}
+}
+
+// ciscoGueDecapCLIConfig configures GUE decap config for Cisco
+func ciscoGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPolicyForwardingParams) {
+	t.Helper()
+
+	sb := &strings.Builder{}
+
+	fullAddressPath := params.TunnelIP
+	if !strings.Contains(fullAddressPath, "/") {
+		fullAddressPath = fmt.Sprintf("%s/128", fullAddressPath)
+	}
+
+	// 1. Global NVE configuration (GUE v1 over IPv6)
+	sb.WriteString("nve\n")
+	sb.WriteString("overlay-encap guev1\n")
+	// Explicitly setting the UDP destination port for the IPv6 outer header
+	sb.WriteString(fmt.Sprintf("udp-port destination ipv6 %v\n", params.GUEPort))
+	sb.WriteString("!\n")
+
+	// 2. Class-Map configuration
+	// This matches the outer IPv6 tunnel header
+	className := fmt.Sprintf("cmap_%s", params.AppliedPolicyName)
+	sb.WriteString(fmt.Sprintf("class-map type traffic match-all %s\n", className))
+	sb.WriteString(" match protocol udp\n")
+	sb.WriteString(fmt.Sprintf(" match destination-address ipv6 %s\n", fullAddressPath))
+	sb.WriteString("!\n")
+
+	// 3. Policy-Map configuration
+	sb.WriteString(fmt.Sprintf("policy-map type pbr %s\n", params.AppliedPolicyName))
+	sb.WriteString(fmt.Sprintf(" class type traffic %s\n", className))
+	// Decapsulate the GUE header to expose inner IPv4/IPv6 payload
+	sb.WriteString("  decapsulate gue variant 1\n")
+	sb.WriteString(" !\n")
+	sb.WriteString("!\n")
+
+	// 4. VRF Policy application
+	// Applied to the IPv6 address-family since the outer tunnel is IPv6
+	sb.WriteString("vrf-policy\n")
+	sb.WriteString(fmt.Sprintf(" vrf default address-family ipv6 policy type pbr input %s\n", params.AppliedPolicyName))
+	sb.WriteString("!\n")
+
+	// Push the final configuration string to the DUT via gNMI CLI
+	helpers.GnmiCLIConfig(t, dut, sb.String())
 }

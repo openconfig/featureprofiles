@@ -1321,6 +1321,13 @@ func ConfigureLoadbalance(t *testing.T, dut *ondatra.DUTDevice) {
 			// Currently, OC does not provide support for configuring Load Balance Policies.
 			t.Log("Falling back to CLI since OC does not support Load Balance Policy configuration yet.")
 		}
+	case ondatra.CISCO:
+		// Configure platform hashing seeds to de-correlate ECMP/LAG distribution.
+		loadBalanceCliConfig := `
+		cef platform load-balancing algorithm adjust ecmp-seed 0xaa
+		cef platform load-balancing algorithm adjust spa-seed 0xbb
+		`
+		helpers.GnmiCLIConfig(t, dut, loadBalanceCliConfig)
 	default:
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}

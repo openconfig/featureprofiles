@@ -398,6 +398,7 @@ message Metadata {
     bool prefix_limit_exceeded_telemetry_unsupported = 139;
     // Skip setting allow-multiple-as while configuring eBGP
     // Arista: partnerissuetracker.corp.google.com/issues/317422300
+    // TODO CISCO: Add bug here
     bool skip_setting_allow_multiple_as = 140;
     // Devices does not support mixed prefix length in gribi.
     // Juniper: b/307824407
@@ -781,6 +782,7 @@ message Metadata {
     bool macsec_unsupported = 279;
 
     // Arista b/390506900
+    // TODO: Add Cisco bug here
     bool gue_gre_decap_unsupported = 280;
 
     // Arista b/390506584
