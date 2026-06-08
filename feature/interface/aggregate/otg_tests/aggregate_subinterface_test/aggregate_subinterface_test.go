@@ -190,13 +190,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 				subif.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(sub.vlanID)
 			}
 			ipv4 := subif.GetOrCreateIpv4()
-			if dut.Vendor() != ondatra.CISCO {
+			switch dut.Vendor() {
+			case ondatra.ARISTA:
 				ipv4.Enabled = ygot.Bool(true)
 			}
 			s4 := ipv4.GetOrCreateAddress(sub.dutIPv4)
 			s4.PrefixLength = ygot.Uint8(ipv4PrefixLen)
 			ipv6 := subif.GetOrCreateIpv6()
-			if dut.Vendor() != ondatra.CISCO {
+
+			switch dut.Vendor() {
+			case ondatra.ARISTA:
 				ipv6.Enabled = ygot.Bool(true)
 			}
 			s6 := ipv6.GetOrCreateAddress(sub.dutIPv6)
@@ -234,11 +237,12 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 
 	mtuBatch := &gnmi.SetBatch{}
 	for _, lagName := range []string{lag1Name, lag2Name} {
-		if dut.Vendor() == ondatra.CISCO {
-			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Mtu().Config(), uint16(mtu))
-		} else {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
 			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv4().Mtu().Config(), mtu)
 			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Subinterface(0).Ipv6().Mtu().Config(), mtu)
+		case ondatra.CISCO:
+			gnmi.BatchReplace(mtuBatch, gnmi.OC().Interface(lagName).Mtu().Config(), uint16(mtu))
 		}
 	}
 	mtuBatch.Set(t, dut)
@@ -390,9 +394,8 @@ func verifyLACPState(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevic
 				continue
 			}
 			ateLACP, _ := ateVal.Val()
-
-			if dut.Vendor() != ondatra.CISCO {
-
+			switch dut.Vendor() {
+			case ondatra.ARISTA:
 				if ateLACP.PartnerId == nil || dutLACP.SystemId == nil ||
 					!strings.EqualFold(*ateLACP.PartnerId, *dutLACP.SystemId) {
 					t.Errorf("LAG %s port %s: ATE partner-id (%v) did not match DUT system-id (%v)", lagName, portName, ateLACP.PartnerId, dutLACP.SystemId)
