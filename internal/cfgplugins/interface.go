@@ -1351,7 +1351,7 @@ type AddressFamilyParams struct {
 // IsIPv4InterfaceARPresolved validates that the IPv4 interface is resolved based on the interface configured.
 func IsIPv4InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg AddressFamilyParams) error {
 	for _, intf := range cfg.InterfaceNames {
-		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
