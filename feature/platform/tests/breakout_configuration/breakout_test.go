@@ -246,7 +246,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 			breakoutspeed:       oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 			dutIntfIP:           dutPort2.IPv4,
 			ateIntfIp:           atePort2.IPv4,
-			expectedPMD:         "PMD_100GBASE_FR",
+			expectedPMD:         "PMD_10GBASE_FR",
 			numPhysicalChannels: 2,
 		},
 	}
