@@ -160,6 +160,21 @@ func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (u
 		return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
 	}
 
+	// 1x400G-FR4+ (No breakout)
+	if port.PMD() == ondatra.PMD400GBASEFR4 || strings.Contains(descStr, "400G-FR4") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
+	// 1x100G-LR (No breakout)
+	if port.PMD() == ondatra.PMD100GBASELR4 || strings.Contains(descStr, "100G-LR") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
+	// 1x100G-FR (No breakout)
+	if port.PMD() == ondatra.PMD100GBASEFR || strings.Contains(descStr, "100G-FR") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
 	return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 }
 

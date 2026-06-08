@@ -14,6 +14,8 @@ This test requires a DUT with the following setup
   * 2x400G-LR4
   * 8x100G-LR
 * ATE connections are not required.
+* Note: Due to lack of explicit Ondatra PMD constants for some optics (e.g. 800G breakouts), the test automation may use component descriptions to identify the PMD types and apply the correct breakout configuration.
+
 
 ## Procedure
 ### RT-8.1 - Baseline test:
