@@ -315,8 +315,8 @@ func callGeminiWithRetry(ctx context.Context, readmeContent, automationContent s
 	var gapFound bool
 	var gapDesc string
 	var err error
-	maxRetries := 3
-	for i := 0; i < maxRetries; i++ {
+	const maxRetries = 3
+	for i := range maxRetries {
 		gapFound, gapDesc, err = callGemini(ctx, readmeContent, automationContent)
 		if err == nil {
 			return gapFound, gapDesc, nil
