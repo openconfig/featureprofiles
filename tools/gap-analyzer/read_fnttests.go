@@ -329,7 +329,6 @@ func callGeminiWithRetry(ctx context.Context, readmeContent, automationContent s
 	return false, "", fmt.Errorf("failed after %d attempts: %w", maxRetries, err)
 }
 
-
 // escape replaces special characters in a string for GitHub Action command values.
 func escape(s string) string {
 	s = strings.ReplaceAll(s, "\r", "%0D")
