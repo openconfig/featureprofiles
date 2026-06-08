@@ -210,6 +210,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/as-path:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/community:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
 
 rpcs:
   gnmi:
