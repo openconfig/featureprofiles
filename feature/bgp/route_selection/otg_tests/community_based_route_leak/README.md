@@ -207,9 +207,9 @@ paths:
   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv4-unicast/loc-rib/routes/route/state/attr-index:
   /network-instances/network-instance/protocols/protocol/bgp/rib/afi-safis/afi-safi/ipv6-unicast/loc-rib/routes/route/state/attr-index:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/as-path:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/as-path/as-segment/state/member:
   /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/med:
-  /network-instances/network-instance/protocols/protocol/bgp/rib/attr-sets/attr-set/state/community:
+  /network-instances/network-instance/protocols/protocol/bgp/rib/communities/community/state/community:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
   /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/prefix:
 
