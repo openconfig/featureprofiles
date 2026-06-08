@@ -10,8 +10,18 @@ Use the same topology as TE-14.2 but in increased scale:
 
 - DUT [port1] <-> ATE [port1]
 - DUT [port2] <-> ATE [port2]
+- DUT [port3] <-> ATE [port3]
+- DUT [port4] <-> ATE [port4]
+- DUT [port5] <-> ATE [port5]
+- DUT [port6] <-> ATE [port6]
+- DUT [port7] <-> ATE [port7]
+- DUT [port8] <-> ATE [port8]
 - DUT [port1] -> 1 L3 sub-interface <-> ATE [port1] 1 L3 sub-interface , subnet `192.0.2.0/30`
-- DUT [port2] -> 640 L3 sub-interfaces <-> ATE [port2] 640 L3 sub-interfaces, Use Vlan tagging for differentiation - `198.18.0.0/20` subdivided into `/30` chunks
+
+Each of the 8 port pairs (DUT/ATE [port2] through [port7]) is configured with 90 L3 sub-interfaces, and [port8] - with 100 L3 sub-interfaces.
+This provides a total of 640 L3 sub-interfaces.
+VLAN tagging is used to differentiate the sub-interfaces on each physical port.
+The IP address range 198.18.0.0/20 is subdivided into /30 chunks, which are distributed across these 640 sub-interfaces.
 
 ## Variables
 ```
