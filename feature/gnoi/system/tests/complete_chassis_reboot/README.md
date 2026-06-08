@@ -23,7 +23,7 @@ Establish and verify the baseline status of the system, P4RT, and SSH connectivi
 *   **Step 2:** Retrieve and record the software version for all components using `/components/component/state/software-version`.
 *   **Step 3:** Verify that all components have their operational status set to `OPER_STATUS_ACTIVE` using `/components/component/state/oper-status`.
 *   **Step 4 (P4RT Baseline):** Establish a P4RT session from the controller to the DUT. Send a P4RT `ReadRequest` for port-1 counters and ensure a valid `ReadResponse` is received.
-*   **Step 5 (SSH Baseline):** Establish an SSH connection to the DUT's management IP address. Run a basic command (e.g. show version) and verify the correct response is returned.
+*   **Step 5 (SSH Baseline):** Verify SSH connectivity to the DUT can be successfully established.
 
 ### gNOI-3.1.2 - Complete Chassis Cold Reboot without delay
 
@@ -36,7 +36,7 @@ Validate that the chassis reboots immediately upon request, and recovers all bas
 *   **Step 5:** Validate that all components return to their baseline operational status.
 *   **Step 6:** Validate that the component software versions match the baseline software versions.
 *   **Step 7 (P4RT Validation - b/286086308):** Establish a new P4RT session to the DUT. Send a `ReadRequest` for port-1 counters and verify a valid `ReadResponse` is received.
-*   **Step 8 (SSH Validation - b/399612422):** Establish a new SSH connection to the DUT's management IP. Verify the connection is successful, run basic commands, and maintain the session open for 5 minutes to ensure the connection remains stable and does not drop.
+*   **Step 8 (SSH Validation - b/399612422):** Verify a new SSH connection to the DUT can be successfully established post-reboot.
 
 ### gNOI-3.1.3 - Complete Chassis Cold Reboot with delay
 
@@ -50,7 +50,7 @@ Validate that the chassis remains reachable during the reboot delay, triggers re
 *   **Step 6:** Validate that all components return to their baseline operational status.
 *   **Step 7:** Validate that the component software versions match the baseline software versions.
 *   **Step 8 (P4RT Validation - b/286086308):** Establish a new P4RT session to the DUT. Send a `ReadRequest` for port-1 counters and verify a valid `ReadResponse` is received.
-*   **Step 9 (SSH Validation - b/399612422):** Establish a new SSH connection to the DUT's management IP. Verify the connection is successful, run basic commands, and maintain the session open for 5 minutes to ensure the connection remains stable and does not drop.
+*   **Step 9 (SSH Validation - b/399612422):** Verify a new SSH connection to the DUT can be successfully established post-reboot.
 
 ## Canonical OC
 

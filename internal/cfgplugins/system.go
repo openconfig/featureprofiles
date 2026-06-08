@@ -27,6 +27,7 @@
 package cfgplugins
 
 import (
+	"context"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -105,4 +106,16 @@ func FindLineCardParent(t *testing.T, dut *ondatra.DUTDevice, startComponentName
 		currentComponentName = parentName
 		depth++
 	}
+}
+
+// ValidateSSHConnectivity verifies that the SSH management connection can be successfully established.
+func ValidateSSHConnectivity(t testing.TB, dut *ondatra.DUTDevice) {
+	t.Helper()
+	ctx := context.Background()
+	t.Logf("Establishing SSH connection to %s using DialCLI...", dut.Name())
+	_, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+	if err != nil {
+		t.Fatalf("Failed to dial CLI via SSH: %v", err)
+	}
+	t.Log("SSH connection established successfully.")
 }
