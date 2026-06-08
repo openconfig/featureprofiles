@@ -44,8 +44,8 @@ const (
 	dutAS  = 64498
 	ateAS1 = 64496
 	ateAS2 = 64497
-	ateAS3 = 64512 // Private AS for RT-1.71.4 test
-	ateAS4 = 64499 // Transit AS for RT-1.71.3
+	ateAS3 = 64512 // Private AS
+	ateAS4 = 64499
 
 	// Advertised routes
 	advertisedRoutesv4Net    = "203.0.113.1"
@@ -433,7 +433,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 		{
 			name:                "RT-1.71.1: Baseline Test - Default filtering (should NOT accept routes with peer AS in path)",
 			setupFunc:           cfgplugins.ConfigureBGPEnablePeerAsFilterPeer,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS2, ateAS4}, // [64497, 64499]
 			disablePeerASFilter: false,
 			verifyASPath:        false,
 			peerGroup:           false,
@@ -442,7 +442,7 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 		{
 			name:                "RT-1.71.2: Enable disable-peer-as-filter at neighbor level",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS2, ateAS4}, // [64497, 64499]
 			disablePeerASFilter: true,
 			verifyASPath:        false,
 			peerGroup:           false,
@@ -451,9 +451,9 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 		{
 			name:                "RT-1.71.3: Test Originating Peer AS",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS4, ateAS2}, // [64499, 64497]
 			disablePeerASFilter: true,
-			expectedASPath:      []uint32{dutAS, ateAS1, ateAS2, ateAS4},
+			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS2}, // [64498, 64496, 64499, 64497]
 			verifyASPath:        true,
 			peerGroup:           false,
 			atePort2AS:          ateAS2,
@@ -461,9 +461,9 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 		{
 			name:                "RT-1.71.4: Private AS Number Scenario",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS3, ateAS4},
+			asSeg:               []uint32{ateAS4, ateAS3}, // [64499, 64512]
 			disablePeerASFilter: true,
-			expectedASPath:      []uint32{dutAS, ateAS1, ateAS3, ateAS4},
+			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS3}, // [64498, 64496, 64499, 64512]
 			verifyASPath:        true,
 			peerGroup:           false,
 			atePort2AS:          ateAS3, // Private AS 64512 for Port 2
@@ -532,7 +532,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 		{
 			name:                "RT-1.71.5.1: Baseline Test - Default filtering (should NOT accept routes with peer AS in path)",
 			setupFunc:           cfgplugins.ConfigureBGPEnablePeerAsFilterPeer,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS2, ateAS4}, // [64497, 64499]
 			disablePeerASFilter: false,
 			verifyASPath:        false,
 			peerGroup:           true,
@@ -541,7 +541,7 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 		{
 			name:                "RT-1.71.5.2: Enable disable-peer-as-filter at peer group level",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS2, ateAS4}, // [64497, 64499]
 			disablePeerASFilter: true,
 			verifyASPath:        false,
 			peerGroup:           true,
@@ -550,9 +550,9 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 		{
 			name:                "RT-1.71.5.3: Test Originating Peer AS",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS2, ateAS4},
+			asSeg:               []uint32{ateAS4, ateAS2}, // [64499, 64497]
 			disablePeerASFilter: true,
-			expectedASPath:      []uint32{dutAS, ateAS1, ateAS2, ateAS4},
+			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS2}, // [64498, 64496, 64499, 64497]
 			verifyASPath:        true,
 			peerGroup:           true,
 			atePort2AS:          ateAS2,
@@ -560,9 +560,9 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 		{
 			name:                "RT-1.71.5.4: Private AS Number Scenario",
 			setupFunc:           cfgplugins.ConfigureBGPDisablePeerAsFilter,
-			asSeg:               []uint32{ateAS3, ateAS4},
+			asSeg:               []uint32{ateAS4, ateAS3}, // [64499, 64512]
 			disablePeerASFilter: true,
-			expectedASPath:      []uint32{dutAS, ateAS1, ateAS3, ateAS4},
+			expectedASPath:      []uint32{dutAS, ateAS1, ateAS4, ateAS3}, // [64498, 64496, 64499, 64512]
 			verifyASPath:        true,
 			peerGroup:           true,
 			atePort2AS:          ateAS3, // Private AS 64512 for Port 2
