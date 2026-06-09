@@ -1461,3 +1461,103 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 		gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(params.PolicyName).Config(), prefixSet)
 	}
 }
+
+// ConfigureVRFSelectionPolicyOC configures vrf_selection_policy_c on DUT port1.
+func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch) {
+	t.Helper()
+	p1 := dut.Port(t, "port1")
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(defaultVRF)
+	pf := ni.GetOrCreatePolicyForwarding()
+	pol := pf.GetOrCreatePolicy(VRFPolC)
+	pol.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
+	seq := uint32(1)
+
+	for i, vrf := range encapVRFs {
+		d1, d2 := EncapVRFDSCP(i)
+		dscpSet := []uint8{d1, d2}
+		for _, src := range []string{IPv4OuterSrc222, IPv4OuterSrc111} {
+			fallback := TransitVRF222Str
+			if src == IPv4OuterSrc111 {
+				fallback = TransitVRF111Str
+			}
+			for _, proto := range []oc.UnionUint8{4, 41} {
+				r := pol.GetOrCreateRule(seq)
+				ip4 := r.GetOrCreateIpv4()
+				ip4.Protocol = proto
+				ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", src, IPv4HostMask))
+				ip4.DscpSet = dscpSet
+				act := r.GetOrCreateAction()
+				act.DecapNetworkInstance = ygot.String(DecapVRFStr)
+				act.PostDecapNetworkInstance = ygot.String(vrf)
+				act.DecapFallbackNetworkInstance = ygot.String(fallback)
+				seq++
+			}
+		}
+	}
+
+	for _, entry := range []struct {
+		proto    oc.UnionUint8
+		src      string
+		fallback string
+	}{
+		{4, IPv4OuterSrc222, TransitVRF222Str},
+		{41, IPv4OuterSrc222, TransitVRF222Str},
+		{4, IPv4OuterSrc111, TransitVRF111Str},
+		{41, IPv4OuterSrc111, TransitVRF111Str},
+	} {
+		r := pol.GetOrCreateRule(seq)
+		ip4 := r.GetOrCreateIpv4()
+		ip4.Protocol = entry.proto
+		ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", entry.src, IPv4HostMask))
+		act := r.GetOrCreateAction()
+		act.DecapNetworkInstance = ygot.String(DecapVRFStr)
+		act.PostDecapNetworkInstance = ygot.String(defaultVRF)
+		act.DecapFallbackNetworkInstance = ygot.String(entry.fallback)
+		seq++
+	}
+
+	for i, vrf := range encapVRFs {
+		d1, d2 := EncapVRFDSCP(i)
+		dscpSet := []uint8{d1, d2}
+		r4 := pol.GetOrCreateRule(seq)
+		r4.GetOrCreateIpv4().DscpSet = dscpSet
+		r4.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
+		seq++
+		r6 := pol.GetOrCreateRule(seq)
+		r6.GetOrCreateIpv6().DscpSet = dscpSet
+		r6.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
+		seq++
+	}
+
+	pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
+
+	interfaceID := p1.Name()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		interfaceID = p1.Name() + ".0"
+	}
+	intf := pf.GetOrCreateInterface(interfaceID)
+	intf.ApplyVrfSelectionPolicy = ygot.String(VRFPolC)
+	intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
+	intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		intf.InterfaceRef = nil
+	}
+	gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
+}
+
+// ConfigureCLIDecapVRFMode enables next-hop decapsulation VRF mode required for VRF selection policy decapsulation forwarding.
+func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	if dut.Vendor() != ondatra.ARISTA {
+		return
+	}
+	cliConfig := `
+		vrf selection policy
+		next-hop decapsulation vrf
+		!
+		`
+	t.Log("Enabling next-hop decapsulation VRF mode")
+	helpers.GnmiCLIConfig(t, dut, cliConfig)
+}
