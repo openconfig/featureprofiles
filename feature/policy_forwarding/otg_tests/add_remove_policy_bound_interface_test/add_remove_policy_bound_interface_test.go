@@ -43,12 +43,12 @@ const (
 	vrfSelectionPolicyName = "vrf100policy-ipv4"
 	vrfPolicyv6            = "vrf100policy-ipv6"
 
-	ipv4NetA1    = "192.168.200.0/24"
-	ipv4NetA2    = "192.168.201.0/24"
-	ipv6NetA1    = "3008:DB8::/126"
-	ipv6NetA2    = "3009:DB8::/126"
-	ipv4NetAdst1 = "192.168.200.1"
-	ipv6NetAdst1 = "3008:DB8::2"
+	ipv4NetA1    = "198.51.100.0/24"
+	ipv4NetA2    = "203.0.113.0/24"
+	ipv6NetA1    = "2001:db8:100::/126"
+	ipv6NetA2    = "2001:db8:101::/126"
+	ipv4NetAdst1 = "198.51.100.1"
+	ipv6NetAdst1 = "2001:db8:100::2"
 )
 
 var (
