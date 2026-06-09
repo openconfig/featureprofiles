@@ -291,14 +291,19 @@ func awaitUtilization(t *testing.T, dut *ondatra.DUTDevice, c string, predicate 
 func chassisAggregateUtilization(t *testing.T, dut *ondatra.DUTDevice) *utilization {
 	t.Helper()
 	var totalUsed, totalFree uint64
+	var found bool
 	for _, resName := range chassisFIBResources {
 		val, present := gnmi.Lookup(t, dut, gnmi.OC().Component("Chassis").Chassis().Utilization().Resource(resName).State()).Val()
 		if !present {
 			continue
 		}
+		found = true
 		t.Logf("Chassis resource %s: used=%d, free=%d", resName, val.GetUsed(), val.GetFree())
 		totalUsed += val.GetUsed()
 		totalFree += val.GetFree()
+	}
+	if !found {
+		t.Fatalf("No chassis FIB resources found on the device")
 	}
 	return &utilization{used: totalUsed, free: totalFree}
 }
