@@ -78,8 +78,7 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.P
 	}
 	i.Enabled = ygot.Bool(true)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	desc := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).Description().State())
-	if desc != "" {
+	if desc, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(port.Name()).Description().State()).Val(); ok && desc != "" {
 		i.Description = ygot.String(desc)
 	}
 	return i
