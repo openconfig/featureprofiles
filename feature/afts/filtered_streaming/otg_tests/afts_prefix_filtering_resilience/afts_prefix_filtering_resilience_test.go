@@ -42,6 +42,7 @@ const (
 	ipv6Policy         = "POLICY-PREFIX-SET-B"
 	matchAllPolicy     = "POLICY-MATCH-ALL"
 	vrfAPolicy         = "POLICY-PREFIX-SET-VRF-A"
+	vrfPrefixName      = "PREFIX-SET-VRF-A"
 	scaleIPv4Routes    = 5000
 	scaleIPv6Routes    = 2000
 	scaleSyncDeadline  = 4 * time.Minute
@@ -51,17 +52,20 @@ const (
 	// maxRebootTime is the maximum time allowed for the DUT to complete the reboot.
 	maxRebootTime = 5 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
-	rebootPollInterval = 30 * time.Second
-	prefixAft1         = "198.51.100.0/24"
-	prefixAft2         = "203.0.113.0/28"
-	vrfPfx1            = "100.64.1.0/24"
-	pfxAbsent          = "100.64.0.0/24"
-	intStepV6          = "::1"
-	intStepV4          = "0.0.0.1"
-	scaleV4Pfx         = "198.18.0.0"
-	scaleV6Pfx         = "2001:db8:0::"
-	scaleV4PfxLen      = 32
-	scaleV6PfxLen      = 128
+	rebootPollInterval   = 30 * time.Second
+	prefixAft1           = "198.51.100.0/24"
+	prefixAft2           = "203.0.113.0/28"
+	vrfPfx1              = "100.64.1.0/24"
+	pfxAbsent            = "100.64.0.0/24"
+	intStepV6            = "::1"
+	intStepV4            = "0.0.0.1"
+	scaleV4Pfx           = "198.18.0.0"
+	scaleV6Pfx           = "2001:db8:0::"
+	scaleV4PfxLen        = 32
+	scaleV6PfxLen        = 128
+	defaultStatementName = "10"
+	pfxMaskRange         = "24..32"
+	pfxMode              = "exact"
 )
 
 var (
@@ -586,9 +590,9 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
 	createMatchAllPolicy(t, rp)
-	createPrefixSetPolicy(t, rp, ipv4Policy, ipv4Policy, "exact", policyIPv4Prefixes)
+	createPrefixSetPolicy(t, rp, ipv4Policy, ipv4Policy, pfxMode, policyIPv4Prefixes)
 	createVRFAPolicy(t, rp)
-	createPrefixSetPolicy(t, rp, ipv6Policy, ipv6Policy, "exact", defaultIPv6Prefixes)
+	createPrefixSetPolicy(t, rp, ipv6Policy, ipv6Policy, pfxMode, defaultIPv6Prefixes)
 	configureGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy, deviations.DefaultNetworkInstance(dut))
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
@@ -599,7 +603,7 @@ func createMatchAllPolicy(t *testing.T, rp *oc.RoutingPolicy) {
 	t.Helper()
 	pd := rp.GetOrCreatePolicyDefinition(matchAllPolicy)
 
-	stmt, err := pd.AppendNewStatement("10")
+	stmt, err := pd.AppendNewStatement(defaultStatementName)
 	if err != nil {
 		t.Fatalf("Failed to append statement: %v", err)
 	}
@@ -617,7 +621,7 @@ func createPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, prefixSetName, po
 
 	pd := rp.GetOrCreatePolicyDefinition(policyName)
 
-	stmt, err := pd.AppendNewStatement("10")
+	stmt, err := pd.AppendNewStatement(defaultStatementName)
 	if err != nil {
 		t.Fatalf("Failed to append statement: %v", err)
 	}
@@ -630,20 +634,20 @@ func createPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, prefixSetName, po
 // createVRFAPolicy creates POLICY-PREFIX-SET-VRF-A.
 func createVRFAPolicy(t *testing.T, rp *oc.RoutingPolicy) {
 	t.Helper()
-	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet("PREFIX-SET-VRF-A")
+	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(vrfPrefixName)
 
-	addPrefix(t, ps, vrfPfx1, "24..32")
+	addPrefix(t, ps, vrfPfx1, pfxMaskRange)
 
 	pd := rp.GetOrCreatePolicyDefinition(vrfAPolicy)
 
-	stmt, err := pd.AppendNewStatement("10")
+	stmt, err := pd.AppendNewStatement(defaultStatementName)
 	if err != nil {
 		t.Fatalf("Failed to append statement: %v", err)
 	}
 
 	match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
 
-	match.PrefixSet = ygot.String("PREFIX-SET-VRF-A")
+	match.PrefixSet = ygot.String(vrfPrefixName)
 
 	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
 }
