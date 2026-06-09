@@ -132,8 +132,8 @@
 
 ##### Verify BGP-to-ISIS redistributed routes persist after routing daemon restart with Shared Nexthop
 *   Configure a Static route for network ```ipv4-network``` i.e. ```192.168.10.0/24``` on the DUT pointing to the same next-hop IP address as the BGP route to simulate a shared next-hop scenario.
-    *   /network-instances/network-instance/protocols/protocol/static/static-routes/static/config/prefix
-    *   /network-instances/network-instance/protocols/protocol/static/static-routes/static/next-hops/next-hop/config/next-hop
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix
+    *   /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop
 *   Configure `STATIC` to `ISIS` redistribution policy on the DUT.
     *   /network-instances/network-instance/table-connections/table-connection/config/src-protocol
 *   Verify the network ```ipv4-network``` i.e. ```192.168.10.0/24``` is present in the ATE's IS-IS Link State Database.
@@ -448,8 +448,8 @@ paths:
   /network-instances/network-instance/table-connections/table-connection/config/dst-protocol:
   /network-instances/network-instance/table-connections/table-connection/config/disable-metric-propagation:
   /network-instances/network-instance/table-connections/table-connection/config/import-policy:
-  /network-instances/network-instance/protocols/protocol/static/static-routes/static/config/prefix:
-  /network-instances/network-instance/protocols/protocol/static/static-routes/static/next-hops/next-hop/config/next-hop:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/config/prefix:
+  /network-instances/network-instance/protocols/protocol/static-routes/static/next-hops/next-hop/config/next-hop:
 
   ## State paths
   /routing-policy/policy-definitions/policy-definition/state/name:
