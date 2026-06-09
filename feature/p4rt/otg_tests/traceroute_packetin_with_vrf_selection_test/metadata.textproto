@@ -22,3 +22,13 @@ platform_exceptions: {
     ate_port_link_state_operations_unsupported: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    interface_enabled: true
+    missing_isis_interface_afi_safi_enable: true
+  }
+}
