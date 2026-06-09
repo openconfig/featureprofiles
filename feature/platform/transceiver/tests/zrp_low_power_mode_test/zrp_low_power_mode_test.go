@@ -90,11 +90,20 @@ func validateOutputPower(t *testing.T, streams map[string]*samplestream.SampleSt
 }
 
 func TestLowPowerMode(t *testing.T) {
+	if operationalModeFlag != nil {
+		operationalMode = uint16(*operationalModeFlag)
+	} else {
+		t.Fatalf("Please specify the vendor-specific operational-mode flag")
+	}
 	dut := ondatra.DUT(t, "dut")
-	operationalMode = uint16(*operationalModeFlag)
-	cfgplugins.InterfaceInitialize(t, dut, operationalMode)
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port1"))
-	cfgplugins.InterfaceConfig(t, dut, dut.Port(t, "port2"))
+	dp1 := dut.Port(t, "port1")
+	dp2 := dut.Port(t, "port2")
+	t.Logf("dut1: %v", dut)
+	t.Logf("dut1 dp1 name: %v", dp1.Name())
+	och1 := components.OpticalChannelComponentFromPort(t, dut, dp1)
+	och2 := components.OpticalChannelComponentFromPort(t, dut, dp2)
+	cfgplugins.ConfigOpticalChannel(t, dut, och1, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
+	cfgplugins.ConfigOpticalChannel(t, dut, och2, targetFrequencyMHz, targetOutputPowerdBm, operationalMode)
 	for _, port := range []string{"port1", "port2"} {
 		t.Run(fmt.Sprintf("Port:%s", port), func(t *testing.T) {
 			dp := dut.Port(t, port)
@@ -148,7 +157,7 @@ func TestLowPowerMode(t *testing.T) {
 			// FIXED: Use deviation check to avoid blocking on unsupported devices
 			currentSamplingInterval := samplingInterval
 			if !deviations.SkipOpticalChannelOutputPowerInterval(dut) {
-				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State())) * time.Second
+				currentSamplingInterval = time.Duration(gnmi.Get(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Interval().State()))
 			}
 
 			opInst := samplestream.New(t, dut, gnmi.OC().Component(opticalChannelName).OpticalChannel().OutputPower().Instant().State(), currentSamplingInterval)
