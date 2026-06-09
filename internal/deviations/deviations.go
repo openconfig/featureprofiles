@@ -1880,13 +1880,6 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
-// GribiDecapInDefaultNiUnsupported returns true if the device does not support
-// programming a Decap NH in the DEFAULT network instance via gRIBI. When true,
-// the test skips AddNH/AddNHG and accepts an empty gRIBI RIB (EOF) as proof of
-// connectivity. Default value is false.
-func GribiDecapInDefaultNiUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetGribiDecapInDefaultNiUnsupported()
-}
 
 // ContainerzTLSInsecureSkipVerify returns true if the device's containerz
 // service presents a self-signed TLS certificate that cannot be verified

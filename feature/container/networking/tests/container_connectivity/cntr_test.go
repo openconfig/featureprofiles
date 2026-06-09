@@ -193,7 +193,7 @@ func TestDialLocal(t *testing.T) {
 	// Establish a gRIBI client to program gRIBI entries.
 	gribiClient := gribi.Client{
 		DUT:         dut,
-		FIBACK:      true,
+		FIBACK:      false,
 		Persistence: true,
 	}
 	if err := gribiClient.Start(t); err != nil {
@@ -206,13 +206,8 @@ func TestDialLocal(t *testing.T) {
 	defer gribiClient.FlushAll(t)
 
 	// Program a sample gRIBI entry on DUT for gRIBI Get query response.
-	// When GribiDecapInDefaultNiUnsupported is set, the device cannot FIB-program
-	// a Decap NH in the DEFAULT network instance; the test accepts an empty gRIBI
-	// RIB (EOF) as a successful connection instead.
-	if !deviations.GribiDecapInDefaultNiUnsupported(dut) {
-		gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-		gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInFIB)
-	}
+	gribiClient.AddNH(t, 2001, "Decap", deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
+	gribiClient.AddNHG(t, 201, map[uint64]uint64{2001: 1}, deviations.DefaultNetworkInstance(dut), fluent.InstalledInRIB)
 
 	tests := []struct {
 		desc     string
