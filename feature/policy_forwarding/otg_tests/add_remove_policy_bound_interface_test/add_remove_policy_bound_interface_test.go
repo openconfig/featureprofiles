@@ -443,11 +443,12 @@ func TestPolicyBoundInterface(t *testing.T) {
 	}
 
 	t.Run("IPv6 Policy", func(t *testing.T) {
-		ate.OTG().StopProtocols(t)
-		ate.OTG().StartProtocols(t)
 		t.Log("Applying IPv6 policy")
 		applyPolicy(t, dut, p2.Name(), []string{vrfPolicyv6})
 		applyPolicy(t, dut, p3.Name(), []string{vrfPolicyv6})
+
+		ate.OTG().StopProtocols(t)
+		ate.OTG().StartProtocols(t)
 		otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 		t.Run("Initial traffic check IPv6", func(t *testing.T) {
 			flows := []flow{
