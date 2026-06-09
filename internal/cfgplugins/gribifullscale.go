@@ -21,7 +21,6 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -370,8 +369,8 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure sub-interfaces on port1 (1 VLAN) and port2 (640 VLANs).
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, DUTPort1IPv4Start, DUTPort1IPv6Start, StartVLANPort1, NumPort1VLANs)
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, NumPort2VLANs)
-	// TODO: VRF selection policy must be configured (Fix: 500317744 defect).
-	ConfigureVRFSelectionPolicy(t, dut, vrfBatch)
+	ConfigureCLIDecapVRFMode(t, dut)
+	ConfigureVRFSelectionPolicyOC(t, dut, vrfBatch)
 	vrfBatch.Set(t, dut)
 }
 
@@ -459,222 +458,6 @@ func CreateGRIBIScaleVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.S
 	vrfBatch.Set(t, dut)
 }
 
-// ConfigureVRFSelectionPolicy configures vrf_selection_policy_c on DUT port1.
-func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch) {
-	t.Helper()
-	if dut.Vendor() == ondatra.ARISTA {
-		ctx := context.Background()
-		p1 := dut.Port(t, "port1")
-
-		var cmds []string
-		seq := 1
-
-		// Enter config mode properly
-		cmds = append(cmds,
-			"configure terminal",
-			"vrf selection policy",
-			"next-hop decapsulation vrf",
-			"   policy vrf_selection_policy_c",
-		)
-		// ------------------------------------------------------------
-		// 1. DECAP + RE-ENCAP rules (Rules 1–64)
-		// ------------------------------------------------------------
-		for i, vrf := range encapVRFs {
-			d1, d2 := EncapVRFDSCP(i)
-
-			for _, src := range []string{IPv4OuterSrc222, IPv4OuterSrc111} {
-
-				fallback := TransitVRF222Str
-				if src == IPv4OuterSrc111 {
-					fallback = TransitVRF111Str
-				}
-				for _, proto := range []int{4, 41} {
-
-					cmds = append(cmds,
-						fmt.Sprintf("      match rule%08d ipv4", seq),
-						fmt.Sprintf("         source prefix %s/32", src),
-						fmt.Sprintf("         protocol %d", proto),
-						fmt.Sprintf("         dscp %d-%d", d1, d2),
-						"         actions",
-						fmt.Sprintf("            set vrf decapsulation DECAP_TE_VRF fallback %s forward %s", fallback, vrf),
-						"      !", // exit rule AFTER actions
-					)
-
-					seq++
-				}
-			}
-		}
-
-		// ------------------------------------------------------------
-		// 2. Fallback rules (65–68)
-		// ------------------------------------------------------------
-		for _, src := range []string{IPv4OuterSrc222, IPv4OuterSrc111} {
-
-			fallback := TransitVRF222Str
-			if src == IPv4OuterSrc111 {
-				fallback = TransitVRF111Str
-			}
-			for _, proto := range []int{4, 41} {
-
-				cmds = append(cmds,
-					fmt.Sprintf("      match rule%08d ipv4", seq),
-					fmt.Sprintf("         source prefix %s/32", src),
-					fmt.Sprintf("         protocol %d", proto),
-					"         actions",
-					fmt.Sprintf("            set vrf decapsulation DECAP_TE_VRF fallback %s forward DEFAULT", fallback),
-					"      !",
-				)
-
-				seq++
-			}
-		}
-
-		// ------------------------------------------------------------
-		// 3. ENCAP ONLY rules (69–100)
-		// ------------------------------------------------------------
-		for i, vrf := range encapVRFs {
-			d1, d2 := EncapVRFDSCP(i)
-
-			// IPv4
-			cmds = append(cmds,
-				fmt.Sprintf("      match rule%08d ipv4", seq),
-				fmt.Sprintf("         dscp %d-%d", d1, d2),
-				"         actions",
-				fmt.Sprintf("            set vrf %s", vrf),
-				"      !",
-			)
-			seq++
-
-			// IPv6
-			cmds = append(cmds,
-				fmt.Sprintf("      match rule%08d ipv6", seq),
-				fmt.Sprintf("         dscp %d-%d", d1, d2),
-				"         actions",
-				fmt.Sprintf("            set vrf %s", vrf),
-				"      !",
-			)
-			seq++
-		}
-
-		// ------------------------------------------------------------
-		// 4. DEFAULT rule (101)
-		// ------------------------------------------------------------
-		cmds = append(cmds,
-			fmt.Sprintf("      match rule%08d", seq),
-			"         actions",
-			"            set vrf DEFAULT",
-			"      !",
-		)
-
-		// ------------------------------------------------------------
-		// 5. Apply to interface (CRITICAL)
-		// ------------------------------------------------------------
-		cmds = append(cmds,
-			"!",
-			fmt.Sprintf("interface %s", p1.Name()),
-			"   vrf selection policy vrf_selection_policy_c",
-			"!",
-			"end",
-		)
-
-		// ------------------------------------------------------------
-		// 6. Execute as ONE BLOCK (VERY IMPORTANT)
-		// ------------------------------------------------------------
-		config := strings.Join(cmds, "\n")
-
-		t.Logf("Applying VRF Selection Policy:\n%s", config)
-
-		if _, err := dut.RawAPIs().CLI(t).RunCommand(ctx, config); err != nil {
-			t.Fatalf("Failed to apply VRF selection policy: %v", err)
-		}
-		// Send confirmation explicitly
-		if _, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "y"); err != nil {
-			t.Fatalf("Failed to confirm decap mode: %v", err)
-		}
-	} else {
-		p1 := dut.Port(t, "port1")
-		defaultVRF := deviations.DefaultNetworkInstance(dut)
-		d := &oc.Root{}
-		ni := d.GetOrCreateNetworkInstance(defaultVRF)
-		pf := ni.GetOrCreatePolicyForwarding()
-		pol := pf.GetOrCreatePolicy(VRFPolC)
-		pol.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
-		seq := uint32(1)
-
-		for i, vrf := range encapVRFs {
-			d1, d2 := EncapVRFDSCP(i)
-			dscpSet := []uint8{d1, d2}
-			for _, src := range []string{IPv4OuterSrc222, IPv4OuterSrc111} {
-				fallback := TransitVRF222Str
-				if src == IPv4OuterSrc111 {
-					fallback = TransitVRF111Str
-				}
-				for _, proto := range []oc.UnionUint8{4, 41} {
-					r := pol.GetOrCreateRule(seq)
-					ip4 := r.GetOrCreateIpv4()
-					ip4.Protocol = proto
-					ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", src, IPv4HostMask))
-					ip4.DscpSet = dscpSet
-					act := r.GetOrCreateAction()
-					act.DecapNetworkInstance = ygot.String(DecapVRFStr)
-					act.PostDecapNetworkInstance = ygot.String(vrf)
-					act.DecapFallbackNetworkInstance = ygot.String(fallback)
-					seq++
-				}
-			}
-		}
-
-		for _, entry := range []struct {
-			proto    oc.UnionUint8
-			src      string
-			fallback string
-		}{
-			{4, IPv4OuterSrc222, TransitVRF222Str},
-			{41, IPv4OuterSrc222, TransitVRF222Str},
-			{4, IPv4OuterSrc111, TransitVRF111Str},
-			{41, IPv4OuterSrc111, TransitVRF111Str},
-		} {
-			r := pol.GetOrCreateRule(seq)
-			ip4 := r.GetOrCreateIpv4()
-			ip4.Protocol = entry.proto
-			ip4.SourceAddress = ygot.String(fmt.Sprintf("%s/%d", entry.src, IPv4HostMask))
-			act := r.GetOrCreateAction()
-			act.DecapNetworkInstance = ygot.String(DecapVRFStr)
-			act.PostDecapNetworkInstance = ygot.String(defaultVRF)
-			act.DecapFallbackNetworkInstance = ygot.String(entry.fallback)
-			seq++
-		}
-
-		for i, vrf := range encapVRFs {
-			d1, d2 := EncapVRFDSCP(i)
-			dscpSet := []uint8{d1, d2}
-			r4 := pol.GetOrCreateRule(seq)
-			r4.GetOrCreateIpv4().DscpSet = dscpSet
-			r4.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
-			seq++
-			r6 := pol.GetOrCreateRule(seq)
-			r6.GetOrCreateIpv6().DscpSet = dscpSet
-			r6.GetOrCreateAction().NetworkInstance = ygot.String(vrf)
-			seq++
-		}
-
-		pol.GetOrCreateRule(seq).GetOrCreateAction().NetworkInstance = ygot.String(defaultVRF)
-
-		interfaceID := p1.Name()
-		if deviations.InterfaceRefInterfaceIDFormat(dut) {
-			interfaceID = p1.Name() + ".0"
-		}
-		intf := pf.GetOrCreateInterface(interfaceID)
-		intf.ApplyVrfSelectionPolicy = ygot.String(VRFPolC)
-		intf.GetOrCreateInterfaceRef().Interface = ygot.String(p1.Name())
-		intf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-		if deviations.InterfaceRefConfigUnsupported(dut) {
-			intf.InterfaceRef = nil
-		}
-		gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
-	}
-}
-
 // ConfigureOTG builds and returns the OTG config for both ATE ports. port1: 1 sub-interface; port2: 640 VLAN sub-interfaces.
 func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) (gosnappi.Config, []string) {
 	t.Helper()
@@ -710,10 +493,7 @@ func CreateATEDevice(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.P
 }
 
 // MustConfigureATESubinterfaces creates VLAN sub-interfaces on an ATE port and returns the device name list.
-func MustConfigureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config,
-	atePort *ondatra.Port, dut *ondatra.DUTDevice,
-	name, mac, dutPfxV4, atePfxV4, dutPfxV6, atePfxV6 string,
-	startVLAN, count int) []string {
+func MustConfigureATESubinterfaces(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.Port, dut *ondatra.DUTDevice, name, mac, dutPfxV4, atePfxV4, dutPfxV6, atePfxV6 string, startVLAN, count int) []string {
 	t.Helper()
 	dutV4, err := iputil.GenerateIPsWithStep(dutPfxV4, count, PortIPv4Step)
 	if err != nil {
@@ -858,7 +638,6 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, defaultPrefixes []string, s1NHG, s2NHG uint64) {
 	t.Helper()
 	wantPrefixes := make(map[string][]string)
-	// randomPfxs := []string{}
 	entries := []fluent.GRIBIEntry{}
 
 	for k := 0; k < NumTransitNH_D1; k++ {
