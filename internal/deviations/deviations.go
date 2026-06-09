@@ -2057,3 +2057,9 @@ func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
 func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
 }
+
+
+// AigpMetricIncrement returns true if AIGP metric increment is not supported.
+func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAigpMetricIncrement()
+}

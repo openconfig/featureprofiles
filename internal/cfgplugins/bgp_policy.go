@@ -532,7 +532,7 @@ func ApplyRoutePolicyToBGPPeer(t *testing.T, dut *ondatra.DUTDevice, params Neig
 				if params.NetworkInstance != deviations.DefaultNetworkInstance(dut) && params.NetworkInstance != "DEFAULT" {
 					cliConfig += fmt.Sprintf("vrf %s\n", params.NetworkInstance)
 				}
-				cliConfig += fmt.Sprintf("address-family ipv4\n")
+				cliConfig += "address-family ipv4\n"
 				if params.ImportRouteMapPolicy != "" {
 					if params.RemoveRouteMapPolicy {
 						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
@@ -552,7 +552,7 @@ func ApplyRoutePolicyToBGPPeer(t *testing.T, dut *ondatra.DUTDevice, params Neig
 				if params.NetworkInstance != deviations.DefaultNetworkInstance(dut) && params.NetworkInstance != "DEFAULT" {
 					cliConfig += fmt.Sprintf("vrf %s\n", params.NetworkInstance)
 				}
-				cliConfig += fmt.Sprintf("address-family ipv6\n")
+				cliConfig += "address-family ipv6\n"
 				if params.ImportRouteMapPolicy != "" {
 					if params.RemoveRouteMapPolicy {
 						cliConfig += fmt.Sprintf(`no neighbor %s route-map %s in`, params.NeighborIp, params.ImportRouteMapPolicy)
@@ -574,5 +574,18 @@ func ApplyRoutePolicyToBGPPeer(t *testing.T, dut *ondatra.DUTDevice, params Neig
 		}
 	} else {
 		t.Errorf("OC is not supported for vendor %s", dut.Vendor())
+	}
+}
+
+func BgpAIGPMetricUnsupported(t *testing.T, dut *ondatra.DUTDevice, defaultAsn uint32) {
+	if deviations.AigpMetricIncrement(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cli := fmt.Sprintf(`router bgp %d
+								next-hop igp-metric zero aigp increment`, defaultAsn)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Fatalf("Unsupported vendor %s for native cmd support for deviation 'AigpMetricIncrement'", dut.Vendor())
+		}
 	}
 }

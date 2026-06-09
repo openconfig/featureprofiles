@@ -46,21 +46,19 @@ const (
 	niOriginate    = "test-originate"
 
 	// Policy names
-	importPolicy150 = "test-import-policy_aigp_150"
-	importPolicy20  = "test-import-policy_aigp_20"
-	exportPolicy    = "test-export-policy"
-	exportPolicyv6  = "test-export-policyv6"
-	exportDefaultV4 = "default-export-v4"
-	exportDefaultV6 = "default-export-v6"
-	exportNonDefV4  = "non-default-export-v4"
-	exportNonDefV6  = "non-default-export-v6"
+	importPolicy150       = "test-import-policy_aigp_150"
+	importPolicy20        = "test-import-policy_aigp_20"
+	exportPolicy          = "test-export-policy"
+	exportPolicyv6        = "test-export-policyv6"
+	exportPolicyNexthop   = "export-next-hop-self"
+	exportPolicyNexthopv6 = "export-next-hop-selfv6"
 
 	// AIGP values
 	aigp20  = 20
 	aigp150 = 150
 	aigp200 = 200
 	aigp201 = 201
-	aigp220 = 220
+	aigp230 = 230
 
 	// ISIS NET entities
 	isisNetDUT1Default      = "49.0001.1980.5110.0025.00"
@@ -74,8 +72,6 @@ const (
 
 	// Traffic loss threshold
 	trafficLossThresholdPct = 2.0
-
-	trafficDuration = 60 * time.Second
 
 	plenIPv4   = 30
 	plenIPv6   = 126
@@ -109,14 +105,6 @@ type loopbackAttrs struct {
 	loopbackIntfName string
 }
 
-type routePolicyData struct {
-	policyName    string
-	aigpMetric    uint32
-	acceptRoute   bool
-	statementName string
-	nexthop       string
-}
-
 type bgpNbr struct {
 	peerGrpName    string
 	nbrIp          string
@@ -131,6 +119,7 @@ type bgpNbr struct {
 	enableAIGP     bool
 	srcIp          string
 	removePolicy   []string
+	removeBgpPeer  bool
 }
 
 type niBGPConfig struct {
@@ -192,14 +181,12 @@ var (
 
 	dut1Lag1 = []*cfgplugins.DUTAggData{
 		{
-			// Attributes:      custIntf,
 			OndatraPortsIdx: []int{0},
 			LacpParams:      lacpParams1,
 			AggType:         oc.IfAggregate_AggregationType_LACP,
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
 					IPv4Address:   net.ParseIP("198.51.100.1"),
 					IPv6Address:   net.ParseIP("2001:db8::1"),
 					IPv4PrefixLen: plenIPv4,
@@ -207,7 +194,6 @@ var (
 				},
 				{
 					VlanID:        20,
-					VlanEnable:    false,
 					IPv4Address:   net.ParseIP("198.51.100.5"),
 					IPv6Address:   net.ParseIP("2001:db8::5"),
 					IPv4PrefixLen: plenIPv4,
@@ -215,7 +201,6 @@ var (
 				},
 				{
 					VlanID:                30,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.9"),
 					IPv6Address:           net.ParseIP("2001:db8::51"),
 					IPv4PrefixLen:         plenIPv4,
@@ -224,7 +209,6 @@ var (
 				},
 				{
 					VlanID:                40,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.13"),
 					IPv6Address:           net.ParseIP("2001:db8::55"),
 					IPv4PrefixLen:         plenIPv4,
@@ -243,7 +227,6 @@ var (
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
 					IPv4Address:   net.ParseIP("198.51.100.17"),
 					IPv6Address:   net.ParseIP("2001:db8::35"),
 					IPv4PrefixLen: plenIPv4,
@@ -251,7 +234,6 @@ var (
 				},
 				{
 					VlanID:                20,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.21"),
 					IPv6Address:           net.ParseIP("2001:db8::21"),
 					IPv4PrefixLen:         plenIPv4,
@@ -260,7 +242,6 @@ var (
 				},
 				{
 					VlanID:        30,
-					VlanEnable:    false,
 					IPv4Address:   net.ParseIP("198.51.100.25"),
 					IPv6Address:   net.ParseIP("2001:db8::25"),
 					IPv4PrefixLen: plenIPv4,
@@ -268,7 +249,6 @@ var (
 				},
 				{
 					VlanID:                40,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.29"),
 					IPv6Address:           net.ParseIP("2001:db8::29"),
 					IPv4PrefixLen:         plenIPv4,
@@ -287,7 +267,6 @@ var (
 			SubInterfaces: []*cfgplugins.DUTSubInterfaceData{
 				{
 					VlanID:        10,
-					VlanEnable:    false,
 					IPv4Address:   net.ParseIP("198.51.100.18"),
 					IPv6Address:   net.ParseIP("2001:db8::36"),
 					IPv4PrefixLen: plenIPv4,
@@ -295,7 +274,6 @@ var (
 				},
 				{
 					VlanID:                20,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.22"),
 					IPv6Address:           net.ParseIP("2001:db8::22"),
 					IPv4PrefixLen:         plenIPv4,
@@ -304,7 +282,6 @@ var (
 				},
 				{
 					VlanID:                30,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.26"),
 					IPv6Address:           net.ParseIP("2001:db8::26"),
 					IPv4PrefixLen:         plenIPv4,
@@ -313,7 +290,6 @@ var (
 				},
 				{
 					VlanID:                40,
-					VlanEnable:            false,
 					IPv4Address:           net.ParseIP("198.51.100.30"),
 					IPv6Address:           net.ParseIP("2001:db8::2a"),
 					IPv4PrefixLen:         plenIPv4,
@@ -385,20 +361,20 @@ var (
 	dut1loopback10 = loopbackAttrs{
 		attr: &attrs.Attributes{
 			Desc:    "DUT1 Loopback 10",
-			IPv4:    "198.55.1.1",
-			IPv6:    "2001:db8:50::1",
+			IPv4:    "198.55.10.1",
+			IPv6:    "2001:db8:10::1",
 			IPv4Len: plenIPv4lo,
 			IPv6Len: plenIPv6lo,
 		},
 		networkInstance: testDefaultParams,
 	}
 
-	// DUT2 loopback 20
+	// DUT1 loopback 20
 	dut1loopback20 = loopbackAttrs{
 		attr: &attrs.Attributes{
-			Desc:    "DUT2 Loopback 20",
-			IPv4:    "198.55.2.1",
-			IPv6:    "2001:db8:60::1",
+			Desc:    "DUT1 Loopback 20",
+			IPv4:    "198.55.20.1",
+			IPv6:    "2001:db8:20::1",
 			IPv4Len: plenIPv4lo,
 			IPv6Len: plenIPv6lo,
 		},
@@ -409,8 +385,8 @@ var (
 	dut2loopback10 = loopbackAttrs{
 		attr: &attrs.Attributes{
 			Desc:    "DUT2 Loopback 10",
-			IPv4:    "198.60.1.1",
-			IPv6:    "2001:db8:60::1",
+			IPv4:    "198.60.10.2",
+			IPv6:    "2001:db8:10::2",
 			IPv4Len: plenIPv4lo,
 			IPv6Len: plenIPv6lo,
 		},
@@ -421,16 +397,52 @@ var (
 	dut2loopback20 = loopbackAttrs{
 		attr: &attrs.Attributes{
 			Desc:    "DUT2 Loopback 20",
-			IPv4:    "198.70.1.1",
-			IPv6:    "2001:db8:70::1",
+			IPv4:    "198.60.20.2",
+			IPv6:    "2001:db8:20::2",
 			IPv4Len: plenIPv4lo,
 			IPv6Len: plenIPv6lo,
 		},
 		networkInstance: testOriginateParams,
 	}
 
+	// DUT2 loopback 30
+	dut2loopback30 = loopbackAttrs{
+		attr: &attrs.Attributes{
+			Desc:    "DUT2 Loopback 30",
+			IPv4:    "198.60.30.2",
+			IPv6:    "2001:db8:30::2",
+			IPv4Len: plenIPv4lo,
+			IPv6Len: plenIPv6lo,
+		},
+		networkInstance: testOriginateParams,
+	}
+
+	// DUT2 loopback 40
+	dut2loopback40 = loopbackAttrs{
+		attr: &attrs.Attributes{
+			Desc:    "DUT2 Loopback 40",
+			IPv4:    "198.60.40.2",
+			IPv6:    "2001:db8:40::2",
+			IPv4Len: plenIPv4lo,
+			IPv6Len: plenIPv6lo,
+		},
+		networkInstance: testDefaultParams,
+	}
+
+	// DUT2 loopback 50
+	dut2loopback50 = loopbackAttrs{
+		attr: &attrs.Attributes{
+			Desc:    "DUT2 Loopback 50",
+			IPv4:    "198.60.50.2",
+			IPv6:    "2001:db8:50::2",
+			IPv4Len: plenIPv4lo,
+			IPv6Len: plenIPv6lo,
+		},
+		networkInstance: testInstanceParams,
+	}
+
 	ateIPv4Prefixes = []string{"198.51.210.0", "198.51.220.0"}
-	ateIPv6Prefixes = []string{"2001:db8:10::", "2001:db8:20::"}
+	ateIPv6Prefixes = []string{"2001:db8:210::", "2001:db8:220::"}
 
 	networkInstanceList = []cfgplugins.NetworkInstanceParams{testInstanceParams, testOriginateParams}
 
@@ -473,12 +485,12 @@ var (
 					defaultAsn: asnDUT1Default,
 					globalAsn:  asnDUT1Default,
 					peerGroups: []*peerGroupCfg{
-						{name: pgUplink, peerAs: asnATE},                                  // towards ATE
-						{name: pgUplink6, peerAs: asnATE},                                 // towards ATE
-						{name: pgDownlink, peerAs: asnDUT1Default, routeReflector: true},  // towards DUT2 default NI
-						{name: pgDownlink6, peerAs: asnDUT1Default, routeReflector: true}, // towards DUT2 default NI
-						{name: pgDownlinkTI, peerAs: asnDUT1TestInstance},                 // 64498 - test-instance downlink
-						{name: pgDownlink6TI, peerAs: asnDUT1TestInstance},                // 64498 - test-instance downlinkv6
+						{name: pgUplink, peerAs: asnATE},                                         // towards ATE
+						{name: pgUplink6, peerAs: asnATE},                                        // towards ATE
+						{name: pgDownlink, peerAs: asnDUT1Default, routeReflector: true},         // towards DUT2 default NI
+						{name: pgDownlink6, peerAs: asnDUT1Default, routeReflector: true},        // towards DUT2 default NI
+						{name: pgDownlinkTI, peerAs: asnDUT1TestInstance, routeReflector: true},  // 64498 - test-instance downlink
+						{name: pgDownlink6TI, peerAs: asnDUT1TestInstance, routeReflector: true}, // 64498 - test-instance downlinkv6
 					},
 					bgpNbrs: []*bgpNbr{
 						{peerGrpName: pgUplink, nbrIp: otgIntf10.IPv4, peerAs: asnATE, isV4: true, importPolicy: []string{importPolicy150}, enableAIGP: true},
@@ -559,16 +571,6 @@ func configureDut(t *testing.T, dutDataList []*dutData) {
 			dutData.lagName = append(dutData.lagName, l.LagName)
 			cfgplugins.NewAggregateInterface(t, dutData.dut, b, l)
 			b.Set(t, dutData.dut)
-
-			for _, subIntf := range l.SubInterfaces {
-				vlanClientCfg := cfgplugins.VlanClientEncapsulationParams{
-					IntfName:         l.LagName,
-					Subinterfaces:    uint32(subIntf.VlanID),
-					RemoveVlanConfig: false,
-				}
-
-				cfgplugins.VlanClientEncapsulation(t, b, dutData.dut, vlanClientCfg)
-			}
 		}
 
 		//Configure loopback interfaces
@@ -642,10 +644,10 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 		srcMAC string
 		v4     bool
 	}{
-		{"Flow1", ateIPv4Prefixes[0], dut1loopback10.attr.IPv4, 10, otgIntf10.MAC, true},
-		{"Flow2", ateIPv4Prefixes[1], dut1loopback20.attr.IPv4, 30, otgIntf30.MAC, true},
-		{"Flow3", ateIPv6Prefixes[0], dut1loopback10.attr.IPv6, 10, otgIntf10.MAC, false},
-		{"Flow4", ateIPv6Prefixes[1], dut1loopback20.attr.IPv6, 30, otgIntf30.MAC, false},
+		{"Flow1", "198.51.210.1", dut1loopback10.attr.IPv4, 10, otgIntf10.MAC, true},
+		{"Flow2", "198.51.210.2", dut1loopback20.attr.IPv4, 30, otgIntf30.MAC, true},
+		{"Flow3", "2001:db8:210::1", dut1loopback10.attr.IPv6, 10, otgIntf10.MAC, false},
+		{"Flow4", "2001:db8:210::2", dut1loopback20.attr.IPv6, 30, otgIntf30.MAC, false},
 	}
 	for _, f := range flows {
 		flow := otgConfig.Flows().Add().SetName(f.name)
@@ -736,6 +738,10 @@ func configureBGP(t *testing.T, dut *ondatra.DUTDevice, bgpCfg map[string]*niBGP
 
 		// Configure each neighbor into this NI's BGP object
 		for _, nbr := range niCfg.bgpNbrs {
+			if nbr.removeBgpPeer {
+				gnmi.Delete(t, dut, gnmi.OC().NetworkInstance(resolvedNI).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Neighbor(nbr.nbrIp).Config())
+				continue
+			}
 			configureBGPNeighbor(t, dut, resolvedNI, niCfg.defaultAsn, bgp, nbr)
 		}
 
@@ -869,6 +875,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, ni string, intfName []s
 	}
 
 	for _, intf := range intfName {
+		t.Log("Configuring ISIS on interface: ", intf)
 		isisIntf := isis.GetOrCreateInterface(intf)
 		isisIntf.Enabled = ygot.Bool(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
@@ -897,32 +904,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, ni string, intfName []s
 		loopIface.Enabled = ygot.Bool(true)
 	}
 
-	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
-}
-
-func updateISISMetric(t *testing.T, dut *ondatra.DUTDevice, ni string, isisInstance string, intfName []string, metric uint32) {
-	t.Helper()
-	d := &oc.Root{}
-	netInstance := d.GetOrCreateNetworkInstance(ni)
-	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
-	prot.Enabled = ygot.Bool(true)
-	isis := prot.GetOrCreateIsis()
-	globalISIS := isis.GetOrCreateGlobal()
-	if deviations.ISISInstanceEnabledRequired(dut) {
-		globalISIS.Instance = ygot.String(isisInstance)
-	}
-	for _, intf := range intfName {
-		isisIntf := isis.GetOrCreateInterface(intf)
-		isisIntf.Enabled = ygot.Bool(true)
-
-		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
-		isisIntfLevel.Enabled = ygot.Bool(true)
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.Metric = ygot.Uint32(metric)
-		isisIntfLevelAfi6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi6.Metric = ygot.Uint32(metric)
-
-	}
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Config(), prot)
 }
 
@@ -985,6 +966,7 @@ func verifyAIGPInRIB(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix s
 	if !deviations.BGPRibOcPathUnsupported(dut) {
 		bgpRIBPath := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Rib()
 		if isV4 {
+			time.Sleep(30 * time.Second) // wait for route to be in RIB
 			locRib := gnmi.Get(t, dut, bgpRIBPath.AfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).Ipv4Unicast().LocRib().Route(prefix, oc.UnionString(nbrAddr), 0).State())
 			if locRib != nil {
 				attrIndex = locRib.GetAttrIndex()
@@ -1142,17 +1124,6 @@ func validateTrafficFlows(t *testing.T, otg *otg.OTG, otgConfig gosnappi.Config,
 	}
 }
 
-func verifyISISMetric(t *testing.T, dut *ondatra.DUTDevice, ni, isisInstance, intfID string, level uint8, afiName oc.E_IsisTypes_AFI_TYPE, safiName oc.E_IsisTypes_SAFI_TYPE, wantMetric uint32) {
-	t.Helper()
-	metric := gnmi.Get(t, dut,
-		gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis().Interface(intfID).Level(uint8(level)).Af(afiName, safiName).Metric().State(),
-	)
-	if metric != wantMetric {
-		t.Errorf("isis metric on %s in NI %s level %d AFI %v: want %d, got %d",
-			intfID, ni, level, afiName, wantMetric, metric)
-	}
-}
-
 func verifyBGPUpdatesSentNonZero(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr string) {
 	t.Helper()
 	sent := gnmi.Get(t, dut,
@@ -1189,7 +1160,7 @@ func enableAIGPOnPeer(t *testing.T, dut *ondatra.DUTDevice, ni string, defaultAs
 								  address-family ipv4
 								`, ni)
 		} else {
-			cliConfig += fmt.Sprintf("address-family ipv4\n")
+			cliConfig += "address-family ipv4\n"
 		}
 		if enable {
 			cliConfig += fmt.Sprintf(`
@@ -1210,7 +1181,7 @@ func enableAIGPOnPeer(t *testing.T, dut *ondatra.DUTDevice, ni string, defaultAs
 								  address-family ipv6
 								`, ni)
 		} else {
-			cliConfig += fmt.Sprintf("address-family ipv6\n")
+			cliConfig += "address-family ipv6\n"
 		}
 		if enable {
 			cliConfig += fmt.Sprintf(`neighbor %s aigp-session
@@ -1282,7 +1253,7 @@ func TestAigp(t *testing.T) {
 	// Run the test cases.
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			t.Logf("Description: %s - %s", tc.name, tc.name)
+			t.Logf("Description: %s", tc.description)
 			tc.testFunc(t, dutTestData, ate, ate.OTG(), otgConfig, otgconfighelpers.Flow{})
 		})
 	}
@@ -1312,8 +1283,8 @@ func testAIGPAttributeValidation(t *testing.T, dutTestData []*dutData, ate *onda
 	cfgplugins.VerifyDUTBGPEstablished(t, dut2)
 
 	t.Logf("Verify DUT vrf test-instance BGP sessions are up")
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut1, niTestInstance)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut2, niTestInstance)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut1, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
+	cfgplugins.VerifyDUTBGPEstablished(t, dut2, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
 
 	// Pass Criteria: 5 - Validate AIGP propagation status
 
@@ -1387,10 +1358,10 @@ func testAIGPAttributeValidation(t *testing.T, dutTestData []*dutData, ate *onda
 		{prefix: ateIPv4Prefixes[1] + "/24", isV4: true, nbrIp: "198.51.100.17", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), nexthop: "198.51.100.17", validateRoute: true},
 		{prefix: ateIPv4Prefixes[0] + "/24", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp200, ni: niTestInstance, nexthop: "198.51.100.21", validateRoute: true},
 		{prefix: ateIPv4Prefixes[1] + "/24", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp200, ni: niTestInstance, nexthop: "198.51.100.21", validateRoute: true},
-		{prefix: ateIPv6Prefixes[0] + "/64", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp150, ni: deviations.DefaultNetworkInstance(dut1), nexthop: "2001:db8::35", validateRoute: true},
-		{prefix: ateIPv6Prefixes[1] + "/64", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp150, ni: deviations.DefaultNetworkInstance(dut1), nexthop: "2001:db8::35", validateRoute: true},
-		{prefix: ateIPv6Prefixes[0] + "/64", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp20, ni: niTestInstance, nexthop: "2001:db8::21", validateRoute: true},
-		{prefix: ateIPv6Prefixes[1] + "/64", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp20, ni: niTestInstance, nexthop: "2001:db8::21", validateRoute: true},
+		{prefix: ateIPv6Prefixes[0] + "/64", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), nexthop: "2001:db8::35", validateRoute: true},
+		{prefix: ateIPv6Prefixes[1] + "/64", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), nexthop: "2001:db8::35", validateRoute: true},
+		{prefix: ateIPv6Prefixes[0] + "/64", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp200, ni: niTestInstance, nexthop: "2001:db8::21", validateRoute: true},
+		{prefix: ateIPv6Prefixes[1] + "/64", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp200, ni: niTestInstance, nexthop: "2001:db8::21", validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
 			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
@@ -1416,6 +1387,7 @@ func testAIGPAttributeValidation(t *testing.T, dutTestData []*dutData, ate *onda
 
 	// Traffic test
 	otg.StartTraffic(t)
+	time.Sleep(10 * time.Second)
 	validateTrafficFlows(t, otg, otgConfig, otgConfig.Flows().Items())
 
 }
@@ -1508,45 +1480,36 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 
 	// Configure loopback on DUT2
 	b := &gnmi.SetBatch{}
-	configureLoopback(t, b, dut2, []*loopbackAttrs{&dut2loopback10, &dut2loopback20})
+	configureLoopback(t, b, dut2, []*loopbackAttrs{&dut2loopback10, &dut2loopback20, &dut2loopback30, &dut2loopback40, &dut2loopback50})
 	b.Set(t, dut2)
-
-	t.Log(dut1loopback10.loopbackIntfName)
-	t.Log(dut2loopback10.loopbackIntfName)
 
 	// Create BGP export policy
 	routingPolicies := []cfgplugins.AIGPRoutePolicyData{
 		{
-			PolicyName:    exportDefaultV4,
-			StatementName: "test-statement",
+			PolicyName:    exportPolicyNexthop,
+			StatementName: "test-export-statement",
 			AcceptRoute:   true,
-			Nexthop:       dut1loopback10.attr.IPv4,
+			Nexthop:       "SELF",
 			NexthopType:   "ip",
-		},
-		{
-			PolicyName:    exportDefaultV6,
-			StatementName: "test-statement",
-			AcceptRoute:   true,
-			Nexthop:       dut1loopback10.attr.IPv6,
-			NexthopType:   "ipv6",
-		},
-		{
-			PolicyName:    exportNonDefV4,
-			StatementName: "test-statement",
-			AcceptRoute:   true,
-			Nexthop:       dut1loopback20.attr.IPv4,
-			NexthopType:   "ip",
-		},
-		{
-			PolicyName:    exportNonDefV6,
-			StatementName: "test-statement",
-			AcceptRoute:   true,
-			Nexthop:       dut1loopback20.attr.IPv6,
-			NexthopType:   "ipv6",
 		},
 	}
 
 	for _, rp := range routingPolicies {
+		cfgplugins.RoutingPolicyBGPAIGP(t, dut1, rp)
+	}
+
+	// Create BGP export policy
+	routingPoliciesv6 := []cfgplugins.AIGPRoutePolicyData{
+		{
+			PolicyName:    exportPolicyNexthopv6,
+			StatementName: "test-export-statement",
+			AcceptRoute:   true,
+			Nexthop:       "SELF",
+			NexthopType:   "ipv6",
+		},
+	}
+
+	for _, rp := range routingPoliciesv6 {
 		cfgplugins.RoutingPolicyBGPAIGP(t, dut1, rp)
 	}
 
@@ -1558,9 +1521,39 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 		[]string{dutTestData[0].lagName[1] + ".20", dutTestData[0].lagName[1] + ".40"}, isisNetDUT1TestInstance, dut1loopback20.loopbackIntfName, isisTestInstance, 20)
 
 	// Configure ISIS on DUT2 for default and test instances with different interfaces and metrics
-	configureISIS(t, dut2, deviations.DefaultNetworkInstance(dut2), []string{dutTestData[1].lagName[0] + ".10"}, isisNetDUT2Default, "", isisDefaultInstance, 20)
-	configureISIS(t, dut2, niTestInstance, []string{dutTestData[1].lagName[0] + ".20"}, isisNetDUT2TestInstance, "", isisTestInstance, 20)
-	configureISIS(t, dut2, niOriginate, []string{dutTestData[1].lagName[0] + ".30", dutTestData[1].lagName[0] + ".40"}, isisNetDUT2Originate, "", isisOriginateInstance, 20)
+	configureISIS(t, dut2, deviations.DefaultNetworkInstance(dut2), []string{dutTestData[1].lagName[0] + ".10"}, isisNetDUT2Default, dut2loopback40.loopbackIntfName, isisDefaultInstance, 20)
+	configureISIS(t, dut2, niTestInstance, []string{dutTestData[1].lagName[0] + ".20"}, isisNetDUT2TestInstance, dut2loopback50.loopbackIntfName, isisTestInstance, 20)
+	configureISIS(t, dut2, niOriginate, []string{dutTestData[1].lagName[0] + ".30", dutTestData[1].lagName[0] + ".40"}, isisNetDUT2Originate, dut2loopback30.loopbackIntfName, isisOriginateInstance, 20)
+
+	// BGP Config on DUT1
+	bgpCfg := map[string]*niBGPConfig{
+		niDefault: {
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1Default,
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgDownlink, nbrIp: dut2loopback30.attr.IPv4, peerAs: asnDUT1Default, isV4: true, srcIp: dut1loopback10.attr.IPv4},
+				{peerGrpName: pgDownlink6, nbrIp: dut2loopback30.attr.IPv6, peerAs: asnDUT1Default, isV4: false, srcIp: dut1loopback10.attr.IPv6},
+				{peerGrpName: pgDownlink, nbrIp: dut2loopback40.attr.IPv4, peerAs: asnDUT1Default, isV4: true, srcIp: dut1loopback10.attr.IPv4},
+				{peerGrpName: pgDownlink6, nbrIp: dut2loopback40.attr.IPv6, peerAs: asnDUT1Default, isV4: false, srcIp: dut1loopback10.attr.IPv6},
+				{nbrIp: "198.51.100.18", removeBgpPeer: true, peerGrpName: pgDownlink},
+				{nbrIp: "2001:db8::36", removeBgpPeer: true, peerGrpName: pgDownlink6},
+			},
+		},
+		niTestInstance: {
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1TestInstance,
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgDownlinkTI, nbrIp: dut2loopback30.attr.IPv4, peerAs: asnDUT1TestInstance, isV4: true, srcIp: dut1loopback20.attr.IPv4},
+				{peerGrpName: pgDownlink6TI, nbrIp: dut2loopback30.attr.IPv6, peerAs: asnDUT1TestInstance, isV4: false, srcIp: dut1loopback20.attr.IPv6},
+				{peerGrpName: pgDownlinkTI, nbrIp: dut2loopback50.attr.IPv4, peerAs: asnDUT1TestInstance, isV4: true, srcIp: dut1loopback20.attr.IPv4},
+				{peerGrpName: pgDownlink6TI, nbrIp: dut2loopback50.attr.IPv6, peerAs: asnDUT1TestInstance, isV4: false, srcIp: dut1loopback20.attr.IPv6},
+				{nbrIp: "198.51.100.22", removeBgpPeer: true, peerGrpName: pgDownlinkTI},
+				{nbrIp: "2001:db8::22", removeBgpPeer: true, peerGrpName: pgDownlink6TI},
+			},
+		},
+	}
+
+	configureBGP(t, dut1, bgpCfg)
 
 	// remove existing route policies on DUT1
 	for _, peerPolicy := range []struct {
@@ -1572,14 +1565,10 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 		exportPolicy string
 		removePolicy bool
 	}{
-		{ni: niDefault, as: asnDUT1Default, nbrIp: "198.51.100.18", importPolicy: "", exportPolicy: exportPolicy, removePolicy: true, isV4: true},
-		{ni: niDefault, as: asnDUT1Default, nbrIp: "2001:db8::36", importPolicy: "", exportPolicy: exportPolicyv6, removePolicy: true, isV4: false},
-		{ni: niTestInstance, as: asnDUT1Default, nbrIp: "198.51.100.22", importPolicy: "", exportPolicy: exportPolicy, removePolicy: true, isV4: true},
-		{ni: niTestInstance, as: asnDUT1Default, nbrIp: "2001:db8::22", importPolicy: "", exportPolicy: exportPolicyv6, removePolicy: true, isV4: false},
-		{ni: niDefault, as: asnDUT1Default, nbrIp: "198.51.100.18", importPolicy: "", exportPolicy: exportDefaultV4, removePolicy: false, isV4: true},
-		{ni: niDefault, as: asnDUT1Default, nbrIp: "2001:db8::36", importPolicy: "", exportPolicy: exportDefaultV6, removePolicy: false, isV4: false},
-		{ni: niTestInstance, as: asnDUT1Default, nbrIp: "198.51.100.22", importPolicy: "", exportPolicy: exportNonDefV4, removePolicy: false, isV4: true},
-		{ni: niTestInstance, as: asnDUT1Default, nbrIp: "2001:db8::22", importPolicy: "", exportPolicy: exportNonDefV6, removePolicy: false, isV4: false},
+		{ni: niDefault, as: asnDUT1Default, nbrIp: dut2loopback40.attr.IPv4, importPolicy: "", exportPolicy: exportPolicyNexthop, isV4: true},
+		{ni: niDefault, as: asnDUT1Default, nbrIp: dut2loopback40.attr.IPv6, importPolicy: "", exportPolicy: exportPolicyNexthopv6, isV4: false},
+		{ni: niTestInstance, as: asnDUT1Default, nbrIp: dut2loopback50.attr.IPv4, importPolicy: "", exportPolicy: exportPolicyNexthop, isV4: true},
+		{ni: niTestInstance, as: asnDUT1Default, nbrIp: dut2loopback50.attr.IPv6, importPolicy: "", exportPolicy: exportPolicyNexthopv6, isV4: false},
 	} {
 		routeMapPolicyParams := cfgplugins.NeighborRouteMapAttributes{
 			NetworkInstance:      peerPolicy.ni,
@@ -1592,29 +1581,6 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 		}
 		cfgplugins.ApplyRoutePolicyToBGPPeer(t, dut1, routeMapPolicyParams)
 	}
-
-	dutLag2BGPNeighbors := map[string]*niBGPConfig{
-		niDefault: {
-			defaultAsn: asnDUT1Default,
-			globalAsn:  asnDUT1Default,
-			bgpNbrs: []*bgpNbr{
-				// Default NI - downlink peers uses 64497 (DUT2-- DUT1 vlan30 peers)
-				{peerGrpName: pgDownlink, nbrIp: "198.51.100.26", peerAs: asnDUT1Default, isV4: true, enableAIGP: true},
-				{peerGrpName: pgDownlink, nbrIp: "2001:db8::26", peerAs: asnDUT1Default, isV4: false, enableAIGP: true},
-			},
-		},
-		niTestInstance: {
-			defaultAsn: asnDUT1Default,
-			globalAsn:  asnDUT1TestInstance,
-			bgpNbrs: []*bgpNbr{
-				// Test instance NI - downlink peers uses 64498 (DUT2-- DUT1 vlan40 peers)
-				{peerGrpName: pgDownlink, nbrIp: "198.51.100.30", peerAs: asnDUT1TestInstance, isV4: true, enableAIGP: true},
-				{peerGrpName: pgDownlink, nbrIp: "2001:db8::2a", peerAs: asnDUT1TestInstance, isV4: false, enableAIGP: true},
-			},
-		},
-	}
-
-	configureBGP(t, dut1, dutLag2BGPNeighbors)
 
 	// Create export policy with AIGP metric set and nexthop as loopback on DUT1
 	d := &oc.Root{}
@@ -1655,15 +1621,32 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 		cfgplugins.RoutingPolicyBGPAIGP(t, dut2, rp)
 	}
 
-	dut2TestOriginatePeer := map[string]*niBGPConfig{
+	// BGP Config on DUT2
+	bgpCfgDUT2 := map[string]*niBGPConfig{
 		niDefault: {
-			defaultAsn: asnDUT2Default,
-			globalAsn:  asnDUT2Default,
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1Default,
 			peerGroups: []*peerGroupCfg{
 				{name: "default-peer-group", peerAs: asnDUT2Default, localAs: asnDUT2Default},
 				{name: "default-peer-group6", peerAs: asnDUT2Default, localAs: asnDUT2Default},
 				{name: "test-instance-peer-group", peerAs: asnDUT1TestInstance, localAs: asnDUT2TestInstance},
 				{name: "test-instance-peer-group6", peerAs: asnDUT1TestInstance, localAs: asnDUT2TestInstance},
+			},
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgUplinkDUT2, nbrIp: dut1loopback10.attr.IPv4, peerAs: asnDUT1Default, isV4: true, srcIp: dut2loopback40.attr.IPv4},
+				{peerGrpName: pgUplink6DUT2, nbrIp: dut1loopback10.attr.IPv6, peerAs: asnDUT1Default, isV4: false, srcIp: dut2loopback40.attr.IPv6},
+				{nbrIp: "198.51.100.17", removeBgpPeer: true},
+				{nbrIp: "2001:db8::35", removeBgpPeer: true},
+			},
+		},
+		niTestInstance: {
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1TestInstance,
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgUplinkDUT2TI, nbrIp: dut1loopback20.attr.IPv4, peerAs: asnDUT1TestInstance, isV4: true, srcIp: dut2loopback50.attr.IPv4},
+				{peerGrpName: pgUplink6DUT2TI, nbrIp: dut1loopback20.attr.IPv6, peerAs: asnDUT1TestInstance, isV4: false, srcIp: dut2loopback50.attr.IPv6},
+				{nbrIp: "198.51.100.21", removeBgpPeer: true},
+				{nbrIp: "2001:db8::21", removeBgpPeer: true},
 			},
 		},
 		niOriginate: {
@@ -1671,21 +1654,21 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 			globalAsn:  asnDUT2Originate,
 			bgpNbrs: []*bgpNbr{
 				// test-originate NI - default-peer-group (IPv4) towards DUT1 default NI (vlan30)
-				{peerGrpName: "default-peer-group", nbrIp: "198.51.100.25", peerAs: asnDUT1Default, isV4: true, exportPolicy: []string{"test-export-policy"}, enableAIGP: true},
+				{peerGrpName: "default-peer-group", nbrIp: dut1loopback10.attr.IPv4, peerAs: asnDUT1Default, isV4: true, exportPolicy: []string{"test-export-policy"}, srcIp: dut2loopback30.attr.IPv4},
 
 				// test-originate NI - default-peer-group6 (IPv6) towards DUT1 default NI (vlan30)
-				{peerGrpName: "default-peer-group6", nbrIp: "2001:db8::25", peerAs: asnDUT1Default, isV4: false, exportPolicy: []string{"test-export-policyv6"}, enableAIGP: true},
+				{peerGrpName: "default-peer-group6", nbrIp: dut1loopback10.attr.IPv6, peerAs: asnDUT1Default, isV4: false, exportPolicy: []string{"test-export-policyv6"}, srcIp: dut2loopback30.attr.IPv6},
 
 				// test-originate NI - test-instance-peer-group (IPv4) towards DUT1 test-instance NI (vlan40)
-				{peerGrpName: "test-instance-peer-group", nbrIp: "198.51.100.29", peerAs: asnDUT1TestInstance, isV4: true, exportPolicy: []string{"test-export-policy"}, enableAIGP: true},
+				{peerGrpName: "test-instance-peer-group", nbrIp: dut1loopback20.attr.IPv4, peerAs: asnDUT1TestInstance, isV4: true, exportPolicy: []string{"test-export-policy"}, srcIp: dut2loopback30.attr.IPv4},
 
 				// test-originate NI - test-instance-peer-group6 (IPv6) towards DUT1 test-instance NI (vlan40)
-				{peerGrpName: "test-instance-peer-group6", nbrIp: "2001:db8::29", peerAs: asnDUT1TestInstance, isV4: false, exportPolicy: []string{"test-export-policyv6"}, enableAIGP: true},
+				{peerGrpName: "test-instance-peer-group6", nbrIp: dut1loopback20.attr.IPv6, peerAs: asnDUT1TestInstance, isV4: false, exportPolicy: []string{"test-export-policyv6"}, srcIp: dut2loopback30.attr.IPv6},
 			},
 		},
 	}
 
-	configureBGP(t, dut2, dut2TestOriginatePeer)
+	configureBGP(t, dut2, bgpCfgDUT2)
 
 	root := &oc.Root{}
 	tableConn := root.GetOrCreateNetworkInstance(niOriginate).GetOrCreateTableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6)
@@ -1698,6 +1681,7 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 	gnmi.BatchUpdate(b, gnmi.OC().NetworkInstance(niOriginate).TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tableConn1)
 	b.Set(t, dut2)
 
+	otg.StopProtocols(t)
 	// --- ISIS adjacency checks DUT1 ---
 
 	verifyISISTelemetry(t, dut1, deviations.DefaultNetworkInstance(dut1), isisDefaultInstance, []string{dutTestData[0].lagName[1] + ".10"})
@@ -1715,42 +1699,41 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 	cfgplugins.VerifyDUTBGPEstablished(t, dut2)
 
 	t.Logf("Verify DUT vrf %s BGP sessions are up", niTestInstance)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut1, niTestInstance)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut2, niTestInstance)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut1, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
+	cfgplugins.VerifyDUTBGPEstablished(t, dut2, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
 
 	t.Logf("Verify DUT vrf %s BGP sessions are up", niOriginate)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut2, niOriginate)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut2, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niOriginate})
 
 	// DUT1 vlan10 and vlan20 peers in default NI
-	dut1NIPeers := []string{"198.51.100.18", "2001:db8::36", "198.51.100.26", "2001:db8::26"}
+	dut1NIPeers := []string{dut2loopback40.attr.IPv4, dut2loopback40.attr.IPv6, dut2loopback30.attr.IPv4, dut2loopback30.attr.IPv6}
 	for _, p := range dut1NIPeers {
 		verifyAIGPEnabled(t, dut1, deviations.DefaultNetworkInstance(dut1), p, true, strings.Contains(p, "."))
 	}
 
 	// DUT1 vlan30 and vlan40 peers in test-instance NI
-	dut1TIPeers := []string{"198.51.100.22", "2001:db8::22", "198.51.100.30", "2001:db8::2a"}
+	dut1TIPeers := []string{dut2loopback40.attr.IPv4, dut2loopback40.attr.IPv6, dut2loopback30.attr.IPv4, dut2loopback30.attr.IPv6}
 	for _, p := range dut1TIPeers {
 		verifyAIGPEnabled(t, dut1, niTestInstance, p, true, strings.Contains(p, "."))
 	}
 
 	// verify routes have aigp metric set
 	for _, pfx := range []struct {
-		prefix        string
-		isV4          bool
-		nbrIp         string
-		aigpMetric    uint64
-		ni            string
-		validateRoute bool
+		prefix     string
+		isV4       bool
+		nbrIp      string
+		aigpMetric uint64
+		ni         string
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: dut2loopback30.attr.IPv4, aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1)},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: dut2loopback30.attr.IPv6, aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1)},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: dut2loopback30.attr.IPv4, aigpMetric: aigp200, ni: niTestInstance},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: dut2loopback30.attr.IPv6, aigpMetric: aigp200, ni: niTestInstance},
 	} {
 		if pfx.ni != niTestInstance {
-			verifyAIGPInRIB(t, dut1, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", pfx.validateRoute)
+			verifyAIGPInRIB(t, dut1, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", false)
 		} else {
-			verifyAIGPInRIB(t, dut1, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", pfx.validateRoute)
+			verifyAIGPInRIB(t, dut1, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", false)
 		}
 	}
 
@@ -1758,39 +1741,38 @@ func testAIGPPropagationNexthop(t *testing.T, dutTestData []*dutData, ate *ondat
 		verifyRouteReflectorClientState(t, dut1, deviations.DefaultNetworkInstance(dut1), peerGroup, true)
 	}
 
-	dut2NIPeers := []string{"198.51.100.17", "2001:db8::35"}
+	dut2NIPeers := []string{dut1loopback10.attr.IPv4, dut1loopback10.attr.IPv6}
 	for _, p := range dut2NIPeers {
 		verifyAIGPEnabled(t, dut2, deviations.DefaultNetworkInstance(dut2), p, true, strings.Contains(p, "."))
 	}
 
 	// DUT1 vlan30 and vlan40 peers in test-instance NI
-	dut2TIPeers := []string{"198.51.100.21", "2001:db8::21"}
+	dut2TIPeers := []string{dut1loopback20.attr.IPv4, dut1loopback20.attr.IPv6}
 	for _, p := range dut2TIPeers {
 		verifyAIGPEnabled(t, dut2, niTestInstance, p, true, strings.Contains(p, "."))
 	}
+
 	// verify routes have aigp metric set
 	for _, pfx := range []struct {
-		prefix        string
-		isV4          bool
-		nbrIp         string
-		aigpMetric    uint64
-		ni            string
-		nexthop       string
-		validateRoute bool
+		prefix     string
+		isV4       bool
+		nbrIp      string
+		aigpMetric uint64
+		ni         string
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.17", aigpMetric: aigp220, ni: deviations.DefaultNetworkInstance(dut2), nexthop: dut1loopback10.attr.IPv4, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp220, ni: deviations.DefaultNetworkInstance(dut2), nexthop: dut1loopback10.attr.IPv6, validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp220, ni: niTestInstance, nexthop: dut1loopback20.attr.IPv4, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp220, ni: niTestInstance, nexthop: dut1loopback20.attr.IPv6, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: dut1loopback10.attr.IPv4, aigpMetric: aigp230, ni: deviations.DefaultNetworkInstance(dut2)},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: dut1loopback10.attr.IPv6, aigpMetric: aigp230, ni: deviations.DefaultNetworkInstance(dut2)},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: dut1loopback20.attr.IPv4, aigpMetric: aigp230, ni: niTestInstance},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: dut1loopback20.attr.IPv6, aigpMetric: aigp230, ni: niTestInstance},
 	} {
 		if pfx.ni != niTestInstance {
-			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
+			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", false)
 		} else {
-			verifyAIGPInRIB(t, dut2, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
+			verifyAIGPInRIB(t, dut2, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", false)
 		}
 	}
 
-	for _, nbr := range []string{"198.51.100.25", "2001:db8::25", "198.51.100.29", "2001:db8::29"} {
+	for _, nbr := range []string{dut1loopback10.attr.IPv4, dut1loopback10.attr.IPv6, dut1loopback20.attr.IPv4, dut1loopback20.attr.IPv6} {
 		verifyBGPUpdatesSentNonZero(t, dut2, niOriginate, nbr)
 	}
 }
@@ -1799,22 +1781,76 @@ func testAIGPIncrementPlusOne(t *testing.T, dutTestData []*dutData, ate *ondatra
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
-	// Configure ISIS on DUT1 for default and test instances with 0 metrics
-	updateISISMetric(t, dut1, deviations.DefaultNetworkInstance(dut1), isisDefaultInstance, []string{dutTestData[0].lagName[1] + ".10", dutTestData[0].lagName[1] + ".30"}, 1)
-	updateISISMetric(t, dut1, niTestInstance, isisTestInstance, []string{dutTestData[0].lagName[1] + ".20", dutTestData[0].lagName[1] + ".40"}, 1)
+	cfgplugins.BgpAIGPMetricUnsupported(t, dut1, asnDUT1Default)
 
-	// Configure ISIS on DUT2 for default and test instances with different interfaces and metrics
-	updateISISMetric(t, dut2, deviations.DefaultNetworkInstance(dut2), isisDefaultInstance, []string{dutTestData[1].lagName[0] + ".10"}, 1)
-	updateISISMetric(t, dut2, niTestInstance, isisTestInstance, []string{dutTestData[1].lagName[0] + ".20"}, 1)
-	updateISISMetric(t, dut2, niOriginate, isisOriginateInstance, []string{dutTestData[1].lagName[0] + ".30", dutTestData[1].lagName[0] + ".40"}, 1)
+	// Remove Lag 2 vlan 30 from the ISIS configuration instance named DEFAULT
+	isisDefault := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut1)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisDefaultInstance)
+	gnmi.Delete(t, dut1, isisDefault.Isis().Interface(dutTestData[0].lagName[1]+".30").Config())
 
-	verifyISISMetric(t, dut1, deviations.DefaultNetworkInstance(dut1), isisDefaultInstance, dutTestData[0].lagName[1]+".10", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
-	verifyISISMetric(t, dut1, deviations.DefaultNetworkInstance(dut1), isisDefaultInstance, dutTestData[0].lagName[1]+".30", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
-	verifyISISMetric(t, dut1, niTestInstance, isisTestInstance, dutTestData[0].lagName[1]+".20", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
-	verifyISISMetric(t, dut1, niTestInstance, isisTestInstance, dutTestData[0].lagName[1]+".40", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
+	// Remove Lag 2 vlan 40 from the ISIS configuration instance named DEFAULT
+	isisTI := gnmi.OC().NetworkInstance(isisTestInstance).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisTestInstance)
+	gnmi.Delete(t, dut1, isisTI.Isis().Interface(dutTestData[0].lagName[1]+".40").Config())
 
-	verifyISISMetric(t, dut2, deviations.DefaultNetworkInstance(dut2), isisDefaultInstance, dutTestData[1].lagName[0]+".10", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
-	verifyISISMetric(t, dut2, niOriginate, isisOriginateInstance, dutTestData[1].lagName[0]+".30", 2, oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST, 1)
+	// BGP Config on DUT1
+	bgpCfg := map[string]*niBGPConfig{
+		niDefault: {
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1Default,
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgDownlink, nbrIp: "198.51.100.26", peerAs: asnDUT1Default, isV4: true},
+				{peerGrpName: pgDownlink6, nbrIp: "2001:db8::26", peerAs: asnDUT1Default, isV4: false},
+				{nbrIp: "198.60.30.2", removeBgpPeer: true},
+				{nbrIp: "2001:db8:30::2", removeBgpPeer: true},
+			},
+		},
+		niTestInstance: {
+			defaultAsn: asnDUT1Default,
+			globalAsn:  asnDUT1TestInstance,
+			bgpNbrs: []*bgpNbr{
+				{peerGrpName: pgDownlinkTI, nbrIp: "198.51.100.30", peerAs: asnDUT1TestInstance, isV4: true},
+				{peerGrpName: pgDownlink6TI, nbrIp: "2001:db8::2a", peerAs: asnDUT1TestInstance, isV4: false},
+				{nbrIp: "198.60.30.2", removeBgpPeer: true},
+				{nbrIp: "2001:db8:30::2", removeBgpPeer: true},
+			},
+		},
+	}
+
+	configureBGP(t, dut1, bgpCfg)
+
+	// Remove Lag 2 vlan 30, Lag2 vlan 40 and Loopback30 from the ISIS configuration instance named DEFAULT
+	isisDUT2Originate := gnmi.OC().NetworkInstance(niOriginate).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisOriginateInstance)
+	gnmi.Delete(t, dut2, isisDUT2Originate.Isis().Interface(dutTestData[1].lagName[0]+".30").Config())
+	gnmi.Delete(t, dut2, isisDUT2Originate.Isis().Interface(dutTestData[1].lagName[0]+".40").Config())
+	gnmi.Delete(t, dut2, isisDUT2Originate.Isis().Interface(dut2loopback30.loopbackIntfName).Config())
+	gnmi.Delete(t, dut2, isisDUT2Originate.Config())
+
+	bgpCfgDUT2 := map[string]*niBGPConfig{
+		niOriginate: {
+			defaultAsn: asnDUT2Default,
+			globalAsn:  asnDUT2Originate,
+			bgpNbrs: []*bgpNbr{
+				// test-originate NI - default-peer-group (IPv4) towards DUT1 default NI (vlan30)
+				{peerGrpName: "default-peer-group", nbrIp: "198.51.100.25", peerAs: asnDUT1Default, isV4: true, exportPolicy: []string{"test-export-policy"}},
+
+				// test-originate NI - default-peer-group6 (IPv6) towards DUT1 default NI (vlan30)
+				{peerGrpName: "default-peer-group6", nbrIp: "2001:db8::25", peerAs: asnDUT1Default, isV4: false, exportPolicy: []string{"test-export-policyv6"}},
+
+				// test-originate NI - test-instance-peer-group (IPv4) towards DUT1 test-instance NI (vlan40)
+				{peerGrpName: "test-instance-peer-group", nbrIp: "198.51.100.29", peerAs: asnDUT1TestInstance, isV4: true, exportPolicy: []string{"test-export-policy"}},
+
+				// test-originate NI - test-instance-peer-group6 (IPv6) towards DUT1 test-instance NI (vlan40)
+				{peerGrpName: "test-instance-peer-group6", nbrIp: "2001:db8::29", peerAs: asnDUT1TestInstance, isV4: false, exportPolicy: []string{"test-export-policyv6"}},
+			},
+		},
+	}
+
+	configureBGP(t, dut2, bgpCfgDUT2)
+
+	verifyISISTelemetry(t, dut1, deviations.DefaultNetworkInstance(dut1), isisDefaultInstance, []string{dutTestData[0].lagName[1] + ".10"})
+	verifyISISTelemetry(t, dut1, niTestInstance, isisTestInstance, []string{dutTestData[0].lagName[1] + ".20"})
+
+	verifyISISTelemetry(t, dut2, deviations.DefaultNetworkInstance(dut2), isisDefaultInstance, []string{dutTestData[1].lagName[0] + ".10"})
+	verifyISISTelemetry(t, dut2, niTestInstance, isisTestInstance, []string{dutTestData[1].lagName[0] + ".20"})
 
 	// verify routes have aigp metric set
 	for _, pfx := range []struct {
@@ -1825,10 +1861,10 @@ func testAIGPIncrementPlusOne(t *testing.T, dutTestData []*dutData, ate *ondatra
 		ni            string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
 			verifyAIGPInRIB(t, dut1, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", pfx.validateRoute)
@@ -1837,11 +1873,6 @@ func testAIGPIncrementPlusOne(t *testing.T, dutTestData []*dutData, ate *ondatra
 		}
 	}
 
-	// DUT1 vlan30 and vlan40 peers in test-instance NI
-	dut2TIPeers := []string{"198.51.100.21", "2001:db8::21"}
-	for _, p := range dut2TIPeers {
-		verifyAIGPEnabled(t, dut2, niTestInstance, p, true, strings.Contains(p, "."))
-	}
 	// verify routes have aigp metric set
 	for _, pfx := range []struct {
 		prefix        string
@@ -1852,13 +1883,13 @@ func testAIGPIncrementPlusOne(t *testing.T, dutTestData []*dutData, ate *ondatra
 		nexthop       string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.17", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.10.1", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:10::1", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.20.1", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:20::1", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
-			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
+			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut2), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		} else {
 			verifyAIGPInRIB(t, dut2, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		}
@@ -1869,32 +1900,32 @@ func testAIGPDisable(t *testing.T, dutTestData []*dutData, ate *ondatra.ATEDevic
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
-	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "198.51.100.18", true, false)
-	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "2001:db8::18", false, false)
-	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "198.51.100.22", true, false)
-	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "2001:db8::22", false, false)
+	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "198.60.40.2", true, false)
+	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "2001:db8:40::2", false, false)
+	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "198.60.50.2", true, false)
+	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "2001:db8:50::2", false, false)
 
 	t.Logf("Verify DUT BGP sessions are up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut1)
 	cfgplugins.VerifyDUTBGPEstablished(t, dut2)
 
 	t.Logf("Verify DUT vrf test-instance BGP sessions are up")
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut1, niTestInstance)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut2, niTestInstance)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut1, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
+	cfgplugins.VerifyDUTBGPEstablished(t, dut2, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
 
-	dut1DIPeers := []string{"198.51.100.18", "2001:db8::36"}
+	dut1DIPeers := []string{"198.60.40.2", "2001:db8:40::2"}
 	for _, p := range dut1DIPeers {
 		verifyAIGPEnabled(t, dut1, deviations.DefaultNetworkInstance(dut1), p, false, strings.Contains(p, "."))
-	}
-
-	dut1NIPeers := []string{"198.51.100.22", "2001:db8::22"}
-	for _, p := range dut1NIPeers {
-		verifyAIGPEnabled(t, dut2, niTestInstance, p, false, strings.Contains(p, "."))
 	}
 
 	dut1DIPeers = []string{"198.51.100.26", "2001:db8::26"}
 	for _, p := range dut1DIPeers {
 		verifyAIGPEnabled(t, dut1, deviations.DefaultNetworkInstance(dut1), p, true, strings.Contains(p, "."))
+	}
+
+	dut1NIPeers := []string{"198.60.50.2", "2001:db8:50::2"}
+	for _, p := range dut1NIPeers {
+		verifyAIGPEnabled(t, dut2, niTestInstance, p, false, strings.Contains(p, "."))
 	}
 
 	dut1NIPeers = []string{"198.51.100.30", "2001:db8::2a"}
@@ -1911,10 +1942,10 @@ func testAIGPDisable(t *testing.T, dutTestData []*dutData, ate *ondatra.ATEDevic
 		ni            string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
 			verifyAIGPInRIB(t, dut1, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", pfx.validateRoute)
@@ -1933,13 +1964,13 @@ func testAIGPDisable(t *testing.T, dutTestData []*dutData, ate *ondatra.ATEDevic
 		nexthop       string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.17", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.10.1", aigpMetric: 0, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:10::1", aigpMetric: 0, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.20.1", aigpMetric: 0, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:20::1", aigpMetric: 0, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
-			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
+			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut2), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		} else {
 			verifyAIGPInRIB(t, dut2, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		}
@@ -1950,18 +1981,18 @@ func testAIGPPropagationPeerGroup(t *testing.T, dutTestData []*dutData, ate *ond
 	dut1 := ondatra.DUT(t, "dut1")
 	dut2 := ondatra.DUT(t, "dut2")
 
-	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "198.51.100.18", true, true)
-	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "2001:db8::18", false, true)
-	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "198.51.100.22", true, true)
-	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "2001:db8::22", false, true)
+	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "198.60.40.2", true, true)
+	enableAIGPOnPeer(t, dut1, deviations.DefaultNetworkInstance(dut1), asnDUT1Default, "2001:db8:40::2", false, true)
+	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "198.60.50.2", true, true)
+	enableAIGPOnPeer(t, dut1, niTestInstance, asnDUT1Default, "2001:db8:50::2", false, true)
 
 	t.Logf("Verify DUT BGP sessions are up")
 	cfgplugins.VerifyDUTBGPEstablished(t, dut1)
 	cfgplugins.VerifyDUTBGPEstablished(t, dut2)
 
 	t.Logf("Verify DUT vrf test-instance BGP sessions are up")
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut1, niTestInstance)
-	cfgplugins.VerifyDUTBGPEstablishedForVRF(t, dut2, niTestInstance)
+	cfgplugins.VerifyDUTBGPEstablished(t, dut1, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
+	cfgplugins.VerifyDUTBGPEstablished(t, dut2, cfgplugins.VerifyBGPPeerOptions{NetworkInstance: niTestInstance})
 
 	// verify routes have aigp metric set
 	for _, pfx := range []struct {
@@ -1972,10 +2003,10 @@ func testAIGPPropagationPeerGroup(t *testing.T, dutTestData []*dutData, ate *ond
 		ni            string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::26", aigpMetric: aigp200, ni: deviations.DefaultNetworkInstance(dut1), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.51.100.30", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8::2a", aigpMetric: aigp200, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
 			verifyAIGPInRIB(t, dut1, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, "", pfx.validateRoute)
@@ -1994,13 +2025,13 @@ func testAIGPPropagationPeerGroup(t *testing.T, dutTestData []*dutData, ate *ond
 		nexthop       string
 		validateRoute bool
 	}{
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.17", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::35", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
-		{prefix: "198.60.1.1/32", isV4: true, nbrIp: "198.51.100.21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
-		{prefix: "2001:db8:60::1/128", isV4: false, nbrIp: "2001:db8::21", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.10.1", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:10::1", aigpMetric: aigp201, ni: deviations.DefaultNetworkInstance(dut2), validateRoute: true},
+		{prefix: "198.60.10.2/32", isV4: true, nbrIp: "198.55.20.1", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
+		{prefix: "2001:db8:10::2/128", isV4: false, nbrIp: "2001:db8:20::1", aigpMetric: aigp201, ni: niTestInstance, validateRoute: true},
 	} {
 		if pfx.ni != niTestInstance {
-			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut1), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
+			verifyAIGPInRIB(t, dut2, deviations.DefaultNetworkInstance(dut2), pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		} else {
 			verifyAIGPInRIB(t, dut2, niTestInstance, pfx.nbrIp, pfx.prefix, pfx.aigpMetric, pfx.isV4, pfx.nexthop, pfx.validateRoute)
 		}
