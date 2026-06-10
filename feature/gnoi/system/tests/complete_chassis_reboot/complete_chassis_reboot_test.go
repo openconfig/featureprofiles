@@ -22,6 +22,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	spb "github.com/openconfig/gnoi/system"
@@ -332,7 +333,6 @@ func getCompMatrix(t *testing.T, dut *ondatra.DUTDevice) []string {
 	var compMatrix []string
 	for _, comp := range compDebug {
 		if comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
-			// Cisco 8808 doesn't consistently report DISABLED components after reboot.
 			if deviations.ExcludeDisabledComponents(dut) && comp.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED {
 				continue
 			}
