@@ -1199,8 +1199,8 @@ type Metadata_Deviations struct {
 	// Device does not support sid_per_interface_counter_unsupported
 	// Cisco b/447350490
 	SidPerInterfaceCounterUnsupported bool `protobuf:"varint,340,opt,name=sid_per_interface_counter_unsupported,json=sidPerInterfaceCounterUnsupported,proto3" json:"sid_per_interface_counter_unsupported,omitempty"`
-	//  Juniper does not support localhost yet
-	//  b/448173472
+	// Juniper does not support localhost yet
+	// b/448173472
 	LocalhostForContainerz bool `protobuf:"varint,341,opt,name=localhost_for_containerz,json=localhostForContainerz,proto3" json:"localhost_for_containerz,omitempty"`
 	// Juniper: b/434633267
 	// Devices that do not support oc path for aggregate bandwidth policy
@@ -1475,8 +1475,22 @@ type Metadata_Deviations struct {
 	// Device requires p4rt table entries to be configured for each new primary controller
 	// Nokia: b/445494680
 	P4RtExplicitTableEntryPerController bool `protobuf:"varint,432,opt,name=p4rt_explicit_table_entry_per_controller,json=p4rtExplicitTableEntryPerController,proto3" json:"p4rt_explicit_table_entry_per_controller,omitempty"`
-	unknownFields                       protoimpl.UnknownFields
-	sizeCache                           protoimpl.SizeCache
+	// Devices that do not support configuring aigp action in bgp route policy
+	// CISCO: https://partnerissuetracker.corp.google.com/issues/465200087
+	// JUNIPER: https://partnerissuetracker.corp.google.com/issues/465200563
+	// ARISTA: https://partnerissuetracker.corp.google.com/issues/465200085
+	// NOKIA: https://partnerissuetracker.corp.google.com/issues/465200305
+	AigpRouteMetricNotSupported bool `protobuf:"varint,433,opt,name=aigp_route_metric_not_supported,json=aigpRouteMetricNotSupported,proto3" json:"aigp_route_metric_not_supported,omitempty"`
+	// Devices that do not support OC for neighbor adjacencies rib
+	// CISCO: https://partnerissuetracker.corp.google.com/issues/510713780
+	// JUNIPER: https://partnerissuetracker.corp.google.com/issues/510723665
+	// ARISTA: https://partnerissuetracker.corp.google.com/issues/510723664
+	// NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
+	BgpAdjRibOcUnsupported bool `protobuf:"varint,434,opt,name=bgp_adj_rib_oc_unsupported,json=bgpAdjRibOcUnsupported,proto3" json:"bgp_adj_rib_oc_unsupported,omitempty"`
+	// Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+	AigpMetricIncrement bool `protobuf:"varint,435,opt,name=aigp_metric_increment,json=aigpMetricIncrement,proto3" json:"aigp_metric_increment,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *Metadata_Deviations) Reset() {
@@ -4288,6 +4302,27 @@ func (x *Metadata_Deviations) GetP4RtExplicitTableEntryPerController() bool {
 	return false
 }
 
+func (x *Metadata_Deviations) GetAigpRouteMetricNotSupported() bool {
+	if x != nil {
+		return x.AigpRouteMetricNotSupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetBgpAdjRibOcUnsupported() bool {
+	if x != nil {
+		return x.BgpAdjRibOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetAigpMetricIncrement() bool {
+	if x != nil {
+		return x.AigpMetricIncrement
+	}
+	return false
+}
+
 type Metadata_PlatformExceptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Platform      *Metadata_Platform     `protobuf:"bytes,1,opt,name=platform,proto3" json:"platform,omitempty"`
@@ -4344,7 +4379,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\x95\xf2\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xce\xf3\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4356,7 +4391,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xe1\xe7\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\x9a\xe9\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4759,7 +4794,10 @@ const file_metadata_proto_rawDesc = "" +
 	"!exrr_stale_route_time_unsupported\x18\xad\x03 \x01(\bR\x1dexrrStaleRouteTimeUnsupported\x12Q\n" +
 	"%gnoi_bgp_graceful_restart_unsupported\x18\xae\x03 \x01(\bR!gnoiBgpGracefulRestartUnsupported\x12:\n" +
 	"\x19dhcp_relay_oc_unsupported\x18\xaf\x03 \x01(\bR\x16dhcpRelayOcUnsupported\x12V\n" +
-	"(p4rt_explicit_table_entry_per_controller\x18\xb0\x03 \x01(\bR#p4rtExplicitTableEntryPerControllerJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"(p4rt_explicit_table_entry_per_controller\x18\xb0\x03 \x01(\bR#p4rtExplicitTableEntryPerController\x12E\n" +
+	"\x1faigp_route_metric_not_supported\x18\xb1\x03 \x01(\bR\x1baigpRouteMetricNotSupported\x12;\n" +
+	"\x1abgp_adj_rib_oc_unsupported\x18\xb2\x03 \x01(\bR\x16bgpAdjRibOcUnsupported\x123\n" +
+	"\x15aigp_metric_increment\x18\xb3\x03 \x01(\bR\x13aigpMetricIncrementJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
