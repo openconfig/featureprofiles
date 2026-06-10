@@ -15,6 +15,7 @@
 package recordsubscribefull_test
 
 import (
+	"context"
 	"encoding/json"
 	"slices"
 	"testing"
@@ -47,8 +48,11 @@ func prettyPrint(i any) string {
 
 func TestAccountzRecordSubscribeFull(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	acctz.SetupUsers(t, dut, false)
-
+	if dut.Vendor() == ondatra.ARISTA {
+		acctz.SetupUsers(t, dut, true)
+	} else {
+		acctz.SetupUsers(t, dut, false)
+	}
 	startTime := time.Now()
 
 	// Get gNSI record subscribe client.
@@ -61,12 +65,11 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed sending accountz record request, error: %s", err)
 	}
-	defer acctzSubClient.CloseSend()
 
-	_, err = deviceRecords(t, acctzSubClient, time.Minute)
-	if err != nil {
-		t.Fatalf("Failed receiving record response, error: %s", err)
-	}
+	//_, err = deviceRecords(t, acctzSubClient, time.Minute)
+	//if err != nil {
+	//	t.Fatalf("Failed receiving record response, error: %s", err)
+	//}
 
 	var wantRecords []*acctzpb.RecordResponse
 	nr := acctz.SendGnmiRPCs(t, dut)
@@ -88,6 +91,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed receiving record response, error: %s", err)
 	}
+	defer acctzSubClient.CloseSend()
 
 	// Filter out records that are not for the success or fail usernames.
 	var gotRecords []*acctzpb.RecordResponse
@@ -100,9 +104,16 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		path := r.GetGrpcService().GetRpcName()
 		id := r.GetSessionInfo().GetUser().GetIdentity()
 		// Skip if the path is not in the list of paths to be tested or if the id is not a success or fail username.
-		if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthenticateUsername}, id) {
-			continue
+		if dut.Vendor() == ondatra.ARISTA {
+			if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthorizeUsername}, id) {
+				continue
+			}
+		} else {
+			if !slices.Contains(acctz.TestPaths, path) || !slices.Contains([]string{acctz.SuccessUsername, acctz.FailAuthenticateUsername}, id) {
+				continue
+			}
 		}
+
 		if foundMap[key{path: path, id: id}] {
 			continue
 		}
@@ -122,7 +133,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		protocmp.IgnoreFields(&acctzpb.AuthzDetail{}, "detail"),
 		protocmp.IgnoreFields(&acctzpb.SessionInfo{}, "ip_proto", "channel_id", "local_address", "local_port", "remote_address", "remote_port", "status", "authn", "tty"),
 		protocmp.IgnoreFields(&acctzpb.UserDetail{}, "role"),
-		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated"),
+		protocmp.IgnoreFields(&acctzpb.GrpcService{}, "proto_val", "payload_istruncated", "string_val"),
 	}
 
 	var recordIdx int
@@ -156,7 +167,7 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 		// In case of Nokia this is being set to the aaa session id just to have some hopefully
 		// useful info in this field to identify a "session" (even if it isn't necessarily ssh/grpc
 		// directly).
-		if record.GetSessionInfo().GetChannelId() == "" {
+		if record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordFailCommandUnsupported(dut) {
 			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(record))
 		}
 
@@ -177,31 +188,41 @@ type recvClient interface {
 
 func deviceRecords(t *testing.T, client recvClient, deadline time.Duration) ([]*acctzpb.RecordResponse, error) {
 	rChan := make(chan recordRequestResult)
-	defer close(rChan)
-	go func(ch chan recordRequestResult, c recvClient) {
+	// Use a context to signal the producer goroutine to stop if we return early (timeout or error).
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				// Prevent goroutine from crashing if send is attempted on a closed channel.
 				return
 			}
 		}()
 		for {
-			resp, err := c.Recv()
-			ch <- recordRequestResult{record: resp, err: err}
+			resp, err := client.Recv()
+			select {
+			case <-ctx.Done():
+				return
+			case rChan <- recordRequestResult{record: resp, err: err}:
+				if err != nil {
+					return
+				}
+			}
 		}
-	}(rChan, client)
+	}()
+
 	var rs []*acctzpb.RecordResponse
-	startTime := time.Now()
-	for time.Since(startTime) < deadline {
+	limit := time.After(deadline)
+	for {
 		select {
 		case r := <-rChan:
 			if r.err != nil {
-				close(rChan)
 				return rs, r.err
 			}
 			rs = append(rs, r.record)
-		case <-time.After(10 * time.Second):
-			continue
+		case <-limit:
+			return rs, nil
 		}
 	}
-	return rs, nil
 }

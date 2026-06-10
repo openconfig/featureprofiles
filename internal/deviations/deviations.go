@@ -328,6 +328,12 @@ func SubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSubinterfacePacketCountersMissing()
 }
 
+// DefaultSubinterfacePacketCountersMissing returns if device is missing subinterface state packet counters.
+// Default value is false.
+func DefaultSubinterfacePacketCountersMissing(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultSubinterfacePacketCountersMissing()
+}
+
 // MissingPrePolicyReceivedRoutes returns if device does not support bgp/neighbors/neighbor/afi-safis/afi-safi/state/prefixes/received-pre-policy.
 // Fully-compliant devices should pass with and without this deviation.
 func MissingPrePolicyReceivedRoutes(dut *ondatra.DUTDevice) bool {
@@ -432,12 +438,6 @@ func StorageComponentUnsupported(dut *ondatra.DUTDevice) bool {
 // GNOIFabricComponentRebootUnsupported returns if device does not support use using gNOI to reboot the Fabric Component.
 func GNOIFabricComponentRebootUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetGnoiFabricComponentRebootUnsupported()
-}
-
-// NtpNonDefaultVrfUnsupported returns true if the device does not support ntp non-default vrf.
-// Default value is false.
-func NtpNonDefaultVrfUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetNtpNonDefaultVrfUnsupported()
 }
 
 // SkipControllerCardPowerAdmin returns if power-admin-state config on controller card should be skipped.
@@ -1338,6 +1338,12 @@ func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
 }
 
+// ContainerzRetrieveLogsUnsupported returns true if Containerz log retrieval is unsupported.
+// https://partnerissuetracker.corp.google.com/issues/510547636
+func ContainerzRetrieveLogsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRetrieveLogsUnsupported()
+}
+
 // NextHopGroupOCUnsupported returns true if devices do not support next-hop-group config
 func NextHopGroupOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNextHopGroupConfigUnsupported()
@@ -1468,7 +1474,7 @@ func BGPSetMedActionUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpSetMedActionUnsupported()
 }
 
-// reducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
+// ReducedEcmpSetOnMixedEncapDecapNh returns true if mixed encap and decap next hops are not supported over ecmp.
 // Nokia: b/459893133
 func ReducedEcmpSetOnMixedEncapDecapNh(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetReducedEcmpSetOnMixedEncapDecapNh()
@@ -1731,6 +1737,7 @@ func ISISAdjacencyStreamUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // LocalhostForContainerz returns true if the device uses an IPv6 address instead of localhost.
+// TODO enhancement: this should be renamed to LocalhostForContainerzUnsupported for clarity
 func LocalhostForContainerz(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetLocalhostForContainerz()
 }
@@ -1925,6 +1932,11 @@ func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
 }
 
+// CiscoxrVendordropFt returns the functional translator to be used for translating Cisco XR vendor drop counters.
+func CiscoxrVendordropFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrVendordropFt()
+}
+
 // BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
 // there is no routing policy or default policy configured.
 func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
@@ -2019,6 +2031,12 @@ func SSHServerHostCertificateTelemetryUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSshServerHostCertificateTelemetryUnsupported()
 }
 
+// SendMaxUnsupported returns true if the device does not support leaf send max.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/498283710
+func SendMaxUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSendMaxUnsupported()
+}
+
 // OcAaaUserRoleLeafStringTypeUnsupported returns true if the device does not support role leaf of string type for OC system/aaa username configuration.
 // Cisco: https://partnerissuetracker.corp.google.com/issues/436778949
 func OcAaaUserRoleLeafStringTypeUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2043,9 +2061,176 @@ func FpgaFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetFpgaFt()
 }
 
+// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500649430
+
+func AcctzRecordFailCommandUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordFailCommandUnsupported()
+}
+
+// AcctzRecordFailCommandUnsupported  returns true if the device does not support Acctz record for fail user
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
+
+func AcctzRecordFailGrpcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordFailGrpcUnsupported()
+}
+
+// BgpGracefulRestartPeerGroupUnsupported returns true for devices that do not support BGP Graceful restart for Peer Group
+// Cisco: https://partnerissuetracker.corp.google.com/issues/468284935
+func BgpGracefulRestartPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpGracefulRestartPeerGroupUnsupported()
+}
+
+// GrpcServerServicesUnsupported returns true if the device does not support the services leaf
+// under grpc-server config (/system/grpc-servers/grpc-server/config/services).
+// Arista: https://partnerissuetracker.corp.google.com/issues/500747414
+func GrpcServerServicesUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGrpcServerServicesUnsupported()
+}
+
+// StaticRouteToNextHopGroupOCNotSupported returns true if device does not support oc state path static route to nexthop group
+func StaticRouteToNHGOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteToNhgOcUnsupported()
+}
+
+// Subinterface0StateUnsupported returns true if the device does not populate
+// state on subinterface 0 that is implicitly created.
+func Subinterface0StateUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSubinterface_0StateUnsupported()
+}
+
+// FragmentPuntUnsupported returns true if the device does not support fragment punt drops.
+func FragmentPuntUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentPuntUnsupported()
+}
+
+// FragmentPuntPktsUnsupported returns true if the device does not support fragment punt pkts.
+func FragmentPuntPktsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetFragmentPuntPktsUnsupported()
+}
+
+// FragmentPuntFt returns the functional translator to be used for translating Fragment Punt OC paths.
+func FragmentPuntFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFragmentPuntFt()
+}
+
+// AcctzRecordSessionChannelIdUnsupported returns true if the device does not support Acctz record for fail user
+// Juniper: https://partnerissuetracker.corp.google.com/issues/500627000
+func AcctzRecordSessionChannelIdUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAcctzRecordSessionChannelIdUnsupported()
+}
+
+// CarrierFt returns the functional translator to be used for translating
+// phy-carrier-transitions path.
+func CarrierFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCarrierFt()
+}
+
+// FabricFt returns the functional translator name for fabric error telemetry.
+// Cisco: https://partnerissuetracker.corp.google.com/issues/429166378
+func FabricFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetFabricFt()
+}
+
+// MacsecStateFt returns the functional translator name for macsec state telemetry.
+func MacsecStateFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecStateFt()
+}
+
+// MacsecCountersFt returns the functional translator name for macsec counters telemetry.
+func MacsecCountersFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetMacsecCountersFt()
+}
+
+// EnableMplsStaticOnInterface returns true if device needs MPLS Static enabled explicitly on ingress/egress interface
+func EnableMplsStaticOnInterface(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetEnableMplsStaticOnInterface()
+}
+
+// Device does not support secondary controller card CPU utilization
+// Arista: https://issuetracker.google.com/issues/508666262
+func SecondaryControllerCardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardCpuUtilizationUnsupported()
+}
+
+// Device does not support secondary controller card memory utilization
+// Arista: https://issuetracker.google.com/issues/508656197
+func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSecondaryControllerCardMemoryUtilizationUnsupported()
+}
+
+// Device does not support interface counters in fcs errors
+// Arista: https://issuetracker.google.com/issues/508304903
+func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
+}
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
 // Vlan client encapsulation returns true if oc is not supported
 func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
+
+// NexthopGroupPseudowireCountersOcUnsupported returns true if oc is not supported
+func NexthopGroupPseudowireCountersOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNexthopGroupPseudowireCountersOcUnsupported()
+}
+
+// PerFlowLoadBalancingUnsupported returns true if the device does not support BGP max multipath paths.
+func PerFlowLoadBalancingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPerFlowLoadBalancingUnsupported()
+}
+
+// BgpMultipathPathsUnderPeerGroupUnsupported returns true if the device does not support BGP multipath paths under peer group
+func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMultipathPathsUnderPeerGroupUnsupported()
+}
+
+// LACPInterfaceMemberStateInterfaceUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/interface.
+// Nokia: https://issuetracker.google.com/514181497
+func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
+}
+
+// RequireTransportSecurity returns if device requires transport-security to be enabled.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
+func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
+}
+
+// ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
+// Use the deviation if BGP Extension Route Retention configuration is not available via OC
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+// ExrrStaleRouteTimeUnsupported returns true if devices do not support exrr stale route time configuration.
+// Use the deviation if BGP Stale Route Time is not supported by DUT
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+// GnoiBgpGracefulRestartUnsupported returns true if gNMI/gNOI support for BGP graceful restart is not available.
+// Use the deviation if BGP Graceful restart is not supported using gnoi
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}
+
+// DhcpRelayOcUnsupported returns true if DHCP relay configuration and state paths are unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/497757203
+func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
+}
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+// Nokia: b/445494680
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
 
 // AIGPRouteMetricNotSupported returns true if AIGP route metric is not supported.
@@ -2057,7 +2242,6 @@ func AIGPRouteMetricNotSupported(dut *ondatra.DUTDevice) bool {
 func BgpAdjRibOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetBgpAdjRibOcUnsupported()
 }
-
 
 // AigpMetricIncrement returns true if AIGP metric increment is not supported.
 func AigpMetricIncrement(dut *ondatra.DUTDevice) bool {

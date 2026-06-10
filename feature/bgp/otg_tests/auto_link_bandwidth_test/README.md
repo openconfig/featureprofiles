@@ -1,4 +1,4 @@
-# **RT-7.51: BGP Auto-Generated Link-Bandwidth Community**
+# RT-7.51: BGP Auto-Generated Link-Bandwidth Community
 
 
 ## **Summary**
