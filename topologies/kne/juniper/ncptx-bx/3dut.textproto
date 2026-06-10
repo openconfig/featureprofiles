@@ -1,0 +1,156 @@
+# proto-file: github.com/openconfig/kne/proto/topo.proto
+# proto-message: Topology
+name: "juniper-ncptx-dutdut"
+nodes: {
+    name: "dut1"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config-dut1.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth5"
+        value: {
+          name: "et-0/0/0:0"
+        }
+    }
+    interfaces: {
+        key: "eth9"
+        value: {
+          name: "et-0/0/1:0"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+          name: "et-0/0/2:0"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+nodes: {
+    name: "dut2"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config-dut2.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/0:1"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+          name: "et-0/0/1:2"
+        }
+    }
+    interfaces: {
+        key: "eth16"
+        value: {
+          name: "et-0/0/2:3"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+nodes: {
+    name: "dut3"
+    vendor: JUNIPER
+    model: "ncptx"
+    os: "evo"
+    config: {
+        image: "ncptx:latest"
+        config_path: "/home/evo/configdisk"
+        config_file: "juniper.conf"
+        file: "bx-config-dut3.cfg"
+        cert: {
+            self_signed: {
+                cert_name: "grpc-server-cert"
+                key_name: "N/A"
+                key_size: 4096
+            }
+        }
+    }
+    interfaces: {
+        key: "eth6"
+        value: {
+          name: "et-0/0/0:1"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+          name: "et-0/0/1:2"
+        }
+    }
+    interfaces: {
+        key: "eth16"
+        value: {
+          name: "et-0/0/2:3"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+          name: "et-0/0/3:0"
+        }
+    }
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth5"
+    z_node: "dut2"
+    z_int: "eth6"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth11"
+    z_node: "dut3"
+    z_int: "eth11"
+}
+links: {
+    a_node: "dut1"
+    a_int: "eth13"
+    z_node: "dut2"
+    z_int: "eth16"
+}
+links: {
+    a_node: "dut2"
+    a_int: "eth17"
+    z_node: "dut3"
+    z_int: "eth17"
+}
