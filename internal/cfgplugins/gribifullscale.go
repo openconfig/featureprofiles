@@ -41,6 +41,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -939,7 +940,7 @@ func MakeFlowCreator(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 }
 
 // BuildEncapFlows builds fixed-size/imix encap flows for all encap VRFs. IPv4 and IPv6 inners are separate flows since the inner src/dst formats differ.
-func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool) []gosnappi.Flow {
+func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
@@ -948,7 +949,9 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 		dscpVals := []uint32{uint32(d1), uint32(d2)}
 
 		f4 := newFlow(fmt.Sprintf("encap_ipv4_vrf_%d", vi))
-		f4.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+		eth4 := f4.Packet().Add().Ethernet()
+		eth4.Src().SetValue(ATEPort1MAC)
+		eth4.Dst().SetValue(dstMac)
 		ip4 := f4.Packet().Add().Ipv4()
 		ip4.Src().SetValue(ATEPort1IPv4)
 		ip4.Dst().Increment().SetStart(fmt.Sprintf("200.%d.0.1", vi)).SetStep(CommonPrefixStep).SetCount(uint32(NumEncapIPv4PerVRF))
@@ -956,7 +959,9 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 		flows = append(flows, f4)
 
 		f6 := newFlow(fmt.Sprintf("encap_ipv6_vrf_%d", vi))
-		f6.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+		eth6 := f6.Packet().Add().Ethernet()
+		eth6.Src().SetValue(ATEPort1MAC)
+		eth6.Dst().SetValue(dstMac)
 		ip6 := f6.Packet().Add().Ipv6()
 		ip6.Src().SetValue(EncapIPv6InnerSrc)
 		ip6.Dst().Increment().SetStart(fmt.Sprintf("2001:db8:%x::1", vi)).SetStep(CommonIPv6PrefixStep).SetCount(uint32(NumEncapIPv6PerVRF))
@@ -971,7 +976,7 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 }
 
 // BuildDecapFlows builds fixed-size/imix decap flows for all encap VRFs. Both DSCPs per VRF are expressed via SetValues in a single flow since the outer header is the same.
-func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool) []gosnappi.Flow {
+func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 	decapDsts := ExpandDecapPrefixes()
 
@@ -982,7 +987,9 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 
 		f := newFlow(fmt.Sprintf("decap_vrf_%d_src_111", vi))
 
-		f.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+		eth := f.Packet().Add().Ethernet()
+		eth.Src().SetValue(ATEPort1MAC)
+		eth.Dst().SetValue(dstMac)
 
 		outer := f.Packet().Add().Ipv4()
 		outer.Src().SetValue(IPv4OuterSrc111)
@@ -1002,7 +1009,7 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool)
 }
 
 // BuildReencapFlows builds fixed-size/imix reencap flows for all encap VRFs.
-func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool) []gosnappi.Flow {
+func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 	decapDsts := ExpandDecapPrefixes()
 
@@ -1017,7 +1024,9 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 
 			// ---------- IPv4 inner ----------
 			f4 := newFlow(fmt.Sprintf("reencap_ipv4_vrf_%d_src_%s", vi, tag))
-			f4.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+			eth4 := f4.Packet().Add().Ethernet()
+			eth4.Src().SetValue(ATEPort1MAC)
+			eth4.Dst().SetValue(dstMac)
 
 			o4 := f4.Packet().Add().Ipv4()
 			o4.Src().SetValue(outerSrc)
@@ -1032,7 +1041,9 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 
 			// ---------- IPv6 inner ----------
 			f6 := newFlow(fmt.Sprintf("reencap_ipv6_vrf_%d_src_%s", vi, tag))
-			f6.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+			eth6 := f6.Packet().Add().Ethernet()
+			eth6.Src().SetValue(ATEPort1MAC)
+			eth6.Dst().SetValue(dstMac)
 
 			o6 := f6.Packet().Add().Ipv4()
 			o6.Src().SetValue(outerSrc)
@@ -1050,7 +1061,7 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 }
 
 // BuildTransitFlows builds fixed-size/imix transit flows for all encap VRFs.
-func BuildTransitFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool) []gosnappi.Flow {
+func BuildTransitFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
@@ -1060,7 +1071,9 @@ func BuildTransitFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 
 		f := newFlow(fmt.Sprintf("transit_encap_te_vrf_%d", vi))
 
-		f.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+		eth := f.Packet().Add().Ethernet()
+		eth.Src().SetValue(ATEPort1MAC)
+		eth.Dst().SetValue(dstMac)
 
 		outer := f.Packet().Add().Ipv4()
 		outer.Src().SetValue(IPv4OuterSrc111)
@@ -1081,7 +1094,7 @@ func BuildTransitFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 }
 
 // BuildRepairedFlows builds fixed-size/imix flows for all repaired VRFs. One flow per VRF; both DSCPs via SetValues.
-func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool) []gosnappi.Flow {
+func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
@@ -1091,7 +1104,9 @@ func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bo
 
 		f := newFlow(fmt.Sprintf("repaired_encap_te_vrf_%d", vi))
 
-		f.Packet().Add().Ethernet().Src().SetValue(ATEPort1MAC)
+		eth := f.Packet().Add().Ethernet()
+		eth.Src().SetValue(ATEPort1MAC)
+		eth.Dst().SetValue(dstMac)
 
 		outer := f.Packet().Add().Ipv4()
 		outer.Src().SetValue(IPv4OuterSrc222)
@@ -1119,6 +1134,21 @@ func RemovegRIBIRoute(t *testing.T, dut *ondatra.DUTDevice) {
 		gSession.FlushAll(t)
 		gSession.Close(t)
 	})
+}
+
+// GetDUTMACAddress retrieves the MAC address for the given interface and neighbor IP.
+func GetDUTMACAddress(t *testing.T, ate *ondatra.ATEDevice, intfName string, neighborIP string) string {
+	t.Helper()
+	t.Logf("Fetching MAC address for %s neighbor %s", intfName, neighborIP)
+	llAddress, found := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Interface(intfName).Ipv4Neighbor(neighborIP).LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		return val.IsPresent()
+	}).Await(t)
+	if !found {
+		t.Fatalf("Could not get the LinkLayerAddress for %s neighbor %s", intfName, neighborIP)
+	}
+	dstMac, _ := llAddress.Val()
+	t.Logf("Resolved MAC address: %s", dstMac)
+	return dstMac
 }
 
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
@@ -1165,7 +1195,7 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 	}
 
 	builders := []struct {
-		build       func(gosnappi.Config, uint32, uint64, bool) []gosnappi.Flow
+		build       func(gosnappi.Config, uint32, uint64, bool, string) []gosnappi.Flow
 		scenario    TrafficScenario
 		outerSrc    string
 		needCapture bool
@@ -1178,8 +1208,21 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 		{BuildRepairedFlows, ScenarioRepaired, IPv4OuterSrc222, true, 1},
 	}
 
+	// Fetch MAC address for port1.
+	intfName := atePort1Attr.Name + "-0.Eth"
+	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
+	// The neighbor IP is the IPv4 address assigned to the first subinterface of DUT Port 1.
+	// We use GenerateIPsWithStep to exactly match the logic used during DUT configuration
+	// (in ConfigureDUTSubinterfaces), which derives the subinterface IPs from the start address.
+	dutV4, err := iputil.GenerateIPsWithStep(DUTPort1IPv4Start, 1, PortIPv4Step)
+	if err != nil {
+		t.Fatalf("Failed to generate neighbor IP: %v", err)
+	}
+	neighborIP := dutV4[0]
+	dstMac := GetDUTMACAddress(t, ate, intfName, neighborIP)
+
 	for _, b := range builders {
-		flows := b.build(top, pktSize, perFlowPPS, imix)
+		flows := b.build(top, pktSize, perFlowPPS, imix, dstMac)
 		addFlows(flows, b.scenario, b.outerSrc, b.needCapture, b.multiplier)
 		allFlows = append(allFlows, flows...)
 	}
