@@ -12,5 +12,6 @@ platform_exceptions:  {
   }
   deviations:  {
     exclude_disabled_components: true
+    p4rt_capabilities_unsupported: true
   }
 }
