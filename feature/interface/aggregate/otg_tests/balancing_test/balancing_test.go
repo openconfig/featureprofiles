@@ -54,12 +54,12 @@ func TestMain(m *testing.M) {
 // networks be configured on the ATE.  It is not possible to send
 // packets to the ether.
 //
-// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-9} ->
-// ate:port{2-9}.  The first pair is called the "source" pair, and the
+// The testbed consists of ate:port1 -> dut:port1 and dut:port{2-8} ->
+// ate:port{2-8}.  The first pair is called the "source" pair, and the
 // second aggregate link the "destination" pair.
 //
 //   * Source: ate:port1 -> dut:port1 subnet 192.0.2.0/30 2001:db8::0/126
-//   * Destination: dut:port{2-9} -> ate:port{2-9}
+//   * Destination: dut:port{2-8} -> ate:port{2-8}
 //     subnet 192.0.2.4/30 2001:db8::4/126
 //
 // Note that the first (.0, .4) and last (.3, .7) IPv4 addresses are
@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 // for point to point links, but we use /126 so the numbering is
 // consistent with IPv4.
 //
-// A traffic flow is configured from ate:port1 as source and ate:port{2-9}
+// A traffic flow is configured from ate:port1 as source and ate:port{2-8}
 // as destination.
 
 const (
@@ -634,6 +634,13 @@ func sortPorts(ports []*ondatra.Port) []*ondatra.Port {
 
 // configureStaticRoute adds v4/v6 default static route on DUT
 func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
+	// set config container leafs corresponding to list key leafs
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	spID := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(dut))
+	gnmi.Update(t, dut, spID.Config(), &oc.NetworkInstance_Protocol{
+		Name:       ygot.String(deviations.StaticProtocolName(dut)),
+		Identifier: oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC,
+	})
 	b := &gnmi.SetBatch{}
 	sV4 := &cfgplugins.StaticRouteCfg{
 		NetworkInstance: ni,
@@ -652,6 +659,7 @@ func configureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, ni string) {
 			"0": oc.UnionString(ateDst.IPv6),
 		},
 	}
+	fptest.ConfigureDefaultNetworkInstance(t, dut)
 	dutConfNIPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
 	gnmi.Replace(t, dut, dutConfNIPath.Type().Config(), oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_DEFAULT_INSTANCE)
 	if _, err := cfgplugins.NewStaticRouteCfg(b, sV6, dut); err != nil {

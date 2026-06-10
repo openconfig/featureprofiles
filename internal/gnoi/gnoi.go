@@ -38,6 +38,7 @@ var (
 			P4RT:    "P4Runtime",
 			ROUTING: "Bgp-main",
 			ISIS:    "Isis",
+			GNPSI:   "Gnpsi",
 		},
 		ondatra.CISCO: {
 			GRIBI:   "emsd",
@@ -74,6 +75,8 @@ const (
 	ROUTING Daemon = "ROUTING"
 	// ISIS is the Isis daemon
 	ISIS Daemon = "ISIS"
+	// GNPSI is the gNPSI daemon
+	GNPSI Daemon = "GNPSI"
 )
 
 // signal type of termination request

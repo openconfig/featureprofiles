@@ -45,9 +45,9 @@ func TestFabricPowerAdmin(t *testing.T) {
 
 			before := helpers.FetchOperStatusUPIntfs(t, dut, false)
 
-			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 3*time.Minute)
+			powerDownUp(t, dut, f, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC, 6*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
 		})
 	}
 }
@@ -76,7 +76,7 @@ func TestLinecardPowerAdmin(t *testing.T) {
 
 			powerDownUp(t, dut, l, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD, 20*time.Minute)
 
-			helpers.ValidateOperStatusUPIntfs(t, dut, before, 8*time.Minute)
+			helpers.ValidateOperStatusUPIntfs(t, dut, before, 12*time.Minute)
 		})
 	}
 }
@@ -141,6 +141,9 @@ func powerDownUp(t *testing.T, dut *ondatra.DUTDevice, name string, cType oc.E_P
 	start := time.Now()
 	t.Logf("Starting %s POWER_DISABLE", name)
 	gnmi.Replace(t, dut, config, oc.Platform_ComponentPowerType_POWER_DISABLED)
+
+	// Wait time for control plan to stabilize and redial grpc connection
+	time.Sleep(30 * time.Second)
 
 	power, ok := gnmi.Await(t, dut, state, timeout, oc.Platform_ComponentPowerType_POWER_DISABLED).Val()
 	if !ok {

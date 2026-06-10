@@ -439,22 +439,22 @@ The below yaml defines the OC paths intended to be covered by this test. OC path
 
 ```yaml
 paths:
-###Config paths###
-/system/aaa/authentication/users/user/config:
-/system/aaa/authentication/users/user/config/username:
-/system/aaa/authentication/users/user/config/password:
-
-###State paths###
-/system/aaa/authentication/users/user/state:
-/system/aaa/authentication/users/user/state/username:
-/system/aaa/authentication/users/user/state/password:
-/system/aaa/authentication/users/user/state/authorized-principals-list-version:
-/system/aaa/authentication/users/user/state/authorized-principals-list-created-on:
-
+  /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-accepts:
+  /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/access-rejects:
+  /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/last-access-accept:
+  /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/last-access-reject:
+  /system/grpc-servers/grpc-server/authz-policy-counters/rpcs/rpc/state/name:
+  /system/state/boot-time:
+  /system/state/current-datetime:
+  /system/aaa/authentication/users/user/config/username:
+  /system/aaa/authentication/users/user/config/password:
+  /system/aaa/authentication/users/user/state/username:
+  /system/aaa/authentication/users/user/state/password:
+  /system/aaa/authentication/users/user/state/authorized-principals-list-version:
+  /system/aaa/authentication/users/user/state/authorized-principals-list-created-on:
 rpcs:
   gnsi:
     credentialz.v1.Credentialz.RotateAccountCredentials:
-
 ```
 
 ## Minimum DUT platform requirement

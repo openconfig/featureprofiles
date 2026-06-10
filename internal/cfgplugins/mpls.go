@@ -24,7 +24,16 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
+
+type DecapMPLSParams struct {
+	ScaleStaticLSP          bool
+	MplsStaticLabels        []int
+	MplsStaticLabelsForIPv6 []int
+	NextHops                []string
+	NextHopsV6              []string
+}
 
 // MPLSStaticLSP configures static MPLS label binding using OC on device.
 func MPLSStaticLSP(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, intfName string, protocolType string) {
@@ -128,12 +137,14 @@ func NewStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName str
 		cliConfig := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-
 			cliConfig = fmt.Sprintf(`
-			    mpls ip
+				mpls ip
     			mpls static top-label %v %s swap-label %v
 				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		case ondatra.CISCO:
+			cliConfig = fmt.Sprintf("mpls static lsp %v\n in-label %v allocate\n forward\n path 1 resolve-nexthop %v out-label %v", lspName, incomingLabel, nextHopIP, mplsSwapLabelTo)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -162,6 +173,9 @@ func RemoveStaticMplsLspSwapLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 				no mpls static top-label %v %s swap-label %v
 				`, incomingLabel, nextHopIP, mplsSwapLabelTo)
 
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		case ondatra.CISCO:
+			cliConfig = fmt.Sprintf("no mpls static lsp %v", lspName)
 			helpers.GnmiCLIConfig(t, dut, cliConfig)
 		default:
 			t.Errorf("Deviation StaticMplsLspUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -241,4 +255,263 @@ func RemoveStaticMplsLspPushLabel(t *testing.T, dut *ondatra.DUTDevice, lspName 
 	mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
 	mplsCfg.GetOrCreateLsps().DeleteStaticLsp(lspName)
 	gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+}
+
+func MPLSStaticLSPByPass(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, lspName string, incomingLabel uint32, nextHopIP string, protocolType string, byPass bool) {
+	if deviations.StaticMplsLspOCUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf(`
+					mpls ip
+					mpls static top-label %v %s pop payload-type %s access-list bypass
+					`, incomingLabel, nextHopIP, protocolType)
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		default:
+			t.Errorf("Deviation StaticMplsLspOCUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	} else {
+		d := &oc.Root{}
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		mplsCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateMpls()
+		staticMplsCfg := mplsCfg.GetOrCreateLsps().GetOrCreateStaticLsp(lspName)
+		staticMplsCfg.GetOrCreateEgress().SetIncomingLabel(oc.UnionUint32(incomingLabel))
+		staticMplsCfg.GetOrCreateEgress().SetNextHop(nextHopIP)
+		staticMplsCfg.GetOrCreateEgress().SetPushLabel(oc.Egress_PushLabel_IMPLICIT_NULL)
+
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mplsCfg)
+	}
+}
+
+// mplsGlobalStaticLspAttributes configures the MPLS global static LSP attributes.
+func mplsGlobalStaticLspAttributes(t *testing.T, ni *oc.NetworkInstance, params OcPolicyForwardingParams) {
+	t.Helper()
+	if params.DecapPolicy.DecapMPLSParams.ScaleStaticLSP {
+		mplsCfgv4 := ni.GetOrCreateMpls()
+		for i, nexthop := range params.DecapPolicy.DecapMPLSParams.NextHops {
+			staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(
+				fmt.Sprintf("%s%d", params.DecapPolicy.StaticLSPNameIPv4, i),
+			)
+			egressv4 := staticMplsCfgv4.GetOrCreateEgress()
+			egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.DecapMPLSParams.MplsStaticLabels[i])
+			egressv4.NextHop = ygot.String(nexthop)
+		}
+		mplsCfgv6 := ni.GetOrCreateMpls()
+		for i, nexthop := range params.DecapPolicy.DecapMPLSParams.NextHopsV6 {
+			staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(
+				fmt.Sprintf("%s%d", params.DecapPolicy.StaticLSPNameIPv6, i),
+			)
+			egressv6 := staticMplsCfgv6.GetOrCreateEgress()
+			egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6[i])
+			egressv6.NextHop = ygot.String(nexthop)
+		}
+
+	} else {
+		mplsCfgv4 := ni.GetOrCreateMpls()
+		staticMplsCfgv4 := mplsCfgv4.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv4)
+		egressv4 := staticMplsCfgv4.GetOrCreateEgress()
+		egressv4.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv4)
+		egressv4.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv4)
+
+		mplsCfgv6 := ni.GetOrCreateMpls()
+		staticMplsCfgv6 := mplsCfgv6.GetOrCreateLsps().GetOrCreateStaticLsp(params.DecapPolicy.StaticLSPNameIPv6)
+		egressv6 := staticMplsCfgv6.GetOrCreateEgress()
+		egressv6.IncomingLabel = oc.UnionUint32(params.DecapPolicy.StaticLSPLabelIPv6)
+		egressv6.NextHop = ygot.String(params.DecapPolicy.StaticLSPNextHopIPv6)
+	}
+}
+
+// MPLSStaticLSPConfig configures the interface mpls static lsp.
+// TODO: Need to refactor this function by adding one more parameter ocMPLSStaticLSPParams
+func MPLSStaticLSPConfig(t *testing.T, dut *ondatra.DUTDevice, ni *oc.NetworkInstance, ocPFParams OcPolicyForwardingParams) {
+	if deviations.StaticMplsUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if ocPFParams.DecapPolicy.DecapMPLSParams.ScaleStaticLSP {
+				var mplsStaticLspConfig string
+				var mplsStaticLspConfigV6 string
+				for i, nexthop := range ocPFParams.DecapPolicy.DecapMPLSParams.NextHops {
+					mplsStaticLspConfig += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv4 access-list bypass\n", ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabels[i], nexthop)
+				}
+				helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfig)
+				for i, nexthopIpv6 := range ocPFParams.DecapPolicy.DecapMPLSParams.NextHopsV6 {
+					mplsStaticLspConfigV6 += fmt.Sprintf("mpls static top-label %d %s pop payload-type ipv6 access-list bypass\n", ocPFParams.DecapPolicy.DecapMPLSParams.MplsStaticLabelsForIPv6[i], nexthopIpv6)
+				}
+				helpers.GnmiCLIConfig(t, dut, mplsStaticLspConfigV6)
+			} else {
+				helpers.GnmiCLIConfig(t, dut, staticLSPArista)
+			}
+		default:
+			t.Logf("Unsupported vendor %s for native command support for deviation 'mpls static lsp'", dut.Vendor())
+		}
+	} else {
+		mplsGlobalStaticLspAttributes(t, ni, ocPFParams)
+	}
+}
+
+// MPLSSRConfigBasic holds all parameters needed to configure MPLS and SR on the DUT.
+type MPLSSRConfigBasic struct {
+	InstanceName   string
+	SrgbName       string
+	SrgbStartLabel uint32
+	SrgbEndLabel   uint32
+	SrgbID         string
+}
+
+// NewMPLSSRBasic configures MPLS on the DUT using OpenConfig.
+func NewMPLSSRBasic(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, cfg MPLSSRConfigBasic) {
+	if deviations.IsisSrgbSrlbUnsupported(dut) {
+		cliConfig := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cliConfig = fmt.Sprintf("mpls ip\nmpls label range isis-sr %v %v", cfg.SrgbStartLabel, cfg.SrgbEndLabel)
+		default:
+			t.Errorf("Deviation IsisSrgbSrlbUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		helpers.GnmiCLIConfig(t, dut, cliConfig)
+	} else {
+		t.Helper()
+		d := &oc.Root{}
+		netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+
+		// Set Protocol Config
+		mpls := netInstance.GetOrCreateMpls()
+		mplsGlobal := mpls.GetOrCreateGlobal()
+
+		rlb := mplsGlobal.GetOrCreateReservedLabelBlock(cfg.SrgbName)
+
+		rlb.SetLowerBound(oc.UnionUint32(cfg.SrgbStartLabel))
+		rlb.SetUpperBound(oc.UnionUint32(cfg.SrgbEndLabel))
+
+		sr := netInstance.GetOrCreateSegmentRouting()
+		srgbConfig := sr.GetOrCreateSrgb(cfg.SrgbName)
+		srgbConfig.SetMplsLabelBlocks([]string{cfg.SrgbName})
+		srgbConfig.SetLocalId(cfg.SrgbID)
+
+		// === Add protocol subtree into the batch ===
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().Config(), mpls)
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).SegmentRouting().Config(), sr)
+	}
+}
+
+// LabelRangeOCConfig configures MPLS label ranges on the DUT using OpenConfig.
+func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	d := &oc.Root{}
+	ni := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	mplsObj := ni.GetOrCreateMpls().GetOrCreateGlobal()
+	// Map of local-id → [lowerBound, upperBound]
+	labelRanges := map[string][2]uint32{
+		"bgp-sr":                  {16, 0},
+		"dynamic":                 {16, 0},
+		"isis-sr":                 {16, 0},
+		"l2evpn":                  {16, 0},
+		"l2evpn ethernet-segment": {16, 0},
+		"ospf-sr":                 {16, 0},
+		"srlb":                    {16, 0},
+		"static":                  {16, 1048560},
+	}
+	t.Logf("Mpls Object %v, label range %v", mplsObj, labelRanges)
+	for localID, bounds := range labelRanges {
+		rlb := mplsObj.GetOrCreateReservedLabelBlock(localID)
+		rlb.LocalId = ygot.String(localID)
+		rlb.LowerBound = oc.UnionUint32(bounds[0])
+		rlb.UpperBound = oc.UnionUint32(bounds[1])
+	}
+	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+}
+
+type MplsStaticPseudowire struct {
+	PseudowireName   string
+	NexthopGroupName string
+	LocalLabel       string
+	RemoteLabel      string
+	IntfName         string
+	Subinterface     int
+}
+
+func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
+	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			if params.Subinterface != 0 {
+				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
+			}
+			cli = fmt.Sprintf(`
+			mpls pseudowires
+   				static pseudowires
+      			pseudowire %s
+         		transport nexthop-group %s
+         		local label %s
+         		neighbor label %s
+         		control-word
+			patch panel
+				patch patch-1
+				   connector interface %s
+				   connector pseudowire mpls static %s`,
+				params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.IntfName, params.PseudowireName)
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	} else {
+		d := &oc.Root{}
+		fptest.ConfigureDefaultNetworkInstance(t, dut)
+		connectionCfg := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut)).GetOrCreateConnectionPoint("1")
+		endpointCfg := connectionCfg.GetOrCreateEndpoint("endpoint-1")
+		localCfg := endpointCfg.GetOrCreateLocal()
+		localCfg.SetInterface(params.IntfName)
+		localCfg.SetSubinterface(uint32(params.Subinterface))
+
+		remoteCfg := endpointCfg.GetOrCreateRemote()
+		remoteCfg.SetVirtualCircuitIdentifier(1001)
+
+		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).ConnectionPoint("1").Config(), connectionCfg)
+	}
+}
+
+func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice) {
+	if deviations.MplsStaticPseudowireOcUnsupported(dut) {
+		cli := ""
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			cli = "patch panel\n no patch patch-1"
+			helpers.GnmiCLIConfig(t, dut, cli)
+		default:
+			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
+		}
+		return
+	} else {
+		gnmi.BatchDelete(batch, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).ConnectionPoint("1").Config())
+	}
+}
+
+type VlanClientEncapsulationParams struct {
+	IntfName         string
+	Subinterfaces    int
+	RemoveVlanConfig bool
+}
+
+func VlanClientEncapsulation(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params VlanClientEncapsulationParams) {
+	if deviations.VlanClientEncapsulationOcUnsupported(dut) {
+		cli := ""
+		if !params.RemoveVlanConfig {
+			cli = fmt.Sprintf(`
+					interface %v.%v
+						encapsulation vlan
+      						client dot1q %v network client
+						`, params.IntfName, params.Subinterfaces, params.Subinterfaces)
+		} else {
+			cli = fmt.Sprintf(`
+				interface %v.%v
+					no encapsulation vlan
+					`, params.IntfName, params.Subinterfaces)
+		}
+		helpers.GnmiCLIConfig(t, dut, cli)
+	} else {
+		// OC is not available
+	}
 }

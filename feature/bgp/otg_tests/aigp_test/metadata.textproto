@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "dc021164-c7c2-46ee-bb55-0b4259a1b470"
+plan_id: "RT-1.36"
+description: "AIGP feature support test"
+testbed: TESTBED_DUT_DUT_ATE_2LINKS

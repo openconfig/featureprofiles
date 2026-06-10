@@ -136,9 +136,7 @@ func nokiaCLI(intf string, enabled bool) string {
 	if enabled {
 		op = "enable"
 	}
-	return fmt.Sprintf(`
-   /interface %s admin-state %s
-	`, intf, op)
+	return fmt.Sprintf(`/interface %s admin-state %s`, intf, op)
 }
 
 func juniperCLI(intf string, enabled bool) string {

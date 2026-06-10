@@ -505,6 +505,7 @@ func TestRouteRemovalDuringFailover(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
 
 	dutPortName := dut.Port(t, "port1").Name()
 	sysConfigTime := gnmi.Get(t, dut, gnmi.OC().Interface(dutPortName).LastChange().State())
