@@ -333,7 +333,7 @@ func getCompMatrix(t *testing.T, dut *ondatra.DUTDevice) []string {
 	for _, comp := range compDebug {
 		if comp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
 			// Cisco 8808 doesn't consistently report DISABLED components after reboot.
-			if dut.Vendor() == ondatra.CISCO && comp.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED {
+			if deviations.ExcludeDisabledComponents(dut) && comp.GetOperStatus() == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED {
 				continue
 			}
 			compMatrix = append(compMatrix, comp.GetName()+":"+comp.GetOperStatus().String())
