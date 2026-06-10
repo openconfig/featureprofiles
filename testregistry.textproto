@@ -1932,6 +1932,36 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
 }
 test: {
+  id: "bootz-7"
+  description: "bootz-7: DHCP-less Bootz"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-7.1"
+  description: "Successful Bootstrap (Happy Path) - Device successfully bootstraps and applies config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-7.2"
+  description: "Failure Before Contacting Server - Device fails to connect, reverts to pre-config, and retries"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-7.3"
+  description: "Failure After Contacting Server - Device fails during Bootz session, reverts, and retries"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-7.4"
+  description: "Reset to DHCP Mode - Device wipes pre-config and parameters, and reboots into DHCP mode"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
+  id: "bootz-7.5"
+  description: "Terminate DHCP-less Mode - Device terminates Bootz agent, wipes parameters, and keeps pre-config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+}
+test: {
   id: "gNMI-1.1"
   description: "cli Origin"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/cliorigin/ate_tests/cli_origin_test/README.md"
