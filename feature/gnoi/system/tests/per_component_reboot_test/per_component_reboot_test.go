@@ -394,10 +394,10 @@ func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string,
 		}
 		visited[currentComponent] = true
 		// Get the component details
-		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
-		if !ok {
-			return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
-		}
+        comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
+        if !ok || comp == nil {
+            return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
+        }
 		// Check if this is a linecard component
 		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
 			return currentComponent, nil
