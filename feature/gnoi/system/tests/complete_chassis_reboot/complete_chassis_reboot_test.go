@@ -126,7 +126,11 @@ func TestChassisReboot(t *testing.T) {
 		ctxWithTimeout, cancel := context.WithTimeout(t.Context(), contextTimeout)
 		defer cancel()
 		_, err = gnoiClient.System().Reboot(ctxWithTimeout, rebootRequest)
-		defer gnoiClient.System().CancelReboot(t.Context(), &spb.CancelRebootRequest{})
+		defer func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			gnoiClient.System().CancelReboot(ctx, &spb.CancelRebootRequest{})
+		}()
 		if err != nil {
 			t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
 		}
