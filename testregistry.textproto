@@ -2573,11 +2573,70 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/macsec/otg_tests/macsec/README.md"
   exec: " "
 }
-
-
 test: {
   id: "PF-1.26"
   description: "Double GUE Decapsulation"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
   exec: " "
+}
+
+test: {
+  id: "service-1.1"
+  description: "gNMI client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
+}
+test: {
+  id: "service-1.2"
+  description: "gNOI client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
+}
+test: {
+  id: "service-1.3"
+  description: "gNSI client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
+}
+test: {
+  id: "service-1.4"
+  description: "gRIBI client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
+}
+test: {
+  id: "service-1.5"
+  description: "p4rt client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_g_protocol_test.go"
+}
+test: {
+  id: "service-1.6"
+  description: "gNMI PQC client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_pqc_protocol_test.go"
+}
+test: {
+  id: "service-1.7"
+  description: "gNOI PQC client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_pqc_protocol_test.go"
+}
+test: {
+  id: "service-1.8"
+  description: "gNSI PQC client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_pqc_protocol_test.go"
+}
+test: {
+  id: "service-1.9"
+  description: "gRIBI PQC client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_pqc_protocol_test.go"
+}
+test: {
+  id: "service-1.10"
+  description: "p4rt PQC client"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/README.md"
+  exec: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/system_base_test/tests/system_g_protocol_test/system_pqc_protocol_test.go"
 }

@@ -10,8 +10,13 @@ Each test will require the DUT configured with a basic service configuration tha
 should be provided as part of the basic configuration.  This setup should also include
 any security setup for connecting to the services.
 
-The default setup should expect a CA signed certifate and trust bundle which can be
+The default setup should expect a CA signed certificate and trust bundle which can be
 used for mTLS.
+
+The PQC client tests validate the ability of the system to negotiate a PQC based TLS 
+cipher suite for each of the g* APIs.  These tests will need to utilize PQC-enabled
+clients to validate the connection.  Each of these tests should fail if the server
+cannot negotiate a PQC cipher suite.
 
 | Protocol  | Port  |
 | --------- | ----- |
@@ -25,11 +30,16 @@ used for mTLS.
 
 | ID          | Case         | Result          |
 | ----------- | ------------ | --------------- |
-| service-1.1 | gNMI client  | gNMI Get works  |
-| service-1.2 | gNOI client  | gNOI system Time works |
-| service-1.3 | gNSI client  | gNSI authz Get works |
-| service-1.4 | gRIBI client | gRIBI Get works |
-| service-1.5 | p4rt client  | P4RT Capabilities works |
+| service-1.1 | gNMI client  | gNMI Get works with standard TLS Cipher Suite |
+| service-1.2 | gNOI client  | gNOI system Time works with standard TLS Cipher Suite |
+| service-1.3 | gNSI client  | gNSI authz Get works with standard TLS Cipher Suite |
+| service-1.4 | gRIBI client | gRIBI Get works with standard TLS Cipher Suite |
+| service-1.5 | p4rt client  | P4RT Capabilities works with standard TLS Cipher Suite |
+| service-1.6 | gNMI PQC client   | gNMI Get works with PQC TLS Cipher Suite |
+| service-1.7 | gNOI PQC client   | gNOI system Time works with PQC TLS Cipher Suite |
+| service-1.8 | gNSI PQC client   | gNSI authz Get works with PQC TLS Cipher Suite |
+| service-1.9 | gRIBI PQC client   | gRIBI Get works with PQC TLS Cipher Suite |
+| service-1.10 | p4rt PQC client   | P4RT Capabilities works with PQC TLS Cipher Suite |
 
 1. Configure DUT with service configurations for all required services
 2. Each test will then create a client to those services and valid each service is properly
@@ -54,4 +64,20 @@ rpcs:
       system.System.Ping:
    gribi:
       gRIBI.Get:
+```
+
+## Canonical OC
+
+```json
+{
+   "system": {
+      "state": {
+         "motd-banner": "<string>",
+         "login-banner": "<string>",
+         "hostname": "<string>",
+         "current-datetime": "2022-01-01T00:00:00Z",
+         "boot-time": "0"
+      }
+   }
+}
 ```
