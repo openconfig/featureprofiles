@@ -3962,3 +3962,14 @@ deviations: {
   }
 }
 
+deviations: {
+  name: "require_transport_security"
+  type: DEVIATION_TYPE_UNSPECIFIED
+  platforms: {
+    issue_url: "https://partnerissuetracker.corp.google.com/issues/515276334"
+    platform: {
+      vendor: JUNIPER
+      software_version_regex: "*.*"
+    }
+  }
+}
