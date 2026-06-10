@@ -350,7 +350,9 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 
 		subinterface := p.Interface(port).Subinterface(subIntfIndex)
 
-		gnmi.Update(t, dut, subinterface.Description().Config(), description)
+		si := &oc.Interface_Subinterface{Description: ygot.String(description)}
+		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), si)
+
 		time.Sleep(2 * time.Minute)
 
 		if gnmi.Lookup(t, dut, subinterface.Description().State()).IsPresent() {
