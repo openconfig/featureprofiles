@@ -399,7 +399,7 @@ func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string,
             return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
         }
 		// Check if this is a linecard component
-		if comp.GetType() == oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD {
+        if comp.GetType() == linecardType {
 			return currentComponent, nil
 		}
 		// Move to parent component
