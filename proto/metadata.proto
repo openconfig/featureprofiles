@@ -1365,8 +1365,7 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
-    // yada yada yada
-    // Cisco: 
+    // Cisco 8808 doesn't consistently report DISABLED components after reboot
     bool exclude_disabled_components = 433;
 
     // Reserved field numbers and identifiers.
