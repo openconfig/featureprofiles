@@ -22,7 +22,9 @@ package p4rtutils
 
 import (
 	"context"
+	"io"
 	"testing"
+	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
@@ -241,21 +243,26 @@ func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
 // ValidateP4RTConnectivity verifies P4RT connectivity to the DUT.
 func ValidateP4RTConnectivity(t testing.TB, dut *ondatra.DUTDevice, deviceID uint64) {
 	t.Helper()
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	c, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
 	if err != nil {
 		t.Fatalf("Failed to dial P4RT: %v", err)
 	}
 	if deviations.P4RTCapabilitiesUnsupported(dut) {
-		if _, err := c.Read(ctx, &p4V1.ReadRequest{
+		stream, err := c.Read(ctx, &p4V1.ReadRequest{
 			DeviceId: deviceID,
 			Entities: []*p4V1.Entity{
 				{
 					Entity: &p4V1.Entity_TableEntry{},
 				},
 			},
-		}); err != nil {
+		})
+		if err != nil {
 			t.Fatalf("P4RT Read request failed: %v", err)
+		}
+		if _, err := stream.Recv(); err != nil && err != io.EOF {
+			t.Fatalf("P4RT Read stream receive failed: %v", err)
 		}
 	} else {
 		if _, err := c.Capabilities(ctx, &p4V1.CapabilitiesRequest{}); err != nil {
