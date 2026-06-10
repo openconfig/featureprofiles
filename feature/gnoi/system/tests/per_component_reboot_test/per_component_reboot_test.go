@@ -379,10 +379,10 @@ func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string,
 	t.Helper()
 
 	// Step 1: Get the hardware-port from the interface
-	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
-	if !ok {
-		return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
-	}
+    hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
+    if !ok || hwPort == "" {
+        return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
+    }
 
 	// Step 2: Traverse up the component tree looking for a linecard
 	currentComponent := hwPort
