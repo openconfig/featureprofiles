@@ -244,6 +244,9 @@ func (tc *testCase) waitForISISAdjacency(t *testing.T) error {
 		return state == oc.Isis_IsisInterfaceAdjState_UP
 	}
 	dutPort := tc.dut.Port(t, port1Name).Name()
+	if deviations.InterfaceRefInterfaceIDFormat(tc.dut) {
+		dutPort = dutPort + ".0"
+	}
 	adjPath := isisPath.Interface(dutPort).Level(2).AdjacencyAny()
 	if _, ok := gnmi.WatchAll(t, tc.dut, adjPath.AdjacencyState().State(), gnmiTimeout, verifyAdjacencyState).Await(t); !ok {
 		return fmt.Errorf("no ISIS adjacency formed for port1 (%s)", dutPort)
@@ -432,6 +435,9 @@ func TestReboot(t *testing.T) {
 			t.Fatalf("Failed to dial GNMI after reboot: %v", err)
 		}
 		aftSession = aftcache.NewAFTStreamSession(t.Context(), t, gnmiClient, tc.dut)
+		dutPort := tc.dut.Port(t, port1Name).Name()
+		t.Log("Waiting for interface to come up before checking BGP neighborship after reboot...")
+		gnmi.Await(t, tc.dut, gnmi.OC().Interface(dutPort).OperStatus().State(), 12*time.Minute, oc.Interface_OperStatus_UP)
 		t.Log("Waiting for BGP neighbor to establish after reboot...")
 		if err := tc.waitForBGPSession(t); err != nil {
 			t.Fatalf("Unable to establish BGP session: %v", err)
