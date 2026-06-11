@@ -71,12 +71,6 @@ const (
 )
 
 var (
-	vendorSpecRoutecount = map[ondatra.Vendor]uint32{
-		ondatra.ARISTA:  2500000,
-		ondatra.JUNIPER: 2500000,
-		ondatra.NOKIA:   2600000,
-		ondatra.CISCO:   2500000,
-	}
 	dutPort1 = attrs.Attributes{
 		Desc:    "dutPort1",
 		IPv4:    "192.0.2.1",
@@ -462,15 +456,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func injectBGPRoutes(t *testing.T, args *testArgs) {
 	t.Helper()
 
-	routeCount, ok := vendorSpecRoutecount[args.dut.Vendor()]
-
-	if !ok {
-		t.Fatalf("Please provide BGP route count for vendor to maxout FIB %v in var vendorSpecRoutecount ", args.dut.Vendor())
-	}
-
-	if args.dut.RawAPIs().BindingDUT().HardwareModel() == "PTX10002-36QDD" || args.dut.RawAPIs().BindingDUT().HardwareModel() == "PTX12008" {
-		routeCount = deviations.MaxOutFIBRouteCount(args.dut)
-	}
+	routeCount := deviations.MaxOutFIBRouteCount(args.dut)
 
 	bgpNeti1Bgp6PeerRoutes := args.otgBgpPeer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
 	bgpNeti1Bgp6PeerRoutes.SetNextHopIpv6Address(args.otgIPv6Device.Address()).

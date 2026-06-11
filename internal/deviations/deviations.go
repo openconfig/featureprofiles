@@ -2240,5 +2240,5 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
 		return routeCount
 	}
-	return 3750000
+	return 2500000
 }
