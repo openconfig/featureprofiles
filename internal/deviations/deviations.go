@@ -2232,3 +2232,8 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// Cisco 8808 doesn't consistently report DISABLED components after reboot
+func ExcludeDisabledComponents(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExcludeDisabledComponents()
+}

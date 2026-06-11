@@ -21,13 +21,18 @@
 package p4rtutils
 
 import (
+	"context"
+	"io"
 	"testing"
+	"time"
 
 	"github.com/cisco-open/go-p4/p4rt_client"
 	"github.com/golang/glog"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 	p4V1 "github.com/p4lang/p4runtime/go/p4/v1"
 )
 
@@ -233,4 +238,63 @@ func StreamTermErr(ste chan *p4rt_client.P4RTStreamTermErr) error {
 	default:
 		return nil
 	}
+}
+
+// ValidateP4RTConnectivity verifies P4RT connectivity to the DUT.
+func ValidateP4RTConnectivity(t testing.TB, dut *ondatra.DUTDevice, deviceID uint64) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	c, err := dut.RawAPIs().BindingDUT().DialP4RT(ctx)
+	if err != nil {
+		t.Fatalf("Failed to dial P4RT: %v", err)
+	}
+	if deviations.P4RTCapabilitiesUnsupported(dut) {
+		stream, err := c.Read(ctx, &p4V1.ReadRequest{
+			DeviceId: deviceID,
+			Entities: []*p4V1.Entity{
+				{
+					Entity: &p4V1.Entity_TableEntry{},
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("P4RT Read request failed: %v", err)
+		}
+		if _, err := stream.Recv(); err != nil && err != io.EOF {
+			t.Fatalf("P4RT Read stream receive failed: %v", err)
+		}
+	} else {
+		if _, err := c.Capabilities(ctx, &p4V1.CapabilitiesRequest{}); err != nil {
+			t.Fatalf("P4RT Capabilities request failed: %v", err)
+		}
+	}
+	t.Log("P4RT connection validated successfully.")
+}
+
+// ConfigureP4RTNodeID configures P4RT node-id on the DUT.
+func ConfigureP4RTNodeID(t testing.TB, dut *ondatra.DUTDevice, deviceID uint64) {
+	t.Helper()
+	portToNodeMap := P4RTNodesByPort(t, dut)
+	p4rtNodeName, ok := portToNodeMap["port1"]
+	if !ok {
+		// Fallback to the first node name found.
+		for _, nodeName := range portToNodeMap {
+			if nodeName != "" {
+				p4rtNodeName = nodeName
+				break
+			}
+		}
+	}
+	if p4rtNodeName == "" {
+		t.Fatalf("Could not find P4RT node name from the initial mapping: %+v", portToNodeMap)
+	}
+	t.Logf("Configuring P4RT Node component: %s with NodeId: %d", p4rtNodeName, deviceID)
+	c := &oc.Component{
+		Name: ygot.String(p4rtNodeName),
+		IntegratedCircuit: &oc.Component_IntegratedCircuit{
+			NodeId: ygot.Uint64(deviceID),
+		},
+	}
+	gnmi.Replace(t, dut, gnmi.OC().Component(p4rtNodeName).Config(), c)
 }
