@@ -1932,6 +1932,36 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
+  id: "bootz-6"
+  description: "Device fails with status invalid parameter"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.1"
+  description: "Validate minimum necessary bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.2"
+  description: "Validate Software image in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.3"
+  description: "Validate Ownership Voucher in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.4"
+  description: "Validate device properly resets if provided invalid image"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.5"
+  description: "Validate gNSI components in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
   id: "bootz-7"
   description: "bootz-7: DHCP-less Bootz"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
