@@ -25,6 +25,15 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+    hardware_model_regex: "PTX10002-36QDD|PTX12008"
+  }
+  deviations: {
+    max_out_fib_route_count: 3750000
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: ARISTA
   }
   deviations: {

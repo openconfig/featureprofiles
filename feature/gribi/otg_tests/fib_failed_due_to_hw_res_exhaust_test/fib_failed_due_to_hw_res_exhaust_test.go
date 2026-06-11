@@ -19,7 +19,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,11 +110,6 @@ var (
 	fibPassedDstRoute      string
 	fibFailedDstRoute      string
 	fibFailedDstRouteInHex string
-	routeCountModelList    = []string{"PTX10002-36QDD", "PTX12008"}
-
-	vendorUpdatedSpecRoutecount = map[ondatra.Vendor]uint32{
-		ondatra.JUNIPER: 3750000,
-	}
 )
 
 func configureBGP(dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -468,12 +462,14 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 func injectBGPRoutes(t *testing.T, args *testArgs) {
 	t.Helper()
 
-	if _, ok := vendorSpecRoutecount[args.dut.Vendor()]; !ok {
+	routeCount, ok := vendorSpecRoutecount[args.dut.Vendor()]
+
+	if !ok {
 		t.Fatalf("Please provide BGP route count for vendor to maxout FIB %v in var vendorSpecRoutecount ", args.dut.Vendor())
 	}
 
-	if slices.Contains(routeCountModelList, args.dut.RawAPIs().BindingDUT().HardwareModel()) {
-		vendorSpecRoutecount[args.dut.Vendor()] = vendorUpdatedSpecRoutecount[args.dut.Vendor()]
+	if args.dut.RawAPIs().BindingDUT().HardwareModel() == "PTX10002-36QDD" || args.dut.RawAPIs().BindingDUT().HardwareModel() == "PTX12008" {
+		routeCount = deviations.MaxOutFIBRouteCount(args.dut)
 	}
 
 	bgpNeti1Bgp6PeerRoutes := args.otgBgpPeer.V6Routes().Add().SetName(atePort1.Name + ".BGP6.Route")
@@ -483,7 +479,7 @@ func injectBGPRoutes(t *testing.T, args *testArgs) {
 	bgpNeti1Bgp6PeerRoutes.Addresses().Add().
 		SetAddress(advertisedRoutesv6).
 		SetPrefix(args.advertisedRoutesv6MaskLen).
-		SetCount(vendorSpecRoutecount[args.dut.Vendor()]).SetStep(2)
+		SetCount(routeCount).SetStep(2)
 	bgpNeti1Bgp6PeerRoutes.Advanced().SetIncludeLocalPreference(false)
 
 	args.otg.PushConfig(t, args.otgConfig)
