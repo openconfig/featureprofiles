@@ -32,6 +32,7 @@ package gribifullscalet1_test
 
 import (
 	"context"
+	"flag"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
@@ -61,6 +62,10 @@ const (
 	// numUniqueEncapNHT1 is the T4 scale target: total unique encap NHs.
 	// T1: 16K, T2: 32K.
 	numUniqueEncapNHT1 = 16_000
+)
+
+var (
+	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
 )
 
 // ============================================================
@@ -136,7 +141,7 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 			} else {
 				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
 			}
-			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX)
+			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, *enablePacketCapture)
 		})
 	}
 }
