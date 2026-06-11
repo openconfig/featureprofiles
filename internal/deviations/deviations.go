@@ -637,6 +637,11 @@ func InterfaceRefInterfaceIDFormat(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceRefInterfaceIdFormat()
 }
 
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}
+
 // ISISLevelEnabled returns if device should enable isis under level.
 func ISISLevelEnabled(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIsisLevelEnabled()

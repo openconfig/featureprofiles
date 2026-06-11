@@ -1365,6 +1365,10 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+    // Devices which require policy-forwarding interface keys to use interface
+    // name + .subinterface index.
+    bool interface_id_format_required_for_policy_forwarding = 433;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
@@ -1394,4 +1398,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
