@@ -395,11 +395,11 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).
 			WithNextHopNetworkInstance(niTEVRF222),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithIndex(1003).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIndex(1004).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2225).
 			WithNextHopNetworkInstance(niTEVRF222),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1001).AddNextHop(1001, 1).AddNextHop(1003, 1).WithBackupNHG(2000),
+			WithID(1001).AddNextHop(1001, 1).AddNextHop(1004, 1).WithBackupNHG(2000),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
