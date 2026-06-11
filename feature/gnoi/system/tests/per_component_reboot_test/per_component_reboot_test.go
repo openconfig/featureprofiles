@@ -15,11 +15,9 @@
 package per_component_reboot_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -55,8 +53,6 @@ const (
 )
 
 var (
-	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
-
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -214,7 +210,7 @@ func configureOTG(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	return top
 }
 
-// createTrafficFlows creates the traffic flows for each PBR policy.
+// traffic flows creation
 func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice) {
 	t.Helper()
 
@@ -229,90 +225,23 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 	flow.Size().SetFixed(flowPacketSize)
 	flow.Duration().Continuous()
 
+	// Ethernet Layer
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	dutDstInterface := dut.Port(t, "port1").Name()
-	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+
+	// Target the MAC of the interface where traffic enters the DUT
+	dutIngressPort := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutIngressPort).Ethernet().MacAddress().State())
 	eth.Dst().SetValue(dstMac)
 
+	// IPv4 Layer
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
-	ip.Dst().SetValue(dutSrc.IPv4)
-}
-
-// trapStats represents a single row of trap statistics.
-type trapStats struct {
-	dev      int
-	trapcode int
-	name     string
-	count    int
-	rate     int
-}
-
-// parseTrapStats parses the output of the request pfe execute target fpc* command " show cda trapstats" | no-more command.
-func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
-	t.Helper()
-
-	var stats []trapStats
-	var parsingTable bool
-	scanner := bufio.NewScanner(strings.NewReader(output))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "DEV") {
-			parsingTable = true
-			continue
-		}
-
-		if !parsingTable {
-			continue
-		}
-
-		match := trapstatsRe.FindStringSubmatch(line)
-		if match == nil {
-			if len(strings.TrimSpace(line)) > 0 {
-				return nil, fmt.Errorf("invalid line format: %s", line)
-			}
-			continue
-		}
-
-		dev, err := strconv.Atoi(strings.TrimSpace(match[1]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing DEV: %w", err)
-		}
-		trapCode, err := strconv.Atoi(strings.TrimSpace(match[2]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing TRAPCODE: %w", err)
-		}
-		name := strings.TrimSpace(match[3])
-		count, err := strconv.Atoi(strings.TrimSpace(match[4]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing COUNT: %w", err)
-		}
-		rate, err := strconv.Atoi(strings.TrimSpace(match[5]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing RATE: %w", err)
-		}
-
-		stats = append(stats, trapStats{
-			dev:      dev,
-			trapcode: trapCode,
-			name:     name,
-			count:    count,
-			rate:     rate,
-		})
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading output: %w", err)
-	}
-
-	return stats, nil
+	ip.Dst().SetValue(ateDst.IPv4) // Route THROUGH the DUT to the second ATE port
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
-	// TODO: Add traffic drop check for other vendors
+	// TODO: Add traffic drop check
 	if dut.Vendor() != ondatra.JUNIPER {
 		return
 	}
@@ -333,31 +262,19 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	initialInPkts := initialCounters.GetInPkts()
 	t.Logf("initial incoming packets: %v", initialInPkts)
 
+	portName := dut.Port(t, "port1").Name()
+	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(portName).HardwarePort().State())
+	parent := checkParentComponent(t, dut, hardwarePort)
 	t.Log("Start protocols and traffic")
 	otgObj.StartProtocols(t)
 	otgObj.StartTraffic(t)
 
-	command := fmt.Sprintf("request pfe execute target %s command \"show cda trapstats\" | no-more", linecard)
-	for idx := 0; idx < 10; idx++ {
-		time.Sleep(30 * time.Second)
-		result := dut.CLI().RunResult(t, command)
-		if result.Error() != "" {
-			t.Errorf("could not fetch output for: %s, err: %s", command, result.Error())
-			break
-		}
-		stats, err := parseTrapStats(t, result.Output())
-		if err != nil {
-			t.Errorf("could not parse output for: %s, output:\n%s \nerr: %s", command, result.Output(), err)
-			break
-		}
-
-		for i := range stats {
-			stat := &stats[i]
-			if stat.rate != 0 {
-				t.Errorf("found non-zero rate for stat: %s, rate: %d", stat.name, stat.rate)
-			}
-		}
+	//Capture AdverseAggregate drop value
+	adverseAggrDrop := gnmi.Get(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State())
+	if adverseAggrDrop != 0 {
+		t.Errorf("found non-zero value  %d for adverse-aggregate drop", adverseAggrDrop)
 	}
+	t.Logf("found value  %d for adverse-aggregate counter", adverseAggrDrop)
 	t.Log("Stop traffic")
 	otgObj.StopTraffic(t)
 	t.Log("Stop protocols")
@@ -587,4 +504,19 @@ func TestFabricReboot(t *testing.T) {
 	t.Logf("Fabric component is active")
 	helpers.ValidateOperStatusUPIntfs(t, dut, intfsOperStatusUPBeforeReboot, 5*time.Minute)
 	// TODO: Check the fabric component uptime has been reset.
+}
+func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) string {
+	parent := gnmi.Lookup(t, dut, gnmi.OC().Component(entity).Parent().State())
+	val, present := parent.Val()
+
+	if !present {
+		t.Errorf("Parent component NOT found for entify: %s", entity)
+	}
+	gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Name().State())
+	got, present := gotV.Val()
+
+	if present {
+		t.Logf("Found parent component %s for entity %s", got, entity)
+	}
+	return got
 }
