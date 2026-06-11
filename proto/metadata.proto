@@ -1365,6 +1365,23 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+    // Devices that do not support configuring aigp action in bgp route policy 
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/465200087
+    // JUNIPER: https://partnerissuetracker.corp.google.com/issues/465200563
+    // ARISTA: https://partnerissuetracker.corp.google.com/issues/465200085
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/465200305
+    bool aigp_route_metric_not_supported = 433;
+
+    // Devices that do not support OC for neighbor adjacencies rib 
+    // CISCO: https://partnerissuetracker.corp.google.com/issues/510713780
+    // JUNIPER: https://partnerissuetracker.corp.google.com/issues/510723665
+    // ARISTA: https://partnerissuetracker.corp.google.com/issues/510723664
+    // NOKIA: https://partnerissuetracker.corp.google.com/issues/510725200
+    bool bgp_adj_rib_oc_unsupported = 434;
+
+    // Devices that donot support AIGP metric increment when IGP metric to original destination is zero
+    bool aigp_metric_increment = 435;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
