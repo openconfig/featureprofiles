@@ -152,7 +152,7 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	switch d.Vendor() {
 	case ondatra.ARISTA:
-		if deviations.InterfaceConfigVRFBeforeAddress(d) && (len(subInt) > 0 && subInt[0] == true) {
+		if deviations.InterfaceConfigVRFBeforeAddress(d) && (len(subInt) > 0 && subInt[0]) {
 			netInstIntf.Id = ygot.String(fmt.Sprintf("%s.%d", intf.GetName(), si))
 		} else {
 			netInstIntf.Id = ygot.String(intf.GetName())

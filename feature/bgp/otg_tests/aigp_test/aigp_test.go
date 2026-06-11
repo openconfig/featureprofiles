@@ -16,7 +16,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
-	gnmipb "github.com/openconfig/gnmi/proto/gnmi"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -108,7 +107,6 @@ type loopbackAttrs struct {
 type bgpNbr struct {
 	peerGrpName    string
 	nbrIp          string
-	peerAddr       string
 	peerAs         uint32
 	localAs        uint32
 	isV4           bool
@@ -118,7 +116,6 @@ type bgpNbr struct {
 	exportPolicy   []string
 	enableAIGP     bool
 	srcIp          string
-	removePolicy   []string
 	removeBgpPeer  bool
 }
 
@@ -1038,7 +1035,7 @@ func verifyBestPath(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix st
 					{
 						Elem: []*gpb.PathElem{
 							{Name: "network-instances"},
-							{Name: "network-instance", Key: map[string]string{"name": "default"}},
+							{Name: "network-instance", Key: map[string]string{"name": deviations.DefaultNetworkInstance(dut)}},
 							{Name: "protocols"},
 							{Name: "protocol", Key: map[string]string{"identifier": "BGP", "name": "BGP"}},
 							{Name: "bgp"},
@@ -1062,7 +1059,7 @@ func verifyBestPath(t *testing.T, dut *ondatra.DUTDevice, ni, nbrAddr, prefix st
 			} else {
 				update := getResponse.GetNotification()[0].GetUpdate()[0]
 				val := update.GetVal()
-				bestPaths := val.Value.(*gnmipb.TypedValue_UintVal).UintVal
+				bestPaths := val.Value.(*gpb.TypedValue_UintVal).UintVal
 				if bestPaths != wantBest {
 					t.Errorf("best-paths for prefix %s from %s in NI %s: want %v, got %d", prefix, nbrAddr, ni, wantBest, bestPaths)
 				} else {
