@@ -3,5 +3,5 @@
 
 uuid:  "a5c2d46c-976b-41bd-9fae-3341ce5c1b29"
 plan_id:  "Authz"
-description:  "General Authz (1-4) tests"
+description:  "General Authz tests"
 testbed:  TESTBED_DUT

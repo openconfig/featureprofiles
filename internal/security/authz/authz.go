@@ -35,6 +35,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	authzpb "github.com/openconfig/gnsi/authz"
+	"github.com/openconfig/ondatra/gnmi"
 )
 
 // Spiffe is an struct to save an Spiffe id and its svid.
@@ -101,7 +102,13 @@ func (p *AuthorizationPolicy) Marshal() ([]byte, error) {
 }
 
 // Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
+// Rotate apply policy p on device dut, this is test api for positive testing and it fails the test on failure.
 func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool) {
+	p.RotateWithOptions(t, dut, createdOn, version, forcOverwrite, nil)
+}
+
+// RotateWithOptions applies policy p on device dut with optional callback before finalization and performs telemetry validation.
+func (p *AuthorizationPolicy) RotateWithOptions(t *testing.T, dut *ondatra.DUTDevice, createdOn uint64, version string, forcOverwrite bool, beforeFinalize func()) {
 	t.Logf("Performing Authz.Rotate request on device %s", dut.Name())
 	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(context.Background())
 	if err != nil {
@@ -138,6 +145,23 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 	if !cmp.Equal(p, tempPolicy) {
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, tempPolicy))
 	}
+
+	// Validate telemetry metadata (temporary)
+	serverName := "DEFAULT"
+	versionTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele := gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != version {
+		t.Errorf("Expected telemetry version %s, got %s", version, versionTele)
+	}
+	if createdOnTele != createdOn {
+		t.Errorf("Expected telemetry createdOn %d, got %d", createdOn, createdOnTele)
+	}
+
+	// Call the callback if provided
+	if beforeFinalize != nil {
+		beforeFinalize()
+	}
+
 	finalizeRotateReq := &authzpb.RotateAuthzRequest_FinalizeRotation{FinalizeRotation: &authzpb.FinalizeRequest{}}
 	err = rotateStream.Send(&authzpb.RotateAuthzRequest{RotateRequest: finalizeRotateReq})
 	t.Logf("Sending Authz.Rotate FinalizeRotation request: \n%s", prettyPrint(finalizeRotateReq))
@@ -149,6 +173,15 @@ func (p *AuthorizationPolicy) Rotate(t *testing.T, dut *ondatra.DUTDevice, creat
 		t.Fatalf("Policy after upload (temporary) is not the same as the one upload, diff is: %v", cmp.Diff(p, finalPolicy))
 	}
 
+	// Validate telemetry metadata (finalized)
+	versionTele = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyVersion().State())
+	createdOnTele = gnmi.Get(t, dut, gnmi.OC().System().GrpcServer(serverName).AuthenticationPolicyCreatedOn().State())
+	if versionTele != version {
+		t.Errorf("Expected telemetry version %s, got %s after finalize", version, versionTele)
+	}
+	if createdOnTele != createdOn {
+		t.Errorf("Expected telemetry createdOn %d, got %d after finalize", createdOn, createdOnTele)
+	}
 }
 
 // NewAuthorizationPolicy creates an empty policy.
@@ -214,8 +247,8 @@ func (p *AuthorizationPolicy) PrettyPrint(t *testing.T) string {
 	return string(prettyTex)
 }
 
-type verifyOpt interface {
-	isVerifyOpt()
+type VerifyOpt interface {
+	IsVerifyOpt()
 }
 
 // ExceptDeny is passed to verify function when failure is expected.
@@ -227,12 +260,12 @@ type ExceptDeny struct {
 type HardVerify struct {
 }
 
-func (o *ExceptDeny) isVerifyOpt() {}
-func (o *HardVerify) isVerifyOpt() {}
+func (o *ExceptDeny) IsVerifyOpt() {}
+func (o *HardVerify) IsVerifyOpt() {}
 
 // Verify uses prob to validate if the user access for a certain rpc is expected.
 // It also execute the rpc when HardVerif is passed and verifies if it matches the expectation.
-func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...verifyOpt) {
+func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC, opts ...VerifyOpt) {
 	expectedRes := authzpb.ProbeResponse_ACTION_PERMIT
 	expectedExecErr := codes.OK
 	hardVerify := false
@@ -242,7 +275,7 @@ func Verify(t testing.TB, dut *ondatra.DUTDevice, spiffe *Spiffe, rpc *gnxi.RPC,
 			expectedRes = authzpb.ProbeResponse_ACTION_DENY
 			expectedExecErr = codes.PermissionDenied
 		case *HardVerify:
-			hardVerify = false
+			hardVerify = true
 		default:
 			t.Errorf("Invalid option is passed to Verify function: %T", opt)
 		}
