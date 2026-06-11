@@ -1152,7 +1152,7 @@ func GetDUTMACAddress(t *testing.T, ate *ondatra.ATEDevice, intfName string, nei
 }
 
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
-func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool) {
+func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool, enablePacketCapture bool) {
 	t.Helper()
 	baseFlows := CountBaseFlows()
 	perFlowPPS := TrafficRateMpps / uint64(baseFlows)
@@ -1227,24 +1227,36 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 		allFlows = append(allFlows, flows...)
 	}
 
-	// Clear capture
-	packetvalidationhelpers.ClearCapture(t, top, ate)
+	var capVal *packetvalidationhelpers.PacketValidation
+	if enablePacketCapture {
+		// Clear capture
+		packetvalidationhelpers.ClearCapture(t, top, ate)
 
-	// Configure capture on port2 via packetvalidationhelpers and push config.
-	capVal := &packetvalidationhelpers.PacketValidation{
-		PortName:    "port2",
-		CaptureName: "cap_port2",
+		// Configure capture on port2 via packetvalidationhelpers and push config.
+		capVal = &packetvalidationhelpers.PacketValidation{
+			PortName:    "port2",
+			CaptureName: "cap_port2",
+		}
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, capVal)
 	}
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, capVal)
-	ate.OTG().PushConfig(t, top)
 
-	// Start capture, run traffic, stop capture.
-	// StartCapture returns the ControlState it armed; StopCapture reuses it to issue the STOP command on the same port-capture object.
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	// Start capture (if enabled), run traffic, stop capture.
+	var cs gosnappi.ControlState
+	if enablePacketCapture {
+		// StartCapture returns the ControlState it armed; StopCapture reuses it to issue the STOP command on the same port-capture object.
+		cs = packetvalidationhelpers.StartCapture(t, ate)
+	}
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(TrafficDuration)
 	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+
+	if enablePacketCapture {
+		packetvalidationhelpers.StopCapture(t, ate, cs)
+	}
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -1265,7 +1277,9 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 	// Step 2: Deep packet inspection.
 	// Build per-scenario PacketValidation descriptors and delegate to
 	// packetvalidationhelpers.CaptureAndValidatePackets which uses gopacket.
-	ValidateCapturedPackets(t, ate, capVal, expectations)
+	if enablePacketCapture {
+		ValidateCapturedPackets(t, ate, capVal, expectations)
+	}
 }
 
 // ValidateCapturedPackets performs deep packet inspection on the captured packets using gopacket, validating against the expectations for each flow and scenario.
