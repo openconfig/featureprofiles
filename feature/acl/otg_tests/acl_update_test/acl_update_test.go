@@ -723,9 +723,10 @@ func validateTrafficPerACLConfig(t *testing.T, dut *ondatra.DUTDevice, ate *onda
 	passingFlowConfig.name += "-update"
 	t.Logf("Configuring %s and updating ACL on the fly", passingFlowConfig.name)
 	effectiveMaxDroppedPackets := maxDroppedPackets
-	factor := deviations.ACLUpdateDelayFactor(dut)
-	if factor > 0 {
-		effectiveMaxDroppedPackets *= factor
+	if dut.Vendor() == ondatra.ARISTA && strings.Contains(dut.Model(), "DCS-7050") {
+		t.Logf("Increasing maxDroppedPackets for %s", dut.Model())
+		lostTrafficTime := 0.3
+		effectiveMaxDroppedPackets = uint32(trafficRatePps * lostTrafficTime)
 	}
 	if err := configureFlow(t, top, passingFlowConfig); err != nil {
 		testErrors = append(testErrors, err)

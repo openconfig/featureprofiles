@@ -1968,12 +1968,6 @@ func ACLIcmpTypeCodeConfigurationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAclIcmpTypeCodeConfigurationUnsupported()
 }
 
-// ACLUpdateDelayFactor returns a multiplier for maxDroppedPackets during ACL update tests.
-// Arista: some devices take longer to update ACLs, requiring a higher packet drop tolerance.
-func ACLUpdateDelayFactor(dut *ondatra.DUTDevice) uint32 {
-	return lookupDUTDeviations(dut).GetAclUpdateDelayFactor()
-}
-
 // Ipv6RouterAdvertisementSuppressUnsupported returns true if devices do not support suppress router advertisement.
 func Ipv6RouterAdvertisementSuppressUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetIpv6RouterAdvertisementSuppressUnsupported()

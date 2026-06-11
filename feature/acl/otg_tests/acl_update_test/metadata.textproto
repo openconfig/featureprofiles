@@ -9,7 +9,6 @@ testbed:  TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
     vendor: ARISTA
-    hardware_model_regex: "DCS-728.*|DCS-75.*|DCS-78.*|ceos"
   }
   deviations: {
     interface_enabled: true
@@ -19,18 +18,3 @@ platform_exceptions: {
     acl_icmp_type_code_configuration_unsupported: true
   }
 }
-platform_exceptions: {
-  platform: {
-    vendor: ARISTA
-    hardware_model_regex: "DCS-7050.*"
-  }
-  deviations: {
-    interface_enabled: true
-    default_network_instance: "default"
-    acl_counters_enable_oc_unsupported: true
-    skip_acl_counters_verification_during_update: true
-    acl_icmp_type_code_configuration_unsupported: true
-    acl_update_delay_factor: 6
-  }
-}
-
