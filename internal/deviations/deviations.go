@@ -2232,3 +2232,8 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// Skip Authz verification of GnoiSystemPing rpc
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
