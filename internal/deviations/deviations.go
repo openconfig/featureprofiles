@@ -1880,6 +1880,15 @@ func NonStandardGRPCPort(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetNonStandardGrpcPort()
 }
 
+
+// ContainerzTLSInsecureSkipVerify returns true if the device's containerz
+// service presents a self-signed TLS certificate that cannot be verified
+// against a trusted CA. When true, dialContainer uses TLS with
+// InsecureSkipVerify. Default value is false.
+func ContainerzTLSInsecureSkipVerify(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzTlsInsecureSkipVerify()
+}
+
 // TemperatureSensorCheck returns true if the transceiver subcomponent should look for the temperature sensor
 func TemperatureSensorCheck(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetTemperatureSensorCheck()
