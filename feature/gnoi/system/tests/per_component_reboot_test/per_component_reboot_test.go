@@ -372,15 +372,44 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	}
 }
 
-// fpcFromPort extracts the FPC name from a Juniper port name.
-func fpcFromPort(t testing.TB, portName string) (string, error) {
+// fpcFromPort extracts the FPC (linecard) name from a port by traversing the component hierarchy.
+// It finds the hardware-port leaf of the interface, then traverses up the component tree
+// from the port component until it finds a component of type linecard.
+func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string, error) {
 	t.Helper()
-	re := regexp.MustCompile(`^[a-z]+-(\d+)/\d+/\d+(?::\d+)?$`)
-	match := re.FindStringSubmatch(portName)
-	if match == nil {
-		return "", fmt.Errorf("invalid port name format: %s", portName)
+
+	// Step 1: Get the hardware-port from the interface
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
 	}
-	return fmt.Sprintf("FPC%s", match[1]), nil
+
+	// Step 2: Traverse up the component tree looking for a linecard
+	currentComponent := hwPort
+	visited := make(map[string]bool)
+	for {
+		// Prevent infinite loops
+		if visited[currentComponent] {
+			return "", fmt.Errorf("circular dependency detected while traversing component tree from port: %s", hwPort)
+		}
+		visited[currentComponent] = true
+		// Get the component details
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
+		if !ok || comp == nil {
+			return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
+		}
+		// Check if this is a linecard component
+		if comp.GetType() == linecardType {
+			return currentComponent, nil
+		}
+		// Move to parent component
+		parent := comp.GetParent()
+		if parent == "" {
+			// Reached the top of the tree without finding a linecard
+			return "", fmt.Errorf("no linecard found in component hierarchy starting from port: %s", hwPort)
+		}
+		currentComponent = parent
+	}
 }
 
 func TestLinecardReboot(t *testing.T) {
@@ -414,7 +443,7 @@ func TestLinecardReboot(t *testing.T) {
 	if dut.Vendor() == ondatra.JUNIPER {
 		portName := dut.Port(t, "port1").Name()
 		var err error
-		lineCardToReboot, err = fpcFromPort(t, portName)
+		lineCardToReboot, err = fpcFromPort(t, dut, portName)
 		if err != nil {
 			t.Fatalf("Failed to get line card to reboot: %v", err)
 		}
