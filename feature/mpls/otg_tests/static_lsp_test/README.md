@@ -137,6 +137,73 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
 
+## PF-1.25.v6: Validate Static MPLS LSP configuration, label pushing, and forwarding using an IPv6 next-hop
+
+### Testbed Setup
+* Establish a connection between the DUT and the ATE using 2 ports.
+    * Port 1: Ingress port for standard IP traffic.
+    * Port 2: Egress port for MPLS encapsulated traffic.
+
+### Configuration
+* Configure IPv6 addresses on DUT Port 1 and Port 2, and their corresponding ATE ports.
+* Configure the ATE to emulate an IPv6 P-router on Port 2 to simulate the next-hop router in the MPLS path.
+* Configure a static MPLS LSP named `v6-static-lsp` on the DUT within the `default` network instance:
+    * Map the ingress Forwarding Equivalence Class (FEC) to match a specific destination subnet.
+    * Set the LSP ingress next-hop to point to the ATE's IPv6 address on Port 2.
+    * Configure the `push-label` operation to push MPLS label `100100`.
+
+#### Canonical OC Configuration
+```json
+{
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "mpls": {
+          "lsps": {
+            "static-lsps": {
+              "static-lsp": [
+                {
+                  "name": "v6-static-lsp",
+                  "ingress": {
+                    "config": {
+                      "next-hop": "2001:db8::2",
+                      "push-label": 100100
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### Telemetry and State Validation
+* Validate the operational state of the static LSP using gNMI. Subscribe to the state path and verify the `oper-status` reaches `UP`.
+* Verify IPv6 Neighbor Discovery (ND) resolution for the ATE IPv6 next-hop address on the egress interface by validating the `link-layer-address` is populated.
+
+### Traffic Execution
+* Start traffic generation from ATE Port 1.
+* Inject standard IP traffic destined for the specific subnet configured in the static LSP's FEC.
+
+### Pass/Fail Criteria
+* **Pass**:
+    * Telemetry successfully confirms the LSP `oper-status` is `UP`.
+    * Telemetry confirms the IPv6 neighbor MAC address is successfully resolved for the next-hop.
+    * ATE captures packets on Port 2 and validates that the DUT has correctly pushed the MPLS label `100100` onto the inner payload.
+    * The egress packets are correctly encapsulated in an Ethernet frame destined for the ATE's IPv6 next-hop MAC address.
+    * No packet drops are observed.
+* **Fail**:
+    * The static LSP remains in the `DOWN` state.
+    * The DUT fails to resolve the IPv6 neighbor next-hop address.
+    * Packets are forwarded as pure IP without the correct MPLS encapsulation, or the pushed label is incorrect.
+    * Traffic is dropped.
+
+
 ## Canonical OC
 
 ```json
@@ -224,6 +291,14 @@ TODO: Finalize and update the below paths after the review and testing on any ve
 
 ```yaml
 paths:
+  # Static LSP Paths
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/next-hop:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/ingress/config/push-label:
+  /network-instances/network-instance/mpls/lsps/static-lsps/static-lsp/state/oper-status:
+
+  # IPv6 Neighbor paths
+  /interfaces/interface/subinterfaces/subinterface/ipv6/neighbors/neighbor/state/link-layer-address:
+
   # Telemetry for MPLSoGUE decap rule   
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-pkts:
   /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/state/matched-octets:
@@ -288,4 +363,3 @@ rpcs:
 ## Minimum DUT platform requirement
 
 FFF
-

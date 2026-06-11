@@ -103,6 +103,185 @@ Verify:
 * Verify that MACsec sessions are up
 * No packet loss while forwarding at line rate
 
+## PF-1.17.6: Configure and verify IPv6 MPLS GRE/UDP encapsulation over links encrypted with MACsec
+
+### 1. Test Setup
+* Utilize the topology defined in the Test environment setup, connecting a DUT and an ATE with at least two MACsec-capable ports.
+* Before enabling MACsec and policy forwarding, verify the base IPv6 network topology and ping reachability between the ATE and DUT interfaces.
+
+### 2. Configuration
+* Configure MACsec on the DUT interfaces facing the ATE (e.g., ATE Ports 1, 2):
+  * Enable MACsec via gNMI Set on `/macsec/interfaces/interface/config/enable` to `true`.
+  * Configure the MKA (MACsec Key Agreement) protocol with a Pre-Shared Key (PSK) under `/macsec/interfaces/interface/mka/policies/policy`.
+* Configure Policy Forwarding on the DUT ingress interface:
+  * Create a PBR rule to match incoming IPv6 traffic from the ATE.
+  * Configure the action to encapsulate the matched traffic with an **IPv6 outer header**, GRE/UDP headers, and an MPLS stack.
+  * Apply this policy using gNMI Set at `/network-instances/network-instance/policy-forwarding/policies/policy` and attach it to the ingress interfaces.
+
+#### Canonical OC Configuration
+```json
+{
+  "macsec": {
+    "interfaces": {
+      "interface": [
+        {
+          "name": "Ethernet1/1",
+          "config": {
+            "name": "Ethernet1/1",
+            "enable": true
+          },
+          "mka": {
+            "config": {
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "interface-id": "Ethernet1/1",
+                "config": {
+                  "interface-id": "Ethernet1/1",
+                  "apply-forwarding-policy": "IPV6_MPLS_GRE_UDP_ENCAP"
+                }
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
+                "config": {
+                  "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
+                  "type": "PBR_POLICY"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### 3. Verification
+* Verify MACsec session establishment by retrieving `/macsec/interfaces/interface/mka/state/session-state` (Expected JSON value: `"SECURED"`).
+* Subscribe to MACsec encryption counters via gNMI Subscribe:
+  * TX encrypted packets: `/macsec/interfaces/interface/scsa-tx/state/encrypted-pkts`
+  * RX decrypted packets: `/macsec/interfaces/interface/scsa-rx/state/decrypted-pkts`
+* Start ATE traffic matching the configured encapsulation policy.
+
+### 4. Expected Telemetry & Pass/Fail Criteria
+* **Pass Criteria 1:** The MACsec session establishes and its state transitions to `SECURED` without flapping during the test.
+* **Pass Criteria 2:** ATE captures show fully secured L2 payloads on the wire between the DUT and ATE. Once decrypted by the receiving ATE port, the inner packet structure must strictly contain the **IPv6 outer header**, GRE/UDP headers, and MPLS stack payload.
+* **Pass Criteria 3:** The `encrypted-pkts` telemetry counter on the DUT increments synchronously and proportionally with the ATE TX packet rate.
+
+## PF-1.17.v6: Validate MPLS over GRE over UDP over IPv6 encapsulation across a MACsec encrypted link.
+
+### 1. Test Setup
+* Connect the DUT to the ATE using at least two distinct ports:
+  * **DUT Port 1** connected to ATE Port 1 (acting as Cleartext Ingress).
+  * **DUT Port 2** connected to ATE Port 2 (acting as MACsec Egress).
+* Ensure basic port administrative state is up.
+
+### 2. Configuration
+* Configure IPv6 addressing on both DUT Port 1 and DUT Port 2, ensuring reachability with the connected ATE ports.
+* Configure MACsec on the DUT egress interface (Port 2) using gNMI Set:
+  * Enable MACsec via `/macsec/interfaces/interface/config/enable`.
+  * Establish the Secure Connectivity Association by configuring the Connectivity Association Key (CAK) and Connectivity Association Key Name (CKN).
+  * Enable encryption for the interface by setting `/macsec/interfaces/interface/config/encryption-enable` to `true`.
+* Configure Policy-Based Routing (PBR) on the DUT ingress interface (Port 1) using gNMI Set:
+  * Create a PBR policy under `/network-instances/network-instance/policy-forwarding/policies/policy` to encapsulate incoming cleartext traffic into MPLS over GRE over UDP over an **IPv6 outer header**.
+  * Set the forwarding action to route this encapsulated traffic out of DUT Port 2.
+  * Attach the policy to the ingress interface (Port 1).
+
+#### Canonical OC Configuration
+```json
+{
+  "macsec": {
+    "interfaces": {
+      "interface": [
+        {
+          "name": "Port2",
+          "config": {
+            "name": "Port2",
+            "enable": true,
+            "encryption-enable": true
+          },
+          "mka": {
+            "config": {
+              "key-chain": "keychain1",
+              "mka-policy": "must_secure"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "name": "default",
+        "policy-forwarding": {
+          "interfaces": {
+            "interface": [
+              {
+                "interface-id": "Port1",
+                "config": {
+                  "interface-id": "Port1",
+                  "apply-forwarding-policy": "IPV6_MPLS_GRE_UDP_ENCAP"
+                }
+              }
+            ]
+          },
+          "policies": {
+            "policy": [
+              {
+                "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
+                "config": {
+                  "policy-id": "IPV6_MPLS_GRE_UDP_ENCAP",
+                  "type": "PBR_POLICY"
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
+```
+
+### 3. Telemetry and Traffic Execution
+* Use gNMI Subscribe to monitor the MACsec operational state at `/macsec/interfaces/interface/state/oper-status`. The expected value is `UP`.
+* Subscribe to MACsec encryption telemetry counters:
+  * `/macsec/interfaces/interface/sa/state/out-pkts-encrypted`
+  * `/macsec/interfaces/interface/sa/state/out-octets-encrypted`
+* Execute traffic from the ATE:
+  * Generate standard IPv4 and IPv6 payload traffic from ATE Port 1 into DUT Port 1 at a specific frame rate.
+  * The DUT must match the ingress traffic, encapsulate it with an IPv6 outer header along with GRE, UDP, and MPLS headers, and encrypt the entire resulting frame using MACsec before transmitting it out of Port 2.
+
+### 4. Expected Telemetry & Pass/Fail Criteria
+* **Pass:** 
+  * The ATE on Port 2 successfully authenticates and decrypts the incoming MACsec frames.
+  * Upon decryption by the ATE, the inner packet structure perfectly matches the expected MPLS over GRE over UDP over IPv6 encapsulation.
+  * The DUT MACsec telemetry counter for `out-pkts-encrypted` accurately matches the total number of packets injected by the ATE.
+* **Fail:** 
+  * The DUT fails to establish a MACsec session on Port 2 (the `oper-status` does not transition to `UP`).
+  * Packets are transmitted out of Port 2 in cleartext instead of being encrypted.
+  * The outer IP header inside the MACsec payload is not IPv6.
+  * The encryption telemetry counters do not increment appropriately.
+
 ## Definitions
   * *must-secure:* All non-macsec-control packets must be encrypted. On transmit (tx), packets are dropped if encryption is not used or if keys have expired. On receive (rx), unencrypted packets that should be secure or encrypted with expired keys are dropped.
   * *should-secure:* Unencrypted packets are permitted. On receive (rx), it's recommended but not required to drop unencrypted packets if a macsec session is active. On transmit (tx), it's recommended but not required to send unencrypted packets if macsec session negotiation has failed.
@@ -256,6 +435,18 @@ paths:
  /keychains/keychain/keys/key/send-lifetime/config/send-and-receive:
  /keychains/keychain/keys/key/receive-lifetime/config/start-time:
  /keychains/keychain/keys/key/receive-lifetime/config/end-time:
+ /macsec/interfaces/interface/mka/state/session-state:
+ /macsec/interfaces/interface/scsa-tx/state/encrypted-pkts:
+ /macsec/interfaces/interface/scsa-rx/state/decrypted-pkts:
+ /network-instances/network-instance/policy-forwarding/policies/policy/config/policy-id:
+ /network-instances/network-instance/policy-forwarding/policies/policy/config/type:
+ /network-instances/network-instance/policy-forwarding/interfaces/interface/config/interface-id:
+ /network-instances/network-instance/policy-forwarding/interfaces/interface/config/apply-forwarding-policy:
+ /macsec/interfaces/interface/state/oper-status:
+ /macsec/interfaces/interface/state/encryption-enable:
+ /macsec/interfaces/interface/config/encryption-enable:
+ /macsec/interfaces/interface/sa/state/out-pkts-encrypted:
+ /macsec/interfaces/interface/sa/state/out-octets-encrypted:
 
 #TODO: Add following OC paths
 #/macsec/interfaces/interface/state/status:
