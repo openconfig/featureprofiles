@@ -87,6 +87,119 @@ func InvalidCredentialSets() []invalidCredentials {
 	}
 }
 
+// verifySessionAuthn verifies session status, authn details, user identity, and timestamp.
+// Returns false if authn is nil (caller should skip further checks).
+func verifySessionAuthn(t *testing.T, record *acctzpb.RecordResponse, attemptedUsernames map[string]bool, requestTimestamp *timestamppb.Timestamp) bool {
+	t.Helper()
+	sessionInfo := record.GetSessionInfo()
+
+	if sessionInfo.GetStatus() != acctzpb.SessionInfo_SESSION_STATUS_LOGIN {
+		t.Errorf("Record status is not LOGIN, got: %v, Record: %s", sessionInfo.GetStatus(), prettyPrint(record))
+	}
+
+	authn := sessionInfo.GetAuthn()
+	if authn == nil {
+		t.Errorf("Authn detail is nil for record: %s", prettyPrint(record))
+		return false
+	}
+	validAuthnTypes := map[acctzpb.AuthnDetail_AuthnType]bool{
+		acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD: true,
+		acctzpb.AuthnDetail_AUTHN_TYPE_SSHKEY:   true,
+		acctzpb.AuthnDetail_AUTHN_TYPE_SSHCERT:  true,
+	}
+	if !validAuthnTypes[authn.GetType()] {
+		t.Errorf("authn.type is %v, want PASSWORD, SSHKEY, or SSHCERT for SSH auth failure: %s", authn.GetType(), prettyPrint(record))
+	}
+	if authn.GetStatus() != acctzpb.AuthnDetail_AUTHN_STATUS_FAIL {
+		t.Errorf("Authn status is not FAIL, got: %v, Record: %s", authn.GetStatus(), prettyPrint(record))
+	}
+	if authn.GetCause() == "" {
+		t.Errorf("Authn cause is not populated for authentication failure record: %s", prettyPrint(record))
+	}
+
+	if identity := sessionInfo.GetUser().GetIdentity(); !attemptedUsernames[identity] {
+		t.Errorf("user.identity %q does not match any attempted username %v: %s", identity, attemptedUsernames, prettyPrint(record))
+	}
+
+	if !record.Timestamp.AsTime().After(requestTimestamp.AsTime()) {
+		t.Errorf("Record timestamp %v is not after request timestamp %v, Record: %s", record.Timestamp.AsTime(), requestTimestamp.AsTime(), prettyPrint(record))
+	}
+	return true
+}
+
+// verifyNetworkFields verifies ip_proto, local/remote address and port, and channel_id.
+func verifyNetworkFields(t *testing.T, record *acctzpb.RecordResponse, expectedRemoteAddr string, expectedRemotePort uint32) {
+	t.Helper()
+	sessionInfo := record.GetSessionInfo()
+
+	if ipProto := sessionInfo.GetIpProto(); ipProto != 6 {
+		t.Errorf("ip_proto is %d, want 6 (TCP) for SSH: %s", ipProto, prettyPrint(record))
+	}
+
+	if la := sessionInfo.GetLocalAddress(); la != "" {
+		if la != expectedRemoteAddr {
+			t.Errorf("local_address is %q (DUT), expected SSH target %q", la, expectedRemoteAddr)
+		}
+	} else {
+		t.Errorf("local_address not populated by DUT")
+	}
+	if lp := sessionInfo.GetLocalPort(); lp != 0 {
+		if lp != expectedRemotePort {
+			t.Errorf("local_port is %d (DUT), expected SSH port %d", lp, expectedRemotePort)
+		}
+	} else {
+		t.Errorf("local_port not populated by DUT")
+	}
+
+	if ra := sessionInfo.GetRemoteAddress(); ra == "" {
+		t.Errorf("remote_address not populated by DUT")
+	} else {
+		t.Logf("remote_address=%q (client IP)", ra)
+	}
+	if rp := sessionInfo.GetRemotePort(); rp == 0 {
+		t.Errorf("remote_port not populated by DUT")
+	} else {
+		t.Logf("remote_port=%d (client port)", rp)
+	}
+
+	if channelID := sessionInfo.GetChannelId(); channelID != "" && channelID != "0" {
+		t.Errorf("channel_id is %q, want 0 or empty for SSH: %s", channelID, prettyPrint(record))
+	}
+}
+
+// verifyServiceRequest verifies the service_request field of the record.
+func verifyServiceRequest(t *testing.T, record *acctzpb.RecordResponse) {
+	t.Helper()
+	switch sr := record.GetServiceRequest().(type) {
+	case *acctzpb.RecordResponse_CmdService:
+		if sr.CmdService.GetServiceType() == acctzpb.CommandService_CMD_SERVICE_TYPE_UNSPECIFIED {
+			t.Errorf("CommandService service_type is unspecified for record: %s", prettyPrint(record))
+		}
+		if st := sr.CmdService.GetServiceType(); st != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI {
+			t.Errorf("CmdService service_type is %v, want CMD_SERVICE_TYPE_CLI for SSH auth failure: %s", st, prettyPrint(record))
+		}
+		if sr.CmdService.GetCmd() != "" {
+			t.Errorf("CmdService cmd should be omitted for auth failure record, got %q: %s", sr.CmdService.GetCmd(), prettyPrint(record))
+		}
+		if len(sr.CmdService.GetCmdArgs()) != 0 {
+			t.Errorf("CmdService cmd_args should be omitted for auth failure record: %s", prettyPrint(record))
+		}
+		if authz := sr.CmdService.GetAuthz(); authz != nil && authz.GetStatus() != acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED {
+			t.Errorf("CmdService authz should be omitted for auth failure record (status=%v): %s", authz.GetStatus(), prettyPrint(record))
+		}
+	case *acctzpb.RecordResponse_GrpcService:
+		if sr.GrpcService.GetServiceType() == acctzpb.GrpcService_GRPC_SERVICE_TYPE_UNSPECIFIED {
+			t.Errorf("GrpcService service_type is unspecified for record: %s", prettyPrint(record))
+		}
+		t.Errorf("Got GrpcService record for SSH auth failure (unexpected): %s", prettyPrint(record))
+		if authz := sr.GrpcService.GetAuthz(); authz != nil && authz.GetStatus() != acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED {
+			t.Errorf("GrpcService authz should be omitted for auth failure record (status=%v): %s", authz.GetStatus(), prettyPrint(record))
+		}
+	default:
+		t.Logf("Record has no service_request set (platform-dependent for auth failures)")
+	}
+}
+
 // parseHostPort splits a target "host:port" and returns the host and numeric port.
 func parseHostPort(t *testing.T, target string) (string, uint32) {
 	t.Helper()
@@ -339,148 +452,18 @@ func TestAccountzAuthenFailMulti(t *testing.T) {
 
 	// Verify each authentication failure record.
 	for _, record := range gotRecords {
-		sessionInfo := record.GetSessionInfo()
-
-		// Verify session_info.status is LOGIN for multi-transaction services.
-		if sessionInfo.GetStatus() != acctzpb.SessionInfo_SESSION_STATUS_LOGIN {
-			t.Errorf("Record status is not LOGIN, got: %v, Record: %s",
-				sessionInfo.GetStatus(), prettyPrint(record))
-		}
-
-		// Verify authn is populated.
-		authn := sessionInfo.GetAuthn()
-		if authn == nil {
-			t.Errorf("Authn detail is nil for record: %s", prettyPrint(record))
+		if !verifySessionAuthn(t, record, attemptedUsernames, requestTimestamp) {
 			continue
 		}
+		verifyNetworkFields(t, record, expectedRemoteAddr, expectedRemotePort)
 
-		// Verify authn.type matches the authentication method used.
-		// For SSH auth failures we expect PASSWORD (password-based) or SSHKEY/SSHCERT (key-based).
-		validAuthnTypes := map[acctzpb.AuthnDetail_AuthnType]bool{
-			acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD: true,
-			acctzpb.AuthnDetail_AUTHN_TYPE_SSHKEY:   true,
-			acctzpb.AuthnDetail_AUTHN_TYPE_SSHCERT:  true,
-		}
-		if !validAuthnTypes[authn.GetType()] {
-			t.Errorf("authn.type is %v, want PASSWORD, SSHKEY, or SSHCERT for SSH auth failure: %s",
-				authn.GetType(), prettyPrint(record))
-		}
-
-		// Verify authn.status is FAIL.
-		if authn.GetStatus() != acctzpb.AuthnDetail_AUTHN_STATUS_FAIL {
-			t.Errorf("Authn status is not FAIL, got: %v, Record: %s",
-				authn.GetStatus(), prettyPrint(record))
-		}
-
-		// Verify authn.cause is populated with reason(s) for the failure.
-		if authn.GetCause() == "" {
-			t.Errorf("Authn cause is not populated for authentication failure record: %s",
-				prettyPrint(record))
-		}
-
-		// Verify user.identity matches the username sent to authenticate to the DUT.
-		// Note: user.privilege_level should be omitted; the acctz proto UserDetail has no such field.
-		identity := sessionInfo.GetUser().GetIdentity()
-		if !attemptedUsernames[identity] {
-			t.Errorf("user.identity %q does not match any attempted username %v: %s",
-				identity, attemptedUsernames, prettyPrint(record))
-		}
-
-		// Verify timestamp is after request timestamp.
-		timestamp := record.Timestamp.AsTime()
-		if !timestamp.After(requestTimestamp.AsTime()) {
-			t.Errorf("Record timestamp %v is not after request timestamp %v, Record: %s",
-				timestamp, requestTimestamp.AsTime(), prettyPrint(record))
-		}
-
-		// Verify ip_proto is 6 (TCP) for SSH.
-		if ipProto := sessionInfo.GetIpProto(); ipProto != 6 {
-			t.Errorf("ip_proto is %d, want 6 (TCP) for SSH: %s", ipProto, prettyPrint(record))
-		}
-
-		// Verify local_address and local_port. On Arista, local = DUT (server), remote = client.
-		if la := sessionInfo.GetLocalAddress(); la != "" {
-			if la != expectedRemoteAddr {
-				t.Errorf("local_address is %q (DUT), expected SSH target %q", la, expectedRemoteAddr)
-			}
-		} else {
-			t.Errorf("local_address not populated by DUT")
-		}
-		if lp := sessionInfo.GetLocalPort(); lp != 0 {
-			if lp != expectedRemotePort {
-				t.Errorf("local_port is %d (DUT), expected SSH port %d", lp, expectedRemotePort)
-			}
-		} else {
-			t.Errorf("local_port not populated by DUT")
-		}
-
-		// Verify remote_address and remote_port are populated. On Arista, these represent
-		// the client (remote from server's perspective), not the SSH target.
-		if ra := sessionInfo.GetRemoteAddress(); ra == "" {
-			t.Errorf("remote_address not populated by DUT")
-		} else {
-			t.Logf("remote_address=%q (client IP)", ra)
-		}
-		if rp := sessionInfo.GetRemotePort(); rp == 0 {
-			t.Errorf("remote_port not populated by DUT")
-		} else {
-			t.Logf("remote_port=%d (client port)", rp)
-		}
-
-		// Verify channel_id is 0 for SSH.
-		if channelID := sessionInfo.GetChannelId(); channelID != "" && channelID != "0" {
-			t.Errorf("channel_id is %q, want 0 or empty for SSH: %s", channelID, prettyPrint(record))
-		}
-
-		// Log tty; its presence depends on platform and access method.
+		sessionInfo := record.GetSessionInfo()
 		t.Logf("tty=%q (platform-dependent, not verified)", sessionInfo.GetTty())
-
-		// Log task_ids if populated (platform-specific).
 		if taskIDs := record.GetTaskIds(); len(taskIDs) > 0 {
 			t.Logf("task_ids=%v (platform-specific)", taskIDs)
 		}
 
-		// Verify service_type is set, matches the service used (SSH → CLI), and
-		// all other service fields are omitted for auth failures.
-		switch sr := record.GetServiceRequest().(type) {
-		case *acctzpb.RecordResponse_CmdService:
-			if sr.CmdService.GetServiceType() == acctzpb.CommandService_CMD_SERVICE_TYPE_UNSPECIFIED {
-				t.Errorf("CommandService service_type is unspecified for record: %s", prettyPrint(record))
-			}
-			// SSH auth failures should produce CMD_SERVICE_TYPE_CLI records.
-			if st := sr.CmdService.GetServiceType(); st != acctzpb.CommandService_CMD_SERVICE_TYPE_CLI {
-				t.Errorf("CmdService service_type is %v, want CMD_SERVICE_TYPE_CLI for SSH auth failure: %s",
-					st, prettyPrint(record))
-			}
-			// For auth failure, no command was executed: cmd and cmd_args must be omitted.
-			if sr.CmdService.GetCmd() != "" {
-				t.Errorf("CmdService cmd should be omitted for auth failure record, got %q: %s",
-					sr.CmdService.GetCmd(), prettyPrint(record))
-			}
-			if len(sr.CmdService.GetCmdArgs()) != 0 {
-				t.Errorf("CmdService cmd_args should be omitted for auth failure record: %s",
-					prettyPrint(record))
-			}
-			// Authz is not reached on auth failure; all authorization fields should be omitted.
-			if authz := sr.CmdService.GetAuthz(); authz != nil && authz.GetStatus() != acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED {
-				t.Errorf("CmdService authz should be omitted for auth failure record (status=%v): %s",
-					authz.GetStatus(), prettyPrint(record))
-			}
-		case *acctzpb.RecordResponse_GrpcService:
-			if sr.GrpcService.GetServiceType() == acctzpb.GrpcService_GRPC_SERVICE_TYPE_UNSPECIFIED {
-				t.Errorf("GrpcService service_type is unspecified for record: %s", prettyPrint(record))
-			}
-			// SSH auth failures should not produce gRPC service records.
-			t.Errorf("Got GrpcService record for SSH auth failure (unexpected): %s", prettyPrint(record))
-			// Authz is not reached on auth failure; all authorization fields should be omitted.
-			if authz := sr.GrpcService.GetAuthz(); authz != nil && authz.GetStatus() != acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED {
-				t.Errorf("GrpcService authz should be omitted for auth failure record (status=%v): %s",
-					authz.GetStatus(), prettyPrint(record))
-			}
-		default:
-			t.Logf("Record has no service_request set (platform-dependent for auth failures)")
-		}
-
+		verifyServiceRequest(t, record)
 		t.Logf("Processed authentication failure record: %s", prettyPrint(record))
 	}
 }
