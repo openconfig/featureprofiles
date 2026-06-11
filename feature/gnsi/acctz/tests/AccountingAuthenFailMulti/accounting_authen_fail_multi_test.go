@@ -401,30 +401,30 @@ func TestAccountzAuthenFailMulti(t *testing.T) {
 		// Verify local_address and local_port. On Arista, local = DUT (server), remote = client.
 		if la := sessionInfo.GetLocalAddress(); la != "" {
 			if la != expectedRemoteAddr {
-				t.Logf("local_address is %q (DUT), expected SSH target %q: platform-dependent interpretation", la, expectedRemoteAddr)
+				t.Errorf("local_address is %q (DUT), expected SSH target %q", la, expectedRemoteAddr)
 			}
 		} else {
-			t.Logf("local_address not populated by DUT (platform-dependent)")
+			t.Errorf("local_address not populated by DUT")
 		}
 		if lp := sessionInfo.GetLocalPort(); lp != 0 {
 			if lp != expectedRemotePort {
-				t.Logf("local_port is %d (DUT), expected SSH port %d: platform-dependent interpretation", lp, expectedRemotePort)
+				t.Errorf("local_port is %d (DUT), expected SSH port %d", lp, expectedRemotePort)
 			}
 		} else {
-			t.Logf("local_port not populated by DUT (platform-dependent)")
+			t.Errorf("local_port not populated by DUT")
 		}
 
 		// Verify remote_address and remote_port are populated. On Arista, these represent
 		// the client (remote from server's perspective), not the SSH target.
-		if ra := sessionInfo.GetRemoteAddress(); ra != "" {
+		if ra := sessionInfo.GetRemoteAddress(); ra == "" {
+			t.Errorf("remote_address not populated by DUT")
+		} else {
 			t.Logf("remote_address=%q (client IP)", ra)
-		} else {
-			t.Logf("remote_address not populated by DUT (platform-dependent)")
 		}
-		if rp := sessionInfo.GetRemotePort(); rp != 0 {
-			t.Logf("remote_port=%d (client port)", rp)
+		if rp := sessionInfo.GetRemotePort(); rp == 0 {
+			t.Errorf("remote_port not populated by DUT")
 		} else {
-			t.Logf("remote_port not populated by DUT (platform-dependent)")
+			t.Logf("remote_port=%d (client port)", rp)
 		}
 
 		// Verify channel_id is 0 for SSH.
