@@ -131,7 +131,6 @@ const (
 	TransitVRF222PrefixStart = "101.0.0.1"
 	RepairNHPrefixStart      = "102.0.0.1"
 	RepairIPv4PrefixStart    = "103.0.0.1"
-	EncapNHTunnelStart       = "198.18.128.1"
 
 	// Common prefix step used across multiple VRF builders.
 	CommonPrefixStep     = "0.0.0.1"
@@ -734,7 +733,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
-	tunnelDsts, err := iputil.GenerateIPsWithStep(EncapNHTunnelStart, numUniqueEncapNH, CommonPrefixStep)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numUniqueEncapNH, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
