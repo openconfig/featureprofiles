@@ -7,6 +7,23 @@ description: "Mixed OpenConfig/CLI Origin"
 testbed: TESTBED_DUT_ATE_2LINKS
 platform_exceptions: {
   platform: {
+    vendor: ARISTA
+    hardware_model_regex: "DCS-728.*|DCS-75.*|DCS-78.*"
+  }
+  deviations: {
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+    hardware_model_regex: "DCS-7050.*"
+  }
+  deviations: {
+    qos_uc_tx_queue: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: NOKIA
   }
   deviations: {

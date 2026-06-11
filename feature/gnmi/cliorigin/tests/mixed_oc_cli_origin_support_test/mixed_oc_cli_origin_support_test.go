@@ -22,6 +22,7 @@ import (
 
 	"github.com/openconfig/ondatra/gnmi/oc"
 
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -175,8 +176,11 @@ func getTestcase(t *testing.T, dut *ondatra.DUTDevice) testCase {
 				t.Fatalf("Failed to create CLI ygnmi query: %v", err)
 			}
 
-			nonOCConfig := `qos traffic-class 0 name target-group-TEST
-qos tx-queue 0 name TEST`
+			txQueueCmd := "qos tx-queue 0 name TEST"
+			if deviations.QosUcTxQueue(dut) {
+				txQueueCmd = "qos uc-tx-queue 0 name TEST"
+			}
+			nonOCConfig := "qos traffic-class 0 name target-group-TEST\n" + txQueueCmd
 
 			gnmi.BatchUpdate(mixedQuery, nonOCConfigPath, nonOCConfig)
 		}
