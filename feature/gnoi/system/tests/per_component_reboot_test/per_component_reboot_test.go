@@ -379,10 +379,10 @@ func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string,
 	t.Helper()
 
 	// Step 1: Get the hardware-port from the interface
-    hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
-    if !ok || hwPort == "" {
-        return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
-    }
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		return "", fmt.Errorf("failed to get hardware-port for interface: %s", portName)
+	}
 
 	// Step 2: Traverse up the component tree looking for a linecard
 	currentComponent := hwPort
@@ -394,12 +394,12 @@ func fpcFromPort(t testing.TB, dut *ondatra.DUTDevice, portName string) (string,
 		}
 		visited[currentComponent] = true
 		// Get the component details
-        comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
-        if !ok || comp == nil {
-            return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
-        }
+		comp, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(currentComponent).State()).Val()
+		if !ok || comp == nil {
+			return "", fmt.Errorf("failed to get component info for: %s", currentComponent)
+		}
 		// Check if this is a linecard component
-        if comp.GetType() == linecardType {
+		if comp.GetType() == linecardType {
 			return currentComponent, nil
 		}
 		// Move to parent component
