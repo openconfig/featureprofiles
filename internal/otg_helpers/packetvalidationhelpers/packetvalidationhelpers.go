@@ -265,6 +265,9 @@ func validateIPv4Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv4); ipLayer != nil {
 			ip, _ := ipLayer.(*layers.IPv4)
+			if packetVal.IPv4Layer.DstIP != "" && ip.DstIP.String() != packetVal.IPv4Layer.DstIP {
+				continue
+			}
 			if !packetVal.IPv4Layer.SkipProtocolCheck {
 				if uint32(ip.Protocol) != packetVal.IPv4Layer.Protocol {
 					return fmt.Errorf("packet is not encapsulated properly. Encapsulated protocol is: %d, expected: %d", ip.Protocol, packetVal.IPv4Layer.Protocol)
@@ -298,7 +301,9 @@ func validateIPv6Header(t *testing.T, packetSource *gopacket.PacketSource, packe
 	for packet := range packetSource.Packets() {
 		if ipLayer := packet.Layer(layers.LayerTypeIPv6); ipLayer != nil {
 			ipv6, _ := ipLayer.(*layers.IPv6)
-
+			if packetVal.IPv6Layer.DstIP != "" && ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
+				continue
+			}
 			if packetVal.IPv6Layer.DstIP != "" {
 				if ipv6.DstIP.String() != packetVal.IPv6Layer.DstIP {
 					return fmt.Errorf("IPv6 Dst IP is not set properly. Expected: %s, Actual: %s", packetVal.IPv6Layer.DstIP, ipv6.DstIP)

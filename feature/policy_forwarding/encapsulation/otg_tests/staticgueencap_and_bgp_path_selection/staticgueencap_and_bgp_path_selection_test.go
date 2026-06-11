@@ -1018,25 +1018,48 @@ func testTrafficMigration(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATE
 }
 
 func testDecapTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDevice, otgConfig gosnappi.Config) {
-
 	t.Log("Validate GUE Decapsulation with v4 traffic")
-	decapInner := *innerGUEIPLayerIPv4
-	decapInner.SkipProtocolCheck = true
-	decapValidation.IPv4Layer = &decapInner
 
-	if err := validatePacket(t, ate, decapValidation); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	} else {
-		t.Log("GUE decapsulated packets are received")
+	// Map of destination IP to expected shifted DSCP (TOS)
+	v4DecapExpectations := map[string]uint32{
+		ate1UserPrefixesV4List[0]: expectedDscpValue["BE1"], // 0
+		ate1UserPrefixesV4List[1]: expectedDscpValue["AF1"], // 40
+		ate1UserPrefixesV4List[2]: expectedDscpValue["AF2"], // 72
+		ate1UserPrefixesV4List[3]: expectedDscpValue["AF3"], // 104
+		ate1UserPrefixesV4List[4]: expectedDscpValue["AF4"], // 136
 	}
 
-	decapInnerv6 := *innerGUEIPLayerIPv6
-	decapInnerv6.NextHeader = 0
-	decapValidationv6.IPv6Layer = &decapInnerv6
-	if err := validatePacket(t, ate, decapValidationv6); err != nil {
-		t.Errorf("capture and validatePackets failed (): %q", err)
-	} else {
-		t.Log("GUE decapsulated packets are received")
+	for dstIP, expectedTos := range v4DecapExpectations {
+		decapInner := *innerGUEIPLayerIPv4
+		decapInner.SkipProtocolCheck = true
+		decapInner.Tos = uint8(expectedTos)
+		decapInner.DstIP = dstIP // Trigger the new DstIP filtering in helper
+
+		decapValidation.IPv4Layer = &decapInner
+		if err := validatePacket(t, ate, decapValidation); err != nil {
+			t.Errorf("DSCP preservation validation failed for DstIP %s (expected TOS %d): %v", dstIP, expectedTos, err)
+		}
+	}
+
+	v6DecapExpectations := map[string]uint32{
+		ate1UserPrefixesV6List[0]: dscpValue["BE1"], // 0
+		ate1UserPrefixesV6List[1]: dscpValue["AF1"], // 40
+		ate1UserPrefixesV6List[2]: dscpValue["AF2"], // 72
+		ate1UserPrefixesV6List[3]: dscpValue["AF3"], // 104
+		ate1UserPrefixesV6List[4]: dscpValue["AF4"], // 136
+	}
+	for dstIP, expectedTos := range v6DecapExpectations {
+		decapInnerv6 := *innerGUEIPLayerIPv6
+		decapInnerv6.NextHeader = 0
+		decapInnerv6.TrafficClass = uint8(expectedTos)
+		decapInnerv6.DstIP = dstIP // Trigger the new DstIP filtering in helper
+
+		decapValidationv6.IPv6Layer = &decapInnerv6
+		if err := validatePacket(t, ate, decapValidationv6); err != nil {
+			t.Errorf("DSCP preservation validation failed for DstIP %s (expected TOS %d): %v", dstIP, expectedTos, err)
+		} else {
+			t.Log("GUE decapsulated packets are received")
+		}
 	}
 }
 
@@ -1058,6 +1081,8 @@ func TestStaticGue(t *testing.T) {
 	t.Logf("Configuring Hardware Init")
 	configureHardwareInit(t, dut)
 
+	configureLoopback(t, dut)
+
 	for _, cfg := range otgBGPConfig {
 		dutPort := dut.Port(t, cfg.port)
 		portObj := otgConfig.Ports().Add().SetName(cfg.port)
@@ -1073,7 +1098,6 @@ func TestStaticGue(t *testing.T) {
 		bgpCreateNbr(t, dutAS, dut, cfg.bgpCfg)
 	}
 
-	configureLoopback(t, dut)
 	configureStaticRoute(t, dut)
 	configureISIS(t, dut)
 	configureGueEncap(t, dut)
@@ -1652,7 +1676,7 @@ func testBaselineTraffic(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATED
 	cfgplugins.VerifyDUTBGPEstablished(t, dut)
 
 	// Validating no prefixes are exchanged over the IBGP peering between $ATE2_C.IBGP.v6 and $DUT_lo0.v6
-	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[2].IPv6, false, 0, 0)
+	validatePrefixes(t, dut, otgBGPConfig[1].otgPortData[1].IPv6, false, 0, 0)
 
 	sendTrafficCapture(t, ate, []string{"all"})
 
