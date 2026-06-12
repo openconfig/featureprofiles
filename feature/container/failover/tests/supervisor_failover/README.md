@@ -50,7 +50,7 @@ This is the tarball that will be used during tests.
 
 1.  **Load Image:** Establish a gNOI connection to the primary control processor and load `<IMAGE_NAME>` using `gnoi.Containerz.Deploy`.
 2.  **Verify Load:** Call `gnoi.Containerz.ListContainer` (or list image RPC) to verify `<IMAGE_NAME>` is present on the device.
-3.  **Identify Standby:** Query the gNMI path `/system/state/control-processor` to identify the standby control processor and verify its status is `READY`.
+3.  **Identify Standby:** Query the gNMI paths `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby control processor and verify it is ready.
 4.  **Trigger Failover:** Trigger a switchover to the standby control processor using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to stabilize.
 5.  **Verify Persistence:** Establish a new gNOI connection to the newly active primary control processor. Call `gnoi.Containerz.ListContainer` to verify the image persisted.
 
@@ -72,7 +72,7 @@ This is the tarball that will be used during tests.
 2.  **Deploy Image:** Using `gnoi.Containerz.Deploy`, load `<IMAGE_NAME>`.
 3.  **Start Container:** Using `gnoi.Containerz.StartContainer`, start a container that mounts `<VOLUME_NAME>`.
 4.  **Verify Setup:** Call `gnoi.Containerz.ListContainer` and `ListVolume` to verify the container is in a `RUNNING` state and the volume exists.
-5.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+5.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 6.  **Trigger Failover:** Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
 7.  **Verify Recovery:** After switchover, call `ListContainer` and `ListVolume` on the new primary.
 
@@ -92,7 +92,7 @@ This is the tarball that will be used during tests.
 
 1.  **Load and Remove Image:** Load `<IMAGE_NAME>`, then remove it using `gnoi.Containerz.Deploy` with the `image_delete` option (or corresponding remove RPC).
 2.  **Verify Removal:** Call `gnoi.Containerz.ListContainer` and verify the image no longer exists.
-3.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 4.  **Trigger Failover:** Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
 5.  **Verify Persistence of Removal:** Call `ListContainer` to list images on the new primary.
 
@@ -111,7 +111,7 @@ This is the tarball that will be used during tests.
 
 1.  **Start and Remove Container:** Load the image, start a container, then remove it using `gnoi.Containerz.RemoveContainer` (or appropriate RPC).
 2.  **Verify Removal:** Call `gnoi.Containerz.ListContainer` and verify the container no longer exists.
-3.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 4.  **Trigger Failover:** Trigger a switchover.
 5.  **Verify Persistence of Removal:** Call `ListContainer` on the new primary.
 
@@ -129,7 +129,7 @@ This is the tarball that will be used during tests.
 
 ### Procedure
 
-1.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+1.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 2.  **Interrupt Transfer:** Initiate transferring the large image to the device via `gnoi.Containerz.Deploy`.
 3.  **Trigger Failover:** While the transfer is actively in progress, trigger a switchover using `gnoi.System.SwitchControlProcessor`.
 4.  **Verify Interruption:** After the switchover on the new primary, call `gnoi.Containerz.ListContainer` to check the image presence.
@@ -149,7 +149,7 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Setup:** Load the `<IMAGE_NAME>` onto the device.
-2.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+2.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 3.  **Interrupt Start:** Initiate starting the container using `gnoi.Containerz.StartContainer`.
 4.  **Trigger Failover:** Immediately before the container reaches the `RUNNING` state, trigger a switchover.
 5.  **Verify Interruption:** Call `gnoi.Containerz.ListContainer` on the new primary.
@@ -167,7 +167,7 @@ This is the tarball that will be used during tests.
 
 ### Procedure
 
-1.  **Identify Standby:** Query `/system/state/control-processor` to ensure the standby RE is `READY`.
+1.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 2.  **Interrupt Volume Creation:** Initiate creating a volume via `gnoi.Containerz.CreateVolume`.
 3.  **Trigger Failover:** Immediately trigger a switchover using `gnoi.System.SwitchControlProcessor`.
 4.  **Verify Interruption:** Call `gnoi.Containerz.ListVolume` on the new primary.
@@ -187,9 +187,9 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Load Image:** Load `<IMAGE_NAME>` onto the device.
-2.  **First Failover:** Query `/system/state/control-processor` to identify the standby RE. Trigger a switchover to the standby.
+2.  **First Failover:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby RE. Trigger a switchover to the standby.
 3.  **Verify Persistence:** After the first switchover, verify `<IMAGE_NAME>` is still available on the new primary.
-4.  **Second Failover:** Once the original primary recovers and becomes the new standby (verify via `/system/state/control-processor`), trigger another switchover back to it.
+4.  **Second Failover:** Once the original primary recovers and becomes the new standby (verify via `/components/component/state/redundant-role` and `/components/component/state/switchover-ready`), trigger another switchover back to it.
 5.  **Verify Final Persistence:** Call `gnoi.Containerz.ListContainer` on the newly active primary (original RE).
 
 #### Pass/Fail Criteria
@@ -424,7 +424,8 @@ The below yaml defines the RPCs intended to be covered by this test.
 
 ```yaml
 paths:
-  /system/state/control-processor:
+  /components/component/state/redundant-role:
+  /components/component/state/switchover-ready:
 rpcs:
   gnoi:
     containerz.Containerz.Deploy:
