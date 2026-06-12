@@ -826,9 +826,12 @@ func TestDoubleFailoverContainerAndVolumePersistence(t *testing.T) {
 		}
 	})
 
-	standbyRP2, _, err := findRPs(t, dut)
+	standbyRP2, activeRP2, err := findRPs(t, dut)
 	if err != nil {
 		t.Fatalf("Failed to find RPs before second switchover: %v", err)
+	}
+	if activeRP2 != standbyRP1 {
+		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
 	}
 
 	t.Run("SecondSwitchover", func(t *testing.T) {
