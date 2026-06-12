@@ -425,7 +425,9 @@ The below yaml defines the RPCs intended to be covered by this test.
 ```yaml
 paths:
   /components/component/state/redundant-role:
+    platform_type: ["CONTROLLER_CARD"]
   /components/component/state/switchover-ready:
+    platform_type: ["CONTROLLER_CARD"]
 rpcs:
   gnoi:
     containerz.Containerz.Deploy:
