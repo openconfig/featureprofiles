@@ -49,7 +49,7 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Load Image:** Establish a gNOI connection to the primary control processor and load `<IMAGE_NAME>` using `gnoi.Containerz.Deploy`.
-2.  **Verify Load:** Call `gnoi.Containerz.ListContainer` (or list image RPC) to verify `<IMAGE_NAME>` is present on the device.
+2.  **Verify Load:** Call gnoi.Containerz.ListContainers (or list image RPC) to verify <IMAGE_NAME> is present on the device.
 3.  **Identify Standby:** Query the gNMI paths `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby control processor and verify it is ready.
 4.  **Trigger Failover:** Trigger a switchover to the standby control processor using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to stabilize.
 5.  **Verify Persistence:** Establish a new gNOI connection to the newly active primary control processor. Call `gnoi.Containerz.ListContainer` to verify the image persisted.
