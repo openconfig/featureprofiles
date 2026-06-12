@@ -49,10 +49,10 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Load Image:** Establish a gNOI connection to the primary control processor and load `<IMAGE_NAME>` using `gnoi.Containerz.Deploy`.
-2.  **Verify Load:** Call gnoi.Containerz.ListContainer (or list image RPC) to verify <IMAGE_NAME> is present on the device.
+2.  **Verify Load:** Call `gnoi.Containerz.ListImage` to verify `<IMAGE_NAME>` is present on the device.
 3.  **Identify Standby:** Query the gNMI paths `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby control processor and verify it is ready.
 4.  **Trigger Failover:** Trigger a switchover to the standby control processor using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to stabilize.
-5.  **Verify Persistence:** Establish a new gNOI connection to the newly active primary control processor. Call `gnoi.Containerz.ListContainer` to verify the image persisted.
+5.  **Verify Persistence:** Establish a new gNOI connection to the newly active primary control processor. Call `gnoi.Containerz.ListImage` to verify the image persisted.
 
 #### Pass/Fail Criteria
 
@@ -90,11 +90,11 @@ This is the tarball that will be used during tests.
 
 ### Procedure
 
-1.  **Load and Remove Image:** Load `<IMAGE_NAME>`, then remove it using `gnoi.Containerz.Deploy` with the `image_delete` option (or corresponding remove RPC).
-2.  **Verify Removal:** Call `gnoi.Containerz.ListContainer` and verify the image no longer exists.
+1.  **Load and Remove Image:** Load `<IMAGE_NAME>`, then remove it using `gnoi.Containerz.RemoveImage`.
+2.  **Verify Removal:** Call `gnoi.Containerz.ListImage` and verify the image no longer exists.
 3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 4.  **Trigger Failover:** Trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-5.  **Verify Persistence of Removal:** Call `ListContainer` to list images on the new primary.
+5.  **Verify Persistence of Removal:** Call `gnoi.Containerz.ListImage` to list images on the new primary.
 
 #### Pass/Fail Criteria
 
@@ -109,7 +109,7 @@ This is the tarball that will be used during tests.
 
 ### Procedure
 
-1.  **Start and Remove Container:** Load the image, start a container, then remove it using `gnoi.Containerz.RemoveContainer` (or appropriate RPC).
+1.  **Start and Remove Container:** Load the image, start a container, then remove it using `gnoi.Containerz.RemoveContainer`.
 2.  **Verify Removal:** Call `gnoi.Containerz.ListContainer` and verify the container no longer exists.
 3.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 4.  **Trigger Failover:** Trigger a switchover.
@@ -132,12 +132,12 @@ This is the tarball that will be used during tests.
 1.  **Identify Standby:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to ensure the standby RE is ready.
 2.  **Interrupt Transfer:** Initiate transferring the large image to the device via `gnoi.Containerz.Deploy`.
 3.  **Trigger Failover:** While the transfer is actively in progress, trigger a switchover using `gnoi.System.SwitchControlProcessor`.
-4.  **Verify Interruption:** After the switchover on the new primary, call `gnoi.Containerz.ListContainer` to check the image presence.
+4.  **Verify Interruption:** After the switchover on the new primary, call `gnoi.Containerz.ListImage` to check the image presence.
 
 #### Pass/Fail Criteria
 
 *   **Pass:** The dummy image is not present or successfully loaded on the new primary.
-*   **Fail:** The system crashes, stops responding, or the partial image remains in an inconsistent state.
+*   **Fail:** The system crashes, stop responding, or the partial image remains in an inconsistent state.
 
 ## CNTR-3.8: Interrupt Container Start During Failover
 
@@ -190,7 +190,7 @@ This is the tarball that will be used during tests.
 2.  **First Failover:** Query `/components/component/state/redundant-role` and `/components/component/state/switchover-ready` to identify the standby RE. Trigger a switchover to the standby.
 3.  **Verify Persistence:** After the first switchover, verify `<IMAGE_NAME>` is still available on the new primary.
 4.  **Second Failover:** Once the original primary recovers and becomes the new standby (verify via `/components/component/state/redundant-role` and `/components/component/state/switchover-ready`), trigger another switchover back to it.
-5.  **Verify Final Persistence:** Call `gnoi.Containerz.ListContainer` on the newly active primary (original RE).
+5.  **Verify Final Persistence:** Call `gnoi.Containerz.ListImage` on the newly active primary (original RE).
 
 #### Pass/Fail Criteria
 
@@ -431,6 +431,9 @@ rpcs:
     containerz.Containerz.Deploy:
     containerz.Containerz.StartContainer:
     containerz.Containerz.StopContainer:
+    containerz.Containerz.RemoveImage:
+    containerz.Containerz.RemoveContainer:
+    containerz.Containerz.ListImage:
     containerz.Containerz.ListContainer:
     containerz.Containerz.CreateVolume:
     containerz.Containerz.ListVolume:
