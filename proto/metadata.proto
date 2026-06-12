@@ -1365,6 +1365,9 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+    // Partner issue: https://partnerissuetracker.corp.google.com/issues/504424786
+    bool default_peer_as_filter_oc_unsupported = 433;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
