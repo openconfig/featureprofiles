@@ -944,7 +944,6 @@ func ConfigureDUTBGP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch,
 
 	// Handle multipath deviation
 	if cfg.ECMPMaxPath > 0 {
-		// TODO CISCO: new specific deviation here
 		if deviations.MultipathUnsupportedNeighborOrAfisafi(dut) {
 			t.Log("Executing CLI commands for multipath deviation")
 			bgpRouteConfig := fmt.Sprintf(`

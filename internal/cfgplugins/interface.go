@@ -824,8 +824,6 @@ func SetupAggregateAtomically(t *testing.T, dut *ondatra.DUTDevice, aggID string
 
 // DeleteAggregate deletes the aggregate interface.
 func DeleteAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutAggPorts []*ondatra.Port) {
-	// satisfy leafref constraint
-	gnmi.Update(t, dut, gnmi.OC().Interface(aggID).Config(), &oc.Interface{Name: ygot.String(aggID), Type: oc.IETFInterfaces_InterfaceType_ieee8023adLag})
 	// Clear the aggregate minlink.
 	gnmi.Delete(t, dut, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 

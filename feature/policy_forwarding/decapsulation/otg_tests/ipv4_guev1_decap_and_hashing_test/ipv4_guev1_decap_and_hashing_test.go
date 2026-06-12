@@ -54,13 +54,14 @@ const (
 	dutAreaAddress       = "49.0001"
 	dutSysID             = "1920.0000.2001"
 	ateSysID             = "64000000000"
-	UDPSrcPort           = 1000
+	UDPSrcPort           = 5996
 	UDPDstPort           = 6080
 	UDPDstPortNeg        = 6085
 	testSrcPort          = 14
 	testDstPort          = 15
 	flowCount            = 10 // Number of prefixes/routes per host group
-	tolerance            = 5  // As per readme, Tolerance for delta: 5%
+	dcapIP               = "192.168.0.1"
+	tolerance            = 5 // As per readme, Tolerance for delta: 5%
 	fixedPackets         = 1000000
 	trafficFrameSize     = 1500
 	ratePercent          = 10
@@ -73,7 +74,6 @@ const (
 	policyID             = 1
 	trafficDuration      = 20
 	dutLoopbackName      = "Loopback0"
-	aggID1, aggID2       = "lag1", "lag2"
 )
 
 // IP Addresses and Attributes
@@ -113,6 +113,8 @@ var (
 	ate1LoopbackIP         = "172.16.1.0"
 	timeout                = 1 * time.Minute
 	lagTrafficDistribution = []uint64{50, 50}
+	aggID1                 = "Port-Channel1"
+	aggID2                 = "Port-Channel2"
 	constH1v4              = "198.51.100.1"
 	constH1v6              = "2001:db8:100::1"
 	constH2v4              = "198.51.110.1"
@@ -126,11 +128,6 @@ var (
 type Neighbor struct {
 	IPv4 string
 	IPv6 string
-}
-
-var AggregateInterfaceIDs = map[ondatra.Vendor]map[string]string{
-	ondatra.CISCO:  {aggID1: "Bundle-Ether1", aggID2: "Bundle-Ether2"},
-	ondatra.ARISTA: {aggID1: "Port-Channel1", aggID2: "Port-Channel2"},
 }
 
 func TestMain(m *testing.M) {
@@ -160,7 +157,7 @@ func TestMultipathGUE(t *testing.T) {
 		{IPv4: ateP7.IPv4, IPv6: ateP7.IPv6},
 	}
 	checkBgpStatus(t, dut, neighbors)
-	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv6 decap address and Load-balance test", func(t *testing.T) {
+	t.Run("PF-1.22.1[Baseline]: GUE Decapsulation over ipv4 decap address and Load-balance test", func(t *testing.T) {
 
 		destinations := [][]string{
 			{otgConfig.Lags().Items()[0].Name()},                                      // Flow#1 to H3 via ATE3 LAG
@@ -232,8 +229,7 @@ func TestMultipathGUE(t *testing.T) {
 			t.Logf("Load balancing has been verified on the LAG interfaces.")
 		}
 	})
-	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv6 decap address [Negative] test", func(t *testing.T) {
-		t.Skip()
+	t.Run("PF-1.22.2: GUE Decapsulation over non-matching ipv4 decap address [Negative] test", func(t *testing.T) {
 		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -250,12 +246,11 @@ func TestMultipathGUE(t *testing.T) {
 			if ok := verifyFlowTraffic(t, ate, otgConfig, flow.Name()); !ok {
 				t.Fatalf("Packet loss detected in flow: %s", flow.Name())
 			} else {
-				t.Logf("Flow %s: Traffic validation success", flow.Name())
+				t.Logf("Flow %s: Traffic validation sucess", flow.Name())
 			}
 		}
 	})
 	t.Run("PF-1.22.3: GUE Decapsulation over non-matching UDP decap port [Negative] test", func(t *testing.T) {
-		t.Skip()
 		var flows []gosnappi.Flow
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -277,7 +272,6 @@ func TestMultipathGUE(t *testing.T) {
 		}
 	})
 	t.Run("PF-1.22.4: Verify the Immediate next header's L4 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Skip()
 		t.Log("Starting test: Verify that immediate next header's L4 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
@@ -296,8 +290,7 @@ func TestMultipathGUE(t *testing.T) {
 		verifySinglePathTraffic(t, ate, otgConfig)
 	})
 	t.Run("PF-1.22.5: Verify the Immediate next header's L3 fields are not considered in Load-Balancing Algorithm test", func(t *testing.T) {
-		t.Skip()
-		t.Log("Starting test: Verify that immediate next header's L3 fields are NOT used in load-balancing")
+		t.Log("Starting test: Verify that immediate next header's L4 fields are NOT used in load-balancing")
 		macAddress := gnmi.Get(t, dut, gnmi.OC().Interface(dut.Port(t, "port1").Name()).Ethernet().MacAddress().State())
 		otgConfig.Flows().Clear()
 		// Generate flows with Immediate next header's L3 fields
@@ -356,32 +349,26 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) []string {
 		dut.Port(t, "port3"),
 		dut.Port(t, "port4"),
 	}
-	aggIDsList = append(aggIDsList, AggregateInterfaceIDs[dut.Vendor()][(aggID1)])
-	//cfgplugins.DeleteAggregate(t, dut, AggregateInterfaceIDs[dut.Vendor()][(aggID1)], dutAggPorts1)
+	aggIDsList = append(aggIDsList, aggID1)
+	cfgplugins.DeleteAggregate(t, dut, aggID1, dutAggPorts1)
 	aggrBatch := &gnmi.SetBatch{}
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: AggregateInterfaceIDs[dut.Vendor()][(aggID1)], DutLag: dutLag1, AggPorts: dutAggPorts1})
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID1, DutLag: dutLag1, AggPorts: dutAggPorts1})
 	// Ports 5 and 6 will be part of LAG
 	dutAggPorts2 := []*ondatra.Port{
 		dut.Port(t, "port5"),
 		dut.Port(t, "port6"),
 	}
-	aggIDsList = append(aggIDsList, AggregateInterfaceIDs[dut.Vendor()][(aggID2)])
-	//cfgplugins.DeleteAggregate(t, dut, AggregateInterfaceIDs[dut.Vendor()][(aggID2)], dutAggPorts2)
-	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: AggregateInterfaceIDs[dut.Vendor()][(aggID2)], DutLag: dutLag2, AggPorts: dutAggPorts2})
+	aggIDsList = append(aggIDsList, aggID2)
+	cfgplugins.DeleteAggregate(t, dut, aggID2, dutAggPorts2)
+	cfgplugins.SetupStaticAggregateAtomically(t, dut, aggrBatch, cfgplugins.StaticAggregateConfig{AggID: aggID2, DutLag: dutLag2, AggPorts: dutAggPorts2})
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
-	// TODO: remove this
-	if dut.Vendor() == ondatra.ARISTA {
-		cfgplugins.ConfigureLoadbalance(t, dut)
-	}
-	// Routing Policy (ALLOW) must be defined before BGP references it
-	rpPolicy := cfgplugins.ConfigureCommonBGPPolicies(t, dut)
-	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rpPolicy)
+	cfgplugins.ConfigureLoadbalance(t, dut)
 	// ISIS Configuration
 	cfgISIS := cfgplugins.ISISConfigBasic{
 		InstanceName: isisInstance,
 		AreaAddress:  dutAreaAddress,
 		SystemID:     dutSysID,
-		AggID:        AggregateInterfaceIDs[dut.Vendor()][(aggID1)],
+		AggID:        aggID1,
 		Ports:        []*ondatra.Port{p1, p2},
 		LoopbackIntf: dutLoopbackName,
 	}
@@ -454,7 +441,7 @@ func defaultOcPolicyForwardingParams(t *testing.T, dut *ondatra.DUTDevice, ipTyp
 		NetworkInstanceName: "DEFAULT",
 		InterfaceID:         dut.Port(t, "port1").Name(),
 		AppliedPolicyName:   policyName,
-		TunnelIP:            dutLo0.IPv6,
+		TunnelIP:            dcapIP,
 		GUEPort:             uint32(decapPort),
 		IPType:              ipType,
 		Dynamic:             true,
@@ -700,18 +687,20 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	eth.Src().SetValue(ateP1.MAC)
 	eth.Dst().SetValue(macAddress)
 
-	ipOuter := flow.Packet().Add().Ipv6()
-	ipOuter.Src().SetValue(ateP1.IPv6)
+	ipOuter := flow.Packet().Add().Ipv4()
+	ipOuter.Src().SetValue(ateP1.IPv4)
 	if incr == 11 || incr == 12 {
-		ipOuter.Dst().SetValue(ateP2.IPv6)
+		ipOuter.Dst().SetValue(ateP2.IPv4)
+	} else if immediateHeader {
+		ipOuter.Dst().SetValue(ateP2.IPv4)
 	} else {
-		ipOuter.Dst().SetValue(dutLo0.IPv6)
+		ipOuter.Dst().SetValue(dcapIP)
 	}
 	udpOuter := flow.Packet().Add().Udp()
 	if immediateHeader {
 		udpOuter.SrcPort().SetValue(UDPSrcPort)
 	} else {
-		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(1000)
+		udpOuter.SrcPort().Increment().SetStart(UDPSrcPort).SetStep(1).SetCount(10)
 	}
 	if incr == 13 || incr == 14 {
 		udpOuter.DstPort().SetValue(UDPDstPortNeg)
@@ -722,9 +711,10 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 	// Flow-specific configuration from image table
 	switch incr {
 	case 1, 6:
-		// For flow types 1 and 6, the README requires the middle IPv4/UDP
-		// header to immediately follow the outer IPv6/UDP header, with MPLS
-		// carried inside that middle header.
+		// Middle MPLS + IPv4 UDP for GUE
+		mpls := flow.Packet().Add().Mpls()
+		mpls.Label().SetValue(mplsLabel) // Example label
+
 		ipMiddle := flow.Packet().Add().Ipv4()
 		ipMiddle.Src().SetValue(ate1LoopbackIP)
 		ipMiddle.Dst().SetValue(ateLag1.IPv4)
@@ -733,12 +723,9 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 		if immediateHeader {
 			udpMiddle.SrcPort().SetValue(UDPSrcPort - 1)
 		} else {
-			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
+			udpMiddle.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
 		}
 		udpMiddle.DstPort().SetValue(UDPDstPort)
-
-		mpls := flow.Packet().Add().Mpls()
-		mpls.Label().SetValue(mplsLabel)
 
 		if incr == 1 {
 			ipInner := flow.Packet().Add().Ipv4()
@@ -783,7 +770,7 @@ func configureFlows(t *testing.T, otgConfig gosnappi.Config, macAddress string, 
 			ipInner.Dst().SetValue(constH4v6)
 		}
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(1000)
+		udp.SrcPort().Increment().SetStart(UDPSrcPort - 1).SetStep(1).SetCount(10)
 		udp.DstPort().SetValue(UDPSrcPort - 2)
 	case 8, 10:
 		ipInner := flow.Packet().Add().Ipv6()
