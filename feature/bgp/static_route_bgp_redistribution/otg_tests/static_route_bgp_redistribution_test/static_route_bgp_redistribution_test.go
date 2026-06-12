@@ -323,10 +323,10 @@ func configureDUTBGP(t *testing.T, dut *ondatra.DUTDevice) {
 	tcDirectV6.SetImportPolicy([]string{"permit-all"})
 
 	niPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut))
+	gnmi.Replace(t, dut, bgpPath.Config(), networkInstanceProtocolBgp)
+
 	gnmi.Update(t, dut, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV4).Config(), tcDirectV4)
 	gnmi.Update(t, dut, niPath.TableConnection(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_DIRECTLY_CONNECTED, oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, oc.Types_ADDRESS_FAMILY_IPV6).Config(), tcDirectV6)
-
-	gnmi.Replace(t, dut, bgpPath.Config(), networkInstanceProtocolBgp)
 
 	if deviations.BgpRibStreamingConfigRequired(dut) {
 		cfgplugins.DeviationBgpRibStreamingConfigRequired(t, dut)
@@ -515,7 +515,7 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 	}
 
 	if importPolicy == "" {
-		if deviations.DefaultNoIgpMetricPropagation(dut) {
+		if deviations.DefaultNoIgpMetricPropagation(dut) || dut.Vendor() == ondatra.ARISTA {
 			importPolicy = redistributeStaticPolicyNameV4
 			if !isV4 {
 				importPolicy = redistributeStaticPolicyNameV6
@@ -532,6 +532,9 @@ func configureTableConnection(t *testing.T, dut *ondatra.DUTDevice, isV4, mPropa
 
 	if importPolicy != "" {
 		tc.SetImportPolicy([]string{importPolicy})
+	}
+	if dut.Vendor() == ondatra.ARISTA {
+		defaultImport = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
 	}
 	tc.SetDefaultImportPolicy(defaultImport)
 	if !deviations.SkipSettingDisableMetricPropagation(dut) {
@@ -703,7 +706,7 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 			return false
 		}
 		expectedDefaultImport := oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
-		if !acceptRoute {
+		if !acceptRoute || dut.Vendor() == ondatra.ARISTA {
 			expectedDefaultImport = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
 		}
 		if tcState.GetDefaultImportPolicy() != expectedDefaultImport {
@@ -740,7 +743,7 @@ func validateRedistributeStatic(t *testing.T, dut *ondatra.DUTDevice, acceptRout
 		t.Fatal("address family not as expected or table connection but should be")
 	}
 	expectedDefaultImport := oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE
-	if !acceptRoute {
+	if !acceptRoute || dut.Vendor() == ondatra.ARISTA {
 		expectedDefaultImport = oc.RoutingPolicy_DefaultPolicyType_REJECT_ROUTE
 	}
 	if tcState.GetDefaultImportPolicy() != expectedDefaultImport {
