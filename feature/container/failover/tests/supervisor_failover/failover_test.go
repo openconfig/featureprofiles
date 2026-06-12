@@ -604,10 +604,10 @@ func TestDoubleFailoverContainerStopPersistence(t *testing.T) {
 		t.Log("Starting cleanup...")
 		cli := containerztest.Client(t, dut)
 		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
-			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
 		}
 		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
-			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+			t.Errorf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
 		}
 		t.Log("Cleanup finished.")
 	})
