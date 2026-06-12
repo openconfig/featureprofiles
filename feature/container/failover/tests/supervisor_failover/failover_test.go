@@ -572,8 +572,8 @@ func TestContainerPlacementLCPRIMARY(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying container on the new primary (former standby)...")
-		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeout); err != nil {
-			t.Fatalf("Container erroneously found on standby (new primary): %v", err)
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container not running on standby (new primary): %v", err)
 		}
 	})
 }
