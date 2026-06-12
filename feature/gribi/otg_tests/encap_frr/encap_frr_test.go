@@ -500,17 +500,15 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
-
-	baseIntf := gnmi.Get(t, dut, gnmi.OC().Interface(intfName).Name().Config())
-	subIdx := gnmi.Get(t, dut, gnmi.OC().Interface(baseIntf).Subinterface(0).Index().Config())
-
-	isisIntfName := isisInterfaceID(dut, intfName)
-
-	isisIntf := isis.GetOrCreateInterface(isisIntfName)
-	if !deviations.InterfaceRefConfigUnsupported(dut) {
-		isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(baseIntf)
-		isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(subIdx)
+	// FIXME: ExplicitInterfaceInDefaultVRF deviation usage is wrong here. This should only be used to attach interface to the default VRF.
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		intfName = intfName + ".0"
 	}
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName += ".0"
+	}
+
+	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntfLevel := isisIntf.GetOrCreateLevel(2)
@@ -525,13 +523,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	}
 
 	gnmi.Replace(t, dut, dutConfIsisPath.Config(), prot)
-}
-
-func isisInterfaceID(dut *ondatra.DUTDevice, intfName string) string {
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
-		return intfName + ".0"
-	}
-	return intfName
 }
 
 func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Protocol {
@@ -569,6 +560,10 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
+	// FIXME: ExplicitInterfaceInDefaultVRF deviation usage is wrong here. This should only be used to attach interface to the default VRF.
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutIntf = dutIntf + ".0"
+	}
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
