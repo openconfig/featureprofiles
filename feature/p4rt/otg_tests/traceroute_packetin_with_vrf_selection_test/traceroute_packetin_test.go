@@ -234,7 +234,7 @@ func (traceroute *TraceroutePacketIO) GetTrafficFlow(ate *ondatra.ATEDevice, dst
 			innerIpv6Hdr := flow.Packet().Add().Ipv6()
 			innerIpv6Hdr.Src().SetValue(flowValues.InnHdrSrcIPv6)
 			innerIpv6Hdr.Dst().SetValue(flowValues.InnHdrDstIPv6)
-			innerIpv6Hdr.TrafficClass().SetValue(flowValues.inrHdrDscp << 2)
+			innerIpv6Hdr.TrafficClass().SetValue(flowValues.innHdrDscp << 2)
 			UDPHeader := flow.Packet().Add().Udp()
 			UDPHeader.DstPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
 			UDPHeader.SrcPort().Increment().SetStart(1).SetCount(50000).SetStep(1)
