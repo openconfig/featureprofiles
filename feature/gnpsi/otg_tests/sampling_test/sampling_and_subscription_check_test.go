@@ -530,17 +530,14 @@ func verifySFlowPacket(t *testing.T, dut *ondatra.DUTDevice, sFlowPkt sFlowPacke
 	vendor := dut.Vendor()
 
 	// Try vendor-specific lookup first
-	if vendorMap, found := adjustedFrameSizeMap[vendor]; found {
-		if adjustedValues, found := vendorMap[flowConfig.frameSize]; found {
-			if size, found := adjustedValues[flowConfig.ipType]; found {
-				adjustedSize = size
-			}
-		}
-	} else if fallbackMap, found := adjustedFrameSizeMap[vendorFallback]; found {
-		if adjustedValues, found := fallbackMap[flowConfig.frameSize]; found {
-			if size, found := adjustedValues[flowConfig.ipType]; found {
-				adjustedSize = size
-			}
+	vendorMap, ok := adjustedFrameSizeMap[vendor]
+	if !ok {
+		vendorMap = adjustedFrameSizeMap[vendorFallback]
+	}
+
+	if frameMap, ok := vendorMap[flowConfig.frameSize]; ok {
+		if size, ok := frameMap[flowConfig.ipType]; ok {
+			adjustedSize = size
 		}
 	}
 
