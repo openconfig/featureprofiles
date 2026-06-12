@@ -16,6 +16,7 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -43,8 +44,10 @@ func TestMain(m *testing.M) {
 func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool, rebootCheck bool) {
 	if !rebootCheck {
 		configureDUT(t, dut, portsConfigured)
+		// Allow breakout configuration to take effect before state verification.
+		time.Sleep(20 * time.Second)
 	}
-	verifyConsistentPMD(t, dut, portsConfigured)
+	verifyInterfaceHardwarePortAndBreakoutConfig(t, dut, portsConfigured)
 }
 
 // Method to configure DUT interfaces along with breakout configurations.
@@ -81,8 +84,8 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.P
 	return i
 }
 
-// Method to verify if hardwarePort is populated with a reference to componentName.
-func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
+// Method to verify if hardwarePort is populated with a reference to componentName and breakout config is applied.
+func verifyInterfaceHardwarePortAndBreakoutConfig(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
 	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
 	for _, i := range interfaces {
 		interfaceName := i.GetName()
@@ -90,6 +93,25 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 			continue
 		}
 		hardwarePort := i.GetHardwarePort()
+
+		// Validate hardware-port leaf is not empty
+		if hardwarePort == "" {
+			t.Logf("WARNING: Interface %v has empty hardware-port value", interfaceName)
+			continue
+		}
+
+		configuredInterfaceName := interfaceName
+		_, isConfiguredInterface := portsConfigured[configuredInterfaceName]
+		if !isConfiguredInterface {
+			if idx := strings.Index(interfaceName, ":"); idx != -1 {
+				configuredInterfaceName = interfaceName[:idx]
+				_, isConfiguredInterface = portsConfigured[configuredInterfaceName]
+			}
+		}
+		if !isConfiguredInterface {
+			continue
+		}
+
 		var compName string
 		var compNameFetchError *string
 		compNameQuery := gnmi.OC().Component(hardwarePort).Name().State()
@@ -97,21 +119,89 @@ func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured m
 			compName = gnmi.Get(t, dut, compNameQuery)
 		})
 
-		_, isConfiguredInterface := portsConfigured[interfaceName]
-
-		if compNameFetchError != nil && isConfiguredInterface {
-			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for the interface  %v", compNameFetchError, hardwarePort, interfaceName)
-		} else if isConfiguredInterface {
-			portsConfigured[interfaceName] = true
-			t.Logf("HardwarePort = %v of interface = %v is populated with a reference to component name %v", hardwarePort, interfaceName, compName)
+		if compNameFetchError != nil {
+			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for interface %v", compNameFetchError, hardwarePort, interfaceName)
 		}
+		if compName == "" {
+			t.Fatalf("Component name for hardware-port %v of interface %v is empty", hardwarePort, interfaceName)
+		}
+		if hardwarePort != compName {
+			t.Fatalf("Hardware-port value %v does not match component name %v for interface %v", hardwarePort, compName, interfaceName)
+		}
+		portsConfigured[configuredInterfaceName] = true
+		t.Logf("✓ Interface %v (configured port %v): hardware-port=%v correctly references component name=%v", interfaceName, configuredInterfaceName, hardwarePort, compName)
 	}
-	// Checking if all the configured interfaces have been checked for componentName reference.
+
 	for interfaceName, referenceChecked := range portsConfigured {
-		if referenceChecked == false {
+		if !referenceChecked {
 			t.Fatalf("Interface %v not found in the fetched Interface list", interfaceName)
 		}
 		portsConfigured[interfaceName] = false
+	}
+
+	for _, port := range dut.Ports() {
+		if port.PMD() != ondatra.PMD400GBASEDR4 {
+			continue
+		}
+
+		portName := port.Name()
+		t.Logf("Verifying breakout configuration for port: %v (PMD: %v)", portName, port.PMD())
+
+		// Use Lookup to avoid fatal when the leaf is not present on parent interface.
+		hpLookup := gnmi.Lookup(t, dut, gnmi.OC().Interface(portName).HardwarePort().State())
+		hardwarePort, present := hpLookup.Val()
+		if !present || hardwarePort == "" {
+			// For breakout ports the parent interface may not expose hardware-port.
+			// Use a child breakout interface as the representative hardware-port.
+			interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
+			for _, iface := range interfaces {
+				if strings.HasPrefix(iface.GetName(), portName+":") && iface.HardwarePort != nil {
+					childHP := iface.GetHardwarePort()
+					if childHP != "" {
+						hardwarePort = childHP
+						break
+					}
+				}
+			}
+		}
+		if hardwarePort == "" {
+			t.Fatalf("Hardware-port for interface %v is empty", portName)
+		}
+
+		// Read the component config since breakout-mode is applied via config.
+		comp := gnmi.Get(t, dut, gnmi.OC().Component(hardwarePort).Config())
+		if comp == nil {
+			t.Fatalf("Failed to retrieve component for hardware-port: %v", hardwarePort)
+		}
+
+		portComp := comp.GetPort()
+		if portComp == nil {
+			t.Fatalf("Component %v is not a port component or missing port container", hardwarePort)
+		}
+
+		bmode := portComp.GetBreakoutMode()
+		if bmode == nil {
+			t.Fatalf("Breakout-mode configuration missing for component %v (hardware-port of %v)", hardwarePort, portName)
+		}
+
+		groupIdx := uint8(1)
+		group := bmode.GetGroup(groupIdx)
+		if group == nil {
+			t.Fatalf("Breakout group %v configuration missing for component %v", groupIdx, hardwarePort)
+		}
+
+		numBreakouts := group.GetNumBreakouts()
+		if numBreakouts == 0 {
+			t.Fatalf("Breakout num-breakouts not set for group %v in component %v", groupIdx, hardwarePort)
+		}
+
+		breakoutSpeed := group.GetBreakoutSpeed()
+		if breakoutSpeed == oc.IfEthernet_ETHERNET_SPEED_UNSET {
+			t.Fatalf("Breakout speed not set for group %v in component %v", groupIdx, hardwarePort)
+		}
+
+		t.Logf("✓ Component %v (port %v): Breakout Group %v validated - num-breakouts=%v, speed=%v",
+			hardwarePort, portName, groupIdx, numBreakouts, breakoutSpeed)
 	}
 }
 
