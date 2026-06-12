@@ -501,6 +501,244 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 }
 
+// TestContainerPlacementLCPRIMARY implements CNTR-3.15.
+func TestContainerPlacementLCPRIMARY(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	czClient := dut.RawAPIs().GNOI(t).Containerz()
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+	})
+
+	t.Run("StartPrimaryContainer", func(t *testing.T) {
+		t.Logf("Starting container %s with LC_PRIMARY...", containerName)
+		req := &cpb.StartContainerRequest{
+			ImageName:    imageName,
+			Tag:          tag,
+			Cmd:          "./cntrsrv",
+			InstanceName: containerName,
+			Location:     cpb.StartContainerRequest_L_PRIMARY,
+			Ports: []*cpb.StartContainerRequest_Port{
+				{Internal: 60061, External: 60061},
+			},
+		}
+
+		if _, err := czClient.StartContainer(ctx, req); err != nil {
+			t.Fatalf("Failed to start container with LC_PRIMARY: %v", err)
+		}
+	})
+
+	t.Run("VerifyPlacement", func(t *testing.T) {
+		t.Log("Verifying container on the primary...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container not running on primary: %v", err)
+		}
+
+		standbyRP, _, err := findRPs(t, dut)
+		if err != nil {
+			t.Fatalf("Failed to find RPs before switchover: %v", err)
+		}
+
+		t.Log("Switching over to standby to verify it's absent there...")
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP)
+		waitForSwitchover(t, dut)
+
+		// Re-initialize client after switchover
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container on the new primary (former standby)...")
+		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeout); err != nil {
+			t.Fatalf("Container erroneously found on standby (new primary): %v", err)
+		}
+	})
+}
+
+// TestContainerPlacementLCBACKUP implements CNTR-3.16.
+func TestContainerPlacementLCBACKUP(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	czClient := dut.RawAPIs().GNOI(t).Containerz()
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+	})
+
+	t.Run("StartBackupContainer", func(t *testing.T) {
+		t.Logf("Starting container %s with LC_BACKUP...", containerName)
+		req := &cpb.StartContainerRequest{
+			ImageName:    imageName,
+			Tag:          tag,
+			Cmd:          "./cntrsrv",
+			InstanceName: containerName,
+			Location:     cpb.StartContainerRequest_L_BACKUP,
+			Ports: []*cpb.StartContainerRequest_Port{
+				{Internal: 60061, External: 60061},
+			},
+		}
+
+		if _, err := czClient.StartContainer(ctx, req); err != nil {
+			t.Fatalf("Failed to start container with LC_BACKUP: %v", err)
+		}
+	})
+
+	t.Run("VerifyPlacement", func(t *testing.T) {
+		t.Log("Verifying container on the primary...")
+		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeout); err != nil {
+			t.Fatalf("Container erroneously found on primary: %v", err)
+		}
+
+		standbyRP, _, err := findRPs(t, dut)
+		if err != nil {
+			t.Fatalf("Failed to find RPs before switchover: %v", err)
+		}
+
+		t.Log("Switching over to standby to verify it's running there...")
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP)
+		waitForSwitchover(t, dut)
+
+		// Re-initialize client after switchover
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container on the new primary (former standby)...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container not running on standby (new primary): %v", err)
+		}
+	})
+}
+
+// TestContainerPlacementLCALL implements CNTR-3.17.
+func TestContainerPlacementLCALL(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+	czClient := dut.RawAPIs().GNOI(t).Containerz()
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
+		}
+	})
+
+	t.Run("StartAllContainer", func(t *testing.T) {
+		t.Logf("Starting container %s with LC_ALL...", containerName)
+		req := &cpb.StartContainerRequest{
+			ImageName:    imageName,
+			Tag:          tag,
+			Cmd:          "./cntrsrv",
+			InstanceName: containerName,
+			Location:     cpb.StartContainerRequest_L_ALL,
+			Ports: []*cpb.StartContainerRequest_Port{
+				{Internal: 60061, External: 60061},
+			},
+		}
+
+		if _, err := czClient.StartContainer(ctx, req); err != nil {
+			t.Fatalf("Failed to start container with LC_ALL: %v", err)
+		}
+
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
+			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
+		}
+	})
+
+	t.Run("VerifyPlacement", func(t *testing.T) {
+		// Since direct connection to standby is not available in the standard Ondatra testbed setup,
+		// we verify the container is running on the active RP, and then perform a switchover to
+		// verify it is also running on the standby RP (which becomes the new active).
+		t.Log("Verifying container on the primary...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container not running on primary: %v", err)
+		}
+
+		standbyRP, _, err := findRPs(t, dut)
+		if err != nil {
+			t.Fatalf("Failed to find RPs before switchover: %v", err)
+		}
+
+		t.Log("Switching over to standby to verify LC_ALL placement...")
+		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP)
+		waitForSwitchover(t, dut)
+
+		// Re-initialize client after switchover
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container on the new primary (former standby)...")
+		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+			t.Fatalf("Container not running on standby (new primary): %v", err)
+		}
+	})
+}
+
 // waitForSwitchover waits for the switchover to complete by polling telemetry.
 func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
