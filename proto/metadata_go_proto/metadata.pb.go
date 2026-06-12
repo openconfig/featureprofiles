@@ -1462,23 +1462,23 @@ type Metadata_Deviations struct {
 	// Device requires transport-security to be enabled on gRPC server.
 	// Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
 	RequireTransportSecurity bool `protobuf:"varint,427,opt,name=require_transport_security,json=requireTransportSecurity,proto3" json:"require_transport_security,omitempty"`
-	// Device needs a LocalAddress that points to an interface name instead of an IPv4 address for establishing BGP neighborship.
-	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
-	UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress bool `protobuf:"varint,428,opt,name=use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,json=useInterfaceNameForIbgpNeighborTransportIpv4LocalAddress,proto3" json:"use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,omitempty"`
 	// https://partnerissuetracker.corp.google.com/issues/443044887
 	// Use the deviation if BGP Extension Route Retention configuration is not available via OC
-	ExtendedRouteRetentionOcUnsupported bool `protobuf:"varint,429,opt,name=extended_route_retention_oc_unsupported,json=extendedRouteRetentionOcUnsupported,proto3" json:"extended_route_retention_oc_unsupported,omitempty"`
+	ExtendedRouteRetentionOcUnsupported bool `protobuf:"varint,428,opt,name=extended_route_retention_oc_unsupported,json=extendedRouteRetentionOcUnsupported,proto3" json:"extended_route_retention_oc_unsupported,omitempty"`
 	// https://partnerissuetracker.corp.google.com/issues/439825838
 	// Use the deviation if BGP Stale Route Time is not supported by DUT
-	ExrrStaleRouteTimeUnsupported bool `protobuf:"varint,430,opt,name=exrr_stale_route_time_unsupported,json=exrrStaleRouteTimeUnsupported,proto3" json:"exrr_stale_route_time_unsupported,omitempty"`
+	ExrrStaleRouteTimeUnsupported bool `protobuf:"varint,429,opt,name=exrr_stale_route_time_unsupported,json=exrrStaleRouteTimeUnsupported,proto3" json:"exrr_stale_route_time_unsupported,omitempty"`
 	// https://partnerissuetracker.corp.google.com/issues/446376446
 	// Use the deviation if BGP Graceful restart is not supported using gnoi
-	GnoiBgpGracefulRestartUnsupported bool `protobuf:"varint,431,opt,name=gnoi_bgp_graceful_restart_unsupported,json=gnoiBgpGracefulRestartUnsupported,proto3" json:"gnoi_bgp_graceful_restart_unsupported,omitempty"`
+	GnoiBgpGracefulRestartUnsupported bool `protobuf:"varint,430,opt,name=gnoi_bgp_graceful_restart_unsupported,json=gnoiBgpGracefulRestartUnsupported,proto3" json:"gnoi_bgp_graceful_restart_unsupported,omitempty"`
 	// https://partnerissuetracker.corp.google.com/issues/497757203
-	DhcpRelayOcUnsupported bool `protobuf:"varint,432,opt,name=dhcp_relay_oc_unsupported,json=dhcpRelayOcUnsupported,proto3" json:"dhcp_relay_oc_unsupported,omitempty"`
+	DhcpRelayOcUnsupported bool `protobuf:"varint,431,opt,name=dhcp_relay_oc_unsupported,json=dhcpRelayOcUnsupported,proto3" json:"dhcp_relay_oc_unsupported,omitempty"`
 	// Device requires p4rt table entries to be configured for each new primary controller
 	// Nokia: b/445494680
-	P4RtExplicitTableEntryPerController bool `protobuf:"varint,433,opt,name=p4rt_explicit_table_entry_per_controller,json=p4rtExplicitTableEntryPerController,proto3" json:"p4rt_explicit_table_entry_per_controller,omitempty"`
+	P4RtExplicitTableEntryPerController bool `protobuf:"varint,432,opt,name=p4rt_explicit_table_entry_per_controller,json=p4rtExplicitTableEntryPerController,proto3" json:"p4rt_explicit_table_entry_per_controller,omitempty"`
+	// Device needs a LocalAddress that points to an interface name instead of an IPv4 address for establishing BGP neighborship.
+	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+	UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress bool `protobuf:"varint,433,opt,name=use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,json=useInterfaceNameForIbgpNeighborTransportIpv4LocalAddress,proto3" json:"use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address,omitempty"`
 	// Devices which require to use interface-id format of interface name +
 	// .subinterface index with Interface-ref container specifically for policy forwarding usecase
 	// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
@@ -4261,13 +4261,6 @@ func (x *Metadata_Deviations) GetRequireTransportSecurity() bool {
 	return false
 }
 
-func (x *Metadata_Deviations) GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress() bool {
-	if x != nil {
-		return x.UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress
-	}
-	return false
-}
-
 func (x *Metadata_Deviations) GetExtendedRouteRetentionOcUnsupported() bool {
 	if x != nil {
 		return x.ExtendedRouteRetentionOcUnsupported
@@ -4299,6 +4292,13 @@ func (x *Metadata_Deviations) GetDhcpRelayOcUnsupported() bool {
 func (x *Metadata_Deviations) GetP4RtExplicitTableEntryPerController() bool {
 	if x != nil {
 		return x.P4RtExplicitTableEntryPerController
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress() bool {
+	if x != nil {
+		return x.UseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress
 	}
 	return false
 }
@@ -4776,13 +4776,13 @@ const file_metadata_proto_rawDesc = "" +
 	"\x15ciscoxr_vendordrop_ft\x18\xa8\x03 \x01(\tR\x13ciscoxrVendordropFt\x12h\n" +
 	"1lacp_interface_member_state_interface_unsupported\x18\xa9\x03 \x01(\bR,lacpInterfaceMemberStateInterfaceUnsupported\x12P\n" +
 	"$containerz_retrieve_logs_unsupported\x18\xaa\x03 \x01(\bR!containerzRetrieveLogsUnsupported\x12=\n" +
-	"\x1arequire_transport_security\x18\xab\x03 \x01(\bR\x18requireTransportSecurity\x12\x84\x01\n" +
-	"Ause_interface_name_for_ibgp_neighbor_transport_ipv4_local_address\x18\xac\x03 \x01(\bR8useInterfaceNameForIbgpNeighborTransportIpv4LocalAddress\x12U\n" +
-	"'extended_route_retention_oc_unsupported\x18\xad\x03 \x01(\bR#extendedRouteRetentionOcUnsupported\x12I\n" +
-	"!exrr_stale_route_time_unsupported\x18\xae\x03 \x01(\bR\x1dexrrStaleRouteTimeUnsupported\x12Q\n" +
-	"%gnoi_bgp_graceful_restart_unsupported\x18\xaf\x03 \x01(\bR!gnoiBgpGracefulRestartUnsupported\x12:\n" +
-	"\x19dhcp_relay_oc_unsupported\x18\xb0\x03 \x01(\bR\x16dhcpRelayOcUnsupported\x12V\n" +
-	"(p4rt_explicit_table_entry_per_controller\x18\xb1\x03 \x01(\bR#p4rtExplicitTableEntryPerController\x12i\n" +
+	"\x1arequire_transport_security\x18\xab\x03 \x01(\bR\x18requireTransportSecurity\x12U\n" +
+	"'extended_route_retention_oc_unsupported\x18\xac\x03 \x01(\bR#extendedRouteRetentionOcUnsupported\x12I\n" +
+	"!exrr_stale_route_time_unsupported\x18\xad\x03 \x01(\bR\x1dexrrStaleRouteTimeUnsupported\x12Q\n" +
+	"%gnoi_bgp_graceful_restart_unsupported\x18\xae\x03 \x01(\bR!gnoiBgpGracefulRestartUnsupported\x12:\n" +
+	"\x19dhcp_relay_oc_unsupported\x18\xaf\x03 \x01(\bR\x16dhcpRelayOcUnsupported\x12V\n" +
+	"(p4rt_explicit_table_entry_per_controller\x18\xb0\x03 \x01(\bR#p4rtExplicitTableEntryPerController\x12\x84\x01\n" +
+	"Ause_interface_name_for_ibgp_neighbor_transport_ipv4_local_address\x18\xb1\x03 \x01(\bR8useInterfaceNameForIbgpNeighborTransportIpv4LocalAddress\x12i\n" +
 	"2interface_id_format_required_for_policy_forwarding\x18\xb2\x03 \x01(\bR,interfaceIdFormatRequiredForPolicyForwardingJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
