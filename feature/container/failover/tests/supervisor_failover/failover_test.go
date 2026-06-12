@@ -530,6 +530,7 @@ func TestInterruptImageTransferFailover(t *testing.T) {
 	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
 
+	var transferInterrupted bool
 	t.Run("InterruptTransfer", func(t *testing.T) {
 		// Run PushImage in a background goroutine
 		errCh := make(chan error, 1)
@@ -541,7 +542,7 @@ func TestInterruptImageTransferFailover(t *testing.T) {
 			}
 			for prog := range progCh {
 				if prog.Error != nil {
-					// We expect an error due to the connection dropping
+					transferInterrupted = true
 					errCh <- nil
 					return
 				}
@@ -563,10 +564,19 @@ func TestInterruptImageTransferFailover(t *testing.T) {
 		cli = containerztest.Client(t, dut) // Re-initialize client
 
 		t.Log("Verifying image state after interrupted transfer...")
-		if err := verifyImageExists(ctx, t, cli, imageName, tag); err != nil {
-			t.Logf("Image not found after interrupted transfer (expected): %v", err)
+		err := verifyImageExists(ctx, t, cli, imageName, tag)
+		if transferInterrupted {
+			if err == nil {
+				t.Errorf("Image unexpectedly exists despite interrupted transfer")
+			} else {
+				t.Logf("Image not found after interrupted transfer (expected): %v", err)
+			}
 		} else {
-			t.Logf("Image fully loaded despite interruption (transfer was likely too fast).")
+			if err != nil {
+				t.Errorf("Image not found, but transfer completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Image fully loaded as expected (transfer completed before switchover).")
+			}
 		}
 	})
 }
@@ -608,6 +618,7 @@ func TestInterruptContainerStartFailover(t *testing.T) {
 	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
 
+	var startErr error
 	t.Run("InterruptStart", func(t *testing.T) {
 		errCh := make(chan error, 1)
 		go func() {
@@ -617,9 +628,10 @@ func TestInterruptContainerStartFailover(t *testing.T) {
 
 		doSwitchover(t, dut, standbyRPBefore)
 
-		if err := <-errCh; err != nil {
-			if status.Code(err) != codes.Unavailable && status.Code(err) != codes.Canceled && status.Code(err) != codes.DeadlineExceeded {
-				t.Fatalf("StartContainer failed with unexpected error: %v", err)
+		startErr = <-errCh
+		if startErr != nil {
+			if status.Code(startErr) != codes.Unavailable && status.Code(startErr) != codes.Canceled && status.Code(startErr) != codes.DeadlineExceeded {
+				t.Fatalf("StartContainer failed with unexpected error: %v", startErr)
 			}
 		}
 	})
@@ -631,10 +643,18 @@ func TestInterruptContainerStartFailover(t *testing.T) {
 
 		t.Log("Verifying container state after interrupted start...")
 		err := verifyContainerState(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING)
-		if err == nil {
-			t.Errorf("Container unexpectedly reached RUNNING state despite switchover interruption")
+		if startErr != nil {
+			if err == nil {
+				t.Errorf("Container unexpectedly reached RUNNING state despite switchover interruption")
+			} else {
+				t.Logf("Container is not RUNNING (expected): %v", err)
+			}
 		} else {
-			t.Logf("Container is not RUNNING (expected): %v", err)
+			if err != nil {
+				t.Errorf("Container is not RUNNING, but StartContainer completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Container is RUNNING as expected (StartContainer completed before switchover).")
+			}
 		}
 	})
 }
@@ -663,6 +683,7 @@ func TestInterruptVolumeCreationFailover(t *testing.T) {
 	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
 	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
 
+	var volumeInterrupted bool
 	t.Run("InterruptVolumeCreation", func(t *testing.T) {
 		errCh := make(chan error, 1)
 		go func() {
@@ -681,6 +702,7 @@ func TestInterruptVolumeCreationFailover(t *testing.T) {
 			if status.Code(err) != codes.Unavailable && status.Code(err) != codes.Canceled && status.Code(err) != codes.DeadlineExceeded {
 				t.Fatalf("CreateVolume failed with unexpected error: %v", err)
 			}
+			volumeInterrupted = true
 		}
 	})
 
@@ -690,10 +712,19 @@ func TestInterruptVolumeCreationFailover(t *testing.T) {
 		cli = containerztest.Client(t, dut)
 
 		t.Log("Verifying volume state after interrupted creation...")
-		if err := verifyVolumeExists(ctx, t, cli, volName); err == nil {
-			t.Logf("Volume fully created despite interruption (creation was likely too fast).")
+		err := verifyVolumeExists(ctx, t, cli, volName)
+		if volumeInterrupted {
+			if err == nil {
+				t.Errorf("Volume unexpectedly exists despite interrupted creation")
+			} else {
+				t.Logf("Volume not found after interrupted creation (expected): %v", err)
+			}
 		} else {
-			t.Logf("Volume not found after interrupted creation (expected): %v", err)
+			if err != nil {
+				t.Errorf("Volume not found, but CreateVolume completed successfully before switchover: %v", err)
+			} else {
+				t.Logf("Volume fully created as expected (creation completed before switchover).")
+			}
 		}
 	})
 }
