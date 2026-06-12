@@ -843,7 +843,7 @@ func TestDoubleFailoverContainerAndVolumePersistence(t *testing.T) {
 		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
 			t.Errorf("Container recovery failed after second switchover: %v", err)
 		}
-		if err := verifyVolumeExists(ctx, t, cli, volName); err != nil {
+		if err := verifyVolumeExistsEventually(ctx, t, cli, volName, verifyTimeout); err != nil {
 			t.Errorf("Volume persistence failed after second switchover: %v", err)
 		}
 	})
