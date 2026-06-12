@@ -282,13 +282,14 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Start Primary Container:** Start a container specifying the location tag `LC_PRIMARY` via `gnoi.Containerz.StartContainer`.
-2.  **Verify Placement:** Establish separate gNOI connections directly to the individual IP addresses of both the Primary and Backup control processors.
-3.  **Assert Constraints:** Call `gnoi.Containerz.ListContainer` on both connections.
+2.  **Verify Active Placement:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is running.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Absence:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
 
 #### Pass/Fail Criteria
 
-*   **Pass:** The container appears in the Primary's list and is completely absent from the Backup's list.
-*   **Fail:** The container spawns on the backup or fails to spawn on the primary.
+*   **Pass:** The container appears in the `RUNNING` state during step 2, and is completely absent during step 4 (confirming it did not spawn on the standby).
+*   **Fail:** The container fails to spawn on the active primary, or erroneously spawns on the standby processor.
 
 ## CNTR-3.16: Container Placement: LC_BACKUP
 
@@ -299,13 +300,14 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Start Backup Container:** Start a container specifying the location tag `LC_BACKUP` via `gnoi.Containerz.StartContainer`.
-2.  **Verify Placement:** Establish separate gNOI connections to the Primary and Backup control processors.
-3.  **Assert Constraints:** Call `gnoi.Containerz.ListContainer` on both.
+2.  **Verify Active Absence:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is absent.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Placement:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
 
 #### Pass/Fail Criteria
 
-*   **Pass:** The container appears exclusively in the Backup's list and is absent from the Primary's list.
-*   **Fail:** The container spawns on the primary or fails to spawn on the backup.
+*   **Pass:** The container is absent during step 2, but appears in the `RUNNING` state during step 4 (confirming it successfully spawned exclusively on the standby).
+*   **Fail:** The container erroneously spawns on the active primary, or fails to spawn on the standby processor.
 
 ## CNTR-3.17: Container Placement: LC_ALL
 
@@ -316,13 +318,14 @@ This is the tarball that will be used during tests.
 ### Procedure
 
 1.  **Start All Container:** Start a container specifying the location tag `LC_ALL` via `gnoi.Containerz.StartContainer`.
-2.  **Verify Placement:** Establish separate gNOI connections to the Primary and Backup control processors.
-3.  **Assert Constraints:** Call `gnoi.Containerz.ListContainer` on both.
+2.  **Verify Active Placement:** Call `gnoi.Containerz.ListContainer` on the active control processor to confirm the container is running.
+3.  **Trigger Switchover:** Identify the standby control processor and trigger a switchover using `gnoi.System.SwitchControlProcessor`. Wait for the new primary to boot up and establish telemetry.
+4.  **Verify Backup Placement:** Re-initialize the gNOI client and call `gnoi.Containerz.ListContainer` on the new primary (former standby).
 
 #### Pass/Fail Criteria
 
-*   **Pass:** The container is instantiated and `RUNNING` on both control processors simultaneously.
-*   **Fail:** The container fails to spawn on one or both processors.
+*   **Pass:** The container is instantiated and `RUNNING` on both the initial primary processor and the new primary processor post-switchover.
+*   **Fail:** The container fails to spawn on either processor.
 
 ## CNTR-3.18: Container Persistence: LC_PRIMARY Failover
 
