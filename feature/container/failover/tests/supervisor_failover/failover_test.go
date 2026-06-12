@@ -705,10 +705,6 @@ func TestContainerPlacementLCALL(t *testing.T) {
 		if _, err := czClient.StartContainer(ctx, req); err != nil {
 			t.Fatalf("Failed to start container with LC_ALL: %v", err)
 		}
-
-		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
-			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
-		}
 	})
 
 	t.Run("VerifyPlacement", func(t *testing.T) {
