@@ -2203,13 +2203,6 @@ func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
 }
 
-// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
-// to an interface name instead of an IPv4 address for establishing BGP neighborship.
-// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
-func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
-}
-
 // ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
 // Use the deviation if BGP Extension Route Retention configuration is not available via OC
 func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
@@ -2238,6 +2231,13 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 // Nokia: b/445494680
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
+// to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
 }
 
 // InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
