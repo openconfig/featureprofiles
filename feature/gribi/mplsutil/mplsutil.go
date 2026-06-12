@@ -390,8 +390,7 @@ func (g *GRIBIMPLSTest) ConfigureFlows(t *testing.T, ate *ondatra.ATEDevice) {
 	flow := g.otgConfig.Flows().Add().SetName(flowName)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Port().SetTxName(ATESrc.Name).SetRxName(ATEDst.Name)
-	flow.Rate().SetPps(1)
-	flow.Rate().SetPps(1)
+	flow.Rate().SetPps(50)
 
 	switch g.mode {
 	case PushToMPLS:
