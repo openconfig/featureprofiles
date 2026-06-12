@@ -641,7 +641,7 @@ func TestContainerPlacementLCBACKUP(t *testing.T) {
 			t.Fatalf("Failed to find RPs before switchover: %v", err)
 		}
 
-		t.Log("Switching over to standby to verify it's running there...")
+		t.Log("Switching over to standby to verify it's absent there...")
 		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP)
 		waitForSwitchover(t, dut)
 
