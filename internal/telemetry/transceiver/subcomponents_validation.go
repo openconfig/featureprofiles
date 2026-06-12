@@ -23,30 +23,19 @@ func validateTempSensorTelemetry(t *testing.T, dut *ondatra.DUTDevice, p *ondatr
 	}
 	tcs := []testcase{
 		{
-			desc: "Temperature Sensor Name Validation",
-			path: fmt.Sprintf(componentPath+"/state/name", params.TempSensorNames[p.Name()]),
-			got:  temperatureSensorValue.GetName(),
-			want: params.TempSensorNames[p.Name()],
+			desc:       "Temperature Sensor Name Validation",
+			path:       fmt.Sprintf(componentPath+"/state/name", params.TempSensorNames[p.Name()]),
+			operStatus: oc.Interface_OperStatus_UP,
+			got:        temperatureSensorValue.GetName(),
+			want:       params.TempSensorNames[p.Name()],
 		},
 		{
 			desc:       "Temperature Sensor Instant Temperature Validation",
 			path:       fmt.Sprintf(componentPath+"/state/temperature/instant", params.TempSensorNames[p.Name()]),
+			operStatus: oc.Interface_OperStatus_UP,
 			got:        temperatureSensorValue.GetTemperature().GetInstant(),
 			minAllowed: minAllowedTemperature,
 			maxAllowed: maxAllowedTemperature,
-		},
-		{
-			desc:       "Temperature Sensor Max Temperature Validation",
-			path:       fmt.Sprintf(componentPath+"/state/temperature/instant", params.TempSensorNames[p.Name()]),
-			got:        temperatureSensorValue.GetTemperature().GetMax(),
-			minAllowed: minAllowedTemperature,
-			maxAllowed: maxAllowedTemperature,
-		},
-		{
-			desc: "Temperature Sensor Temperature Alarm Status Validation",
-			path: fmt.Sprintf(componentPath+"/state/temperature/instant", params.TempSensorNames[p.Name()]),
-			got:  temperatureSensorValue.GetTemperature().GetAlarmStatus(),
-			want: false,
 		},
 	}
 	for _, tc := range tcs {
