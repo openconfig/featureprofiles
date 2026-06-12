@@ -25,6 +25,7 @@ import (
 	"net"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -677,6 +678,22 @@ func dialSSH(t *testing.T, dut *ondatra.DUTDevice, username, password, target st
 	}
 
 	return conn, w
+}
+
+func getHostPortInfo(t *testing.T, addr string) (string, uint32) {
+	t.Helper()
+	host, portStr, err := net.SplitHostPort(addr)
+	if err != nil {
+		t.Fatalf("Failed splitting host and port for %q: %v", addr, err)
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		t.Fatalf("Failed parsing port %q from %q: %v", portStr, addr, err)
+	}
+	if port < 0 || port > 65535 {
+		t.Fatalf("Port %d from %q is outside valid TCP/UDP range", port, addr)
+	}
+	return host, uint32(port)
 }
 
 func getMetadataKeys(dut *ondatra.DUTDevice) (string, string) {
@@ -1620,6 +1637,132 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	})
 
 	return records
+}
+
+func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
+	var cliCommand string
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		cliCommand = "aaa accounting commands default start-stop local"
+	case ondatra.ARISTA:
+		cliCommand = "aaa accounting commands all default start-stop logging"
+	}
+	if cliCommand != "" {
+		helpers.GnmiCLIConfig(t, dut, cliCommand)
+	}
+}
+
+func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
+	target := getSSHTarget(t, dut, staticBinding)
+	var records []*acctzpb.RecordResponse
+
+	enableAccountingStartStop(t, dut)
+	sshConn, w := dialSSH(t, dut, SuccessUsername, successPassword, target)
+	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
+	localIP, localPort := getHostPortInfo(t, target)
+	defer func() {
+		time.Sleep(6 * time.Second)
+		err := sshConn.Close()
+		if err != nil {
+			t.Logf("Error closing tcp(ssh) connection, will ignore, error: %s", err)
+		}
+	}()
+
+	privEscCmd := getPrivEscalationCommand(dut)
+	_, err := w.Write([]byte(privEscCmd + "\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation command, error: %s", err)
+	}
+
+	time.Sleep(2 * time.Second)
+
+	_, err = w.Write([]byte("wrongpassword\n"))
+	if err != nil {
+		t.Fatalf("Failed sending privilege escalation password, error: %s", err)
+	}
+
+	expectedIdentity := SuccessUsername
+
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: expectedIdentity,
+					Role:     "15",
+				},
+			},
+		})
+	case ondatra.CISCO:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_OPERATION,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				User: &acctzpb.UserDetail{
+					Identity: expectedIdentity,
+					Role:     "root-lr, cisco-support",
+				},
+			},
+		})
+	default:
+		records = append(records, &acctzpb.RecordResponse{
+			ServiceRequest: &acctzpb.RecordResponse_CmdService{
+				CmdService: &acctzpb.CommandService{
+					ServiceType: acctzpb.CommandService_CMD_SERVICE_TYPE_CLI,
+				},
+			},
+			SessionInfo: &acctzpb.SessionInfo{
+				Status:        acctzpb.SessionInfo_SESSION_STATUS_ENABLE,
+				LocalAddress:  localIP,
+				LocalPort:     localPort,
+				RemoteAddress: remoteIP,
+				RemotePort:    remotePort,
+				IpProto:       ipProto,
+				Authn: &acctzpb.AuthnDetail{
+					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
+					Status: acctzpb.AuthnDetail_AUTHN_STATUS_FAIL,
+				},
+				User: &acctzpb.UserDetail{
+					Identity: expectedIdentity,
+				},
+			},
+		})
+	}
+
+	return records
+}
+
+func getPrivEscalationCommand(dut *ondatra.DUTDevice) string {
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		return "enable"
+	default:
+		return ""
+	}
 }
 
 func expectedAuthzStatus(dut *ondatra.DUTDevice, status acctzpb.AuthzDetail_AuthzStatus, rpcName string) acctzpb.AuthzDetail_AuthzStatus {
