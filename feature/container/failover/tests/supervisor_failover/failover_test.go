@@ -327,7 +327,7 @@ func TestContainerRemovalPersistence(t *testing.T) {
 	})
 }
 
-// TestDoubleFailoverImagePersistence implements CNTR-3.7.
+// TestDoubleFailoverImagePersistence implements CNTR-3.10.
 func TestDoubleFailoverImagePersistence(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
@@ -399,7 +399,7 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 	})
 }
 
-// TestContainerPersistenceAfterColdReboot implements CNTR-3.8 checking container persistence after a chassis cold reboot.
+// TestContainerPersistenceAfterColdReboot implements CNTR-3.21 checking container persistence after a chassis cold reboot.
 func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := context.Background()
