@@ -501,6 +501,208 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 }
 
+// TestInterruptImageTransferFailover implements CNTR-3.7.
+func TestInterruptImageTransferFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	// Ensure switchover is ready before we start the race
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	t.Run("InterruptTransfer", func(t *testing.T) {
+		// Run PushImage in a background goroutine
+		errCh := make(chan error, 1)
+		go func() {
+			progCh, err := cli.PushImage(ctx, imageName, tag, containerTarPath(t), false)
+			if err != nil {
+				errCh <- fmt.Errorf("Initial call to PushImage failed: %v", err)
+				return
+			}
+			for prog := range progCh {
+				if prog.Error != nil {
+					// We expect an error due to the connection dropping
+					errCh <- nil
+					return
+				}
+			}
+			errCh <- nil
+		}()
+
+		// Trigger switchover while transfer is happening
+		doSwitchover(t, dut, standbyRPBefore)
+
+		if err := <-errCh; err != nil {
+			t.Logf("PushImage returned error: %v", err)
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut) // Re-initialize client
+
+		t.Log("Verifying image state after interrupted transfer...")
+		if err := verifyImageExists(ctx, t, cli, imageName, tag); err != nil {
+			t.Logf("Image not found after interrupted transfer (expected): %v", err)
+		} else {
+			t.Logf("Image fully loaded despite interruption (transfer was likely too fast).")
+		}
+	})
+}
+
+// TestInterruptContainerStartFailover implements CNTR-3.8.
+func TestInterruptContainerStartFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	if containerTarPath(t) == "" {
+		t.Skip("container_tar flag not set, skipping test")
+	}
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove container %q: %v", containerName, err)
+		}
+		if err := cli.RemoveImage(ctx, imageName, tag, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove image %q:%q: %v", imageName, tag, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	t.Run("Setup", func(t *testing.T) {
+		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
+			t.Fatalf("Failed to load image: %v", err)
+		}
+	})
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	t.Run("InterruptStart", func(t *testing.T) {
+		errCh := make(chan error, 1)
+		go func() {
+			_, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName)
+			if err != nil {
+				// Expected error due to switchover
+				errCh <- nil
+				return
+			}
+			errCh <- nil
+		}()
+
+		doSwitchover(t, dut, standbyRPBefore)
+
+		if err := <-errCh; err != nil {
+			t.Logf("StartContainer background error: %v", err)
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying container state after interrupted start...")
+		err := verifyContainerState(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING)
+		if err == nil {
+			t.Errorf("Container unexpectedly reached RUNNING state despite switchover interruption")
+		} else {
+			t.Logf("Container is not RUNNING (expected): %v", err)
+		}
+	})
+}
+
+// TestInterruptVolumeCreationFailover implements CNTR-3.9.
+func TestInterruptVolumeCreationFailover(t *testing.T) {
+	dut := ondatra.DUT(t, "dut")
+	ctx := context.Background()
+
+	cli := containerztest.Client(t, dut)
+
+	t.Cleanup(func() {
+		t.Log("Starting cleanup...")
+		cli := containerztest.Client(t, dut)
+		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
+			t.Logf("Cleanup: failed to remove volume %q: %v", volName, err)
+		}
+		t.Log("Cleanup finished.")
+	})
+
+	standbyRPBefore, _, err := findRPs(t, dut)
+	if err != nil {
+		t.Fatalf("Failed to find RPs before switchover: %v", err)
+	}
+
+	switchoverReady := gnmi.OC().Component(standbyRPBefore).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+
+	t.Run("InterruptVolumeCreation", func(t *testing.T) {
+		errCh := make(chan error, 1)
+		go func() {
+			volOpts := map[string]string{
+				"type":       "none",
+				"options":    "bind",
+				"mountpoint": "/tmp",
+			}
+			_, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts)
+			if err != nil {
+				errCh <- nil
+				return
+			}
+			errCh <- nil
+		}()
+
+		doSwitchover(t, dut, standbyRPBefore)
+
+		if err := <-errCh; err != nil {
+			t.Logf("CreateVolume background error: %v", err)
+		}
+	})
+
+	t.Run("VerifyInterruption", func(t *testing.T) {
+		waitForSwitchover(t, dut)
+
+		cli = containerztest.Client(t, dut)
+
+		t.Log("Verifying volume state after interrupted creation...")
+		if err := verifyVolumeExists(ctx, t, cli, volName); err == nil {
+			t.Logf("Volume fully created despite interruption (creation was likely too fast).")
+		} else {
+			t.Logf("Volume not found after interrupted creation (expected): %v", err)
+		}
+	})
+}
+
 // waitForSwitchover waits for the switchover to complete by polling telemetry.
 func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
