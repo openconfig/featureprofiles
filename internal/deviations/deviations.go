@@ -2202,3 +2202,46 @@ func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
 func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
 }
+
+// ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
+// Use the deviation if BGP Extension Route Retention configuration is not available via OC
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+// ExrrStaleRouteTimeUnsupported returns true if devices do not support exrr stale route time configuration.
+// Use the deviation if BGP Stale Route Time is not supported by DUT
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+// GnoiBgpGracefulRestartUnsupported returns true if gNMI/gNOI support for BGP graceful restart is not available.
+// Use the deviation if BGP Graceful restart is not supported using gnoi
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}
+
+// DhcpRelayOcUnsupported returns true if DHCP relay configuration and state paths are unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/497757203
+func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
+}
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+// Nokia: b/445494680
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
+// to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}
+
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}

@@ -175,3 +175,13 @@ func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
 	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
 	return startTime
 }
+
+// RunCliCommand runs a CLI command on the DUT and returns the output.
+func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
+	}
+	return output.Output()
+}
