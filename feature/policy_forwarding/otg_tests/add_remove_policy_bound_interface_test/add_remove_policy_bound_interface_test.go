@@ -43,10 +43,12 @@ const (
 	vrfSelectionPolicyName = "vrf100policy-ipv4"
 	vrfPolicyv6            = "vrf100policy-ipv6"
 
-	ipv4NetA    = "192.168.200.0/24"
-	ipv6NetA    = "3008:DB8::/126"
-	ipv4NetAdst = "192.168.200.1"
-	ipv6NetAdst = "2001:DB2::2"
+	ipv4NetA1    = "198.51.100.0/24"
+	ipv4NetA2    = "203.0.113.0/24"
+	ipv6NetA1    = "2001:db8:100::/126"
+	ipv6NetA2    = "2001:db8:101::/126"
+	ipv4NetAdst1 = "198.51.100.1"
+	ipv6NetAdst1 = "2001:db8:100::2"
 )
 
 var (
@@ -188,8 +190,10 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureDUTPort(t, dut, p1, &dutPort1, vrf100Name)
 
 	configureStaticRoutes(t, dut, "VRF-100", map[string]string{
-		ipv4NetA: atePort1.IPv4,
-		ipv6NetA: atePort1.IPv6,
+		ipv4NetA1: atePort1.IPv4,
+		ipv4NetA2: atePort1.IPv4,
+		ipv6NetA1: atePort1.IPv6,
+		ipv6NetA2: atePort1.IPv6,
 	})
 
 	configurePBFPolicy(t, dut)
@@ -229,11 +233,13 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	p6 := pf.GetOrCreatePolicy(vrfPolicyv6)
 	p6.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	r20 := p6.GetOrCreateRule(10)
-	r20.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
-	r20.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+	r20.GetOrCreateIpv6().SetDestinationAddress("ff02::/16")
 	r21 := p6.GetOrCreateRule(20)
-	r21.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
+	r21.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
 	r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+	r22 := p6.GetOrCreateRule(30)
+	r22.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
+	r22.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfPolicyv6).Config(), p6)
 }
 
@@ -306,17 +312,18 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, *ateTr
 	t.Logf("*** Configuring OTG flows ...")
 	flows := make(map[string]gosnappi.Flow)
 	// v4FlowPort2: atePort2 -> atePort1
-	flows["v4FlowPort2"] = createFlow(t, topo, "v4FlowPort2", &atePort2, &atePort1, ipv4NetAdst, "IPv4")
+	flows["v4FlowPort2"] = createFlow(t, topo, "v4FlowPort2", &atePort2, &atePort1, ipv4NetAdst1, "IPv4")
 	// v4FlowPort3: atePort3 -> atePort1
-	flows["v4FlowPort3"] = createFlow(t, topo, "v4FlowPort3", &atePort3, &atePort1, ipv4NetAdst, "IPv4")
+	flows["v4FlowPort3"] = createFlow(t, topo, "v4FlowPort3", &atePort3, &atePort1, ipv4NetAdst1, "IPv4")
 	// v6FlowPort2: atePort2 -> atePort1
-	flows["v6FlowPort2"] = createFlow(t, topo, "v6FlowPort2", &atePort2, &atePort1, ipv6NetAdst, "IPv6")
+	flows["v6FlowPort2"] = createFlow(t, topo, "v6FlowPort2", &atePort2, &atePort1, ipv6NetAdst1, "IPv6")
 	// v6FlowPort3: atePort3 -> atePort1
-	flows["v6FlowPort3"] = createFlow(t, topo, "v6FlowPort3", &atePort3, &atePort1, ipv6NetAdst, "IPv6")
+	flows["v6FlowPort3"] = createFlow(t, topo, "v6FlowPort3", &atePort3, &atePort1, ipv6NetAdst1, "IPv6")
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
+	t.Logf("Waiting for ARP resolution ...")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv4")
 	otgutils.WaitForARP(t, ate.OTG(), topo, "IPv6")
 	return topo, &ateTraffic{flows}
