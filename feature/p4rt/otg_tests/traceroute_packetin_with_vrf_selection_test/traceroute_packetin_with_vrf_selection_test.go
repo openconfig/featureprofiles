@@ -741,6 +741,11 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISSingleTopologyRequired(dut) {
+		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+	}
 
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
@@ -748,13 +753,6 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
 
 	isisIntf := isis.GetOrCreateInterface(intfName)
-	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
-	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
-
-	if deviations.InterfaceRefConfigUnsupported(dut) {
-		isisIntf.InterfaceRef = nil
-	}
-
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
@@ -801,7 +799,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -1153,7 +1155,7 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
-// testTraceRoute  is to test Test FRR behaviors with encapsulation scenarios
+// testTraceRoute  is to test FRR behaviors with encapsulation scenarios
 func TestTraceRoute(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
@@ -1191,6 +1193,9 @@ func TestTraceRoute(t *testing.T) {
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		// staticARPWithMagicUniversalIP(t, dut)
 		baseScenario.StaticARPWithMagicUniversalIP(t, dut)
+	}
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		baseScenario.StaticARPWithSpecificIP(t, dut)
 	}
 
 	t.Log("Install BGP route resolved by ISIS.")
