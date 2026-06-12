@@ -1,0 +1,10 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "208e4ac3-7f6a-41d9-a438-f5b6ceb90053"
+plan_id:  "MGT-2"
+description:  "Dual-Management SSH Reachability Validation"
+testbed:  TESTBED_DUT_ATE_4LINKS
+tags:  TAGS_TRANSIT
+tags:  TAGS_DATACENTER_EDGE
+
