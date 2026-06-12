@@ -356,7 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
-	inrHdrDscp                   uint32
+	innHdrDscp                   uint32
 	proto                        uint32
 }
 
