@@ -553,7 +553,7 @@ func TestInterruptImageTransferFailover(t *testing.T) {
 		doSwitchover(t, dut, standbyRPBefore)
 
 		if err := <-errCh; err != nil {
-			t.Logf("PushImage returned error: %v", err)
+			t.Fatalf("PushImage failed to start: %v", err)
 		}
 	})
 
@@ -612,18 +612,15 @@ func TestInterruptContainerStartFailover(t *testing.T) {
 		errCh := make(chan error, 1)
 		go func() {
 			_, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName)
-			if err != nil {
-				// Expected error due to switchover
-				errCh <- nil
-				return
-			}
-			errCh <- nil
+			errCh <- err
 		}()
 
 		doSwitchover(t, dut, standbyRPBefore)
 
 		if err := <-errCh; err != nil {
-			t.Logf("StartContainer background error: %v", err)
+			if status.Code(err) != codes.Unavailable && status.Code(err) != codes.Canceled && status.Code(err) != codes.DeadlineExceeded {
+				t.Fatalf("StartContainer failed with unexpected error: %v", err)
+			}
 		}
 	})
 
@@ -675,17 +672,15 @@ func TestInterruptVolumeCreationFailover(t *testing.T) {
 				"mountpoint": "/tmp",
 			}
 			_, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts)
-			if err != nil {
-				errCh <- nil
-				return
-			}
-			errCh <- nil
+			errCh <- err
 		}()
 
 		doSwitchover(t, dut, standbyRPBefore)
 
 		if err := <-errCh; err != nil {
-			t.Logf("CreateVolume background error: %v", err)
+			if status.Code(err) != codes.Unavailable && status.Code(err) != codes.Canceled && status.Code(err) != codes.DeadlineExceeded {
+				t.Fatalf("CreateVolume failed with unexpected error: %v", err)
+			}
 		}
 	})
 
