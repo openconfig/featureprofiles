@@ -418,8 +418,8 @@ func updateInterfaceConfig(batch *gnmi.SetBatch, dut *ondatra.DUTDevice, p *onda
 	switch {
 	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
 		// No port speed and duplex mode config for devices that do not support it.
-	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
-		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP || p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus and 800GZR/800GZR Plus as it is not supported.
 	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,
@@ -599,8 +599,8 @@ func ToggleInterfaceState(t *testing.T, dut *ondatra.DUTDevice, p *ondatra.Port,
 	switch {
 	case deviations.PortSpeedDuplexModeUnsupportedForInterfaceConfig(dut):
 		// No port speed and duplex mode config for devices that do not support it.
-	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP:
-		// No port speed and duplex mode config for 400GZR/400GZR Plus as it is not supported.
+	case p.PMD() == ondatra.PMD400GBASEZR || p.PMD() == ondatra.PMD400GBASEZRP || p.PMD() == ondatra.PMD800GBASEZR || p.PMD() == ondatra.PMD800GBASEZRP:
+		// No port speed and duplex mode config for 400GZR/400GZR Plus and 800GZR/800GZR Plus as it is not supported.
 	default:
 		i.Ethernet = &oc.Interface_Ethernet{
 			PortSpeed:  params.PortSpeed,

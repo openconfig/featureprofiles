@@ -160,7 +160,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
-
+				time.Sleep(2 * time.Minute)
 				// Create sample steams for each port.
 				ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
 				trStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
