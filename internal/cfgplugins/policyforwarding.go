@@ -895,12 +895,13 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 
 	cliConfig := fmt.Sprintf(`
 		                    ip decap-group type udp destination port %v payload %s
-							tunnel type %s-over-udp udp destination port %v
 							ip decap-group %s
 							tunnel type UDP
 							tunnel decap-ip %s
-							tunnel decap-interface %s
-							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+							`, params.GUEPort, decapProto, params.AppliedPolicyName, params.TunnelIP)
+	if params.InterfaceID != "" {
+		cliConfig += fmt.Sprintf("tunnel decap-interface %s\n", params.InterfaceID)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 

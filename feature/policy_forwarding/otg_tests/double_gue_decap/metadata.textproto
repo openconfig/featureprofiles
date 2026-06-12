@@ -5,3 +5,14 @@ uuid: "7a174892-6dfa-4a16-9a21-e278551002e4"
 plan_id: "PF-1.26"
 description: "Double GUEv1 Decapsulation for Overlay Probing"
 testbed: TESTBED_DUT_ATE_4LINKS
+
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+    gue_gre_decap_unsupported: true
+  }
+}
