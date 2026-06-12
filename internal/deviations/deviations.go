@@ -2239,3 +2239,9 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}

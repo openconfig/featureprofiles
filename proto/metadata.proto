@@ -1371,6 +1371,11 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 433;
 
+    // Devices which require to use interface-id format of interface name +
+    // .subinterface index with Interface-ref container specifically for policy forwarding usecase
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+    bool interface_id_format_required_for_policy_forwarding = 434;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
