@@ -16,7 +16,7 @@ import (
 const (
 	samplingInterval = 10 * time.Second
 	errorTolerance   = 0.05
-	timeout          = 10 * time.Minute
+	timeout          = 15 * time.Minute
 )
 
 var (
@@ -160,6 +160,10 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
+				// Wait for the config to be applied and the telemetry stream to be updated.
+				// Note: The sleep is added to ensure that the telemetry is updated after the config push.
+				// This is required as some platforms may take time to update the telemetry after the config is applied.
+				time.Sleep(120 * time.Second)
 
 				// Create sample steams for each port.
 				ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
@@ -197,7 +201,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, trStreams[p.Name()])
-					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
+					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, tempSensorStreams[p.Name()])
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
@@ -223,7 +227,7 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, interfaceStreams[p.Name()])
 					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, trStreams[p.Name()])
-					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, tempSensorStreams[p.Name()])
+					validateTempSensorTelemetry(t, dut, p, params, oc.Interface_OperStatus_UP, tempSensorStreams[p.Name()])
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_UP, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
