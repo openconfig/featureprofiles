@@ -687,7 +687,7 @@ func TestDoubleFailoverVolumePersistence(t *testing.T) {
 		t.Log("Starting cleanup...")
 		cli := containerztest.Client(t, dut)
 		if err := cli.RemoveVolume(ctx, volName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
-			t.Logf("Cleanup: failed to remove volume %q: %v", volName, err)
+			t.Errorf("Cleanup: failed to remove volume %q: %v", volName, err)
 		}
 		t.Log("Cleanup finished.")
 	})
