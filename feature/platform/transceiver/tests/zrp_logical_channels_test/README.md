@@ -139,6 +139,11 @@ Once the ZR_PLUS link is estabished proceed to configure the following entities:
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /components/component/transceiver/state/enabled:
+    platform_type: [TRANSCEIVER]
+  /interfaces/interface/state/enabled:
+  /interfaces/interface/state/oper-status:
 rpcs:
   gnmi:
     gNMI.Get:
