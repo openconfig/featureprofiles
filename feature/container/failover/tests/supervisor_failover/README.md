@@ -137,7 +137,7 @@ This is the tarball that will be used during tests.
 #### Pass/Fail Criteria
 
 *   **Pass:** The dummy image is not present or successfully loaded on the new primary.
-*   **Fail:** The system crashes, stop responding, or the partial image remains in an inconsistent state.
+*   **Fail:** The system crashes, stops responding, or the partial image remains in an inconsistent state.
 
 ## CNTR-3.8: Interrupt Container Start During Failover
 
