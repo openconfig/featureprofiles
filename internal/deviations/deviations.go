@@ -2232,3 +2232,16 @@ func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
 }
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
+// to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}
+
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}
