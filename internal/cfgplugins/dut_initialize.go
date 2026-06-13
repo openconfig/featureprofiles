@@ -1282,6 +1282,9 @@ func NewDUTHardwareInit(t *testing.T, dut *ondatra.DUTDevice, feature FeatureTyp
 		if strings.ToLower(dut.Model()) == "ceos" {
 			return ""
 		}
+		if feature == FeatureACLCounters && strings.Contains(dut.Model(), "DCS-7050") {
+			return ""
+		}
 		return aristaTcamProfileMap[feature]
 	default:
 		return ""
