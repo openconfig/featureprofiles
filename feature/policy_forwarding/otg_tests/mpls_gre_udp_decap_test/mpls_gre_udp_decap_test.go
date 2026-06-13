@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"testing"
 	"time"
 
@@ -23,24 +22,21 @@ import (
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
-	"github.com/openconfig/ygot/ygot"
 )
 
 const (
-	trafficTimeout    = 10 * time.Second
-	ipv4              = "IPv4"
-	ipv6              = "IPv6"
-	gre               = "GRE"
-	gue               = "GUE"
-	port1             = "port1"
-	port2             = "port2"
-	mplsLabel         = 100
-	trafficFrameSize  = 256
-	trafficRatePPS    = 500
-	packetCount       = 1000
-	captureFilePath   = "/tmp/capture.pcap"
-	capturePort       = port2
-	trafficPolicyName = "decap-policy"
+	trafficTimeout   = 10 * time.Second
+	gre              = "GRE"
+	gue              = "GUE"
+	port1            = "port1"
+	port2            = "port2"
+	mplsLabelIpv4    = 40571
+	mplsLabelIpv6    = 40572
+	trafficFrameSize = 256
+	trafficRatePPS   = 500
+	packetCount      = 1000
+	captureFilePath  = "/tmp/capture.pcap"
+	capturePort      = port2
 
 	innerIPv4DstA   = "10.5.1.1"
 	innerIPv4DstB   = "10.5.1.2"
@@ -48,11 +44,17 @@ const (
 	innerIPv6DstB   = "2001:aa:bb::2"
 	outerIPv4Src    = "20.4.1.1"
 	outerIPv6Src    = "2001:f:a:1::0"
-	outerIPv4DstA   = "20.5.1.1"
+	outerIPv4DstA   = "169.254.125.155"
+	outerIPv4DstB   = "169.254.126.155"
 	outerIPv6DstB   = "2001:f:c:e::2"
+	lspNextHopIPv4  = "169.254.1.138"
+	lspNextHopIPv6  = "2001:f:c:e::2"
 	outerDstUDPPort = 6635
 	outerDSCP       = 26
 	outerIPTTL      = 64
+
+	grePolicyName = "decap-policy-MPLS-GRE"
+	guePolicyName = "decap-policy-MPLS-GUE"
 )
 
 var (
@@ -96,8 +98,8 @@ var (
 		IPv6Len: 126,
 	}
 
-	grePolicyName = fmt.Sprintf("%s-%s-%s", trafficPolicyName, ipv6, gre)
-	guePolicyName = fmt.Sprintf("%s-%s-%s", trafficPolicyName, ipv6, gue)
+	nonDefaultNIName = "NonDefaultNI"
+	defaultNIName    = ""
 )
 
 type flowConfig struct {
@@ -111,19 +113,22 @@ type flowConfig struct {
 
 type testCase struct {
 	name        string
+	policyName  string
 	encapType   string
 	flowConfigs []flowConfig
+	policyDst   string
 }
 
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
-// PF-1.7.1: MPLS in GRE decapsulation set by gNMI
 func TestMPLSGREUDPDecap(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 	top := gosnappi.NewConfig()
+
+	defaultNIName = deviations.DefaultNetworkInstance(dut)
 	configureDUT(t, dut)
 
 	ap1 := ate.Port(t, port1)
@@ -134,24 +139,26 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), top, ipv4)
-	otgutils.WaitForARP(t, ate.OTG(), top, ipv6)
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv4)
+	otgutils.WaitForARP(t, ate.OTG(), top, cfgplugins.IPv6)
 	testCases := []testCase{
 		{
-			name:      "PF-1.7.1 - MPLS in GRE decapsulation set by gNMI",
-			encapType: gre,
+			name:       "PF-1.7.1 - MPLS in GRE decapsulation set by gNMI",
+			policyName: grePolicyName,
+			encapType:  gre,
+			policyDst:  outerIPv4DstA + "/28",
 			flowConfigs: []flowConfig{
 				{
-					innerIPType: ipv4,
-					outerIPType: ipv4,
+					innerIPType: cfgplugins.IPv4,
+					outerIPType: cfgplugins.IPv4,
 					innerIPSrc:  otgPort1.IPv4,
 					innerIPDest: innerIPv4DstA,
 					outerIPSrc:  outerIPv4Src,
 					outerIPDest: outerIPv4DstA,
 				},
 				{
-					innerIPType: ipv6,
-					outerIPType: ipv4,
+					innerIPType: cfgplugins.IPv6,
+					outerIPType: cfgplugins.IPv4,
 					innerIPSrc:  otgPort1.IPv6,
 					innerIPDest: innerIPv6DstA,
 					outerIPSrc:  outerIPv4Src,
@@ -160,20 +167,22 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 			},
 		},
 		{
-			name:      "PF-1.7.2 - MPLS in UDP decapsulation set by gNMI",
-			encapType: gue,
+			name:       "PF-1.7.2 - MPLS in UDP decapsulation set by gNMI",
+			policyName: guePolicyName,
+			encapType:  gue,
+			policyDst:  outerIPv4DstB + "/28",
 			flowConfigs: []flowConfig{
 				{
-					innerIPType: ipv4,
-					outerIPType: ipv6,
+					innerIPType: cfgplugins.IPv4,
+					outerIPType: cfgplugins.IPv6,
 					innerIPSrc:  otgPort1.IPv4,
 					innerIPDest: innerIPv4DstB,
 					outerIPSrc:  outerIPv6Src,
 					outerIPDest: outerIPv6DstB,
 				},
 				{
-					innerIPType: ipv6,
-					outerIPType: ipv6,
+					innerIPType: cfgplugins.IPv6,
+					outerIPType: cfgplugins.IPv6,
 					innerIPSrc:  otgPort1.IPv6,
 					innerIPDest: innerIPv6DstB,
 					outerIPSrc:  outerIPv6Src,
@@ -226,16 +235,16 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 
 	flowMetrics := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flowName).State())
 	if *flowMetrics.Counters.OutPkts == 0 {
-		return errors.New("no packets transmitted")
+		return fmt.Errorf("%s - no packets transmitted", flowName)
 	}
 
 	if *flowMetrics.Counters.InPkts != packetCount {
-		return fmt.Errorf("unexpected number of packets received: got %d, want %d", *flowMetrics.Counters.InPkts, packetCount)
+		return fmt.Errorf("%s - unexpected number of packets received: got %d, want %d", flowName, *flowMetrics.Counters.InPkts, packetCount)
 	}
 
 	mustProcessCapture(t, ate, capturePort, flowName)
-	if err := verifyReceivedInnerPacket(t, captureFilePath, tc, flowConfig); err != nil {
-		return fmt.Errorf("packet validation failed: %w", err)
+	if err := verifyReceivedInnerPacketPopLabel(t, captureFilePath, tc, flowConfig); err != nil {
+		return fmt.Errorf("%s - packet validation failed: %w", flowName, err)
 	}
 	return nil
 }
@@ -305,38 +314,42 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	dp1 := dut.Port(t, port1)
 	dp2 := dut.Port(t, port2)
 
-	t.Log("Configuring Interfaces")
-	configureDUTPort(t, dut, &dutPort1, dp1)
-	configureDUTPort(t, dut, &dutPort2, dp2)
+	isDefaultVrf := true
+	t.Logf("Configuring Network Instances")
+	defaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, defaultNIName, isDefaultVrf)
+	nonDefaultNI := cfgplugins.ConfigureNetworkInstance(t, dut, nonDefaultNIName, !isDefaultVrf)
 
-	t.Log("Configuring routes")
-	configureStaticRoutes(t, dut)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, nonDefaultNIName, nonDefaultNI)
+
+	t.Log("Configuring Interfaces")
+	configureDUTPort(t, dut, &dutPort1, dp1, defaultNIName)
+	configureDUTPort(t, dut, &dutPort2, dp2, nonDefaultNIName)
+
+	t.Logf("Configuring Routes in VRF %s", nonDefaultNIName)
+	configureStaticRoutes(t, dut, nonDefaultNIName)
 
 	t.Log("Configuring decap policy forwarding")
 	configureDecapPolicyForwarding(t, dut, dp1.Name())
+
+	t.Log("Configuring Static LSP")
+	configBatch := &gnmi.SetBatch{}
+	configureStaticLSP(t, dut, configBatch)
+	configBatch.Set(t, dut)
 }
 
 func configureInputPolicy(t *testing.T, dut *ondatra.DUTDevice, tc testCase) {
-	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	interfaceName := dut.Port(t, port1).Name()
-	var policyName string
-	switch tc.encapType {
-	case gre:
-		policyName = grePolicyName
-	case gue:
-		policyName = guePolicyName
-	}
 	_, _, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
 	ocPFParams := cfgplugins.OcPolicyForwardingParams{
 		Dynamic:           true,
 		InterfaceID:       interfaceName,
-		AppliedPolicyName: policyName,
+		AppliedPolicyName: tc.policyName,
 	}
 	cfgplugins.InterfacePolicyForwardingConfig(t, dut, nil, "", pf, ocPFParams)
 }
 
 func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interfaceName string) {
-	defaultNIName := deviations.DefaultNetworkInstance(dut)
 	_, ni, pf := cfgplugins.SetupPolicyForwardingInfraOC(defaultNIName)
 
 	grePFParams := cfgplugins.OcPolicyForwardingParams{
@@ -354,7 +367,7 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 		InterfaceID:         interfaceName,
 		AppliedPolicyName:   guePolicyName,
 		GUEPort:             outerDstUDPPort,
-		IPType:              ipv6,
+		IPType:              cfgplugins.IPv6,
 		TunnelIP:            outerIPv6DstB,
 		Dynamic:             true,
 		HasMPLS:             true,
@@ -366,36 +379,34 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 	}
 }
 
-func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port) {
-	t.Helper()
+func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
+
+	lspParams := []cfgplugins.StaticLSPParams{
+		{
+			Name:         fmt.Sprintf("Customer IPV4 in:%d out:pop", mplsLabelIpv4),
+			Label:        mplsLabelIpv4,
+			NextHop:      lspNextHopIPv4,
+			VRF:          nonDefaultNIName,
+			ProtocolType: cfgplugins.IPv4,
+		},
+		{
+			Name:         fmt.Sprintf("Customer IPV6 in:%d out:pop", mplsLabelIpv6),
+			Label:        mplsLabelIpv6,
+			NextHop:      lspNextHopIPv6,
+			VRF:          nonDefaultNIName,
+			ProtocolType: cfgplugins.IPv6,
+		},
+	}
+	for _, params := range lspParams {
+		cfgplugins.NewStaticMplsLspVRFPopLabel(t, dut, batch, params)
+	}
+}
+
+func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, attrs *attrs.Attributes, p *ondatra.Port, niName string) {
 	d := gnmi.OC()
+	cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
 	i := attrs.NewOCInterface(p.Name(), dut)
-	i.Description = ygot.String(attrs.Desc)
-	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
-	if deviations.InterfaceEnabled(dut) {
-		i.Enabled = ygot.Bool(true)
-	}
-
-	i.GetOrCreateEthernet()
-	i4 := i.GetOrCreateSubinterface(0).GetOrCreateIpv4()
-	i4.Enabled = ygot.Bool(true)
-	a := i4.GetOrCreateAddress(attrs.IPv4)
-	a.PrefixLength = ygot.Uint8(attrs.IPv4Len)
-
-	i6 := i.GetOrCreateSubinterface(0).GetOrCreateIpv6()
-	i6.Enabled = ygot.Bool(true)
-	a6 := i6.GetOrCreateAddress(attrs.IPv6)
-	a6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
-
 	gnmi.Replace(t, dut, d.Interface(p.Name()).Config(), i)
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		t.Logf("DUT %s %s %s requires explicit interface in default VRF deviation ", dut.Vendor(), dut.Model(), dut.Version())
-	}
-
-	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p)
-	}
 }
 
 func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowConfig, flowName string) {
@@ -409,20 +420,25 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(otgPort1.MAC)
-
+	var mplsLabel uint32
 	switch fc.innerIPType {
-	case ipv4:
+	case cfgplugins.IPv4:
+		mplsLabel = mplsLabelIpv4
+	case cfgplugins.IPv6:
+		mplsLabel = mplsLabelIpv6
+	}
+	mpls := flow.Packet().Add().Mpls()
+	mpls.Label().SetValue(mplsLabel)
+	switch fc.innerIPType {
+	case cfgplugins.IPv4:
 		innerIPv4 := flow.Packet().Add().Ipv4()
 		innerIPv4.Src().SetValue(fc.innerIPSrc)
 		innerIPv4.Dst().SetValue(fc.innerIPDest)
-	case ipv6:
+	case cfgplugins.IPv6:
 		innerIPv6 := flow.Packet().Add().Ipv6()
 		innerIPv6.Src().SetValue(fc.innerIPSrc)
 		innerIPv6.Dst().SetValue(fc.innerIPDest)
 	}
-
-	mpls := flow.Packet().Add().Mpls()
-	mpls.Label().SetValue(mplsLabel)
 
 	switch tc.encapType {
 	case gre:
@@ -435,13 +451,13 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 	}
 
 	switch fc.outerIPType {
-	case ipv4:
+	case cfgplugins.IPv4:
 		outerIPv4 := flow.Packet().Add().Ipv4()
 		outerIPv4.Src().SetValue(fc.outerIPSrc)
 		outerIPv4.Dst().SetValue(fc.outerIPDest)
 		outerIPv4.Priority().Dscp().Phb().SetValue(outerDSCP)
 		outerIPv4.TimeToLive().SetValue(outerIPTTL)
-	case ipv6:
+	case cfgplugins.IPv6:
 		outerIPv6 := flow.Packet().Add().Ipv6()
 		outerIPv6.Src().SetValue(fc.outerIPSrc)
 		outerIPv6.Dst().SetValue(fc.outerIPDest)
@@ -450,7 +466,7 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 	}
 }
 
-func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase, fc flowConfig) error {
+func verifyReceivedInnerPacketPopLabel(t *testing.T, captureFilename string, tc testCase, fc flowConfig) error {
 	if captureFilename == "" {
 		return fmt.Errorf("no capture file provided for inner packet verification for testcase %s", tc.name)
 	}
@@ -463,10 +479,10 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 
 	var baseIPLayer, icmpLayer gopacket.LayerType
 	switch fc.innerIPType {
-	case ipv4:
+	case cfgplugins.IPv4:
 		baseIPLayer = layers.LayerTypeIPv4
 		icmpLayer = layers.LayerTypeICMPv4
-	case ipv6:
+	case cfgplugins.IPv6:
 		baseIPLayer = layers.LayerTypeIPv6
 		icmpLayer = layers.LayerTypeICMPv6
 	default:
@@ -480,6 +496,7 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 
 	var validationErrs []error
+	var foundMPLS bool
 	for packet := range packetSource.Packets() {
 		if packet.Layer(icmpLayer) != nil {
 			t.Log("Skipping ICMP packet")
@@ -494,17 +511,12 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 		capturePacketCount++
 
 		mplsInnerLayer := packet.Layer(layers.LayerTypeMPLS)
-		mplsPacket, ok := mplsInnerLayer.(*layers.MPLS)
-		if !ok || mplsPacket == nil {
-			validationErrs = append(validationErrs, fmt.Errorf("MPLS layer not found for packet %d", capturePacketCount))
-			continue
-		}
-		if mplsPacket.Label != mplsLabel {
-			validationErrs = append(validationErrs, fmt.Errorf("MPLS inner packet %d: got label %d, want %d", capturePacketCount, mplsPacket.Label, mplsLabel))
+		if mplsInnerLayer != nil {
+			foundMPLS = true
 		}
 
 		switch fc.innerIPType {
-		case ipv4:
+		case cfgplugins.IPv4:
 			ipInnerLayer := packet.Layer(layers.LayerTypeIPv4)
 			if ipInnerLayer == nil {
 				validationErrs = append(validationErrs, fmt.Errorf("inner IPv4 layer not found for packet %d", capturePacketCount))
@@ -522,7 +534,7 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 			if !ipInnerPacket.DstIP.Equal(destIPAddr) {
 				validationErrs = append(validationErrs, fmt.Errorf("IPv4 inner packet %d: got DstIP %s, want %s", capturePacketCount, ipInnerPacket.DstIP.String(), destIPAddr.String()))
 			}
-		case ipv6:
+		case cfgplugins.IPv6:
 			ipInnerLayer := packet.Layer(layers.LayerTypeIPv6)
 			if ipInnerLayer == nil {
 				validationErrs = append(validationErrs, fmt.Errorf("inner IPv6 layer not found for packet %d", capturePacketCount))
@@ -541,6 +553,12 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 			}
 		}
 	}
+
+	if foundMPLS {
+		validationErrs = append(validationErrs, fmt.Errorf("unexpected MPLS layer found for packet %d", capturePacketCount))
+	} else {
+		t.Logf("No MPLS layer found in decapsulated packets as expected")
+	}
 	if capturePacketCount != packetCount {
 		validationErrs = append(validationErrs, fmt.Errorf("expected %d %s decapsulated packets with inner %s packet, got %d", packetCount, tc.encapType, fc.innerIPType, capturePacketCount))
 	} else {
@@ -549,22 +567,18 @@ func verifyReceivedInnerPacket(t *testing.T, captureFilename string, tc testCase
 	return errors.Join(validationErrs...)
 }
 
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice) {
-	for index, destination := range []string{innerIPv4DstA, innerIPv4DstB} {
-		mustConfigStaticRoute(t, dut, destination+"/32", otgPort2.IPv4, strconv.Itoa(index))
-	}
-	for index, destination := range []string{innerIPv6DstA, innerIPv6DstB} {
-		mustConfigStaticRoute(t, dut, destination+"/128", otgPort2.IPv6, strconv.Itoa(index))
-	}
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, networkInstance string) {
+	mustConfigStaticRoute(t, dut, lspNextHopIPv4+"/32", otgPort2.IPv4, "0", networkInstance)
+	mustConfigStaticRoute(t, dut, lspNextHopIPv6+"/128", otgPort2.IPv6, "0", networkInstance)
 }
 
-func mustConfigStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string) {
+func mustConfigStaticRoute(t *testing.T, dut *ondatra.DUTDevice, prefix string, nexthop string, index string, networkInstance string) {
 	b := &gnmi.SetBatch{}
 	if nexthop == "Null0" {
 		nexthop = "DROP"
 	}
 	routeCfg := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: deviations.DefaultNetworkInstance(dut),
+		NetworkInstance: networkInstance,
 		Prefix:          prefix,
 		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
 			index: oc.UnionString(nexthop),
