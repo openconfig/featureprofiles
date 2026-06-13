@@ -32,22 +32,23 @@ import (
 )
 
 const (
-	vrfName          = "VRF-A"
-	v4PfxSet         = "PREFIX-SET-A"
-	v6PfxSet         = "PREFIX-SET-B"
-	v4Policy         = "POLICY-PREFIX-SET-A"
-	v6Policy         = "POLICY-PREFIX-SET-B"
-	matchAllPolicy   = "POLICY-MATCH-ALL"
-	subscriptionWait = 3 * time.Minute
-	prefixAft1V4     = "198.51.100.0/24"
-	prefixAft2V4     = "203.0.113.0/28"
-	prefixAft3V4     = "192.0.2.0/24"
-	prefixAft1V6     = "2001:db8:2::/64"
-	prefixAft2V6     = "2001:db8:2::1/128"
-	prefixAft3V6     = "2001:db8:2::2/128"
-	vrfV4Pfx         = "100.64.1.0/24"
-	vrfV6Pfx         = "2001:db8:3::/64"
-	maskRange        = "exact"
+	vrfName              = "VRF-A"
+	v4PfxSet             = "PREFIX-SET-A"
+	v6PfxSet             = "PREFIX-SET-B"
+	v4Policy             = "POLICY-PREFIX-SET-A"
+	v6Policy             = "POLICY-PREFIX-SET-B"
+	matchAllPolicy       = "POLICY-MATCH-ALL"
+	subscriptionWait     = 3 * time.Minute
+	prefixAft1V4         = "198.51.100.0/24"
+	prefixAft2V4         = "203.0.113.0/28"
+	prefixAft3V4         = "192.0.2.0/24"
+	prefixAft1V6         = "2001:db8:2::/64"
+	prefixAft2V6         = "2001:db8:2::1/128"
+	prefixAft3V6         = "2001:db8:2::2/128"
+	vrfV4Pfx             = "100.64.1.0/24"
+	vrfV6Pfx             = "2001:db8:3::/64"
+	maskRange            = "exact"
+	notificationWaitTime = 30 * time.Second
 )
 
 var (
@@ -308,7 +309,8 @@ func validateIPv6DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 // validateDynamicUpdates validates dynamic AFT prefix filtering behavior for both IPv4 and IPv6 route policies.
 func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicUpdateTestParams) {
 	t.Helper()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	configureGlobalFilterPolicies(t, dut, pArgs.policyName, "", deviations.DefaultNetworkInstance(dut))
 
 	wantPrefixes := map[string]bool{
@@ -352,7 +354,7 @@ func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicU
 	}
 	verifyPrefixesPresent(t, addAFT, []string{pArgs.prefix3})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, addCollector, aftcache.WaitForUpdateNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix3}))
+	runCollector(ctx, t, addCollector, aftcache.WaitForUpdateNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix3, NotificationWait: notificationWaitTime}))
 
 	// ------------------------------------------------------------
 	// AFT-6.4.X.2 Delete Prefix
@@ -370,7 +372,7 @@ func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicU
 	verifyPrefixRemovedFromPrefixSet(t, dut, pArgs.prefixSet, pArgs.prefix1, pArgs.maskRange)
 	verifyPrefixesAbsent(t, delaft, []string{pArgs.prefix1})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, deleteCollector, aftcache.WaitForDeleteNotification(t, aftcache.NotificationExpectation{DeletePrefix: pArgs.prefix1}))
+	runCollector(ctx, t, deleteCollector, aftcache.WaitForDeleteNotification(t, aftcache.NotificationExpectation{DeletePrefix: pArgs.prefix1, NotificationWait: notificationWaitTime}))
 
 	// ------------------------------------------------------------
 	// AFT-6.4.X.3 Atomic Add/Delete
@@ -389,7 +391,7 @@ func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicU
 	verifyPrefixesPresent(t, swapaft, []string{pArgs.prefix1})
 	verifyPrefixesAbsent(t, swapaft, []string{pArgs.prefix2})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, swapCollector, aftcache.WaitForUpdateDeleteNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix1, DeletePrefix: pArgs.prefix2}))
+	runCollector(ctx, t, swapCollector, aftcache.WaitForUpdateDeleteNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix1, DeletePrefix: pArgs.prefix2, NotificationWait: notificationWaitTime}))
 }
 
 // newCollector creates and returns a new AFT stream session. If debug_notifications is enabled, all received gNMI notifications are recorded in memory for later inspection and troubleshooting.
@@ -457,6 +459,7 @@ func configureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, ipv4Pol
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
 			t.Log("Skipping AFT global-filter attachment: unsupported on EOS")
+			return
 		}
 	} else {
 		// TODO: Enable the following code once OC supports AFTs global filter configuration.

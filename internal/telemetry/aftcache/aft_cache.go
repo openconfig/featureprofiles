@@ -1151,8 +1151,9 @@ type notificationMatch struct {
 
 // NotificationExpectation defines prefixes that should appear as UPDATE and/or DELETE notifications in the gNMI stream.
 type NotificationExpectation struct {
-	AddPrefix    string
-	DeletePrefix string
+	AddPrefix        string
+	DeletePrefix     string
+	NotificationWait time.Duration
 }
 
 // WaitForUpdateDeleteNotification returns a PeriodicHook that waits until:
@@ -1163,7 +1164,7 @@ type NotificationExpectation struct {
 // The hook returns true only after both notifications have been observed.
 func WaitForUpdateDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
 	t.Helper()
-
+	start := time.Now()
 	return PeriodicHook{
 		Description: fmt.Sprintf("Wait for UPDATE(%s) and DELETE(%s) notifications", cfg.AddPrefix, cfg.DeletePrefix),
 		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
@@ -1187,13 +1188,18 @@ func WaitForUpdateDeleteNotification(t *testing.T, cfg NotificationExpectation) 
 					return true, nil
 				}
 			}
-			return false, fmt.Errorf("update and delete notifications are not received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("update and delete notifications are not received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
+			}
+			return false, nil
 		},
 	}
 }
 
 // WaitForDeleteNotification returns a PeriodicHook that waits until a DELETE notification is received for the specified prefix.
 func WaitForDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
 	return PeriodicHook{
 		Description: fmt.Sprintf("Wait for delete notification: %s", cfg.DeletePrefix),
 		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
@@ -1207,13 +1213,18 @@ func WaitForDeleteNotification(t *testing.T, cfg NotificationExpectation) Period
 					return true, nil
 				}
 			}
-			return false, fmt.Errorf("delete notification not received for prefix %s", cfg.DeletePrefix)
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("delete notification not received for prefix %s", cfg.DeletePrefix)
+			}
+			return false, nil
 		},
 	}
 }
 
 // WaitForUpdateNotification returns a PeriodicHook that waits until an UPDATE notification is received for the specified prefix.
 func WaitForUpdateNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
 	return PeriodicHook{
 		Description: fmt.Sprintf("Wait for update notification for %s", cfg.AddPrefix),
 		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
@@ -1227,7 +1238,10 @@ func WaitForUpdateNotification(t *testing.T, cfg NotificationExpectation) Period
 					return true, nil
 				}
 			}
-			return false, fmt.Errorf("update notification not received for prefix %s", cfg.AddPrefix)
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("update notification not received for prefix %s after %v", cfg.AddPrefix, cfg.NotificationWait)
+			}
+			return false, nil
 		},
 	}
 }
