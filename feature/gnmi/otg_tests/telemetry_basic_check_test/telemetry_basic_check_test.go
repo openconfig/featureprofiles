@@ -46,7 +46,6 @@ const (
 	operStatusUp    = oc.Interface_OperStatus_UP
 	operStatusDown  = oc.Interface_OperStatus_DOWN
 	maxPortVal      = "FFFFFEFF" // Maximum Port Value : https://github.com/openconfig/public/blob/2049164a8bca4cc9f11ffb313ef25c0e87303a24/release/models/p4rt/openconfig-p4rt.yang#L63-L81
-	aristaMACFT     = "arista-interface-mac-ft"
 	ciscoMACFT      = "ciscoxr-lagmac-ft"
 )
 
@@ -63,14 +62,7 @@ var (
 func getMacAddress(t *testing.T, dut *ondatra.DUTDevice, intfName string) (string, bool) {
 	t.Helper()
 	var opts []ygnmi.Option
-	if dut.Vendor() == ondatra.ARISTA {
-		ft, ok := registrar.FunctionalTranslatorRegistry[aristaMACFT]
-		if !ok {
-			t.Fatalf("Functional translator %s is not registered", deviations.CiscoxrLaserFt(dut))
-		}
-		opts = append(opts, ygnmi.WithFT(ft))
-		t.Logf("Using functional translator %q for MAC address on %s", aristaMACFT, intfName)
-	} else if dut.Vendor() == ondatra.CISCO {
+	if dut.Vendor() == ondatra.CISCO {
 		ft, ok := registrar.FunctionalTranslatorRegistry[ciscoMACFT]
 		if !ok {
 			t.Fatalf("Functional translator %s is not registered", ciscoMACFT)
