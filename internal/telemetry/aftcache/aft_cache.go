@@ -744,7 +744,13 @@ func InitialSyncStoppingCondition(t *testing.T, dut *ondatra.DUTDevice, wantPref
 				return false, nil
 			}
 			ss.missingPrefixes = make(map[string]bool) // All prefixes are present, so clear the list.
-
+			noIPv4NHValidation := len(wantIPV4NHs) == 0
+			noIPv6NHValidation := len(wantIPV6NHs) == 0
+			if noIPv4NHValidation && noIPv6NHValidation {
+				t.Logf("%s Prefix validation completed successfully. "+"Skipping NH validation because no NH expectations were provided.", prefix)
+				t.Logf("%s Initial sync stopping condition took %.2f sec", prefix, time.Since(start).Seconds())
+				return true, nil
+			}
 			// Check next hops.
 			checkNHStart := time.Now()
 			nCorrect := 0
@@ -1130,4 +1136,140 @@ func writeNotifications(t *testing.T, notifications []*gnmipb.SubscribeResponse,
 		}
 	}
 	return path, nil
+}
+
+// Notifications return the AFT stream notifications.
+func (ss *AFTStreamSession) Notifications() []*gnmipb.SubscribeResponse {
+	return ss.notifications
+}
+
+// notificationMatch tracks whether the expected update/delete notifications have been observed in the gNMI stream.
+type notificationMatch struct {
+	updateFound bool
+	deleteFound bool
+}
+
+// NotificationExpectation defines prefixes that should appear as UPDATE and/or DELETE notifications in the gNMI stream.
+type NotificationExpectation struct {
+	AddPrefix        string
+	DeletePrefix     string
+	NotificationWait time.Duration
+}
+
+// WaitForUpdateDeleteNotification returns a PeriodicHook that waits until:
+//
+//   - an UPDATE notification is received for updatePrefix
+//   - a DELETE notification is received for deletePrefix
+//
+// The hook returns true only after both notifications have been observed.
+func WaitForUpdateDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
+	return PeriodicHook{
+		Description: fmt.Sprintf("Wait for UPDATE(%s) and DELETE(%s) notifications", cfg.AddPrefix, cfg.DeletePrefix),
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			match := notificationMatch{}
+			for _, resp := range ss.Notifications() {
+				update := resp.GetUpdate()
+				if update == nil {
+					continue
+				}
+
+				if hasUpdateNotification(update, cfg.AddPrefix) {
+					match.updateFound = true
+				}
+
+				if hasDeleteNotification(update, cfg.DeletePrefix) {
+					match.deleteFound = true
+				}
+
+				if match.updateFound && match.deleteFound {
+					t.Logf("Update and Delete notifications received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
+					return true, nil
+				}
+			}
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("update and delete notifications are not received for %s, %s", cfg.AddPrefix, cfg.DeletePrefix)
+			}
+			return false, nil
+		},
+	}
+}
+
+// WaitForDeleteNotification returns a PeriodicHook that waits until a DELETE notification is received for the specified prefix.
+func WaitForDeleteNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
+	return PeriodicHook{
+		Description: fmt.Sprintf("Wait for delete notification: %s", cfg.DeletePrefix),
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			for _, resp := range ss.Notifications() {
+				update := resp.GetUpdate()
+				if update == nil {
+					continue
+				}
+				if hasDeleteNotification(update, cfg.DeletePrefix) {
+					t.Logf("Delete notification received for %s", cfg.DeletePrefix)
+					return true, nil
+				}
+			}
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("delete notification not received for prefix %s", cfg.DeletePrefix)
+			}
+			return false, nil
+		},
+	}
+}
+
+// WaitForUpdateNotification returns a PeriodicHook that waits until an UPDATE notification is received for the specified prefix.
+func WaitForUpdateNotification(t *testing.T, cfg NotificationExpectation) PeriodicHook {
+	t.Helper()
+	start := time.Now()
+	return PeriodicHook{
+		Description: fmt.Sprintf("Wait for update notification for %s", cfg.AddPrefix),
+		PeriodicFunc: func(ss *AFTStreamSession) (bool, error) {
+			for _, resp := range ss.Notifications() {
+				update := resp.GetUpdate()
+				if update == nil {
+					continue
+				}
+				if hasUpdateNotification(update, cfg.AddPrefix) {
+					t.Logf("Update notification received for %s", cfg.AddPrefix)
+					return true, nil
+				}
+			}
+			if time.Since(start) > cfg.NotificationWait {
+				return false, fmt.Errorf("update notification not received for prefix %s after %v", cfg.AddPrefix, cfg.NotificationWait)
+			}
+			return false, nil
+		},
+	}
+}
+
+// hasUpdateNotification returns true if the specified prefix appears in any UPDATE path within the notification.
+func hasUpdateNotification(update *gnmipb.Notification, prefix string) bool {
+	for _, upd := range update.GetUpdate() {
+		for _, elem := range upd.GetPath().GetElem() {
+			for _, keyVal := range elem.GetKey() {
+				if keyVal == prefix {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// hasDeleteNotification returns true if the specified prefix appears in any DELETE path within the notification.
+func hasDeleteNotification(update *gnmipb.Notification, prefix string) bool {
+	for _, del := range update.GetDelete() {
+		for _, elem := range del.GetElem() {
+			for _, keyVal := range elem.GetKey() {
+				if keyVal == prefix {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

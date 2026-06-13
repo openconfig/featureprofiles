@@ -1561,3 +1561,81 @@ func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Enabling next-hop decapsulation VRF mode")
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
+
+// PrefixSetPolicyParams has the parameters to configure prefix set policy.
+type PrefixSetPolicyParams struct {
+	PolicyName     string
+	StatementNames []string
+	PrefixSetNames []string
+	MatchPrefixSet bool
+	SetTag         bool
+	PrefixList     []string
+	PrefixMode     string
+	PrefixDeny     bool
+	PolicyResult   oc.E_RoutingPolicy_PolicyResultType
+}
+
+// AddPrefixSetPolicy creates a routing policy statement that matches the specified prefix set and applies the supplied policy result.
+func AddPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
+	t.Helper()
+	pd := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	for stIndex, stName := range cfg.StatementNames {
+		stmt, err := pd.AppendNewStatement(stName)
+		if err != nil {
+			t.Fatalf("AppendNewStatement failed: %v", err)
+		}
+		if cfg.MatchPrefixSet {
+			if cfg.SetTag {
+				stmt.GetOrCreateConditions().GetOrCreateMatchTagSet().TagSet = ygot.String("999")
+			} else {
+				if cfg.PrefixSetNames[stIndex] != "" {
+					match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
+					match.PrefixSet = ygot.String(cfg.PrefixSetNames[stIndex])
+				}
+			}
+		}
+		if cfg.PrefixDeny && stIndex == 0 {
+			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+			continue
+		}
+		stmt.GetOrCreateActions().PolicyResult = cfg.PolicyResult
+	}
+}
+
+// PrefixParams has prefix parameters to create prefix.
+type PrefixParams struct {
+	PrefixName string
+	MaskRange  string
+}
+
+// createPrefixSetPolicy creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
+func AddPrefixSetPolicyWithMatch(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
+	t.Helper()
+	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetNames[0])
+
+	for _, prefix := range cfg.PrefixList {
+		addPrefix(t, ps, prefix, cfg.PrefixMode)
+	}
+
+	pd := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	for stIndex, stName := range cfg.StatementNames {
+		stmt, err := pd.AppendNewStatement(stName)
+		if err != nil {
+			t.Fatalf("Failed to append statement: %v", err)
+		}
+		match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
+
+		match.PrefixSet = ygot.String(cfg.PrefixSetNames[stIndex])
+		match.MatchSetOptions = oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	}
+}
+
+// addPrefix adds prefix-set entry.
+func addPrefix(t *testing.T, ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix, maskRange string) {
+	t.Helper()
+	p := ps.GetOrCreatePrefix(prefix, maskRange)
+
+	p.IpPrefix = ygot.String(prefix)
+	p.MasklengthRange = ygot.String(maskRange)
+}

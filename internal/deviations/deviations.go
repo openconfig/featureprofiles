@@ -2245,3 +2245,9 @@ func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDe
 func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
 }
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if the device does not support Afts Global Filter paths /network-instances/network-instance/afts/global-filter/config/.
+// Arista: https://partnerissuetracker.corp.google.com/issues/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}

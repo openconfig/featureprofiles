@@ -1374,6 +1374,10 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
     bool interface_id_format_required_for_policy_forwarding = 434;
 
+    // Arista: b/514565554
+    // Devices that do not support afts global filter policy OC
+    bool afts_global_filter_policy_oc_unsupported = 435;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
