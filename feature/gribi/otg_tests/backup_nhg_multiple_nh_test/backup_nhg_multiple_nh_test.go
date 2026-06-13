@@ -127,6 +127,23 @@ var (
 		IPv6:    "2001:0db8::192:0:2:E",
 		IPv6Len: ipv6PrefixLen,
 	}
+
+	dutPort5 = attrs.Attributes{
+		Desc:    "dutPort5",
+		IPv4:    "192.0.2.17",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:11",
+		IPv6Len: ipv6PrefixLen,
+	}
+
+	atePort5 = attrs.Attributes{
+		Name:    "atePort5",
+		MAC:     "02:00:05:01:01:01",
+		IPv4:    "192.0.2.18",
+		IPv4Len: ipv4PrefixLen,
+		IPv6:    "2001:0db8::192:0:2:12",
+		IPv6Len: ipv6PrefixLen,
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -141,11 +158,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	p2 := ate.Port(t, "port2")
 	p3 := ate.Port(t, "port3")
 	p4 := ate.Port(t, "port4")
+	p5 := ate.Port(t, "port5")
 
 	atePort1.AddToOTG(top, p1, &dutPort1)
 	atePort2.AddToOTG(top, p2, &dutPort2)
 	atePort3.AddToOTG(top, p3, &dutPort3)
 	atePort4.AddToOTG(top, p4, &dutPort4)
+	atePort5.AddToOTG(top, p5, &dutPort5)
 
 	return top
 }
@@ -224,16 +243,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p4 := dut.Port(t, "port4")
 	gnmi.Replace(t, dut, d.Interface(p4.Name()).Config(), dutPort4.NewOCInterface(p4.Name(), dut))
 
+	p5 := dut.Port(t, "port5")
+	gnmi.Replace(t, dut, d.Interface(p5.Name()).Config(), dutPort5.NewOCInterface(p5.Name(), dut))
+
 	if deviations.ExplicitPortSpeed(dut) {
-		fptest.SetPortSpeed(t, p1)
-		fptest.SetPortSpeed(t, p2)
-		fptest.SetPortSpeed(t, p3)
-		fptest.SetPortSpeed(t, p4)
+		for _, p := range []*ondatra.Port{p1, p2, p3, p4, p5} {
+			fptest.SetPortSpeed(t, p)
+		}
 	}
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		fptest.AssignToNetworkInstance(t, dut, p2.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p3.Name(), deviations.DefaultNetworkInstance(dut), 0)
-		fptest.AssignToNetworkInstance(t, dut, p4.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		for _, p := range []*ondatra.Port{p2, p3, p4, p5} {
+			fptest.AssignToNetworkInstance(t, dut, p.Name(), deviations.DefaultNetworkInstance(dut), 0)
+		}
 	}
 }
 
@@ -295,6 +316,7 @@ func TestBackup(t *testing.T) {
 //   - Connect ATE port-2 to DUT port-2.
 //   - Connect ATE port-3 to DUT port-3.
 //   - Connect ATE port-4 to DUT port-4.
+//   - Connect ATE port-5 to DUT port-5.
 //   - Create a L3 routing instance (vrfA), and assign DUT port-1 to vrfA.
 //   - Create a L3 routing instance (vrfB) that includes no interface.
 //   - Connect a gRIBI client to the DUT, make it become leader and inject the following:
@@ -302,11 +324,12 @@ func TestBackup(t *testing.T) {
 //   - Two primary next-hops:
 //   - IP of ATE port-2
 //   - IP of ATE port-3
-//   - A backup NHG containing a single next-hop pointing to VRF-B.
-//   - The same IPv4Entry but in VRF-B, pointing to a NextHopGroup (in DEFAULT VRF) containing a primary next-hop to the IP of ATE port-4.
+//   - A backup NHG containing two next-hops:
+//   - IP of ATE port-4
+//   - IP of ATE port-5
 //   - Ensure that traffic forwarded to a destination is received at ATE port-2 and port-3. Validate that AFT telemetry covers this case.
 //   - Disable ATE port-2. Ensure that traffic for a destination is received at ATE port-3.
-//   - Disable ATE port-3. Ensure that traffic for a destination is received at ATE port-4.
+//   - Disable ATE port-3. Ensure that traffic for a destination is received at ATE port-4 and ATE port-5.
 //
 // Validation Steps
 //   - Verify AFT telemetry after shutting each port
@@ -315,37 +338,32 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 
 	const (
 		// Next hop group adjacency identifier.
-		nhgid1, nhgid2 uint64 = 100, 200
+		primaryNHGID uint64 = 100
 		// Backup next hop group ID that the dstPfx will forward to.
-		backupnhgid uint64 = 500
+		backupNHGID uint64 = 500
 
-		nhid1, nhid2, nhid3, nhid4 uint64 = 1001, 1002, 1003, 1004
+		primaryNH1ID, primaryNH2ID uint64 = 1001, 1002
+		backupNH1ID, backupNH2ID   uint64 = 1003, 1004
 	)
 
-	t.Logf("Program a backup pointing to vrfB via gRIBI")
-	nh3, op1 := gribi.NHEntry(nhid3, "VRFOnly", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
-	if deviations.BackupNHGRequiresVrfWithDecap(a.dut) {
-		nh3, op1 = gribi.NHEntry(nhid3, "Decap", deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHOptions{VrfName: vrf2})
-	}
-	bkupNHG, op2 := gribi.NHGEntry(backupnhgid, map[uint64]uint64{nhid3: 10}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddEntries(t, []fluent.GRIBIEntry{nh3, bkupNHG}, []*client.OpResult{op1, op2})
+	t.Logf("Program a backup NHG pointing to ATE port-4 and ATE port-5 via gRIBI")
+	backupNH1, op1 := gribi.NHEntry(backupNH1ID, atePort4.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	backupNH2, op2 := gribi.NHEntry(backupNH2ID, atePort5.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	bkupNHG, op3 := gribi.NHGEntry(backupNHGID, map[uint64]uint64{backupNH1ID: 60, backupNH2ID: 40},
+		deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	a.client.AddEntries(t, []fluent.GRIBIEntry{backupNH1, backupNH2, bkupNHG}, []*client.OpResult{op1, op2, op3})
 
 	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-2 and port-3 via gRIBI", dstPfx, vrf1)
-	nh1, op3 := gribi.NHEntry(nhid1, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	nh2, op4 := gribi.NHEntry(nhid2, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	nhg1, op5 := gribi.NHGEntry(nhgid1, map[uint64]uint64{nhid1: 80, nhid2: 20}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupnhgid})
-	a.client.AddEntries(t, []fluent.GRIBIEntry{nh1, nh2, nhg1}, []*client.OpResult{op3, op4, op5})
-	a.client.AddIPv4(t, dstPfx, nhgid1, vrf1, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-
-	t.Logf("an IPv4Entry for %s in %s pointing to ATE port-4 via gRIBI", dstPfx, vrf2)
-	nh4, op6 := gribi.NHEntry(nhid4, atePort4.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	nhg2, op7 := gribi.NHGEntry(nhgid2, map[uint64]uint64{nhid4: 100}, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
-	a.client.AddEntries(t, []fluent.GRIBIEntry{nh4, nhg2}, []*client.OpResult{op6, op7})
-	a.client.AddIPv4(t, dstPfx, nhgid2, vrf2, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	primaryNH1, op4 := gribi.NHEntry(primaryNH1ID, atePort2.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	primaryNH2, op5 := gribi.NHEntry(primaryNH2ID, atePort3.IPv4, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
+	primaryNHG, op6 := gribi.NHGEntry(primaryNHGID, map[uint64]uint64{primaryNH1ID: 80, primaryNH2ID: 20},
+		deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: backupNHGID})
+	a.client.AddEntries(t, []fluent.GRIBIEntry{primaryNH1, primaryNH2, primaryNHG}, []*client.OpResult{op4, op5, op6})
+	a.client.AddIPv4(t, dstPfx, primaryNHGID, vrf1, deviations.DefaultNetworkInstance(a.dut), fluent.InstalledInFIB)
 
 	// validate programming using AFT
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
-	a.aftCheck(t, dstPfx, vrf2)
+	a.aftCheck(t, dstPfx, vrf1)
 
 	// create flow
 	dstMac := gnmi.Get(t, a.ate.OTG(), gnmi.OTG().Interface(atePort1.Name+".Eth").Ipv4Neighbor(dutPort1.IPv4).LinkLayerAddress().State())
@@ -366,9 +384,9 @@ func (a *testArgs) testIPv4BackUpSwitch(t *testing.T) {
 	// TODO: add checks for NHs when AFT OC schema concludes how viability should be indicated.
 
 	// shutdown port3
-	t.Run("Backup (port4)", func(t *testing.T) {
-		t.Logf("Shutdown port 3 and validate traffic switching over port4 backup path")
-		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4")}, "port3")
+	t.Run("Backup (port4 + port5)", func(t *testing.T) {
+		t.Logf("Shutdown port 3 and validate traffic switching over port4 and port5 backup paths")
+		a.validateTrafficFlows(t, baseFlow, []*ondatra.Port{a.ate.Port(t, "port4"), a.ate.Port(t, "port5")}, "port3")
 	})
 	if deviations.ATEPortLinkStateOperationsUnsupported(a.ate) {
 		defer a.flapinterface(t, "port2", true)
@@ -389,7 +407,7 @@ func (a *testArgs) createFlow(t *testing.T, name, dstMac string) string {
 	flow.Size().SetFixed(300)
 	e1 := flow.Packet().Add().Ethernet()
 	e1.Src().SetValue(atePort1.MAC)
-	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4"})
+	flow.TxRx().Port().SetTxName("port1").SetRxNames([]string{"port2", "port3", "port4", "port5"})
 	flow.Rate().SetPps(fps)
 	e1.Dst().SetValue(dstMac)
 	v4 := flow.Packet().Add().Ipv4()
