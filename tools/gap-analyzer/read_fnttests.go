@@ -310,6 +310,25 @@ Result in JSON format:
 	return gapResult.GapFound, gapResult.GapDescription, nil
 }
 
+// callGeminiWithRetry wraps callGemini with a retry loop.
+func callGeminiWithRetry(ctx context.Context, readmeContent, automationContent string) (bool, string, error) {
+	var gapFound bool
+	var gapDesc string
+	var err error
+	const maxRetries = 3
+	for i := range maxRetries {
+		gapFound, gapDesc, err = callGemini(ctx, readmeContent, automationContent)
+		if err == nil {
+			return gapFound, gapDesc, nil
+		}
+		log.Printf("Warning: Gemini call failed (attempt %d/%d): %v", i+1, maxRetries, err)
+		if i < maxRetries-1 {
+			time.Sleep(time.Duration(i+1) * 5 * time.Second) // Exponential-ish backoff
+		}
+	}
+	return false, "", fmt.Errorf("failed after %d attempts: %w", maxRetries, err)
+}
+
 // escape replaces special characters in a string for GitHub Action command values.
 func escape(s string) string {
 	s = strings.ReplaceAll(s, "\r", "%0D")
@@ -374,7 +393,7 @@ func main() {
 			continue
 		}
 
-		gapFound, gapDesc, err := callGemini(ctx, string(readmeContent), string(autoContent))
+		gapFound, gapDesc, err := callGeminiWithRetry(ctx, string(readmeContent), string(autoContent))
 
 		if err != nil {
 			log.Printf("Warning: Gemini analysis failed for %s: %v", test.ID, err)

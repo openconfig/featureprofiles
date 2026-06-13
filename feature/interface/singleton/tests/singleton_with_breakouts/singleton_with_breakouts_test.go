@@ -16,6 +16,7 @@ package singleton_with_breakouts_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -35,39 +37,145 @@ const (
 	maxCompWaitTime = 900
 )
 
+type breakoutInfo struct {
+	numBreakouts    uint8
+	speed           oc.E_IfEthernet_ETHERNET_SPEED
+	numPhysChannels uint8
+}
+
 func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
 // Method to run baseLine test.
-func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool, rebootCheck bool) {
+func baseLineTest(t *testing.T, dut *ondatra.DUTDevice, rebootCheck bool) {
+	var breakoutPorts map[string]breakoutInfo
+
 	if !rebootCheck {
-		configureDUT(t, dut, portsConfigured)
+		breakoutPorts = configureDUT(t, dut)
+	} else {
+		breakoutPorts = breakoutPortsInfo(t, dut)
 	}
-	verifyConsistentPMD(t, dut, portsConfigured)
+
+	expectedInterfaceCount := buildExpectedCounts(t, dut, breakoutPorts)
+
+	// Step 2: Discover and verify interfaces (Subscribe)
+	discoveredInterfaces := verifyAndCollectInterfaces(t, dut, expectedInterfaceCount)
+
+	if !rebootCheck {
+		// Step 3: Configure breakout interfaces
+		mustConfigureBreakoutInterfaces(t, dut, breakoutPorts, discoveredInterfaces)
+
+		// Verify again after configuration
+		verifyAndCollectInterfaces(t, dut, expectedInterfaceCount)
+	}
 }
 
 // Method to configure DUT interfaces along with breakout configurations.
-func configureDUT(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
+func configureDUT(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
 	topo := gnmi.OC()
+	breakoutPorts := make(map[string]breakoutInfo)
+
 	for _, port := range dut.Ports() {
-		portsConfigured[port.Name()] = false
-		if port.PMD() == ondatra.PMD400GBASEDR4 {
-			numOfBreakouts := uint8(4)
-			hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		numBreakouts, speed, numPhysChannels := breakoutConfig(t, dut, port)
+		if numBreakouts > 0 {
 			comp := &oc.Component{Name: &hardwarePort}
 			bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
 			group := bmode.GetOrCreateGroup(1)
-			group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-			group.NumBreakouts = ygot.Uint8(numOfBreakouts)
+			group.Index = ygot.Uint8(1)
+			group.BreakoutSpeed = speed
+			group.NumBreakouts = ygot.Uint8(numBreakouts)
+			if !deviations.NumPhysyicalChannelsUnsupported(dut) {
+				group.NumPhysicalChannels = ygot.Uint8(numPhysChannels)
+			}
 			gnmi.Replace(t, dut, topo.Component(hardwarePort).Config(), comp)
-			t.Logf("Configured Port=%v with  PMD = %v with breakout configuration num_of_breakouts= %v , break_out_speed=%v ", port.Name(), port.PMD(), numOfBreakouts, group.BreakoutSpeed)
+			t.Logf("Configured Port=%v with PMD=%v, Speed=%v with breakout configuration num_of_breakouts=%v, break_out_speed=%v", port.Name(), port.PMD(), port.Speed(), numBreakouts, speed)
+
+			breakoutPorts[hardwarePort] = breakoutInfo{
+				numBreakouts:    numBreakouts,
+				speed:           speed,
+				numPhysChannels: numPhysChannels,
+			}
 		} else {
 			i := configureInterfaceDUT(t, dut, port)
 			gnmi.Replace(t, dut, topo.Interface(port.Name()).Config(), i)
 			t.Logf("Configured Port=%v with PMD =%v", port.Name(), port.PMD())
 		}
 	}
+	return breakoutPorts
+}
+
+func breakoutPortsInfo(t *testing.T, dut *ondatra.DUTDevice) map[string]breakoutInfo {
+	breakoutPorts := make(map[string]breakoutInfo)
+	for _, port := range dut.Ports() {
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		numBreakouts, speed, numPhysChannels := breakoutConfig(t, dut, port)
+		if numBreakouts > 0 {
+			breakoutPorts[hardwarePort] = breakoutInfo{
+				numBreakouts:    numBreakouts,
+				speed:           speed,
+				numPhysChannels: numPhysChannels,
+			}
+		}
+	}
+	return breakoutPorts
+}
+
+func buildExpectedCounts(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo) map[string]int {
+	expectedCounts := make(map[string]int)
+	for _, port := range dut.Ports() {
+		hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+		if info, isBreakout := breakoutPorts[hardwarePort]; isBreakout {
+			expectedCounts[hardwarePort] = int(info.numBreakouts)
+		} else {
+			expectedCounts[hardwarePort] = 1
+		}
+	}
+	return expectedCounts
+}
+
+func breakoutConfig(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.Port) (uint8, oc.E_IfEthernet_ETHERNET_SPEED, uint8) {
+	hardwarePort := gnmi.Get(t, dut, gnmi.OC().Interface(port.Name()).HardwarePort().State())
+	descVal, present := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Description().State()).Val()
+	descStr := ""
+	if present {
+		descStr = strings.ToUpper(descVal)
+	}
+
+	if port.PMD() == ondatra.PMD400GBASEDR4 || (port.Speed() == ondatra.Speed400Gb && strings.Contains(descStr, "100G")) {
+		return 4, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
+	}
+
+	if port.Speed() == ondatra.Speed800Gb || port.PMD() == ondatra.PMD800GBASEZR || port.PMD() == ondatra.PMD800GBASEZRP {
+		if present {
+			if strings.Contains(descStr, "100G") || strings.Contains(descStr, "2PLR4") || strings.Contains(descStr, "8X100G") {
+				return 8, oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB, 1
+			}
+			if strings.Contains(descStr, "400G") || strings.Contains(descStr, "2FR4") || strings.Contains(descStr, "2LR4") || strings.Contains(descStr, "2X400G") {
+				return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
+			}
+		}
+		t.Logf("Could not detect breakout mode from description %q, defaulting to 2x400G", descVal)
+		return 2, oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB, 4
+	}
+
+	// 1x400G-FR4+ (No breakout)
+	if port.PMD() == ondatra.PMD400GBASEFR4 || strings.Contains(descStr, "400G-FR4") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
+	// 1x100G-LR (No breakout)
+	if port.PMD() == ondatra.PMD100GBASELR4 || strings.Contains(descStr, "100G-LR") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
+	// 1x100G-FR (No breakout)
+	if port.PMD() == ondatra.PMD100GBASEFR || strings.Contains(descStr, "100G-FR") {
+		return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
+	}
+
+	return 0, oc.IfEthernet_ETHERNET_SPEED_UNSET, 0
 }
 
 // Method to configure the interface.
@@ -81,37 +189,127 @@ func configureInterfaceDUT(t *testing.T, dut *ondatra.DUTDevice, port *ondatra.P
 	return i
 }
 
-// Method to verify if hardwarePort is populated with a reference to componentName.
-func verifyConsistentPMD(t *testing.T, dut *ondatra.DUTDevice, portsConfigured map[string]bool) {
-	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().State())
-	for _, i := range interfaces {
-		interfaceName := i.GetName()
-		if i.HardwarePort == nil {
-			continue
-		}
-		hardwarePort := i.GetHardwarePort()
-		var compName string
-		var compNameFetchError *string
-		compNameQuery := gnmi.OC().Component(hardwarePort).Name().State()
-		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
-			compName = gnmi.Get(t, dut, compNameQuery)
-		})
+func matchHardwarePort(state, expected string) bool {
+	if state == expected {
+		return true
+	}
+	if strings.HasPrefix(state, expected+"/") {
+		return true
+	}
+	trimmedExpected := strings.TrimSuffix(expected, "-Port")
+	return strings.HasPrefix(state, trimmedExpected+"/")
+}
 
-		_, isConfiguredInterface := portsConfigured[interfaceName]
-
-		if compNameFetchError != nil && isConfiguredInterface {
-			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for the interface  %v", compNameFetchError, hardwarePort, interfaceName)
-		} else if isConfiguredInterface {
-			portsConfigured[interfaceName] = true
-			t.Logf("HardwarePort = %v of interface = %v is populated with a reference to component name %v", hardwarePort, interfaceName, compName)
+func removeString(slice []string, s string) []string {
+	var result []string
+	for _, item := range slice {
+		if item != s {
+			result = append(result, item)
 		}
 	}
-	// Checking if all the configured interfaces have been checked for componentName reference.
-	for interfaceName, referenceChecked := range portsConfigured {
-		if referenceChecked == false {
-			t.Fatalf("Interface %v not found in the fetched Interface list", interfaceName)
+	return result
+}
+
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
 		}
-		portsConfigured[interfaceName] = false
+	}
+	return false
+}
+
+func verifyAndCollectInterfaces(t *testing.T, dut *ondatra.DUTDevice, expectedInterfaceCount map[string]int) map[string][]string {
+	discoveredInterfaces := make(map[string][]string)
+	interfaceToHWPort := make(map[string]string)
+
+	query := gnmi.OC().InterfaceAny().State()
+
+	_, ok := gnmi.WatchAll(t, dut, query, 2*time.Minute, func(val *ygnmi.Value[*oc.Interface]) bool {
+		intf, present := val.Val()
+		if !present {
+			return false
+		}
+
+		intfName := intf.GetName()
+		hwPort := intf.GetHardwarePort()
+
+		if hwPort == "" {
+			if oldHWPort, active := interfaceToHWPort[intfName]; active {
+				delete(interfaceToHWPort, intfName)
+				discoveredInterfaces[oldHWPort] = removeString(discoveredInterfaces[oldHWPort], intfName)
+			}
+			return false
+		}
+
+		matchedExpectedHWPort := ""
+		for expectedHWPort := range expectedInterfaceCount {
+			if matchHardwarePort(hwPort, expectedHWPort) {
+				matchedExpectedHWPort = expectedHWPort
+				break
+			}
+		}
+
+		if matchedExpectedHWPort != "" {
+			if oldHWPort, active := interfaceToHWPort[intfName]; active {
+				if oldHWPort != matchedExpectedHWPort {
+					discoveredInterfaces[oldHWPort] = removeString(discoveredInterfaces[oldHWPort], intfName)
+				}
+			}
+			interfaceToHWPort[intfName] = matchedExpectedHWPort
+			if !containsString(discoveredInterfaces[matchedExpectedHWPort], intfName) {
+				discoveredInterfaces[matchedExpectedHWPort] = append(discoveredInterfaces[matchedExpectedHWPort], intfName)
+			}
+		}
+
+		allMet := true
+		for expectedHWPort, expectedCount := range expectedInterfaceCount {
+			actualCount := len(discoveredInterfaces[expectedHWPort])
+			if actualCount != expectedCount {
+				allMet = false
+				break
+			}
+		}
+		return allMet
+	}).Await(t)
+
+	if !ok {
+		t.Fatalf("Failed to discover all expected interfaces. Expected counts: %v, Discovered: %v", expectedInterfaceCount, discoveredInterfaces)
+	}
+
+	// Verify that the hardware port components actually exist in state
+	for _, intfNames := range discoveredInterfaces {
+		for _, intfName := range intfNames {
+			actualHwPort := gnmi.Get(t, dut, gnmi.OC().Interface(intfName).HardwarePort().State())
+			compNameQuery := gnmi.OC().Component(actualHwPort).Name().State()
+			compName := gnmi.Get(t, dut, compNameQuery)
+			t.Logf("Interface %v is associated with hardware port component %v", intfName, compName)
+		}
+	}
+
+	return discoveredInterfaces
+}
+
+func mustConfigureBreakoutInterfaces(t *testing.T, dut *ondatra.DUTDevice, breakoutPorts map[string]breakoutInfo, discoveredInterfaces map[string][]string) {
+	topo := gnmi.OC()
+	for hwPort, info := range breakoutPorts {
+		intfNames, present := discoveredInterfaces[hwPort]
+		if !present {
+			t.Errorf("No interfaces discovered for breakout hardware port %s", hwPort)
+			continue
+		}
+		for _, intfName := range intfNames {
+			t.Logf("Configuring breakout interface %s (pointing to %s) with speed %v", intfName, hwPort, info.speed)
+			i := &oc.Interface{
+				Name:    ygot.String(intfName),
+				Type:    oc.IETFInterfaces_InterfaceType_ethernetCsmacd,
+				Enabled: ygot.Bool(true),
+				Ethernet: &oc.Interface_Ethernet{
+					PortSpeed: info.speed,
+				},
+			}
+			gnmi.Replace(t, dut, topo.Interface(intfName).Config(), i)
+		}
 	}
 }
 
@@ -195,12 +393,14 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 }
 func TestSingletonWithBreakouts(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	portsConfigured := make(map[string]bool)
 	t.Run("RT-8.1 - Baseline test", func(tb *testing.T) {
-		baseLineTest(tb, dut, portsConfigured, false)
+		baseLineTest(tb, dut, false)
 	})
 	t.Run("RT-8.2 - Reboot test", func(tb *testing.T) {
 		rebootDUT(tb, dut)
-		baseLineTest(tb, dut, portsConfigured, true)
+		// Verify persistence first
+		baseLineTest(tb, dut, true)
+		// Then repeat RT-8.1 (configure and verify again)
+		baseLineTest(tb, dut, false)
 	})
 }
