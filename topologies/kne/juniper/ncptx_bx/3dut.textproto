@@ -18,7 +18,16 @@ nodes: {
                 key_size: 4096
             }
         }
+       env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
+        }
     }
+
     interfaces: {
         key: "eth5"
         value: {
@@ -60,6 +69,14 @@ nodes: {
                 key_name: "N/A"
                 key_size: 4096
             }
+        }
+       env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
         }
     }
     interfaces: {
@@ -103,6 +120,14 @@ nodes: {
                 key_name: "N/A"
                 key_size: 4096
             }
+        }
+       env: {
+            key: "CPTX_COSIM"
+            value: "BX"
+        }
+        env: {
+            key: "JUNOS_EVOLVED_CONTAINER"
+            value: "1"
         }
     }
     interfaces: {
