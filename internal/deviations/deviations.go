@@ -1096,6 +1096,7 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+// Arista: https://issuetracker.google.com/512135230
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
