@@ -38,6 +38,7 @@ import (
 
 const (
 	vrfName            = "VRF-A"
+	v4PfxSet           = "PREFIX-SET-A"
 	ipv4Policy         = "POLICY-PREFIX-SET-A"
 	ipv6Policy         = "POLICY-PREFIX-SET-B"
 	matchAllPolicy     = "POLICY-MATCH-ALL"
@@ -53,18 +54,26 @@ const (
 	maxRebootTime = 5 * time.Minute
 	// rebootPollInterval is the interval at which the DUT's reachability is polled during reboot.
 	rebootPollInterval   = 30 * time.Second
-	prefixAft1           = "198.51.100.0/24"
-	prefixAft2           = "203.0.113.0/28"
-	vrfPfx1              = "100.64.1.0/24"
-	pfxAbsent            = "100.64.0.0/24"
+	matchPrefixAft1      = "198.51.100.0/24"
+	matchPrefixAft2      = "203.0.113.0/28"
+	matchVrfPfx1         = "100.64.1.0/24"
+	matchVrfPfx2         = "100.64.1.128/25"
+	matchVrfPfx3         = "203.0.113.128/28"
+	matchVrfPfx4         = "198.51.100.1/32"
+	matchPrefixAbsent    = "100.64.0.0/24"
 	intStepV6            = "::1"
 	intStepV4            = "0.0.0.1"
 	scaleV4Pfx           = "198.18.0.0"
 	scaleV6Pfx           = "2001:db8:0::"
+	vrfV4Pfx             = "100.64.1.0/24"
+	vrfV6Pfx             = "2001:db8:3::/64"
+	v4AbsentPfx1         = "100.64.2.0/24"
+	v4AbsentPfx2         = "203.0.113.64/28"
 	scaleV4PfxLen        = 32
 	scaleV6PfxLen        = 128
 	defaultStatementName = "10"
-	pfxMaskRange         = "24..32"
+	pfxV4MaskRange       = "24..32"
+	pfxV6MaskRange       = "65..128"
 	pfxMode              = "exact"
 )
 
@@ -103,25 +112,26 @@ var (
 		IPv6:    "2001:db8:0:2::2",
 		IPv6Len: 64,
 	}
-
 	defaultIPv4Prefixes = []string{
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"100.64.0.0/24",
 	}
-
 	policyIPv4Prefixes = []string{
 		"198.51.100.0/24",
 		"203.0.113.0/28",
 		"198.51.100.1/32",
 	}
-
-	defaultIPv6Prefixes = []string{
-		"2001:DB8:1::/64",
-		"2001:DB8:3::/64",
+	policyIPv6Prefixes = []string{
+		"2001:db8:2::/64",
+		"2001:db8:2::1/128",
 	}
-
-	vrfAPrefixes = []string{
+	defaultIPv6Prefixes = []string{
+		"2001:db8:2::/64",
+		"2001:db8:2::1/128",
+		"2001:db8:2::2/128",
+	}
+	vrfV4Prefixes = []string{
 		"198.51.100.0/24",
 		"100.64.1.0/24",
 		"203.0.113.128/28",
@@ -130,6 +140,11 @@ var (
 		"10.0.0.0/8",
 		"172.16.0.0/16",
 		"192.168.0.0/16",
+	}
+	vrfV6Prefixes = []string{
+		"2001:db8:2::/64",
+		"2001:db8:2::1/128",
+		"2001:db8:2::2/128",
 	}
 )
 
@@ -144,7 +159,8 @@ func TestAFTPrefixFilteringResilience(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	batch := configureDUT(t, dut)
 	configurePolicies(t, dut, batch)
-	configureStaticRoutes(t, dut, batch)
+	configureStaticRoutes(t, dut, batch, defaultIPv4Prefixes, vrfV4Prefixes, atePort1.IPv4, atePort2.IPv4, 100)
+	configureStaticRoutes(t, dut, batch, defaultIPv6Prefixes, vrfV6Prefixes, atePort1.IPv6, atePort2.IPv6, 200)
 	topo, interfaceNamesList := configureATE(t, ate)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
@@ -318,10 +334,11 @@ func filterAFTByPrefixes(aft *aftcache.AFTData, wantPrefixes map[string]bool) *a
 // 6. Correct filtered AFT entries after reboot
 func validateAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	wantPrefixes := map[string]bool{
-		prefixAft1: true,
-		prefixAft2: true,
+		matchPrefixAft1: true,
+		matchPrefixAft2: true,
 	}
 
 	// ------------------------------------------------------------
@@ -334,19 +351,8 @@ func validateAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	// Establish initial gNMI subscriptions
 	// ------------------------------------------------------------
 
-	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI client1: %v", err)
-	}
-
-	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI client2: %v", err)
-	}
-
-	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient1, dut)
-
-	aftSession2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient2, dut)
+	aftSession1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
+	aftSession2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
 
 	t.Log("Collecting initial filtered AFT entries")
 
@@ -415,28 +421,13 @@ func validateAfterReboot(t *testing.T, dut *ondatra.DUTDevice) {
 	verifyGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy)
 
 	// ------------------------------------------------------------
-	// Create NEW GNMI clients after reboot
-	// ------------------------------------------------------------
-
-	gnmiClient3, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to redial GNMI client3: %v", err)
-	}
-
-	gnmiClient4, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to redial GNMI client4: %v", err)
-	}
-
-	// ------------------------------------------------------------
 	// Re-establish subscriptions
 	// ------------------------------------------------------------
 
 	t.Log("Re-establishing AFT subscriptions")
 
-	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient3, dut)
-
-	aftSession4 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient4, dut)
+	aftSession3 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
+	aftSession4 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
 
 	stoppingCondition2 := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, nil)
 
@@ -460,7 +451,7 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			mustVerifyGlobalFilterPoliciesCLI(t, dut)
+			cfgplugins.VerifyGlobalFilterPoliciesCLI(t, dut, cfgplugins.GlobalFilterParams{PrefixName: vrfAPolicy})
 		}
 	} else {
 		const (
@@ -471,8 +462,7 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 		if err != nil {
 			t.Fatalf("Failed to dial GNMI: %v", err)
 		}
-
-		ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		req := &gpb.GetRequest{
@@ -520,20 +510,6 @@ func verifyGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, wantIPv4Po
 		}
 
 		t.Logf("Verified persisted global-filter policies IPv4=%s IPv6=%s", gotIPv4Policy, gotIPv6Policy)
-	}
-}
-
-// mustVerifyGlobalFilterPoliciesCLI verifies that the expected routing policy configuration is present in the DUT running configuration after reboot.
-func mustVerifyGlobalFilterPoliciesCLI(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	cmd := fmt.Sprintf("sh running-config all | include %s", vrfAPolicy)
-	runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
-	if err != nil {
-		t.Fatalf("'show running-config' failed: %v", err)
-	}
-	t.Logf("CLI output for %q:\n%s", cmd, runningConfig.Output())
-	if !strings.Contains(runningConfig.Output(), vrfAPolicy) {
-		t.Fatalf("Policy %s not found after reboot", vrfAPolicy)
 	}
 }
 
@@ -589,96 +565,33 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	t.Helper()
 	root := &oc.Root{}
 	rp := root.GetOrCreateRoutingPolicy()
-	createMatchAllPolicy(t, rp)
-	createPrefixSetPolicy(t, rp, ipv4Policy, ipv4Policy, pfxMode, policyIPv4Prefixes)
-	createVRFAPolicy(t, rp)
-	createPrefixSetPolicy(t, rp, ipv6Policy, ipv6Policy, pfxMode, defaultIPv6Prefixes)
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: matchAllPolicy, StatementNames: []string{defaultStatementName}, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: ipv4Policy, StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{v4PfxSet}, PrefixList: policyIPv4Prefixes, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: ipv4Policy, StatementNames: []string{"20"}, PrefixSetNames: []string{v4PfxSet}, PrefixList: policyIPv6Prefixes, PrefixMode: pfxMode, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-SUBNET-V4", StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{"PREFIX-SET-SUBNET-V4"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-SUBNET-V6", StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{"PREFIX-SET-SUBNET-V6"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-MULTI-STMT", StatementNames: []string{defaultStatementName, "20"}, PrefixSetNames: []string{"PREFIX-SET-A", "PREFIX-SET-SUBNET"}, MatchPrefixSet: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-DENY-PREFIX-SET-A", StatementNames: []string{defaultStatementName, "20"}, PrefixSetNames: []string{"PREFIX-SET-A", ""}, MatchPrefixSet: true, PrefixDeny: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicy(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-TAG-MATCH", StatementNames: []string{defaultStatementName}, MatchPrefixSet: true, SetTag: true, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-A", StatementNames: []string{defaultStatementName}, PrefixSetNames: []string{vrfPrefixName}, PrefixList: []string{vrfV4Pfx}, PrefixMode: pfxV4MaskRange, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-A", StatementNames: []string{"20"}, PrefixSetNames: []string{vrfPrefixName}, PrefixList: []string{vrfV6Pfx}, PrefixMode: pfxV6MaskRange, PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
+
 	configureGlobalFilterPolicies(t, dut, ipv4Policy, ipv6Policy, deviations.DefaultNetworkInstance(dut))
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 }
 
-// createMatchAllPolicy creates POLICY-MATCH-ALL.
-func createMatchAllPolicy(t *testing.T, rp *oc.RoutingPolicy) {
-	t.Helper()
-	pd := rp.GetOrCreatePolicyDefinition(matchAllPolicy)
-
-	stmt, err := pd.AppendNewStatement(defaultStatementName)
-	if err != nil {
-		t.Fatalf("Failed to append statement: %v", err)
-	}
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-}
-
-// createPrefixSetPolicy creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
-func createPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, prefixSetName, policyName, matchMode string, prefixes []string) {
-	t.Helper()
-	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(prefixSetName)
-
-	for _, prefix := range prefixes {
-		addPrefix(t, ps, prefix, matchMode)
-	}
-
-	pd := rp.GetOrCreatePolicyDefinition(policyName)
-
-	stmt, err := pd.AppendNewStatement(defaultStatementName)
-	if err != nil {
-		t.Fatalf("Failed to append statement: %v", err)
-	}
-	match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
-
-	match.PrefixSet = ygot.String(prefixSetName)
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-}
-
-// createVRFAPolicy creates POLICY-PREFIX-SET-VRF-A.
-func createVRFAPolicy(t *testing.T, rp *oc.RoutingPolicy) {
-	t.Helper()
-	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(vrfPrefixName)
-
-	addPrefix(t, ps, vrfPfx1, pfxMaskRange)
-
-	pd := rp.GetOrCreatePolicyDefinition(vrfAPolicy)
-
-	stmt, err := pd.AppendNewStatement(defaultStatementName)
-	if err != nil {
-		t.Fatalf("Failed to append statement: %v", err)
-	}
-
-	match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
-
-	match.PrefixSet = ygot.String(vrfPrefixName)
-
-	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
-}
-
-// addPrefix adds prefix-set entry.
-func addPrefix(t *testing.T, ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix, maskRange string) {
-	t.Helper()
-	p := ps.GetOrCreatePrefix(prefix, maskRange)
-
-	p.IpPrefix = ygot.String(prefix)
-	p.MasklengthRange = ygot.String(maskRange)
-}
-
 // configureStaticRoutes installs a static route into the default NI and non default NI.
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
+func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, defaultPrefixes, vrfPrefixes []string, nhIP, vrfNhIP string, indx int) {
 	t.Helper()
-	// DEFAULT network-instance IPv4 routes
-	for idx, prefix := range defaultIPv4Prefixes {
-		mustConfigureStaticRoute(t, dut, batch, deviations.DefaultNetworkInstance(dut), prefix, fmt.Sprintf("%d", idx+1), atePort1.IPv4)
-	}
-
-	// DEFAULT network-instance IPv6 routes
-	for idx, prefix := range defaultIPv6Prefixes {
-		mustConfigureStaticRoute(t, dut, batch, deviations.DefaultNetworkInstance(dut), prefix, fmt.Sprintf("%d", idx+100), atePort1.IPv6)
+	for idx, prefix := range defaultPrefixes {
+		mustConfigureStaticRoute(t, dut, batch, deviations.DefaultNetworkInstance(dut), prefix, fmt.Sprintf("%d", idx+indx), nhIP)
 	}
 	// ------------------------------------------------------------
-	// VRF-A IPv4 routes
+	// VRF-A IPv4 and IPv6 routes
 	// ------------------------------------------------------------
-
-	for idx, prefix := range vrfAPrefixes {
-		mustConfigureStaticRoute(t, dut, batch, vrfName, prefix, fmt.Sprintf("%d", idx+200), atePort2.IPv4)
+	for idx, prefix := range vrfPrefixes {
+		mustConfigureStaticRoute(t, dut, batch, vrfName, prefix, fmt.Sprintf("%d", idx+indx+200), vrfNhIP)
 	}
 	batch.Set(t, dut)
 }
@@ -770,7 +683,8 @@ func waitForGNMI(t *testing.T, dut *ondatra.DUTDevice) {
 //  6. Verify only expected filtered prefixes are streamed.
 func validateScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	var ipv4Prefixes, ipv6Prefixes []string
 	// ------------------------------------------------------------
 	// Install scale routes
@@ -878,18 +792,8 @@ func validateScaleFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 			// Create subscriptions
 			// ------------------------------------------------------------
 
-			gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-			if err != nil {
-				t.Fatalf("Failed to dial GNMI client1: %v", err)
-			}
-
-			gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-			if err != nil {
-				t.Fatalf("Failed to dial GNMI client2: %v", err)
-			}
-
-			aftSession1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient1, dut)
-			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient2, dut)
+			aftSession1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
+			aftSession2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
 			stoppingCondition := aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, nil)
 
 			// ------------------------------------------------------------
@@ -993,7 +897,8 @@ func selectPercentagePrefixes(prefixes []string, percent int) []string {
 func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	ctx := t.Context()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// ------------------------------------------------------------
 	// Configure NI-specific AFT filters
@@ -1010,35 +915,25 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// ------------------------------------------------------------
 
 	defaultWant := map[string]bool{
-		prefixAft1: true,
-		prefixAft2: true,
+		matchPrefixAft1: true,
+		matchPrefixAft2: true,
 	}
 
 	vrfWant := map[string]bool{
-		vrfPfx1: true,
+		matchVrfPfx1: true,
 	}
 
 	// ------------------------------------------------------------
 	// Collector-1 (DEFAULT)
 	// ------------------------------------------------------------
 
-	gnmiClient1, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI client1: %v", err)
-	}
-
-	collector1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient1, dut)
+	collector1 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
 
 	// ------------------------------------------------------------
 	// Collector-2 (VRF-A)
 	// ------------------------------------------------------------
 
-	gnmiClient2, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
-	if err != nil {
-		t.Fatalf("Failed to dial GNMI client2: %v", err)
-	}
-
-	collector2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClient2, dut)
+	collector2 := aftcache.NewAFTStreamSession(ctx, t, gnmiClientSession(t, dut, ctx), dut)
 
 	// ------------------------------------------------------------
 	// Initial sync validation
@@ -1078,17 +973,17 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// Validate Collector-1
 	// ------------------------------------------------------------
 
-	verifyPrefixesPresent(t, defaultAFT, []string{prefixAft1, prefixAft2})
+	verifyPrefixesPresent(t, defaultAFT, []string{matchPrefixAft1, matchPrefixAft2})
 
-	verifyPrefixesAbsent(t, defaultAFT, []string{pfxAbsent})
+	verifyPrefixesAbsent(t, defaultAFT, []string{matchPrefixAbsent})
 
 	// ------------------------------------------------------------
 	// Validate Collector-2
 	// ------------------------------------------------------------
 
-	verifyPrefixesPresent(t, vrfAFT, []string{vrfPfx1})
+	verifyPrefixesPresent(t, vrfAFT, []string{matchVrfPfx1})
 
-	verifyPrefixesAbsent(t, vrfAFT, []string{prefixAft1, prefixAft2})
+	verifyPrefixesAbsent(t, vrfAFT, []string{matchPrefixAft1, matchPrefixAft2})
 
 	// ------------------------------------------------------------
 	// Add unmatched route to DEFAULT
@@ -1096,18 +991,18 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// ------------------------------------------------------------
 
 	t.Log("Adding unmatched route to DEFAULT")
-	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), "100.64.2.0/24", "1000", atePort1.IPv4)
+	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), v4AbsentPfx1, "1000", atePort1.IPv4)
 
-	mustValidatePrefixAbsentFromCollectors(t, dut, collector1, collector2, "100.64.2.0/24")
+	mustValidatePrefixAbsentFromCollectors(t, dut, collector1, collector2, v4AbsentPfx1)
 
 	// ------------------------------------------------------------
 	// Add unmatched route
 	// ------------------------------------------------------------
 
 	t.Log("Adding unmatched route to DEFAULT")
-	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), "203.0.113.64/28", "1001", atePort1.IPv4)
+	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), v4AbsentPfx2, "1001", atePort1.IPv4)
 
-	mustValidatePrefixAbsentFromCollectors(t, dut, collector1, collector2, "203.0.113.64/28")
+	mustValidatePrefixAbsentFromCollectors(t, dut, collector1, collector2, v4AbsentPfx2)
 
 	// ------------------------------------------------------------
 	// Add matched exact route to DEFAULT
@@ -1115,11 +1010,11 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 	// ------------------------------------------------------------
 
 	t.Log("Adding matched route to DEFAULT")
-	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), "198.51.100.1/32", "1002", atePort1.IPv4)
+	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), matchVrfPfx4, "1002", atePort1.IPv4)
 
-	mustVerifyPrefixesEventuallyPresent(t, dut, collector1, []string{"198.51.100.1/32"}, 60*time.Second)
+	mustVerifyPrefixesEventuallyPresent(t, dut, collector1, []string{matchVrfPfx4}, 60*time.Second)
 
-	mustVerifyPrefixAbsent(t, dut, collector2, "198.51.100.1/32")
+	mustVerifyPrefixAbsent(t, dut, collector2, matchVrfPfx4)
 
 	// ------------------------------------------------------------
 	// Add matched subnet route to VRF-A
@@ -1128,11 +1023,11 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Log("Adding matched subnet route to VRF-A")
 
-	mustAddSingleStaticRoute(t, dut, vrfName, "100.64.1.128/25", "1003", atePort1.IPv4)
+	mustAddSingleStaticRoute(t, dut, vrfName, matchVrfPfx2, "1003", atePort1.IPv4)
 
-	mustVerifyPrefixesEventuallyPresent(t, dut, collector2, []string{"100.64.1.128/25"}, 60*time.Second)
+	mustVerifyPrefixesEventuallyPresent(t, dut, collector2, []string{matchVrfPfx2}, 60*time.Second)
 
-	mustVerifyPrefixAbsent(t, dut, collector1, "100.64.1.128/25")
+	mustVerifyPrefixAbsent(t, dut, collector1, matchVrfPfx2)
 
 	// ------------------------------------------------------------
 	// Change VRF-A policy to MATCH-ALL
@@ -1150,20 +1045,9 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Collector1 unexpectedly failed after policy change: %v", err)
 	}
 
-	verifyPrefixesPresent(t, defaultAFTAfter,
-		[]string{
-			"198.51.100.0/24",
-			"203.0.113.0/28",
-			"198.51.100.1/32",
-		},
-	)
+	verifyPrefixesPresent(t, defaultAFTAfter, policyIPv4Prefixes)
 
-	verifyPrefixesAbsent(t, defaultAFTAfter,
-		[]string{
-			"100.64.2.0/24",
-			"203.0.113.64/28",
-		},
-	)
+	verifyPrefixesAbsent(t, defaultAFTAfter, []string{v4AbsentPfx1, v4AbsentPfx2})
 
 	// ------------------------------------------------------------
 	// Collector2 should now receive all VRF-A routes
@@ -1171,16 +1055,21 @@ func validatePerNIFiltering(t *testing.T, dut *ondatra.DUTDevice) {
 
 	t.Log("Waiting for Collector2 to receive all VRF-A routes")
 
-	wantAllVRF := []string{
-		"198.51.100.0/24",
-		"100.64.1.0/24",
-		"203.0.113.128/28",
-		"100.64.1.128/25",
-	}
+	wantAllVRF := []string{matchPrefixAft1, matchVrfPfx1, matchVrfPfx3, matchVrfPfx2}
 
 	mustVerifyPrefixesEventuallyPresent(t, dut, collector2, wantAllVRF, 60*time.Second)
 
 	t.Log("Per-network-instance filtering validation completed successfully")
+}
+
+// gnmiClientSession get the GNMI client session.
+func gnmiClientSession(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context) gpb.GNMIClient {
+	t.Helper()
+	gnmiClient, err := dut.RawAPIs().BindingDUT().DialGNMI(ctx)
+	if err != nil {
+		t.Fatalf("Failed to dial GNMI client: %v", err)
+	}
+	return gnmiClient
 }
 
 // mustAddSingleStaticRoute adds one static route.
