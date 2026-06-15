@@ -733,43 +733,58 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
-	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numUniqueEncapNH, CommonPrefixStep)
+
+	// Limit the number of tunnels to the existing transit IPv4 destinations to ensure encap entries point to existing tunnels.
+	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
 	for i := 0; i < numUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
 	for i := 0; i < numEncapDefaultNHG; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
 		pct := i * 100 / numEncapDefaultNHG
+
+		var targetNHCount int
+		var targetWeightSum uint64
+		var baseWeight uint64
+
 		switch {
 		case pct < PctEncap8NH:
-			for j := 0; j < 8; j++ {
-				weight := uint64(7)
-				if j == 7 {
-					weight = 15
-				} // 7*7 + 15 = 64. GCD(7, 15)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*8+j)%numUniqueEncapNH), weight)
-			}
+			// 75% of NHGs: 8 NHs, granularity 1/64.
+			// Base weight 7 x 7 NHs = 49. Last NH gets 15 (64 - 49). Sum = 64. GCD(7, 15) = 1.
+			targetNHCount = 8
+			targetWeightSum = 64
+			baseWeight = 7
 		case pct < PctEncap8NH+PctEncap32NH:
-			for j := 0; j < 32; j++ {
-				weight := uint64(3)
-				if j == 31 {
-					weight = 35
-				} // 31*3 + 35 = 128. GCD(3, 35)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
-			}
+			// 20% of NHGs: 32 NHs, granularity 1/128.
+			// Base weight 3 x 31 NHs = 93. Last NH gets 35 (128 - 93). Sum = 128. GCD(3, 35) = 1.
+			targetNHCount = 32
+			targetWeightSum = 128
+			baseWeight = 3
 		default:
-			for j := 0; j < 32; j++ {
-				weight := uint64(7)
-				if j == 31 {
-					weight = 39
-				} // 31*7 + 39 = 256. GCD(7, 39)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
+			// 5% of NHGs: 32 NHs, granularity 1/256.
+			// Base weight 7 x 31 NHs = 217. Last NH gets 39 (256 - 217). Sum = 256. GCD(7, 39) = 1.
+			targetNHCount = 32
+			targetWeightSum = 256
+			baseWeight = 7
+		}
+
+		actualNHCount := min(targetNHCount, numUniqueEncapNH)
+
+		// Distribute weights among the unique NHs
+		for j := 0; j < actualNHCount; j++ {
+			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%numUniqueEncapNH)
+			weight := baseWeight
+			if j == actualNHCount-1 {
+				// The last unique NH gets all the remaining weight
+				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 			}
+			nhg.AddNextHop(nhID, weight)
 		}
 		allEntries = append(allEntries, nhg)
 	}
