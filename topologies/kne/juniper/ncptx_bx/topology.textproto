@@ -266,6 +266,60 @@ nodes: {
             group: "lag"
         }
     }
+    interfaces: {
+        key: "eth10"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth11"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth12"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth13"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth14"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth15"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth16"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth17"
+        value: {
+            group: "lag"
+        }
+    }
+    interfaces: {
+        key: "eth18"
+        value: {
+            group: "lag"
+        }
+    }
 }
 links: {
     a_node: "otg"
