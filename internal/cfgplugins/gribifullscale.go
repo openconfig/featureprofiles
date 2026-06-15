@@ -733,12 +733,15 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
-	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numUniqueEncapNH, CommonPrefixStep)
+
+	// Limit the number of tunnels to the existing transit IPv4 destinations to ensure encap entries point to existing tunnels.
+	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
 	for i := 0; i < numUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
