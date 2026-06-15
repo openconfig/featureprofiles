@@ -1345,7 +1345,7 @@ message Metadata {
     // Device requires transport-security to be enabled on gRPC server.
     // Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
     bool require_transport_security = 427;
-    
+
     // https://partnerissuetracker.corp.google.com/issues/443044887
     // Use the deviation if BGP Extension Route Retention configuration is not available via OC
     bool extended_route_retention_oc_unsupported = 428;
@@ -1374,9 +1374,14 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
     bool interface_id_format_required_for_policy_forwarding = 434;
 
+    // Device reports resource utilization at the chassis component level
+    // rather than at the integrated-circuit component level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+    bool use_chassis_aggregate_utilization = 435;
+
     // Arista: b/514565554
     // Devices that do not support afts global filter policy OC
-    bool afts_global_filter_policy_oc_unsupported = 435;
+    bool afts_global_filter_policy_oc_unsupported = 436;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
@@ -1407,4 +1412,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
