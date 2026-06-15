@@ -199,9 +199,8 @@ func testTelemetryInterfacesAggregation(t *testing.T, dut *ondatra.DUTDevice, po
 	t.Helper()
 	p := gnmi.OC()
 
-	// FIX: Nokia (SR Linux) rejects LAG configuration on physical ports.
 	if deviations.StatePathsUnsupported(dut) {
-		t.Skip("Aggregation configuration on physical ports is not supported on Nokia.")
+		t.Skip("Aggregation configuration on physical ports is not supported on this platform.")
 	}
 
 	intfAggregationPassed := make(map[string][]any)
@@ -268,7 +267,6 @@ func testTelemetryInterfacesStateRate(t *testing.T, dut *ondatra.DUTDevice, port
 	t.Helper()
 	p := gnmi.OC()
 
-	// FIX: Skip if the platform does not support the /interfaces/interface/state/in-rate leaf.
 	if deviations.StatePathsUnsupported(dut) {
 		t.Skip("State/Rate telemetry paths are not supported on this platform.")
 	}
@@ -325,6 +323,9 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 		t.Logf("\n\n Iteration on port %s on DUT %s: \n\n", port, dut.Name())
 
 		i := &oc.Interface_Subinterface{Index: ygot.Uint32(subIntfIndex)}
+		if deviations.RequireRoutedSubinterface0(dut) {
+			i.Ipv4 = &oc.Interface_Subinterface_Ipv4{Enabled: ygot.Bool(true)}
+		}
 		gnmi.Update(t, dut, p.Interface(port).Subinterface(subIntfIndex).Config(), i)
 		time.Sleep(2 * time.Minute)
 
@@ -442,7 +443,7 @@ func testTelemetryInterfacesConfig(t *testing.T, dut *ondatra.DUTDevice, ports [
 // TestTelemetryInterfaces tests interfaces oc paths.
 func TestTelemetryInterfaces(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
-	port1 := strings.ToLower(dut.Port(t, "port1").Name())
+	port1 := dut.Port(t, "port1").Name()
 
 	// Ensure the test interface is explicitly enabled and configured with its mandatory base schema type upfront.
 	p := gnmi.OC()
