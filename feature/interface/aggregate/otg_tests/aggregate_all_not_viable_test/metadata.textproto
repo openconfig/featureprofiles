@@ -28,7 +28,6 @@ platform_exceptions: {
     wecmp_auto_unsupported: true
     isis_loopback_required: true
     weighted_ecmp_fixed_packet_verification: true
-    interface_ref_interface_id_format: true
   }
 }
 
@@ -59,5 +58,6 @@ platform_exceptions: {
   deviations: {
     max_ecmp_paths: true
     isis_level_enabled:true
+    interface_ref_interface_id_format: true
   }
 }

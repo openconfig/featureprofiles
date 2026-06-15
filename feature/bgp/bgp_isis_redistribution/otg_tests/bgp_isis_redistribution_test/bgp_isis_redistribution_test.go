@@ -319,9 +319,7 @@ func nonMatchingPrefixRoutePolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv4.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v4PrefixSet)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 
@@ -536,9 +534,7 @@ func nonMatchingPrefixRoutePolicyV6(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 	prefixSet.GetOrCreatePrefix(nonAdvertisedIPv6.cidr(t), maskLenExact)
 
-	if !deviations.SkipSetRpMatchSetOptions(dut) {
-		stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
-	}
+	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetMatchSetOptions(oc.RoutingPolicy_MatchSetOptionsRestrictedType_ANY)
 	stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet().SetPrefixSet(v6PrefixSet)
 	gnmi.Update(t, dut, gnmi.OC().RoutingPolicy().Config(), rp)
 }
@@ -866,6 +862,7 @@ func createFlow(t *testing.T, ts *isissession.TestSession) {
 	ts.ATE.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv4")
 	cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
+	cfgplugins.VerifyOTGBGPEstablished(t, ts.ATE)
 }
 
 func createFlowV6(t *testing.T, ts *isissession.TestSession) {
@@ -891,6 +888,7 @@ func createFlowV6(t *testing.T, ts *isissession.TestSession) {
 	ts.ATE.OTG().StartProtocols(t)
 	otgutils.WaitForARP(t, ts.ATE.OTG(), ts.ATETop, "IPv6")
 	cfgplugins.VerifyDUTBGPEstablished(t, ts.DUT)
+	cfgplugins.VerifyOTGBGPEstablished(t, ts.ATE)
 }
 
 func checkTraffic(t *testing.T, ts *isissession.TestSession, flowName string) {

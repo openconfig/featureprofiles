@@ -29,6 +29,8 @@ The below yaml defines the OC paths intended to be covered by this test. OC
 paths used for test setup are not listed here.
 
 ```yaml
+paths:
+  /system/state/current-datetime:
 rpcs:
   gnoi:
     factory_reset.FactoryReset.Start:

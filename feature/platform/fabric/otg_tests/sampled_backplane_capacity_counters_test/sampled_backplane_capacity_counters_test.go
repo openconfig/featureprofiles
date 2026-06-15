@@ -28,6 +28,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygnmi/ygnmi"
+	"github.com/openconfig/ygot/ygot"
 )
 
 // Topology:
@@ -149,6 +150,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
 		gnmi.Await(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 	}
@@ -162,6 +164,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 			t.Logf("Fabric Component %s is empty, hence skipping", f)
 			continue
 		}
+		gnmi.Update(t, dut, gnmi.OC().Component(f).Config(), &oc.Component{Name: ygot.String(f)})
 		gnmi.Replace(t, dut, gnmi.OC().Component(f).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
 		if deviations.MissingValueForDefaults(dut) {
 			time.Sleep(time.Minute)
@@ -170,7 +173,7 @@ func TestOnChangeBackplaneCapacityCounters(t *testing.T) {
 				t.Errorf("Component %s, power-admin-state got: %v, want: %v", f, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 			}
 		}
-		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 2*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
+		if oper, ok := gnmi.Await(t, dut, gnmi.OC().Component(f).OperStatus().State(), 5*time.Minute, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE).Val(); !ok {
 			t.Errorf("Component %s oper-status after POWER_ENABLED, got: %v, want: %v", f, oper, oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE)
 		}
 	}

@@ -1,0 +1,15 @@
+# proto-file: github.com/openconfig/ondatra/blob/main/proto/testbed.proto
+# proto-message: ondatra.Testbed
+
+# 1 DUT, 2 ports
+
+duts {
+  id: "dut"
+  ports {
+    id: "port1"
+  }
+  ports {
+    id: "port2"
+  }
+}
+

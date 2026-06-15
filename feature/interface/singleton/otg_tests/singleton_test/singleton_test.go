@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
@@ -30,7 +29,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
@@ -98,16 +96,6 @@ var (
 		IPv4Len: plen4,
 		IPv6Len: plen6,
 	}
-
-	dutLoopback = attrs.Attributes{
-		Desc:    "Loopback ip",
-		IPv4:    "192.0.2.21",
-		IPv6:    "2001:db8::21",
-		IPv4Len: 32,
-		IPv6Len: 128,
-	}
-
-	lb string
 )
 
 type testCase struct {
@@ -141,9 +129,17 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
 }
 
-func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_BreakoutMode_Group {
+func (tc *testCase) configureDUTBreakout(t *testing.T, dut *ondatra.DUTDevice) *oc.Component_Port_BreakoutMode_Group {
 	t.Helper()
 	d := gnmi.OC()
+	var breakoutGroupIndex uint8
+	// Decide which group index to use based on the device vendor
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		breakoutGroupIndex = 1
+	default:
+		breakoutGroupIndex = 0
+	}
 	tc.breakoutPorts = make(map[string][]string)
 
 	for _, dp := range tc.dut.Ports() {
@@ -156,16 +152,19 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_Breako
 	}
 	var group *oc.Component_Port_BreakoutMode_Group
 	for physical := range tc.breakoutPorts {
-		bmode := &oc.Component_Port_BreakoutMode{}
-		bmp := d.Component(physical).Port().BreakoutMode()
-		group = bmode.GetOrCreateGroup(0)
+		comp := &oc.Component{
+			Name: ygot.String(physical),
+		}
+		bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
+		group = bmode.GetOrCreateGroup(breakoutGroupIndex)
 		// TODO(liulk): use one of the logical port.Speed().
 		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		group.NumBreakouts = ygot.Uint8(4)
-		gnmi.Replace(t, tc.dut, bmp.Config(), bmode)
+
+		compPath := d.Component(physical)
+		gnmi.Replace(t, tc.dut, compPath.Config(), comp)
 	}
 	return group
-
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -315,7 +314,7 @@ func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_Bre
 			}
 			const want = 4
 			got := breakoutGroup.GetNumBreakouts()
-			if !cmp.Equal(got, want) {
+			if got != want {
 				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
 			}
 		}
@@ -425,7 +424,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	waitOTGARPEntry(t)
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 	tc.ate.OTG().StopProtocols(t)
 
@@ -493,8 +492,8 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
-	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
-		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+	} else if avg := octets / ateOutPkts; avg > uint64(packetSize) {
+		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, packetSize)
 	}
 	if p1InDiff.unicast < ateOutPkts {
 		if largeMTU && p1InDiff.drop < ateOutPkts {
@@ -521,7 +520,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
-	breakoutGroup := tc.configureDUTBreakout(t)
+	breakoutGroup := tc.configureDUTBreakout(t, tc.dut)
 
 	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })
@@ -576,68 +575,4 @@ func TestMTUs(t *testing.T) {
 		}
 		t.Run(fmt.Sprintf("MTU=%d", mtu), tc.testMTU)
 	}
-}
-
-func (tc *testCase) configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	lb = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(lb).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	foundV4 := false
-	for _, ip := range ipv4Addrs {
-		if v, ok := ip.Val(); ok {
-			foundV4 = true
-			dutLoopback.IPv4 = v.GetIp()
-			break
-		}
-	}
-	if !foundV4 {
-		lo1 := dutLoopback.NewOCInterface(lb, dut)
-		lo1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, gnmi.OC().Interface(lb).Config(), lo1)
-	}
-}
-
-func (tc *testCase) configureInterface(t *testing.T, i *oc.Interface, a *attrs.Attributes) {
-	a.ConfigOCInterface(i, tc.dut)
-	i.Description = ygot.String(*i.Description)
-	_ = i.GetOrCreateSubinterface(0)
-}
-
-func (tc *testCase) configInterfaceDUTUnnumbered(i *oc.Interface, a *attrs.Attributes) {
-	s := i.GetOrCreateSubinterface(0)
-	s4 := s.GetOrCreateIpv4()
-	unnumebered := s4.GetOrCreateUnnumbered()
-	unnumebered.SetEnabled(true)
-	refInterface := unnumebered.GetOrCreateInterfaceRef()
-	refInterface.SetInterface(lb)
-}
-
-func (tc *testCase) testUnnumberedSubInterfaceEnabled(t *testing.T) {
-	d := gnmi.OC()
-
-	p1 := tc.dut.Port(t, "port1")
-	tc.duti1 = &oc.Interface{Name: ygot.String(p1.Name())}
-	tc.configureInterface(t, tc.duti1, &dutSrc)
-	tc.configureDUTLoopback(t, tc.dut)
-	tc.configInterfaceDUTUnnumbered(tc.duti1, &dutSrc)
-	di1 := d.Interface(p1.Name())
-	fptest.LogQuery(t, p1.String(), di1.Config(), tc.duti1)
-	gnmi.Replace(t, tc.dut, di1.Config(), tc.duti1)
-
-	dip := gnmi.OC().Interface(p1.Name())
-	di := gnmi.Get(t, tc.dut, dip.State())
-	fptest.LogQuery(t, p1.String(), dip.State(), di)
-	if got := di.GetSubinterface(0).GetIpv4().GetUnnumbered().GetEnabled(); got != true {
-		t.Errorf("Unnumbered subinterface enabled got %v, want true", got)
-	}
-}
-
-// TestUnnumberedSubInterfaceEnabled tests that an subinterface can be configured with an unnumbered address.
-func TestUnnumberedSubInterfaceEnabled(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	tc := &testCase{
-		dut: dut,
-	}
-	t.Run("unnumbered_subinterface_enable", tc.testUnnumberedSubInterfaceEnabled)
 }

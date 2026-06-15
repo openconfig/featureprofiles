@@ -152,6 +152,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
   /network-instances/network-instance/protocols/protocol/isis/global/config/weighted-ecmp:
   /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/weighted-ecmp/config/load-balancing-weight:
+  /network-instances/network-instance/protocols/protocol/isis/global/config/max-ecmp-paths:
+    value: 3
   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
   /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
     value: exact

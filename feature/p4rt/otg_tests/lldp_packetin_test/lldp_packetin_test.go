@@ -45,7 +45,7 @@ const (
 )
 
 var (
-	p4InfoFile          = flag.String("p4info_file_location", "../../wbb.p4info.pb.txt", "Path to the p4info file.")
+	p4InfoFile          = flag.String("p4info_file_location", "../../data/wbb.p4info.pb.txt", "Path to the p4info file.")
 	lldpSrcMAC          = flag.String("lldp_src_MAC", "00:01:00:02:00:03", "source MAC address for PacketIn")
 	streamName          = "p4rt"
 	lldpMAC             = "01:80:c2:00:00:0e"

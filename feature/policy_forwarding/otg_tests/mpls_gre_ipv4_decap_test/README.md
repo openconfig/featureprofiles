@@ -1,4 +1,4 @@
-# PF-1.12 - MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.12: MPLSoGRE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
 This test verifies MPLSoGRE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGRE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.12.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.12.1: Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Aggregate1 is the egress port having following configuration:

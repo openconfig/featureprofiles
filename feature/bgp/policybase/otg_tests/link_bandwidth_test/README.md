@@ -172,6 +172,12 @@ rpcs:
     gnmi:
         gNMI.Subscribe:
 ```
+
+## Canonical OC
+```json
+{}
+``` 
+
 ## Minimum DUT Required
 
 vRX - Virtual Router Device

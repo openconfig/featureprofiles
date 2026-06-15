@@ -20,12 +20,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"testing"
+	"unicode/utf8"
 
 	log "github.com/golang/glog"
 	"github.com/openconfig/featureprofiles/internal/metadata"
 	"github.com/openconfig/featureprofiles/internal/pathutil"
 	mpb "github.com/openconfig/featureprofiles/proto/metadata_go_proto"
 	"github.com/openconfig/featureprofiles/topologies/binding"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ygnmi/ygnmi"
 )
@@ -75,6 +77,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_DUT_4LINKS:        "dutdut.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_2LINKS:        "atedut_2.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_4LINKS:        "atedut_4.testbed",
+		mpb.Metadata_TESTBED_DUT_ATE_8LINKS_LAG:    "atedut_8_lag.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_9LINKS_LAG:    "atedut_9_lag.testbed",
 		mpb.Metadata_TESTBED_DUT_DUT_ATE_2LINKS:    "dutdutate.testbed",
 		mpb.Metadata_TESTBED_DUT_ATE_8LINKS:        "atedut_8.testbed",
@@ -82,6 +85,7 @@ func testbedPathFromMetadata() (string, error) {
 		mpb.Metadata_TESTBED_DUT_400ZR_PLUS:        "dut_400zr_plus.testbed",
 		mpb.Metadata_TESTBED_DUT_400ZR_100G_4LINKS: "dut_400zr_100g_4links.testbed",
 		mpb.Metadata_TESTBED_DUT_400FR_100G_4LINKS: "dut_400fr_100g_4links.testbed",
+		mpb.Metadata_TESTBED_DUT_2LINKS:            "dut_2links.testbed",
 	}
 	testbedFile, ok := testbedToFile[testbed]
 	if !ok {
@@ -106,6 +110,16 @@ func datapointValidator(dp *ygnmi.DataPoint) error {
 		}
 		if dp.RecvTimestamp.Before(dp.Timestamp) {
 			return fmt.Errorf("datapoint receive timestamp %v is before notification timestamp %v", dp.RecvTimestamp, dp.Timestamp)
+		}
+	}
+
+	if dp.Value != nil {
+		typedVal := dp.Value
+		switch typedVal.Value.(type) {
+		case *gpb.TypedValue_StringVal:
+			if typedVal.GetStringVal() != "" && !utf8.ValidString(typedVal.GetStringVal()) {
+				return fmt.Errorf("datapoint string value %v is not a valid UTF-8 string", typedVal.GetStringVal())
+			}
 		}
 	}
 

@@ -15,6 +15,7 @@
 package bgp_prefix_limit_test
 
 import (
+	"slices"
 	"testing"
 	"time"
 
@@ -111,6 +112,7 @@ var (
 		IPv4Len: plenIPv4,
 		IPv6Len: plenIPv6,
 	}
+	kneDeviceModelList = []string{"ncptx"}
 )
 
 // configureDUT configures all the interfaces and BGP on the DUT.
@@ -194,12 +196,12 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	configureBGPv4Routes(dstBgp4Peer, dstIpv4.Address(), r4OverLimit, ipv4DstTraffic, prefixLimit+1)
 	configureBGPv6Routes(dstBgp6Peer, dstIpv6.Address(), r6OverLimit, ipv6DstTraffic, prefixLimit+1)
 
-	configureFlow(topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit-1)
-	configureFlow(topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit-1)
-	configureFlow(topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit)
-	configureFlow(topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit)
-	configureFlow(topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit+1)
-	configureFlow(topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit+1)
+	configureFlow(t, topo, "IPv4.UnderLimit", srcIpv4.Name(), r4UnderLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit-1)
+	configureFlow(t, topo, "IPv6.UnderLimit", srcIpv6.Name(), r6UnderLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit-1)
+	configureFlow(t, topo, "IPv4.AtLimit", srcIpv4.Name(), r4AtLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit)
+	configureFlow(t, topo, "IPv6.AtLimit", srcIpv6.Name(), r6AtLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit)
+	configureFlow(t, topo, "IPv4.OverLimit", srcIpv4.Name(), r4OverLimit, ateSrc.MAC, ateSrc.IPv4, ipv4DstTraffic, "ipv4", prefixLimit+1)
+	configureFlow(t, topo, "IPv6.OverLimit", srcIpv6.Name(), r6OverLimit, ateSrc.MAC, ateSrc.IPv6, ipv6DstTraffic, "ipv6", prefixLimit+1)
 
 	t.Logf("Pushing config to ATE and starting protocols...")
 	otg.PushConfig(t, topo)
@@ -229,7 +231,8 @@ func configureBGPv6Routes(peer gosnappi.BgpV6Peer, ipv6 string, name string, pre
 		SetCount(count)
 }
 
-func configureFlow(topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+func configureFlow(t *testing.T, topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint, srcMac, srcIp, dstIp, iptype string, routeCount uint32) {
+	dut := ondatra.DUT(t, "dut")
 	flow := topo.Flows().Add().SetName(name)
 	flow.Metrics().SetEnable(true)
 	flow.TxRx().Device().
@@ -237,6 +240,10 @@ func configureFlow(topo gosnappi.Config, name, flowSrcEndPoint, flowDstEndPoint,
 		SetRxNames([]string{flowDstEndPoint})
 	flow.Size().SetFixed(1500)
 	flow.Duration().FixedPackets().SetPackets(1000)
+	if slices.Contains(kneDeviceModelList, dut.Model()) {
+		flow.Size().SetFixed(1000)
+		flow.Rate().SetPps(750)
+	}
 	e := flow.Packet().Add().Ethernet()
 	e.Src().SetValue(srcMac)
 	if iptype == "ipv4" {
@@ -260,9 +267,11 @@ func setPrefixLimitv4(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv4Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -270,9 +279,11 @@ func setPrefixLimitv6(dut *ondatra.DUTDevice, afisafi *oc.NetworkInstance_Protoc
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimitReceived()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	} else {
 		prefixLimitReceived := afisafi.GetOrCreateIpv6Unicast().GetOrCreatePrefixLimit()
 		prefixLimitReceived.MaxPrefixes = ygot.Uint32(limit)
+		prefixLimitReceived.WarningThresholdPct = ygot.Uint8(pwarnthesholdPct)
 	}
 }
 
@@ -401,32 +412,35 @@ func waitForBGPSession(t *testing.T, dut *ondatra.DUTDevice, wantEstablished boo
 	}
 }
 
-func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv4(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).GetIpv4Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
-func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool) {
+func getPrefixLimitv6(dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor) (uint32, bool, uint8) {
 	if deviations.BGPExplicitPrefixLimitReceived(dut) {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimitReceived()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	} else {
 		prefixLimitReceived := neighbor.GetAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).GetIpv6Unicast().GetPrefixLimit()
-		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded()
+		return prefixLimitReceived.GetMaxPrefixes(), prefixLimitReceived.GetPrefixLimitExceeded(), prefixLimitReceived.GetWarningThresholdPct()
 	}
 }
 
 func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *oc.NetworkInstance_Protocol_Bgp_Neighbor, wantEstablished bool) {
 	t.Run("verifyPrefixLimitTelemetry", func(t *testing.T) {
 		if *neighbor.NeighborAddress == ateDst.IPv4 {
-			maxPrefix, limitExceeded := getPrefixLimitv4(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv4(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v4 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v4 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
@@ -434,9 +448,12 @@ func verifyPrefixLimitTelemetry(t *testing.T, dut *ondatra.DUTDevice, neighbor *
 				}
 			}
 		} else if *neighbor.NeighborAddress == ateDst.IPv6 {
-			maxPrefix, limitExceeded := getPrefixLimitv6(dut, neighbor)
+			maxPrefix, limitExceeded, warnThreshold := getPrefixLimitv6(dut, neighbor)
 			if maxPrefix != prefixLimit {
 				t.Errorf("PrefixLimit max-prefixes v6 mismatch: got %d, want %d", maxPrefix, prefixLimit)
+			}
+			if warnThreshold != pwarnthesholdPct {
+				t.Errorf("PrefixLimit warning-threshold-pct v6 mismatch: got %d, want %d", warnThreshold, pwarnthesholdPct)
 			}
 			if !deviations.PrefixLimitExceededTelemetryUnsupported(dut) {
 				if (wantEstablished && limitExceeded) || (!wantEstablished && !limitExceeded) {
@@ -655,6 +672,8 @@ func TestTrafficBGPPrefixLimit(t *testing.T) {
 	conf := configureATE(t, ate)
 
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), conf, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), conf, "IPv6")
 
 	withdrawBGPRoutes(t, conf, []string{r4UnderLimit,
 		r6UnderLimit,

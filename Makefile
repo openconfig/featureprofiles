@@ -39,10 +39,12 @@ protoimports:
 	find protobuf-import -type d -empty -delete
 	# Download the required dependencies
 	go mod download
-	# Get ondatra & kne modules we use and create required directory structure
+	# Get gnmi, ondatra & kne modules we use and create required directory structure
+	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/gnmi | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	go list -f 'protobuf-import/{{ .Path }}' -m github.com/openconfig/kne | xargs -L1 dirname | sort | uniq | xargs mkdir -p
 	# Create symlinks
+	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/gnmi | xargs -L1 -- ln -s
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/ondatra | xargs -L1 -- ln -s
 	go list -f '{{ .Dir }} protobuf-import/{{ .Path }}' -m github.com/openconfig/kne | xargs -L1 -- ln -s
 	ln -s $(ROOT_DIR) protobuf-import/github.com/openconfig/featureprofiles
@@ -85,3 +87,4 @@ topologies/proto/binding/binding.pb.go: topologies/proto/binding.proto protoimpo
 clean:
 	rm -f $(GO_PROTOS)
 	rm -rf protobuf-import openconfig_public
+

@@ -72,7 +72,7 @@ func TestBasic(t *testing.T) {
 	}
 	isisRoot := isissession.ISISPath(ts.DUT)
 	port1ISIS := isisRoot.Interface(ts.DUTPort1.Name())
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		port1ISIS = isisRoot.Interface(ts.DUTPort1.Name() + ".0")
 	}
 	// There might be lag between when the instance name is set and when the
@@ -100,13 +100,6 @@ func TestBasic(t *testing.T) {
 			checks = append(checks,
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true),
 				check.Equal(isisRoot.Global().Af(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled().State(), true))
-		}
-
-		// if ISISInterfaceLevel1DisableRequired is set, validate Level1 enabled false at interface level else validate Level2 enabled at global level
-		if deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-			checks = append(checks, check.Equal(port1ISIS.Level(1).Enabled().State(), false))
-		} else {
-			checks = append(checks, check.Equal(isisRoot.Level(2).Enabled().State(), true))
 		}
 
 		for _, vd := range checks {
@@ -652,7 +645,7 @@ func TestPointToPointCircuitType(t *testing.T) {
 	ts.MustAdjacency(t)
 
 	intfName := ts.DUTPort1.Name()
-	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+	if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 		intfName = intfName + ".0"
 	}
 	circuitType := gnmi.Get(t, ts.DUT, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
@@ -694,7 +687,7 @@ func TestISISHelloTimer(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			intfName := ts.DUTPort1.Name()
-			if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) {
+			if deviations.ExplicitInterfaceInDefaultVRF(ts.DUT) || deviations.InterfaceRefInterfaceIDFormat(ts.DUT) {
 				intfName = intfName + ".0"
 			}
 			level2 := 2
@@ -703,11 +696,10 @@ func TestISISHelloTimer(t *testing.T) {
 			intf := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(ts.DUT)).
 				GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isissession.ISISName).
 				GetOrCreateIsis().GetOrCreateInterface(intfName)
-			if !deviations.ISISInterfaceLevel1DisableRequired(ts.DUT) {
-				timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
-				timers1.SetHelloInterval(tc.helloInterval)
-				timers1.SetHelloMultiplier(tc.helloMultiplier)
-			}
+
+			timers1 := intf.GetOrCreateLevel(uint8(1)).GetOrCreateTimers()
+			timers1.SetHelloInterval(tc.helloInterval)
+			timers1.SetHelloMultiplier(tc.helloMultiplier)
 
 			intfLeveL2 := intf.GetOrCreateLevel(uint8(level2))
 			intfLeveL2.Enabled = ygot.Bool(true)

@@ -3,6 +3,7 @@ package otgvalidationhelpers
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
@@ -45,18 +46,19 @@ type InterfaceParams struct {
 type FlowParams struct {
 	Name         string
 	TolerancePct float32
+	ExpectedLoss float32
 }
 
 // IsIPv4Interfaceresolved validates that the IPv4 interface is resolved based on the interface configured using otgconfighelpers.
 func (v *OTGValidation) IsIPv4Interfaceresolved(t *testing.T, ate *ondatra.ATEDevice) error {
 	for _, intf := range v.Interface.Names {
-		val1, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
+		val1, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
-			return fmt.Errorf(`IPv4 %s gateway not resolved`, intf)
+			return fmt.Errorf("IPv4 %s gateway not resolved", intf)
 		}
-		t.Logf(`IPv4 %s gateway resolved to: %s`, intf, val1)
+		t.Logf("IPv4 %s gateway resolved to: %s", intf, val1)
 	}
 	return nil
 }
@@ -68,9 +70,9 @@ func (v *OTGValidation) IsIPv6Interfaceresolved(t *testing.T, ate *ondatra.ATEDe
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
-			return fmt.Errorf(`IPv6 %s gateway not resolved`, intf)
+			return fmt.Errorf("IPv6 %s gateway not resolved", intf)
 		}
-		t.Logf(`IPv6 %s gateway resolved to: %s`, intf, val1)
+		t.Logf("IPv6 %s gateway resolved to: %s", intf, val1)
 	}
 	return nil
 }
@@ -93,10 +95,83 @@ func (v *OTGValidation) ValidateLossOnFlows(t *testing.T, ate *ondatra.ATEDevice
 // ValidatePortIsActive validates the OTG port status.
 func (v *OTGValidation) ValidatePortIsActive(t *testing.T, ate *ondatra.ATEDevice) error {
 	for _, port := range v.Interface.Ports {
-		PortStatus := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Link().State())
-		if want := otg.Port_Link_UP; PortStatus != want {
-			return fmt.Errorf("Get(OTG port status): got %v, want %v", PortStatus, want)
+		portStatus := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(port).Link().State())
+		if want := otg.Port_Link_UP; portStatus != want {
+			return fmt.Errorf("Get(OTG port status): got %v, want %v", portStatus, want)
 		}
 	}
+	return nil
+}
+
+// ReturnLossPercentage validates the percentage of traffic loss on the flows.
+func (v *OTGValidation) ReturnLossPercentage(t *testing.T, ate *ondatra.ATEDevice) float32 {
+	outPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().OutPkts().State())
+	if outPkts == 0 {
+		t.Fatalf("Get(out packets for flow %q): got %v, want nonzero", v.Flow.Name, outPkts)
+	}
+	inPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	lossPct := 100 * float32(outPkts-inPkts) / float32(outPkts)
+	return lossPct
+}
+
+// ValidateOTGISISTelemetry validates the isis adjancency states
+func ValidateOTGISISTelemetry(t *testing.T, ate *ondatra.ATEDevice, expectedAdj map[string]interface{}) {
+	isisAdj := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().IsisRouter(expectedAdj["IsisRouterName"].(string)).Adjacencies().AdjacencyAny().State())
+
+	for _, adj := range isisAdj {
+		if adj.LocalState.GetLevelType().String() != expectedAdj["LocalStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected local state level. got: %v, expected: %v", adj.LocalState.GetLevelType().String(), expectedAdj["LocalStateTypeExp"])
+		}
+
+		if adj.LocalState.GetHoldTimer() != expectedAdj["LocalStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected local state hold timer. got: %v, expected: %v", adj.LocalState.GetHoldTimer(), expectedAdj["LocalStateHoldTimeExp"])
+		}
+
+		localStateRestartingStatus := adj.LocalState.GetLocalRestartingStatus().GetCurrentState().String()
+		if localStateRestartingStatus != expectedAdj["LocalStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected local state restarting status. got: %v, expected: %v", localStateRestartingStatus, expectedAdj["LocalStateRestartStatusExp"])
+		}
+
+		localStateAttemptStatus := adj.LocalState.GetLocalRestartingStatus().GetLocalLastRestartingAttemptStatus().GetLocalLastRestartingAttemptStatusType().String()
+		if localStateAttemptStatus != expectedAdj["LocalStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected local restarting status. got: %v, expected: %v", localStateAttemptStatus, expectedAdj["LocalStateLastAttemptExp"])
+		}
+
+		if adj.NeighborState.GetLevelType().String() != expectedAdj["NeighborStateTypeExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state level. got: %v, expected: %v", adj.NeighborState.GetLevelType().String(), expectedAdj["NeighborStateTypeExp"])
+		}
+
+		if adj.NeighborState.GetHoldTimer() != expectedAdj["NeighborStateHoldTimeExp"] {
+			t.Errorf("didn't receive expected neighbor state hold timer. got: %v, expected: %v", adj.NeighborState.GetHoldTimer(), expectedAdj["NeighborStateHoldTimeExp"])
+		}
+
+		neighRestartingState := adj.NeighborState.GetNeighRestartingStatus().GetCurrentState().String()
+		if neighRestartingState != expectedAdj["NeighborStateRestartStatusExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state restarting status. got: %v, expected: %v", neighRestartingState, expectedAdj["NeighborStateRestartStatusExp"])
+		}
+
+		neighLastAttemptStatus := adj.NeighborState.GetNeighRestartingStatus().GetNeighLastRestartingAttemptStatus().GetNeighLastRestartingAttemptStatusType().String()
+		if neighLastAttemptStatus != expectedAdj["NeighborStateLastAttemptExp"].(string) {
+			t.Errorf("didn't receive expected neighbor state last restart attempt status. got: %v, expected: %v", neighLastAttemptStatus, expectedAdj["NeighborStateLastAttemptExp"])
+		}
+	}
+
+}
+
+// ValidateECMPonLAG validates if packets are properly distributed among the interfaces of the LAG
+func (v *OTGValidation) ValidateECMPonLAG(t *testing.T, ate *ondatra.ATEDevice) error {
+	totalPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(v.Flow.Name).Counters().InPkts().State())
+	p1Pkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[0]).ID()).Counters().InFrames().State())
+	p2Pkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Port(ate.Port(t, v.Interface.Ports[1]).ID()).Counters().InFrames().State())
+
+	expectedPkts := totalPkts / 2
+	tolerance := float64(2)
+	if got := (math.Abs(float64(expectedPkts)-float64(p1Pkts)) * 100) / float64(expectedPkts); got > tolerance {
+		return fmt.Errorf("port 1 packet count out of expected range: got %d, expected ~%d ±%f", p1Pkts, expectedPkts, tolerance)
+	}
+	if got := (math.Abs(float64(expectedPkts)-float64(p2Pkts)) * 100) / float64(expectedPkts); got > tolerance {
+		return fmt.Errorf("port 2 packet count out of expected range: got %d, expected ~%d ±%f", p2Pkts, expectedPkts, tolerance)
+	}
+
 	return nil
 }

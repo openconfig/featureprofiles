@@ -1,4 +1,4 @@
-# PF-1.19 - MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
+# PF-1.19: MPLSoGUE IPV4 decapsulation of IPV4/IPV6 payload 
 
 ## Summary
 This test verifies MPLSoGUE decapsulation of IP traffic using static MPLS LSP configuration. MPLSoGUE Traffic on ingress to the DUT is decapsulated and IPV4/IPV6 payload is forwarded towards the IPV4/IPV6 egress nexthop.
@@ -25,7 +25,7 @@ Test uses aggregate 802.3ad bundled interfaces (Aggregate Interfaces).
 * Egress Ports: Aggregate1
     * Traffic is forwarded (egress) on Aggregate1 (ATE Ports 1,2) .
 
-## PF-1.19.1 Generate config for MPLS in GRE decap and push to DUT
+## PF-1.19.1: Generate config for MPLS in GRE decap and push to DUT
 #### Configuration
 
 #### Aggregate1 is the egress port having following configuration:
@@ -168,57 +168,16 @@ Generate traffic (100K packets at 1000 pps) on ATE Ports 3,4,5,6 having:
 Verify:
 * No packet loss when forwarding with counters incrementing corresponding to traffic
 
-## Canonical OpenConfig for policy-forwarding matching ipv4 and decapsulate GRE
+## Canonical OC
 ```json
 {
   "network-instances": {
-    "network-instance": {
-      "DEFAULT": {
-        "name": "default",
-        "policy-forwarding": {
-          "policies": {
-            "policy": [
-              {
-                "config": {
-                  "policy-id": "decap MPLS in GRE"
-                },
-                "rules": {
-                  "rule": [
-                    {
-                      "config": {
-                        "sequence-id": 1
-                      },
-                      "ipv4": {
-                        "config": {
-                          "destination-address": "169.254.125.155/28",
-                          "protocol": "IP"
-                        }
-                      },
-                      "action": {
-                        "decapsulate-mpls-in-udp": true
-                      },
-                      "sequence-id": 1
-                    }
-                  ]
-                }
-              }
-            ]
-          }
+    "network-instance": [
+      {
+        "config": {
+          "name": "default"
         },
         "mpls": {
-          "global": {
-            "interface-attributes": {
-              "interface": [
-                {
-                  "config": {
-                    "interface-id": "Aggregate4",
-                    "mpls-enabled": false
-                  },
-                  "interface-id": "Aggregate4"
-                }
-              ]
-            }
-          },
           "lsps": {
             "static-lsps": {
               "static-lsp": [
@@ -229,10 +188,10 @@ Verify:
                   "egress": {
                     "config": {
                       "incoming-label": 40571,
-                      "next-hop": "169.254.1.138",
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                      "next-hop": "169.254.1.138"
                     }
-                  }
+                  },
+                  "name": "Customer IPV4 in:40571 out:pop"
                 },
                 {
                   "config": {
@@ -241,29 +200,51 @@ Verify:
                   "egress": {
                     "config": {
                       "incoming-label": 40572,
-                      "next-hop": "2600:2d00:0:1:4000:15:69:2072",
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
+                      "next-hop": "2600:2d00:0:1:4000:15:69:2072"
                     }
-                  }
-                },
-                {
-                  "config": {
-                    "name": "Customer multicast in:40573 out:pop"
                   },
-                  "egress": {
-                    "config": {
-                      "incoming-label": 40573,
-                      "next-hop": "239.0.1.1", # Multicast traffic must be sent out with L2 multicast header based on IP Multicast address even though there is no PIM on the egress interface
-                      "pipe-mode": true, # TODO: Add to OC data models, following https: //datatracker.ietf.org/doc/html/rfc3270#section-2.6.2
-                    }
-                  }
+                  "name": "Customer IPV6 in:40572 out:pop"
                 }
               ]
             }
           }
+        },
+        "name": "default",
+        "policy-forwarding": {
+          "policies": {
+            "policy": [
+              {
+                "config": {
+                  "policy-id": "customer10"
+                },
+                "policy-id": "customer10",
+                "rules": {
+                  "rule": [
+                    {
+                      "action": {
+                        "config": {
+                          "decapsulate-gue": true
+                        }
+                      },
+                      "config": {
+                        "sequence-id": 10
+                      },
+                      "ipv4": {
+                        "config": {
+                          "destination-address": "169.254.125.155/28",
+                          "protocol": 4
+                        }
+                      },
+                      "sequence-id": 10
+                    }
+                  ]
+                }
+              }
+            ]
+          }
         }
       }
-    }
+    ]
   }
 }
 ```
