@@ -10,7 +10,7 @@ nodes: {
         image: "ncptx:latest"
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
-        file: "bx-config.cfg"
+        file: "bx-config-dut1.cfg"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert"
@@ -115,7 +115,7 @@ nodes: {
         image: "ncptx:latest"
         config_path: "/home/evo/configdisk"
         config_file: "juniper.conf"
-        file: "bx-config.cfg"
+        file: "bx-config-dut2.cfg"
         cert: {
             self_signed: {
                 cert_name: "grpc-server-cert"
