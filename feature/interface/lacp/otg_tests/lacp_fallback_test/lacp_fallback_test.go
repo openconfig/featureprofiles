@@ -101,7 +101,7 @@ var (
 	}
 
 	ateP2 = attrs.Attributes{
-		Name: "port2",
+		Name: port2,
 		MAC:  "02:11:02:00:01:01",
 	}
 
@@ -150,10 +150,18 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	p3 := dut.Port(t, port3)
 	p4 := dut.Port(t, port4)
 
-	t.Logf("Configuring DUT: LAG %s with LACP fallback", lagName)
-
 	d := gnmi.OC()
 	root := &oc.Root{}
+
+	initBatch := &gnmi.SetBatch{}
+	for _, p := range []*ondatra.Port{p1, p2, p3, p4} {
+		initAttr := &attrs.Attributes{Name: p.ID()}
+		initIntf := initAttr.NewOCInterface(p.Name(), dut)
+		gnmi.BatchReplace(initBatch, d.Interface(p.Name()).Config(), initIntf)
+	}
+	initBatch.Set(t, dut)
+
+	t.Logf("Configuring DUT: LAG %s with LACP fallback", lagName)
 
 	lacpTypeActive := oc.Lacp_LacpActivityType_ACTIVE
 	lacpPeriodFast := oc.Lacp_LacpPeriodType_FAST
