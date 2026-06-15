@@ -810,6 +810,10 @@ func TestInterfacesubIntfs(t *testing.T) {
 						}
 					})
 
+					if deviations.SubinterfacePacketCountersMissing(dut) {
+						t.Skipf("Skipping subinterface packet counter tests due to deviation subinterface_packet_counters_missing")
+					}
+
 					subIntfCounterPath := subIntfPath.Counters()
 					intfCounterPath := intfPath.Counters()
 					cases := []struct {
