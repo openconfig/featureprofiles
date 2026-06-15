@@ -734,6 +734,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
 
+	// Limit the number of tunnels to the existing transit IPv4 destinations to ensure encap entries point to existing tunnels.
 	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
 	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
