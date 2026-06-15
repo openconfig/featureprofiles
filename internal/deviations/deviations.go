@@ -2245,3 +2245,11 @@ func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDe
 func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
 }
+
+// UseChassisAggregateUtilization returns true for devices that report resource
+// utilization at the chassis component level rather than at the
+// integrated-circuit component level.
+// Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
+}
