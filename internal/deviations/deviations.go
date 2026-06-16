@@ -2254,6 +2254,11 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
 }
 
+// UnreferencedAftFibAckUnsupported returns true if no FIB_ACK for unreferenced NH/NHG entries
+func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
+}
+
 // AftsGlobalFilterPolicyOCUnsupported returns true if the device does not support Afts Global Filter paths /network-instances/network-instance/afts/global-filter/config/
 func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()

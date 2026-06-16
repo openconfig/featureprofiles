@@ -1379,9 +1379,12 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
     bool use_chassis_aggregate_utilization = 435;
 
+    // No FIB_ACK support for unreferenced NH/NHG entries
+    bool unreferenced_aft_fib_ack_unsupported = 436;
+
     // Arista: b/514565554
     // Devices that do not support afts global filter policy OC
-    bool afts_global_filter_policy_oc_unsupported = 436;
+    bool afts_global_filter_policy_oc_unsupported = 437;
     
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
