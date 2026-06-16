@@ -34,6 +34,7 @@ type GNPSIParams struct {
 }
 
 func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+	t.Logf("Using gNPSI port: %d", params.Port)
 	if deviations.GnpsiOcUnsupported(dut) {
 		configureGNPSIFromCLI(t, dut, params)
 	} else {
@@ -42,6 +43,7 @@ func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
 }
 
 func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+	t.Log("Configuring gNPSI from OC")
 	gnmiServerPath := gnmi.OC().System().GrpcServer(params.ServerName)
 	gnmiServer := &oc.System_GrpcServer{
 		Name:            ygot.String(params.ServerName),
@@ -55,7 +57,6 @@ func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIPar
 
 func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
 	t.Log("Configuring gNPSI from CLI")
-	t.Logf("Using gNPSI port: %d", params.Port)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cli := fmt.Sprintf(`

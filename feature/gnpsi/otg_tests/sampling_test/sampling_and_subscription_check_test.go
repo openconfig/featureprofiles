@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +37,8 @@ const (
 	connectionTimeout         = 5 * time.Minute
 	trafficTime               = 1 * time.Minute
 	expectedSFlowSamplesCount = int(packetsToSend / samplingRate)
+	checkInterval             = 2 * time.Second
+	samplesTimeout            = 20 * time.Second
 	flowCountTolerancePct     = 0.1
 	subscriptionTolerance     = 2
 	gnpsiClientsInParallel    = 2
@@ -45,7 +48,7 @@ const (
 	port1                     = "port1"
 	port2                     = "port2"
 	profileName               = "gnpsiProf"
-	serverName                = "gnpsiServer"
+	serverName                = "DEFAULT"
 )
 
 var (
@@ -315,6 +318,7 @@ func verifySingleSFlowClient(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.
 	otg.StartTraffic(t)
 	go receiveSamples(t, stream, sflowPacketsToValidateChannel)
 	waitForTraffic(t, otg, fc.name, trafficTime)
+	waitForSamples(sflowPacketsToValidateChannel)
 	stream.CloseSend()
 	closeContext()
 	otgutils.LogFlowMetrics(t, otg, top)
@@ -373,6 +377,7 @@ func verifyMultipleSFlowClients(t *testing.T, ate *ondatra.ATEDevice, dut *ondat
 	t.Logf("Starting traffic for %s", flow.name)
 	otg.StartTraffic(t)
 	waitForTraffic(t, otg, flow.name, trafficTime)
+	waitForSamples(sflowPacketsToValidatePerClient...)
 
 	for _, client := range gnpsiClients {
 		client.CloseSend()
@@ -414,6 +419,7 @@ func verifySFlowReconnect(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUT
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
+		waitForSamples(sflowPacketsToValidate)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
 			t.Errorf("no samples received from GNPSI")
@@ -459,8 +465,10 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 		t.Logf("Starting traffic for %s", flow.name)
 		otg.StartTraffic(t)
 		waitForTraffic(t, otg, flow.name, trafficTime)
+		waitForSamples(sflowPacketsToValidate)
 		sampleCount += len(sflowPacketsToValidate)
 		if sampleCount == 0 {
+			stream.CloseSend()
 			t.Errorf("no samples received from GNPSI")
 			return
 		}
@@ -483,6 +491,7 @@ func verifySFlowServiceRestart(t *testing.T, ate *ondatra.ATEDevice, dut *ondatr
 }
 
 func restartGNPSIService(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
 	t.Log("Restarting GNPSI service")
 	gnoi.KillProcess(t, dut, gnoi.GNPSI, gnoi.SigTerm, true, true)
 	t.Log("GNPSI service restarted")
@@ -605,9 +614,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	configureSFlow(t, dut)
 
 	t.Log("Configuring GNPSI")
-	svc := introspect.GNPSI
-	dialer := introspect.DUTDialer(t, dut, svc)
+	dialer := introspect.DUTDialer(t, dut, introspect.GNPSI)
 	gnpsiPort := dialer.DevicePort
+	_, portStr, err := net.SplitHostPort(dialer.DialTarget)
+	if err == nil {
+		gnpsiPortNum, err := strconv.Atoi(portStr)
+		if err == nil {
+			gnpsiPort = gnpsiPortNum
+		}
+	}
+
 	params := &cfgplugins.GNPSIParams{
 		Port:       uint16(gnpsiPort),
 		SSLProfile: profileName,
@@ -638,6 +654,37 @@ func waitForTraffic(t *testing.T, otg *otg.OTG, flowName string, timeout time.Du
 		return
 	}
 	t.Logf("Traffic for flow %s has stopped", flowName)
+}
+
+func waitForSamples(channels ...chan sFlowPacket) {
+	ticker := time.NewTicker(checkInterval)
+	defer ticker.Stop()
+
+	lastCount := 0
+	for _, ch := range channels {
+		lastCount += len(ch)
+	}
+	stable := time.NewTimer(samplesTimeout)
+	defer stable.Stop()
+
+	for {
+		select {
+		case <-stable.C:
+			return
+		case <-ticker.C:
+			currentCount := 0
+			for _, ch := range channels {
+				currentCount += len(ch)
+			}
+			if currentCount != lastCount {
+				lastCount = currentCount
+				if !stable.Stop() {
+					<-stable.C
+				}
+				stable.Reset(samplesTimeout)
+			}
+		}
+	}
 }
 
 func configureLoopbackInterface(t *testing.T, dut *ondatra.DUTDevice) {
