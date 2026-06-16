@@ -1345,7 +1345,7 @@ message Metadata {
     // Device requires transport-security to be enabled on gRPC server.
     // Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
     bool require_transport_security = 427;
-
+    
     // https://partnerissuetracker.corp.google.com/issues/443044887
     // Use the deviation if BGP Extension Route Retention configuration is not available via OC
     bool extended_route_retention_oc_unsupported = 428;
@@ -1365,6 +1365,23 @@ message Metadata {
     // Nokia: b/445494680
     bool p4rt_explicit_table_entry_per_controller = 432;
 
+    // Device needs a LocalAddress that points to an interface name instead of an IPv4 address for establishing BGP neighborship.
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+    bool use_interface_name_for_ibgp_neighbor_transport_ipv4_local_address = 433;
+
+    // Devices which require to use interface-id format of interface name +
+    // .subinterface index with Interface-ref container specifically for policy forwarding usecase
+    // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+    bool interface_id_format_required_for_policy_forwarding = 434;
+
+    // Device reports resource utilization at the chassis component level
+    // rather than at the integrated-circuit component level.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+    bool use_chassis_aggregate_utilization = 435;
+    
+    // No FIB_ACK support for unreferenced NH/NHG entries
+    bool unreferenced_aft_fib_ack_unsupported = 436;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
