@@ -2254,3 +2254,9 @@ func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
 }
+
+// MissingSflowGnpsiExport returns true if GNPSI SFlow export is not configured by default
+// Cisco: https://partnerissuetracker.corp.google.com/issues/517961843
+func MissingSflowGnpsiExport(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMissingSflowGnpsiExport()
+}

@@ -21,29 +21,42 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygot/ygot"
 )
 
 type GNPSIParams struct {
-	Port       int
+	ServerName string
+	Port       uint16
 	SSLProfile string
+	NIName     string
 }
 
 func ConfigureGNPSI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+	t.Logf("Using gNPSI port: %d", params.Port)
 	if deviations.GnpsiOcUnsupported(dut) {
 		configureGNPSIFromCLI(t, dut, params)
 	} else {
-		configureGNPSIFromOC(t, dut)
+		configureGNPSIFromOC(t, dut, params)
 	}
 }
 
-func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice) {
-	// TODO : Implement GNPSI OC configuration when supported in OC (ref: https://github.com/openconfig/public/pull/1385)
-	t.Fatalf("gNPSI OC configuration is not supported: %s - %s", dut.Version(), dut.Model())
+func configureGNPSIFromOC(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
+	t.Log("Configuring gNPSI from OC")
+	gnmiServerPath := gnmi.OC().System().GrpcServer(params.ServerName)
+	gnmiServer := &oc.System_GrpcServer{
+		Name:            ygot.String(params.ServerName),
+		Port:            ygot.Uint16(params.Port),
+		Enable:          ygot.Bool(true),
+		NetworkInstance: ygot.String(params.NIName),
+	}
+	gnmiServer.Services = []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNPSI}
+	gnmi.Replace(t, dut, gnmiServerPath.Config(), gnmiServer)
 }
 
 func configureGNPSIFromCLI(t *testing.T, dut *ondatra.DUTDevice, params *GNPSIParams) {
 	t.Log("Configuring gNPSI from CLI")
-	t.Logf("Using gNPSI port: %d", params.Port)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		cli := fmt.Sprintf(`

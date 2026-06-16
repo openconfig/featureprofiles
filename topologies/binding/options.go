@@ -29,7 +29,7 @@ var (
 	gnoiPort    = flag.Int("gnoi_port", 9339, "default gNOI port")
 	gnsiPort    = flag.Int("gnsi_port", 9339, "default gNSI port")
 	gribiPort   = flag.Int("gribi_port", 9340, "default gRIBI port")
-	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT part")
+	p4rtPort    = flag.Int("p4rt_port", 9559, "default P4RT port")
 	ateGNMIPort = flag.Int("ate_gnmi_port", 50051, "default ATE gNMI port")
 	ateOTGPort  = flag.Int("ate_grpc_port", 40051, "default ATE OTG port")
 	gnpsiPort   = flag.Int("gnpsi_port", 6070, "default gNPSI port")

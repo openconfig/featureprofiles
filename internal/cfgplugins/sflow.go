@@ -16,6 +16,7 @@ package cfgplugins
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -24,6 +25,12 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+)
+
+const (
+	defaultCollectorPort      = 6343
+	defaultCollectorAddressV4 = "192.0.2.129"
+	defaultCollectorAddressV6 = "2001:db8::129"
 )
 
 // SFlowGlobalParams defines parameters for the SFlow global configuration.
@@ -93,15 +100,15 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 		var address, srcAddress string
 		switch p.IP {
 		case "IPv4":
-			address = "192.0.2.129"
+			address = defaultCollectorAddressV4
 			srcAddress = p.SrcAddrV4
 		case "IPv6":
-			address = "2001:db8::129"
+			address = defaultCollectorAddressV6
 			srcAddress = p.SrcAddrV6
 		}
 		cV := new(oc.Sampling_Sflow_Collector)
 		cV.SetAddress(address)
-		cV.SetPort(6343)
+		cV.SetPort(defaultCollectorPort)
 		if deviations.SflowSourceAddressUpdateUnsupported(d) {
 			sFlowSourceAddressCli := ""
 			switch d.Vendor() {
@@ -123,4 +130,17 @@ func NewSFlowCollector(t *testing.T, batch *gnmi.SetBatch, newcfg *oc.Sampling_S
 		gnmi.BatchReplace(batch, gnmi.OC().Sampling().Sflow().Collector(c.GetAddress(), c.GetPort()).Config(), c)
 	}
 	return coll
+}
+
+func ConfigureSflowGnpsiExport(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Log("Configuring sFlow gNPSI export from CLI")
+	switch dut.Vendor() {
+	case ondatra.CISCO:
+		addrUnderscored := strings.ReplaceAll(defaultCollectorAddressV4, ".", "_")
+		exporterName := fmt.Sprintf("OC-FEM-%s-%d", addrUnderscored, defaultCollectorPort)
+		cli := fmt.Sprintf("flow exporter-map %s\n export protocol gnpsi\n!", exporterName)
+		helpers.GnmiCLIConfig(t, dut, cli)
+	default:
+		t.Logf("ConfigureSflowGnpsiExport: no CLI needed for vendor %s", dut.Vendor())
+	}
 }

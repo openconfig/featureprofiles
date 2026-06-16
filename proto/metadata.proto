@@ -1378,6 +1378,11 @@ message Metadata {
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
     bool use_chassis_aggregate_utilization = 435;
+
+    // Use the deviation if GNPSI SFlow export is not configured by default
+    // Cisco: https://partnerissuetracker.corp.google.com/issues/517961843
+    bool missing_sflow_gnpsi_export = 436;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
