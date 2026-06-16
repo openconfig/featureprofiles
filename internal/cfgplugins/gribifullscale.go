@@ -734,7 +734,6 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
 
-	// Limit the number of tunnels to the existing transit IPv4 destinations to ensure encap entries point to existing tunnels.
 	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
 	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
@@ -797,6 +796,10 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
+		// Add first and last prefixes to wantPrefixes for later verification.
+		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
+		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v4Prefixes[len(v4Prefixes)-1], IPv4HostMask))
+
 		v6Prefixes, v6Err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
 		if v6Err != nil {
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
@@ -804,6 +807,9 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
+		// Add first and last prefixes to wantPrefixes for later verification.
+		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
+		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
@@ -819,11 +825,6 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
 	gSession := BatchModify(t, dut, ctx, allEntries, 120*time.Second)
-	for vi, vrf := range encapVRFs {
-		for i := 1; i < 3; i++ {
-			wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("200.%d.0.%d/%d", vi, i, IPv4HostMask))
-		}
-	}
 	VerifyFIBProgrammed(t, gSession, wantPrefixes)
 	gSession.Close(t)
 }
