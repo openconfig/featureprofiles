@@ -195,7 +195,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) *gnmi.SetBatch {
 // configureDUTInterface configure interfaces on DUT.
 func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port) {
 	t.Helper()
-	d := gnmi.OC()
+	ocPath := gnmi.OC()
 	i := attrs.NewOCInterface(p.Name(), dut)
 	i.Description = ygot.String(attrs.Desc)
 	i.Type = oc.IETFInterfaces_InterfaceType_ethernetCsmacd
@@ -214,16 +214,16 @@ func configureDUTInterface(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.Set
 	av6 := i6.GetOrCreateAddress(attrs.IPv6)
 	av6.PrefixLength = ygot.Uint8(attrs.IPv6Len)
 
-	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
+	gnmi.BatchUpdate(batch, ocPath.Interface(p.Name()).Config(), i)
 }
 
 // configureDUTPort configure DUT ports.
 func configureDUTPort(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, attrs *attrs.Attributes, p *ondatra.Port, niName string) {
 	t.Helper()
-	d := gnmi.OC()
+	ocPath := gnmi.OC()
 	cfgplugins.AssignToNetworkInstance(t, dut, p.Name(), niName, 0)
 	i := attrs.NewOCInterface(p.Name(), dut)
-	gnmi.BatchUpdate(batch, d.Interface(p.Name()).Config(), i)
+	gnmi.BatchUpdate(batch, ocPath.Interface(p.Name()).Config(), i)
 }
 
 // configureHardwareInit sets up the initial hardware configuration on the DUT. It pushes hardware initialization configs for VRF Selection Extended feature and Policy Forwarding feature.
