@@ -615,7 +615,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	for i := 0; i < FIBPrgCount; i++ {
 		wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[i], IPv4HostMask))
 	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 	return prefixes
 }
@@ -685,7 +685,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		}
 		wantPrefixes[pair.vrf] = pfxs
 	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	VerifyHierarchicalResolution(t, gSession, dut, wantPrefixes)
 	gSession.Close(t)
 }
@@ -732,7 +732,8 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, numEncapDefaultNHG, numUniqueEncapNH int) {
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
-	wantPrefixes := make(map[string][]string)
+	wantPrefixesV4 := make(map[string][]string)
+	wantPrefixesV6 := make(map[string][]string)
 
 	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
 	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
@@ -796,9 +797,9 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
-		// Add first and last prefixes to wantPrefixes for later verification.
-		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
-		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v4Prefixes[len(v4Prefixes)-1], IPv4HostMask))
+		// Add first and last prefixes to wantPrefixesV4 for later verification.
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[len(v4Prefixes)-1], IPv4HostMask))
 
 		v6Prefixes, v6Err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
 		if v6Err != nil {
@@ -807,9 +808,9 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
-		// Add first and last prefixes to wantPrefixes for later verification.
-		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
-		wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
+		// Add first and last prefixes to wantPrefixesV6 for later verification.
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
@@ -825,22 +826,34 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
 	gSession := BatchModify(t, dut, ctx, allEntries, 120*time.Second)
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 	gSession.Close(t)
 }
 
-// VerifyFIBProgrammed checks that each prefix in wantPrefixes is FIB_PROGRAMMED in the gRIBI client results cache.
-func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixes map[string][]string) {
+// VerifyFIBProgrammed checks that each prefix in wantPrefixesV4 and wantPrefixesV6 is FIB_PROGRAMMED in the gRIBI client results cache.
+func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[string][]string, wantPrefixesV6 map[string][]string) {
 	t.Helper()
 	res := c.Fluent(t).Results(t)
-	for vrf, prefixes := range wantPrefixes {
-		wants := make([]*client.OpResult, 0, len(prefixes))
-		for _, pfx := range prefixes {
-			wants = append(wants, fluent.OperationResult().WithIPv4Operation(pfx).WithOperationType(constants.Add).WithProgrammingResult(fluent.InstalledInFIB).AsResult())
+
+	verifyPrefixes := func(wantPrefixes map[string][]string, isIPv6 bool) {
+		for vrf, prefixes := range wantPrefixes {
+			wants := make([]*client.OpResult, 0, len(prefixes))
+			for _, pfx := range prefixes {
+				op := fluent.OperationResult().WithOperationType(constants.Add).WithProgrammingResult(fluent.InstalledInFIB)
+				if isIPv6 {
+					op = op.WithIPv6Operation(pfx)
+				} else {
+					op = op.WithIPv4Operation(pfx)
+				}
+				wants = append(wants, op.AsResult())
+			}
+			chk.HasResultsCache(t, res, wants, chk.IgnoreOperationID())
+			t.Logf("VRF %s: %d prefixes confirmed FIB_PROGRAMMED (IPv6: %v)", vrf, len(prefixes), isIPv6)
 		}
-		chk.HasResultsCache(t, res, wants, chk.IgnoreOperationID())
-		t.Logf("VRF %s: %d prefixes confirmed FIB_PROGRAMMED", vrf, len(prefixes))
 	}
+
+	verifyPrefixes(wantPrefixesV4, false)
+	verifyPrefixes(wantPrefixesV6, true)
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
