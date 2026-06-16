@@ -2581,3 +2581,22 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
   exec: " "
 }
+
+test: {
+  id: "Pathz-1"
+  description: "Policy Rotation and Freshness Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+  exec: " "
+}
+test: {
+  id: "Pathz-2"
+  description: "Path-level Authorization Enforcement"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+  exec: " "
+}
+test: {
+  id: "Pathz-3"
+  description: "Pathz Policy Verification via Probe RPC"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+  exec: " "
+}
