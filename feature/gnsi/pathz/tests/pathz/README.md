@@ -188,12 +188,10 @@ The below yaml defines the OC paths and RPCs intended to be covered by this test
 
 ```yaml
 paths:
-  /system/gnmi-pathz-policies/policies/policy[instance=SANDBOX]/state/version:
-  /system/gnmi-pathz-policies/policies/policy[instance=SANDBOX]/state/created-on:
-  /system/gnmi-pathz-policies/policies/policy[instance=ACTIVE]/state/version:
-  /system/gnmi-pathz-policies/policies/policy[instance=ACTIVE]/state/created-on:
-  /system/grpc-servers/grpc-server/gnmi-pathz-policy-counters/paths/path[name=/system/config/hostname]/state/reads/access-accepts:
-  /system/grpc-servers/grpc-server/gnmi-pathz-policy-counters/paths/path[name=/system/config/hostname]/state/writes/access-rejects:
+  /system/gnmi-pathz-policies/policies/policy/state/version:
+  /system/gnmi-pathz-policies/policies/policy/state/created-on:
+  /system/grpc-servers/grpc-server/gnmi-pathz-policy-counters/paths/path/state/reads/access-accepts:
+  /system/grpc-servers/grpc-server/gnmi-pathz-policy-counters/paths/path/state/writes/access-rejects:
 
 rpcs:
   gnsi:
