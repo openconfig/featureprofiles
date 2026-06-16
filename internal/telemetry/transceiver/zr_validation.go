@@ -70,7 +70,10 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
-
+				for _, p := range dut.Ports() {
+					gnmi.Await(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).OpticalChannel().OperationalMode().State(), timeout, operationalMode)
+					t.Logf("\n*** Checking Operational Mode for port: %v\n\n\n", p.Name())
+				}
 				// Create sample steams for each port.
 				ethStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
 				otnStreams := make(map[string]*samplestream.SampleStream[*oc.TerminalDevice_Channel])
@@ -160,7 +163,10 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 				batch := &gnmi.SetBatch{}
 				cfgplugins.NewInterfaceConfigAll(t, dut, batch, params)
 				batch.Set(t, dut)
-				time.Sleep(2 * time.Minute)
+				for _, p := range dut.Ports() {
+					gnmi.Await(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).OpticalChannel().OperationalMode().State(), timeout, operationalMode)
+					t.Logf("\n*** Checking Operational Mode for port: %v\n\n\n", p.Name())
+				}
 				// Create sample steams for each port.
 				ochStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
 				trStreams := make(map[string]*samplestream.SampleStream[*oc.Component])
