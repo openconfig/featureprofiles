@@ -2254,3 +2254,9 @@ func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
 }
+
+// AftsGlobalFilterPolicyOCUnsupported returns true if "/network-instances/network-instance/afts/global-filter-policy" OC path is not supported.
+// Arista: b/514565554
+func AftsGlobalFilterPolicyOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetAftsGlobalFilterPolicyOcUnsupported()
+}

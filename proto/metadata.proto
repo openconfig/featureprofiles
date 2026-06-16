@@ -1378,6 +1378,11 @@ message Metadata {
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
     bool use_chassis_aggregate_utilization = 435;
+
+    // Devices that does not support afts global filter policy
+    // Arista: b/514565554
+    bool afts_global_filter_policy_oc_unsupported = 436;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
