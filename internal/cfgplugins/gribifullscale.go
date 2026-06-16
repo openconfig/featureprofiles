@@ -131,7 +131,6 @@ const (
 	TransitVRF222PrefixStart = "101.0.0.1"
 	RepairNHPrefixStart      = "102.0.0.1"
 	RepairIPv4PrefixStart    = "103.0.0.1"
-	EncapNHTunnelStart       = "198.18.128.1"
 
 	// Common prefix step used across multiple VRF builders.
 	CommonPrefixStep     = "0.0.0.1"
@@ -734,43 +733,58 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
 	wantPrefixes := make(map[string][]string)
-	tunnelDsts, err := iputil.GenerateIPsWithStep(EncapNHTunnelStart, numUniqueEncapNH, CommonPrefixStep)
+
+	// Limit the number of tunnels to the existing transit IPv4 destinations to ensure encap entries point to existing tunnels.
+	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
 	for i := 0; i < numUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
 	for i := 0; i < numEncapDefaultNHG; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
 		pct := i * 100 / numEncapDefaultNHG
+
+		var targetNHCount int
+		var targetWeightSum uint64
+		var baseWeight uint64
+
 		switch {
 		case pct < PctEncap8NH:
-			for j := 0; j < 8; j++ {
-				weight := uint64(7)
-				if j == 7 {
-					weight = 15
-				} // 7*7 + 15 = 64. GCD(7, 15)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*8+j)%numUniqueEncapNH), weight)
-			}
+			// 75% of NHGs: 8 NHs, granularity 1/64.
+			// Base weight 7 x 7 NHs = 49. Last NH gets 15 (64 - 49). Sum = 64. GCD(7, 15) = 1.
+			targetNHCount = 8
+			targetWeightSum = 64
+			baseWeight = 7
 		case pct < PctEncap8NH+PctEncap32NH:
-			for j := 0; j < 32; j++ {
-				weight := uint64(3)
-				if j == 31 {
-					weight = 35
-				} // 31*3 + 35 = 128. GCD(3, 35)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
-			}
+			// 20% of NHGs: 32 NHs, granularity 1/128.
+			// Base weight 3 x 31 NHs = 93. Last NH gets 35 (128 - 93). Sum = 128. GCD(3, 35) = 1.
+			targetNHCount = 32
+			targetWeightSum = 128
+			baseWeight = 3
 		default:
-			for j := 0; j < 32; j++ {
-				weight := uint64(7)
-				if j == 31 {
-					weight = 39
-				} // 31*7 + 39 = 256. GCD(7, 39)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
+			// 5% of NHGs: 32 NHs, granularity 1/256.
+			// Base weight 7 x 31 NHs = 217. Last NH gets 39 (256 - 217). Sum = 256. GCD(7, 39) = 1.
+			targetNHCount = 32
+			targetWeightSum = 256
+			baseWeight = 7
+		}
+
+		actualNHCount := min(targetNHCount, numUniqueEncapNH)
+
+		// Distribute weights among the unique NHs
+		for j := 0; j < actualNHCount; j++ {
+			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%numUniqueEncapNH)
+			weight := baseWeight
+			if j == actualNHCount-1 {
+				// The last unique NH gets all the remaining weight
+				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 			}
+			nhg.AddNextHop(nhID, weight)
 		}
 		allEntries = append(allEntries, nhg)
 	}
@@ -1152,7 +1166,7 @@ func GetDUTMACAddress(t *testing.T, ate *ondatra.ATEDevice, intfName string, nei
 }
 
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
-func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool) {
+func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool, enablePacketCapture bool) {
 	t.Helper()
 	baseFlows := CountBaseFlows()
 	perFlowPPS := TrafficRateMpps / uint64(baseFlows)
@@ -1227,24 +1241,36 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 		allFlows = append(allFlows, flows...)
 	}
 
-	// Clear capture
-	packetvalidationhelpers.ClearCapture(t, top, ate)
+	var capVal *packetvalidationhelpers.PacketValidation
+	if enablePacketCapture {
+		// Clear capture
+		packetvalidationhelpers.ClearCapture(t, top, ate)
 
-	// Configure capture on port2 via packetvalidationhelpers and push config.
-	capVal := &packetvalidationhelpers.PacketValidation{
-		PortName:    "port2",
-		CaptureName: "cap_port2",
+		// Configure capture on port2 via packetvalidationhelpers and push config.
+		capVal = &packetvalidationhelpers.PacketValidation{
+			PortName:    "port2",
+			CaptureName: "cap_port2",
+		}
+		packetvalidationhelpers.ConfigurePacketCapture(t, top, capVal)
 	}
-	packetvalidationhelpers.ConfigurePacketCapture(t, top, capVal)
-	ate.OTG().PushConfig(t, top)
 
-	// Start capture, run traffic, stop capture.
-	// StartCapture returns the ControlState it armed; StopCapture reuses it to issue the STOP command on the same port-capture object.
-	cs := packetvalidationhelpers.StartCapture(t, ate)
+	ate.OTG().PushConfig(t, top)
+	ate.OTG().StartProtocols(t)
+
+	// Start capture (if enabled), run traffic, stop capture.
+	var cs gosnappi.ControlState
+	if enablePacketCapture {
+		// StartCapture returns the ControlState it armed; StopCapture reuses it to issue the STOP command on the same port-capture object.
+		cs = packetvalidationhelpers.StartCapture(t, ate)
+	}
+
 	ate.OTG().StartTraffic(t)
 	time.Sleep(TrafficDuration)
 	ate.OTG().StopTraffic(t)
-	packetvalidationhelpers.StopCapture(t, ate, cs)
+
+	if enablePacketCapture {
+		packetvalidationhelpers.StopCapture(t, ate, cs)
+	}
 
 	otgutils.LogFlowMetrics(t, ate.OTG(), top)
 	otgutils.LogPortMetrics(t, ate.OTG(), top)
@@ -1265,7 +1291,9 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 	// Step 2: Deep packet inspection.
 	// Build per-scenario PacketValidation descriptors and delegate to
 	// packetvalidationhelpers.CaptureAndValidatePackets which uses gopacket.
-	ValidateCapturedPackets(t, ate, capVal, expectations)
+	if enablePacketCapture {
+		ValidateCapturedPackets(t, ate, capVal, expectations)
+	}
 }
 
 // ValidateCapturedPackets performs deep packet inspection on the captured packets using gopacket, validating against the expectations for each flow and scenario.
