@@ -114,6 +114,7 @@ func verifyInterfaceHardwarePortAndBreakoutConfig(t *testing.T, dut *ondatra.DUT
 
 		compNameLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Name().State())
 		compName, present := compNameLookup.Val()
+
 		if !present {
 			t.Fatalf("Failed to fetch component name for the hardware port %v for interface %v", hardwarePort, interfaceName)
 		}
