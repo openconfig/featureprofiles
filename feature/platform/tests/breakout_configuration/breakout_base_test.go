@@ -100,19 +100,20 @@ func isBreakoutSupported(t *testing.T, dut *ondatra.DUTDevice, port string, numB
 		return false
 
 	case ondatra.JUNIPER:
-		resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show interfaces terse %s", port))
+		targetSpeed := fmt.Sprintf("%sG", getSpeedValue(speed))
+		resp, err := cliHandle.RunCommand(context.Background(), fmt.Sprintf("show interfaces diagnostics optics-applications %s | grep \"%s\"", port, targetSpeed))
 		if err != nil {
-			t.Logf("Failed to run Juniper interface terse command for %s: %v", port, err)
+			t.Logf("Failed to run Juniper optics-applications command for %s: %v", port, err)
 			return false
 		}
 
-		t.Logf("Juniper 'show interfaces terse %s' output:\n%s", port, resp.Output())
-		re := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(port) + `\s+`)
-		if re.MatchString(resp.Output()) {
+		output := strings.TrimSpace(resp.Output())
+		t.Logf("Juniper 'show interfaces diagnostics optics-applications %s | grep \"%s\"' output:\n%s", port, targetSpeed, output)
+		if output != "" {
 			return true
 		}
 
-		t.Logf("Juniper port %s not found in 'show interfaces terse' output", port)
+		t.Logf("Juniper breakout mode not supported for port %s: no matching optics-applications output for %s", port, targetSpeed)
 		return false
 
 	default:
