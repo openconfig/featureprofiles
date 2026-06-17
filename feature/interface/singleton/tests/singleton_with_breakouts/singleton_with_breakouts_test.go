@@ -169,7 +169,7 @@ func verifyInterfaceHardwarePortAndBreakoutConfig(t *testing.T, dut *ondatra.DUT
 		}
 
 		// Read the component config since breakout-mode is applied via config.
-		comp := gnmi.Get(t, dut, gnmi.OC().Component(hardwarePort).Config())
+        comp := gnmi.Get(t, dut, gnmi.OC().Component(hardwarePort).State())
 		if comp == nil {
 			t.Fatalf("Failed to retrieve component for hardware-port: %v", hardwarePort)
 		}
