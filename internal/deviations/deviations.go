@@ -2254,3 +2254,8 @@ func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
 func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
 }
+
+// UnreferencedAftFibAckUnsupported returns true if no FIB_ACK for unreferenced NH/NHG entries
+func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
+}
