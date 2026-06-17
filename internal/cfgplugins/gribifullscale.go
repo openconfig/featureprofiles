@@ -729,7 +729,7 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 
 	t.Logf("BuildRepairVRF: %d NHGs (%d NHs), %d IPv4 entries", numRepairNHG, int(nhIdx), NumRepairIPv4)
 	gSession := BatchModify(t, dut, ctx, allEntries, 30*time.Second)
-	VerifyFIBProgrammed(t, gSession, nil)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 }
 
