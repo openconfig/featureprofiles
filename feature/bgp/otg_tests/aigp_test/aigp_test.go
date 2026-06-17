@@ -874,26 +874,34 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, ni string, intfName []s
 	for _, intf := range intfName {
 		t.Log("Configuring ISIS on interface: ", intf)
 		isisIntf := isis.GetOrCreateInterface(intf)
-		isisIntf.Enabled = ygot.Bool(true)
+		isisIntf.SetEnabled(true)
 		isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
-		// Configure ISIS level at global mode if true else at interface mode
-		if deviations.ISISInterfaceLevel1DisableRequired(dut) {
-			isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
-		} else {
-			isisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		// // Configure ISIS level at global mode if true else at interface mode
+		// if deviations.ISISInterfaceLevel1DisableRequired(dut) {
+		// 	isisIntf.GetOrCreateLevel(1).Enabled = ygot.Bool(false)
+		// } else {
+		// 	isisIntf.GetOrCreateLevel(2).Enabled = ygot.Bool(true)
+		// }
+		for _, level := range []uint8{2} {
+			isisIntfLevel := isisIntf.GetOrCreateLevel(level)
+			isisIntfLevel.SetEnabled(true)
+			isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			isisIntfLevelAfi.SetMetric(metric)
+			// isisIntfLevelAfi6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+			// isisIntfLevelAfi6.SetMetric(metric)
 		}
-		isisIntfLevel := isisIntf.GetOrCreateLevel(2)
-		isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi.SetMetric(metric)
-		isisIntfLevelAfi.SetEnabled(true)
+		// isisIntfLevel := isisIntf.GetOrCreateLevel(2)
+		// isisIntfLevelAfi := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		// isisIntfLevelAfi.SetMetric(metric)
+		// isisIntfLevelAfi.SetEnabled(true)
 
-		isisIntfLevelAfi6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
-		isisIntfLevelAfi6.SetMetric(metric)
-		isisIntfLevelAfi6.SetEnabled(true)
+		// isisIntfLevelAfi6 := isisIntfLevel.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		// isisIntfLevelAfi6.SetMetric(metric)
+		// isisIntfLevelAfi6.SetEnabled(true)
 
-		if deviations.ISISInterfaceAfiUnsupported(dut) {
-			isisIntfLevel.Af = nil
-		}
+		// if deviations.ISISInterfaceAfiUnsupported(dut) {
+		// 	isisIntfLevel.Af = nil
+		// }
 	}
 
 	if loopbackIntf != "" {
