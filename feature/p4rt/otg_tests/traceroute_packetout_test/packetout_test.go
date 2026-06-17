@@ -144,18 +144,19 @@ func gotAllPackets(counter1, counter0 uint64, expected int) bool {
 }
 
 func watchTraffic(t *testing.T, ate *ondatra.ATEDevice, trafficPort string, counter0p1, counter0p2 uint64, expected int) {
+	var initialCount uint64
 	switch trafficPort {
 	case "port1":
-		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port("port1").Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-			count, present := val.Val()
-			return present && gotAllPackets(count, counter0p1, expected)
-		}).Await(t)
+		initialCount = counter0p1
 	case "port2":
-		gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port("port2").Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
-			count, present := val.Val()
-			return present && gotAllPackets(count, counter0p2, expected)
-		}).Await(t)
+		initialCount = counter0p2
 	default:
 		time.Sleep(15 * time.Second) // wait for 15 seconds to ensure that we don't receive any packets
+		return
 	}
+
+	gnmi.Watch(t, ate.OTG(), gnmi.OTG().Port(trafficPort).Counters().InFrames().State(), time.Minute, func(val *ygnmi.Value[uint64]) bool {
+		count, present := val.Val()
+		return present && gotAllPackets(count, initialCount, expected)
+	}).Await(t)
 }
