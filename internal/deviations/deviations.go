@@ -1096,6 +1096,7 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+// Arista: https://issuetracker.google.com/512135230
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
@@ -1336,6 +1337,12 @@ func SkipTransceiverDescription(dut *ondatra.DUTDevice) bool {
 // ContainerzOCUnsupported returns true if devices cannot configure containerz via OpenConfig
 func ContainerzOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetContainerzOcUnsupported()
+}
+
+// ContainerzRetrieveLogsUnsupported returns true if Containerz log retrieval is unsupported.
+// https://partnerissuetracker.corp.google.com/issues/510547636
+func ContainerzRetrieveLogsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetContainerzRetrieveLogsUnsupported()
 }
 
 // NextHopGroupOCUnsupported returns true if devices do not support next-hop-group config
@@ -1926,6 +1933,11 @@ func Ciscoxr8000IntegratedCircuitResourceFt(dut *ondatra.DUTDevice) string {
 	return lookupDUTDeviations(dut).GetCiscoxr8000IntegratedCircuitResourceFt()
 }
 
+// CiscoxrVendordropFt returns the functional translator to be used for translating Cisco XR vendor drop counters.
+func CiscoxrVendordropFt(dut *ondatra.DUTDevice) string {
+	return lookupDUTDeviations(dut).GetCiscoxrVendordropFt()
+}
+
 // BgpDefaultPolicyBehaviorAcceptRoute returns true if the BGP accepts routes by default when
 // there is no routing policy or default policy configured.
 func BgpDefaultPolicyBehaviorAcceptRoute(dut *ondatra.DUTDevice) bool {
@@ -2146,4 +2158,104 @@ func SecondaryControllerCardCpuUtilizationUnsupported(dut *ondatra.DUTDevice) bo
 // Arista: https://issuetracker.google.com/issues/508656197
 func SecondaryControllerCardMemoryUtilizationUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetSecondaryControllerCardMemoryUtilizationUnsupported()
+}
+
+// Device does not support interface counters in fcs errors
+// Arista: https://issuetracker.google.com/issues/508304903
+func InterfaceCountersInFcsErrorsUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceCountersInFcsErrorsUnsupported()
+}
+
+// Mpls static pseudowire returns true if oc is not supported
+func MplsStaticPseudowireOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetMplsStaticPseudowireOcUnsupported()
+}
+
+// Vlan client encapsulation returns true if oc is not supported
+func VlanClientEncapsulationOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanClientEncapsulationOcUnsupported()
+}
+
+// NexthopGroupPseudowireCountersOcUnsupported returns true if oc is not supported
+func NexthopGroupPseudowireCountersOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetNexthopGroupPseudowireCountersOcUnsupported()
+}
+
+// PerFlowLoadBalancingUnsupported returns true if the device does not support BGP max multipath paths.
+func PerFlowLoadBalancingUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetPerFlowLoadBalancingUnsupported()
+}
+
+// BgpMultipathPathsUnderPeerGroupUnsupported returns true if the device does not support BGP multipath paths under peer group
+func BgpMultipathPathsUnderPeerGroupUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetBgpMultipathPathsUnderPeerGroupUnsupported()
+}
+
+// LACPInterfaceMemberStateInterfaceUnsupported returns true if the device does not support
+// /lacp/interfaces/interface/members/member/state/interface.
+// Nokia: https://issuetracker.google.com/514181497
+func LACPInterfaceMemberStateInterfaceUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceMemberStateInterfaceUnsupported()
+}
+
+// RequireTransportSecurity returns if device requires transport-security to be enabled.
+// Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
+func RequireTransportSecurity(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRequireTransportSecurity()
+}
+
+// ExtendedRouteRetentionOcUnsupported returns true if devices do not support extended Route Retention.
+// Use the deviation if BGP Extension Route Retention configuration is not available via OC
+func ExtendedRouteRetentionOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExtendedRouteRetentionOcUnsupported()
+}
+
+// ExrrStaleRouteTimeUnsupported returns true if devices do not support exrr stale route time configuration.
+// Use the deviation if BGP Stale Route Time is not supported by DUT
+func ExrrStaleRouteTimeUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetExrrStaleRouteTimeUnsupported()
+}
+
+// GnoiBgpGracefulRestartUnsupported returns true if gNMI/gNOI support for BGP graceful restart is not available.
+// Use the deviation if BGP Graceful restart is not supported using gnoi
+func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetGnoiBgpGracefulRestartUnsupported()
+}
+
+// DhcpRelayOcUnsupported returns true if DHCP relay configuration and state paths are unsupported.
+// Arista: https://partnerissuetracker.corp.google.com/issues/497757203
+func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
+}
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+// Nokia: b/445494680
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
+// to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}
+
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}
+
+// UseChassisAggregateUtilization returns true for devices that report resource
+// utilization at the chassis component level rather than at the
+// integrated-circuit component level.
+// Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
+}
+
+// UnreferencedAftFibAckUnsupported returns true if no FIB_ACK for unreferenced NH/NHG entries
+func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
 }

@@ -47,6 +47,7 @@ const (
 // DUTSubInterfaceData is the data structure for a subinterface in the DUT.
 type DUTSubInterfaceData struct {
 	VlanID        int
+	VlanEnable    *bool
 	IPv4Address   net.IP
 	IPv6Address   net.IP
 	IPv4PrefixLen int
@@ -879,9 +880,15 @@ func AddPortToAggregate(t *testing.T, dut *ondatra.DUTDevice, aggID string, dutA
 
 // AddSubInterface adds a subinterface to an interface.
 func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *oc.Interface, s *DUTSubInterfaceData) {
+	vlanFlag := true
 	sub := i.GetOrCreateSubinterface(uint32(s.VlanID))
 	sub.Enabled = ygot.Bool(true)
-	if s.VlanID != 0 {
+
+	if s.VlanEnable != nil {
+		vlanFlag = *s.VlanEnable
+	}
+
+	if s.VlanID != 0 && vlanFlag {
 		if deviations.DeprecatedVlanID(dut) {
 			sub.GetOrCreateVlan().VlanId = oc.UnionUint16(int(s.VlanID))
 		} else {
@@ -891,9 +898,10 @@ func AddSubInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatch, i *
 	if s.IPv4Address == nil && s.IPv6Address == nil {
 		t.Fatalf("No IPv4 or IPv6 address found for  %s or a subinterface under this lag", i.GetName())
 	}
+
 	if s.IPv4Address != nil {
 		sub.GetOrCreateIpv4().GetOrCreateAddress(s.IPv4Address.String()).PrefixLength = ygot.Uint8(uint8(s.IPv4PrefixLen))
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			sub.GetOrCreateIpv4().SetEnabled(true)
 		}
 	}
@@ -916,12 +924,17 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 	aggID := l.LagName
 	agg := l.NewOCInterface(aggID, dut)
 	agg.Type = oc.IETFInterfaces_InterfaceType_ieee8023adLag
-	if !deviations.IPv4MissingEnabled(dut) && len(l.SubInterfaces) == 0 {
+	if deviations.IPv4MissingEnabled(dut) {
 		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
 		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
 	}
+
+	if deviations.RequireRoutedSubinterface0(dut) {
+		agg.GetSubinterface(0).GetOrCreateIpv4().SetEnabled(true)
+		agg.GetSubinterface(0).GetOrCreateIpv6().SetEnabled(true)
+	}
+
 	agg.GetOrCreateAggregation().LagType = l.AggType
-	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 
 	// Set LACP mode to ACTIVE for the LAG interface
 	if l.LacpParams != nil {
@@ -934,6 +947,7 @@ func NewAggregateInterface(t *testing.T, dut *ondatra.DUTDevice, b *gnmi.SetBatc
 		lacpPath := gnmi.OC().Lacp().Interface(aggID)
 		gnmi.BatchReplace(b, lacpPath.Config(), lacp)
 	}
+	gnmi.BatchReplace(b, gnmi.OC().Interface(aggID).Config(), agg)
 	gnmi.BatchDelete(b, gnmi.OC().Interface(aggID).Aggregation().MinLinks().Config())
 
 	l.PopulateOndatraPorts(t, dut)
@@ -1080,7 +1094,7 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	// IPv4 Configuration
 	if ipv4Addr != "" {
 		s4 := s.GetOrCreateIpv4()
-		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			s4.Enabled = ygot.Bool(true)
 		}
 		s4a := s4.GetOrCreateAddress(ipv4Addr)
@@ -1090,7 +1104,7 @@ func ConfigureSubinterfaceIPs(s *oc.Interface_Subinterface, dut *ondatra.DUTDevi
 	// IPv6 Configuration
 	if ipv6Addr != "" {
 		s6 := s.GetOrCreateIpv6()
-		if deviations.InterfaceEnabled(dut) {
+		if deviations.IPv4MissingEnabled(dut) {
 			s6.Enabled = ygot.Bool(true)
 		}
 		s6a := s6.GetOrCreateAddress(ipv6Addr)
@@ -1337,7 +1351,7 @@ type AddressFamilyParams struct {
 // IsIPv4InterfaceARPresolved validates that the IPv4 interface is resolved based on the interface configured.
 func IsIPv4InterfaceARPresolved(t *testing.T, ate *ondatra.ATEDevice, cfg AddressFamilyParams) error {
 	for _, intf := range cfg.InterfaceNames {
-		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), 2*time.Minute, func(val *ygnmi.Value[string]) bool {
+		_, ok := gnmi.WatchAll(t, ate.OTG(), gnmi.OTG().Interface(intf+".Eth").Ipv4NeighborAny().LinkLayerAddress().State(), time.Minute, func(val *ygnmi.Value[string]) bool {
 			return val.IsPresent()
 		}).Await(t)
 		if !ok {
