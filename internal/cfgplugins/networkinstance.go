@@ -152,7 +152,11 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 	netInstIntf.Subinterface = ygot.Uint32(si)
 	switch d.Vendor() {
 	case ondatra.ARISTA:
-		netInstIntf.Id = ygot.String(intf.GetName())
+		if deviations.InterfaceConfigVRFBeforeAddress(d) {
+			netInstIntf.Id = ygot.String(fmt.Sprintf("%s.%d", intf.GetName(), si))
+		} else {
+			netInstIntf.Id = ygot.String(intf.GetName())
+		}
 	case ondatra.CISCO:
 		netInstIntf.Id = ygot.String(intf.GetName())
 	case ondatra.NOKIA:
@@ -163,6 +167,6 @@ func AssignInterfaceToNetworkInstance(t testing.TB, batch *gnmi.SetBatch, d *ond
 		netInstIntf.Id = ygot.String(intf.GetName() + "." + fmt.Sprint(si))
 	}
 	if intf.GetOrCreateSubinterface(si) != nil {
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
+		gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(ni).Config(), netInst)
 	}
 }
