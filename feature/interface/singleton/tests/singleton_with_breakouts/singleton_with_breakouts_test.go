@@ -112,15 +112,10 @@ func verifyInterfaceHardwarePortAndBreakoutConfig(t *testing.T, dut *ondatra.DUT
 			continue
 		}
 
-		var compName string
-		var compNameFetchError *string
-		compNameQuery := gnmi.OC().Component(hardwarePort).Name().State()
-		compNameFetchError = testt.CaptureFatal(t, func(t testing.TB) {
-			compName = gnmi.Get(t, dut, compNameQuery)
-		})
-
-		if compNameFetchError != nil {
-			t.Fatalf("%v error is seen while fetching component name for the hardware port %v for interface %v", compNameFetchError, hardwarePort, interfaceName)
+		compNameLookup := gnmi.Lookup(t, dut, gnmi.OC().Component(hardwarePort).Name().State())
+		compName, present := compNameLookup.Val()
+		if !present {
+			t.Fatalf("Failed to fetch component name for the hardware port %v for interface %v", hardwarePort, interfaceName)
 		}
 		if compName == "" {
 			t.Fatalf("Component name for hardware-port %v of interface %v is empty", hardwarePort, interfaceName)
@@ -168,8 +163,9 @@ func verifyInterfaceHardwarePortAndBreakoutConfig(t *testing.T, dut *ondatra.DUT
 			t.Fatalf("Hardware-port for interface %v is empty", portName)
 		}
 
-		// Read the component config since breakout-mode is applied via config.
-		comp := gnmi.Get(t, dut, gnmi.OC().Component(hardwarePort).Config())
+		// Read the component config since breakout-mode is applied via State.
+		comp := gnmi.Get(t, dut, gnmi.OC().Component(hardwarePort).State())
+
 		if comp == nil {
 			t.Fatalf("Failed to retrieve component for hardware-port: %v", hardwarePort)
 		}
