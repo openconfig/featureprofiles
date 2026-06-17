@@ -638,7 +638,8 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, defaultPrefixes []string, s1NHG, s2NHG uint64) {
 	t.Helper()
 	validatePrefixesV4 := make(map[string][]string)
-	entries := []fluent.GRIBIEntry{}
+	totalEntries := NumTransitNH_D1 + NumTransitNH_D2 + NumTransitNHG_E1 + NumTransitNHG_E2 + 2*NumTransitIPv4
+	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
 
 	for _, c := range []struct {
 		numNH  int
