@@ -615,7 +615,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	for i := 0; i < FIBPrgCount; i++ {
 		wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[i], IPv4HostMask))
 	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 	return prefixes
 }
@@ -685,7 +685,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		}
 		wantPrefixes[pair.vrf] = pfxs
 	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	VerifyHierarchicalResolution(t, gSession, dut, wantPrefixes)
 	gSession.Close(t)
 }
@@ -732,44 +732,59 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, numEncapDefaultNHG, numUniqueEncapNH int) {
 	t.Helper()
 	allEntries := []fluent.GRIBIEntry{}
-	wantPrefixes := make(map[string][]string)
-	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numUniqueEncapNH, CommonPrefixStep)
+	wantPrefixesV4 := make(map[string][]string)
+	wantPrefixesV6 := make(map[string][]string)
+
+	numOfTunnelsToUse := min(numUniqueEncapNH, NumTransitIPv4)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, numOfTunnelsToUse, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
 	for i := 0; i < numUniqueEncapNH; i++ {
-		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i], VrfName: TransitVRF111Str})
+		nhEntry, _ := gribi.NHEntry(NHBaseEncap+uint64(i), "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc111, Dest: tunnelDsts[i%numOfTunnelsToUse], VrfName: TransitVRF111Str})
 		allEntries = append(allEntries, nhEntry)
 	}
 
 	for i := 0; i < numEncapDefaultNHG; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseEncap + uint64(i))
 		pct := i * 100 / numEncapDefaultNHG
+
+		var targetNHCount int
+		var targetWeightSum uint64
+		var baseWeight uint64
+
 		switch {
 		case pct < PctEncap8NH:
-			for j := 0; j < 8; j++ {
-				weight := uint64(7)
-				if j == 7 {
-					weight = 15
-				} // 7*7 + 15 = 64. GCD(7, 15)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*8+j)%numUniqueEncapNH), weight)
-			}
+			// 75% of NHGs: 8 NHs, granularity 1/64.
+			// Base weight 7 x 7 NHs = 49. Last NH gets 15 (64 - 49). Sum = 64. GCD(7, 15) = 1.
+			targetNHCount = 8
+			targetWeightSum = 64
+			baseWeight = 7
 		case pct < PctEncap8NH+PctEncap32NH:
-			for j := 0; j < 32; j++ {
-				weight := uint64(3)
-				if j == 31 {
-					weight = 35
-				} // 31*3 + 35 = 128. GCD(3, 35)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
-			}
+			// 20% of NHGs: 32 NHs, granularity 1/128.
+			// Base weight 3 x 31 NHs = 93. Last NH gets 35 (128 - 93). Sum = 128. GCD(3, 35) = 1.
+			targetNHCount = 32
+			targetWeightSum = 128
+			baseWeight = 3
 		default:
-			for j := 0; j < 32; j++ {
-				weight := uint64(7)
-				if j == 31 {
-					weight = 39
-				} // 31*7 + 39 = 256. GCD(7, 39)=1
-				nhg.AddNextHop(NHBaseEncap+uint64((i*32+j)%numUniqueEncapNH), weight)
+			// 5% of NHGs: 32 NHs, granularity 1/256.
+			// Base weight 7 x 31 NHs = 217. Last NH gets 39 (256 - 217). Sum = 256. GCD(7, 39) = 1.
+			targetNHCount = 32
+			targetWeightSum = 256
+			baseWeight = 7
+		}
+
+		actualNHCount := min(targetNHCount, numUniqueEncapNH)
+
+		// Distribute weights among the unique NHs
+		for j := 0; j < actualNHCount; j++ {
+			nhID := NHBaseEncap + uint64((i*targetNHCount+j)%numUniqueEncapNH)
+			weight := baseWeight
+			if j == actualNHCount-1 {
+				// The last unique NH gets all the remaining weight
+				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 			}
+			nhg.AddNextHop(nhID, weight)
 		}
 		allEntries = append(allEntries, nhg)
 	}
@@ -782,6 +797,10 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, host := range v4Prefixes {
 			allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv4PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
+		// Add first and last prefixes to wantPrefixesV4 for later verification.
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[0], IPv4HostMask))
+		wantPrefixesV4[vrf] = append(wantPrefixesV4[vrf], fmt.Sprintf("%s/%d", v4Prefixes[len(v4Prefixes)-1], IPv4HostMask))
+
 		v6Prefixes, v6Err := iputil.GenerateIPv6sWithStep(fmt.Sprintf("2001:db8:%x::1", vi), NumEncapIPv6PerVRF, CommonIPv6PrefixStep)
 		if v6Err != nil {
 			t.Fatalf("Failed to generate IPv6 prefixes for VRF %s (vi=%d): %v", vrf, vi, v6Err)
@@ -789,6 +808,9 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		for i, pfx := range v6Prefixes {
 			allEntries = append(allEntries, fluent.IPv6Entry().WithNetworkInstance(vrf).WithPrefix(fmt.Sprintf("%s/%d", pfx, IPv6HostMask)).WithNextHopGroup(NHGBaseEncap+uint64((vi*NumEncapIPv6PerVRF+i)%numEncapDefaultNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 		}
+		// Add first and last prefixes to wantPrefixesV6 for later verification.
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[0], IPv6HostMask))
+		wantPrefixesV6[vrf] = append(wantPrefixesV6[vrf], fmt.Sprintf("%s/%d", v6Prefixes[len(v6Prefixes)-1], IPv6HostMask))
 	}
 
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
@@ -804,27 +826,34 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
 	gSession := BatchModify(t, dut, ctx, allEntries, 120*time.Second)
-	for vi, vrf := range encapVRFs {
-		for i := 1; i < 3; i++ {
-			wantPrefixes[vrf] = append(wantPrefixes[vrf], fmt.Sprintf("200.%d.0.%d/%d", vi, i, IPv4HostMask))
-		}
-	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes)
+	VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 	gSession.Close(t)
 }
 
-// VerifyFIBProgrammed checks that each prefix in wantPrefixes is FIB_PROGRAMMED in the gRIBI client results cache.
-func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixes map[string][]string) {
+// VerifyFIBProgrammed checks that each prefix in wantPrefixesV4 and wantPrefixesV6 is FIB_PROGRAMMED in the gRIBI client results cache.
+func VerifyFIBProgrammed(t *testing.T, c *gribi.Client, wantPrefixesV4 map[string][]string, wantPrefixesV6 map[string][]string) {
 	t.Helper()
 	res := c.Fluent(t).Results(t)
-	for vrf, prefixes := range wantPrefixes {
-		wants := make([]*client.OpResult, 0, len(prefixes))
-		for _, pfx := range prefixes {
-			wants = append(wants, fluent.OperationResult().WithIPv4Operation(pfx).WithOperationType(constants.Add).WithProgrammingResult(fluent.InstalledInFIB).AsResult())
+
+	verifyPrefixes := func(wantPrefixes map[string][]string, isIPv6 bool) {
+		for vrf, prefixes := range wantPrefixes {
+			wants := make([]*client.OpResult, 0, len(prefixes))
+			for _, pfx := range prefixes {
+				op := fluent.OperationResult().WithOperationType(constants.Add).WithProgrammingResult(fluent.InstalledInFIB)
+				if isIPv6 {
+					op = op.WithIPv6Operation(pfx)
+				} else {
+					op = op.WithIPv4Operation(pfx)
+				}
+				wants = append(wants, op.AsResult())
+			}
+			chk.HasResultsCache(t, res, wants, chk.IgnoreOperationID())
+			t.Logf("VRF %s: %d prefixes confirmed FIB_PROGRAMMED (IPv6: %v)", vrf, len(prefixes), isIPv6)
 		}
-		chk.HasResultsCache(t, res, wants, chk.IgnoreOperationID())
-		t.Logf("VRF %s: %d prefixes confirmed FIB_PROGRAMMED", vrf, len(prefixes))
 	}
+
+	verifyPrefixes(wantPrefixesV4, false)
+	verifyPrefixes(wantPrefixesV6, true)
 }
 
 // VerifyHierarchicalResolution spot-checks TE_VRF_111 prefixes for FIB_PROGRAMMED and non-zero NHG via gNMI AFT.
