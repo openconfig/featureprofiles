@@ -675,14 +675,12 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 		if err != nil {
 			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", c.vrfName, err)
 		}
-		pfxs := make([]string, 0, NumTransitIPv4)
 		for i, host := range vrfPrefixes {
 			pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
 			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(c.vrfName).WithPrefix(pfx).WithNextHopGroup(c.nhgBase+uint64(i%c.numNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
-			pfxs = append(pfxs, pfx)
 		}
 		// Validate only the first prefix to save time.
-		validatePrefixesV4[c.vrfName] = []string{pfxs[0]}
+		validatePrefixesV4[c.vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
 	}
 
 	t.Logf("BuildTransitVRFs: %d NHs in D1, %d NHGs in E1; %d NHs in D2, %d NHGs in E2", NumTransitNH_D1, NumTransitNHG_E1, NumTransitNH_D2, NumTransitNHG_E2)
