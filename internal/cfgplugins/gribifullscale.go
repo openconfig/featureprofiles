@@ -141,6 +141,9 @@ const (
 	PctEncap8NH  = 75
 	PctEncap32NH = 20
 
+	// DecapDestsSubsetPct is the percentage of Port2 VLANs to distribute inner destinations across.
+	DecapDestsSubsetPct = 10
+
 	// Traffic parameters — identical for T1 and T2.
 	TrafficDuration = 5 * time.Minute
 	TrafficLossTol  = uint64(5)
@@ -819,7 +822,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		pfx := fmt.Sprintf("203.%d.%d.1/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
-		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Interface: fmt.Sprintf("port2.%d", i%NumPort2VLANs+1)})
+		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		allEntries = append(allEntries, decapNH, decapNHG, fluent.IPv4Entry().WithNetworkInstance(DecapVRFStr).WithPrefix(pfx).WithNextHopGroup(nhgIdx).WithNextHopGroupNetworkInstance(defaultVRF))
 	}
@@ -1007,6 +1010,7 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 	decapDsts := ExpandDecapPrefixes()
+	atePort2Ips, _ := iputil.GenerateIPsWithStep(ATEPort2IPv4Start, NumPort2VLANs, PortIPv4Step)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
@@ -1029,7 +1033,16 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 
 		inner := f.Packet().Add().Ipv4()
 		inner.Src().SetValue(ATEPort1IPv4)
-		inner.Dst().SetValue(DecapIPv4InnerDst)
+
+		// Distribute inner destinations across available ATE IPs to avoid all flows
+		// stressing the exact same sub-interfaces.
+		subsetCount := max(1, NumPort2VLANs*DecapDestsSubsetPct/100)
+		var dstIPs []string
+		for j := 0; j < subsetCount; j++ {
+			idx := (vi*subsetCount + j) % NumPort2VLANs
+			dstIPs = append(dstIPs, atePort2Ips[idx])
+		}
+		inner.Dst().SetValues(dstIPs)
 
 		flows = append(flows, f)
 	}
