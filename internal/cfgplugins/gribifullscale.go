@@ -129,7 +129,6 @@ const (
 	// Prefix start addresses for Transit and Repair VRFs.
 	TransitVRF111PrefixStart = "100.0.0.1"
 	TransitVRF222PrefixStart = "101.0.0.1"
-	RepairNHPrefixStart      = "102.0.0.1"
 	RepairIPv4PrefixStart    = "103.0.0.1"
 
 	// Common prefix step used across multiple VRF builders.
@@ -693,7 +692,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 // BuildRepairVRF generates NH/NHG/IPv4 entries for REPAIR_VRF. numRepairNHG is the T1/T2-specific NHG count.
 func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, s2NHG uint64, numRepairNHG int) {
 	t.Helper()
-	tunnelDsts, err := iputil.GenerateIPsWithStep(RepairNHPrefixStart, numRepairNHG*2, CommonPrefixStep)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF222PrefixStart, numRepairNHG*2, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildRepairVRF: generate tunnel dsts: %v", err)
 	}
@@ -720,11 +719,17 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		t.Fatalf("BuildRepairVRF: generate repair prefixes: %v", err)
 	}
 	allEntries := nhNhgEntries
+	wantPrefixes := make(map[string][]string)
 	for i, host := range repairPrefixes {
-		allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(RepairVRFStr).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseRepair+uint64(i%numRepairNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+		pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
+		allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(RepairVRFStr).WithPrefix(pfx).WithNextHopGroup(NHGBaseRepair+uint64(i%numRepairNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 	}
+	wantPrefixes[RepairVRFStr] = append(wantPrefixes[RepairVRFStr], fmt.Sprintf("%s/%d", repairPrefixes[0], IPv4HostMask))
+	wantPrefixes[RepairVRFStr] = append(wantPrefixes[RepairVRFStr], fmt.Sprintf("%s/%d", repairPrefixes[len(repairPrefixes)-1], IPv4HostMask))
+
 	t.Logf("BuildRepairVRF: %d NHGs (%d NHs), %d IPv4 entries", numRepairNHG, int(nhIdx), NumRepairIPv4)
 	gSession := BatchModify(t, dut, ctx, allEntries, 30*time.Second)
+	VerifyFIBProgrammed(t, gSession, nil)
 	gSession.Close(t)
 }
 
