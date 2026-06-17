@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -137,52 +138,13 @@ var platformCounterNames = map[string]map[string]string{
 	},
 }
 
-func extractPlatformFromResponse(t *testing.T, resp *gpb.GetResponse) string {
+func getPlatformConfig(t *testing.T, dut *ondatra.DUTDevice) *platformConfig {
 	t.Helper()
-	notifications := resp.GetNotification()
-	if len(notifications) == 0 || len(notifications[0].GetUpdate()) == 0 {
-		t.Fatal("extractPlatformFromResponse: empty gNMI response")
-	}
-	jsonData := notifications[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
-	var data map[string]interface{}
-	if err := json.Unmarshal(jsonData, &data); err != nil {
-		t.Fatalf("extractPlatformFromResponse: failed to unmarshal JSON: %v", err)
-	}
-	for key := range data {
-		if strings.HasPrefix(key, coppCounterPrefix) {
-			return strings.TrimPrefix(key, coppCounterPrefix)
-		}
-	}
-	t.Fatalf("extractPlatformFromResponse: no platform key with prefix %q found in response", coppCounterPrefix)
-	return ""
-}
-
-func getPlatformConfig(t *testing.T, gnmiClient gpb.GNMIClient) *platformConfig {
-	t.Helper()
-	resp, err := gnmiClient.Get(context.Background(), &gpb.GetRequest{
-		Path: []*gpb.Path{{
-			Elem: []*gpb.PathElem{
-				{Name: "components"},
-				{Name: "component"},
-				{Name: "integrated-circuit"},
-				{Name: "pipeline-counters"},
-				{Name: "control-plane-traffic"},
-				{Name: "vendor"},
-				{Name: "arista"},
-			},
-		}},
-		Type:     gpb.GetRequest_STATE,
-		Encoding: gpb.Encoding_JSON_IETF,
-	})
-	if err != nil {
-		t.Fatalf("getPlatformConfig: gNMI Get failed: %v", err)
-	}
-	platform := extractPlatformFromResponse(t, resp)
+	platform := helpers.AristaPlatform(t, dut)
 	counters, ok := platformCounterNames[platform]
 	if !ok {
 		t.Fatalf("getPlatformConfig: detected platform %q has no counter mapping", platform)
 	}
-	t.Logf("getPlatformConfig: detected %q platform from OC path", platform)
 	return &platformConfig{
 		platformName: platform,
 		counterNames: counters,
@@ -519,7 +481,7 @@ func TestCoppSystem(t *testing.T) {
 		return
 	}
 
-	platCfg := getPlatformConfig(t, gnmiClient)
+	platCfg := getPlatformConfig(t, dut)
 
 	ce := &commonEntities{
 		dut:        dut,
