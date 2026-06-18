@@ -8,14 +8,14 @@ Validate the ability to toggle the power-admin-state for Fabric, Linecard, and C
 ## FP-1.1.1: Powering down Linecard and Fabric Card.
 
 1. **Test Setup**:
-    *  Verify `/components/component/state/oper-status` is `ACTIVE` for all installed Linecards and Fabric Cards.
+    *  Verify `/components/component/{linecard|fabric}/state/oper-status` is `ACTIVE` for all installed Linecards and Fabric Cards.
 2. **Test Logic**:
     *  Select one linecard and one fabric card.
-    *  Update `/components/component/config/power-admin-state` to `POWER_DISABLED` for the selected linecard and fabric card.
-    *  Verify `/components/component/state/power-admin-state` changes to `POWER_DISABLED` for the selected linecard and fabric card.
-    *  Verify `/components/component/state/oper-status` is `DISABLED` for the selected linecard and fabric card.
-    *  Update `/components/component/config/power-admin-state` to `POWER_ENABLED` for the selected linecard and fabric card.
-    *  Verify `/components/component/state/oper-status` returns to `ACTIVE` for the selected linecard and fabric card.
+    *  Update `/components/component/{linecard|fabric}/config/power-admin-state` to `POWER_DISABLED` for the selected linecard and fabric card.
+    *  Verify `/components/component/{linecard|fabric}/state/power-admin-state` changes to `POWER_DISABLED` for the selected linecard and fabric card.
+    *  Verify `/components/component/{linecard|fabric}/state/oper-status` is `DISABLED` for the selected linecard and fabric card.
+    *  Update `/components/component/{linecard|fabric}/config/power-admin-state` to `POWER_ENABLED` for the selected linecard and fabric card.
+    *  Verify `/components/component/{linecard|fabric}/state/oper-status` returns to `ACTIVE` for the selected linecard and fabric card.
 
 ## FP-1.1.2: Attempting to power down both controller cards
 
@@ -85,6 +85,7 @@ rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
+    gNMI.Subscribe:
 ```
-## Minumum DUT platform requirement
+## Minimum DUT platform requirement
 *   MFF
