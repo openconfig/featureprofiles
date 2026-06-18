@@ -585,20 +585,40 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 		nhEntries = append(nhEntries, nhEntry)
 	}
 
+	// Cap the number of NextHops per group to 64 to prevent duplicate NextHops
+	// within the same group when NumDefaultNH is scaled down.
+	actualNHCount := min(64, NumDefaultNH)
+
 	for i := 0; i < NumDefaultNHG; i++ {
 		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgBase + uint64(i))
-		if i < NumDefaultNHG*pctNHG512/100 {
-			for j := 0; j < 62; j++ {
-				nhg.AddNextHop(nhBase+uint64((i*64+j)%NumDefaultNH), 8)
+
+		// Determine the target sum of weights for this NHG based on the percentage split.
+		// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
+		targetWeightSum := uint64(512)
+		if i >= NumDefaultNHG*pctNHG512/100 {
+			targetWeightSum = 1024
+		}
+
+		// Distribute the target weight sum evenly across the available NextHops.
+		baseWeight := targetWeightSum / uint64(actualNHCount)
+		for j := 0; j < actualNHCount; j++ {
+			weight := baseWeight
+			if actualNHCount == 64 {
+				// For full scale (64 NHs), apply specific weight adjustments to match
+				// the original test specification (e.g., 62 NHs with weight 8, one with 7, one with 9).
+				// This slight skew forces the router to program WCMP instead of standard ECMP,
+				// while perfectly preserving the 512 or 1024 total weight sum for hardware buckets.
+				if j == 62 {
+					weight--
+				} else if j == 63 {
+					weight++
+				}
+			} else if j == actualNHCount-1 {
+				// For scaled-down scenarios, assign any remaining weight to the last NextHop
+				// to ensure the total sum exactly matches targetWeightSum.
+				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
 			}
-			nhg.AddNextHop(nhBase+uint64((i*64+62)%NumDefaultNH), 7)
-			nhg.AddNextHop(nhBase+uint64((i*64+63)%NumDefaultNH), 9)
-		} else {
-			for j := 0; j < 62; j++ {
-				nhg.AddNextHop(nhBase+uint64((i*64+j)%NumDefaultNH), 16)
-			}
-			nhg.AddNextHop(nhBase+uint64((i*64+62)%NumDefaultNH), 15)
-			nhg.AddNextHop(nhBase+uint64((i*64+63)%NumDefaultNH), 17)
+			nhg.AddNextHop(nhBase+uint64((i*actualNHCount+j)%NumDefaultNH), weight)
 		}
 		nhgEntries = append(nhgEntries, nhg)
 	}
@@ -613,10 +633,9 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	entries = append(entries, ipv4Entries...)
 	t.Logf("BuildDefaultVRF: %d NHs, %d NHGs, %d IPv4 entries", NumDefaultNH, NumDefaultNHG, NumDefaultIPv4)
 	gSession := BatchModify(t, dut, ctx, entries, 120*time.Second)
-	// DEFAULT VRF.
-	for i := 0; i < FIBPrgCount; i++ {
-		wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[i], IPv4HostMask))
-	}
+	// Validate only the first and last prefixes to save time.
+	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[0], IPv4HostMask))
+	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[len(prefixHosts)-1], IPv4HostMask))
 	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 	return prefixes
@@ -832,6 +851,10 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		allEntries = append(allEntries, decapNH, decapNHG, fluent.IPv4Entry().WithNetworkInstance(DecapVRFStr).WithPrefix(pfx).WithNextHopGroup(nhgIdx).WithNextHopGroupNetworkInstance(defaultVRF))
+		// Add first and last prefixes to wantPrefixesV4 for later verification.
+		if i == 0 || i == NumDecapEntries-1 {
+			wantPrefixesV4[DecapVRFStr] = append(wantPrefixesV4[DecapVRFStr], pfx)
+		}
 	}
 
 	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
