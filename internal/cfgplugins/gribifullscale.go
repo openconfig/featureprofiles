@@ -706,13 +706,13 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 	nhIdx := uint64(0)
 	for i := 0; i < numRepairNHG; i++ {
 		if i < numRepairNHG/2 {
-			nhEntry, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: RepairVRFStr})
+			nhEntry, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: TransitVRF222Str})
 			nhgEntry, _ := gribi.NHGEntry(NHGBaseRepair+uint64(i), map[uint64]uint64{NHBaseRepair + nhIdx: 1}, defaultVRF, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: s2NHG})
 			nhNhgEntries = append(nhNhgEntries, nhEntry, nhgEntry)
 			nhIdx++
 		} else {
-			nh0, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: RepairVRFStr})
-			nh1, _ := gribi.NHEntry(NHBaseRepair+nhIdx+1, "Encap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx+1], VrfName: RepairVRFStr})
+			nh0, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: TransitVRF222Str})
+			nh1, _ := gribi.NHEntry(NHBaseRepair+nhIdx+1, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx+1], VrfName: TransitVRF222Str})
 			nhgEntry, _ := gribi.NHGEntry(NHGBaseRepair+uint64(i), map[uint64]uint64{NHBaseRepair + nhIdx: 1, NHBaseRepair + nhIdx + 1: 1}, defaultVRF, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: s2NHG})
 			nhNhgEntries = append(nhNhgEntries, nh0, nh1, nhgEntry)
 			nhIdx += 2
