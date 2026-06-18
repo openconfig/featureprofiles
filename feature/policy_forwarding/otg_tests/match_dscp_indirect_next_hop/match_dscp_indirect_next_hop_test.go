@@ -210,7 +210,7 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		npRuleAction := npRule.GetOrCreateAction()
 		npRuleAction.SetNextHop(ipvNHv4)
 
-		npRule1 := np.GetOrCreateRule(uint32(1) + uint32(len(pfMatchingDscpValues)))
+		npRule1 := np.GetOrCreateRule(uint32(2))
 		ip1 := npRule1.GetOrCreateIpv6()
 		ip1.SetSourceAddress(fmt.Sprintf("%s/128", ateP1.IPv6))
 		ip1.SetDestinationAddress(fmt.Sprintf("%s/128", ipv6Dst))
