@@ -234,6 +234,7 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	p6.SetType(oc.Policy_Type_VRF_SELECTION_POLICY)
 	r20 := p6.GetOrCreateRule(10)
 	r20.GetOrCreateIpv6().SetDestinationAddress("ff02::/16")
+	r20.GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	r21 := p6.GetOrCreateRule(20)
 	r21.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
 	r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
