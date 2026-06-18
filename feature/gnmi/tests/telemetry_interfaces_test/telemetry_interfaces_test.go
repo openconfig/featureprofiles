@@ -319,7 +319,7 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 	t.Helper()
 	p := gnmi.OC()
 	subIntfIndex := uint32(100)
-	if dut.Vendor() == ondatra.JUNIPER {
+	if deviations.SubinterfaceZeroOnly(dut) {
 		subIntfIndex = 0
 	}
 	description := "test description"
