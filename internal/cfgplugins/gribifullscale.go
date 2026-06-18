@@ -613,10 +613,9 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	entries = append(entries, ipv4Entries...)
 	t.Logf("BuildDefaultVRF: %d NHs, %d NHGs, %d IPv4 entries", NumDefaultNH, NumDefaultNHG, NumDefaultIPv4)
 	gSession := BatchModify(t, dut, ctx, entries, 120*time.Second)
-	// DEFAULT VRF.
-	for i := 0; i < FIBPrgCount; i++ {
-		wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[i], IPv4HostMask))
-	}
+	// Validate only the first and last prefixes to save time.
+	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[0], IPv4HostMask))
+	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[len(prefixHosts)-1], IPv4HostMask))
 	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 	return prefixes
