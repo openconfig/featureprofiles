@@ -335,6 +335,8 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.ConfigureBGPNeighbor(t, dut, defaultNI, dutPort2.IPv4, ate2Port1.IPv6, dutDefaultAS, ateAS1, IPv6, true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort3.IPv4, ate2Port2.IPv4, dutNonDefaultAS, ateAS2, IPv4, true)
 	cfgplugins.ConfigureBGPNeighbor(t, dut, nonDefaultNI, dutPort3.IPv4, ate2Port2.IPv6, dutNonDefaultAS, ateAS2, IPv6, true)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, defaultNIName, defaultNI)
+	cfgplugins.UpdateNetworkInstanceOnDut(t, dut, nonDefaultNIName, nonDefaultNI)
 
 	t.Logf("Configuring Interfaces")
 	configureDUTPort(t, dut, &dutPort1, dp1, defaultNIName)
