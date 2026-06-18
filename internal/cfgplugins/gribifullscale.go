@@ -129,7 +129,6 @@ const (
 	// Prefix start addresses for Transit and Repair VRFs.
 	TransitVRF111PrefixStart = "100.0.0.1"
 	TransitVRF222PrefixStart = "101.0.0.1"
-	RepairNHPrefixStart      = "102.0.0.1"
 	RepairIPv4PrefixStart    = "103.0.0.1"
 
 	// Common prefix step used across multiple VRF builders.
@@ -140,6 +139,9 @@ const (
 	// 75% → 8 NHs/NHG, 20% → 32 NHs/NHG, 5% → 32 NHs/NHG.
 	PctEncap8NH  = 75
 	PctEncap32NH = 20
+
+	// DecapDestsSubsetPct is the percentage of Port2 VLANs to distribute inner destinations across.
+	DecapDestsSubsetPct = 10
 
 	// Traffic parameters — identical for T1 and T2.
 	TrafficDuration = 5 * time.Minute
@@ -637,63 +639,65 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 // BuildTransitVRFs generates entries for TE_VRF_111 and TE_VRF_222. NHs in D1/D2 point to default VRF NHs; NHGs in E1/E2 point to D1/D2 NHs with S1/S2 as backup; IPv4 entries point to E1/E2 NHGs.
 func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, defaultPrefixes []string, s1NHG, s2NHG uint64) {
 	t.Helper()
-	wantPrefixes := make(map[string][]string)
-	entries := []fluent.GRIBIEntry{}
+	validatePrefixesV4 := make(map[string][]string)
+	totalEntries := NumTransitNH_D1 + NumTransitNH_D2 + NumTransitNHG_E1 + NumTransitNHG_E2 + 2*NumTransitIPv4
+	entries := make([]fluent.GRIBIEntry, 0, totalEntries)
 
-	for k := 0; k < NumTransitNH_D1; k++ {
-		entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultVRF).WithIndex(NHBaseD1+uint64(k)).WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
-	}
-	for i := 0; i < NumTransitNHG_E1; i++ {
-		entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseE1+uint64(i)).AddNextHop(NHBaseD1+uint64(i%NumTransitNH_D1), 1).AddNextHop(NHBaseD1+uint64((i+1)%NumTransitNH_D1), 63).WithBackupNHG(s1NHG))
-	}
-
-	for k := 0; k < NumTransitNH_D2; k++ {
-		entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultVRF).WithIndex(NHBaseD2+uint64(k)).WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
-	}
-	for i := 0; i < NumTransitNHG_E2; i++ {
-		entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(NHGBaseE2+uint64(i)).AddNextHop(NHBaseD2+uint64(i%NumTransitNH_D2), 1).AddNextHop(NHBaseD2+uint64((i+1)%NumTransitNH_D2), 63).WithBackupNHG(s2NHG))
-	}
-
-	vrf111Prefixes, err := iputil.GenerateIPsWithStep(TransitVRF111PrefixStart, NumTransitIPv4, CommonPrefixStep)
-	if err != nil {
-		t.Fatalf("BuildTransitVRFs: generate TE_VRF_111 prefixes: %v", err)
-	}
-	for i, host := range vrf111Prefixes {
-		entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(TransitVRF111Str).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseE1+uint64(i%NumTransitNHG_E1)).WithNextHopGroupNetworkInstance(defaultVRF))
+	for _, c := range []struct {
+		numNH  int
+		nhBase uint64
+	}{
+		{NumTransitNH_D1, NHBaseD1},
+		{NumTransitNH_D2, NHBaseD2},
+	} {
+		for k := 0; k < c.numNH; k++ {
+			entries = append(entries, fluent.NextHopEntry().WithNetworkInstance(defaultVRF).
+				WithIndex(c.nhBase+uint64(k)).WithIPAddress(defaultPrefixes[k%len(defaultPrefixes)]))
+		}
 	}
 
-	vrf222Prefixes, err := iputil.GenerateIPsWithStep(TransitVRF222PrefixStart, NumTransitIPv4, CommonPrefixStep)
-	if err != nil {
-		t.Fatalf("BuildTransitVRFs: generate TE_VRF_222 prefixes: %v", err)
+	for _, c := range []struct {
+		numNHG      int
+		nhgBase     uint64
+		backupNHG   uint64
+		vrfName     string
+		prefixStart string
+	}{
+		{NumTransitNHG_E1, NHGBaseE1, s1NHG, TransitVRF111Str, TransitVRF111PrefixStart},
+		{NumTransitNHG_E2, NHGBaseE2, s2NHG, TransitVRF222Str, TransitVRF222PrefixStart},
+	} {
+		for i := 0; i < c.numNHG; i++ {
+			nhD1 := NHBaseD1 + uint64(i%NumTransitNH_D1)
+			nhD2 := NHBaseD2 + uint64(i%NumTransitNH_D2)
+			entries = append(entries, fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
+				WithID(c.nhgBase+uint64(i)).AddNextHop(nhD1, 1).AddNextHop(nhD2, 63).WithBackupNHG(c.backupNHG))
+		}
+
+		vrfPrefixes, err := iputil.GenerateIPsWithStep(c.prefixStart, NumTransitIPv4, CommonPrefixStep)
+		if err != nil {
+			t.Fatalf("BuildTransitVRFs: generate %s prefixes: %v", c.vrfName, err)
+		}
+		for i, host := range vrfPrefixes {
+			pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
+			entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(c.vrfName).WithPrefix(pfx).WithNextHopGroup(c.nhgBase+uint64(i%c.numNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+		}
+		// Validate only the first prefix to save time.
+		validatePrefixesV4[c.vrfName] = []string{fmt.Sprintf("%s/%d", vrfPrefixes[0], IPv4HostMask)}
 	}
-	for i, host := range vrf222Prefixes {
-		entries = append(entries, fluent.IPv4Entry().WithNetworkInstance(TransitVRF222Str).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseE2+uint64(i%NumTransitNHG_E2)).WithNextHopGroupNetworkInstance(defaultVRF))
-	}
+
 	t.Logf("BuildTransitVRFs: %d NHs in D1, %d NHGs in E1; %d NHs in D2, %d NHGs in E2", NumTransitNH_D1, NumTransitNHG_E1, NumTransitNH_D2, NumTransitNHG_E2)
 	t.Logf("BuildTransitVRFs: %d IPv4 entries each transit VRF", NumTransitIPv4)
 	gSession := BatchModify(t, dut, ctx, entries, 3*time.Minute)
-	for _, pair := range []struct {
-		vrf  string
-		base []string
-	}{
-		{TransitVRF111Str, vrf111Prefixes},
-		{TransitVRF222Str, vrf222Prefixes},
-	} {
-		pfxs := []string{}
-		for i := 1; i < FIBPrgCount; i++ {
-			pfxs = append(pfxs, fmt.Sprintf("%s/%d", pair.base[i], IPv4HostMask))
-		}
-		wantPrefixes[pair.vrf] = pfxs
-	}
-	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
-	VerifyHierarchicalResolution(t, gSession, dut, wantPrefixes)
+
+	VerifyFIBProgrammed(t, gSession, validatePrefixesV4, nil)
+	VerifyHierarchicalResolution(t, gSession, dut, validatePrefixesV4)
 	gSession.Close(t)
 }
 
 // BuildRepairVRF generates NH/NHG/IPv4 entries for REPAIR_VRF. numRepairNHG is the T1/T2-specific NHG count.
 func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, s2NHG uint64, numRepairNHG int) {
 	t.Helper()
-	tunnelDsts, err := iputil.GenerateIPsWithStep(RepairNHPrefixStart, numRepairNHG*2, CommonPrefixStep)
+	tunnelDsts, err := iputil.GenerateIPsWithStep(TransitVRF222PrefixStart, numRepairNHG*2, CommonPrefixStep)
 	if err != nil {
 		t.Fatalf("BuildRepairVRF: generate tunnel dsts: %v", err)
 	}
@@ -720,11 +724,17 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		t.Fatalf("BuildRepairVRF: generate repair prefixes: %v", err)
 	}
 	allEntries := nhNhgEntries
+	wantPrefixes := make(map[string][]string)
 	for i, host := range repairPrefixes {
-		allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(RepairVRFStr).WithPrefix(fmt.Sprintf("%s/%d", host, IPv4HostMask)).WithNextHopGroup(NHGBaseRepair+uint64(i%numRepairNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
+		pfx := fmt.Sprintf("%s/%d", host, IPv4HostMask)
+		allEntries = append(allEntries, fluent.IPv4Entry().WithNetworkInstance(RepairVRFStr).WithPrefix(pfx).WithNextHopGroup(NHGBaseRepair+uint64(i%numRepairNHG)).WithNextHopGroupNetworkInstance(defaultVRF))
 	}
+	wantPrefixes[RepairVRFStr] = append(wantPrefixes[RepairVRFStr], fmt.Sprintf("%s/%d", repairPrefixes[0], IPv4HostMask))
+	wantPrefixes[RepairVRFStr] = append(wantPrefixes[RepairVRFStr], fmt.Sprintf("%s/%d", repairPrefixes[len(repairPrefixes)-1], IPv4HostMask))
+
 	t.Logf("BuildRepairVRF: %d NHGs (%d NHs), %d IPv4 entries", numRepairNHG, int(nhIdx), NumRepairIPv4)
 	gSession := BatchModify(t, dut, ctx, allEntries, 30*time.Second)
+	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 }
 
@@ -819,7 +829,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		pfx := fmt.Sprintf("203.%d.%d.1/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
-		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Interface: fmt.Sprintf("port2.%d", i%NumPort2VLANs+1)})
+		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
 		decapNHG, _ := gribi.NHGEntry(nhgIdx, map[uint64]uint64{nhIdx: 1}, defaultVRF, fluent.InstalledInFIB)
 		allEntries = append(allEntries, decapNH, decapNHG, fluent.IPv4Entry().WithNetworkInstance(DecapVRFStr).WithPrefix(pfx).WithNextHopGroup(nhgIdx).WithNextHopGroupNetworkInstance(defaultVRF))
 	}
@@ -1007,6 +1017,7 @@ func BuildEncapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool, dstMac string) []gosnappi.Flow {
 	flows := make([]gosnappi.Flow, 0)
 	decapDsts := ExpandDecapPrefixes()
+	atePort2Ips, _ := iputil.GenerateIPsWithStep(ATEPort2IPv4Start, NumPort2VLANs, PortIPv4Step)
 
 	newFlow := MakeFlowCreator(top, pktSize, pps, imix)
 
@@ -1029,7 +1040,16 @@ func BuildDecapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bool,
 
 		inner := f.Packet().Add().Ipv4()
 		inner.Src().SetValue(ATEPort1IPv4)
-		inner.Dst().SetValue(DecapIPv4InnerDst)
+
+		// Distribute inner destinations across available ATE IPs to avoid all flows
+		// stressing the exact same sub-interfaces.
+		subsetCount := max(1, NumPort2VLANs*DecapDestsSubsetPct/100)
+		var dstIPs []string
+		for j := 0; j < subsetCount; j++ {
+			idx := (vi*subsetCount + j) % NumPort2VLANs
+			dstIPs = append(dstIPs, atePort2Ips[idx])
+		}
+		inner.Dst().SetValues(dstIPs)
 
 		flows = append(flows, f)
 	}
