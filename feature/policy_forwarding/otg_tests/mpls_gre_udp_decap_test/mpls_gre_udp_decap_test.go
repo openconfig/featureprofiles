@@ -37,6 +37,7 @@ const (
 	packetCount      = 1000
 	captureFilePath  = "/tmp/capture.pcap"
 	capturePort      = port2
+	mplsProtocol     = "mpls"
 
 	innerIPv4DstA   = "10.5.1.1"
 	innerIPv4DstB   = "10.5.1.2"
@@ -116,7 +117,6 @@ type testCase struct {
 	policyName  string
 	encapType   string
 	flowConfigs []flowConfig
-	policyDst   string
 }
 
 func TestMain(m *testing.M) {
@@ -146,7 +146,6 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 			name:       "PF-1.7.1 - MPLS in GRE decapsulation set by gNMI",
 			policyName: grePolicyName,
 			encapType:  gre,
-			policyDst:  outerIPv4DstA + "/28",
 			flowConfigs: []flowConfig{
 				{
 					innerIPType: cfgplugins.IPv4,
@@ -170,7 +169,6 @@ func TestMPLSGREUDPDecap(t *testing.T) {
 			name:       "PF-1.7.2 - MPLS in UDP decapsulation set by gNMI",
 			policyName: guePolicyName,
 			encapType:  gue,
-			policyDst:  outerIPv4DstB + "/28",
 			flowConfigs: []flowConfig{
 				{
 					innerIPType: cfgplugins.IPv4,
@@ -242,7 +240,7 @@ func sendAndValidateTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnapp
 		return fmt.Errorf("%s - unexpected number of packets received: got %d, want %d", flowName, *flowMetrics.Counters.InPkts, packetCount)
 	}
 
-	mustProcessCapture(t, ate, capturePort, flowName)
+	mustProcessCapture(t, ate, capturePort, captureFilePath, flowName)
 	if err := verifyReceivedInnerPacketPopLabel(t, captureFilePath, tc, flowConfig); err != nil {
 		return fmt.Errorf("%s - packet validation failed: %w", flowName, err)
 	}
@@ -272,13 +270,13 @@ func startCapture(t *testing.T, ate *ondatra.ATEDevice) gosnappi.ControlState {
 	return cs
 }
 
-func mustProcessCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, flowName string) {
+func mustProcessCapture(t *testing.T, ate *ondatra.ATEDevice, capturePort string, filePath string, flowName string) {
 	otg := ate.OTG()
 	bytes := otg.GetCapture(t, gosnappi.NewCaptureRequest().SetPortName(capturePort))
 	if len(bytes) == 0 {
 		t.Fatalf("Empty capture received for flow %s on port %s", flowName, capturePort)
 	}
-	f, err := os.Create(captureFilePath)
+	f, err := os.Create(filePath)
 	if err != nil {
 		t.Fatalf("Could not create temporary pcap file: %v\n", err)
 	}
@@ -369,6 +367,7 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 		GUEPort:             outerDstUDPPort,
 		IPType:              cfgplugins.IPv6,
 		TunnelIP:            outerIPv6DstB,
+		DecapProtocol:       mplsProtocol,
 		Dynamic:             true,
 		HasMPLS:             true,
 	}
@@ -380,7 +379,6 @@ func configureDecapPolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, interf
 }
 
 func configureStaticLSP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
-
 	lspParams := []cfgplugins.StaticLSPParams{
 		{
 			Name:         fmt.Sprintf("Customer IPV4 in:%d out:pop", mplsLabelIpv4),
@@ -420,35 +418,6 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(otgPort1.MAC)
-	var mplsLabel uint32
-	switch fc.innerIPType {
-	case cfgplugins.IPv4:
-		mplsLabel = mplsLabelIpv4
-	case cfgplugins.IPv6:
-		mplsLabel = mplsLabelIpv6
-	}
-	mpls := flow.Packet().Add().Mpls()
-	mpls.Label().SetValue(mplsLabel)
-	switch fc.innerIPType {
-	case cfgplugins.IPv4:
-		innerIPv4 := flow.Packet().Add().Ipv4()
-		innerIPv4.Src().SetValue(fc.innerIPSrc)
-		innerIPv4.Dst().SetValue(fc.innerIPDest)
-	case cfgplugins.IPv6:
-		innerIPv6 := flow.Packet().Add().Ipv6()
-		innerIPv6.Src().SetValue(fc.innerIPSrc)
-		innerIPv6.Dst().SetValue(fc.innerIPDest)
-	}
-
-	switch tc.encapType {
-	case gre:
-		flow.Packet().Add().Gre()
-	case gue:
-		udp := flow.Packet().Add().Udp()
-		udp.DstPort().SetValue(outerDstUDPPort)
-	default:
-		t.Errorf("invalid encap type %s", tc.encapType)
-	}
 
 	switch fc.outerIPType {
 	case cfgplugins.IPv4:
@@ -463,6 +432,31 @@ func configureFlow(t *testing.T, config gosnappi.Config, tc testCase, fc flowCon
 		outerIPv6.Dst().SetValue(fc.outerIPDest)
 		outerIPv6.TrafficClass().SetValue(outerDSCP)
 		outerIPv6.HopLimit().SetValue(outerIPTTL)
+	}
+
+	switch tc.encapType {
+	case gre:
+		flow.Packet().Add().Gre()
+	case gue:
+		udp := flow.Packet().Add().Udp()
+		udp.DstPort().SetValue(outerDstUDPPort)
+	default:
+		t.Errorf("invalid encap type %s", tc.encapType)
+	}
+
+	mpls := flow.Packet().Add().Mpls()
+
+	switch fc.innerIPType {
+	case cfgplugins.IPv4:
+		mpls.Label().SetValue(mplsLabelIpv4)
+		innerIPv4 := flow.Packet().Add().Ipv4()
+		innerIPv4.Src().SetValue(fc.innerIPSrc)
+		innerIPv4.Dst().SetValue(fc.innerIPDest)
+	case cfgplugins.IPv6:
+		mpls.Label().SetValue(mplsLabelIpv6)
+		innerIPv6 := flow.Packet().Add().Ipv6()
+		innerIPv6.Src().SetValue(fc.innerIPSrc)
+		innerIPv6.Dst().SetValue(fc.innerIPDest)
 	}
 }
 
