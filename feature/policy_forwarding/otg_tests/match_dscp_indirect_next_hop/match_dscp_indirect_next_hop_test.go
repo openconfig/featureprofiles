@@ -223,6 +223,9 @@ func configTrafficPolicy(t *testing.T, dut *ondatra.DUTDevice, name string) {
 		npri := npi.GetOrCreateInterfaceRef()
 		npri.SetInterface(interfaceName)
 		npri.SetSubinterface(uint32(0))
+		if deviations.InterfaceRefConfigUnsupported(dut) {
+			npi.InterfaceRef = nil
+		}
 		npi.ApplyForwardingPolicy = np.PolicyId
 		gnmi.Update(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Config(), ni)
 
