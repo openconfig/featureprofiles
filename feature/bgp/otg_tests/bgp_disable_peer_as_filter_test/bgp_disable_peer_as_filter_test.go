@@ -202,6 +202,46 @@ func verifyBGPTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbrs []string) err
 	return nil
 }
 
+// verifyDisablePeerASFilterStateOnNeighbors checks disable-peer-as-filter state for DUT neighbors.
+func verifyDisablePeerASFilterStateOnNeighbors(t *testing.T, dut *ondatra.DUTDevice, nbrs []string, want bool) error {
+	t.Helper()
+	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Log("Skipping neighbor disable-peer-as-filter state validation: default-peer-as-filter OC unsupported on Arista devices")
+		}
+		return nil
+	}
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, nbr := range nbrs {
+		got := gnmi.Get(t, dut, bgpPath.Neighbor(nbr).AsPathOptions().DisablePeerAsFilter().State())
+		if got != want {
+			return fmt.Errorf("disable-peer-as-filter state for neighbor %s got %v, want %v", nbr, got, want)
+		}
+	}
+	return nil
+}
+
+// verifyDisablePeerASFilterStateOnPeerGroups checks disable-peer-as-filter state for DUT peer groups.
+func verifyDisablePeerASFilterStateOnPeerGroups(t *testing.T, dut *ondatra.DUTDevice, peerGroups []string, want bool) error {
+	t.Helper()
+	if deviations.DefaultPeerAsFilterOcUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Log("Skipping peer-group disable-peer-as-filter state validation: default-peer-as-filter OC unsupported")
+		}
+		return nil
+	}
+	bgpPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
+	for _, pg := range peerGroups {
+		got := gnmi.Get(t, dut, bgpPath.PeerGroup(pg).AsPathOptions().DisablePeerAsFilter().State())
+		if got != want {
+			return fmt.Errorf("disable-peer-as-filter state for peer-group %s got %v, want %v", pg, got, want)
+		}
+	}
+	return nil
+}
+
 // configureOTG sets up ATE interfaces and BGP protocols
 func configureOTG(t *testing.T, otg *otg.OTG, asSeg []uint32, atePort2AS uint32) gosnappi.Config {
 	t.Helper()
@@ -397,7 +437,35 @@ func verifyReceivedRoutesWithAsPath(t *testing.T, otg *otg.OTG, peerName string,
 			prefixAsSegments = append(prefixAsSegments, gotASSeg.AsNumbers...)
 		}
 		if diff := cmp.Diff(prefixAsSegments, wantASSeg); diff != "" {
-			return fmt.Errorf("as path mismatch for prefix %v: got %v, want %v", prefix.Address, prefixAsSegments, wantASSeg)
+			return fmt.Errorf("as path mismatch for ipv4 prefix %v: got %v, want %v", prefix.Address, prefixAsSegments, wantASSeg)
+		}
+	}
+
+	ipv6PeerName := peerName + ".BGP6.peer"
+	_, ok6 := gnmi.WatchAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State(),
+		time.Minute, func(v *ygnmi.Value[*otgtelemetry.BgpPeer_UnicastIpv6Prefix]) bool {
+			_, present := v.Val()
+			return present
+		}).Await(t)
+
+	if !ok6 {
+		return fmt.Errorf("expected to receive IPv6 routes on %s but got 0", ipv6PeerName)
+	}
+
+	bgpV6Prefixes := gnmi.GetAll(t, otg, gnmi.OTG().BgpPeer(ipv6PeerName).UnicastIpv6PrefixAny().State())
+	gotV6PrefixCount := len(bgpV6Prefixes)
+
+	if gotV6PrefixCount == 0 {
+		return fmt.Errorf("expected to receive IPv6 routes on %s but got 0", ipv6PeerName)
+	}
+
+	for _, prefix := range bgpV6Prefixes {
+		prefixAsSegments := []uint32{}
+		for _, gotASSeg := range prefix.AsPath {
+			prefixAsSegments = append(prefixAsSegments, gotASSeg.AsNumbers...)
+		}
+		if diff := cmp.Diff(prefixAsSegments, wantASSeg); diff != "" {
+			return fmt.Errorf("as path mismatch for ipv6 prefix %v: got %v, want %v", prefix.Address, prefixAsSegments, wantASSeg)
 		}
 	}
 	return nil
@@ -499,6 +567,12 @@ func TestDisablePeerAsFilterPerBGPNeighbor(t *testing.T) {
 				t.Fatal(err)
 			}
 
+			if tc.disablePeerASFilter {
+				if err := verifyDisablePeerASFilterStateOnNeighbors(t, dut, bgpConfig.NeighborIPs, true); err != nil {
+					t.Fatal(err)
+				}
+			}
+
 			// Verify routes received according to test case expectations
 			if err := verifyReceivedRoutes(t, otgClient, atePort2.Name, tc.disablePeerASFilter); err != nil {
 				t.Error(err)
@@ -596,6 +670,12 @@ func TestDisablePeerAsFilterPerBGPPeerGroup(t *testing.T) {
 			}
 			if err := verifyOTGBGPTelemetry(t, otgClient, config, "ESTABLISHED"); err != nil {
 				t.Fatal(err)
+			}
+
+			if tc.disablePeerASFilter {
+				if err := verifyDisablePeerASFilterStateOnPeerGroups(t, dut, bgpConfig.PeerGroupNames, true); err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			// Verify routes received according to test case expectations
