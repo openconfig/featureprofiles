@@ -130,6 +130,7 @@ paths:
   ## State Paths ##
   /qos/interfaces/interface/output/queues/queue/state/dropped-pkts:
   /components/component/state/switchover-ready:
+    platform_type: [CONTROLLER_CARD]
   /system/processes/process/state/memory-usage:
   /system/processes/process/state/name:
   /system/processes/process/state/pid:
