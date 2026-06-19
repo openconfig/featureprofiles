@@ -33,15 +33,15 @@ const (
 	acceptRoutePolicy = "PERMIT-ALL"
 	trafficPPS        = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
 	trafficv6PPS      = 50000 // Should be 5000000 // Should be 1000 for kne env(SW)
-	srcTrafficV4      = "192.0.2.2"
-	srcTrafficV6      = "2000:db8::2"
+	srcTrafficV4      = "198.18.0.0/32"
+	srcTrafficV6      = "2001:db8:99::/128"
 	dstTrafficV4      = "100.0.1.1"
 	dstTrafficV6      = "2010:db8:64:64::1"
 	v4Count           = 254
 	v6Count           = 1000 // Should be 10000000
 	fixedPackets      = 1000000
 	lossTolerance     = 0.01
-	srcIPCount        = 500
+	srcIPCount        = 512
 )
 
 type aggPortData struct {
@@ -211,7 +211,7 @@ func TestWeightedECMPForISIS(t *testing.T) {
 		if _, ok := gnmi.Watch(t, ate.OTG(), gnmi.OTG().Lag(lag.Name()).State(), 2*time.Minute, func(v *ygnmi.Value[*otgtelemetry.Lag]) bool {
 			lagValue, present := v.Val()
 			if present {
-				return lagValue.GetCounters().GetMemberPortsUp() == 2 && lagValue.GetOperStatus() == otgtelemetry.Lag_OperStatus_UP
+				return lagValue.GetCounters() != nil && lagValue.GetCounters().GetMemberPortsUp() == 2 && lagValue.GetOperStatus() == otgtelemetry.Lag_OperStatus_UP
 			} else {
 				return false
 			}
@@ -352,10 +352,9 @@ func generateRandomIPList(t *testing.T, cidr string, count int) []string {
 	for net := range netutil.GenCIDRs(t, cidr, count) {
 		ips = append(ips, strings.TrimSuffix(strings.TrimSuffix(net, "/32"), "/128"))
 	}
-	for i := len(ips) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
+	rand.Shuffle(len(ips), func(i, j int) {
 		ips[i], ips[j] = ips[j], ips[i]
-	}
+	})
 	return ips
 }
 
@@ -376,7 +375,7 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	eV4 := fV4.Packet().Add().Ethernet()
 	eV4.Src().SetValue(agg1.ateAggMAC)
 	v4 := fV4.Packet().Add().Ipv4()
-	v4.Src().SetValues(generateRandomIPList(t, srcTrafficV4+"/32", srcIPCount))
+	v4.Src().SetValues(generateRandomIPList(t, srcTrafficV4, srcIPCount))
 	v4.Dst().Increment().SetStart(dstTrafficV4).SetCount(v4Count)
 	udp := fV4.Packet().Add().Udp()
 	udp.SrcPort().SetValues(randRange(t, 34525, 65535, 5000))
@@ -396,7 +395,7 @@ func configureFlows(t *testing.T, top gosnappi.Config) []gosnappi.Flow {
 	eV6.Src().SetValue(agg1.ateAggMAC)
 
 	v6 := fV6.Packet().Add().Ipv6()
-	v6.Src().SetValues(generateRandomIPList(t, srcTrafficV6+"/128", srcIPCount))
+	v6.Src().SetValues(generateRandomIPList(t, srcTrafficV6, srcIPCount))
 	v6.Dst().Increment().SetStart(dstTrafficV6).SetCount(v6Count)
 	udpv6 := fV6.Packet().Add().Udp()
 	udpv6.SrcPort().SetValues(randRange(t, 35521, 65535, 5000))
