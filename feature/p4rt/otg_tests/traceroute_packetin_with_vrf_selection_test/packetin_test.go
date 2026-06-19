@@ -104,6 +104,7 @@ func decodePacket6(t *testing.T, packetData []byte) uint8 {
 // number of packets sent out.
 func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flows []gosnappi.Flow, srcEndPoint gosnappi.Port, duration int, cs gosnappi.ControlState) int {
 	t.Helper()
+	initialOutPkts := make(map[string]uint64, len(flows))
 	top.Flows().Clear()
 	for _, flow := range flows {
 		flow.TxRx().Port().SetTxName(srcEndPoint.Name()).SetRxName(srcEndPoint.Name())
@@ -113,6 +114,9 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
 	time.Sleep(30 * time.Second)
+	for _, flow := range flows {
+		initialOutPkts[flow.Name()] = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+	}
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Duration(duration) * time.Second)
 	ate.OTG().StopTraffic(t)
@@ -120,10 +124,10 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	ate.OTG().SetControlState(t, cs)
 
-	outPkts := gnmi.GetAll(t, ate.OTG(), gnmi.OTG().FlowAny().Counters().OutPkts().State())
 	total := 0
-	for _, count := range outPkts {
-		total += int(count)
+	for _, flow := range flows {
+		current := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+		total += int(current - initialOutPkts[flow.Name()])
 	}
 	return total
 }
