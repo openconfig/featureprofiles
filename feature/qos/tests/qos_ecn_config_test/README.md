@@ -33,7 +33,7 @@ Verify QoS ECN feature configuration.
 
 ```json
 {
-  "openconfig-qos": {
+  "qos": {
     "queue-management-profiles": {
       "queue-management-profile": [
         {
@@ -44,8 +44,8 @@ Verify QoS ECN feature configuration.
           "wred": {
             "uniform": {
               "config": {
-                "min-threshold": 81920,
-                "max-threshold": 81920,
+                "min-threshold": "81920",
+                "max-threshold": "81920",
                 "enable-ecn": true,
                 "drop": false,
                 "max-drop-probability-percent": 100
