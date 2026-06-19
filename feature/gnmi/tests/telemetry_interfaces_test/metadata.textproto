@@ -26,7 +26,6 @@ platform_exceptions: {
   }
   deviations: {
     state_path_unsupported: true
-    subinterface_zero_only: true
   }
 }
 

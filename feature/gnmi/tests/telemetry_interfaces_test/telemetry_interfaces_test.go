@@ -319,7 +319,7 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 	t.Helper()
 	p := gnmi.OC()
 	subIntfIndex := uint32(100)
-	if deviations.SubinterfaceZeroOnly(dut) {
+	if dut.Vendor() == ondatra.JUNIPER {
 		subIntfIndex = 0
 	}
 	description := "test description"
@@ -369,7 +369,7 @@ func testTelemetryInterfacesStateSubinterface(t *testing.T, dut *ondatra.DUTDevi
 			t.Errorf("\n\n [FAILED]: leaf: Subinterface description is not present on port %s subinterface: '%v' \n\n", port, subinterface)
 		}
 
-		if deviations.SubinterfaceZeroOnly(dut) {
+		if dut.Vendor() == ondatra.JUNIPER && subIntfIndex == 0 {
 			gnmi.Delete(t, dut, subinterface.Description().Config())
 		} else {
 			gnmi.Delete(t, dut, subinterface.Config())
