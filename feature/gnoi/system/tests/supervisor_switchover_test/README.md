@@ -19,55 +19,51 @@ Validate that the active supervisor can be successfully switched to the standby 
 
 ```json
 {
-  "openconfig-interfaces": {
+  "interfaces": {
+    "interface": [
+      {
+        "name": "Port-Channel1",
+        "config": {
+          "name": "Port-Channel1",
+          "type": "iana-if-type:ieee8023adLag"
+        }
+      },
+      {
+        "name": "Ethernet1",
+        "config": {
+          "name": "Ethernet1"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "openconfig-if-aggregate:config": {
+            "aggregate-id": "Port-Channel1"
+          }
+        }
+      },
+      {
+        "name": "Ethernet2",
+        "config": {
+          "name": "Ethernet2"
+        },
+        "openconfig-if-ethernet:ethernet": {
+          "openconfig-if-aggregate:config": {
+            "aggregate-id": "Port-Channel1"
+          }
+        }
+      }
+    ]
+  },
+  "lacp": {
     "interfaces": {
       "interface": [
         {
           "name": "Port-Channel1",
           "config": {
             "name": "Port-Channel1",
-            "type": "iana-if-type:ieee8023adLag"
-          }
-        },
-        {
-          "name": "Ethernet1",
-          "config": {
-            "name": "Ethernet1"
-          },
-          "openconfig-if-ethernet:ethernet": {
-            "openconfig-if-aggregate:config": {
-              "aggregate-id": "Port-Channel1"
-            }
-          }
-        },
-        {
-          "name": "Ethernet2",
-          "config": {
-            "name": "Ethernet2"
-          },
-          "openconfig-if-ethernet:ethernet": {
-            "openconfig-if-aggregate:config": {
-              "aggregate-id": "Port-Channel1"
-            }
+            "interval": "FAST",
+            "lacp-mode": "ACTIVE"
           }
         }
       ]
-    }
-  },
-  "openconfig-lacp": {
-    "lacp": {
-      "interfaces": {
-        "interface": [
-          {
-            "name": "Port-Channel1",
-            "config": {
-              "name": "Port-Channel1",
-              "interval": "FAST",
-              "lacp-mode": "ACTIVE"
-            }
-          }
-        ]
-      }
     }
   }
 }
@@ -80,7 +76,8 @@ Validate that the active supervisor can be successfully switched to the standby 
     *   Verify the standby RE/SUP becomes active by checking `/components/component/state/redundant-role` transitions to `PRIMARY`.
     *   Verify the old active RE/SUP transitions to `STANDBY`.
 *   **Step 3:** Validate traffic and LACP state during and after the switchover:
-    *   Verify the LACP session does not flap and connected ports remain up (`/interfaces/interface/state/oper-status` and `/lacp/interfaces/interface/state/oper-status` are `UP`).
+    *   Verify the LACP session does not flap and connected ports remain up (`/interfaces/interface/state/oper-status`
+    *   Validate the member ports are in-sync (`/lacp/interfaces/interface/members/member/state/synchronization` is `IN_SYNC`).
     *   Validate there is **zero traffic loss** from IXIA over the LACP ports during the entire switchover event.
 *   **Step 4:** Validate management plane recovery:
     *   Execute a simple `gNMI.Set` (e.g., updating an interface description) and a `gNMI.Get` to ensure the new active supervisor fully processes management operations.
@@ -117,7 +114,7 @@ paths:
   
   ## Interface and LACP State Paths ##
   /interfaces/interface/state/oper-status:
-  /lacp/interfaces/interface/state/oper-status:
+  /lacp/interfaces/interface/members/member/state/synchronization:
 
 rpcs:
   gnmi:
