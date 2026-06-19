@@ -2,7 +2,7 @@
 
 ## Summary
 
-Validate long-duration device stability, agent/process health, and forwarding integrity (no traffic drops or VOQ drops) for 15 minutes following a Supervisor Switchover (SSO).
+Validate long-duration device stability, agent/process health, and forwarding integrity (no traffic drops or VOQ drops) for 10 minutes following each of the two Supervisor Switchovers (SSO).
 
 ## Testbed type
 
