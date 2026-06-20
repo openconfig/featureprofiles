@@ -140,9 +140,9 @@ Validate that a scaled VRF Selection Policy is programmed to hardware successful
 ### RT-3.4.3 - VRF Selection Policy Resilience Post Linecard OIR
 
 *   **Step 1 - Perform Linecard Soft OIR:** While all 60+ continuous streams are still running, identify the Linecard component hosting DUT Port-1 using `/components/component[name=<LC_NAME>]`.
-    *   Use `gnmi.Set` to change `/components/component[name=<LC_NAME>]/config/power-admin-state` to `POWER_DISABLED`.
+    *   Use `gnmi.Set` to change `/components/component/linecard/config/power-admin-state` to `POWER_DISABLED`.
     *   Wait for the linecard operational status `/components/component[name=<LC_NAME>]/state/oper-status` to transition to `DISABLED`. Traffic will drop.
-    *   Use `gnmi.Set` to change `/components/component[name=<LC_NAME>]/config/power-admin-state` back to `POWER_ENABLED`.
+    *   Use `gnmi.Set` to change `/components/component/linecard/config/power-admin-state` back to `POWER_ENABLED`.
     *   Wait for the linecard operational status `/components/component[name=<LC_NAME>]/state/oper-status` to transition back to `ACTIVE` and all ports to come up.
 *   **Step 2 - Validation:** Once the linecard is `ACTIVE`, verify that all 60+ streams autonomously recover. Verify that traffic correctly maps back to the 30 specific VRFs and the `DEFAULT` VRF without cross-talk, leakage, or TCAM shadowing (Rule 100 overriding Rules 1-15). Verify Ghost Stream remains dropped.
 
@@ -156,11 +156,11 @@ Validate that a scaled VRF Selection Policy is programmed to hardware successful
 
 ```yaml
 paths:
-  /components/component/config/power-admin-state:
+  /components/component/linecard/config/power-admin-state:
     platform_type: ["LINECARD"]
   /components/component/state/oper-status:
     platform_type: ["LINECARD"]
-  /components/component/state/power-admin-state:
+  /components/component/linecard/state/power-admin-state:
     platform_type: ["LINECARD"]
   /components/component/state/last-switchover-time:
     platform_type: ["CONTROLLER_CARD"]
@@ -186,8 +186,7 @@ rpcs:
     gNMI.Set:
       replace: true
   gnoi:
-    system:
-      SwitchControlProcessor:
+    system.System.SwitchControlProcessor:
 ```
 
 ## Required DUT platform
