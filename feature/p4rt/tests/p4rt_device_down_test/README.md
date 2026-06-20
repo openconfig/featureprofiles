@@ -97,7 +97,7 @@ paths:
   /interfaces/interface/config/id:
   /components/component/state/oper-status:
     platform_type: ["LINECARD", "INTEGRATED_CIRCUIT"]
-  /components/component/config/power-admin-state:
+  /components/component/linecard/config/power-admin-state:
     platform_type: ["LINECARD"]
 
 rpcs:
