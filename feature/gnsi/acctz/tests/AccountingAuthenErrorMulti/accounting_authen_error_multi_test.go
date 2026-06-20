@@ -322,7 +322,7 @@ func dialAndFail(t *testing.T, target, username, password string, attempt int) (
 	defer cancel()
 
 	// valid credentials
-	// TACACS backend unreachable AUTHN_STATUS_ERROR expected
+	// Trigger authentication while the TACACS backend is unavailable.
 	ctx = metadata.AppendToOutgoingContext(ctx, metadataKeyUsername, username, metadataKeyPassword, password)
 
 	_, err = gnmipb.NewGNMIClient(conn).Capabilities(ctx, &gnmipb.CapabilityRequest{})
