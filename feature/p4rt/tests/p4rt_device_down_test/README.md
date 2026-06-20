@@ -96,6 +96,8 @@ paths:
     platform_type: ["INTEGRATED_CIRCUIT"]
   /interfaces/interface/config/id:
   /components/component/state/oper-status:
+    platform_type: ["LINECARD", "INTEGRATED_CIRCUIT"]
+  /components/component/config/power-admin-state:
     platform_type: ["LINECARD"]
 
 rpcs:
