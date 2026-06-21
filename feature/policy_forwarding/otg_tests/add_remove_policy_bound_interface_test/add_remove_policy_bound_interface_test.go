@@ -224,9 +224,11 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	r10 := p4.GetOrCreateRule(10)
 	r10.GetOrCreateIpv4().SetSourceAddress(atePort2.IPv4 + "/32")
 	r10.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+
 	r11 := p4.GetOrCreateRule(20)
 	r11.GetOrCreateIpv4().SetSourceAddress(atePort3.IPv4 + "/32")
 	r11.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfSelectionPolicyName).Config(), p4)
 
 	// VRF Selection Policy for IPv6
@@ -235,12 +237,15 @@ func configurePBFPolicy(t *testing.T, dut *ondatra.DUTDevice) {
 	r20 := p6.GetOrCreateRule(10)
 	r20.GetOrCreateIpv6().SetDestinationAddress("ff02::/16")
 	r20.GetOrCreateAction().NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
+
 	r21 := p6.GetOrCreateRule(20)
 	r21.GetOrCreateIpv6().SetSourceAddress(atePort2.IPv6 + "/128")
 	r21.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+
 	r22 := p6.GetOrCreateRule(30)
 	r22.GetOrCreateIpv6().SetSourceAddress(atePort3.IPv6 + "/128")
 	r22.GetOrCreateAction().NetworkInstance = ygot.String(vrf100Name)
+
 	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Policy(vrfPolicyv6).Config(), p6)
 }
 
