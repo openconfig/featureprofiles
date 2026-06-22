@@ -44,7 +44,7 @@ See also:
   - `POLICY-PREFIX-SET-B`: Matches a specific set of IPv6 prefixes: 
     `2001:DB8:2::/64` and `2001:DB8:2::1/128`.
 
-  - `POLICY-PREFIX-SET-VRF-A`: Matches any 5000 IPv4 prefix within
+  - `POLICY-PREFIX-SET-VRF-A`: Matches at least 5000 IPv4 prefixes within
     `100.64.0.0/16` with a masklength range of `/24` to `/32`.
 
   - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.0.0/16` with a
