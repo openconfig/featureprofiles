@@ -48,7 +48,7 @@ See also:
     `100.64.0.0/16` with a masklength range of `/24` to `/32`.
 
   - `POLICY-SUBNET`: Matches any IPv4 prefix within `203.0.0.0/16` with a
-    masklength range of `/25` to `/32` (i.e., any subnet of that block). Matches filter should atleast strem 5000 prefixes
+    masklength range of `/25` to `/32` (i.e., any subnet of that block). Matches filter should at least stream 5000 prefixes.
 
   - `POLICY-SUBNET-V6`: Matches any IPv6 prefix within `2001:DB8:3::/64`
     with a masklength range of `/65` to `/128` (i.e., any subnet of that
