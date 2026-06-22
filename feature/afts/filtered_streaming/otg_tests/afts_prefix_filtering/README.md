@@ -88,8 +88,8 @@ both policies is covered in
 - Ensure `DUT` has `POLICY-PREFIX-SET-A` configured to match prefixes
   `198.51.100.0/24`, `203.0.113.0/28`, and `198.51.100.1/32`.
 
-- Ensure the DUT's AFT contains entries for prefixes including`198.51.100.0/24`,
-  `203.0.113.0/28`, and along with non-matching prefix (`100.64.0.0/24`).
+- Ensure the DUT's AFT contains entries for prefixes including `198.51.100.0/24`,
+  `203.0.113.0/28`, along with a non-matching prefix (`100.64.0.0/24`).
 
 - Configure the global-filter leaf for the address family under test to the
   selected policy. For example, when testing `POLICY-PREFIX-SET-A`:
