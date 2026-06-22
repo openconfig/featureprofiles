@@ -24,7 +24,7 @@ See also:
 
 - Basic interface configuration is applied to the `DUT` and `ATE`.
 
-- Base profile includes 2 BGP peers sending 2M(1.5M ipv4 and 500k ipv6)
+- Base profile includes 2 BGP peers sending 2M (1.5M IPv4 and 500k IPv6).
 
 - The DUT is pre-configured with static routes to populate the AFT. Routes
   include a mix of IPv4 and IPv6 prefixes drawn from RFC 5737 test address
