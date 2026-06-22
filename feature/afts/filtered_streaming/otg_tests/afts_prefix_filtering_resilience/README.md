@@ -137,7 +137,7 @@ respective filters.
   `203.0.113.0/28` from `DEFAULT`. Verify all expected next-hop-groups and
   next-hops are received normally. Verify `100.64.0.0/24` is **not** received.
 
-- Collector 2: Verify `SYNC` and receipt of of allowed prefixes including `100.64.1.0/24` from `VRF-A`.
+- Collector 2: Verify `SYNC` and receipt of allowed prefixes including `100.64.1.0/24` from `VRF-A`.
   Verify all expected next-hop-groups and next-hops are received normally.
   Verify `198.51.100.0/24` and `203.0.113.128/28` are **not** received.
 
