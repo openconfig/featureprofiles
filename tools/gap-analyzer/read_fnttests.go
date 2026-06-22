@@ -21,8 +21,16 @@ import (
 	"time"
 )
 
-// Base URL for Google AI Gemini Public API
-const geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+const (
+	// geminiAPIURL is the base URL for Google AI Gemini Public API.
+	geminiAPIURL = "https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent?key=%s"
+	// geminiTimeout specifies the HTTP client timeout for each Gemini API call.
+	geminiTimeout = 180 * time.Second
+	// geminiMaxRetries specifies the maximum number of retry attempts for Gemini API calls.
+	geminiMaxRetries = 3
+	// geminiBackoff specifies the base backoff delay between retry attempts.
+	geminiBackoff = 10 * time.Second
+)
 
 // --- Structs for parsing metadata.textproto ---
 
@@ -251,7 +259,7 @@ Result in JSON format:
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{Timeout: 60 * time.Second}
+	client := &http.Client{Timeout: geminiTimeout}
 	resp, err := client.Do(req)
 	if err != nil {
 		return false, "", fmt.Errorf("http request failed: %w", err)
@@ -315,18 +323,17 @@ func callGeminiWithRetry(ctx context.Context, readmeContent, automationContent s
 	var gapFound bool
 	var gapDesc string
 	var err error
-	const maxRetries = 3
-	for i := range maxRetries {
+	for i := range geminiMaxRetries {
 		gapFound, gapDesc, err = callGemini(ctx, readmeContent, automationContent)
 		if err == nil {
 			return gapFound, gapDesc, nil
 		}
-		log.Printf("Warning: Gemini call failed (attempt %d/%d): %v", i+1, maxRetries, err)
-		if i < maxRetries-1 {
-			time.Sleep(time.Duration(i+1) * 5 * time.Second) // Exponential-ish backoff
+		log.Printf("Warning: Gemini call failed (attempt %d/%d): %v", i+1, geminiMaxRetries, err)
+		if i < geminiMaxRetries-1 {
+			time.Sleep(time.Duration(i+1) * geminiBackoff) // Exponential-ish backoff
 		}
 	}
-	return false, "", fmt.Errorf("failed after %d attempts: %w", maxRetries, err)
+	return false, "", fmt.Errorf("failed after %d attempts: %w", geminiMaxRetries, err)
 }
 
 // escape replaces special characters in a string for GitHub Action command values.
