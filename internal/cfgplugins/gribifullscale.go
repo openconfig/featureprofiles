@@ -381,9 +381,9 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	// Configure sub-interfaces on port1 (1 VLAN) and port2 (640 VLANs).
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, DUTPort1IPv4Start, DUTPort1IPv6Start, StartVLANPort1, NumPort1VLANs)
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, NumPort2VLANs)
-	ConfigureCLIDecapVRFMode(t, dut)
-	ConfigureVRFSelectionPolicyOC(t, dut, vrfBatch)
 	vrfBatch.Set(t, dut)
+	ConfigureCLIDecapVRFMode(t, dut)
+	ConfigureVRFSelectionPolicyOC(t, dut)
 }
 
 // ConfigureDUTSubinterfaces creates multiple VLAN-tagged sub-interfaces on dut port, deriving IPv4/IPv6 addresses from the provided prefixes.
