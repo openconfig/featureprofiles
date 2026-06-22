@@ -96,7 +96,7 @@ respective filters.
 
 - Configure two network instances on the DUT: `DEFAULT` and `VRF-A`.
 
-- configure the prefix-set to allow 5000 prefixes, in each instances, are streaming after filtering.
+- Configure the prefix-set to allow 5000 prefixes in each instance to stream after filtering.
 
 - Populate both instances with distinct static routes. The prefix
   `198.51.100.0/24` appears in both instances to verify filter independence.
