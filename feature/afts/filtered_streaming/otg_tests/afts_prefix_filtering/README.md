@@ -197,7 +197,7 @@ subscribe: {
   and
   `/network-instances/network-instance/afts/global-filter/state/ipv6-policy`.
 
-- Verify that the previously excluded prefixes, example `100.64.0.0/24`, are now received,
+- Verify that the previously excluded prefixes, for example `100.64.0.0/24`, are now received,
   confirming the filter has been lifted.
 
 ### AFT-6.1.2 - Validation with Non-Existent Policy
