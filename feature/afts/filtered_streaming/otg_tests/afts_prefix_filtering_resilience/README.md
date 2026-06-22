@@ -108,7 +108,7 @@ respective filters.
 
   - `POLICY-PREFIX-SET-A`: Matches includes `198.51.0.0/16`, `203.0.113.0/28`, and
     `198.51.100.1/32`.
-  - `POLICY-PREFIX-SET-VRF-A`: Matches includes `100.64.0.0/16` and subnets up to
+  - `POLICY-PREFIX-SET-VRF-A`: Matches, including `100.64.0.0/16` and subnets up to
     `/32`.
   - `POLICY-MATCH-ALL`: Matches all routes.
 
