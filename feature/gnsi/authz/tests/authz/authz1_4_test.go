@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/security/authz"
 	"github.com/openconfig/featureprofiles/internal/security/gnxi"
@@ -180,6 +181,10 @@ func verifyAuthTable(t *testing.T, dut *ondatra.DUTDevice, authTable authorizati
 	for certName, access := range authTable {
 		t.Run(fmt.Sprintf("Validating access for user %s", certName), func(t *testing.T) {
 			for _, allowedRPC := range access.allowed {
+				if allowedRPC == gnxi.RPCs.GnoiSystemPing &&
+					deviations.SkipGnoiPingRpcAuthzVerification(dut) {
+					continue
+				}
 				authz.Verify(t, dut, getSpiffe(t, dut, certName), allowedRPC, &authz.HardVerify{})
 			}
 			for _, deniedRPC := range access.denied {

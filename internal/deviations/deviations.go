@@ -2259,3 +2259,8 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
 }
+
+// SkipGnoiPingRpcAuthzVerification returnds true if Gnoi Ping rpc to be skipped based on a deviation
+func SkipGnoiPingRpcAuthzVerification(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetSkipGnoiPingRpcAuthzVerification()
+}
