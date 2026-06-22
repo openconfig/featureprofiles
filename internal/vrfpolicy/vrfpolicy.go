@@ -329,8 +329,6 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	}
 
 	dutForwardingPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
-
 	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
 	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
@@ -338,7 +336,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		interface1.InterfaceRef = nil
 	}
-	gnmi.Replace(t, dut, dutForwardingPath.Interface(interfaceID).Config(), interface1)
+	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
 func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policyFwRule) *oc.NetworkInstance_PolicyForwarding {
