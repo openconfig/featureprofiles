@@ -1174,10 +1174,23 @@ func capturePktsBeforeTraffic(t *testing.T, dut *ondatra.DUTDevice, dutPortList 
 // verifyTrafficFlow verify the each flow on ATE
 func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Flow, status bool) bool {
 	if flows[0].Name() == "pfx1ToPfx4" {
-		rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
-		txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
-		lostPkt := txPkts - rxPkts
+		var rxPkts, txPkts uint64
+		var lostPkt uint64
+		for i := 0; i < 6; i++ {
+			rxPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().InPkts().State())
+			txPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flows[0].Name()).Counters().OutPkts().State())
+			if txPkts > 0 {
+				break
+			}
+			t.Logf("verifyTrafficFlow: Flow %s Tx pkts is 0, retrying in 5s... (attempt %d/6)", flows[0].Name(), i+1)
+			time.Sleep(5 * time.Second)
+		}
+		lostPkt = txPkts - rxPkts
 
+		if txPkts == 0 {
+			t.Errorf("verifyTrafficFlow: Flow %s transmitted 0 packets", flows[0].Name())
+			return false
+		}
 		if status {
 			if got := (lostPkt * 100 / txPkts); got >= 51 {
 				return false
@@ -1187,10 +1200,23 @@ func verifyTrafficFlow(t *testing.T, ate *ondatra.ATEDevice, flows []gosnappi.Fl
 		}
 	} else {
 		for _, flow := range flows {
-			rxPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
-			txPkts := gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
-			lostPkt := txPkts - rxPkts
+			var rxPkts, txPkts uint64
+			var lostPkt uint64
+			for i := 0; i < 6; i++ {
+				rxPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().InPkts().State())
+				txPkts = gnmi.Get(t, ate.OTG(), gnmi.OTG().Flow(flow.Name()).Counters().OutPkts().State())
+				if txPkts > 0 {
+					break
+				}
+				t.Logf("verifyTrafficFlow: Flow %s Tx pkts is 0, retrying in 5s... (attempt %d/6)", flow.Name(), i+1)
+				time.Sleep(5 * time.Second)
+			}
+			lostPkt = txPkts - rxPkts
 
+			if txPkts == 0 {
+				t.Errorf("verifyTrafficFlow: Flow %s transmitted 0 packets", flow.Name())
+				return false
+			}
 			if got := (lostPkt * 100 / txPkts); got > 0 {
 				return false
 			}
