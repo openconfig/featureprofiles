@@ -37,7 +37,7 @@ import (
 )
 
 const (
-	decapDesIpv4IP   = "203.0.113.0/24"
+	decapDesIpv4IP   = "203.0.113.1/24"
 	decapGrpName     = "Decap1"
 	nullRoute        = "Null0"
 	IPv4Dst1         = "192.0.4.0/30"
