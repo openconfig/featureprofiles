@@ -2259,3 +2259,8 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
 }
+
+// DefaultPeerAsFilterOcUnsupported returns true if devices do not support default peer AS filter OC configuration.
+func DefaultPeerAsFilterOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetDefaultPeerAsFilterOcUnsupported()
+}
