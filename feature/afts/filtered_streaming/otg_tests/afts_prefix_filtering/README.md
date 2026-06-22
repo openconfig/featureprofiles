@@ -59,8 +59,8 @@ See also:
     (ACCEPT_ROUTE). Used to verify that all matching statements contribute to
     the filtered view.  Matches filter should atleast strem 5000 prefixes
 
-  - `POLICY-DENY-PREFIX-SET-A`: Statement 10 explicitly denies prefixes in
-    `PREFIX-SET-A` (REJECT_ROUTE); statement 10 accepts all remaining routes
+  - `POLICY-DENY-PREFIX-SET-A`: Statement 20 explicitly denies prefixes in
+    `PREFIX-SET-A` (REJECT_ROUTE); statement 20 accepts all remaining routes
     (unconditional ACCEPT_ROUTE). The prefix-set acts as an exclusion list. 
 
   - `POLICY-TAG-MATCH`: Statement 100 matches routes carrying tag `999`
