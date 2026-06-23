@@ -45,8 +45,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v4``` configure a statement with the name ```match-statement-v4```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v4``` statement ```match-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v4``` and mode ```IPV4```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
@@ -110,8 +108,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set MED
-*   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set MED to ```1000```
+*   For routing-policy ```med-policy-v4``` statement ```med-statement-v4``` set MED to ```1000``` and set MED action to ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure chained bgp export policies for the DUT BGP neighbor on ATE Port-1
 *   Set default export policy to ```REJECT_ROUTE```
@@ -141,8 +140,6 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
     *   /routing-policy/policy-definitions/policy-definition/config/name
 *   For routing-policy ```match-policy-v6``` configure a statement with the name ```match-statement-v6```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/config/name
-*   For routing-policy ```match-policy-v6``` statement ```match-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
-    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure a prefix-set for route filtering/matching
 *   Configure a prefix-set with the name ```prefix-set-v6``` and mode ```IPV6```
     *   /routing-policy/defined-sets/prefix-sets/prefix-set/config/name
@@ -205,8 +202,9 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set policy-result as ```ACCEPT_ROUTE```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result
 ##### Configure BGP actions to set MED
-*   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set MED to ```1000```
+*   For routing-policy ```med-policy-v6``` statement ```med-statement-v6``` set MED to ```1000``` and set MED action to ```SET```
     *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+    *   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 
 ##### Configure chained bgp export policies for the DUT BGP neighbor on ATE Port-1
 *   Set default export policy to ```REJECT_ROUTE```
@@ -243,6 +241,8 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options
 *   /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med
+*   /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy
 *   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy
@@ -259,11 +259,45 @@ For each section of configuration below, prepare a gnmi.SetBatch  with all the c
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/config/description:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/config/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/config/prefix-length:
+  /network-instances/network-instance/protocols/protocol/bgp/global/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/as:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/default-import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/config/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/apply-policy/state/import-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/afi-safis/afi-safi/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/peer-groups/peer-group/config/peer-group-name:
+  /network-instances/network-instance/protocols/protocol/config/enabled:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/config/mode:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/ip-prefix:
+  /routing-policy/defined-sets/prefix-sets/prefix-set/prefixes/prefix/config/masklength-range:
+  /routing-policy/policy-definitions/policy-definition/config/name:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-local-pref:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/config/set-med-action:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/bgp-actions/set-as-path-prepend/config/asn:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/actions/config/policy-result:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/match-set-options:
+  /routing-policy/policy-definitions/policy-definition/statements/statement/conditions/match-prefix-set/config/prefix-set:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Subscribe:
-
 ```
 
 ## Required DUT platform

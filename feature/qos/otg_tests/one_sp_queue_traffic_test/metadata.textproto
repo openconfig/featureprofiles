@@ -17,9 +17,6 @@ platform_exceptions: {
   platform: {
     vendor: JUNIPER
   }
-  deviations: {
-    explicit_interface_ref_definition: true
-  }
 }
 platform_exceptions: {
   platform: {
@@ -27,7 +24,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    explicit_port_speed: true
     explicit_interface_in_default_vrf: true
     qos_queue_requires_id: true
   }

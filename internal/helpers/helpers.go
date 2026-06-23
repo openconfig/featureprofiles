@@ -36,7 +36,7 @@ import (
 // When CheckInterfacesInBinding is set to true, all interfaces that are not defined in binding file are excluded.
 func FetchOperStatusUPIntfs(t *testing.T, dut *ondatra.DUTDevice, checkInterfacesInBinding bool) []string {
 	t.Helper()
-	intfsOperStatusUP := []string{}
+	var intfsOperStatusUP []string
 	intfs := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().State())
 	bindedIntf := make(map[string]bool)
 	for _, port := range dut.Ports() {
@@ -153,4 +153,35 @@ func buildCliConfigRequest(config string) (*gpb.SetRequest, error) {
 		}},
 	}
 	return gpbSetRequest, nil
+}
+
+// BuildCliConfigRequest Build config with Origin set to cli and Ascii encoded config.
+func BuildCliConfigRequest(config string) (*gpb.SetRequest, error) {
+	return buildCliConfigRequest(config)
+}
+
+// GetRouterTime gets the current time from the router via gNMI to avoid clock skew issues.
+func GetRouterTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
+	t.Helper()
+	routerTimeStr := gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+	startTime, err := time.Parse(time.RFC3339Nano, routerTimeStr)
+	if err != nil {
+		// Fallback to RFC3339 if nano precision is not available.
+		startTime, err = time.Parse(time.RFC3339, routerTimeStr)
+		if err != nil {
+			t.Fatalf("Failed parsing router current-datetime %q: %v", routerTimeStr, err)
+		}
+	}
+	t.Logf("Router current-datetime: %s (parsed UTC: %s)", routerTimeStr, startTime.UTC().Format(time.RFC3339Nano))
+	return startTime
+}
+
+// RunCliCommand runs a CLI command on the DUT and returns the output.
+func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
+	}
+	return output.Output()
 }

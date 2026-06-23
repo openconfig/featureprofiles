@@ -171,7 +171,8 @@ func (tc *testCase) setupAggregateAtomically(t *testing.T) {
 	d := &oc.Root{}
 
 	if tc.lagType == lagTypeLACP {
-		d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
+		lacpIntf := d.GetOrCreateLacp().GetOrCreateInterface(tc.aggID)
+		lacpIntf.SetInterval(oc.Lacp_LacpPeriodType_FAST)
 	}
 
 	agg := d.GetOrCreateInterface(tc.aggID)
@@ -219,6 +220,7 @@ func (tc *testCase) configureDUT(t *testing.T) {
 	lacp := &oc.Lacp_Interface{Name: ygot.String(tc.aggID)}
 	if tc.lagType == lagTypeLACP {
 		lacp.LacpMode = oc.Lacp_LacpActivityType_ACTIVE
+		lacp.SetInterval(oc.Lacp_LacpPeriodType_FAST)
 	} else {
 		lacp.LacpMode = oc.Lacp_LacpActivityType_UNSET
 	}
@@ -308,7 +310,7 @@ func (tc *testCase) configureATE(t *testing.T) {
 	}
 
 	// Disable FEC for 100G-FR ports because Novus does not support it.
-	p100gbasefr := []string{}
+	var p100gbasefr []string
 	for _, p := range tc.atePorts {
 		if p.PMD() == ondatra.PMD100GBASEFR {
 			p100gbasefr = append(p100gbasefr, p.ID())

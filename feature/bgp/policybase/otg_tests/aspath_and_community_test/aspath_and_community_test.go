@@ -75,8 +75,12 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 
 	aspathSet := rp.GetOrCreateDefinedSets().GetOrCreateBgpDefinedSets().GetOrCreateAsPathSet(aspathSetName)
 	aspathSet.SetAsPathSetMember(aspathMatch)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
-	stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+
+	if !deviations.MatchAsPathSetUnsupported(dut) {
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetAsPathSet(aspathSetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchAsPathSet().SetMatchSetOptions(aspMatchSetOptions)
+	}
+
 	pdAllow := rp.GetOrCreatePolicyDefinition(RPLPermitAll)
 	st, err := pdAllow.AppendNewStatement("id-1")
 	if err != nil {
@@ -100,7 +104,9 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 			cs = append(cs, oc.UnionString(communityMatch))
 		}
 		communitySet.SetCommunityMember(cs)
-		communitySet.SetMatchSetOptions(commMatchSetOptions)
+		if deviations.BGPConditionsMatchCommunitySetUnsupported(dut) {
+			communitySet.SetMatchSetOptions(commMatchSetOptions)
+		}
 	}
 
 	var communitySetCLIConfig string
@@ -118,6 +124,7 @@ func configureImportBGPPolicy(t *testing.T, dut *ondatra.DUTDevice, ipv4 string,
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().SetCommunitySet(communitySetName)
 	} else {
 		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetCommunitySet(communitySetName)
+		stmt1.GetOrCreateConditions().GetOrCreateBgpConditions().GetOrCreateMatchCommunitySet().SetMatchSetOptions(oc.E_RoutingPolicy_MatchSetOptionsType(commMatchSetOptions))
 	}
 
 	if deviations.CommunityMemberRegexUnsupported(dut) && communitySetName == "any_my_3_comms" {

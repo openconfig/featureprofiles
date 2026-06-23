@@ -10,6 +10,8 @@ Singleton L3 interface (non-LAG) is supported on DUT.
 
 ## Procedure
 
+### Sub Test 1
+
 For each port speed and breakout port configuration that need to be tested, add
 a new testbed configuration with the desired port types.
 
@@ -34,6 +36,38 @@ a new testbed configuration with the desired port types.
                 set are not transmitted.
       * Packets with size of configured MTU are received.
       * Packets with size less than the configured MTU are received.
+### Sub Test 2 [TODO: https://github.com/openconfig/featureprofiles/issues/2148]
+Verify that interface packet counters are properly incremented in every streaming telemetry report
+* Subscribe to all interface counters of DUT Port1 and DUT Port 2 and with 30s interval.
+* Generate IPv4 and IPv6  traffic flow of packet size 9005B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
+    * Set Port2 MTUs [^1] of 9000
+    * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and:
+      * `/interfaces/interface[name=Port2]/state/counters/out-pkts` = 0
+      * `/interfaces/interface[name=Port2]/state/counters/out-octets` = 0
+      * `/interfaces/interface[name=Port2]/state/counters/out-discards` > 0
+      * `/interfaces/interface[name=Port1]/state/counters/in-pkts` > 0
+      * `/interfaces/interface[name=Port1]/state/counters/in-octets`> 0
+    * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt:
+      * `/interfaces/interface[name=Port1]/state/out-rate`
+      * `/interfaces/interface[name=Port1]/state/in-rate` > 0
+      * `/interfaces/interface[name=Port2]/state/out-rate`= 0
+      * `/interfaces/interface[name=Port2]/state/in-rate` = 0
+### Sub Test 3 [TODO: https://github.com/openconfig/featureprofiles/issues/2148]
+Verify that interface packet counters are properly incremented in every streaming telemetry report
+* Subscribe to all interface counters of DUT Port1 and DUT Port 2 and with 30s interval.
+* Generate IPv4 and IPv6  traffic flow of packet size 4000B and IPv4 Don't Fragment bit set,  from ATE port-1 to ATE port-2 at constant rate, ensure:
+    * Set Port2 MTUs [^1] of 9000
+    * Verify that  for period of 300seconds difference between 2 consecutive reports of below counters for DUT's Port1 and Port2 is constant and:
+      * `/interfaces/interface[name=Port2]/state/counters/out-octets` > 0
+      * `/interfaces/interface[name=Port2]/state/counters/out-discards` > 0
+      * `/interfaces/interface[name=Port1]/state/counters/in-pkts` > 0
+      * `/interfaces/interface[name=Port1]/state/counters/in-octets`> 0
+    * Verify that  for period of 300seconds values returned by below couters for DUT's Port1 and Port2 are constatnt, and that Port1 `in-rate` is equal to Port2 `out-rate`
+      * `/interfaces/interface[name=Port1]/state/out-rate` = 0
+      * `/interfaces/interface[name=Port1]/state/in-rate` > 0
+      * `/interfaces/interface[name=Port2]/state/out-rate`> 0
+      * `/interfaces/interface[name=Port2]/state/in-rate` = 0
+      
 
 [^1]: The MTU specified above refers to the L3 MTU, which is the payload portion
     of an Ethernet frame.
@@ -169,3 +203,56 @@ a new testbed configuration with the desired port types.
 ## Minimum DUT Platform Requirement
 
 vRX
+
+## OpenConfig Path and RPC Coverage
+
+The below yaml defines the OC paths and RPC intended to be covered by this test.
+
+```yaml
+paths:
+  /interfaces/interface/ethernet/state/counters/in-mac-pause-frames:
+  /interfaces/interface/ethernet/state/counters/out-mac-pause-frames:
+  /interfaces/interface/ethernet/state/mac-address:
+  /interfaces/interface/state/counters/in-broadcast-pkts:
+  /interfaces/interface/state/counters/in-discards: 
+  /interfaces/interface/state/counters/in-errors:
+  /interfaces/interface/state/counters/in-multicast-pkts:
+  /interfaces/interface/state/counters/in-octets:
+  /interfaces/interface/state/counters/in-unicast-pkts:
+  /interfaces/interface/state/counters/in-unknown-protos:
+  /interfaces/interface/state/counters/out-broadcast-pkts:
+  /interfaces/interface/state/counters/out-discards:
+  /interfaces/interface/state/counters/out-errors:
+  /interfaces/interface/state/counters/out-multicast-pkts:
+  /interfaces/interface/state/counters/out-octets:
+  /interfaces/interface/state/counters/out-pkts:
+  /interfaces/interface/state/counters/out-unicast-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/mtu:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/mtu:
+  /interfaces/interface/state/oper-status:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/state/counters/out-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/addresses/address/ip:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/in-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-discarded-pkts:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-pkts: 
+  /interfaces/interface/ethernet/state/aggregate-id:
+  /interfaces/interface/ethernet/state/port-speed:
+  /interfaces/interface/state/admin-status:
+  /interfaces/interface/state/description:
+  /interfaces/interface/state/type:
+  /interfaces/interface/subinterfaces/subinterface/ipv6/state/counters/out-forwarded-pkts:
+  /interfaces/interface/state/hardware-port: 
+  /interfaces/interface/state/id:
+  /interfaces/interface/state/counters/in-fcs-errors:
+  /interfaces/interface/state/counters/carrier-transitions:
+
+rpcs:
+  gnmi:
+    gNMI.Set:
+      union_replace: false
+    gNMI.Subscribe:
+      on_change: false
+```

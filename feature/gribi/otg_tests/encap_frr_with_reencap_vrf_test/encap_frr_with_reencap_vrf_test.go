@@ -97,8 +97,13 @@ const (
 	ipv4OuterSrc222Addr    = "198.51.100.222"
 	gribiIPv4EntryVRF1111  = "203.0.113.1"
 	gribiIPv4EntryVRF1112  = "203.0.113.2"
+	gribiIPv4EntryVRF1113  = "203.100.113.1"
+	gribiIPv4EntryVRF1114  = "203.100.113.2"
 	gribiIPv4EntryVRF2221  = "203.0.113.100"
 	gribiIPv4EntryVRF2222  = "203.0.113.101"
+	gribiIPv4EntryVRF2223  = "203.100.113.100"
+	gribiIPv4EntryVRF2224  = "203.100.113.101"
+	gribiIPv4EntryVRF2225  = "203.0.113.102"
 	gribiIPv4EntryEncapVRF = "138.0.11.0"
 
 	dutAreaAddress = "49.0001"
@@ -249,13 +254,6 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice) *oc.Interface {
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
-		e := i.GetOrCreateEthernet()
-		e.AutoNegotiate = ygot.Bool(false)
-		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
-		e.PortSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
-	}
-
 	ipv4, ok := portsIPv4[id]
 	if !ok {
 		return nil
@@ -324,6 +322,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
 	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
+	}
 	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
 		baseScenario.StaticARPWithSpecificIP(t, dut)
 	}
@@ -361,12 +362,14 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithID(4).AddNextHop(5, 1).WithBackupNHG(2000),
 		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithPrefix(gribiIPv4EntryVRF2222+"/"+maskLen32).WithNextHopGroup(4),
+		fluent.IPv4Entry().WithNetworkInstance(niTEVRF222).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithPrefix(gribiIPv4EntryVRF2225+"/"+maskLen32).WithNextHopGroup(4),
 	)
 	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
 		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 	}
 
-	teVRF222IPList := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222}
+	teVRF222IPList := []string{gribiIPv4EntryVRF2221, gribiIPv4EntryVRF2222, gribiIPv4EntryVRF2225}
 	for ip := range teVRF222IPList {
 		chk.HasResult(t, client.Results(t),
 			fluent.OperationResult().
@@ -391,8 +394,12 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
 			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).
 			WithNextHopNetworkInstance(niTEVRF222),
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1004).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
+			WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2225).
+			WithNextHopNetworkInstance(niTEVRF222),
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1001).AddNextHop(1001, 1).WithBackupNHG(2000),
+			WithID(1001).AddNextHop(1001, 1).AddNextHop(1004, 1).WithBackupNHG(2000),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(3000).WithNextHopNetworkInstance(niRepairVrf),
@@ -480,6 +487,18 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 			AsResult(),
 		chk.IgnoreOperationID(),
 	)
+	// Add Fallback route in ENCAP_TE_VRF_A as precondition
+	client.Modify().AddEntry(t,
+		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithIndex(1003).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+			WithID(1003).AddNextHop(1003, 1),
+		fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
+			WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
+	)
+	if err := awaitTimeout(ctx, t, client, time.Minute); err != nil {
+		t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+	}
 }
 
 // configStaticArp configures static arp entries
@@ -542,6 +561,9 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	if deviations.ISISLevelEnabled(dut) {
 		isisLevel2.Enabled = ygot.Bool(true)
 	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
+		intfName = intfName + ".0"
+	}
 
 	isisIntf := isis.GetOrCreateInterface(intfName)
 	isisIntf.Enabled = ygot.Bool(true)
@@ -579,7 +601,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -592,7 +618,7 @@ func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 		dutIntf = dutIntf + ".0"
 	}
 	nbrPath := statePath.Interface(dutIntf)
@@ -699,7 +725,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
-		// Disable FEC for 100G-FR ports because Novus does not support it.
+	// Disable FEC for 100G-FR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
@@ -784,6 +810,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
+	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
@@ -827,6 +854,50 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
+}
+
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2 // Require N consecutive identical reads to reduce jitter.
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
 func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
@@ -901,11 +972,16 @@ func verifyPortStatus(t *testing.T, args *testArgs, portList []string, portStatu
 	}
 	for _, port := range portList {
 		p := args.dut.Port(t, port)
-		t.Log("Check for port status")
-		gnmi.Await(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 1*time.Minute, wantStatus)
-		operStatus := gnmi.Get(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State())
-		if operStatus != wantStatus {
-			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, operStatus, wantStatus)
+		t.Logf("Checking OperStatus for port %s", port)
+		operStatus := gnmi.Watch(t, args.dut, gnmi.OC().Interface(p.Name()).OperStatus().State(), 2*time.Minute, func(val *ygnmi.Value[oc.E_Interface_OperStatus]) bool {
+			if v, ok := val.Val(); ok {
+				return v == wantStatus
+			}
+			return false
+		},
+		)
+		if got, ok := operStatus.Await(t); !ok {
+			t.Errorf("Get(DUT %v oper status): got %v, want %v", port, got, wantStatus)
 		}
 	}
 }
@@ -1125,28 +1201,16 @@ func TestEncapFrr(t *testing.T) {
 				}
 			}
 			if tc.TestID == "encapNoMatch" {
-				args.client.Modify().AddEntry(t,
-					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(1003).WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithID(1003).AddNextHop(1003, 1),
-					fluent.IPv4Entry().WithNetworkInstance(niEncapTeVrfA).
-						WithPrefix("0.0.0.0/0").WithNextHopGroup(1003).WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
-				)
-				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
-					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
-				}
 				createFlow(t, otgConfig, otg, noMatchEncapDest)
 			}
 			if tc.TestID == "teVrf222NoMatch" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1300).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2221).WithNextHopNetworkInstance(niTEVRF222),
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2223).WithNextHopNetworkInstance(niTEVRF222),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithIndex(1301).WithDecapsulateHeader(fluent.IPinIP).WithEncapsulateHeader(fluent.IPinIP).
-						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2222).WithNextHopNetworkInstance(niTEVRF222),
-
+						WithIPinIP(ipv4OuterSrc222Addr, gribiIPv4EntryVRF2224).WithNextHopNetworkInstance(niTEVRF222),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(1000).AddNextHop(1300, 1),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1155,20 +1219,72 @@ func TestEncapFrr(t *testing.T) {
 				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
 				}
+				res := args.client.Results(t)
+				operIndexList := []uint64{1000, 1001}
+				for _, operIndex := range operIndexList {
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+					chk.HasResult(t, res,
+						fluent.OperationResult().
+							WithOperationType(constants.Add).
+							WithNextHopGroupOperation(operIndex).
+							WithProgrammingResult(fluent.InstalledInFIB).
+							AsResult(),
+						chk.IgnoreOperationID(),
+					)
+				}
 			}
 			if tc.TestID == "teVrf111NoMatch" {
 				args.client.Modify().AddEntry(t,
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.1").
+						WithIndex(201).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1113).
 						WithNextHopNetworkInstance(niTEVRF111),
 					fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-						WithIndex(202).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, "203.100.113.2").
+						WithIndex(202).WithEncapsulateHeader(fluent.IPinIP).WithIPinIP(ipv4OuterSrc111Addr, gribiIPv4EntryVRF1114).
 						WithNextHopNetworkInstance(niTEVRF111),
 					fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 						WithID(101).AddNextHop(201, 1).AddNextHop(202, 3).WithBackupNHG(2001),
 				)
 				if err := awaitTimeout(ctx, t, args.client, 2*time.Minute); err != nil {
 					t.Logf("Could not program entries via client, got err, check error codes: %v", err)
+				}
+				res := args.client.Results(t)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(201).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopOperation(202).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+				chk.HasResult(t, res,
+					fluent.OperationResult().
+						WithOperationType(constants.Add).
+						WithNextHopGroupOperation(101).
+						WithProgrammingResult(fluent.InstalledInFIB).
+						AsResult(),
+					chk.IgnoreOperationID(),
+				)
+			}
+
+			if deviations.ReducedEcmpSetOnMixedEncapDecapNh(dut) {
+				if tc.TestID == "primaryBackupSingle" || tc.TestID == "primaryBackupRoutingSingle" {
+					tc.CapturePortList = []string{atePortNamelist[5]}
+					tc.LoadBalancePercent = []float64{0, 0, 0, 0, 1, 0, 0}
 				}
 			}
 

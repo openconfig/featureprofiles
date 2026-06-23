@@ -18,26 +18,31 @@ import (
 	"testing"
 	"time"
 
+	comps "github.com/openconfig/featureprofiles/internal/components"
+	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/system"
 	hpb "github.com/openconfig/gnoi/healthz"
 	spb "github.com/openconfig/gnoi/system"
 	tpb "github.com/openconfig/gnoi/types"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi/oc"
 )
 
 var (
 	processName = map[ondatra.Vendor]string{
-		ondatra.NOKIA:   "sr_bgp_mgr",
+		ondatra.NOKIA:   "sr_qos_mgr",
 		ondatra.ARISTA:  "IpRib",
 		ondatra.JUNIPER: "rpd",
+		ondatra.CISCO:   "ifmgr",
 	}
 	components = map[ondatra.Vendor]string{
 		ondatra.ARISTA:  "Chassis",
-		ondatra.CISCO:   "Chassis",
+		ondatra.CISCO:   "Rack 0",
 		ondatra.JUNIPER: "CHASSIS0",
 		ondatra.NOKIA:   "Chassis",
 	}
+	componentName = map[string]string{}
 )
 
 func TestMain(m *testing.M) {
@@ -86,30 +91,70 @@ func TestCopyingDebugFiles(t *testing.T) {
 	t.Logf("Wait 60 seconds for process to restart ...")
 	time.Sleep(60 * time.Second)
 
-	componentName := map[string]string{"name": components[dut.Vendor()]}
-	req := &hpb.GetRequest{
-		Path: &tpb.Path{
-			Elem: []*tpb.PathElem{
-				{
-					Name: "components",
-				},
-				{
-					Name: "component",
-					Key:  componentName,
-				},
-			},
+	ccList := comps.FindComponentsByType(t, dut, oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD)
+	t.Logf("Found CONTROLLER_CARD list: %v", ccList)
+	var activeCC string
+	if deviations.ChassisGetRPCUnsupported(dut) {
+		if len(ccList) < 2 {
+			switch dut.Vendor() {
+			case ondatra.CISCO:
+				activeCC = "0/RP0/CPU0"
+			}
+		} else {
+			standbyControllerName, activeControllerName := comps.FindStandbyControllerCard(t, dut, ccList)
+			t.Logf("Standby RP: %v, Active RP: %v", standbyControllerName, activeControllerName)
+			activeCC = activeControllerName
+		}
+		componentName = map[string]string{"name": activeCC + "-" + processName[dut.Vendor()]} // example: 0/RP0/CPU0-ifmgr
+	} else {
+		componentName = map[string]string{"name": components[dut.Vendor()]}
+	}
+	t.Logf("Component Name: %v", componentName)
+
+	// Define the path once so it's consistent for both Check and Get
+	healthPath := &tpb.Path{
+		Elem: []*tpb.PathElem{
+			{Name: "components"},
+			{Name: "component", Key: componentName},
 		},
 	}
-	validResponse, err := gnoiClient.Healthz().Get(context.Background(), req)
+	if !deviations.SkipOrigin(dut) {
+		healthPath.Origin = "openconfig"
+	}
+
+	// Trigger an active health check using Check()
+	checkReq := &hpb.CheckRequest{
+		Path: healthPath,
+	}
+	t.Logf("Triggering Healthz Check for %v", componentName)
+	if _, checkErr := gnoiClient.Healthz().Check(context.Background(), checkReq); checkErr != nil {
+		t.Logf("Warning: Healthz Check failed (may not be supported for this component): %v", checkErr)
+	}
+
+	// Poll for the results using Get()
+	req := &hpb.GetRequest{
+		Path: healthPath,
+	}
+
+	var validResponse *hpb.GetResponse
+	for i := 0; i < 5; i++ {
+		validResponse, err = gnoiClient.Healthz().Get(context.Background(), req)
+		if err == nil {
+			break
+		}
+		t.Logf("Healthz Get attempt %d failed: %v", i+1, err)
+		time.Sleep(30 * time.Second)
+	}
+
 	t.Logf("Error: %v", err)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		t.Log("Skip logging validResponse for Arista")
 	default:
-		t.Logf("Response: %v", (validResponse))
+		t.Logf("Response: %v", validResponse)
 	}
 	if err != nil {
-		t.Fatalf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
+		t.Errorf("Unexpected error on healthz get response after restart of %v: %v", processName[dut.Vendor()], err)
 	}
 }
 
@@ -130,6 +175,9 @@ func TestChassisComponentArtifacts(t *testing.T) {
 				},
 			},
 		},
+	}
+	if !deviations.SkipOrigin(dut) {
+		chkReq.Path.Origin = "openconfig"
 	}
 	t.Logf("Executing Healthz Check RPC for component %v", componentName["name"])
 	chkRes, err := gnoiClient.Healthz().Check(context.Background(), chkReq)

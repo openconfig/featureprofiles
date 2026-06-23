@@ -54,6 +54,27 @@ BGP policy configuration for Community Sets
     * Verify traffic is received on ATE port 1 for accepted prefixes.
     * Verify traffic is not received on ATE port 1 for rejected prefixes.
 
+* RT-7.2.3 - Update community set and validate
+  1. Configure a community-set named `update_comm_set` with "100:1" as member.
+
+  2. Create a `policy-definition` named 'community-match' with the following `statements`
+    * statement[name='accept_update_comm_set']/
+      * conditions/bgp-conditions/match-community-set/config/community-set = 'update_comm_set'
+      * conditions/bgp-conditions/match-community-set/config/match-set-options = INVERT
+      * actions/config/policy-result = ACCEPT_ROUTE
+
+  3. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "100:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "100:1".
+
+  4. Update the community-set named `update_comm_set` with "200:2" as member.
+
+  5. Send traffic from ATE port-2 to all prefix-sets.
+    * Verify traffic is received on ATE port 1 for accepted prefixes for all community set except "200:1".
+    * Verify traffic is not received on ATE port 1 for rejected prefixes for community set "200:1". 
+
+
+
 ### Expected community matches
 
 | prefix-set   | any_my_3_comms | all_3_comms | no_3_comms | any_my_regex_comms |

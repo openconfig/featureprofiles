@@ -314,7 +314,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 
 	port1 := dut.Port(t, "port1")
 	interfaceID := port1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -329,8 +329,6 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	}
 
 	dutForwardingPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding()
-	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
-
 	interface1 := niForwarding.GetOrCreateInterface(interfaceID)
 	interface1.ApplyVrfSelectionPolicy = ygot.String(policyName)
 	interface1.GetOrCreateInterfaceRef().Interface = ygot.String(port1.Name())
@@ -338,7 +336,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		interface1.InterfaceRef = nil
 	}
-	gnmi.Replace(t, dut, dutForwardingPath.Interface(interfaceID).Config(), interface1)
+	gnmi.Replace(t, dut, dutForwardingPath.Config(), niForwarding)
 }
 
 func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policyFwRule) *oc.NetworkInstance_PolicyForwarding {
@@ -356,13 +354,13 @@ func buildVRFSelectionPolicy(niName string, policyName string, pfRules []*policy
 				pfRProtoIP.DscpSet = pfRule.ipv4.dscpSet
 			}
 			if pfRule.ipv4.protocol != 0 {
-				pfRProtoIP.Protocol = oc.UnionUint8(pfRule.ipv4.protocol)
+				pfRProtoIP.Protocol = pfRule.ipv4.protocol
 			}
 			if pfRule.ipv4.sourceAddr != "" {
 				pfRProtoIP.SourceAddress = ygot.String(pfRule.ipv4.sourceAddr)
 			}
 		} else {
-			pfRProtoIP := pfR.GetOrCreateIpv4()
+			pfRProtoIP := pfR.GetOrCreateIpv6()
 			if pfRule.ipv6.dscpSet != nil {
 				pfRProtoIP.DscpSet = pfRule.ipv6.dscpSet
 			}
@@ -392,9 +390,9 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	p1 := dut.Port(t, portID)
 	ingressPort := p1.Name()
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
-	pfpath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
-	gnmi.Delete(t, dut, pfpath.Config())
+	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)
+	gnmi.Delete(t, dut, pfPath.Config())
 }

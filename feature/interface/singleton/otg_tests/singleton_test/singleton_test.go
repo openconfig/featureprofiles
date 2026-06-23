@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/confirm"
@@ -30,6 +29,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 
 	otgtelemetry "github.com/openconfig/ondatra/gnmi/otg"
@@ -129,9 +129,17 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
 }
 
-func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_BreakoutMode_Group {
+func (tc *testCase) configureDUTBreakout(t *testing.T, dut *ondatra.DUTDevice) *oc.Component_Port_BreakoutMode_Group {
 	t.Helper()
 	d := gnmi.OC()
+	var breakoutGroupIndex uint8
+	// Decide which group index to use based on the device vendor
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		breakoutGroupIndex = 1
+	default:
+		breakoutGroupIndex = 0
+	}
 	tc.breakoutPorts = make(map[string][]string)
 
 	for _, dp := range tc.dut.Ports() {
@@ -144,16 +152,19 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_Breako
 	}
 	var group *oc.Component_Port_BreakoutMode_Group
 	for physical := range tc.breakoutPorts {
-		bmode := &oc.Component_Port_BreakoutMode{}
-		bmp := d.Component(physical).Port().BreakoutMode()
-		group = bmode.GetOrCreateGroup(0)
+		comp := &oc.Component{
+			Name: ygot.String(physical),
+		}
+		bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
+		group = bmode.GetOrCreateGroup(breakoutGroupIndex)
 		// TODO(liulk): use one of the logical port.Speed().
 		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		group.NumBreakouts = ygot.Uint8(4)
-		gnmi.Replace(t, tc.dut, bmp.Config(), bmode)
+
+		compPath := d.Component(physical)
+		gnmi.Replace(t, tc.dut, compPath.Config(), comp)
 	}
 	return group
-
 }
 
 func (tc *testCase) configureDUT(t *testing.T) {
@@ -244,7 +255,7 @@ func (tc *testCase) verifyInterfaceDUT(
 	fptest.LogQuery(t, dp.String(), dip.State(), di)
 
 	di.PopulateDefaults()
-	if tc.mtu == 1500 {
+	if tc.mtu == 1500 || tc.mtu == 5000 || tc.mtu == 9236 {
 		// MTU default values are still not populated.
 		di.GetSubinterface(0).GetIpv4().Mtu = ygot.Uint16(tc.mtu)
 		di.GetSubinterface(0).GetIpv6().Mtu = ygot.Uint32(uint32(tc.mtu))
@@ -303,7 +314,7 @@ func (tc *testCase) verifyDUT(t *testing.T, breakoutGroup *oc.Component_Port_Bre
 			}
 			const want = 4
 			got := breakoutGroup.GetNumBreakouts()
-			if !cmp.Equal(got, want) {
+			if got != want {
 				t.Errorf("number of brekaoutports  = %v, want = %v", got, want)
 			}
 		}
@@ -413,7 +424,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 	waitOTGARPEntry(t)
 
 	tc.ate.OTG().StartTraffic(t)
-	time.Sleep(15 * time.Second)
+	time.Sleep(30 * time.Second)
 	tc.ate.OTG().StopTraffic(t)
 	tc.ate.OTG().StopProtocols(t)
 
@@ -428,6 +439,36 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		aicp2 := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Port(ap2.ID()).State())
 		t.Logf("ap1 out-pkts %d -> ap2 in-pkts %d", aicp1.GetCounters().GetOutFrames(), aicp2.GetCounters().GetInFrames())
 		t.Logf("ap1 out-octets %d -> ap2 in-octets %d", aicp1.GetCounters().GetOutOctets(), aicp2.GetCounters().GetInOctets())
+	}
+
+	// Flow counters
+	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
+	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
+	fpc := fp.GetCounters()
+
+	// Pragmatic check on the average in and out packet sizes.  IPv4 may
+	// fragment the packet unless DF bit is set.  IPv6 never fragments.
+	// Under no circumstances should DUT send packets greater than MTU.
+
+	octets := fpc.GetOutOctets()
+	ateOutPkts := fpc.GetOutPkts()
+	ateInPkts := fpc.GetInPkts()
+
+	if deviations.InterfaceCountersUpdateDelayed(tc.dut) {
+		batch := gnmi.OCBatch()
+		batch.AddPaths(
+			gnmi.OC().Interface(p1.Name()).Counters(),
+			gnmi.OC().Interface(p2.Name()).Counters(),
+		)
+		gnmi.Watch(t, tc.dut, batch.State(), time.Second*60, func(v *ygnmi.Value[*oc.Root]) bool {
+			got, present := v.Val()
+			if !present {
+				return false
+			}
+			diffP1 := diffCounters(p1InBefore, inCounters(got.GetInterface(p1.Name()).GetCounters()))
+			diffP2 := diffCounters(p2OutBefore, outCounters(got.GetInterface(p2.Name()).GetCounters()))
+			return (diffP1.unicast+diffP1.drop >= ateOutPkts) && (diffP2.unicast >= ateInPkts-diffP2.drop)
+		}).Await(t)
 	}
 
 	// After Traffic Unicast, Multicast, Broadcast Counter
@@ -449,22 +490,10 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 		t.Errorf("Large number of outbound Broadcast packets %d, want <= 100)", p2OutDiff.broadcast)
 	}
 
-	// Flow counters
-	otgutils.LogFlowMetrics(t, tc.ate.OTG(), tc.top)
-	fp := gnmi.Get(t, tc.ate.OTG(), gnmi.OTG().Flow(flow.Name()).State())
-	fpc := fp.GetCounters()
-
-	// Pragmatic check on the average in and out packet sizes.  IPv4 may
-	// fragment the packet unless DF bit is set.  IPv6 never fragments.
-	// Under no circumstances should DUT send packets greater than MTU.
-
-	octets := fpc.GetOutOctets()
-	ateOutPkts := fpc.GetOutPkts()
-	ateInPkts := fpc.GetInPkts()
 	if ateOutPkts == 0 {
 		t.Error("Flow did not send any packet")
-	} else if avg := octets / ateOutPkts; avg > uint64(tc.mtu) {
-		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, tc.mtu)
+	} else if avg := octets / ateOutPkts; avg > uint64(packetSize) {
+		t.Errorf("Flow source packet size average got %d, want <= %d (MTU)", avg, packetSize)
 	}
 	if p1InDiff.unicast < ateOutPkts {
 		if largeMTU && p1InDiff.drop < ateOutPkts {
@@ -491,7 +520,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
-	breakoutGroup := tc.configureDUTBreakout(t)
+	breakoutGroup := tc.configureDUTBreakout(t, tc.dut)
 
 	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })

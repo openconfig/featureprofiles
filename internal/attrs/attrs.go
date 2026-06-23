@@ -27,6 +27,8 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ygot/ygot"
+
+	log "github.com/golang/glog"
 )
 
 // Attributes bundles some common attributes for devices and/or interfaces.
@@ -34,17 +36,20 @@ import (
 // and for an ATETopology.  All fields are optional; only those that are
 // non-empty will be set when configuring an interface.
 type Attributes struct {
-	IPv4       string
-	IPv4Sec    string // Secondary IPv4 address
-	IPv6       string
-	MAC        string
-	Name       string // Interface name, only applied to ATE ports.
-	Desc       string // Description, only applied to DUT interfaces.
-	IPv4Len    uint8  // Prefix length for IPv4.
-	IPv4LenSec uint8  // Prefix length for Secondary IPv4 address.
-	IPv6Len    uint8  // Prefix length for IPv6.
-	MTU        uint16
-	ID         uint32 // /interfaces/interface/state/id p4rt interface id
+	IPv4         string
+	IPv4Sec      string // Secondary IPv4 address
+	IPv6         string
+	IPv6Sec      string // Secondary IPv6 address
+	MAC          string
+	Name         string // Interface name, only applied to ATE ports.
+	Desc         string // Description, only applied to DUT interfaces.
+	Subinterface uint32 //Subinterface
+	IPv4Len      uint8  // Prefix length for IPv4.
+	IPv4LenSec   uint8  // Prefix length for Secondary IPv4 address.
+	IPv6Len      uint8  // Prefix length for IPv6.
+	MTU          uint16
+	ID           uint32 // /interfaces/interface/state/id p4rt interface id
+	Duplex       string // interface Ethernet duplex mode: FULL or HALF
 }
 
 // IPv4CIDR constructs the IPv4 CIDR notation with the given prefix
@@ -76,7 +81,17 @@ func (a *Attributes) ConfigOCInterface(intf *oc.Interface, dut *ondatra.DUTDevic
 		e.MacAddress = ygot.String(a.MAC)
 	}
 
-	s := intf.GetOrCreateSubinterface(0)
+	if a.Duplex != "" {
+		if a.Duplex == "FULL" {
+			e.DuplexMode = oc.Ethernet_DuplexMode_FULL
+		} else if a.Duplex == "HALF" {
+			e.DuplexMode = oc.Ethernet_DuplexMode_HALF
+		} else {
+			log.Errorf("Unsupported duplex mode: %s", a.Duplex)
+		}
+	}
+
+	s := intf.GetOrCreateSubinterface(a.Subinterface)
 	if a.IPv4 != "" {
 		s4 := s.GetOrCreateIpv4()
 		if deviations.InterfaceEnabled(dut) && !deviations.IPv4MissingEnabled(dut) {

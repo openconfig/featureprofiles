@@ -43,5 +43,8 @@ func (g gnsiConn) Credentialz() credpb.CredentialzClient {
 func (g gnsiConn) Acctz() accpb.AcctzClient {
 	return accpb.NewAcctzClient(g.conn)
 }
+func (g gnsiConn) AcctzStream() accpb.AcctzStreamClient {
+	return accpb.NewAcctzStreamClient(g.conn)
+}
 
 var _ = binding.GNSIClients(gnsiConn{})

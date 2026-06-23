@@ -16,8 +16,8 @@
 
 #### Initial Setup:
 
-*   Connect DUT port-1, port-2 and port-3 to ATE port-1, port-2 and port-3
-    respectively
+*   Connect DUT port-1, port-2, port-3 and port-4 to ATE port-1, port-2, port-3
+    and port-4 respectively
 *   Configure IPv4/IPv6 addresses on DUT and ATE the interfaces
 *   Configure one IPv4 destination i.e. `ipv4-network = 203.0.113.0/24`
     connected to ATE port 1 and 2
@@ -177,9 +177,24 @@
     203.0.113.0/24` and `ipv6-network 2001:db8:128:128::/64`
 *   Validate that traffic is NOT received from DUT
 
+### RT-1.26.9
+
+#### Test to validate add and remove to next-hops in a static route
+
+*   Configure one IPv4 static route i.e. ipv4-route with the next hop set to the
+    IPv4 address of ATE port-2(0 index) and port-3(1 index).
+*   Validate next-hops of `ipv4-route` static route and indexes.
+*   Update IPv4 static route i.e. ipv4-route with the next hop set to the IPv4
+    address of ATE port-1(0 index), port-2(1 index), port-3(2 index) and
+    port-4(3 index).
+*   Validate next-hops of `ipv4-route` static route and indexes.
+*   Remove two next hops at index 0 and 3 added in previous step.
+*   Validate next-hops of `ipv4-route` static route and indexes.
+
 ## OpenConfig Path and RPC Coverage
 
-The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
 
 ```yaml
 paths:
