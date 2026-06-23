@@ -225,7 +225,8 @@ paths:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/explicit-tcp-flags:
   /acl/acl-sets/acl-set/acl-entries/acl-entry/transport/config/builtin-detail:
 
-  # state paths for ACL counters
+  # state paths for management port and ACL counters
+  /interfaces/interface/state/management:
   /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/acl-entries/acl-entry/state/matched-packets:
   /acl/interfaces/interface/egress-acl-sets/egress-acl-set/acl-entries/acl-entry/state/matched-packets:
 

@@ -254,6 +254,16 @@ network-instances {
     behavior.
 
 ```
+IPv4Entry {0.0.0.0/0 (ENCAP_TE_VRF_A)} -> NHG#1003 (DEFAULT VRF) -> {
+  {NH#1003, DEFAULT VRF},
+} // fallback route to redirect to DEFAULT VRF
+NHG#1003 (DEFAULT VRF) {
+  {NH#1003, DEFAULT VRF}
+}
+NH#1003 -> {
+  network_instance: "DEFAULT"
+}
+
 IPv4Entry {138.0.11.0/24 (ENCAP_TE_VRF_A)} -> NHG#101 (DEFAULT VRF) -> {
   {NH#101, DEFAULT VRF, weight:1},
   {NH#102, DEFAULT VRF, weight:3},
@@ -343,7 +353,8 @@ IPv4Entry {203.0.113.2/32 (REPAIR)} -> NHG#1001 (DEFAULT VRF) -> {
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
 NHG#1001 (DEFAULT VRF) {
-  {NH#1001, DEFAULT VRF}
+  {NH#1001, DEFAULT VRF},
+  {NH#1003, DEFAULT VRF}
 }
 NH#1001 -> {
   decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
@@ -354,8 +365,21 @@ NH#1001 -> {
   }
   network_instance: "TE_VRF_222"
 }
+NH#1003 -> {
+  decapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  encapsulate_header: OPENCONFIGAFTTYPESENCAPSULATIONHEADERTYPE_IPV4
+  ip_in_ip {
+    dst_ip: "203.0.113.102"
+    src_ip: "ipv4_outer_src_222"
+  }
+  network_instance: "TE_VRF_222"
+}
 
 IPv4Entry {203.0.113.101/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
+  {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
+  backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
+}
+IPv4Entry {203.0.113.102/32 (TE_VRF_222)} -> NHG#4 (DEFAULT VRF) -> {
   {NH#5, DEFAULT VRF, weight:1,ip_address=192.0.2.105},
   backup_next_hop_group: 2000 // decap and fallback to DEFAULT VRF
 }
@@ -576,6 +600,10 @@ NH#102 -> {
 1.  Validate that all traffic is no longer encapsulated, and is all egressing
     out of DUT port-8 per the BGP-ISIS routes in the default VRF.
 
+  #### Canonical OC
+```json
+{}
+```
 ## Config Parameter Coverage
 
 *   network-instances/network-instance/name
@@ -608,17 +636,30 @@ NH#102 -> {
 
 ## OpenConfig Path and RPC Coverage
 ```yaml
+paths:
+  /interfaces/interface/state/oper-status:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/action/state/decap-fallback-network-instance:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/dscp-set:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv4/state/source-address:
+  /network-instances/network-instance/policy-forwarding/policies/policy/rules/rule/ipv6/state/dscp-set:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
+  /network-instances/network-instance/protocols/protocol/isis/interfaces/interface/levels/level/adjacencies/adjacency/state/adjacency-state:
 rpcs:
   gnmi:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
   gribi:
+    gRIBI.Flush:
     gRIBI.Get:
     gRIBI.Modify:
-    gRIBI.Flush:
 ```
 
 ## Required DUT platform
 
 -   vRX
+
+## Canonical OC
+```json
+{}
+```   
