@@ -460,7 +460,7 @@ func TestBurstyTraffic(t *testing.T) {
 				atePktCounterDiff := counters["ateInPkts"][data.queue]
 				t.Logf("Queue %q: atePktCounterDiff: %v dutPktCounterDiff: %v", data.queue, atePktCounterDiff, dutPktCounterDiff)
 				if dutPktCounterDiff != atePktCounterDiff {
-					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want >= %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
+					t.Errorf("Get dutPktCounterDiff for queue %q: got %v, want = %v", data.queue, dutPktCounterDiff, atePktCounterDiff)
 				}
 
 				dutDropPktCounterDiff := counters["dutQosDroppedPktsAfterTraffic"][data.queue] - counters["dutQosDroppedPktsBeforeTraffic"][data.queue]
@@ -474,7 +474,7 @@ func TestBurstyTraffic(t *testing.T) {
 				t.Logf("Queue %q: ateOctetCounterDiff: %v dutOctetCounterDiff: %v", data.queue, ateOctetCounterDiff, dutOctetCounterDiff)
 				if !deviations.QOSOctets(dut) {
 					if dutOctetCounterDiff != ateOctetCounterDiff {
-						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
+						t.Errorf("Get dutOctetCounterDiff for queue %q: got %v, want = %v", data.queue, dutOctetCounterDiff, ateOctetCounterDiff)
 					}
 				}
 
@@ -482,7 +482,7 @@ func TestBurstyTraffic(t *testing.T) {
 				dutDropOctetCounterDiff := counters["dutQosDroppedOctetsAfterTraffic"][data.queue] - counters["dutQosDroppedOctetsBeforeTraffic"][data.queue]
 				t.Logf("Queue %q: ateDropOctetCounterDiff: %v dutDropOctetCounterDiff: %v", data.queue, ateDropOctetCounterDiff, dutDropOctetCounterDiff)
 				if dutDropOctetCounterDiff != ateDropOctetCounterDiff {
-					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want >= %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
+					t.Errorf("Get dutDropOctetCounterDiff for queue %q: got %v, want = %v", data.queue, dutDropOctetCounterDiff, ateDropOctetCounterDiff)
 				}
 
 			}
