@@ -66,6 +66,7 @@ const (
 
 var (
 	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
+	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
 )
 
 // ============================================================
@@ -141,7 +142,8 @@ func TestGRIBIFullScaleT1(t *testing.T) {
 			} else {
 				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
 			}
-			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, *enablePacketCapture)
+			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, *enablePacketCapture,
+				*compactOTGFlows)
 		})
 	}
 }
