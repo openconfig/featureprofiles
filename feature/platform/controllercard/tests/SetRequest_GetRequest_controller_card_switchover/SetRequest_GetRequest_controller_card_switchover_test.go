@@ -21,7 +21,6 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
 	"encoding/json"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
