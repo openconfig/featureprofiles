@@ -1854,82 +1854,142 @@ test: {
 test: {
   id: "bootz-1.1"
   description: "Missing configuration - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-1.2"
   description: "Invalid configuration - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-1.3"
   description: "Valid configuration - Device succeded with status ok"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-2.1"
   description: "Software version is different - Device is upgraded to the new version"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-2.2"
   description: "Invalid software image - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-3"
   description: "bootz-3: Validate Ownership Voucher in bootz configuration"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-3.1"
   description: "No ownership voucher - Device boots without OV present"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-3.2"
   description: "Invalid OV - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-3.3"
   description: "OV fails - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-3.4"
   description: "OV valid - Device boots with OV installed"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-4"
   description: "bootz-4: Validate device properly resets if provided invalid image"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-4.1"
   description: "no OS provided - Device boots with existing image"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-4.2"
   description: "Invalid OS image provided - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-4.3"
   description: "failed to fetch image from remote URL - Device fails with status invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-4.4"
   description: "OS checksum doesn't match - Device fails with invalid parameter"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-5"
   description: "Validate gNSI components in bootz configuration"
-  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/bootz/tests/README.md"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6"
+  description: "Device fails with status invalid parameter"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.1"
+  description: "Validate minimum necessary bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.2"
+  description: "Validate Software image in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.3"
+  description: "Validate Ownership Voucher in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.4"
+  description: "Validate device properly resets if provided invalid image"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.5"
+  description: "Validate gNSI components in bootz configuration"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7"
+  description: "bootz-7: DHCP-less Bootz"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7.1"
+  description: "Successful Bootstrap (Happy Path) - Device successfully bootstraps and applies config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7.2"
+  description: "Failure Before Contacting Server - Device fails to connect, reverts to pre-config, and retries"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7.3"
+  description: "Failure After Contacting Server - Device fails during Bootz session, reverts, and retries"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7.4"
+  description: "Reset to DHCP Mode - Device wipes pre-config and parameters, and reboots into DHCP mode"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-7.5"
+  description: "Terminate DHCP-less Mode - Device terminates Bootz agent, wipes parameters, and keeps pre-config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "gNMI-1.1"
