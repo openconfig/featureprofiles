@@ -26,5 +26,6 @@ platform_exceptions: {
     qos_queue_requires_id: true
     static_mpls_lsp_oc_unsupported: true
     enable_mpls_static_on_interface: true
+    qos_ft: "ciscoxr-qos-ft"
   }
 }
