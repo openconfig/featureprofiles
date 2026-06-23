@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+ Copyright 2025 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,19 +22,19 @@ import (
 	"testing"
 	"time"
 
+	"encoding/json"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
+	oc "github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
-
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
-	spb "github.com/openconfig/gnoi/system"
-	oc "github.com/openconfig/ondatra/gnmi/oc"
 )
 
 func TestMain(m *testing.M) {
@@ -56,6 +56,7 @@ const (
 	IPv4PrefixLen                   = 31
 	IPv6PrefixLen                   = 127
 	isisInstance                    = "DEFAULT"
+	acceptRoutePolicy               = "PERMIT-ALL"
 )
 
 type activeStandByControllerCards struct {
@@ -66,6 +67,16 @@ type activeStandByControllerCards struct {
 var aggIDs []string
 var configBatch *gnmi.SetBatch
 var numRE = regexp.MustCompile(`(\d+)`)
+
+var (
+	dutPort1 = attrs.Attributes{
+		Desc: "dutPort1",
+	}
+
+	dutPort2 = attrs.Attributes{
+		Desc: "dutPort2",
+	}
+)
 
 // configParams holds the parameters for the OpenConfig configuration
 type configParams struct {
@@ -92,10 +103,20 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 	t.Helper()
 
 	// Check if active RP is ready for switchover
+	t.Logf("Check if active RP is ready for switchover")
 	controllerCards := &config.controllerCards
 	switchoverReady := gnmi.OC().Component((*controllerCards).activeControllerCard).SwitchoverReady()
 	switchOverReadyTimeout := 30 * time.Minute
 	gnmi.Await(t, dut, switchoverReady.State(), switchOverReadyTimeout, true)
+	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
+	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
+		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
+	}
+	t.Logf("Check if standby RP is ready for switchover")
+	switchOverReadyStandbyTimeout := 60 * time.Second
+	t.Logf("Since active CC is already switchoverReady , expect standby CC to be ready in less time ,so 60 seconds timeout is used for standby CC")
+	switchoverReady = gnmi.OC().Component((*controllerCards).standbyControllerCard).SwitchoverReady()
+	gnmi.Await(t, dut, switchoverReady.State(), switchOverReadyStandbyTimeout, true)
 	t.Logf("SwitchoverReady().Get(t): %v", gnmi.Get(t, dut, switchoverReady.State()))
 	if got, want := gnmi.Get(t, dut, switchoverReady.State()), true; got != want {
 		t.Errorf("switchoverReady.Get(t): got %v, want %v", got, want)
@@ -113,10 +134,9 @@ func switchoverControllerCards(ctx context.Context, t *testing.T, dut *ondatra.D
 
 	switchoverResponse, err := config.gnoiClient.System().SwitchControlProcessor(ctxWithTimeout, switchoverRequest)
 	if err != nil {
+
 		t.Fatalf("Failed to perform control processor switchover with unexpected err: %v", err)
 	}
-	t.Logf("gnoiClient.System().SwitchControlProcessor() response: %v, err: %v", switchoverResponse, err)
-
 	want := (*controllerCards).standbyControllerCard
 	var got string
 	if useNameOnly {
@@ -327,6 +347,14 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 	gnmi.Replace(t, dut, gnmi.OC().System().Hostname().Config(), "ondatraHost")
 	// Configuring the network instance as some devices only populate OC after configuration.
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
+	// Configuring the routing policy as some devices only populate OC after configuration.
+	configureRoutingPolicy(t, dut)
+	p1 := dut.Port(t, "port1")
+	p2 := dut.Port(t, "port2")
+
+	// Configuring basic interface as some devices only populate OC after configuration.
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p1.Name()).Config(), dutPort1.NewOCInterface(p1.Name(), dut))
+	gnmi.Replace(t, dut, gnmi.OC().Interface(p2.Name()).Config(), dutPort2.NewOCInterface(p2.Name(), dut))
 
 	// Get Controller Card list that are inserted in the DUT.
 	controllerCards := components.FindComponentsByType(t, dut, controlcardType)
@@ -354,22 +382,70 @@ func TestControllerCardLargeConfigPushAndPull(t *testing.T) {
 func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 
-	// Verify Interfaces
-	interfaces := gnmi.GetAll(t, dut, gnmi.OC().InterfaceAny().Name().Config())
-	numInterfaces := len(interfaces)
-	if numInterfaces < params.NumLAGInterfaces+numPorts {
-		t.Fatalf("Number of interfaces mismatch: got: %d, want>= %d", numInterfaces, params.NumLAGInterfaces+numPorts)
+	// 1. Fetch the raw gNMI client handle from Ondatra
+	gnmiClient := dut.RawAPIs().GNMI(t)
+
+	// 2. Construct the exact path matching: /interfaces/interface
+	getRequest := &gpb.GetRequest{
+		Type:     gpb.GetRequest_CONFIG,
+		Encoding: gpb.Encoding_JSON_IETF,
+		Path: []*gpb.Path{
+			{
+				Elem: []*gpb.PathElem{
+					{Name: "interfaces"},
+					{Name: "interface"},
+				},
+			},
+		},
 	}
 
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	// 3. Execute the raw gNMI call
+	getResponse, err := gnmiClient.Get(ctxTimeout, getRequest)
+	if err != nil {
+		t.Fatalf("Raw gNMI Get failed: %v", err)
+	}
+
+	numInterfaces := 0
+	// 4. Parse the raw JSON using a generic map wrapper
+	if len(getResponse.GetNotification()) > 0 && len(getResponse.GetNotification()[0].GetUpdate()) > 0 {
+		jsonVal := getResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
+
+		// Parse into a dynamic list of maps representing the interfaces list array
+		var rawData []map[string]interface{}
+		if err := json.Unmarshal(jsonVal, &rawData); err != nil {
+			t.Fatalf("Failed to parse raw JSON payload: %v", err)
+		}
+
+		// The length of the array is exactly how many interface objects are inside the JSON
+		numInterfaces = len(rawData)
+	} else {
+		t.Fatalf("No interface configuration elements returned from device state database.")
+	}
+
+	t.Logf("Successfully retrieved raw interface map. Counted: %d interfaces", numInterfaces)
+
+	// 5. Perform  assertion check
+	expectedCount := params.NumLAGInterfaces + numPorts // Evaluates to 4
+	if numInterfaces != expectedCount {
+		t.Fatalf("Number of interfaces mismatch: got: %d, want: %d", numInterfaces, expectedCount)
+	}
+
+	t.Logf("Success: Verified all the configured interface elements.")
 	// Verify BGP Neighbors
 	dni := deviations.DefaultNetworkInstance(dut)
-	bgpNeighbors := gnmi.GetAll(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().NeighborAny().NeighborAddress().Config())
-	numBGPNeighbors := len(bgpNeighbors)
+	//Get the entire single BGP configuration container (No wildcards!)
+	bgpConfig := gnmi.Get(t, dut, gnmi.OC().NetworkInstance(dni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp().Config())
 
+	// Access the inner Neighbor map built into the Go struct
+	numBGPNeighbors := len(bgpConfig.Neighbor)
+	t.Logf("Successfully found %d configured BGP neighbors.", numBGPNeighbors)
 	if numBGPNeighbors != 2*params.NumBGPNeighbors {
 		t.Fatalf("Number of BGP neighbors mismatch: got: %d, want: %d", numBGPNeighbors, 2*params.NumBGPNeighbors)
 	}
-	t.Logf("Success: Verified all the configured elements")
+	t.Logf("Success: Verified ALLi configured elements")
 }
 
 func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
@@ -439,14 +515,13 @@ func testLargeConfigSetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	}
 
 	verifyConfiguredElements(t, dut)
-	t.Logf("**Passed verifyConfiguredElements ***")
+	t.Logf("** testLargeConfigSetRequest: Passed verifyConfiguredElements ***")
 }
 func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, gnoiClient gnoigo.Clients, controllerCards *[]string) {
 	activeStandbyCC := fetchActiveStandbyControllerCards(t, dut, controllerCards)
 
-	t.Log("Verifying configuration counts BEFORE switchover...")
+	t.Log("testLargeConfigGetRequest: Verifying configuration counts BEFORE switchover...")
 	verifyConfiguredElements(t, dut)
-
 	// Trigger the Stateful Switchover
 	switchoverControllerCards(ctx, t, dut, &switchoverControllerCardsConfig{&activeStandbyCC, gnoiClient, controllerCardSwitchoverTimeout})
 
@@ -478,6 +553,7 @@ func testLargeConfigGetRequest(ctx context.Context, t *testing.T, dut *ondatra.D
 	verifyConfiguredElements(t, dut)
 
 	t.Logf("Successfully verified all Interfaces and BGP neighbors survived the switchover perfectly.")
+	t.Logf("*** testLargeConfigGetRequest: Passed verifyConfiguredElements ***")
 }
 
 type setRequest func(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice) error
@@ -489,4 +565,14 @@ func sendSetRequest(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, s
 	defer cancelTimeout()
 
 	return set(ctxTimeout, t, dut)
+}
+func configureRoutingPolicy(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+
+	d := &oc.Root{}
+	rp := d.GetOrCreateRoutingPolicy()
+	pdef := rp.GetOrCreatePolicyDefinition(acceptRoutePolicy)
+	stmt, _ := pdef.AppendNewStatement("20")
+	stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	gnmi.Replace(t, dut, gnmi.OC().RoutingPolicy().PolicyDefinition(acceptRoutePolicy).Config(), pdef)
 }
