@@ -59,8 +59,12 @@ Perform this test with both the RSA and ECDSA types.
 
    5) Send the Finalize RPC to the server.
 
-   6) Verify that the server is now serving the certifcate properly, that
-      the certificate is the 'b' certificate.
+   6) Verify that the server is now serving the certificate properly, that
+      the certificate is the 'b' certificate. Verify that the active gRPC server
+      certificate has changed by checking the following OpenConfig paths:
+      * /system/grpc-servers/grpc-server/state/certificate-created-on
+      * /system/grpc-servers/grpc-server/state/certificate-expires-on
+      * /system/grpc-servers/grpc-server/state/certificate-version
 
    7) Verify that at no time during the rotation process were existing
       connections to the service impaired / restarted / delayed due to
@@ -94,6 +98,12 @@ Perform this test with both the RSA and ECDSA types.
 
    5) Verify that the server is now serving the previous certifcate properly.
 
+## Canonical OC
+
+```json
+{}
+```
+
 ## OpenConfig Path and RPC Coverage
 
 The below yaml defines the OC paths intended to be covered by this test.  OC paths used for test setup are not listed here.
@@ -101,6 +111,11 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 TODO(OCRPC): Record may not be correct or complete
 
 ```yaml
+paths:
+  /system/grpc-servers/grpc-server/state/certificate-created-on:
+  /system/grpc-servers/grpc-server/state/certificate-expires-on:
+  /system/grpc-servers/grpc-server/state/certificate-version:
+
 rpcs:
   gnsi:
     certz.v1.Certz.Rotate:
