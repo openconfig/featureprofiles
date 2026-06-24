@@ -18,6 +18,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strconv"
+	"testing"
+	"time"
+
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/components"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -30,10 +35,6 @@ import (
 	oc "github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
-	"regexp"
-	"strconv"
-	"testing"
-	"time"
 )
 
 func TestMain(m *testing.M) {
