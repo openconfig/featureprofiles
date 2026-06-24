@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/iputil"
 	otgconfighelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_config_helpers"
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
@@ -442,12 +443,14 @@ func CreateDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root,
 func ConfigureHardwareInit(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	hardwareVrfCfg := NewDUTHardwareInit(t, dut, FeatureVrfSelectionExtended)
-	hardwarePfCfg := NewDUTHardwareInit(t, dut, FeaturePolicyForwarding)
+	hardwarePfCfg := NewDUTHardwareInit(t, dut, FeatureOptimizeFIBAndCounters)
 	if hardwareVrfCfg == "" || hardwarePfCfg == "" {
 		return
 	}
 	PushDUTHardwareInitConfig(t, dut, hardwareVrfCfg)
 	PushDUTHardwareInitConfig(t, dut, hardwarePfCfg)
+	// Save the configurations before rebooting the chassis.
+	helpers.GnmiCLIConfig(t, dut, "write memory")
 }
 
 // CreateGRIBIScaleVRFs creates all non-default VRF network-instances plus the DEFAULT instance.  Uses deviations.DefaultNetworkInstance for the correct name.
