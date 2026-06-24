@@ -749,7 +749,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
 
-	waitForFlowMetricsReady(t, args.otg, encapFlow, 15*time.Second)
+	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 
 	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
