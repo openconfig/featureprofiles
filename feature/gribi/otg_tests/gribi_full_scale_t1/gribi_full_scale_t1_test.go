@@ -31,14 +31,11 @@
 package gribifullscalet1_test
 
 import (
-	"context"
 	"flag"
 	"testing"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
 )
 
 // ============================================================
@@ -95,55 +92,11 @@ func TestMain(m *testing.M) {
 // setup once and executes all five traffic scenarios in a single 30 Mpps
 // traffic pass per sub-test.
 func TestGRIBIFullScaleT1(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	defaultVRF := deviations.DefaultNetworkInstance(dut)
-	ctx := context.Background()
-	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
-	cfgplugins.ConfigureDUT(t, dut)
-
-	t.Log("Configuring ATE topology")
-	ateConfig, interfaceNamesList := cfgplugins.ConfigureOTG(t, ate, dut)
-	ate.OTG().PushConfig(t, ateConfig)
-	ate.OTG().StartProtocols(t)
-	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
-	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
-		// DEFAULT VRF
-		t.Log("Default VRF entries (A/B/C)")
-		defaultPrefixes := cfgplugins.BuildDefaultVRF(t, dut, ctx, defaultVRF, pctNHG512T1)
-
-		// Static Groups
-		t.Log("Static groups (S1/S2)")
-		s1NHG, s2NHG := cfgplugins.BuildStaticGroups(t, dut, ctx, defaultVRF)
-
-		// Repair VRF
-		t.Log("Repair VRF (F)")
-		cfgplugins.BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, numRepairNHGT1)
-
-		// Transit VRFs
-		t.Log("Transit VRFs (D/E)")
-		cfgplugins.BuildTransitVRFs(t, dut, ctx, defaultVRF, defaultPrefixes, s1NHG, s2NHG)
-
-		// Encap/Decap VRFs
-		t.Log("Encap/Decap VRFs (T3/T4)")
-		cfgplugins.BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, numEncapDefaultNHGT1, numUniqueEncapNHT1)
-	})
-
-	testCases := []trafficTestCase{
-		{Name: "FixedSize_64B", UseIMIX: false},
-		{Name: "IMIX_Profile", UseIMIX: true},
+	params := cfgplugins.ScaleParams{
+		PctNHG512:          pctNHG512T1,
+		NumRepairNHG:       numRepairNHGT1,
+		NumEncapDefaultNHG: numEncapDefaultNHGT1,
+		NumUniqueEncapNH:   numUniqueEncapNHT1,
 	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			if tc.UseIMIX {
-				t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
-			} else {
-				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
-			}
-			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, *enablePacketCapture,
-				*compactOTGFlows)
-		})
-	}
+	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }

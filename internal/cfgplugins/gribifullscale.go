@@ -1657,3 +1657,66 @@ func FetchUniqueItems(t *testing.T, s []string) []string {
 	}
 	return uniqueList
 }
+
+// RunFullScaleTest runs the complete set of configuration, programming, and traffic tests
+// for the given scale parameters.
+func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, compactOTGFlows bool) {
+	dut := ondatra.DUT(t, "dut")
+	ate := ondatra.ATE(t, "ate")
+	defaultVRF := deviations.DefaultNetworkInstance(dut)
+	ctx := context.Background()
+
+	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
+	ConfigureDUT(t, dut)
+
+	t.Log("Configuring ATE topology")
+	ateConfig, interfaceNamesList := ConfigureOTG(t, ate, dut)
+	ate.OTG().PushConfig(t, ateConfig)
+	ate.OTG().StartProtocols(t)
+
+	// Limiting it to 100 since checking ARP for 1024 interfaces takes long time
+	ifs := interfaceNamesList
+	if len(ifs) >= 100 {
+		ifs = ifs[:100]
+	}
+	IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
+	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
+
+	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
+		// DEFAULT VRF
+		t.Log("Default VRF entries (A/B/C)")
+		defaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params.PctNHG512)
+
+		// Static Groups
+		t.Log("Static groups (S1/S2)")
+		s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF)
+
+		// Repair VRF
+		t.Log("Repair VRF (F)")
+		BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, params.NumRepairNHG)
+
+		// Transit VRFs
+		t.Log("Transit VRFs (D/E)")
+		BuildTransitVRFs(t, dut, ctx, defaultVRF, defaultPrefixes, s1NHG, s2NHG)
+
+		// Encap/Decap VRFs
+		t.Log("Encap/Decap VRFs (T3/T4)")
+		BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, params.NumEncapDefaultNHG, params.NumUniqueEncapNH)
+	})
+
+	testCases := []TrafficTestCase{
+		{Name: "FixedSize_64B", UseIMIX: false},
+		{Name: "IMIX_Profile", UseIMIX: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.UseIMIX {
+				t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
+			} else {
+				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
+			}
+			RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, enablePacketCapture, compactOTGFlows)
+		})
+	}
+}
