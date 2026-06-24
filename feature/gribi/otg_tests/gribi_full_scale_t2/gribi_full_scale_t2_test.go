@@ -33,6 +33,7 @@ package gribifullscalet2_test
 import (
 	"flag"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
@@ -67,15 +68,6 @@ var (
 )
 
 // ============================================================
-// Types
-// ============================================================
-
-// trafficTestCase is a table-driven entry for the two traffic profiles.
-// Re-declared locally to keep this package self-contained; it mirrors
-// cfgplugins.TrafficTestCase.
-type trafficTestCase = cfgplugins.TrafficTestCase
-
-// ============================================================
 // TestMain
 // ============================================================
 
@@ -102,6 +94,29 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		NumRepairNHG:       numRepairNHGT2,
 		NumEncapDefaultNHG: numEncapDefaultNHGT2,
 		NumUniqueEncapNH:   numUniqueEncapNHT2,
+
+		NumDefaultNH:       1_000,
+		NumDefaultNHG:      1_000,
+		NumDefaultIPv4:     1_000,
+		NumTransitNHD1:     1536,
+		NumTransitNHD2:     1536,
+		NumTransitNHGE1:    768,
+		NumTransitNHGE2:    768,
+		NumTransitIPv4:     200_000,
+		NumRepairIPv4:      200_000,
+		NumEncapVRFs:       16,
+		NumEncapIPv4PerVRF: 10_000,
+		NumEncapIPv6PerVRF: 10_000,
+		NumDecapEntries:    48,
+		TrafficDuration:    5 * time.Minute,
+		TrafficLossTol:     5,
+		TrafficRateMpps:    30_000_000,
+
+		NumPort1VLANs:       1,
+		NumPort2VLANs:       640,
+		PctEncap8NH:         75,
+		PctEncap32NH:        20,
+		DecapDestsSubsetPct: 10,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
