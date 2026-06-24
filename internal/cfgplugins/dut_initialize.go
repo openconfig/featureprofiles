@@ -47,6 +47,7 @@ const (
 	FeatureACLCounters
 	FeatureAnPF
 	FeatureIngressARP
+	FeatureOptimizeFIBAndCounters
 
 	aristaTcamProfileMplsTracking = `
 hardware counter feature traffic-policy in
@@ -348,8 +349,21 @@ hardware tcam
 	  !
 	system profile vrf-selection-with-ip6-sip
 `
+
+	aristaOptimizeFIBAndCounters = `
+   ip hardware fib next-hop weight-deviation 2.0
+   ip hardware fib programmed error action preserved
+   hardware fec programmed all
+   no hardware counter feature acl out ipv4
+   no hardware counter feature acl in
+   hardware counter feature ip-in-ip tunnel
+   hardware counter feature ip out layer3
+   hardware counter feature ip in layer3
+   hardware counter feature route ipv4
+   `
+
 	aristaTcamProfilePolicyForwarding = `
-    hardware tcam
+hardware tcam
   	profile tcam-policy-forwarding
       feature traffic-policy port ipv4
          port qualifier size 12 bits
@@ -1243,17 +1257,18 @@ hardware tcam
 
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:         aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended: aristaTcamProfileVrfSelectionExtended,
-		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
-		FeatureQOSCounters:          aristaTcamProfileQOSCounters,
-		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
-		FeatureNGPR:                 aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                aristaQOSTcamIn,
-		FeatureACLCounters:          aristaTCAMACLCounters,
-		FeatureAnPF:                 aristaAnPF,
-		FeatureIngressARP:           aristaIngressARP,
+		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
+		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
+		FeatureQOSCounters:            aristaTcamProfileQOSCounters,
+		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
+		FeatureNGPR:                   aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                  aristaQOSTcamIn,
+		FeatureACLCounters:            aristaTCAMACLCounters,
+		FeatureAnPF:                   aristaAnPF,
+		FeatureIngressARP:             aristaIngressARP,
+		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
 	}
 )
 
