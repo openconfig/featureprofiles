@@ -21,9 +21,11 @@ package cfgplugins
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/open-traffic-generator/snappi/gosnappi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
@@ -35,6 +37,7 @@ import (
 	otgvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/otg_validation_helpers"
 	packetvalidationhelpers "github.com/openconfig/featureprofiles/internal/otg_helpers/packetvalidationhelpers"
 	"github.com/openconfig/featureprofiles/internal/otgutils"
+	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/client"
 	"github.com/openconfig/gribigo/constants"
@@ -42,6 +45,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 )
@@ -170,6 +174,12 @@ const (
 	StaticS1NHG   = uint64(9001)
 	StaticS2NHG   = uint64(9002)
 	RandomIPCheck = 100
+
+	// Chassis reboot constants.
+	OneSecondInNanoSecond = 1e9
+	RebootDelay           = 120
+	MaxRebootTime         = 900
+	MaxCompWaitTime       = 900
 )
 
 // ============================================================
@@ -361,7 +371,10 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	d := gnmi.OC()
 	vrfBatch := new(gnmi.SetBatch)
 
-	ConfigureHardwareInit(t, dut)
+	if dut.Vendor() == ondatra.ARISTA {
+		ConfigureHardwareInit(t, dut)
+		RebootChassis(t, dut)
+	}
 	CreateGRIBIScaleVRFs(t, dut, vrfBatch)
 	portList := []*ondatra.Port{dp1, dp2}
 	dutPortAttrs := []attrs.Attributes{dutPort1Attr, dutPort2Attr}
@@ -1491,4 +1504,156 @@ func ValidateCapturedPackets(t *testing.T, ate *ondatra.ATEDevice, capVal *packe
 			t.Errorf("Scenario %s: CaptureAndValidatePackets: %v", scenario, err)
 		}
 	}
+}
+
+// RebootChassis reboots the DUT and verifies it comes back up with the same software version and all components responsive.
+func RebootChassis(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	rebootRequest := &spb.RebootRequest{
+		Method:  spb.RebootMethod_COLD,
+		Delay:   RebootDelay * OneSecondInNanoSecond,
+		Message: "Reboot chassis with delay",
+		Force:   true,
+	}
+
+	versions := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+	expectedVersion := FetchUniqueItems(t, versions)
+	sort.Strings(expectedVersion)
+	t.Logf("DUT software version: %v", expectedVersion)
+
+	preRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+	t.Logf("DUT components status pre reboot: %v", preRebootCompStatus)
+
+	preRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+	preCompMatrix := []string{}
+	for _, preComp := range preRebootCompDebug {
+		if preComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+			preCompMatrix = append(preCompMatrix, preComp.GetName()+":"+preComp.GetOperStatus().String())
+		}
+	}
+
+	t.Logf("Starting reboot")
+	gnoiClient, err := dut.RawAPIs().BindingDUT().DialGNOI(context.Background())
+	if err != nil {
+		t.Fatalf("Error dialing gNOI: %v", err)
+	}
+	bootTimeBeforeReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time before reboot: %v", bootTimeBeforeReboot)
+	prevTime, err := time.Parse(time.RFC3339, gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State()))
+	if err != nil {
+		t.Fatalf("Failed parsing current-datetime: %s", err)
+	}
+	start := time.Now()
+
+	t.Logf("Send reboot request: %v", rebootRequest)
+	rebootResponse, err := gnoiClient.System().Reboot(context.Background(), rebootRequest)
+	defer gnoiClient.System().CancelReboot(context.Background(), &spb.CancelRebootRequest{})
+	t.Logf("Got reboot response: %v, err: %v", rebootResponse, err)
+	if err != nil {
+		t.Fatalf("Failed to reboot chassis with unexpected err: %v", err)
+	}
+
+	t.Logf("Validating DUT remains reachable for at least %d seconds", RebootDelay)
+	for {
+		time.Sleep(10 * time.Second)
+		t.Logf("Time elapsed %.2f seconds since reboot was requested.", time.Since(start).Seconds())
+		if time.Since(start).Seconds() > RebootDelay {
+			t.Logf("Time elapsed %.2f seconds > %d reboot delay", time.Since(start).Seconds(), RebootDelay)
+			break
+		}
+		timeVal := gnmi.Lookup(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		if !timeVal.IsPresent() {
+			t.Logf("Device became unreachable at %.2f seconds (expected delay: %d). Breaking reachability loop.", time.Since(start).Seconds(), RebootDelay)
+			break
+		}
+		latestTimeStr, _ := timeVal.Val()
+		latestTime, err := time.Parse(time.RFC3339, latestTimeStr)
+		if err != nil {
+			t.Fatalf("Failed parsing current-datetime: %s", err)
+		}
+		if latestTime.Before(prevTime) || latestTime.Equal(prevTime) {
+			t.Errorf("Get latest system time: got %v, want newer time than %v", latestTime, prevTime)
+		}
+		prevTime = latestTime
+	}
+
+	startReboot := time.Now()
+	t.Logf("Wait for DUT to boot up by polling the telemetry output.")
+	for {
+		var currentTime string
+		t.Logf("Time elapsed %.2f seconds since reboot started.", time.Since(startReboot).Seconds())
+		time.Sleep(30 * time.Second)
+		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+		}); errMsg != nil {
+			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
+		} else {
+			t.Logf("Device rebooted successfully with received time: %v", currentTime)
+			break
+		}
+
+		if uint64(time.Since(startReboot).Seconds()) > MaxRebootTime {
+			t.Errorf("Check boot time: got %v, want < %v", time.Since(startReboot), MaxRebootTime)
+		}
+	}
+	t.Logf("Device boot time: %.2f seconds", time.Since(startReboot).Seconds())
+
+	bootTimeAfterReboot := gnmi.Get(t, dut, gnmi.OC().System().BootTime().State())
+	t.Logf("DUT boot time after reboot: %v", bootTimeAfterReboot)
+	if bootTimeAfterReboot <= bootTimeBeforeReboot {
+		t.Errorf("Get boot time: got %v, want > %v", bootTimeAfterReboot, bootTimeBeforeReboot)
+	}
+
+	startComp := time.Now()
+	t.Logf("Wait for all the components on DUT to come up")
+
+	for {
+		postRebootCompStatus := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().OperStatus().State())
+		postRebootCompDebug := gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().State())
+		postCompMatrix := []string{}
+		for _, postComp := range postRebootCompDebug {
+			if postComp.GetOperStatus() != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
+				postCompMatrix = append(postCompMatrix, postComp.GetName()+":"+postComp.GetOperStatus().String())
+			}
+		}
+
+		if len(preRebootCompStatus) == len(postRebootCompStatus) {
+			t.Logf("All components on the DUT are in responsive state")
+			time.Sleep(10 * time.Second)
+			break
+		}
+
+		if uint64(time.Since(startComp).Seconds()) > MaxCompWaitTime {
+			t.Logf("DUT components status post reboot: %v", postRebootCompStatus)
+			if rebootDiff := cmp.Diff(preCompMatrix, postCompMatrix); rebootDiff != "" {
+				t.Logf("[DEBUG] Unexpected diff after reboot (-component missing from pre reboot, +component added from pre reboot): %v ", rebootDiff)
+			}
+			t.Fatalf("There's a difference in components obtained in pre reboot: %v and post reboot: %v.", len(preRebootCompStatus), len(postRebootCompStatus))
+		}
+		time.Sleep(10 * time.Second)
+	}
+
+	versions = gnmi.GetAll(t, dut, gnmi.OC().ComponentAny().SoftwareVersion().State())
+	swVersion := FetchUniqueItems(t, versions)
+	sort.Strings(swVersion)
+	t.Logf("DUT software version after reboot: %v", swVersion)
+	if diff := cmp.Diff(expectedVersion, swVersion); diff != "" {
+		t.Errorf("Software version differed (-want +got):\n%v", diff)
+	}
+}
+
+// FetchUniqueItems returns a slice of unique strings from the input slice.
+func FetchUniqueItems(t *testing.T, s []string) []string {
+	t.Helper()
+	itemExisted := make(map[string]bool)
+	var uniqueList []string
+	for _, item := range s {
+		if _, ok := itemExisted[item]; !ok {
+			itemExisted[item] = true
+			uniqueList = append(uniqueList, item)
+		} else {
+			t.Logf("Detected duplicated item: %v", item)
+		}
+	}
+	return uniqueList
 }
