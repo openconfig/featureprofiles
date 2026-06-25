@@ -117,6 +117,7 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		PctEncap8NH:         75,
 		PctEncap32NH:        20,
 		DecapDestsSubsetPct: 10,
+		GRIBIBatchSize:      2_000,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
