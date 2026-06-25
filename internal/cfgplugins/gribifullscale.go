@@ -122,7 +122,7 @@ const (
 	CommonIPv6PrefixStep = "::1"
 
 	// gRIBI batch programming parameters.
-	BatchChunkSize = 2_000
+	DefaultGRIBIBatchSize = 2_000
 
 	// NH/NHG ID base constants — kept non-overlapping across all VRFs.
 	NHBaseDefault  = uint64(1_000)
@@ -247,6 +247,7 @@ type ScaleParams struct {
 	NumRepairNHG       int
 	NumEncapDefaultNHG int
 	NumUniqueEncapNH   int
+	GRIBIBatchSize     int
 
 	NumDefaultNH       int
 	NumDefaultNHG      int
@@ -554,12 +555,15 @@ func NewGRIBIClient(t *testing.T, dut *ondatra.DUTDevice) *gribi.Client {
 	return c
 }
 
-// BatchModify pushes entries to the DUT in chunks of BatchChunkSize.
-func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entries []fluent.GRIBIEntry, wTime time.Duration) *gribi.Client {
+// BatchModify pushes entries to the DUT in chunks of gribiBatchSize.
+func BatchModify(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, entries []fluent.GRIBIEntry, gribiBatchSize int, wTime time.Duration) *gribi.Client {
 	t.Helper()
 	gSession := NewGRIBIClient(t, dut)
-	for i := 0; i < len(entries); i += BatchChunkSize {
-		end := i + BatchChunkSize
+	if gribiBatchSize <= 0 {
+		gribiBatchSize = DefaultGRIBIBatchSize
+	}
+	for i := 0; i < len(entries); i += gribiBatchSize {
+		end := i + gribiBatchSize
 		if end > len(entries) {
 			end = len(entries)
 		}
@@ -645,7 +649,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	entries := append(nhEntries, nhgEntries...)
 	entries = append(entries, ipv4Entries...)
 	t.Logf("BuildDefaultVRF: %d NHs, %d NHGs, %d IPv4 entries", params.NumDefaultNH, params.NumDefaultNHG, params.NumDefaultIPv4)
-	gSession := BatchModify(t, dut, ctx, entries, 120*time.Second)
+	gSession := BatchModify(t, dut, ctx, entries, params.GRIBIBatchSize, 120*time.Second)
 	// Validate only the first and last prefixes to save time.
 	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[0], IPv4HostMask))
 	wantPrefixes[defaultVRF] = append(wantPrefixes[defaultVRF], fmt.Sprintf("%s/%d", prefixHosts[len(prefixHosts)-1], IPv4HostMask))
@@ -655,7 +659,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 }
 
 // BuildStaticGroups generates entries for the two static NHGs (S1 → REPAIR_VRF, S2 → decap DEFAULT).
-func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string) (uint64, uint64) {
+func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, gribiBatchSize int) (uint64, uint64) {
 	t.Helper()
 	s1NHG, s2NHG := StaticS1NHG, StaticS2NHG
 	s1NH, _ := gribi.NHEntry(s1NHG, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: RepairVRFStr})
@@ -663,7 +667,7 @@ func BuildStaticGroups(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context
 	s2NH, _ := gribi.NHEntry(s2NHG, "Decap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
 	s2NHGEntry, _ := gribi.NHGEntry(s2NHG, map[uint64]uint64{s2NHG: 1}, defaultVRF, fluent.InstalledInFIB)
 	t.Logf("BuildStaticGroups: S1 NHG=%d (→REPAIR_VRF), S2 NHG=%d (decap→DEFAULT)", s1NHG, s2NHG)
-	gSession := BatchModify(t, dut, ctx, []fluent.GRIBIEntry{s1NH, s1NHGEntry, s2NH, s2NHGEntry}, 30*time.Second)
+	gSession := BatchModify(t, dut, ctx, []fluent.GRIBIEntry{s1NH, s1NHGEntry, s2NH, s2NHGEntry}, gribiBatchSize, 30*time.Second)
 	gSession.Close(t)
 	return s1NHG, s2NHG
 }
@@ -720,7 +724,7 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 
 	t.Logf("BuildTransitVRFs: %d NHs in D1, %d NHGs in E1; %d NHs in D2, %d NHGs in E2", params.NumTransitNHD1, params.NumTransitNHGE1, params.NumTransitNHD2, params.NumTransitNHGE2)
 	t.Logf("BuildTransitVRFs: %d IPv4 entries each transit VRF", params.NumTransitIPv4)
-	gSession := BatchModify(t, dut, ctx, entries, 3*time.Minute)
+	gSession := BatchModify(t, dut, ctx, entries, params.GRIBIBatchSize, 3*time.Minute)
 
 	VerifyFIBProgrammed(t, gSession, validatePrefixesV4, nil)
 	VerifyHierarchicalResolution(t, gSession, dut, validatePrefixesV4)
@@ -766,7 +770,7 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 	wantPrefixes[RepairVRFStr] = append(wantPrefixes[RepairVRFStr], fmt.Sprintf("%s/%d", repairPrefixes[len(repairPrefixes)-1], IPv4HostMask))
 
 	t.Logf("BuildRepairVRF: %d NHGs (%d NHs), %d IPv4 entries", params.NumRepairNHG, int(nhIdx), params.NumRepairIPv4)
-	gSession := BatchModify(t, dut, ctx, allEntries, 30*time.Second)
+	gSession := BatchModify(t, dut, ctx, allEntries, params.GRIBIBatchSize, 30*time.Second)
 	VerifyFIBProgrammed(t, gSession, wantPrefixes, nil)
 	gSession.Close(t)
 }
@@ -873,7 +877,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	}
 
 	t.Logf("BuildEncapDecapVRFs: entries for %d VRFs", len(encapVRFs)+1)
-	gSession := BatchModify(t, dut, ctx, allEntries, 120*time.Second)
+	gSession := BatchModify(t, dut, ctx, allEntries, params.GRIBIBatchSize, 120*time.Second)
 	VerifyFIBProgrammed(t, gSession, wantPrefixesV4, wantPrefixesV6)
 	gSession.Close(t)
 }
@@ -1684,7 +1688,7 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 
 		// Static Groups
 		t.Log("Static groups (S1/S2)")
-		s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF)
+		s1NHG, s2NHG := BuildStaticGroups(t, dut, ctx, defaultVRF, params.GRIBIBatchSize)
 
 		// Repair VRF
 		t.Log("Repair VRF (F)")
