@@ -105,11 +105,6 @@ rpcs:
     gNMI.Get:
     gNMI.Set:
     gNMI.Subscribe:
-  p4rt:
-    P4Runtime.StreamChannel:
-    P4Runtime.SetForwardingPipelineConfig:
-    P4Runtime.Write:
-    P4Runtime.Read:
 ```
 
 ## Required DUT platform
