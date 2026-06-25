@@ -116,7 +116,7 @@ func extractPortPrefixRegex(portName string) string {
 
 // deleteBreakoutConfig deletes the breakout configuration along with the logical interfaces for the given component.
 func deleteBreakoutConfig(t *testing.T, dut *ondatra.DUTDevice, componentName string) {
-	path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
+	path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut))
 	batch := &gnmi.SetBatch{}
 	for _, port := range dut.Ports() {
 		t.Logf("Queueing deletion of logical interface: %s", port.Name())
