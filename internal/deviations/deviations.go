@@ -2265,3 +2265,9 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
 }
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+// Arista: b/494493377
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
+}
