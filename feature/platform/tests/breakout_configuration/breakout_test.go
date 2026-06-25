@@ -24,11 +24,9 @@ import (
 
 const (
 	maxPingRetries = 3 // Set the number of retry attempts
-	//schemaValue    = 1
 )
 
 var (
-	schemaValue       = 1
 	breakOutCompName  string
 	fullInterfaceName string
 	foundComp         bool
@@ -66,6 +64,15 @@ var (
 		IPv6Len: 64,
 	}
 )
+
+func getSchemaValue(dut *ondatra.DUTDevice) uint8 {
+	switch dut.Vendor() {
+	case ondatra.CISCO, ondatra.JUNIPER:
+		return 0
+	default:
+		return 1
+	}
+}
 
 func findPortByPMD(t *testing.T, dut *ondatra.DUTDevice, targetPMD string) string {
 	t.Logf("Looking for port with PMD type %s", targetPMD)
@@ -109,7 +116,7 @@ func extractPortPrefixRegex(portName string) string {
 
 // deleteBreakoutConfig deletes the breakout configuration along with the logical interfaces for the given component.
 func deleteBreakoutConfig(t *testing.T, dut *ondatra.DUTDevice, componentName string) {
-	path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+	path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
 	batch := &gnmi.SetBatch{}
 	for _, port := range dut.Ports() {
 		t.Logf("Queueing deletion of logical interface: %s", port.Name())
@@ -140,14 +147,6 @@ func configureOTG(t *testing.T,
 	sort.Slice(ports, func(i, j int) bool {
 		return ports[i].ID() < ports[j].ID()
 	})
-
-	if *breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB {
-		t.Logf("Speed is %v", *breakoutspeed)
-	} else if *breakoutspeed == oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB {
-		t.Logf("Speed is needed to start port assignment on port5 as that is "+
-			"where 10G ports are in setup %v", *breakoutspeed)
-		ports = ports[4:] // Assuming ports 5+ are 10G
-	}
 
 	for i, port := range ports {
 
@@ -207,15 +206,6 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 	var Dutipv4Subnets []string
 	var Ateipv4Subnets []string
 
-	// Decide which group index to use based on the device type
-	switch dut.Vendor() {
-	case ondatra.CISCO:
-		schemaValue = 0
-	case ondatra.JUNIPER:
-		schemaValue = 0
-	default:
-		schemaValue = 1
-	}
 	cases := []struct {
 		numbreakouts        uint8
 		breakoutspeed       oc.E_IfEthernet_ETHERNET_SPEED
@@ -301,14 +291,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 				var configContainer *oc.Component_Port_BreakoutMode_Group
 				if !deviations.NumPhysyicalChannelsUnsupported(dut) {
 					configContainer = &oc.Component_Port_BreakoutMode_Group{
-						Index:               ygot.Uint8(1),
+						Index:               ygot.Uint8(getSchemaValue(dut)),
 						NumBreakouts:        ygot.Uint8(tc.numbreakouts),
 						BreakoutSpeed:       oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
 						NumPhysicalChannels: ygot.Uint8(tc.numPhysicalChannels),
 					}
 				} else {
 					configContainer = &oc.Component_Port_BreakoutMode_Group{
-						Index:         ygot.Uint8(0),
+						Index:         ygot.Uint8(getSchemaValue(dut)),
 						NumBreakouts:  ygot.Uint8(tc.numbreakouts),
 						BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
 					}
@@ -354,7 +344,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				// Apply configuration
 				gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
 
 				if deviations.FrBreakoutFix(dut) {
 					batch := &gnmi.SetBatch{}
@@ -389,13 +379,13 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				} else {
 					t.Logf("Applying breakout config for %s: %dx%s", componentName, tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
-					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue)).Config())
+					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut))).Config())
 					gnmi.Replace(t, dut, path.Config(), configContainer)
 				}
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
-					componentName, schemaValue), func(t *testing.T) {
-					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+					componentName, getSchemaValue(dut)), func(t *testing.T) {
+					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
 					groupDetails := gnmi.Get(t, dut, state.Config())
 					index := *groupDetails.Index
 					numBreakouts := *groupDetails.NumBreakouts
@@ -411,22 +401,12 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 						breakoutSpeed.String(), tc.numPhysicalChannels, numPhysicalChannels, t)
 				})
 
-				breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
-				if err != nil {
-					t.Fatal(err)
-				}
-				sortBreakoutPorts(breakOutPorts)
-
 				t.Run(fmt.Sprintf("Configure DUT Interfaces with IPv4 For %v %v",
 					tc.numbreakouts, tc.breakoutspeed), func(t *testing.T) {
 					t.Logf("Start DUT interface Config.")
 					breakOutPorts, err := findNewPortNames(dut, t, BreakoutPortFullName, tc.numbreakouts)
 					if err != nil {
 						t.Fatal(err)
-					}
-
-					if dut.Vendor() == ondatra.CISCO {
-						sortBreakoutPorts(breakOutPorts)
 					}
 
 					Dutipv4Subnets, err = IncrementIPNetwork(tc.dutIntfIP, tc.numbreakouts, true, 1)
@@ -538,14 +518,14 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config",
 					componentName), func(t *testing.T) {
-					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(schemaValue))
+					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
 					time.Sleep(10 * time.Second) // Add delay between test cases to allow device to stabilize
 					if deviations.FrBreakoutFix(dut) {
 						deleteBreakoutConfig(t, dut, componentName)
 					} else {
 						gnmi.Delete(t, dut, path.Config())
 					}
-					verifyDelete(t, dut, componentName, uint8(schemaValue))
+					verifyDelete(t, dut, componentName, uint8(getSchemaValue(dut)))
 				})
 			}
 		})
