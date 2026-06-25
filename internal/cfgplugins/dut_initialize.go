@@ -1238,16 +1238,17 @@ hardware tcam
 
 var (
 	aristaTcamProfileMap = map[FeatureType]string{
-		FeatureMplsTracking:         aristaTcamProfileMplsTracking,
-		FeatureVrfSelectionExtended: aristaTcamProfileVrfSelectionExtended,
-		FeaturePolicyForwarding:     aristaTcamProfilePolicyForwarding,
-		FeatureEnableAFTSummaries:   aristaEnableAFTSummaries,
-		FeatureNGPR:                 aristaNGPRTcamProfile,
-		FeatureTTLPolicyForwarding:  aristaTcamProfilePreserveTTL,
-		FeatureQOSIn:                aristaQOSTcamIn,
-		FeatureACLCounters:          aristaTCAMACLCounters,
-		FeatureAnPF:                 aristaAnPF,
-		FeatureIngressARP:           aristaIngressARP,
+		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
+		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
+		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
+		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
+		FeatureNGPR:                   aristaNGPRTcamProfile,
+		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
+		FeatureQOSIn:                  aristaQOSTcamIn,
+		FeatureACLCounters:            aristaTCAMACLCounters,
+		FeatureAnPF:                   aristaAnPF,
+		FeatureIngressARP:             aristaIngressARP,
+		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
 	}
 )
 
