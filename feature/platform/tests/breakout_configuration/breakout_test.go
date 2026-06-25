@@ -379,7 +379,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				} else {
 					t.Logf("Applying breakout config for %s: %dx%s", componentName, tc.numbreakouts, getSpeedValue(tc.breakoutspeed))
-					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut))).Config())
+					gnmi.Delete(t, dut, gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut)).Config())
 					gnmi.Replace(t, dut, path.Config(), configContainer)
 				}
 
