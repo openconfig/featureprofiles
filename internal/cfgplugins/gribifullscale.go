@@ -359,9 +359,9 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	for idx, a := range dutPortAttrs {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-		if !deviations.OmitL2MTU(dut) && MTU > 0 {
+if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
 			ethernetHeaderSize := uint16(14)
-			intf.Mtu = ygot.Uint16(MTU + ethernetHeaderSize)
+			intf.Mtu = ygot.Uint16(uint16(a.MTU) + ethernetHeaderSize)
 		}
 		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
 		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
