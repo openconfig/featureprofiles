@@ -303,7 +303,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 						BreakoutSpeed: oc.E_IfEthernet_ETHERNET_SPEED(tc.breakoutspeed),
 					}
 				}
-				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{1: configContainer}}
+				groupContainer := &oc.Component_Port_BreakoutMode{Group: map[uint8]*oc.Component_Port_BreakoutMode_Group{getSchemaValue(dut): configContainer}}
 				breakoutContainer := &oc.Component_Port{BreakoutMode: groupContainer}
 				portContainer := &oc.Component{Port: breakoutContainer, Name: ygot.String(componentName)}
 
