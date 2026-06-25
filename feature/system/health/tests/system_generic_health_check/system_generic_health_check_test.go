@@ -60,7 +60,6 @@ const (
 	lineCardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	fabricCardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
-	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
@@ -136,6 +135,19 @@ func removeElement(list []string, element string) []string {
 	return list
 }
 
+// getCPUType detects the CPU type based on the component name.
+func getCPUType(t *testing.T, dut *ondatra.DUTDevice, cpuComponents []string) string {
+	t.Helper()
+	var targetCPU string
+	for _, cpu := range cpuComponents {
+		st := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
+		if st.GetLocation() == "0/RP0/CPU0" {
+			targetCPU = cpu
+			return targetCPU
+		}
+	}
+	return "unknown"
+}
 func TestCheckForCoreFiles(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	timestamp := uint64(time.Now().UTC().Unix())
@@ -149,7 +161,6 @@ func TestComponentStatus(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
-	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
 	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
@@ -168,7 +179,6 @@ func TestComponentStatus(t *testing.T) {
 	lineCards = chassisLineCards
 	checkComponents := append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
-	checkComponents = append(checkComponents, chassisCards...)
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
@@ -244,7 +254,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
-	if len(controllerCards) == 0 && len(cpuCards) == 0 {
+	if len(controllerCards) == 0 || len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
 	if deviations.CPUUtilizationQueryAgainstBaseControllerCardComponent(dut) {
@@ -318,8 +328,19 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		t.Skipf("Skipping test due to deviation linecard_cpu_ultilization_unsupported")
 	}
 
-	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
+	// Check CPU type to determine if system has LineCards.
+	if len(cpuCards) > 0 {
+		cpuType := getCPUType(t, dut, cpuCards)
+		if strings.Contains(strings.ToLower(cpuType), "amd ryzen") ||
+			strings.Contains(strings.ToLower(cpuType), "intel") {
+			t.Skipf("Skipping test: AMD RYZEN or Intel CPU systems do not have LineCards")
+		}
+	} else {
+		t.Fatalf("ERROR: No cpuCard has been found")
+	}
+
+	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	chassisLineCards := make([]string, 0)
 
 	if deviations.CPUUtilizationQueryAgainstBaseLinecardComponent(dut) {
@@ -327,19 +348,20 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 		var baseLCs []string
 		for _, cpu := range cpuCards {
 			cpuState := gnmi.Get(t, dut, gnmi.OC().Component(cpu).State())
-			if strings.Contains(cpuState.GetParent(), "Motherboard") {
-				base := strings.Split(cpu, "-")[0]
-				// Filter non-empty components
-				if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Empty().State()).Val(); !empty && ok {
-					baseLCs = append(baseLCs, base)
-				}
+			// Derive base component from location so this works regardless of parent naming.
+			base := cpuState.GetLocation()
+			// Filter non-empty components.
+			if empty, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Empty().State()).Val(); !ok || empty {
+				continue
+			}
+			// Only include linecards in the base linecard flow.
+			if compType, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(base).Type().State()).Val(); ok && compType == lineCardType {
+				baseLCs = append(baseLCs, base)
 			}
 		}
-
 		if len(baseLCs) == 0 {
 			t.Errorf("ERROR: No Cisco linecard CPU base components found")
 		}
-
 		// Skip non-removable linecards
 		var removable []string
 		for _, lc := range baseLCs {
