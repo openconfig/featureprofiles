@@ -518,7 +518,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				t.Run(fmt.Sprintf("Delete//component[%v]/config/port/breakout-mode/group[1]/config",
 					componentName), func(t *testing.T) {
-					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
+					path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut))
 					time.Sleep(10 * time.Second) // Add delay between test cases to allow device to stabilize
 					if deviations.FrBreakoutFix(dut) {
 						deleteBreakoutConfig(t, dut, componentName)
