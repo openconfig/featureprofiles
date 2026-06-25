@@ -344,7 +344,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				// Apply configuration
 				gnmi.Update(t, dut, gnmi.OC().Component(componentName).Name().Config(), componentName)
-				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
+				path := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut))
 
 				if deviations.FrBreakoutFix(dut) {
 					batch := &gnmi.SetBatch{}
