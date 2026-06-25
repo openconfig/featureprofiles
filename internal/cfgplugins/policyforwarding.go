@@ -1463,7 +1463,7 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 }
 
 // ConfigureVRFSelectionPolicyOC configures vrf_selection_policy_c on DUT port1.
-func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch) {
+func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVRFs []string) {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
@@ -1544,7 +1544,7 @@ func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, vrfBatc
 	if deviations.InterfaceRefConfigUnsupported(dut) {
 		intf.InterfaceRef = nil
 	}
-	gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
+	gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(defaultVRF).PolicyForwarding().Config(), pf)
 }
 
 // ConfigureCLIDecapVRFMode enables next-hop decapsulation VRF mode required for VRF selection policy decapsulation forwarding.
