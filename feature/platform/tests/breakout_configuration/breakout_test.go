@@ -385,7 +385,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 
 				t.Run(fmt.Sprintf("Subscribe//component[%v]/config/port/breakout-mode/group[%v]",
 					componentName, getSchemaValue(dut)), func(t *testing.T) {
-					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(uint8(getSchemaValue(dut)))
+					state := gnmi.OC().Component(componentName).Port().BreakoutMode().Group(getSchemaValue(dut))
 					groupDetails := gnmi.Get(t, dut, state.Config())
 					index := *groupDetails.Index
 					numBreakouts := *groupDetails.NumBreakouts
