@@ -359,7 +359,7 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	for idx, a := range dutPortAttrs {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
-if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
+		if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
 			ethernetHeaderSize := uint16(14)
 			intf.Mtu = ygot.Uint16(uint16(a.MTU) + ethernetHeaderSize)
 		}
