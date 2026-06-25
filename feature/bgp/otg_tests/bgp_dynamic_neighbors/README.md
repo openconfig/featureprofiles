@@ -38,7 +38,7 @@ graph LR;
 *   **Step 1**: Enable dynamic neighbor prefix on DUT (e.g., `2001:db8:1::/64`).
 *   **Step 2**: Initiate BGP sessions from multiple ATE interfaces using different specific source IPs (e.g., `2001:db8:1::1`, `2001:db8:1::2`) within the listen range.
 *   **Step 3**: Verify that sessions transition to `ESTABLISHED`.
-*   **Step 4**: Verify that the DUT uses the configured router-id (e.g., `192.168.255.101`) for all dynamically established sessions.
+*   **Step 4**: Verify that the DUT uses the configured router-id (e.g., `192.0.2.1`) for all dynamically established sessions.
 *   **Step 5**: Verify concurrent session handling (e.g., 5-10 sessions established simultaneously).
 
 #### RT-1.103.2 - Telemetry for Dynamic Neighbors
@@ -69,17 +69,17 @@ graph LR;
     "network-instance": [
       {
         "config": {
-          "name": "default"
+          "name": "DEFAULT"
         },
-        "name": "default",
+        "name": "DEFAULT",
         "protocols": {
           "protocol": [
             {
               "bgp": {
                 "global": {
                   "config": {
-                    "as": 65001,
-                    "router-id": "192.168.255.101"
+                    "as": 64500,
+                    "router-id": "192.0.2.1"
                   },
                   "dynamic-neighbor-prefixes": {
                     "dynamic-neighbor-prefix": [
@@ -98,7 +98,7 @@ graph LR;
                     {
                       "config": {
                         "peer-group-name": "RM_DYNAMIC_PEERS",
-                        "peer-as": 65001,
+                        "peer-as": 64500,
                         "auth-password": "secret_md5_key"
                       },
                       "peer-group-name": "RM_DYNAMIC_PEERS"
