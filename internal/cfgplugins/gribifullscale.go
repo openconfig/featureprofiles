@@ -55,6 +55,9 @@ import (
 // ============================================================
 
 const (
+	// MTU for DUT/ATE interfaces.
+	MTU = 9216
+
 	// Port1 DUT/ATE addresses — single /30 sub-interface.
 	DUTPort1IPv4 = "192.0.2.1"
 	ATEPort1IPv4 = "192.0.2.2"
@@ -160,6 +163,7 @@ var (
 		IPv4Len: IPv4IntfMask,
 		IPv6:    DUTPort1IPv6,
 		IPv6Len: IPv6IntfMask,
+		MTU:     MTU,
 	}
 
 	atePort1Attr = attrs.Attributes{
@@ -178,6 +182,7 @@ var (
 		IPv4Len: IPv4IntfMask,
 		IPv6:    DUTPort2IPv6,
 		IPv6Len: IPv6IntfMask,
+		MTU:     MTU,
 	}
 
 	atePort2Attr = attrs.Attributes{
@@ -354,6 +359,10 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	for idx, a := range dutPortAttrs {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
+		if !deviations.OmitL2MTU(dut) && MTU > 0 {
+			ethernetHeaderSize := uint16(14)
+			intf.Mtu = ygot.Uint16(MTU + ethernetHeaderSize)
+		}
 		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
 		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
 	}
@@ -488,6 +497,9 @@ func CreateATEDevice(t *testing.T, ateConfig gosnappi.Config, atePort *ondatra.P
 	dev := ateConfig.Devices().Add().SetName(name + ".Dev")
 	eth := dev.Ethernets().Add().SetName(name + ".Eth").SetMac(mac)
 	eth.Connection().SetPortName(atePort.ID())
+	if MTU > 0 {
+		eth.SetMtu(uint32(MTU))
+	}
 	if vlanID > 0 {
 		eth.Vlans().Add().SetName(name).SetId(uint32(vlanID))
 	}
