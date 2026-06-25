@@ -525,7 +525,7 @@ func TestPlatformBreakoutConfig(t *testing.T) {
 					} else {
 						gnmi.Delete(t, dut, path.Config())
 					}
-					verifyDelete(t, dut, componentName, uint8(getSchemaValue(dut)))
+					verifyDelete(t, dut, componentName, getSchemaValue(dut))
 				})
 			}
 		})
