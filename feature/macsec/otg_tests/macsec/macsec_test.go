@@ -36,8 +36,8 @@ import (
 )
 
 const (
-	ip1      = "192.168.0.1/30"
-	ip2      = "192.168.0.2/30"
+	ip1      = "192.0.2.1/30"
+	ip2      = "192.0.2.2/30"
 	username = "macsec_test_user"
 	password = "macsec_test_password"
 )
