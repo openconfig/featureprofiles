@@ -12,15 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package gribi_full_scale_t2_test implements TE-14.4: gRIBI Scaling - full scale setup, target T2.
+// Package gribi_full_scale_t0_test implements TE-14.5: gRIBI Scaling - full scale setup, target T0.
 //
-// Scale constants for T2:
+// Scale constants for T0:
 //
-//	pctNHG512=70%, numRepairNHG=2K, numEncapDefaultNHG=8K, numUniqueEncapNH=32K
+//	pctNHG512=80%, numRepairNHG=500, numEncapDefaultNHG=2.5K, numUniqueEncapNH=10K
 //
-// Test structure (per README TE-14.4):
+// Test structure (per README TE-14.5):
 //
-//	TestGRIBIFullScaleT2 — configures DUT+ATE once, programs gRIBI once, then runs
+//	TestGRIBIFullScaleT0 — configures DUT+ATE once, programs gRIBI once, then runs
 //	                        both fixed-size (64B) and IMIX traffic profiles as sub-tests,
 //	                        each executing all five traffic scenarios simultaneously in a
 //	                        single 30 Mpps traffic pass and validates:
@@ -28,7 +28,7 @@
 //	  2. Outer-src IP correctness per scenario (encap → src111, repaired → src222, …).
 //	  3. DSCP preservation end-to-end.
 //	  4. Encap presence/absence (inner vs outer header inspection via OTG capture).
-package gribifullscalet2_test
+package gribifullscalet0_test
 
 import (
 	"flag"
@@ -40,26 +40,22 @@ import (
 )
 
 // ============================================================
-// Constants — T2-specific scale parameters (TE-14.4)
+// Constants — T0-specific scale parameters (TE-14.3)
 // ============================================================
 
 const (
-	// pctNHG512T2 is the percentage of Default VRF NHGs with 1/512 granularity.
-	// T1: 80%, T2: 70%.
-	pctNHG512T2 = 70
+	// pctNHG512T0 is the percentage of Default VRF NHGs with 1/512 granularity.
+	pctNHG512T0 = 80
 
-	// numRepairNHGT2 is the number of NHGs in REPAIR_VRF for T2.
-	// T1: 1K, T2: 2K.
-	numRepairNHGT2 = 2_000
+	// numRepairNHGT0 is the number of NHGs in REPAIR_VRF for T0.
+	numRepairNHGT0 = 500
 
-	// numEncapDefaultNHGT2 is the T3 scale target: NHGs in the default VRF
+	// numEncapDefaultNHGT0 is the T3 scale target: NHGs in the default VRF
 	// that back encap VRF entries.
-	// T1: 4K, T2: 8K.
-	numEncapDefaultNHGT2 = 8_000
+	numEncapDefaultNHGT0 = 2_500
 
-	// numUniqueEncapNHT2 is the T4 scale target: total unique encap NHs.
-	// T1: 16K, T2: 32K.
-	numUniqueEncapNHT2 = 32_000
+	// numUniqueEncapNHT0 is the T4 scale target: total unique encap NHs.
+	numUniqueEncapNHT0 = 10_000
 )
 
 var (
@@ -79,21 +75,16 @@ func TestMain(m *testing.M) {
 // Test
 // ============================================================
 
-// TestGRIBIFullScaleT2 validates TE-14.4 by running both fixed-size (64B) and
+// TestGRIBIFullScaleT0 validates TE-14.5 by running both fixed-size (64B) and
 // IMIX traffic profiles using a table-driven approach. It performs full DUT
 // setup once and executes all five traffic scenarios in a single 30 Mpps
 // traffic pass per sub-test.
-//
-// gRIBI programming is performed incrementally: each VRF builder creates its
-// own persistent gRIBI client, pushes its entries, validates the FIB, then
-// closes the connection. Entries remain installed on the DUT (Persistence:
-// true) until the single cleanup client issues a FlushAll at test teardown.
-func TestGRIBIFullScaleT2(t *testing.T) {
+func TestGRIBIFullScaleT0(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          pctNHG512T2,
-		NumRepairNHG:       numRepairNHGT2,
-		NumEncapDefaultNHG: numEncapDefaultNHGT2,
-		NumUniqueEncapNH:   numUniqueEncapNHT2,
+		PctNHG512:          pctNHG512T0,
+		NumRepairNHG:       numRepairNHGT0,
+		NumEncapDefaultNHG: numEncapDefaultNHGT0,
+		NumUniqueEncapNH:   numUniqueEncapNHT0,
 
 		NumDefaultNH:       1_000,
 		NumDefaultNHG:      1_000,
@@ -102,9 +93,9 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		NumTransitNHD2:     1536,
 		NumTransitNHGE1:    768,
 		NumTransitNHGE2:    768,
-		NumTransitIPv4:     200_000,
-		NumRepairIPv4:      200_000,
-		NumEncapVRFs:       16,
+		NumTransitIPv4:     12_600,
+		NumRepairIPv4:      12_600,
+		NumEncapVRFs:       5,
 		NumEncapIPv4PerVRF: 10_000,
 		NumEncapIPv6PerVRF: 10_000,
 		NumDecapEntries:    48,
