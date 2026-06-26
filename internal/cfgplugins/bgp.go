@@ -1732,14 +1732,12 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				statistics-timeout 30;
 						station r-bmp {                
 							connection-mode active;
-            				route-monitoring {
-                				loc-rib;
-                				pre-policy;
-                				post-policy;
-                				rib-out pre-policy post-policy;
-             				}
             				station-address %s;
             				station-port %d;
+							route-monitoring {
+								pre-policy;
+								post-policy;
+							}
 						}	
         			}
 				}`, cfgParams.DutAS, cfgParams.StationAddr, cfgParams.StationPort)
