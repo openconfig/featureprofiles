@@ -1750,7 +1750,6 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				station r-bmp {                
             				route-monitoring {
                 				pre-policy;
-                				rib-out pre-policy;
             				}
 						}	
         			}
@@ -1767,7 +1766,6 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				station r-bmp {                
             				route-monitoring {
                 				post-policy;
-                				rib-out post-policy;
             				}
 						}	
         			}
