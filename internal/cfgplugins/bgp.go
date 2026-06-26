@@ -1733,10 +1733,8 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 						station r-bmp {                
 							connection-mode active;
             				route-monitoring {
-                				loc-rib;
                 				pre-policy;
                 				post-policy;
-                				rib-out pre-policy post-policy;
              				}
             				station-address %s;
             				station-port %d;
@@ -1753,7 +1751,6 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				station r-bmp {                
             				route-monitoring {
                 				pre-policy;
-                				rib-out pre-policy;
             				}
 						}	
         			}
@@ -1770,7 +1767,6 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				station r-bmp {                
             				route-monitoring {
                 				post-policy;
-                				rib-out post-policy;
             				}
 						}	
         			}
