@@ -314,7 +314,7 @@ func ConfigureVRFSelectionPolicy(t *testing.T, dut *ondatra.DUTDevice, policyNam
 
 	port1 := dut.Port(t, "port1")
 	interfaceID := port1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -392,7 +392,7 @@ func DeletePolicyForwarding(t *testing.T, dut *ondatra.DUTDevice, portID string)
 	p1 := dut.Port(t, portID)
 	ingressPort := p1.Name()
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 	pfPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).PolicyForwarding().Interface(interfaceID)

@@ -1096,6 +1096,7 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+// Arista: https://issuetracker.google.com/512135230
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
@@ -2225,4 +2226,31 @@ func GnoiBgpGracefulRestartUnsupported(dut *ondatra.DUTDevice) bool {
 // Arista: https://partnerissuetracker.corp.google.com/issues/497757203
 func DhcpRelayOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDhcpRelayOcUnsupported()
+}
+
+// P4RTExplicitTableEntryPerController returns true if the DUT requires p4rt table entries to be configured for each new primary controller
+// Nokia: b/445494680
+func P4RTExplicitTableEntryPerController(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetP4RtExplicitTableEntryPerController()
+}
+
+// UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress returns true if the device needs a LocalAddress that points
+// to an interface name instead of an IPv4 address for establishing BGP neighborship.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/500609711
+func UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseInterfaceNameForIbgpNeighborTransportIpv4LocalAddress()
+}
+
+// InterfaceIDFormatRequiredForPolicyForwarding returns if device requires policy-forwarding interface keys to use interface name + .subinterface index.
+// Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
+func InterfaceIDFormatRequiredForPolicyForwarding(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetInterfaceIdFormatRequiredForPolicyForwarding()
+}
+
+// UseChassisAggregateUtilization returns true for devices that report resource
+// utilization at the chassis component level rather than at the
+// integrated-circuit component level.
+// Arista: https://partnerissuetracker.corp.google.com/issues/523026741
+func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetUseChassisAggregateUtilization()
 }
