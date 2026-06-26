@@ -1933,27 +1933,32 @@ test: {
 }
 test: {
   id: "bootz-6"
-  description: "bootz-6: Validate bootz.Bootstrap.BootstrapStreamV1"
+  description: "Device fails with status invalid parameter"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-6.1"
-  description: "Successful Bootstrap (Happy Path) - Device successfully bootstraps and applies config"
+  description: "Validate minimum necessary bootz configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-6.2"
-  description: "Challenge Failure - Device sends wrong challenge response, and server returns error"
+  description: "Validate Software image in bootz configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-6.3"
-  description: "IDevID Serial Number Mismatch - Device sends IDevID certificate with wrong serial number, and server returns error"
+  description: "Validate Ownership Voucher in bootz configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
   id: "bootz-6.4"
-  description: "Missing AIK Pub Digest - Device sends TPM 1.2 bootstrap request without populating AIK Pub Digest field, and server returns error"
+  description: "Validate device properly resets if provided invalid image"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-6.5"
+  description: "Validate gNSI components in bootz configuration"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
@@ -1984,6 +1989,31 @@ test: {
 test: {
   id: "bootz-7.5"
   description: "Terminate DHCP-less Mode - Device terminates Bootz agent, wipes parameters, and keeps pre-config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8"
+  description: "bootz-8: Validate bootz.Bootstrap.BootstrapStreamV1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.1"
+  description: "Successful Bootstrap (Happy Path) - Device successfully bootstraps and applies config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.2"
+  description: "Challenge Failure - Device sends wrong challenge response, and server returns error"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.3"
+  description: "IDevID Serial Number Mismatch - Device sends IDevID certificate with wrong serial number, and server returns error"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.4"
+  description: "Missing AIK Pub Digest - Device sends TPM 1.2 bootstrap request without populating AIK Pub Digest field, and server returns error"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
