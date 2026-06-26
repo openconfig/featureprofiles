@@ -60,6 +60,7 @@ const (
 	lineCardType       = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_LINECARD
 	fabricCardType     = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_FABRIC
 	controllerCardType = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CONTROLLER_CARD
+	chassisCardType    = oc.PlatformTypes_OPENCONFIG_HARDWARE_COMPONENT_CHASSIS
 )
 
 // coreFileCheck function is used to check if cores are found on the DUT.
@@ -148,6 +149,7 @@ func TestComponentStatus(t *testing.T) {
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	lineCards := components.FindComponentsByType(t, dut, lineCardType)
 	fabricCards := components.FindComponentsByType(t, dut, fabricCardType)
+	chassisCards := components.FindComponentsByType(t, dut, chassisCardType)
 	fabrics := make([]string, 0)
 	for _, f := range fabricCards {
 		compEmptyVal, _ := gnmi.Lookup(t, dut, gnmi.OC().Component(f).Empty().State()).Val()
@@ -166,6 +168,7 @@ func TestComponentStatus(t *testing.T) {
 	lineCards = chassisLineCards
 	checkComponents := append(controllerCards, lineCards...)
 	checkComponents = append(checkComponents, fabricCards...)
+	checkComponents = append(checkComponents, chassisCards...)
 	if len(checkComponents) == 0 {
 		t.Errorf("ERROR: No component has been found.")
 	}
@@ -241,7 +244,7 @@ func TestControllerCardsNoHighCPUSpike(t *testing.T) {
 
 	controllerCards := components.FindComponentsByType(t, dut, controllerCardType)
 	cpuCards := components.FindComponentsByType(t, dut, cpuType)
-	if len(controllerCards) == 0 || len(cpuCards) == 0 {
+	if len(controllerCards) == 0 && len(cpuCards) == 0 {
 		t.Errorf("ERROR: No controllerCard or cpuCard has been found.")
 	}
 	if deviations.CPUUtilizationQueryAgainstBaseControllerCardComponent(dut) {
@@ -332,9 +335,11 @@ func TestLineCardsNoHighCPUSpike(t *testing.T) {
 				}
 			}
 		}
+
 		if len(baseLCs) == 0 {
 			t.Errorf("ERROR: No Cisco linecard CPU base components found")
 		}
+
 		// Skip non-removable linecards
 		var removable []string
 		for _, lc := range baseLCs {
@@ -513,56 +518,54 @@ func TestNoQueueDrop(t *testing.T) {
 	if deviations.NoQueueDropUnsupported(dut) {
 		t.Skipf("Skip test when no-queue drop counters are unsupported")
 	}
+
 	type testCase struct {
-		desc     string
-		path     string
-		counters []*ygnmi.Value[uint64]
+		desc  string
+		path  string
+		query ygnmi.WildcardQuery[uint64]
 	}
+
 	interfaces := sortedInterfaces(dut.Ports())
 	t.Logf("Interfaces: %s", interfaces)
+
 	for _, intf := range interfaces {
 		t.Run(intf, func(t *testing.T) {
 			qosInterface := gnmi.OC().Qos().Interface(intf)
-			if deviations.QOSInQueueDropCounterUnsupported(dut) {
-				t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
-				counters := gnmi.LookupAll(t, dut, qosInterface.Input().QueueAny().DroppedPkts().State())
-				t.Logf("counters: %s", counters)
-				if len(counters) == 0 {
-					t.Errorf("%s Interface Queue Input Dropped packets Telemetry Value is not present", intf)
-				}
-				for queueID, dropPkt := range counters {
-					dropCount, present := dropPkt.Val()
-					if !present {
-						t.Errorf("%s Interface %s Telemetry Value is not present", intf, dropPkt.Path)
-					} else {
-						t.Logf("%s Interface %s, Queue %d has %d drop(s)", dropPkt.Path.GetOrigin(), intf, queueID, dropCount)
-					}
-				}
-			}
+
 			cases := []testCase{
 				{
-					desc:     "Queue Output Dropped packets",
-					path:     "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Output().QueueAny().DroppedPkts().State()),
+					desc:  "Queue Input Dropped packets",
+					path:  "/qos/interfaces/interface/input/queues/queue/state/dropped-pkts",
+					query: qosInterface.Input().QueueAny().DroppedPkts().State(),
 				},
 				{
-					desc:     "Queue input voq-output-interface dropped packets",
-					path:     "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
-					counters: gnmi.LookupAll(t, dut, qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State()),
+					desc:  "Queue Output Dropped packets",
+					path:  "/qos/interfaces/interface/output/queues/queue/state/dropped-pkts",
+					query: qosInterface.Output().QueueAny().DroppedPkts().State(),
+				},
+				{
+					desc:  "Queue input voq-output-interface dropped packets",
+					path:  "/qos/interfaces/interface/input/virtual-output-queues/voq-interface/queues/queue/state/dropped-pkts",
+					query: qosInterface.Input().VoqInterfaceAny().QueueAny().DroppedPkts().State(),
 				},
 			}
+
 			for _, c := range cases {
 				t.Run(c.desc, func(t *testing.T) {
-					if dut.Vendor() == ondatra.JUNIPER && c.desc == "Queue Input Dropped packets" {
-						t.Skipf("INFO: Skipping test due to %s does not support %s", dut.Vendor(), c.path)
+					// Check skips at the individual sub-test level
+					if deviations.QOSInQueueDropCounterUnsupported(dut) && c.desc == "Queue Input Dropped packets" {
+						t.Skipf("INFO: Skipping test due to %s does not support Queue Input Dropped packets", dut.Vendor())
 					}
 					if deviations.QOSVoqDropCounterUnsupported(dut) && c.desc == "Queue input voq-output-interface dropped packets" {
 						t.Skipf("INFO: Skipping test due to deviation qos_voq_drop_counter_unsupported")
 					}
-					if len(c.counters) == 0 {
+
+					counters := gnmi.LookupAll(t, dut, c.query)
+
+					if len(counters) == 0 {
 						t.Errorf("%s Interface %s Telemetry Value is not present", c.desc, intf)
 					}
-					for queueID, dropPkt := range c.counters {
+					for queueID, dropPkt := range counters {
 						dropCount, present := dropPkt.Val()
 						if !present {
 							t.Errorf("%s Interface %s %s Telemetry Value is not present", c.desc, intf, dropPkt.Path)
