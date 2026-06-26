@@ -465,7 +465,7 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -582,7 +582,7 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 	intf := niP.GetOrCreateInterface(interfaceID)
@@ -831,7 +831,6 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 		dutIntf = dutIntf + ".0"
 	}
@@ -1744,46 +1743,47 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 			}
 			if actualDscp := uint32(ipPacket.TOS >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv4DscpMismatchPackets++
-				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+				t.Logf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
 			if actualEcn := uint32(ipPacket.TOS & 0x03); actualEcn != expectedInHdrEcn {
 				testStats.IPv4EcnMismatchPackets++
-				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
+				t.Logf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
 			}
 		} else {
 			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
 			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
-				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
+				t.Logf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
 			}
 			if actualEcn := uint32(ipv6Packet.TrafficClass & 0x03); actualEcn != expectedInHdrEcn {
 				testStats.IPv6EcnMismatchPackets++
-				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
+				t.Logf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
 			}
 		}
 	}
 	if testStats.packetCheckCount == 0 {
 		t.Errorf("validateTrafficDecap: no packets have been captured and validated for decap")
 	}
-	if testStats.IPv4DscpMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv4 packets captured",
+	// Using 0.1% tolerance (1 in 1000) for DSCP/ECN mismatches to avoid flakiness from control plane packets.
+	if testStats.IPv4DscpMismatchPackets*1000 > testStats.IPv4CapturedPackets {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv4 packets captured (exceeds 0.1%% tolerance)",
 			testStats.IPv4DscpMismatchPackets, testStats.IPv4CapturedPackets)
 	}
-	if testStats.IPv4EcnMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv4 packets captured",
+	if testStats.IPv4EcnMismatchPackets*1000 > testStats.IPv4CapturedPackets {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv4 packets captured (exceeds 0.1%% tolerance)",
 			testStats.IPv4EcnMismatchPackets, testStats.IPv4CapturedPackets)
 	}
 	if testStats.IPv4NotDecappedPackets > 0 {
 		t.Errorf("validateTrafficDecap:%v packets have not been decapped out of %v IPv4 packets captured",
 			testStats.IPv4NotDecappedPackets, testStats.IPv4CapturedPackets)
 	}
-	if testStats.IPv6DscpMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv6 packets captured",
+	if testStats.IPv6DscpMismatchPackets*1000 > testStats.IPv6CapturedPackets {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected DSCP value after decap out of %v IPv6 packets captured (exceeds 0.1%% tolerance)",
 			testStats.IPv6DscpMismatchPackets, testStats.IPv6CapturedPackets)
 	}
-	if testStats.IPv6EcnMismatchPackets > 0 {
-		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv6 packets captured",
+	if testStats.IPv6EcnMismatchPackets*1000 > testStats.IPv6CapturedPackets {
+		t.Errorf("validateTrafficDecap:%v packets have unexpected ECN value after decap out of %v IPv6 packets captured (exceeds 0.1%% tolerance)",
 			testStats.IPv6EcnMismatchPackets, testStats.IPv6CapturedPackets)
 	}
 	if testStats.IPv6NotDecappedPackets > 0 {

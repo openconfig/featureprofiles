@@ -601,7 +601,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -721,7 +725,7 @@ func configureOTG(t testing.TB, otg *otg.OTG, atePorts []*ondatra.Port) gosnappi
 			atePortNamelist[5], atePortNamelist[6], atePortNamelist[7]}).
 		SetFormat(gosnappi.CaptureFormat.PCAP)
 
-		// Disable FEC for 100G-FR ports because Novus does not support it.
+	// Disable FEC for 100G-FR ports because Novus does not support it.
 	if len(pmd100GFRPorts) > 0 {
 		l1Settings := config.Layer1().Add().SetName("L1").SetPortNames(pmd100GFRPorts)
 		l1Settings.SetAutoNegotiate(true).SetIeeeMediaDefaults(false).SetSpeed("speed_100_gbps")
@@ -806,6 +810,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, cs gosn
 
 func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadBalancePercent []float64, wantLoss, checkEncap bool, headerDstIP map[string][]string) {
 	t.Helper()
+	waitForFlowMetricsReady(t, args.otg, encapFlow, 1*time.Minute)
 	t.Logf("Verifying flow metrics for the flow: encapFlow\n")
 	recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(encapFlow).State())
 	txPackets := recvMetric.GetCounters().GetOutPkts()
@@ -849,6 +854,50 @@ func verifyTraffic(t *testing.T, args *testArgs, capturePortList []string, loadB
 	args.otgConfig.Captures().Clear()
 	args.otg.PushConfig(t, args.otgConfig)
 	time.Sleep(30 * time.Second)
+}
+
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2 // Require N consecutive identical reads to reduce jitter.
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
 func validatePackets(t *testing.T, filename []string, checkEncap bool, headerDstIP map[string][]string) {
