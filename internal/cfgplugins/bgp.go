@@ -1731,13 +1731,9 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
         				statistics-timeout 30;
 						station r-bmp {                
 							connection-mode active;
-            				route-monitoring {
-                				pre-policy;
-                				post-policy;
-             				}
             				station-address %s;
             				station-port %d;
-						}	
+						}
         			}
 				}`, cfgParams.DutAS, cfgParams.StationAddr, cfgParams.StationPort)
 			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
@@ -1747,13 +1743,13 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 				fmt.Fprintf(bmpConfig, `
 				routing-options {
     				bmp {
-        				station r-bmp {                
+        				station r-bmp {
             				route-monitoring {
                 				pre-policy;
             				}
-						}	
+						}
         			}
-				}		
+				}
 				`)
 				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
 			}
@@ -1763,13 +1759,30 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 				fmt.Fprintf(bmpConfig, `
 				routing-options {
     				bmp {
-        				station r-bmp {                
+        				station r-bmp {
             				route-monitoring {
                 				post-policy;
             				}
-						}	
+						}
         			}
-				}		
+				}
+				`)
+				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			}
+
+			if !cfgParams.PostPolicy && !cfgParams.PrePolicy {
+				t.Log("Configured BMP station with post-policy export")
+				fmt.Fprintf(bmpConfig, `
+				routing-options {
+    				bmp {
+        				station r-bmp {
+            				route-monitoring {
+                				pre-policy;
+								post-policy;
+            				}
+						}
+        			}
+				}
 				`)
 				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
 			}
