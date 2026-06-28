@@ -1544,7 +1544,6 @@ func testJuniperSchedulerPoliciesConfig(t *testing.T) {
 	i := q.GetOrCreateInterface(dp.Name())
 	i.SetInterfaceId(dp.Name())
 	i.GetOrCreateInterfaceRef().Interface = ygot.String(dp.Name())
-	i.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 	queues := netutil.CommonTrafficQueues(t, dut)
 
 	schedulers := []struct {
