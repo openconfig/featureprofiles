@@ -684,12 +684,12 @@ func configureQoS(t *testing.T, dut *ondatra.DUTDevice, queues *entname.CommonTr
 	}}
 
 	t.Logf("qos input classifier config: %v", classifierIntfs)
+	qosIntfSuffix := ""
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		qosIntfSuffix = ".0"
+	}
 	for _, tc := range classifierIntfs {
-		qosIntfID := tc.intf
-		if dut.Vendor() == ondatra.JUNIPER {
-			qosIntfID += ".0"
-		}
-		intf := q.GetOrCreateInterface(qosIntfID)
+		intf := q.GetOrCreateInterface(tc.intf + qosIntfSuffix)
 		intf.GetOrCreateInterfaceRef().SetInterface(tc.intf)
 		if dut.Vendor() != ondatra.CISCO {
 			intf.GetOrCreateInterfaceRef().SetSubinterface(0)

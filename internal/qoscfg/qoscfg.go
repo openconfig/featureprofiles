@@ -36,7 +36,7 @@ func SetForwardingGroup(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, group
 func SetInputClassifier(t *testing.T, dut *ondatra.DUTDevice, qos *oc.Qos, intfID string, classType oc.E_Input_Classifier_Type, className string) {
 	t.Helper()
 	qosIntfID := intfID
-	if dut.Vendor() == ondatra.JUNIPER {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
 		qosIntfID += ".0"
 	}
 	intf := qos.GetOrCreateInterface(qosIntfID)
