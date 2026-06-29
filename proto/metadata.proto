@@ -1394,6 +1394,14 @@ message Metadata {
     // Devices that do not support afts global filter policy OC
     bool afts_global_filter_policy_oc_unsupported = 439;
     
+    //Indirect next-hop not supported with forwarding viable.
+    // Nokia: b/428883444
+    bool forwarding_viable_failover_with_indirect_nh_unsupported = 437;
+
+    // Device does not support static route nexthop interface state
+    // Arista: b/494493377
+    bool static_route_nexthop_interface_state_oc_unsupported = 438;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
