@@ -7,10 +7,12 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
+	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -1602,13 +1604,7 @@ func AddPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyP
 	}
 }
 
-// PrefixParams has prefix parameters to create prefix.
-type PrefixParams struct {
-	PrefixName string
-	MaskRange  string
-}
-
-// createPrefixSetPolicy creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
+// AddPrefixSetPolicyWithMatch creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
 func AddPrefixSetPolicyWithMatch(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
 	t.Helper()
 	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetNames[0])
@@ -1657,4 +1653,39 @@ func VerifyGlobalFilterPoliciesCLI(t *testing.T, dut *ondatra.DUTDevice, cfg Glo
 	if !strings.Contains(runningConfig.Output(), cfg.PrefixName) {
 		t.Fatalf("Policy %s not found after reboot", cfg.PrefixName)
 	}
+}
+
+// RunCollectorParams contains the parameters required to execute an AFT collector until the supplied stopping condition is satisfied.
+type RunCollectorParams struct {
+	Ctx       context.Context
+	Collector *aftcache.AFTStreamSession
+	Stop      aftcache.PeriodicHook
+	Timeout   time.Duration
+}
+
+// RunCollector starts the AFT stream collector and blocks until the supplied stopping condition is satisfied or the collector times out.
+func RunCollector(t *testing.T, cfg RunCollectorParams) {
+	t.Helper()
+	cfg.Collector.ListenUntil(cfg.Ctx, t, cfg.Timeout, cfg.Stop)
+}
+
+// ConfigureGlobalFilterPoliciesParams contains the policy attachment parameters for configuring AFT global filter policies.
+type ConfigureGlobalFilterPoliciesParams struct {
+	V4Policy string
+	V6Policy string
+	VRFName  string
+}
+
+// ConfigureGlobalFilterPolicies configures AFT global-filter policies for the specified network-instance.
+func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg ConfigureGlobalFilterPoliciesParams) {
+	t.Helper()
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Log("Skipping AFT global-filter attachment: unsupported on EOS")
+			return
+		}
+	}
+
+	t.Fatalf("AFT global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
 }
