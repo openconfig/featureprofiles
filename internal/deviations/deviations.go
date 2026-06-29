@@ -1096,6 +1096,7 @@ func Ipv6RouterAdvertisementIntervalUnsupported(dut *ondatra.DUTDevice) bool {
 }
 
 // DecapNHWithNextHopNIUnsupported returns true if Decap NH with NextHopNetworkInstance is unsupported
+// Arista: https://issuetracker.google.com/512135230
 func DecapNHWithNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
 }
@@ -1909,6 +1910,12 @@ func InterfaceEthernetInblockErrorsUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetInterfaceEthernetInblockErrorsUnsupported()
 }
 
+// WithIPAddressUnsupported returns true when an indirect next-hop (direct interface IP) with forwarding viable is used, since this is not supported.
+// Nokia b/428883444
+func ForwardingViableFailoverWithIndirectNHUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetForwardingViableFailoverWithIndirectNhUnsupported()
+}
+
 // CiscoxrTransceiverFt returns the functional translator to be used for translating
 // transceiver threshold leaves.
 func CiscoxrTransceiverFt(dut *ondatra.DUTDevice) string {
@@ -2257,6 +2264,12 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 // UnreferencedAftFibAckUnsupported returns true if no FIB_ACK for unreferenced NH/NHG entries
 func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
+}
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+// Arista: b/494493377
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
 }
 
 // AftsGlobalFilterPolicyOCUnsupported returns true if the device does not support Afts Global Filter paths /network-instances/network-instance/afts/global-filter/config/
