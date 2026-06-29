@@ -17,6 +17,7 @@ package cfgplugins
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
 	gpb "github.com/openconfig/gnmi/proto/gnmi"
@@ -59,4 +60,18 @@ func VerifyPrefixesAbsent(t *testing.T, cfg PrefixesParams) {
 			t.Fatalf("Unexpected prefix present: %s", pfx)
 		}
 	}
+}
+
+// RunCollectorParams contains the parameters required to execute an AFT collector until the supplied stopping condition is satisfied.
+type RunCollectorParams struct {
+	Ctx       context.Context
+	Collector *aftcache.AFTStreamSession
+	Stop      aftcache.PeriodicHook
+	Timeout   time.Duration
+}
+
+// RunCollector starts the AFT stream collector and blocks until the supplied stopping condition is satisfied or the collector times out.
+func RunCollector(t *testing.T, cfg RunCollectorParams) {
+	t.Helper()
+	cfg.Collector.ListenUntil(cfg.Ctx, t, cfg.Timeout, cfg.Stop)
 }
