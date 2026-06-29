@@ -126,17 +126,11 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 			continue
 		}
 
-		foundUser := false
 		userIdentity := resp.record.GetSessionInfo().GetUser().GetIdentity()
-		for _, rec := range records {
-			t.Logf("Got %s want %s", rec.GetSessionInfo().GetUser().GetIdentity(), userIdentity)
-			if rec.GetSessionInfo().GetUser().GetIdentity() == userIdentity {
-				foundUser = true
-				break
-			}
-		}
-		if !foundUser {
-			t.Logf("Skipping record from unknown user: %s", userIdentity)
+		expectedIdentity := records[recordIdx].GetSessionInfo().GetUser().GetIdentity()
+		t.Logf("Got user %s, want %s", userIdentity, expectedIdentity)
+		if userIdentity != expectedIdentity {
+			t.Logf("Skipping record from unexpected user: got %s, want %s", userIdentity, expectedIdentity)
 			continue
 		}
 
@@ -256,7 +250,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 	}
 
 	if recordIdx != len(records) {
-		t.Fatal("Did not process all records.")
+		t.Fatalf("Did not process expected number of records: want %d, got %d", len(records), recordIdx)
 	}
 	t.Logf("Processed %d records", len(records))
 }
@@ -283,7 +277,11 @@ func mapRoleToPrivilegeLevel(role string) int {
 func verifyReportedString(t *testing.T, field, got, want string) {
 	t.Helper()
 	if got == "" {
-		t.Logf("%s is not populated; want %q", field, want)
+		if want != "" {
+			t.Errorf("%s is not populated; want %q", field, want)
+		} else {
+			t.Logf("%s is not populated", field)
+		}
 		return
 	}
 	if want != "" && got != want {
@@ -294,7 +292,11 @@ func verifyReportedString(t *testing.T, field, got, want string) {
 func verifyReportedUint32(t *testing.T, field string, got, want uint32) {
 	t.Helper()
 	if got == 0 {
-		t.Logf("%s is not populated; want %d", field, want)
+		if want != 0 {
+			t.Errorf("%s is not populated; want %d", field, want)
+		} else {
+			t.Logf("%s is not populated", field)
+		}
 		return
 	}
 	if want != 0 && got != want {
