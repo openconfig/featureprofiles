@@ -2641,6 +2641,11 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/policy_forwarding/otg_tests/double_gue_decap/README.md"
   exec: " "
 }
+test: {
+  id: "RT-1.103"
+  description: "DUT iBGP passive listener FNT with common router id"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_dynamic_neighbors/README.md"
+}
 
 test: {
   id: "Pathz-1"
