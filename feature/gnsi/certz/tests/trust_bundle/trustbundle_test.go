@@ -21,7 +21,6 @@ import (
 	"flag"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 	"time"
 
@@ -51,12 +50,13 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
-	certsList                           = flag.String("certsList", "01,02,10,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certsList                           = flag.String("certsList", "01,02,10,1000,20000", "Number of Certificate Sets to generate for this test. Comma separated string")
 	certsTimeout                        = flag.Duration("certsTimeout", 10*time.Minute, "Time duration for cert generation and cleanup. Increase if more certs are to be generated")
-	certsString                         = func(t *testing.T) string {
+
+	certsString = func() string {
 		return *certsList
 	}
-	certsTimeOutVar = func(t *testing.T) time.Duration {
+	certsTimeOutVar = func() time.Duration {
 		return *certsTimeout
 	}
 )
@@ -80,21 +80,11 @@ func TestTrustBundleCert(t *testing.T) {
 	gnmiClient, gnsiC := setup_service.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates.
 	t.Logf("%s:Creation of test data.", time.Now().String())
-	dirs := strings.ReplaceAll(certsString(t), ",", " ")
-	t.Logf("%s:STATUS:Using DIRS=(%s) for mk_cas.sh", time.Now().String(), dirs)
-	sedCmd := fmt.Sprintf("sed -i.bak 's|^DIRS=(.*)|DIRS=(%s)|' mk_cas.sh", dirs)
-	// Replace DIRS in mk_cas.sh
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), sedCmd); err != nil {
-		t.Fatalf("%s:STATUS:Failed to apply DIRS replacement: %v", time.Now().String(), err)
-	}
 	// Execute mk_cas.sh to generate certificates
 	t.Logf("%s:STATUS:Generation of testdata certificates begins.", time.Now().String())
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), "./mk_cas.sh"); err != nil {
+	command := fmt.Sprintf("./mk_cas.sh %v", certsString())
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), command); err != nil {
 		t.Fatalf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
-	}
-	// Restore original mk_cas.sh from backup
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), "mv mk_cas.sh.bak mk_cas.sh"); err != nil {
-		t.Logf("%s:STATUS:Failed to restore mk_cas.sh backup: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
 	ctx := context.Background()
