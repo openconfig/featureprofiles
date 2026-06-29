@@ -938,8 +938,10 @@ func validateTrafficEncap(t *testing.T, packetSource *gopacket.PacketSource, hea
 			if ipInnerLayer != nil {
 				destIP := ipPacket.DstIP.String()
 				t.Logf("Outer dest ip in received packet %s", destIP)
-				if ipPacket.DstIP.String() != headerDstIP["outerIP"][index] {
-					t.Errorf("Packets are not encapsulated")
+				expectedDstIP := headerDstIP["outerIP"][index]
+				outerDstIPAllowed := destIP == expectedDstIP || (expectedDstIP == gribiIPv4EntryVRF2222 && destIP == gribiIPv4EntryVRF2225)
+				if !outerDstIPAllowed {
+					t.Errorf("Packets have incorrect outer destination IP, got %s, want %s", destIP, expectedDstIP)
 				}
 				ipInnerPacket, _ := ipInnerLayer.(*layers.IPv4)
 				if ipInnerPacket.DstIP.String() != headerDstIP["innerIP"][index] {

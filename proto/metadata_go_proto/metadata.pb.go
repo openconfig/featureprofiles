@@ -1494,9 +1494,15 @@ type Metadata_Deviations struct {
 	// Device does not support static route nexthop interface state
 	// Arista: b/494493377
 	StaticRouteNexthopInterfaceStateOcUnsupported bool `protobuf:"varint,438,opt,name=static_route_nexthop_interface_state_oc_unsupported,json=staticRouteNexthopInterfaceStateOcUnsupported,proto3" json:"static_route_nexthop_interface_state_oc_unsupported,omitempty"`
+	// Device does not support OC configuration for lacp interface fallback
+	// Arista: https://partnerissuetracker.corp.google.com/issues/492458024
+	LacpInterfaceFallbackOcUnsupported bool `protobuf:"varint,439,opt,name=lacp_interface_fallback_oc_unsupported,json=lacpInterfaceFallbackOcUnsupported,proto3" json:"lacp_interface_fallback_oc_unsupported,omitempty"`
+	// Device does not support configuring VLAN subinterfaces
+	// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+	VlanSubinterfaceOcUnsupported bool `protobuf:"varint,440,opt,name=vlan_subinterface_oc_unsupported,json=vlanSubinterfaceOcUnsupported,proto3" json:"vlan_subinterface_oc_unsupported,omitempty"`
 	// Arista: b/514565554
 	// Devices that do not support afts global filter policy OC
-	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,439,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
+	AftsGlobalFilterPolicyOcUnsupported bool `protobuf:"varint,441,opt,name=afts_global_filter_policy_oc_unsupported,json=aftsGlobalFilterPolicyOcUnsupported,proto3" json:"afts_global_filter_policy_oc_unsupported,omitempty"`
 	unknownFields                       protoimpl.UnknownFields
 	sizeCache                           protoimpl.SizeCache
 }
@@ -4352,6 +4358,20 @@ func (x *Metadata_Deviations) GetStaticRouteNexthopInterfaceStateOcUnsupported()
 	return false
 }
 
+func (x *Metadata_Deviations) GetLacpInterfaceFallbackOcUnsupported() bool {
+	if x != nil {
+		return x.LacpInterfaceFallbackOcUnsupported
+	}
+	return false
+}
+
+func (x *Metadata_Deviations) GetVlanSubinterfaceOcUnsupported() bool {
+	if x != nil {
+		return x.VlanSubinterfaceOcUnsupported
+	}
+	return false
+}
+
 func (x *Metadata_Deviations) GetAftsGlobalFilterPolicyOcUnsupported() bool {
 	if x != nil {
 		return x.AftsGlobalFilterPolicyOcUnsupported
@@ -4415,7 +4435,7 @@ var File_metadata_proto protoreflect.FileDescriptor
 
 const file_metadata_proto_rawDesc = "" +
 	"\n" +
-	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xde\xf7\x01\n" +
+	"\x0emetadata.proto\x12\x12openconfig.testing\x1a1github.com/openconfig/ondatra/proto/testbed.proto\"\xfd\xf8\x01\n" +
 	"\bMetadata\x12\x12\n" +
 	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x17\n" +
 	"\aplan_id\x18\x02 \x01(\tR\x06planId\x12 \n" +
@@ -4427,7 +4447,7 @@ const file_metadata_proto_rawDesc = "" +
 	"\bPlatform\x12.\n" +
 	"\x06vendor\x18\x01 \x01(\x0e2\x16.ondatra.Device.VendorR\x06vendor\x120\n" +
 	"\x14hardware_model_regex\x18\x03 \x01(\tR\x12hardwareModelRegex\x124\n" +
-	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xaa\xed\x01\n" +
+	"\x16software_version_regex\x18\x04 \x01(\tR\x14softwareVersionRegexJ\x04\b\x02\x10\x03R\x0ehardware_model\x1a\xc9\xee\x01\n" +
 	"\n" +
 	"Deviations\x120\n" +
 	"\x14ipv4_missing_enabled\x18\x01 \x01(\bR\x12ipv4MissingEnabled\x129\n" +
@@ -4836,8 +4856,10 @@ const file_metadata_proto_rawDesc = "" +
 	"!use_chassis_aggregate_utilization\x18\xb3\x03 \x01(\bR\x1euseChassisAggregateUtilization\x12O\n" +
 	"$unreferenced_aft_fib_ack_unsupported\x18\xb4\x03 \x01(\bR unreferencedAftFibAckUnsupported\x12s\n" +
 	"7forwarding_viable_failover_with_indirect_nh_unsupported\x18\xb5\x03 \x01(\bR1forwardingViableFailoverWithIndirectNhUnsupported\x12k\n" +
-	"3static_route_nexthop_interface_state_oc_unsupported\x18\xb6\x03 \x01(\bR-staticRouteNexthopInterfaceStateOcUnsupported\x12V\n" +
-	"(afts_global_filter_policy_oc_unsupported\x18\xb7\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
+	"3static_route_nexthop_interface_state_oc_unsupported\x18\xb6\x03 \x01(\bR-staticRouteNexthopInterfaceStateOcUnsupported\x12S\n" +
+	"&lacp_interface_fallback_oc_unsupported\x18\xb7\x03 \x01(\bR\"lacpInterfaceFallbackOcUnsupported\x12H\n" +
+	" vlan_subinterface_oc_unsupported\x18\xb8\x03 \x01(\bR\x1dvlanSubinterfaceOcUnsupported\x12V\n" +
+	"(afts_global_filter_policy_oc_unsupported\x18\xb9\x03 \x01(\bR#aftsGlobalFilterPolicyOcUnsupportedJ\x04\bT\x10UJ\x04\b\t\x10\n" +
 	"J\x04\b\x1c\x10\x1dJ\x04\b\x14\x10\x15J\x04\b&\x10'J\x04\b+\x10,J\x04\bZ\x10[J\x04\ba\x10bJ\x04\b7\x108J\x04\bY\x10ZJ\x04\b\x13\x10\x14J\x04\b$\x10%J\x04\b#\x10$J\x04\b(\x10)J\x04\bq\x10rJ\x06\b\x83\x01\x10\x84\x01J\x06\b\x8d\x01\x10\x8e\x01J\x06\b\xad\x01\x10\xae\x01J\x06\b\xea\x01\x10\xeb\x01J\x06\b\xfe\x01\x10\xff\x01J\x06\b\xe7\x01\x10\xe8\x01J\x06\b\xac\x02\x10\xad\x02J\x06\b\xf1\x01\x10\xf2\x01J\x04\b1\x102\x1a\xa0\x01\n" +
 	"\x12PlatformExceptions\x12A\n" +
 	"\bplatform\x18\x01 \x01(\v2%.openconfig.testing.Metadata.PlatformR\bplatform\x12G\n" +
