@@ -1602,13 +1602,7 @@ func AddPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyP
 	}
 }
 
-// PrefixParams has prefix parameters to create prefix.
-type PrefixParams struct {
-	PrefixName string
-	MaskRange  string
-}
-
-// createPrefixSetPolicy creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
+// AddPrefixSetPolicyWithMatch creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
 func AddPrefixSetPolicyWithMatch(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
 	t.Helper()
 	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetNames[0])
@@ -1638,4 +1632,44 @@ func addPrefix(t *testing.T, ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix,
 
 	p.IpPrefix = ygot.String(prefix)
 	p.MasklengthRange = ygot.String(maskRange)
+}
+
+// PrefixParams has prefix parameters to create prefix.
+type GlobalFilterParams struct {
+	PrefixName string
+}
+
+// VerifyGlobalFilterPoliciesCLI verifies that the expected routing policy configuration is present in the DUT running configuration after reboot.
+func VerifyGlobalFilterPoliciesCLI(t *testing.T, dut *ondatra.DUTDevice, cfg GlobalFilterParams) {
+	t.Helper()
+	cmd := fmt.Sprintf("sh running-config all | include %s", cfg.PrefixName)
+	runningConfig, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), cmd)
+	if err != nil {
+		t.Fatalf("'show running-config' failed: %v", err)
+	}
+	t.Logf("CLI output for %q:\n%s", cmd, runningConfig.Output())
+	if !strings.Contains(runningConfig.Output(), cfg.PrefixName) {
+		t.Fatalf("Policy %s not found after reboot", cfg.PrefixName)
+	}
+}
+
+// ConfigureGlobalFilterPoliciesParams contains the policy attachment parameters for configuring AFT global filter policies.
+type ConfigureGlobalFilterPoliciesParams struct {
+	V4Policy string
+	V6Policy string
+	VRFName  string
+}
+
+// ConfigureGlobalFilterPolicies configures AFT global-filter policies for the specified network-instance.
+func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg ConfigureGlobalFilterPoliciesParams) {
+	t.Helper()
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Log("Skipping AFT global-filter attachment: unsupported on EOS")
+			return
+		}
+	}
+
+	t.Fatalf("AFT global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
 }

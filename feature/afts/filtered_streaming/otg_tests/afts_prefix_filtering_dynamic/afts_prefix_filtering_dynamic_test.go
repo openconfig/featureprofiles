@@ -12,9 +12,7 @@ package afts_prefix_filtering_dynamic_test
 
 import (
 	"context"
-	"flag"
 	"fmt"
-	"sync"
 	"testing"
 	"time"
 
@@ -24,7 +22,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/telemetry/aftcache"
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -39,16 +36,17 @@ const (
 	v6Policy             = "POLICY-PREFIX-SET-B"
 	matchAllPolicy       = "POLICY-MATCH-ALL"
 	subscriptionWait     = 3 * time.Minute
-	prefixAft1V4         = "198.51.100.0/24"
-	prefixAft2V4         = "203.0.113.0/28"
-	prefixAft3V4         = "192.0.2.0/24"
-	prefixAft1V6         = "2001:db8:2::/64"
-	prefixAft2V6         = "2001:db8:2::1/128"
-	prefixAft3V6         = "2001:db8:2::2/128"
+	prefixAFT1V4         = "198.51.100.0/24"
+	prefixAFT2V4         = "203.0.113.0/28"
+	prefixAFT3V4         = "192.0.2.0/24"
+	prefixAFT1V6         = "2001:db8:2::/64"
+	prefixAFT2V6         = "2001:db8:2::1/128"
+	prefixAFT3V6         = "2001:db8:2::2/128"
 	vrfV4Pfx             = "100.64.1.0/24"
 	vrfV6Pfx             = "2001:db8:3::/64"
 	maskRange            = "exact"
 	notificationWaitTime = 30 * time.Second
+	staticRouteIndex     = 100
 )
 
 var (
@@ -121,7 +119,6 @@ var (
 		"2001:db8:2::1/128",
 		"2001:db8:2::2/128",
 	}
-	debugNotifications = flag.Bool("debug_notifications", true, "Enable full AFT notification recording")
 )
 
 type dynamicUpdateTestParams struct {
@@ -147,8 +144,8 @@ func TestAFTPrefixFilteringDynamicUpdates(t *testing.T) {
 	ate := ondatra.ATE(t, "ate")
 	batch := configureDUT(t, dut)
 	configurePolicies(t, dut, batch)
-	configureStaticRoutes(t, dut, batch, defaultIPv4Prefixes, vrfV4Prefixes, atePort1.IPv4, atePort2.IPv4, 100)
-	configureStaticRoutes(t, dut, batch, defaultIPv6Prefixes, vrfV6Prefixes, atePort1.IPv6, atePort2.IPv6, 200)
+	mustConfigureStaticRoute(t, dut, batch, defaultIPv4Prefixes, vrfV4Prefixes, atePort1.IPv4, atePort2.IPv4, staticRouteIndex)
+	mustConfigureStaticRoute(t, dut, batch, defaultIPv6Prefixes, vrfV6Prefixes, atePort1.IPv6, atePort2.IPv6, staticRouteIndex+100)
 	topo, interfaceNamesList := configureATE(t, ate)
 	ate.OTG().PushConfig(t, topo)
 	ate.OTG().StartProtocols(t)
@@ -271,9 +268,9 @@ func validateIPv4DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 		dynamicUpdateTestParams{
 			testID:     "AFT-6.4.1",
 			prefixSet:  v4PfxSet,
-			prefix1:    prefixAft1V4,
-			prefix2:    prefixAft2V4,
-			prefix3:    prefixAft3V4,
+			prefix1:    prefixAFT1V4,
+			prefix2:    prefixAFT2V4,
+			prefix3:    prefixAFT3V4,
 			nhIP:       atePort1.IPv4,
 			maskRange:  maskRange,
 			policyName: v4Policy,
@@ -295,9 +292,9 @@ func validateIPv6DynamicUpdates(t *testing.T, dut *ondatra.DUTDevice) {
 		dynamicUpdateTestParams{
 			testID:     "AFT-6.4.2",
 			prefixSet:  v6PfxSet,
-			prefix1:    prefixAft1V6,
-			prefix2:    prefixAft2V6,
-			prefix3:    prefixAft3V6,
+			prefix1:    prefixAFT1V6,
+			prefix2:    prefixAFT2V6,
+			prefix3:    prefixAFT3V6,
 			nhIP:       atePort1.IPv6,
 			maskRange:  maskRange,
 			policyName: v6Policy,
@@ -311,7 +308,7 @@ func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicU
 	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	configureGlobalFilterPolicies(t, dut, pArgs.policyName, "", deviations.DefaultNetworkInstance(dut))
+	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: pArgs.policyName, V6Policy: "", VRFName: deviations.DefaultNetworkInstance(dut)})
 
 	wantPrefixes := map[string]bool{
 		pArgs.prefix1: true,
@@ -329,100 +326,65 @@ func validateDynamicUpdates(t *testing.T, dut *ondatra.DUTDevice, pArgs dynamicU
 
 	t.Logf("%s - Initial Synchronization", pArgs.testID)
 
-	initialCollector := newCollector(ctx, t, dut, gnmiClient)
-
-	runCollector(ctx, t, initialCollector, aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, nil, nil))
-	aft, err := initialCollector.ToAFT(t, dut)
+	initialCollector := cfgplugins.NewCollector(t, dut, cfgplugins.NewCollectorParams{Context: ctx, Client: gnmiClient})
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: initialCollector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, wantPrefixes, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
+	initialAFT, err := initialCollector.ToAFT(t, dut)
 	if err != nil {
 		t.Fatalf("ToAFT failed: %v", err)
 	}
 
-	verifyPrefixesPresent(t, aft, []string{pArgs.prefix1, pArgs.prefix2})
-
+	cfgplugins.VerifyPrefixesPresent(t, cfgplugins.PrefixesParams{InfoAFT: initialAFT, Prefixes: []string{pArgs.prefix1, pArgs.prefix2}})
 	// ------------------------------------------------------------
 	// AFT-6.4.X.1 Add Prefix
 	// ------------------------------------------------------------
 
 	t.Logf("%s.1 - Addition of Prefix to Active Set", pArgs.testID)
 
-	addCollector := newCollector(ctx, t, dut, gnmiClient)
+	addCollector := cfgplugins.NewCollector(t, dut, cfgplugins.NewCollectorParams{Context: ctx, Client: gnmiClient})
 	mustAddSingleStaticRoute(t, dut, deviations.DefaultNetworkInstance(dut), pArgs.prefix3, pArgs.indx, pArgs.nhIP)
-	runCollector(ctx, t, addCollector, aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix3: true}, nil, nil))
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: addCollector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix3: true}, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
 	addAFT, err := addCollector.ToAFT(t, dut)
 	if err != nil {
 		t.Fatalf("ToAFT failed: %v", err)
 	}
-	verifyPrefixesPresent(t, addAFT, []string{pArgs.prefix3})
+	cfgplugins.VerifyPrefixesPresent(t, cfgplugins.PrefixesParams{InfoAFT: addAFT, Prefixes: []string{pArgs.prefix3}})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, addCollector, aftcache.WaitForUpdateNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix3, NotificationWait: notificationWaitTime}))
-
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: addCollector, Stop: aftcache.WaitForUpdateNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix3, NotificationWait: notificationWaitTime}), Timeout: subscriptionWait})
 	// ------------------------------------------------------------
 	// AFT-6.4.X.2 Delete Prefix
 	// ------------------------------------------------------------
 
 	t.Logf("%s.2 - Deletion of Prefix from Active Set", pArgs.testID)
 
-	deleteCollector := newCollector(ctx, t, dut, gnmiClient)
-	removePrefixFromPrefixSet(t, dut, pArgs.prefixSet, pArgs.prefix1, pArgs.maskRange)
-	runCollector(ctx, t, deleteCollector, aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix1: true}, nil, nil))
-	delaft, delerr := deleteCollector.ToAFT(t, dut)
+	deleteCollector := cfgplugins.NewCollector(t, dut, cfgplugins.NewCollectorParams{Context: ctx, Client: gnmiClient})
+	cfgplugins.RemovePrefixFromPrefixSet(t, dut, cfgplugins.RemovePrefixFromPrefixSetParams{PrefixSetName: pArgs.prefixSet, Prefix: pArgs.prefix1, MaskRange: pArgs.maskRange})
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: deleteCollector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix1: true}, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
+	delAFT, delerr := deleteCollector.ToAFT(t, dut)
 	if delerr != nil {
 		t.Fatalf("ToAFT failed: %v", delerr)
 	}
 	verifyPrefixRemovedFromPrefixSet(t, dut, pArgs.prefixSet, pArgs.prefix1, pArgs.maskRange)
-	verifyPrefixesAbsent(t, delaft, []string{pArgs.prefix1})
+	cfgplugins.VerifyPrefixesAbsent(t, cfgplugins.PrefixesParams{InfoAFT: delAFT, Prefixes: []string{pArgs.prefix1}})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, deleteCollector, aftcache.WaitForDeleteNotification(t, aftcache.NotificationExpectation{DeletePrefix: pArgs.prefix1, NotificationWait: notificationWaitTime}))
-
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: deleteCollector, Stop: aftcache.WaitForDeleteNotification(t, aftcache.NotificationExpectation{DeletePrefix: pArgs.prefix1, NotificationWait: notificationWaitTime}), Timeout: subscriptionWait})
 	// ------------------------------------------------------------
 	// AFT-6.4.X.3 Atomic Add/Delete
 	// ------------------------------------------------------------
 
 	t.Logf("%s.3 - Simultaneous Addition and Deletion", pArgs.testID)
 
-	swapCollector := newCollector(ctx, t, dut, gnmiClient)
+	swapCollector := cfgplugins.NewCollector(t, dut, cfgplugins.NewCollectorParams{Context: ctx, Client: gnmiClient})
 	atomicPrefixSetSwap(t, dut, pArgs.prefixSet, pArgs.prefix1, pArgs.prefix2, pArgs.maskRange)
 	verifyPrefixRemovedFromPrefixSet(t, dut, pArgs.prefixSet, pArgs.prefix2, pArgs.maskRange)
-	runCollector(ctx, t, swapCollector, aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix3: true}, nil, nil))
-	swapaft, swaperr := swapCollector.ToAFT(t, dut)
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: swapCollector, Stop: aftcache.InitialSyncStoppingCondition(t, dut, map[string]bool{pArgs.prefix3: true}, map[string]bool{atePort1.IPv4: true}, map[string]bool{atePort1.IPv6: true}), Timeout: subscriptionWait})
+	swapAFT, swaperr := swapCollector.ToAFT(t, dut)
 	if swaperr != nil {
 		t.Fatalf("ToAFT failed: %v", swaperr)
 	}
-	verifyPrefixesPresent(t, swapaft, []string{pArgs.prefix1})
-	verifyPrefixesAbsent(t, swapaft, []string{pArgs.prefix2})
+	cfgplugins.VerifyPrefixesPresent(t, cfgplugins.PrefixesParams{InfoAFT: swapAFT, Prefixes: []string{pArgs.prefix1}})
+	cfgplugins.VerifyPrefixesAbsent(t, cfgplugins.PrefixesParams{InfoAFT: swapAFT, Prefixes: []string{pArgs.prefix2}})
 	// Wait until notification received or timeout
-	runCollector(ctx, t, swapCollector, aftcache.WaitForUpdateDeleteNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix1, DeletePrefix: pArgs.prefix2, NotificationWait: notificationWaitTime}))
-}
-
-// newCollector creates and returns a new AFT stream session. If debug_notifications is enabled, all received gNMI notifications are recorded in memory for later inspection and troubleshooting.
-func newCollector(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, client gpb.GNMIClient) *aftcache.AFTStreamSession {
-	t.Helper()
-	c := aftcache.NewAFTStreamSession(ctx, t, client, dut)
-	if *debugNotifications {
-		c.WithDebug()
-		t.Log("DEBUG MODE ENABLED: Recording all gNMI notifications to memory.")
-	}
-	return c
-}
-
-// runCollector starts the AFT stream collector and blocks until the supplied stopping condition is satisfied or the collector times out.
-func runCollector(ctx context.Context, t *testing.T, collector *aftcache.AFTStreamSession, stop aftcache.PeriodicHook) {
-	t.Helper()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		collector.ListenUntil(ctx, t, subscriptionWait, stop)
-	}()
-	wg.Wait()
-}
-
-// removePrefixFromPrefixSet removes the specified prefix entry from the given routing-policy prefix-set on the DUT.
-func removePrefixFromPrefixSet(t *testing.T, dut *ondatra.DUTDevice, prefixSetName, prefix, maskRange string) {
-	t.Helper()
-	batch := &gnmi.SetBatch{}
-	gnmi.BatchDelete(batch, gnmi.OC().RoutingPolicy().DefinedSets().PrefixSet(prefixSetName).Prefix(prefix, maskRange).Config())
-	batch.Set(t, dut)
+	cfgplugins.RunCollector(t, cfgplugins.RunCollectorParams{Ctx: context.Background(), Collector: swapCollector, Stop: aftcache.WaitForUpdateDeleteNotification(t, aftcache.NotificationExpectation{AddPrefix: pArgs.prefix1, DeletePrefix: pArgs.prefix2, NotificationWait: notificationWaitTime}), Timeout: subscriptionWait})
 }
 
 // verifyPrefixRemovedFromPrefixSet verifies that the specified prefix no longer exists in the given prefix-set configuration.
@@ -452,27 +414,6 @@ func atomicPrefixSetSwap(t *testing.T, dut *ondatra.DUTDevice, prefixName, addPr
 	batch.Set(t, dut)
 }
 
-// configureGlobalFilterPolicies configures AFT global-filter policies for the specified network-instance.
-func configureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, ipv4Policy, ipv6Policy, vrfName string) {
-	t.Helper()
-	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
-		switch dut.Vendor() {
-		case ondatra.ARISTA:
-			t.Log("Skipping AFT global-filter attachment: unsupported on EOS")
-			return
-		}
-	} else {
-		// TODO: Enable the following code once OC supports AFTs global filter configuration.
-		// root := &oc.Root{}
-		// ni := root.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
-		// afts := ni.GetOrCreateAfts()
-		// gf := afts.GetOrCreateGlobalFilter()
-		// gf.Ipv4Policy = ygot.String(ipv4Policy)
-		// gf.Ipv6Policy = ygot.String(ipv6Policy)
-		// gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Afts().GlobalFilter().Config(), gf)
-	}
-}
-
 // configurePolicies configures routing policies.
 func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch) {
 	t.Helper()
@@ -491,77 +432,30 @@ func configurePolicies(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatc
 	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-A", StatementNames: []string{"10"}, PrefixSetNames: []string{"PREFIX-SET-VRF-A"}, PrefixList: []string{vrfV4Pfx}, PrefixMode: "24..32", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
 	cfgplugins.AddPrefixSetPolicyWithMatch(t, rp, cfgplugins.PrefixSetPolicyParams{PolicyName: "POLICY-PREFIX-SET-VRF-B", StatementNames: []string{"20"}, PrefixSetNames: []string{"PREFIX-SET-VRF-B"}, PrefixList: []string{vrfV6Pfx}, PrefixMode: "65..128", PolicyResult: oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE})
 
-	configureGlobalFilterPolicies(t, dut, v4Policy, v6Policy, deviations.DefaultNetworkInstance(dut))
+	cfgplugins.ConfigureGlobalFilterPolicies(t, dut, cfgplugins.ConfigureGlobalFilterPoliciesParams{V4Policy: v4Policy, V6Policy: v6Policy, VRFName: deviations.DefaultNetworkInstance(dut)})
 	gnmi.BatchReplace(batch, gnmi.OC().RoutingPolicy().Config(), rp)
 	batch.Set(t, dut)
 }
 
-// configureStaticRoutes installs a static route into the default NI and non default NI.
-func configureStaticRoutes(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, defaultPrefixes, vrfPrefixes []string, nhIP, vrfNhIP string, indx int) {
+// mustConfigureStaticRoute installs a static route into the default NI.
+func mustConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, defaultPrefixes, vrfPrefixes []string, nhIP, vrfNhIP string, indx int) {
 	t.Helper()
 	for idx, prefix := range defaultPrefixes {
-		mustConfigureStaticRoute(t, dut, batch, deviations.DefaultNetworkInstance(dut), prefix, fmt.Sprintf("%d", idx+indx), nhIP)
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: deviations.DefaultNetworkInstance(dut), Prefix: prefix, Index: fmt.Sprintf("%d", idx+indx), NextHop: nhIP})
 	}
 	// ------------------------------------------------------------
 	// VRF-A IPv4 and IPv6 routes
 	// ------------------------------------------------------------
 	for idx, prefix := range vrfPrefixes {
-		mustConfigureStaticRoute(t, dut, batch, vrfName, prefix, fmt.Sprintf("%d", idx+indx+200), vrfNhIP)
+		cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: vrfName, Prefix: prefix, Index: fmt.Sprintf("%d", idx+indx+200), NextHop: vrfNhIP})
 	}
 	batch.Set(t, dut)
-}
-
-// mustConfigureStaticRoute installs a static route into the default NI.
-func mustConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, niName, ipRoutePfx, indx, nxtIP string) {
-	t.Helper()
-	staticRoute := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: niName,
-		Prefix:          ipRoutePfx,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			indx: oc.UnionString(nxtIP),
-		},
-	}
-
-	if _, err := cfgplugins.NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
-		t.Fatalf("Failed to configure static route %s: %v", ipRoutePfx, err)
-	}
 }
 
 // mustAddSingleStaticRoute adds one static route.
 func mustAddSingleStaticRoute(t *testing.T, dut *ondatra.DUTDevice, niName, prefix, index, nextHop string) {
 	t.Helper()
 	batch := &gnmi.SetBatch{}
-	staticRoute := &cfgplugins.StaticRouteCfg{
-		NetworkInstance: niName,
-		Prefix:          prefix,
-		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
-			index: oc.UnionString(nextHop),
-		},
-	}
-	if _, err := cfgplugins.NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
-		t.Fatalf("Failed creating static route %s: %v", prefix, err)
-	}
-
+	cfgplugins.ConfigureStaticRoute(t, dut, batch, cfgplugins.ConfigureStaticRouteParams{NetworkInstance: niName, Prefix: prefix, Index: index, NextHop: nextHop})
 	batch.Set(t, dut)
-}
-
-// verifyPrefixesPresent validates expected prefixes exist.
-func verifyPrefixesPresent(t *testing.T, aft *aftcache.AFTData, prefixes []string) {
-	t.Helper()
-
-	for _, pfx := range prefixes {
-		if _, ok := aft.Prefixes[pfx]; !ok {
-			t.Errorf("expected prefix missing: %s", pfx)
-		}
-	}
-}
-
-// verifyPrefixesAbsent validates prefixes do not exist.
-func verifyPrefixesAbsent(t *testing.T, aft *aftcache.AFTData, prefixes []string) {
-	t.Helper()
-	for _, pfx := range prefixes {
-		if _, ok := aft.Prefixes[pfx]; ok {
-			t.Errorf("unexpected prefix present: %s", pfx)
-		}
-	}
 }
