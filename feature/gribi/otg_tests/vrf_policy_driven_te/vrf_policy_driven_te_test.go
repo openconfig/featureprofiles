@@ -465,7 +465,7 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -1079,6 +1079,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 	}
 
 	nh1001 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
 	if dut.Vendor() == ondatra.ARISTA {
 		nh1001.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	}
@@ -1142,12 +1143,14 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 
 	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(1).AddNextHop(1, 1).AddNextHop(2, 3)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
 	if dut.Vendor() != ondatra.ARISTA {
 		nhg1.WithBackupNHG(1000)
 	}
 
 	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 		WithID(3).AddNextHop(4, 1)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
 	if dut.Vendor() != ondatra.ARISTA {
 		nhg3.WithBackupNHG(1002)
 	}
