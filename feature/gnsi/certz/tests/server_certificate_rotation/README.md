@@ -59,12 +59,49 @@ Perform this test with both the RSA and ECDSA types.
 
    5) Send the Finalize RPC to the server.
 
-   6) Verify that the server is now serving the certifcate properly, that
-      the certificate is the 'b' certificate.
+   6) Verify that the server is now serving the certificate properly, that
+      the certificate is the 'b' certificate. Verify that the active gRPC server
+      certificate has changed by checking the following OpenConfig paths:
+      * /system/grpc-servers/grpc-server/state/certificate-created-on
+      * /system/grpc-servers/grpc-server/state/certificate-expires-on
+      * /system/grpc-servers/grpc-server/state/certificate-version
 
    7) Verify that at no time during the rotation process were existing
       connections to the service impaired / restarted / delayed due to
       the rotation event.
+
+### Certz-3.2
+
+Perform these negative tests:
+
+Test that a server certificate can be rotated by using the gNSI certz Rotate()
+api if the certificate is requested without the device generated CSR, expect a
+failure because the certificate loaded is not signed by a trusted CA.
+
+Perform this test with both the RSA and ECDSA types.
+
+   0) Build the test data, configure the DUT to use the ca-0001 form
+      key/certificate/trust_bundle, use the server-${TYPE}-a key/certificate.
+
+   1) With the server running, connect and note that the ceritficate loaded
+      is the appropriate one.
+
+   2) Use the gNSI Rotate RPC to load a ca-02/server-${TYPE}-b key and
+      certificate on to the server.
+
+   3) Test that the certificate load fails, because the certificate is not
+      trusted by a known CA.
+
+   4) Tear down the Rotate RPC, forcing the device to return to the
+      previously used certificate/key material.
+
+   5) Verify that the server is now serving the previous certifcate properly.
+
+## Canonical OC
+
+```json
+{}
+```
 
 ## OpenConfig Path and RPC Coverage
 
@@ -73,6 +110,11 @@ The below yaml defines the OC paths intended to be covered by this test.  OC pat
 TODO(OCRPC): Record may not be correct or complete
 
 ```yaml
+paths:
+  /system/grpc-servers/grpc-server/state/certificate-created-on:
+  /system/grpc-servers/grpc-server/state/certificate-expires-on:
+  /system/grpc-servers/grpc-server/state/certificate-version:
+
 rpcs:
   gnsi:
     certz.v1.Certz.Rotate:
