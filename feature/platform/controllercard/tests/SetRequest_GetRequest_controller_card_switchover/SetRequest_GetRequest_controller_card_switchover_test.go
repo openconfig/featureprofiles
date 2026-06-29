@@ -397,8 +397,7 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 
 	// 1. Fetch the raw gNMI client handle from Ondatra
 	gnmiClient := dut.RawAPIs().GNMI(t)
-
-	// 2. Construct the exact path matching: /interfaces/interface
+	// 2. Construct the exact path matching: /interfaces
 	getRequest := &gpb.GetRequest{
 		Type:     gpb.GetRequest_CONFIG,
 		Encoding: gpb.Encoding_JSON_IETF,
@@ -406,11 +405,11 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 			{
 				Elem: []*gpb.PathElem{
 					{Name: "interfaces"},
-					{Name: "interface"},
 				},
 			},
 		},
 	}
+
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
@@ -424,13 +423,28 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 	// 4. Parse the raw JSON using a generic map wrapper
 	if len(getResponse.GetNotification()) > 0 && len(getResponse.GetNotification()[0].GetUpdate()) > 0 {
 		jsonVal := getResponse.GetNotification()[0].GetUpdate()[0].GetVal().GetJsonIetfVal()
-		// Parse into a dynamic list of maps representing the interfaces list array
-		var rawData []map[string]interface{}
+
+		// Parse into a dynamic map representing the interfaces container
+		var rawData map[string]interface{}
 		if err := json.Unmarshal(jsonVal, &rawData); err != nil {
 			t.Fatalf("Failed to parse raw JSON payload: %v", err)
 		}
-		// The length of the array is exactly how many interface objects are inside the JSON
-		numInterfaces = len(rawData)
+
+		// Extract the interface list, handling potential namespace prefixes
+		interfacesVal, ok := rawData["interface"]
+		if !ok {
+			interfacesVal, ok = rawData["openconfig-interfaces:interface"]
+		}
+
+		if ok {
+			if interfacesList, ok := interfacesVal.([]interface{}); ok {
+				numInterfaces = len(interfacesList)
+			} else {
+				t.Fatalf("Interface list in JSON is not an array")
+			}
+		} else {
+			t.Fatalf("No interface list found in JSON payload")
+		}
 	} else {
 		t.Fatalf("No interface configuration elements returned from device state database.")
 	}
@@ -442,7 +456,6 @@ func verifyConfiguredElements(t *testing.T, dut *ondatra.DUTDevice) {
 		t.Fatalf("Number of interfaces mismatch: got: %d, want: %d", numInterfaces, expectedCount)
 	}
 	t.Logf("Success: Verified all the configured interface elements.")
-
 	// Verify BGP Neighbors
 	dni := deviations.DefaultNetworkInstance(dut)
 	//Get the entire single BGP configuration container (No wildcards!)
