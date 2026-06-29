@@ -2271,3 +2271,15 @@ func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
 }
+
+// LacpInterfaceFallbackOCUnsupported returns true if the device does not support OC config for port channel fallback and timeout.
+// Arista: https://partnerissuetracker.corp.google.com/issues/492458024
+func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
+}
+
+// VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
+// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
+}
