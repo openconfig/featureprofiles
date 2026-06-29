@@ -31,14 +31,12 @@
 package gribifullscalet2_test
 
 import (
-	"context"
 	"flag"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
-	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/ondatra"
 )
 
 // ============================================================
@@ -66,16 +64,8 @@ const (
 
 var (
 	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
+	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
 )
-
-// ============================================================
-// Types
-// ============================================================
-
-// trafficTestCase is a table-driven entry for the two traffic profiles.
-// Re-declared locally to keep this package self-contained; it mirrors
-// cfgplugins.TrafficTestCase.
-type trafficTestCase = cfgplugins.TrafficTestCase
 
 // ============================================================
 // TestMain
@@ -99,60 +89,35 @@ func TestMain(m *testing.M) {
 // closes the connection. Entries remain installed on the DUT (Persistence:
 // true) until the single cleanup client issues a FlushAll at test teardown.
 func TestGRIBIFullScaleT2(t *testing.T) {
-	dut := ondatra.DUT(t, "dut")
-	ate := ondatra.ATE(t, "ate")
-	defaultVRF := deviations.DefaultNetworkInstance(dut)
-	ctx := context.Background()
-	t.Log("Configuring DUT interfaces, VRFs, and VRF-selection policy")
-	cfgplugins.ConfigureDUT(t, dut)
+	params := cfgplugins.ScaleParams{
+		PctNHG512:          pctNHG512T2,
+		NumRepairNHG:       numRepairNHGT2,
+		NumEncapDefaultNHG: numEncapDefaultNHGT2,
+		NumUniqueEncapNH:   numUniqueEncapNHT2,
 
-	t.Log("Configuring ATE topology")
-	ateConfig, interfaceNamesList := cfgplugins.ConfigureOTG(t, ate, dut)
-	ate.OTG().PushConfig(t, ateConfig)
-	ate.OTG().StartProtocols(t)
-	// Limiting it to 100 since checking ARP for 1024 interfaces takes long time
-	ifs := interfaceNamesList
-	if len(ifs) >= 100 {
-		ifs = ifs[:100]
+		NumDefaultNH:       1_000,
+		NumDefaultNHG:      1_000,
+		NumDefaultIPv4:     1_000,
+		NumTransitNHD1:     1536,
+		NumTransitNHD2:     1536,
+		NumTransitNHGE1:    768,
+		NumTransitNHGE2:    768,
+		NumTransitIPv4:     200_000,
+		NumRepairIPv4:      200_000,
+		NumEncapVRFs:       16,
+		NumEncapIPv4PerVRF: 10_000,
+		NumEncapIPv6PerVRF: 10_000,
+		NumDecapEntries:    48,
+		TrafficDuration:    5 * time.Minute,
+		TrafficLossTol:     5,
+		TrafficRateMpps:    30_000_000,
+
+		NumPort1VLANs:       1,
+		NumPort2VLANs:       640,
+		PctEncap8NH:         75,
+		PctEncap32NH:        20,
+		DecapDestsSubsetPct: 10,
+		GRIBIBatchSize:      2_000,
 	}
-	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: ifs})
-	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: ifs})
-
-	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
-		// DEFAULT VRF
-		t.Log("Default VRF entries (A/B/C)")
-		defaultPrefixes := cfgplugins.BuildDefaultVRF(t, dut, ctx, defaultVRF, pctNHG512T2)
-
-		// Static Groups
-		t.Log("Static groups (S1/S2)")
-		s1NHG, s2NHG := cfgplugins.BuildStaticGroups(t, dut, ctx, defaultVRF)
-
-		// Repair VRF
-		t.Log("Repair VRF (F)")
-		cfgplugins.BuildRepairVRF(t, dut, ctx, defaultVRF, s2NHG, numRepairNHGT2)
-
-		// Transit VRFs
-		t.Log("Transit VRFs (D/E)")
-		cfgplugins.BuildTransitVRFs(t, dut, ctx, defaultVRF, defaultPrefixes, s1NHG, s2NHG)
-
-		// Encap/Decap VRFs
-		t.Log("Encap/Decap VRFs (T3/T4)")
-		cfgplugins.BuildEncapDecapVRFs(t, dut, ctx, defaultVRF, numEncapDefaultNHGT2, numUniqueEncapNHT2)
-	})
-
-	testCases := []trafficTestCase{
-		{Name: "FixedSize_64B", UseIMIX: false},
-		{Name: "IMIX_Profile", UseIMIX: true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.Name, func(t *testing.T) {
-			if tc.UseIMIX {
-				t.Log("Running IMIX traffic — all 5 scenarios, 30 Mpps aggregate")
-			} else {
-				t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
-			}
-			cfgplugins.RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, *enablePacketCapture)
-		})
-	}
+	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
 }
