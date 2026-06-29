@@ -59,7 +59,6 @@ func TestMain(m *testing.M) {
 // DUT port-7 <------> port-7 ATE
 // DUT port-8 <------> port-8 ATE
 
-
 const (
 	plenIPv4                 = 30
 	plenIPv6                 = 126
