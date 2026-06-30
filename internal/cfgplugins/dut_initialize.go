@@ -39,7 +39,6 @@ const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
 	FeaturePolicyForwarding
-	FeatureQOSCounters
 	FeatureEnableAFTSummaries
 	FeatureNGPR
 	FeatureTTLPolicyForwarding
@@ -395,24 +394,6 @@ hardware tcam
     !
     `
 
-	aristaTcamProfileQOSCounters = `
-      hardware tcam
-      profile qosCounter copy qos
-      feature qos ip
-      no action set-dscp
-      action count
-      feature qos mac
-      no action set-dscp
-      action count
-      feature qos ipv6
-      no action set-dscp
-      action count
-      !
-      system profile qosCounter
-      !
-      hardware counter feature qos in
-      !
-   `
 	aristaEnableAFTSummaries = `
    management api models
       !
@@ -1260,7 +1241,6 @@ var (
 		FeatureMplsTracking:           aristaTcamProfileMplsTracking,
 		FeatureVrfSelectionExtended:   aristaTcamProfileVrfSelectionExtended,
 		FeaturePolicyForwarding:       aristaTcamProfilePolicyForwarding,
-		FeatureQOSCounters:            aristaTcamProfileQOSCounters,
 		FeatureEnableAFTSummaries:     aristaEnableAFTSummaries,
 		FeatureNGPR:                   aristaNGPRTcamProfile,
 		FeatureTTLPolicyForwarding:    aristaTcamProfilePreserveTTL,
