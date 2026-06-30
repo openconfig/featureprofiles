@@ -1388,7 +1388,7 @@ var (
 		FeatureAnPF:                   aristaAnPF,
 		FeatureIngressARP:             aristaIngressARP,
 		FeatureOptimizeFIBAndCounters: aristaOptimizeFIBAndCounters,
-    FeatureCFM:                    aristaTcamProfileCFM,
+		FeatureCFM:                    aristaTcamProfileCFM,
 	}
 )
 
