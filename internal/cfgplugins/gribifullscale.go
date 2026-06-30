@@ -145,7 +145,7 @@ const (
 
 	// Chassis reboot constants.
 	OneSecondInNanoSecond = 1e9
-	RebootDelay           = 120
+	RebootDelay           = 30
 	MaxRebootTime         = 900
 	MaxCompWaitTime       = 900
 )
