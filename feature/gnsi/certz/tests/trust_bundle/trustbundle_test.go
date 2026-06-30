@@ -286,7 +286,7 @@ func TestTrustBundleCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", time.Now().String())
 	//Cleanup of test data.
-	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(t), "./cleanup.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), "./cleanup.sh"); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	t.Logf("%s:STATUS:Test completed!", time.Now().String())
