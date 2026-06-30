@@ -2287,5 +2287,5 @@ func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
 // Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetDecapNhWithNexthopNiUnsupported()
+	return lookupDUTDeviations(dut).GetDecapNhWithoutNexthopNiUnsupported()
 }
