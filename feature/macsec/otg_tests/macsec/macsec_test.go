@@ -170,6 +170,8 @@ func getTranslatedUpdates(t *testing.T, dut *ondatra.DUTDevice, ftName string) [
 			subPath := &gpb.Path{Elem: p.GetElem()}
 			subscriptions = append(subscriptions, &gpb.Subscription{Path: subPath})
 		}
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
 		subClient, err := gnmiClient.Subscribe(ctx)
 		if err != nil {
 			t.Fatalf("[%s] Failed to create Subscribe client: %v", dut.Name(), err)
@@ -206,7 +208,7 @@ func getTranslatedUpdates(t *testing.T, dut *ondatra.DUTDevice, ftName string) [
 			}
 			updates = append(updates, translatedSR.GetUpdate().GetUpdate()...)
 		}
-	} else {
+	} else if dut.Vendor() == ondatra.ARISTA {
 		resp, err := gnmiClient.Get(ctx, &gpb.GetRequest{
 			Path:     nativePaths,
 			Type:     gpb.GetRequest_STATE,
