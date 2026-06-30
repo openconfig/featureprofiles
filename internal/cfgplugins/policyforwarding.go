@@ -901,6 +901,11 @@ func aristaGueDecapCLIConfig(t *testing.T, dut *ondatra.DUTDevice, params OcPoli
 							tunnel decap-ip %s
 							tunnel decap-interface %s
 							`, params.GUEPort, decapProto, params.IPType, params.GUEPort, params.AppliedPolicyName, params.TunnelIP, params.InterfaceID)
+	if params.HasMPLS {
+		cliConfig += fmt.Sprintf(`
+							tunnel overlay mpls qos map mpls-traffic-class to traffic-class
+							`)
+	}
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
 
