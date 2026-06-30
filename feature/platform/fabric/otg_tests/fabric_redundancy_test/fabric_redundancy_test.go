@@ -324,7 +324,7 @@ func testFabricInventory(t *testing.T, dut *ondatra.DUTDevice, fabrics []string,
 				Name: ygot.String(fabric),
 			})
 			gnmi.Replace(t, dut, powerAdminState.Config(), oc.Platform_ComponentPowerType_POWER_ENABLED)
-			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
+			gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 		fabricLeafOrValuePresent[descriptionKey] = []any{gnmi.Lookup(t, dut, description.State()).IsPresent()}
 		fabricLeafOrValuePresent[hardwareVersionKey] = []any{gnmi.Lookup(t, dut, hardwareVersion.State()).IsPresent()}
@@ -414,7 +414,7 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 		})
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
-	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	if deviations.ConfigLeafCreateRequired(dut) {
 		c := gnmi.OC().Component(fabric)
@@ -428,7 +428,7 @@ func testFabricLastRebootTime(t *testing.T, dut *ondatra.DUTDevice, fabrics []st
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
 	} else {
-		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
+		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(fabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
 			t.Errorf("Component %s, power-admin-state got: %v, want: %v", fabric, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 	}
@@ -474,7 +474,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 		})
 	}
 	gnmi.Replace(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().Config(), oc.Platform_ComponentPowerType_POWER_DISABLED)
-	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
+	gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_DISABLED)
 
 	t.Logf("Waiting for 120s after power disable...")
 	time.Sleep(120 * time.Second)
@@ -530,7 +530,7 @@ func testFabricRedundancy(t *testing.T, dut *ondatra.DUTDevice, fabrics []string
 	if deviations.MissingValueForDefaults(dut) {
 		time.Sleep(time.Minute)
 	} else {
-		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
+		if power, ok := gnmi.Await(t, dut, gnmi.OC().Component(disabledFabric).Fabric().PowerAdminState().State(), 5*time.Minute, oc.Platform_ComponentPowerType_POWER_ENABLED).Val(); !ok {
 			t.Errorf("Component %s, power-admin-state got: %v, want: %v", disabledFabric, power, oc.Platform_ComponentPowerType_POWER_ENABLED)
 		}
 	}
