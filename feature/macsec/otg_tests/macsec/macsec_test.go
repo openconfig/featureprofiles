@@ -482,7 +482,7 @@ func TestMacsecConfiguration(t *testing.T) {
 		configureMacsecOnDUT(t, dut2, port2, ip2, keyID, secretKey2)
 
 		// Push gNOI pings to guarantee a robust volume of encrypted (bad ICV) packets across the L3 channel
-		sendGnoiPing(t, dut1, ip2)
+sendGnoiPing(t, dut1, strings.Split(ip2, "/")[0])
 
 		verifyCounterIncrements(t, dut2, port2.Name(), "rx-badicv-pkts")
 	})
