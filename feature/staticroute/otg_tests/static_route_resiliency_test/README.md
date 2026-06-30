@@ -56,7 +56,16 @@ Specifically, it verifies:
 * Step 4 - Re-enable ATE Ports `3` and `4`. Verify via `/interfaces/interface/state/oper-status` that LAG 1 transitions to `UP` and traffic forwarding resumes automatically.
 * Step 5 - Stop traffic.
 
-### RT-1.73.4 - Scale, Dynamic FIB Re-programming, and Route Persistence
+### RT-1.73.4 - Validate ECMP and FIB Reprogramming Across Multiple LAGs
+
+* Step 1 - Configure a new static route for destination networks `203.0.115.0/24` and `2001:db8:215::/64`. Set **two** next-hops for this route: `198.51.101.2` and `2001:db8:101::2` (ATE LAG 1) as well as `198.51.111.2` and `2001:db8:111::2` (ATE LAG 2, utilizing the first subinterface IP configured in the setup).
+* Step 2 - Push the configuration via gNMI Set `Replace`. Start IPv4 and IPv6 traffic from ATE Port `8` (Source) destined to `203.0.115.1` and `2001:db8:215::1`.
+* Step 3 - Verify the DUT successfully load-balances the traffic across **all four** member links of the two LAGs (DUT Ports `3`, `4`, `5`, and `6`).
+* Step 4 - While traffic is flowing, update the static route using a gNMI Set `Replace` operation to remove the next-hop pointing to LAG 2 (`198.51.111.2` and `2001:db8:111::2`), leaving *only* LAG 1 (`198.51.101.2` and `2001:db8:101::2`) as the active next-hop.
+* Step 5 - Verify the FIB is successfully reprogrammed without traffic loss. Traffic must now flow exclusively out of DUT Ports `3` and `4` (LAG 1), and no traffic should egress DUT Ports `5` and `6` (LAG 2).
+* Step 6 - Stop traffic.
+
+### RT-1.73.5 - Scale, Dynamic FIB Re-programming, and Route Persistence
 
 * Step 1 (Scale Routes) - Configure 100 IPv4 static routes (`10.1.0.0/24` through `10.1.99.0/24`) and 100 IPv6 static routes (`2001:db8:1001::/64` through `2001:db8:1099::/64`). Distribute the next-hops for these 200 routes evenly across the 10 ATE LAG 2 subinterface IPs (configured in the setup phase).
 * Step 2 (Verify Scale) - Push configuration to DUT. Start 200 concurrent traffic flows from ATE Port `8` to the 200 route destinations. Verify traffic load-balances successfully out of DUT Ports `5` and `6`.
