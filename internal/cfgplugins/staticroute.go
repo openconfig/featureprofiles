@@ -29,20 +29,21 @@ import (
 
 // StaticRouteCfg defines commonly used attributes for setting a static route
 type StaticRouteCfg struct {
-	NetworkInstance   string
-	Prefix            string
-	NextHops          map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
-	IPType            string
-	NextHopAddr       string
-	NexthopGroup      bool
-	NexthopGroupName  string
-	Metric            uint32
-	Recurse           bool
-	T                 *testing.T
-	TrafficType       oc.E_Aft_EncapsulationHeaderType
-	PolicyName        string
-	Rule              string
-	RemoveStaticRoute bool
+	NetworkInstance  string
+	Prefix           string
+	NextHops         map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union
+	IPType           string
+	NextHopAddr      string
+	NexthopGroup     bool
+	NexthopGroupName string
+	Metric           uint32
+	Recurse          bool
+	T                *testing.T
+	TrafficType      oc.E_Aft_EncapsulationHeaderType
+	PolicyName       string
+	Rule             string
+	NextHopIntf      string
+  RemoveStaticRoute bool
 }
 
 // StaticVRFRouteCfg represents a static route configuration within a specific network instance (VRF). It defines the destination prefix, associated next-hop group, and the protocol string used for identification.
@@ -101,10 +102,18 @@ func NewStaticRouteCfg(batch *gnmi.SetBatch, cfg *StaticRouteCfg, d *ondatra.DUT
 				nh.SetRecurse(cfg.Recurse)
 			}
 		}
-		sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
-		gnmi.BatchUpdate(batch, sp.Config(), c)
-		gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	}
+
+	// Handle Interface-based NextHop (Resolution routes)
+	if cfg.NextHopIntf != "" {
+		// Usually "0" is used as the index if only one interface is provided
+		nh := s.GetOrCreateNextHop("0")
+		nh.GetOrCreateInterfaceRef().Interface = ygot.String(cfg.NextHopIntf)
+	}
+
+	sp := gnmi.OC().NetworkInstance(ni).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_STATIC, deviations.StaticProtocolName(d))
+	gnmi.BatchUpdate(batch, sp.Config(), c)
+	gnmi.BatchReplace(batch, sp.Static(cfg.Prefix).Config(), s)
 	return s, nil
 }
 
