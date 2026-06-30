@@ -1,0 +1,17 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "6924b212-f540-4f89-b330-03233ab4b2f0"
+plan_id: "TE-14.5"
+description: "gRIBI Scaling - full scale setup, target T0"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}

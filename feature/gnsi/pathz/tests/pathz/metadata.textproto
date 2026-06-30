@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "a1d80b16-fae3-4b7a-9945-481e14791bd2"
+plan_id:  "Pathz"
+description:  "Path-level Authorization (1-3) tests"
+testbed:  TESTBED_DUT
