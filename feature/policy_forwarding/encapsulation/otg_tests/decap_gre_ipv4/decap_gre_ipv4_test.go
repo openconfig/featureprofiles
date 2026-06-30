@@ -145,7 +145,7 @@ func TestDecapGre(t *testing.T) {
 	configStaticRoute(t, dut, IPv6Dst2, otgPort2.IPv6)
 
 	// Policy Based Forwading Rule-1
-	cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, dut, strings.Split(decapDesIpv4IP, "/")[0], "PBR-Policy", "port1", decapGrpName)
+	cfgplugins.PolicyForwardingGreDecapsulation(t, sfBatch, dut, decapDesIpv4IP, "PBR-Policy", "port1", decapGrpName)
 
 	// Test cases.
 	type testCase struct {
@@ -689,7 +689,7 @@ func processCapture(t *testing.T, otg *otg.OTG, port string) string {
 func validateDUTPkts(t *testing.T, dut *ondatra.DUTDevice) {
 	if deviations.GreDecapsulationOCUnsupported(dut) {
 		switch dut.Vendor() {
-		case ondatra.ARISTA:
+		case ondatra.ARISTA, ondatra.CISCO:
 			port1 := dut.Port(t, "port1")
 			ingressPort := port1.Name()
 
