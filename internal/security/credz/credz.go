@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -38,11 +39,11 @@ import (
 )
 
 const (
-	lowercase = "abcdefghijklmnopqrstuvwxyz"
-	uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	digits    = "0123456789"
-	symbols   = "!@#$%^&*(){}[]\\:;\"'"
-	// space             = " "
+	lowercase         = "abcdefghijklmnopqrstuvwxyz"
+	uppercase         = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digits            = "0123456789"
+	symbols           = "!@#$%^&*(){}[]\\|:;\"'"
+	space             = " "
 	dutKey            = "dut"
 	userKey           = "testuser"
 	caKey             = "ca"
@@ -52,7 +53,7 @@ const (
 )
 
 var (
-	charClasses = []string{lowercase, uppercase, digits, symbols}
+	charClasses = []string{lowercase, uppercase, digits, symbols, space}
 )
 
 // PrettyPrint prints rpc requests/responses in a pretty format.
@@ -123,8 +124,16 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cp
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate host parameters finalize request, error: %s", err)
 	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+	// Read response to Finalize until EOF.
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed during finalize Recv, error: %s", err)
+		}
+	}
 }
 
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
@@ -150,8 +159,16 @@ func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials finalize request, error: %s", err)
 	}
-	// Brief sleep for finalize to get processed.
-	time.Sleep(time.Second)
+	// Read response to Finalize until EOF.
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed during finalize Recv, error: %s", err)
+		}
+	}
 }
 
 // GenerateVersion returns a unique version string for gNSI rotations.
@@ -159,57 +176,106 @@ func GenerateVersion() string {
 	return fmt.Sprintf("v%d", time.Now().UnixNano())
 }
 
-// RotateUserPassword apply password for the specified username on the dut.
+// RotateUserPassword applies or deletes the password for the specified username on the DUT.
+// To add/update a password, provide non-empty password, version, and createdOn.
+// To delete a password, provide empty strings for password and version, and 0 for createdOn.
 func RotateUserPassword(t *testing.T, dut *ondatra.DUTDevice, username, password, version string, createdOn uint64) {
-	request := &cpb.RotateAccountCredentialsRequest{
-		Request: &cpb.RotateAccountCredentialsRequest_Password{
-			Password: &cpb.PasswordRequest{
-				Accounts: []*cpb.PasswordRequest_Account{
-					{
-						Account: username,
-						Password: &cpb.PasswordRequest_Password{
-							Value: &cpb.PasswordRequest_Password_Plaintext{
-								Plaintext: password,
-							},
+	var request *cpb.RotateAccountCredentialsRequest
+
+	if password == "" && version == "" && createdOn == 0 {
+		// Request to delete the password.
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_Password{
+				Password: &cpb.PasswordRequest{
+					Accounts: []*cpb.PasswordRequest_Account{
+						{
+							Account:   username,
+							Password:  &cpb.PasswordRequest_Password{},
+							Version:   version,
+							CreatedOn: createdOn,
 						},
-						Version:   version,
-						CreatedOn: createdOn,
 					},
 				},
 			},
-		},
+		}
+	}
+	if password != "" && version != "" && createdOn != 0 {
+		// Request to construct new / rotate password.
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_Password{
+				Password: &cpb.PasswordRequest{
+					Accounts: []*cpb.PasswordRequest_Account{
+						{
+							Account: username,
+							Password: &cpb.PasswordRequest_Password{
+								Value: &cpb.PasswordRequest_Password_Plaintext{
+									Plaintext: password,
+								},
+							},
+							Version:   version,
+							CreatedOn: createdOn,
+						},
+					},
+				},
+			},
+		}
 	}
 
 	sendAccountCredentialsRequest(t, dut, request)
 }
 
-// RotateAuthorizedPrincipal apply authorized principal for the specified username on the dut.
-func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal string) {
-	request := &cpb.RotateAccountCredentialsRequest{
-		Request: &cpb.RotateAccountCredentialsRequest_User{
-			User: &cpb.AuthorizedUsersRequest{
-				Policies: []*cpb.UserPolicy{
-					{
-						Account: username,
-						AuthorizedPrincipals: &cpb.UserPolicy_SshAuthorizedPrincipals{
-							AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
-								{
-									AuthorizedUser: userPrincipal,
-								},
-							},
+// RotateAuthorizedPrincipal applies or deletes authorized principal for the specified username on the dut.
+// To add/update authorized principal, provide non-empty authorized principal, version, and createdOn.
+// To delete authorized principal, provide empty strings for authorized principal and version, and 0 for createdOn.
+func RotateAuthorizedPrincipal(t *testing.T, dut *ondatra.DUTDevice, username, userPrincipal, version string, createdOn uint64) {
+	var request *cpb.RotateAccountCredentialsRequest
+
+	if userPrincipal == "" && version == "" && createdOn == 0 {
+		// Request to delete the authorized principal.
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_User{
+				User: &cpb.AuthorizedUsersRequest{
+					Policies: []*cpb.UserPolicy{
+						{
+							Account:   username,
+							Version:   version,
+							CreatedOn: createdOn,
 						},
-						Version:   GenerateVersion(),
-						CreatedOn: uint64(time.Now().Unix()),
 					},
 				},
 			},
-		},
+		}
+	}
+	if userPrincipal != "" && version != "" && createdOn != 0 {
+		// Request to construct new / rotate authorized principal.
+		request = &cpb.RotateAccountCredentialsRequest{
+			Request: &cpb.RotateAccountCredentialsRequest_User{
+				User: &cpb.AuthorizedUsersRequest{
+					Policies: []*cpb.UserPolicy{
+						{
+							Account: username,
+							AuthorizedPrincipals: &cpb.UserPolicy_SshAuthorizedPrincipals{
+								AuthorizedPrincipals: []*cpb.UserPolicy_SshAuthorizedPrincipal{
+									{
+										AuthorizedUser: userPrincipal,
+									},
+								},
+							},
+							Version:   version,
+							CreatedOn: createdOn,
+						},
+					},
+				},
+			},
+		}
 	}
 
 	sendAccountCredentialsRequest(t, dut, request)
 }
 
 // RotateAuthorizedKey read user key contents from the specified directory & apply it as authorized key on the dut.
+// To add an authorized key, provide a non-empty dir (and a version/createdOn for telemetry).
+// To delete/clear the authorized key, provide an empty dir (the key list is sent empty).
 func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, version string, createdOn uint64) {
 	var keyContents []*cpb.AccountCredentials_AuthorizedKey
 
@@ -247,8 +313,10 @@ func RotateAuthorizedKey(t *testing.T, dut *ondatra.DUTDevice, dir, username, ve
 	sendAccountCredentialsRequest(t, dut, request)
 }
 
-// RotateTrustedUserCA read CA key contents from the specified directory & apply it on the dut.
-func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
+// RotateTrustedUserCA applies or deletes CA key contents on the dut.
+// To add the CA, provide a non-empty dir along with a version and createdOn.
+// To delete the CA, provide an empty dir, empty version, and 0 createdOn.
+func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir, version string, createdOn uint64) {
 	var keyContents []*cpb.PublicKey
 
 	if dir != "" {
@@ -271,8 +339,8 @@ func RotateTrustedUserCA(t *testing.T, dut *ondatra.DUTDevice, dir string) {
 		Request: &cpb.RotateHostParametersRequest_SshCaPublicKey{
 			SshCaPublicKey: &cpb.CaPublicKeyRequest{
 				SshCaPublicKeys: keyContents,
-				Version:         GenerateVersion(),
-				CreatedOn:       uint64(time.Now().Unix()),
+				Version:         version,
+				CreatedOn:       createdOn,
 			},
 		},
 	}
@@ -293,7 +361,18 @@ func RotateAuthenticationTypes(t *testing.T, dut *ondatra.DUTDevice, authTypes [
 	sendHostParametersRequest(t, dut, request)
 }
 
-// RotateAuthenticationArtifacts read dut key/certificate contents from the specified directory & apply it as host authentication artifacts on the dut.
+// RotateAuthenticationArtifacts reads dut key/certificate contents from the specified
+// directories & applies them as host authentication artifacts on the dut.
+//
+// To install artifacts, provide keyDir and/or certDir along with a non-empty version
+// and non-zero createdOn. When both a key and a certificate are provided, they are
+// bundled into a single AuthenticationArtifacts entry.
+//
+// To clear artifacts, pass empty keyDir and certDir. Per the gNSI spec, every
+// ServerKeys rotation must carry a version/created_on (they are persisted and reported
+// via telemetry), so if version is empty / createdOn is 0 they are auto-generated.
+// This keeps the request well-formed and accepted across all vendors (e.g. it avoids
+// vendor rejections such as "Empty version string. Need value for version.").
 func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir, certDir, version string, createdOn uint64) {
 	var artifactContents []*cpb.ServerKeysRequest_AuthenticationArtifacts
 
@@ -301,31 +380,38 @@ func RotateAuthenticationArtifacts(t *testing.T, dut *ondatra.DUTDevice, keyDir,
 	var certData []byte
 	var err error
 	if keyDir != "" {
-		// data, err := os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		keyData, err = os.ReadFile(fmt.Sprintf("%s/%s", keyDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host private key, error: %s", err)
 		}
-		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		// 	PrivateKey: data,
-		// })
 	}
 
 	if certDir != "" {
-		// data, err := os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		certData, err = os.ReadFile(fmt.Sprintf("%s/%s-cert.pub", certDir, dut.ID()))
 		if err != nil {
 			t.Fatalf("Failed reading host signed certificate, error: %s", err)
 		}
-		// artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		// 	Certificate: data,
-		// })
 	}
 
-	artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
-		PrivateKey:  keyData,
-		Certificate: certData,
-	})
+	// Only add an artifact when there is actually a key and/or certificate to send.
+	// This keeps the cleanup call (keyDir == "" && certDir == "") from sending an empty
+	// artifact (auth_artifacts: [{}]), which some vendors reject as malformed.
+	if keyData != nil || certData != nil {
+		artifactContents = append(artifactContents, &cpb.ServerKeysRequest_AuthenticationArtifacts{
+			PrivateKey:  keyData,
+			Certificate: certData,
+		})
+	}
+
+	// The gNSI spec requires version/created_on on every ServerKeys rotation, including
+	// when clearing artifacts. Auto-generate them if the caller did not provide them so
+	// the request is accepted across all vendors.
+	if version == "" {
+		version = GenerateVersion()
+	}
+	if createdOn == 0 {
+		createdOn = uint64(time.Now().Unix())
+	}
 
 	request := &cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_ServerKeys{
@@ -409,7 +495,7 @@ func GetDutPublicKey(t *testing.T, dut *ondatra.DUTDevice, targetAlgo string) []
 			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", targetAlgo)
 		}
 	} else {
-		// Form the key bytes from the proto message
+		// Form the key bytes from the proto message.
 		key = response.PublicKeys[0]
 		algo = sshAlgo(t, key)
 		if algo == "" {
@@ -661,7 +747,6 @@ func SSHWithPassword(ctx context.Context, dut *ondatra.DUTDevice, username, pass
 
 // SSHWithCertificate dials ssh with user certificate to be used in credentialz tests.
 func SSHWithCertificate(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, username, dir string) (binding.SSHClient, error) {
-
 	privateKeyContents, err := os.ReadFile(fmt.Sprintf("%s/%s", dir, userKey))
 	if err != nil {
 		t.Fatalf("Failed reading private key contents, error: %s", err)
@@ -684,7 +769,7 @@ func SSHWithKey(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, usern
 	return dut.RawAPIs().BindingDUT().DialSSH(ctx, binding.KeyAuth{User: username, Key: privateKeyContents})
 }
 
-// SSHCleanup performs required cleanup on DUT
+// SSHCleanup performs required cleanup on DUT.
 func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
@@ -697,8 +782,10 @@ func SSHCleanup(t *testing.T, dut *ondatra.DUTDevice) {
 }
 
 // GetConfiguredHostKey returns the configured host key on the DUT for the given algorithm.
+// fqdn is used for logging/diagnostic context when locating the host key.
 func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqdn string) string {
 	t.Helper()
+	t.Logf("Looking up configured host key for algo %q (fqdn: %q)", algo, fqdn)
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
 
 	// Polling is required because the host key might not be immediately available after rotation.
@@ -724,7 +811,7 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if matchingKey != "" {
 			break
 		}
-		t.Logf("Waiting for %s host key (attempt %d/10)", algo, i+1)
+		t.Logf("Waiting for %s host key (attempt %d/10) for fqdn %q", algo, i+1, fqdn)
 		time.Sleep(5 * time.Second)
 	}
 
@@ -735,7 +822,7 @@ func GetConfiguredHostKey(t *testing.T, dut *ondatra.DUTDevice, algo string, fqd
 		if response != nil {
 			t.Logf("Available public keys: %+v", response.PublicKeys)
 		} else {
-			t.Fatalf("Failed to find host key for algorithm %s on DUT. Available keys and their types can be inspected via logs.", algo)
+			t.Fatalf("Failed to find host key for algorithm %s (fqdn %q) on DUT. Available keys and their types can be inspected via logs.", algo, fqdn)
 		}
 	}
 
@@ -773,7 +860,7 @@ func sshAlgo(t *testing.T, pk *cpb.PublicKey) string {
 	case cpb.KeyType_KEY_TYPE_ED25519:
 		return "ssh-ed25519"
 	case cpb.KeyType_KEY_TYPE_UNSPECIFIED:
-		// Attempt to infer from public key content
+		// Attempt to infer from public key content.
 		keyData := string(pk.PublicKey)
 		parts := strings.Fields(keyData)
 		if len(parts) >= 1 && (strings.HasPrefix(parts[0], "ssh-") || strings.HasPrefix(parts[0], "ecdsa-")) {

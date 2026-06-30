@@ -16,6 +16,7 @@ package passwordconsolelogin_test
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -27,12 +28,12 @@ import (
 )
 
 const (
-	username = "testuser"
+	username        = "testuser"
+	passwordVersion = "v1.0"
 )
 
 var (
 	passwordCreatedOn = time.Now().Unix()
-	passwordVersion   = credz.GenerateVersion()
 )
 
 func TestMain(m *testing.M) {
@@ -40,8 +41,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestCredentialz(t *testing.T) {
+	passwordVersion := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
+
 	dut := ondatra.DUT(t, "dut")
-	// target := credz.GetDutTarget(t, dut)
 
 	// Add any vendor specific cli to enable the ssh login using password
 	switch dut.Vendor() {
@@ -135,4 +137,9 @@ func TestCredentialz(t *testing.T) {
 			}
 		})
 	}
+
+	t.Cleanup(func() {
+		// Cleanup user password after test.
+		credz.RotateUserPassword(t, dut, username, "", "", 0)
+	})
 }
