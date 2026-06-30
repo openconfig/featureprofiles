@@ -60,7 +60,7 @@ For each loopback pair (800G, 400G):
 *   While the qualifications are in the `QUALIFICATION_STATE_RUNNING` state:
     *   Query `/system/processes/process/state/name` and `/system/processes/process/state/start-time` via gNMI.
     *   Assert that the link qualification daemon (e.g., `SandOam`) remains `RUNNING` and its `start-time` does not change (confirming no crashes or restarts occurred).
-    *   Subscribe to `/system/messages/state/message/msg` and assert that no logs match `EXCESSIVE_WARMUP_DELAY` or `STARTUP_FAILED` for the link qualification agent.
+    *   Subscribe to `/system/messages/message/state/msg` and assert that no logs match `EXCESSIVE_WARMUP_DELAY` or `STARTUP_FAILED` for the link qualification agent.
 
 ### 6. Results Verification
 *   Wait for the sessions to transition to `QUALIFICATION_STATE_COMPLETED`.
@@ -158,8 +158,8 @@ paths:
   /system/alarms/alarm/state/text:
   /system/processes/process/state/name:
   /system/processes/process/state/start-time:
-  /system/messages/state/message/msg:
-  /system/messages/state/message/app-name:
+  /system/messages/message/state/msg:
+  /system/messages/message/state/app-name:
 rpcs:
   gnoi:
     packet_link_qualification.LinkQualification.Capabilities:
