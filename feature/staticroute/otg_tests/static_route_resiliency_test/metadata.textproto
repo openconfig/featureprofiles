@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid:  "05bb3b98-8ac3-4ade-acfa-5dab0bc70bc3"
+plan_id:  "RT-1.73"
+description:  "Static Route Resilience Test"
+testbed:  TESTBED_DUT_ATE_8LINKS
