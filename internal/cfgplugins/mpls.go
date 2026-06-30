@@ -429,7 +429,7 @@ type MplsStaticPseudowire struct {
 	LocalLabel       string
 	RemoteLabel      string
 	IntfName         string
-	Subinterface     uint32
+	Subinterface     int
 	PatchPanel       string
 }
 
@@ -469,7 +469,7 @@ func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *onda
 		endpointCfg := connectionCfg.GetOrCreateEndpoint("endpoint-1")
 		localCfg := endpointCfg.GetOrCreateLocal()
 		localCfg.SetInterface(params.IntfName)
-		localCfg.SetSubinterface(params.Subinterface)
+		localCfg.SetSubinterface(uint32(params.Subinterface))
 
 		remoteCfg := endpointCfg.GetOrCreateRemote()
 		remoteCfg.SetVirtualCircuitIdentifier(1001)
@@ -497,7 +497,7 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 // VlanClientEncapsulationParams configures vlan encapsulation params
 type VlanClientEncapsulationParams struct {
 	IntfName         string
-	Subinterfaces    uint32
+	Subinterfaces    int
 	RemoveVlanConfig bool
 }
 

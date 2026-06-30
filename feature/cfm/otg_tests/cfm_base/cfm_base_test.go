@@ -82,7 +82,7 @@ type dutData struct {
 	custPort         []string
 	transitPort      []string
 	neighborPortIPv4 string
-	subinterface     uint32
+	subinterface     int
 	cfmCfg           []cfgplugins.MaintenanceDomainConfig
 	tunnelDst        string
 	staticTunnelDst  string
@@ -444,7 +444,7 @@ func configureStaticRoute(t *testing.T, sfBatch *gnmi.SetBatch, dut *ondatra.DUT
 	sfBatch.Set(t, dut)
 }
 
-func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string, subinterfaces uint32, mode string) {
+func configureIngressVlan(t *testing.T, dut *ondatra.DUTDevice, intfName string, subinterfaces int, mode string) {
 	sfBatch := &gnmi.SetBatch{}
 	// Configuring port/attachment mode
 	pseudowireCfg := cfgplugins.MplsStaticPseudowire{
@@ -715,7 +715,7 @@ func TestCFMBase(t *testing.T) {
 				SizeWeightProfile: &sizeWeightProfile,
 				FlowName:          "CFMFlow",
 				EthFlow:           &otgconfighelpers.EthFlowParams{SrcMAC: otgIntf1.MAC},
-				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: dutTestData[0].subinterface},
+				VLANFlow:          &otgconfighelpers.VLANFlowParams{VLANId: uint32(dutTestData[0].subinterface)},
 				IPv4Flow:          &otgconfighelpers.IPv4FlowParams{IPv4Src: "1.1.1.1", IPv4Dst: tunnelDestinationIP},
 			},
 			testFunc: testCFMEstablishment,
@@ -1021,7 +1021,7 @@ func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 			pseudowireCfg := cfgplugins.MplsStaticPseudowire{
 				PseudowireName:   fmt.Sprintf("%s-%d", pseudowireName, i),
 				IntfName:         data.lagAggID,
-				Subinterface:     uint32(i),
+				Subinterface:     i,
 				NexthopGroupName: nexthopGroupName,
 				LocalLabel:       fmt.Sprintf("%d", localLabel+i),
 				RemoteLabel:      fmt.Sprintf("%d", remoteLabel+i),
@@ -1031,7 +1031,7 @@ func testCFMScale(t *testing.T, ate *ondatra.ATEDevice, otg *otg.OTG, otgConfig 
 
 			vlanClientCfg := cfgplugins.VlanClientEncapsulationParams{
 				IntfName:      data.lagAggID,
-				Subinterfaces: uint32(i),
+				Subinterfaces: i,
 			}
 			cfgplugins.VlanClientEncapsulation(t, sfBatch, data.dut, vlanClientCfg)
 
