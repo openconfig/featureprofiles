@@ -197,3 +197,13 @@ func ExecuteShowCLI(t testing.TB, dut *ondatra.DUTDevice, config string) *gpb.Ge
 	}
 	return resp
 }
+
+// RunCliCommand runs a CLI command on the DUT and returns the output.
+func RunCliCommand(t *testing.T, dut *ondatra.DUTDevice, cliCommand string) string {
+	cliClient := dut.RawAPIs().CLI(t)
+	output, err := cliClient.RunCommand(context.Background(), cliCommand)
+	if err != nil {
+		t.Fatalf("Failed to execute CLI command '%q': %v", cliCommand, err)
+	}
+	return output.Output()
+}

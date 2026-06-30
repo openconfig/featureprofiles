@@ -1353,7 +1353,6 @@ func WithPGMultipath(pgName string, enableMultipath bool) PeerGroupOption {
 			// BGP multipath enable/disable at the peer-group level not required b/376799583
 			fmt.Printf("PeerGroup %s: BGP Multipath enable/disable not required under Peer-group by %s hence skipping", pgName, dut.Vendor())
 		case ondatra.JUNIPER:
-			pgaf.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 			pg.GetOrCreateUseMultiplePaths().Enabled = ygot.Bool(true)
 			pg.GetOrCreateUseMultiplePaths().GetOrCreateEbgp().SetAllowMultipleAs(true)
 		default:
