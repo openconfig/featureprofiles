@@ -1,4 +1,4 @@
-# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
 # proto-message: Metadata
 uuid: "2ab734c3-2d1a-48b2-9243-ad00a0d3738e"
 plan_id: "gNOI-2.2"
