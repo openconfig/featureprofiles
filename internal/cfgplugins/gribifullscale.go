@@ -376,6 +376,7 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 			}
 		}
 		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
+		assignInterfaceToDefaultNI(t, vrfBatch, dut, p.Name(), uint32(a.Subinterface))
 		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
 	}
 	fptest.ConfigureDefaultNetworkInstance(t, dut)
@@ -389,6 +390,7 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp1, DUTPort1IPv4Start, DUTPort1IPv6Start, StartVLANPort1, params.NumPort1VLANs)
 	ConfigureDUTSubinterfaces(t, vrfBatch, new(oc.Root), dut, dp2, DUTPort2IPv4Start, DUTPort2IPv6Start, StartVLANPort2, params.NumPort2VLANs)
 	vrfBatch.Set(t, dut)
+
 	ConfigureCLIDecapVRFMode(t, dut)
 	encapVRFs := BuildEncapVRFs(params.NumEncapVRFs)
 	ConfigureVRFSelectionPolicyOC(t, dut, encapVRFs)
@@ -444,6 +446,26 @@ func CreateDUTSubinterface(t *testing.T, vrfBatch *gnmi.SetBatch, d *oc.Root,
 		s6.Enabled = ygot.Bool(true)
 	}
 	gnmi.BatchUpdate(vrfBatch, gnmi.OC().Interface(dutPort.Name()).Subinterface(index).Config(), s)
+
+	assignInterfaceToDefaultNI(t, vrfBatch, dut, dutPort.Name(), index)
+}
+
+// assignInterfaceToDefaultNI assigns a subinterface on the port to the DEFAULT network instance.
+func assignInterfaceToDefaultNI(t *testing.T, vrfBatch *gnmi.SetBatch, dut *ondatra.DUTDevice, intfName string, subintIndex uint32) {
+	t.Helper()
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		defaultNI := deviations.DefaultNetworkInstance(dut)
+		netInst := &oc.NetworkInstance{Name: ygot.String(defaultNI)}
+		id := fmt.Sprintf("%s.%d", intfName, subintIndex)
+		netInstIntf, err := netInst.NewInterface(id)
+		if err != nil {
+			t.Fatalf("failed to create default NI interface ref: %v", err)
+		}
+		netInstIntf.Interface = ygot.String(intfName)
+		netInstIntf.Subinterface = ygot.Uint32(subintIndex)
+		netInstIntf.Id = ygot.String(id)
+		gnmi.BatchUpdate(vrfBatch, gnmi.OC().NetworkInstance(defaultNI).Interface(id).Config(), netInstIntf)
+	}
 }
 
 // ConfigureHardwareInit pushes platform-specific hardware init configs.
