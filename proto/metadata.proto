@@ -1274,13 +1274,12 @@ message Metadata {
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
 
-    // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
-    // Device is missing subinterface state packet counters.
-    bool default_subinterface_packet_counters_missing = 409;
-
     // Device Does not support session channel id
     // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
     bool acctz_record_session_channel_id_unsupported = 410;
+    // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
+    // Device is missing subinterface state packet counters.
+    bool default_subinterface_packet_counters_missing = 409;
 
     // Functional translator to be used for carrier-transitions paths.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
@@ -1346,7 +1345,7 @@ message Metadata {
     // Device requires transport-security to be enabled on gRPC server.
     // Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
     bool require_transport_security = 427;
-    
+
     // https://partnerissuetracker.corp.google.com/issues/443044887
     // Use the deviation if BGP Extension Route Retention configuration is not available via OC
     bool extended_route_retention_oc_unsupported = 428;
@@ -1379,10 +1378,10 @@ message Metadata {
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
     bool use_chassis_aggregate_utilization = 435;
-    
+
     // No FIB_ACK support for unreferenced NH/NHG entries
     bool unreferenced_aft_fib_ack_unsupported = 436;
-    
+
     //Indirect next-hop not supported with forwarding viable.
     // Nokia: b/428883444
     bool forwarding_viable_failover_with_indirect_nh_unsupported = 437;
@@ -1399,6 +1398,10 @@ message Metadata {
     // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
     bool vlan_subinterface_oc_unsupported = 440;
 
+    // Arista: b/514565554
+    // Devices that do not support afts global filter policy OC
+    bool afts_global_filter_policy_oc_unsupported = 441;
+    
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
@@ -1428,4 +1431,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
