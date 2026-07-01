@@ -1588,6 +1588,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, flowLis
 func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss bool) {
 	t.Helper()
 	for _, flowName := range flowList {
+		waitForFlowMetricsReady(t, args.otg, flowName, 2*time.Minute)
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
 		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
@@ -1614,6 +1615,50 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss boo
 			}
 		}
 	}
+}
+
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
 }
 
 type packetValidation struct {
@@ -1715,7 +1760,7 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrIP st
 	t.Helper()
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficDecap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	testStats := struct {
@@ -1821,7 +1866,7 @@ func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdr
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficNonDecap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
@@ -1860,7 +1905,7 @@ func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string,
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficEncap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
