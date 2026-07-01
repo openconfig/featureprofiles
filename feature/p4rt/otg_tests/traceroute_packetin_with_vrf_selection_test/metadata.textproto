@@ -34,6 +34,15 @@ platform_exceptions: {
 }
 platform_exceptions: {
   platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    isis_level_enabled: true
+    interface_ref_interface_id_format: true
+  }
+}
+platform_exceptions: {
+  platform: {
     vendor: CISCO
   }
   deviations: {
