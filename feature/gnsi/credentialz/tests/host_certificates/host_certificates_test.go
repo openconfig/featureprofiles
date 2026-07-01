@@ -47,10 +47,13 @@ func TestMain(m *testing.M) {
 func TestCredentialz(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
-	passwordVer := fmt.Sprintf("%s-%d", passwordVersion, time.Now().Unix())
-	hostCertificateVersion1 := fmt.Sprintf("%s-%d", hostCertificateVersion, time.Now().Unix())
-	time.Sleep(5 * time.Second)
-	hostCertificateVersion2 := fmt.Sprintf("%s-%d", hostCertificateVersion, time.Now().Unix())
+	// Derive unique version strings from a single timestamp using distinct suffixes.
+	// This avoids time.Sleep (per repo style guide) while keeping the two host
+	// certificate versions deterministically unique.
+	now := time.Now().Unix()
+	passwordVer := fmt.Sprintf("%s-%d", passwordVersion, now)
+	hostCertificateVersion1 := fmt.Sprintf("%s-%d-1", hostCertificateVersion, now)
+	hostCertificateVersion2 := fmt.Sprintf("%s-%d-2", hostCertificateVersion, now)
 
 	// Create temporary directory for storing ssh keys/certificates.
 	dir := t.TempDir()
