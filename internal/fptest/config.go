@@ -55,7 +55,11 @@ func GetDeviceConfig(t testing.TB, dev gnmi.DeviceOrOpts) *oc.Root {
 				intf.Mtu = nil
 				intf.HoldTime = nil
 				for _, sub := range intf.Subinterface {
+					if sub.Ipv4 != nil {
+						sub.Ipv4.Neighbor = nil
+					}
 					if sub.Ipv6 != nil {
+						sub.Ipv6.Neighbor = nil
 						sub.Ipv6.Autoconf = nil
 						if adv := sub.Ipv6.GetRouterAdvertisement(); adv != nil {
 							adv.Suppress = nil
