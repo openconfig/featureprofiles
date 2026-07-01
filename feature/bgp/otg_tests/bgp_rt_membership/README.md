@@ -6,6 +6,10 @@ Validate RFC 4684 Route Target (RT) Membership Constrained Route Distribution
 behavior in iBGP to prevent flooding VPN routes. Ensure the DUT only advertises
 VPN routes to peers that have requested the corresponding Route Targets.
 
+## Testbed type
+
+*   `TESTBED_DUT_ATE_2LINKS`
+
 ## Topology
 
 ```mermaid
