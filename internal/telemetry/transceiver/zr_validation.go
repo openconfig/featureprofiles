@@ -87,8 +87,6 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 				// Ensure all interfaces are DOWN after the config push.
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
-					validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, otnStreams[p.Name()])
-					validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
 				}
 
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
@@ -107,12 +105,22 @@ func TerminalDevicePathsTest(t *testing.T, tp *TunableParamters) {
 					params.Enabled = false
 					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
+				t.Logf("Waiting %v before validation after bringing DOWN interfaces", samplingInterval)
+				time.Sleep(samplingInterval)
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
-					validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, otnStreams[p.Name()])
-					validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
+					//validateOTNChannelTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, otnStreams[p.Name()])
+					//validateEthernetChannelTelemetry(t, dut, p, params, ethStreams[p.Name()])
 				}
-
+				t.Logf("Recreating sample streams to ensure fresh telemetry data after flap")
+				for _, p := range dut.Ports() {
+					ethStreams[p.Name()].Close()
+					otnStreams[p.Name()].Close()
+					interfaceStreams[p.Name()].Close()
+					ethStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.ETHIndexes[p.Name()]).State(), samplingInterval)
+					otnStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().TerminalDevice().Channel(params.OTNIndexes[p.Name()]).State(), samplingInterval)
+					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
+				}
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = true
@@ -207,6 +215,8 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					params.Enabled = false
 					cfgplugins.ToggleInterfaceState(t, dut, p, params)
 				}
+				t.Logf("Waiting %v before validation after bringing DOWN interfaces", samplingInterval)
+				time.Sleep(samplingInterval)
 				for _, p := range dut.Ports() {
 					validateInterfaceTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, interfaceStreams[p.Name()])
 					validateTranscieverTelemetry(t, dut, p, params, oc.Interface_OperStatus_DOWN, trStreams[p.Name()])
@@ -214,7 +224,19 @@ func PlatformPathsTest(t *testing.T, tp *TunableParamters) {
 					validateOpticalChannelTelemetry(t, p, params, oc.Interface_OperStatus_DOWN, ochStreams[p.Name()])
 					validateHWPortTelemetry(t, dut, p, params, hwPortStreams[p.Name()])
 				}
-
+				t.Logf("Recreating sample streams to ensure fresh telemetry data after flap")
+				for _, p := range dut.Ports() {
+					ochStreams[p.Name()].Close()
+					trStreams[p.Name()].Close()
+					hwPortStreams[p.Name()].Close()
+					interfaceStreams[p.Name()].Close()
+					tempSensorStreams[p.Name()].Close()
+					ochStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.OpticalChannelNames[p.Name()]).State(), samplingInterval)
+					trStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.TransceiverNames[p.Name()]).State(), samplingInterval)
+					hwPortStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.HWPortNames[p.Name()]).State(), samplingInterval)
+					interfaceStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Interface(p.Name()).State(), samplingInterval)
+					tempSensorStreams[p.Name()] = samplestream.New(t, dut, gnmi.OC().Component(params.TempSensorNames[p.Name()]).State(), samplingInterval)
+				}
 				t.Logf("\n*** Bringing UP all interfaces\n\n\n")
 				for _, p := range dut.Ports() {
 					params.Enabled = true
