@@ -369,7 +369,7 @@ func configureBaseconfig(t *testing.T, dut *ondatra.DUTDevice) {
 func applyForwardingPolicy(t *testing.T, dut *ondatra.DUTDevice, ingressPort string) {
 	d := &oc.Root{}
 	interfaceID := ingressPort
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = ingressPort + ".0"
 	}
 

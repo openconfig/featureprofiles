@@ -1346,7 +1346,7 @@ message Metadata {
     // Device requires transport-security to be enabled on gRPC server.
     // Juniper: https://partnerissuetracker.corp.google.com/issues/515276334
     bool require_transport_security = 427;
-    
+
     // https://partnerissuetracker.corp.google.com/issues/443044887
     // Use the deviation if BGP Extension Route Retention configuration is not available via OC
     bool extended_route_retention_oc_unsupported = 428;
@@ -1428,4 +1428,3 @@ message Metadata {
   // checks.
   bool path_presence_test = 7;
 }
-
