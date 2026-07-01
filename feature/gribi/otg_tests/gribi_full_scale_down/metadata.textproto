@@ -15,3 +15,12 @@ platform_exceptions: {
     default_network_instance: "default"
   }
 }
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
