@@ -53,6 +53,8 @@ Validations = []packetvalidationhelpers.ValidationType{
 2. Validate the IPV6 header (ValidateIPv6Header).
 */
 
+var packetSourceObj *gopacket.PacketSource
+
 // IPv4 and IPv6 are the IP protocol types.
 const (
 	IPv4 = "IPv4"

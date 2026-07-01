@@ -422,6 +422,7 @@ func LabelRangeOCConfig(t *testing.T, dut *ondatra.DUTDevice) {
 	gnmi.Update(t, dut, gnmi.OC().Config(), d)
 }
 
+// MplsStaticPseudowire configures pseudowire static mpls
 type MplsStaticPseudowire struct {
 	PseudowireName   string
 	NexthopGroupName string
@@ -429,6 +430,7 @@ type MplsStaticPseudowire struct {
 	RemoteLabel      string
 	IntfName         string
 	Subinterface     int
+	PatchPanel       string
 }
 
 func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra.DUTDevice, params MplsStaticPseudowire) {
@@ -439,6 +441,9 @@ func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *onda
 			if params.Subinterface != 0 {
 				params.IntfName = fmt.Sprintf("%s.%v", params.IntfName, params.Subinterface)
 			}
+			if params.PatchPanel == "" {
+				params.PatchPanel = "patch-1"
+			}
 			cli = fmt.Sprintf(`
 			mpls pseudowires
    				static pseudowires
@@ -448,10 +453,10 @@ func ConfigureMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *onda
          		neighbor label %s
          		control-word
 			patch panel
-				patch patch-1
+				patch %s
 				   connector interface %s
 				   connector pseudowire mpls static %s`,
-				params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.IntfName, params.PseudowireName)
+				params.PseudowireName, params.NexthopGroupName, params.LocalLabel, params.RemoteLabel, params.PatchPanel, params.IntfName, params.PseudowireName)
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -478,7 +483,7 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 		cli := ""
 		switch dut.Vendor() {
 		case ondatra.ARISTA:
-			cli = "patch panel\n no patch patch-1"
+			cli = "no patch panel"
 			helpers.GnmiCLIConfig(t, dut, cli)
 		default:
 			t.Errorf("Deviation MplsStaticPseudowireOcUnsupported is not handled for the dut: %v", dut.Vendor())
@@ -489,6 +494,7 @@ func RemoveMplsStaticPseudowire(t *testing.T, batch *gnmi.SetBatch, dut *ondatra
 	}
 }
 
+// VlanClientEncapsulationParams configures vlan encapsulation params
 type VlanClientEncapsulationParams struct {
 	IntfName         string
 	Subinterfaces    int
