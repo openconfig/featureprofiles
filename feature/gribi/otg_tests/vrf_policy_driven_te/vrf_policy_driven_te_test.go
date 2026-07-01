@@ -1760,7 +1760,7 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrIP st
 	t.Helper()
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf(err)
 	}
 	defer pcapFileHandle.Close()
 	testStats := struct {
@@ -1866,7 +1866,7 @@ func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdr
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf(err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
@@ -1905,7 +1905,7 @@ func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string,
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf(err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
