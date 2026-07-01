@@ -166,6 +166,9 @@ func TestMPLSOverUDPTunnelHashing(t *testing.T) {
 		t.Fatalf("IPv6 ARP resolution failed: %v", err)
 	}
 
+	// Disable hardware nexthop proxying for devices that require it to ensure FIB-ACK works correctly.
+	cfgplugins.DisableHardwareNexthopProxy(t, dut)
+
 	// Configure gRIBI client
 	c := mustNewGRIBIClient(t, dut)
 	t.Cleanup(func() {
