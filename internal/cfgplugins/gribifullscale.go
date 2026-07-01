@@ -148,6 +148,9 @@ const (
 	RebootDelay           = 30
 	MaxRebootTime         = 900
 	MaxCompWaitTime       = 900
+
+	// Fallback VLAN ID for subinterface 0 if NoMixOfTaggedAndUntaggedSubinterfaces is true.
+	NoMixVlanIDBase = 10
 )
 
 // ============================================================
@@ -364,6 +367,14 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 			ethernetHeaderSize := uint16(14)
 			intf.Mtu = ygot.Uint16(uint16(a.MTU) + ethernetHeaderSize)
 		}
+		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+			s := intf.GetOrCreateSubinterface(a.Subinterface)
+			if deviations.DeprecatedVlanID(dut) {
+				s.GetOrCreateVlan().VlanId = oc.UnionUint16(NoMixVlanIDBase)
+			} else {
+				s.GetOrCreateVlan().GetOrCreateMatch().GetOrCreateSingleTagged().VlanId = ygot.Uint16(NoMixVlanIDBase)
+			}
+		}
 		gnmi.BatchUpdate(vrfBatch, d.Interface(p.Name()).Config(), intf)
 		t.Logf("Configured DUT port %s (%s)", p.Name(), a.Desc)
 	}
@@ -481,9 +492,13 @@ func ConfigureOTG(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, 
 	ateConfig.Ports().Add().SetName(ap1.ID())
 	ateConfig.Ports().Add().SetName(ap2.ID())
 
-	// Base (untagged) devices for each port.
-	CreateATEDevice(t, ateConfig, ap1, 0, atePort1Attr.Name, atePort1Attr.MAC, dutPort1Attr.IPv4, atePort1Attr.IPv4, dutPort1Attr.IPv6, atePort1Attr.IPv6)
-	CreateATEDevice(t, ateConfig, ap2, 0, atePort2Attr.Name, atePort2Attr.MAC, dutPort2Attr.IPv4, atePort2Attr.IPv4, dutPort2Attr.IPv6, atePort2Attr.IPv6)
+	// Base devices for each port.
+	vlanID := uint16(0)
+	if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
+		vlanID = NoMixVlanIDBase
+	}
+	CreateATEDevice(t, ateConfig, ap1, vlanID, atePort1Attr.Name, atePort1Attr.MAC, dutPort1Attr.IPv4, atePort1Attr.IPv4, dutPort1Attr.IPv6, atePort1Attr.IPv6)
+	CreateATEDevice(t, ateConfig, ap2, vlanID, atePort2Attr.Name, atePort2Attr.MAC, dutPort2Attr.IPv4, atePort2Attr.IPv4, dutPort2Attr.IPv6, atePort2Attr.IPv6)
 
 	// VLAN sub-interfaces.
 	ifNames := MustConfigureATESubinterfaces(t, ateConfig, ap1, dut, atePort1Attr.Name, atePort1Attr.MAC, DUTPort1IPv4Start, ATEPort1IPv4Start, DUTPort1IPv6Start, ATEPort1IPv6Start, StartVLANPort1, params.NumPort1VLANs)
