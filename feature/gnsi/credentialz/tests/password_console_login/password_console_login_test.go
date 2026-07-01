@@ -141,5 +141,6 @@ func TestCredentialz(t *testing.T) {
 	t.Cleanup(func() {
 		// Cleanup user password after test.
 		credz.RotateUserPassword(t, dut, username, "", "", 0)
+		credz.SSHCleanup(t, dut)
 	})
 }

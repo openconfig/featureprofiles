@@ -83,7 +83,7 @@ func TestCredentialz(t *testing.T) {
 			t.Fatalf("Failed parsing host certificate authorized (cert)key: %s", err)
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
 		defer cancel()
 		client, err := credz.SSHWithPassword(ctx, dut, username, password)
 		if err != nil {
