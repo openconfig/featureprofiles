@@ -89,6 +89,7 @@ func TestCredentialz(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed dialing ssh with password: %s", err)
 		}
+		defer client.Close()
 
 		gotHostKey, _, _, _, err := ssh.ParseAuthorizedKey(client.HostKey())
 		if err != nil {

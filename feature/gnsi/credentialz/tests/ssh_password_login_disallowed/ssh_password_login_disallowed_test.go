@@ -156,13 +156,15 @@ func TestCredentialz(t *testing.T) {
 			time.Sleep(5 * time.Second)
 		}
 
-		// Send command for accounting verification.
-		sess, err := conn.RunCommand(ctx, command)
+		// Send command for accounting verification. RunCommand runs to completion and
+		// returns a binding.CommandResult, which exposes only Output()/Error() and holds
+		// no session/stream resources, so there is nothing to close here. Connection
+		// cleanup is handled by conn.Close() above.
+		res, err := conn.RunCommand(ctx, command)
 		if err != nil {
-			t.Fatalf("Failed creating ssh session, error: %s", err)
+			t.Fatalf("Failed running command %q, error: %s", command, err)
 		}
-		defer sess.Output()
-		sess.Output()
+		t.Logf("Command %q output: %s", command, res.Output())
 
 		// Verify ssh accept counters incremented appropriately.
 		if !deviations.SSHServerCountersUnsupported(dut) {
