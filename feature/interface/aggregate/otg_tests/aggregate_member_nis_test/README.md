@@ -1,4 +1,4 @@
-# RT-5.15: LAG Member Removal (NIS) and ECMP Hashing Stability
+# RT-5.16: LAG Member Removal (NIS) and ECMP Hashing Stability
 
 ## Summary
 

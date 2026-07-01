@@ -2,7 +2,7 @@
 # proto-message: Metadata
 
 uuid: "2c4021f7-3e24-4772-8bb5-8b2b67f2b7ce"
-plan_id: "RT-5.15"
+plan_id: "RT-5.16"
 description: "LAG Member Removal (NIS) and ECMP Hashing Stability"
 testbed: TESTBED_DUT_ATE_8LINKS
 platform_exceptions: {
