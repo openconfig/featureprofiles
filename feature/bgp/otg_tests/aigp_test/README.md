@@ -72,10 +72,10 @@ DUT 2 test-originate NI   | 49.0001.1980.5110.0100.00
 #### ATE Traffic Profile (Table 7)
 Flow name | Source | Destination | flow size |  flow rate(percent) | flow vlan | Flow Src MAC | source interface | Destination interface
 :------| :----------| :----------|:----------|:----------|:----------| :----------|:----------| :-------------:
-Flow 1  | 198.51.210.1 | 198.55.1.1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
-Flow 2  | 198.51.210.1 | 198.55.2.1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
-Flow 3  | 2001:db8:10::1 | 2001:db8:50::1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
-Flow 4  | 2001:db8:10::1 | 2001:db8:60::1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
+Flow 1  | 198.51.210.1 | 198.55.10.1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
+Flow 2  | 198.51.210.1 | 198.55.20.1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
+Flow 3  | 2001:db8:210::1 | 2001:db8:10::1 | 512 |  5 | 10 | 02:00:03:01:02:01 | eth1.10 | eth1.20 
+Flow 4  | 2001:db8:210::1 | 2001:db8:20::1 | 512 |  5 | 30 | 02:00:03:01:04:03 |  eth1.30 | eth1.40 
 
 #### ATE Interfaces MAC Addresses (Table 8)
 Interface | MAC Address 
@@ -84,6 +84,17 @@ eth1.10  | 02:00:03:01:01:01
 eth1.20  | 02:00:03:01:02:02
 eth1.30 | 02:00:03:01:03:03
 eth1.40 | 02:00:03:01:04:04
+
+#### Loopback IP Addresses (Table 9)
+Device | Network Instance(NI) | Loopback Name | IPV4 Address | IPV6 Address
+:------|:----------|:----------| :----------|:----------:
+DUT1 | Default NI         | Loopback10 | 198.55.10.1/32 | 2001:db8:10::1/128
+DUT1 | test-instance NI   | Loopback20 | 198.55.20.1/32 | 2001:db8:20::1/128
+DUT2 | test-originate NI  | Loopback10 | 198.60.10.2/32 | 2001:db8:10::2/128
+DUT2 | test-originate NI  | Loopback20 | 198.60.20.2/32 | 2001:db8:20::2/128
+DUT2 | test-originate NI  | Loopback30 | 198.60.30.2/32 | 2001:db8:30::2/128
+DUT2 | Default NI         | Loopback40 | 198.60.40.2/32 | 2001:db8:40::2/128
+DUT2 | test-instance NI   | Loopback50 | 198.60.50.2/32 | 2001:db8:50::2/128
 
 ## RT-1.36.1 : AIGP modification with BGP policy, propagation control on BGP peers and next-hop self feature
 
@@ -112,13 +123,13 @@ eth1.40 | 02:00:03:01:04:04
       * Configure IPV4 and IPV6 addresses on the subinterfaces as specified on table 3
 * Create a Loopback interface called Loopback10
     * Configure IPV4 and IPV6 addresses on the Loopback interfaces as specified below
-        * IPV4 Address: 198.55.1.1/32
-        * IPV6 Address: 2001:db8:50::1/128
+        * IPV4 Address: 198.55.10.1/32
+        * IPV6 Address: 2001:db8:10::1/128
     * Add the Loopback interface to the DEFAULT Network instance
 * Create a Loopback interface called Loopback20
     * Configure IPV4 and IPV6 addresses on the Loopback interfaces as specified below
-        * IPV4 Address: 198.55.2.1/32
-        * IPV6 Address: 2001:db8:60::1/128
+        * IPV4 Address: 198.55.20.1/32
+        * IPV6 Address: 2001:db8:20::1/128
     * Add the Loopback interface to the test-instance Network-instance
 
 #### Create BGP import policy
@@ -279,8 +290,8 @@ be the ASN on the test-instance as specified on Table 5.
 12. Create the following ipv4 and ipv6 Routes on the emulated router
      * 198.51.210.0/24
      * 198.51.220.0/24
-     * 2001:db8:10::/64
-     * 2001:db8:20::/64
+     * 2001:db8:210::/64
+     * 2001:db8:220::/64
 13. Create Traffic flow according the the specification on Table 7
 14. Push config on to the OTG
 15. Start Protocol on the OTG
@@ -925,7 +936,7 @@ Test-case RT-1.36.1 above.
 }
 ```
 
-## RT-1.36.3 : Validate AIGP propagation, propagation enabled by default on IBGP peers and next-hop IP feature
+## RT-1.36.3 : Validate AIGP propagation and Feature enabled by default on IBGP peers
 
 The following configuration steps are additions to the configuration done on
 Test-case RT-1.36.2 above.
@@ -988,30 +999,29 @@ between peers is changed using the bgp next-hop-self feature.
 
 ##### BGP Configuration - Default Network instance
 
-* Remove test-export-policy in the export direction on both 198.51.100.18 and
-  2001:db8::18 which is in their export direction
-* Configure the route-policy export-next-hop-self in the export
-  direction on 198.51.100.18
-* Configure the route-policy export-next-hop-self in the export
-  direction on 2001:db8::18
+* Delete bgp peers 198.51.100.18 and 2001:db8::18 
 * Create the following BGP peers with their peer-group (these BGP peering will
-  be established towards DUT 2 on test-originate NI)
-      * Peer address: 198.51.100.26; peer-group: downlink
-      * Peer address: 2001:db8::26; peer-group: downlink6
+  be established towards DUT 2 on test-originate NI using Loopback interface)
+      * Peer address: 198.60.30.2; peer-group: downlink; local-address: Loopback10  
+      * Peer address: 2001:db8:30::2; peer-group: downlink6; local-address: Loopback10
+* Create the following BGP peers with their peer-group (these BGP peering will
+  be established towards DUT 2 on Default NI using loopback interfaces)
+      * Peer address: 198.60.40.2; peer-group: downlink; local-address: Loopback10  
+      * Peer address: 2001:db8:40::2; peer-group: downlink6; local-address: Loopback10  
+* Apply export-next-hop-self in the export direction on both 198.60.40.2 and 2001:db8:40::2
 
 ##### BGP Configuration - test-instance Network instance
 
-* Undo the connect route to BGP redistribution that was done on test-case RT-1.36.1
-* Remove test-export-policy in the export direction on both 198.51.100.22 and
-  2001:db8::22 which is in their export direction
-* Configure the route-policy export-next-hop-self in the
-  export direction on 198.51.100.22
-* Configure the route-policy export-next-hop-self in the
-  export direction on 2001:db8::22
+* Delete bgp peers both 198.51.100.22 and 2001:db8::22 
 * Create the following BGP peers with their peer-group (these BGP peering will
   be established towards DUT 2 on test-originate NI)
-      * Peer address: 198.51.100.30; peer-group: downlink
-      * Peer address: 2001:db8::30; peer-group: downlink6
+      * Peer address: 198.60.30.2; peer-group: downlink; local-address: Loopback20  
+      * Peer address: 2001:db8:30::2; peer-group: downlink6; local-address: Loopback20 
+* Create the following BGP peers with their peer-group (these BGP peering will
+  be established towards DUT 2 on Default NI using loopback interfaces)
+      * Peer address: 198.60.50.2; peer-group: downlink; local-address: Loopback20  
+      * Peer address: 2001:db8:50::2; peer-group: downlink6; local-address: Loopback20
+* Apply export-next-hop-self in the export direction on both 198.60.50.2 and 2001:db8:50::2   
 
 ### DUT 2 - Generate Configuration
 
@@ -1025,20 +1035,20 @@ Test-case RT-1.36.1 above.
   * Add these subinterfaces to test-originate network instance
   * Configure IPV4 addresses on the subinterfaces as specified on table 4
   * Configure IPV6 addresses on the subinterfaces as specified on table 4
-* Create 2 Loopback interfaces and name them Loopback10 and Loopback20 respectively
-* Add these Loopback interfaces (Loopback10 and Loopback20) to test-originate network instance
-* Configure IPV4 and IPV6 addresses on these subinterfaces as specified below
-    * Loopback10: IPV4: 198.60.1.1/32; IPV6: 2001:db8:60::1/128
-    * Loopback20: IPV4: 198.70.1.1/32; IPV6: 2001:db8:70::1/128
+* Create Loopback interfaces and name them Loopback10, Loopback20, Loopback30, Loopback40, Loopback50  respectively
+* Add Loopback interfaces Loopback10, Loopback20 and  Loopback30 to test-originate network instance
+* Add Loopback40 Default network instance
+* Add Loopback50 test-instance network instance
+* Configure IPV4 and IPV6 addresses on these Loopback interfaces as specified on Table 9
 
 #### Create BGP export policy
 
 *  Create a prefix-set named Loopback-prefix-v4 and match the following prefixes
-    * ip-prefix: 198.60.1.1/32; masklength-range: exact
-    * ip-prefix: 198.70.1.1/32; masklength-range: exact
+    * ip-prefix: 198.60.10.2/32; masklength-range: exact
+    * ip-prefix: 198.60.20.2/32; masklength-range: exact
 *  Create a prefix-set named Loopback-prefix-v6 and match the following prefixes
-    * ip-prefix: 2001:db8:60::1/128; masklength-range: exact
-    * ip-prefix: 2001:db8:70::1/128; masklength-range: exact
+    * ip-prefix: 2001:db8:10::2/128; masklength-range: exact
+    * ip-prefix: 2001:db8:20::2/128; masklength-range: exact
 *  Create a route-policy named test-export-policy
 *  Create a statement named match-export-statement-v4
     *  Match the prefix-set Loopback-prefix-v4
@@ -1054,6 +1064,7 @@ Test-case RT-1.36.1 above.
 * Create ISIS configuration instance named DEFAULT
 * Configure the network entity as specified on Table 6
 * Configure metric-style wide
+* Add interface Loopback40 to the isis process
 * Add subinterfaces Lag 2 vlan 10 to the ISIS process with circuit type of point-to-point
 * Configure Lag 2 vlan 10 to only establish LEVEL 2 neighborship
 * Configure a ISIS metric of 20 on Lag 2 vlan 10 for both IPV4 and IPV6 address-family
@@ -1063,6 +1074,7 @@ Test-case RT-1.36.1 above.
 * Create ISIS configuration instance named DEFAULT
 * Configure the network entity as specified on Table 6
 * Configure metric-style wide
+* Add interface Loopback50 to the isis process
 * Add subinterfaces Lag 2 vlan 20 to the ISIS process with circuit type of point-to-point
 * Configure Lag 2 vlan 20 to only establish LEVEL 2 neighborship
 * Configure a ISIS metric of 20 on Lag 2 vlan 20 for both IPV4 and IPV6 address-family
@@ -1072,11 +1084,26 @@ Test-case RT-1.36.1 above.
 * Create ISIS configuration instance named DEFAULT
 * Configure the network entity as specified on Table 6
 * Configure metric-style wide
+* Add interface Loopback30 to the isis process
 * Add subinterfaces Lag 2 vlan 30 and lag 2 vlan 40 to the isis process and circuit type of point-to-point
 * Configure Lag 2 vlan 30 and lag 2 vlan 40 to only establish LEVEL 2 neighborship
 * Configure a ISIS metric of 20 on lag 2 vlan 30 and vlan 40 for both IPV4 and IPV6 address-family
 
 #### Configure BGP
+
+##### BGP Configuration - Default Network instance
+
+* Delete bgp peers 198.51.100.17 and 2001:db8::17
+* Create the following BGP peers with their peer-group, these BGP peers will be established over vlan 10 towards DUT 1 
+      * Peer address: 198.55.10.1; peer-group: downlink; local-address: Loopback40  
+      * Peer address: 2001:db8:10::1; peer-group: downlink6; local-address: Loopback40
+
+##### BGP Configuration - test-instance Network instance
+
+* Delete bgp peers 198.51.100.21 and 2001:db8::21
+* Create the following BGP peers with their peer-group,these BGP peers will be established over vlan 20 towards DUT 1 
+      * Peer address: 198.55.20.1; peer-group: downlink; local-address: Loopback50  
+      * Peer address: 2001:db8:20::1; peer-group: downlink6; local-address: Loopback50
 
 ##### BGP Configuration - test-originate Network instance
 
@@ -1090,10 +1117,10 @@ Test-case RT-1.36.1 above.
       * peer-group: test-instance-peer-group; peer-as: 64498; local-as: 64498; export-policy: test-export-policy
       * peer-group: test-instance-peer-group6; peer-as: 64498; local-as: 64498; export-policy: test-export-policy
 * Create the following BGP peers with their peer-group
-      * Peer address: 198.51.100.25; peer-group: default-peer-group
-      * Peer address: 2001:db8::25; peer-group: default-peer-group6
-      * Peer address: 198.51.100.29; peer-group: test-instance-peer-group
-      * Peer address: 2001:db8::29; peer-group: test-instance-peer-group6
+      * Peer address: 198.55.10.1; peer-group: default-peer-group; local-address: Loopback30  
+      * Peer address: 2001:db8:10::1; peer-group: default-peer-group6; local-address: Loopback30 
+      * Peer address: 198.55.20.1; peer-group: test-instance-peer-group; local-address: Loopback30 
+      * Peer address: 2001:db8:20::1; peer-group: test-instance-peer-group6; local-address: Loopback30 
 * Redistribute route from protocol DIRECTLY_CONNECTED to protocol BGP
 
 ### ATE Configuration
@@ -1120,69 +1147,65 @@ Test-case RT-1.36.1 above.
 #### BGP testing Steps on DUT 1
 
 * In the default NI:
-    - Fetch the BGP session-state of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-    - Fetch the AIGP propagation status of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.26 and 2001:db8::26
+    - Fetch the BGP session-state of the peers 198.60.40.2, 2001:db8:40::2, 198.60.30.2 and 2001:db8:30::2
+    - Fetch the AIGP propagation status of the peers 198.60.40.2, 2001:db8:40::2, 198.60.30.2 and 2001:db8:30::2
+    - Fetch the BGP rib attributes of the routes received from the peers 198.60.30.2 and 2001:db8:30::2
     - Fetch the route-reflector state of the peer-group downlink
     - Fetch the route-reflector state of the peer-group downlink6
 
 * In the test-instance NI:
-    - Fetch the BGP session-state of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30, 2001:db8::30
-    - Fetch the AIGP propagation status of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30, 2001:db8::30
-    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.30, 2001:db8::30
+    - Fetch the BGP session-state of the peers 198.60.50.2, 2001:db8:50::2, 198.60.30.2 and 2001:db8:30::2
+    - Fetch the AIGP propagation status of the peers 198.60.50.2, 2001:db8:50::2, 198.60.30.2 and 2001:db8:30::2
+    - Fetch the BGP rib attributes of the routes received from the peers 198.60.30.2 and 2001:db8:30::2
     - Fetch the route-reflector state of the peer-group downlink
     - Fetch the route-reflector state of the peer-group downlink6
 
 #### BGP testing Steps on DUT 2
 
 * In the default NI:
-    - Fetch the BGP session-state of the peers 198.51.100.17 and 2001:db8::17
-    - Fetch the AIGP propagation status of the peers 198.51.100.17 and 2001:db8::17
-    - Fetch the BGP rib attributes of the routes received from peers 198.51.100.17 and 2001:db8::17
+    - Fetch the BGP session-state of the peers 198.55.10.1 and 2001:db8:10::1
+    - Fetch the AIGP propagation status of the peers 198.55.10.1 and 2001:db8:10::1
+    - Fetch the BGP rib attributes of the routes received from peers 198.55.10.1 and 2001:db8:10::1
 
 * In the test-instance NI:
-    - Fetch the BGP session-state of the peers 198.51.100.21 and 2001:db8::21
-    - Fetch the AIGP propagation status of the peers 198.51.100.21 and 2001:db8::21
-    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.21 and 2001:db8::21
+    - Fetch the BGP session-state of the peers 198.55.20.1 and 2001:db8:20::1
+    - Fetch the AIGP propagation status of the peers 198.55.20.1 and 2001:db8:20::1
+    - Fetch the BGP rib attributes of the routes received from the peers 198.55.20.1 and 2001:db8:20::1
 
 * In the test-originate NI:
-    - Fetch the BGP session-state of the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29
-    - Fetch the AIGP propagation status of the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29
-    - Fetch the BGP state update sent metric for the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29
+    - Fetch the BGP session-state of the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
+    - Fetch the AIGP propagation status of the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
+    - Fetch the BGP state update sent metric for the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
 
 ### Test Pass Criteria
 
 #### Pass criteria on DUT 1
 
 * All isis adjacency state must be up in all NI
-* In the default NI, the BGP session-state must be ESTABLISHED for the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-* In the default NI, AIGP propagation status must be true for the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-* In the default NI, the routes received from the peers 198.51.100.26 and 2001:db8::26 must have a AIGP metric of 200
+* In the default NI, the BGP session-state must be ESTABLISHED for the peers 198.60.40.2, 2001:db8:40::2, 198.60.30.2 and 2001:db8:30::2
+* In the default NI, AIGP propagation status must be true for the peers 198.60.40.2, 2001:db8:40::2, 198.60.30.2 and 2001:db8:30::2
+* In the default NI, the routes received from the peers 198.60.30.2 and 2001:db8:30::2 must have an AIGP metric of 200
 * In the default NI, the route-reflector-client state must be true for peer-group downlink and downlink6
 
-* In test-instance NI, the BGP session-state must be ESTABLISHED for the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
-* In test-instance NI, AIGP propagation status must be true for the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
-* In test-instance NI, the routes received from the peers 198.51.100.30, 2001:db8::30 must have a AIGP metric of 200
+* In test-instance NI, the BGP session-state must be ESTABLISHED for the peers 198.60.50.2, 2001:db8:50::2, 198.60.30.2 and 2001:db8:30::2
+* In test-instance NI, AIGP propagation status must be true for the peers 198.60.50.2, 2001:db8:50::2, 198.60.30.2 and 2001:db8:30::2
+* In test-instance NI, the routes received from the peers 198.60.30.2 and 2001:db8:30::2 must have a AIGP metric of 200
 * In test-instance NI, the route-reflector-client state must be true for peer-group downlink and downlink6
 
 #### Pass criteria on DUT 2
 
 * All isis adjacency state must be up in all NI
-* In the default NI, the BGP session-state must be ESTABLISHED for the peers 198.51.100.17 and 2001:db8::17
-* In the default NI, AIGP propagation status must be true for the peers 198.51.100.17 and 2001:db8::17
-* In the default NI, the routes received from the peers 198.51.100.17 and 2001:db8::17 must have a AIGP metric of 220
-* In the default NI, the routes received from the peer 198.51.100.17 must have a next-hop attribute of 198.55.1.1
-* In the default NI, the routes received from the peer 2001:db8::17 must have a next-hop attribute of 2001:db8:50::1
+* In the default NI, the BGP session-state must be ESTABLISHED for the peers  198.55.10.1 and 2001:db8:10::1
+* In the default NI, AIGP propagation status must be true for the peers  198.55.10.1 and 2001:db8:10::1
+* In the default NI, the routes received from the peers  198.55.10.1 and 2001:db8:10::1 must have an AIGP metric of 230
 
-* In test-instance NI, the BGP session-state must be ESTABLISHED for the peers 198.51.100.21 and 2001:db8::21
-* In test-instance NI, AIGP propagation status must be true for the peers 198.51.100.21 and 2001:db8::21
-* In test-instance NI, the routes received from the peers 198.51.100.21 and 2001:db8::21 must have a AIGP metric of 220
-* In test-instance NI, the routes received from the peer 198.51.100.21 must have a next-hop attribute of 198.55.2.1
-* In test-instance NI, the routes received from the peer 2001:db8::21 must have a next-hop attribute of 2001:db8:60::1
+* In test-instance NI, the BGP session-state must be ESTABLISHED for the peers 198.55.20.1 and 2001:db8:20::1
+* In test-instance NI, AIGP propagation status must be true for the peers 198.55.20.1 and 2001:db8:20::1
+* In test-instance NI, the routes received from the peers 198.55.20.1 and 2001:db8:20::1 must have a AIGP metric of 230
 
-* In test-originate NI, the BGP session-state must be ESTABLISHED for the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29
-* In test-originate NI, AIGP propagation status must be true for the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29
-* In test-originate NI, BGP state update sent metric for the peers 198.51.100.25, 2001:db8::25, 198.51.100.29, 2001:db8::29 must be non-zero
+* In test-originate NI, the BGP session-state must be ESTABLISHED for the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
+* In test-originate NI, AIGP propagation status must be true for the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
+* In test-originate NI, BGP state update sent metric for the peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1 must be non-zero
 
 ### Canonical OC
 
@@ -1278,7 +1301,7 @@ Test-case RT-1.36.1 above.
                   "neighbor": [
                     {
                       "config": {
-                        "neighbor-address": "198.51.100.18",
+                        "neighbor-address": "198.60.40.2",
                         "peer-group": "downlink"
                       },
                       "apply-policy": {
@@ -1287,11 +1310,16 @@ Test-case RT-1.36.1 above.
                             "export-next-hop-self"
                           ]
                         }
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback10"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "2001:db8::18",
+                        "neighbor-address": "2001:db8:40::2",
                         "peer-group": "downlink6"
                       },
                       "apply-policy": {
@@ -1300,18 +1328,33 @@ Test-case RT-1.36.1 above.
                             "export-next-hop-self"
                           ]
                         }
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback10"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "198.51.100.26",
+                        "neighbor-address": "198.60.30.2",
                         "peer-group": "downlink"
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback10"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "2001:db8::26",
+                        "neighbor-address": "2001:db8:30::2",
                         "peer-group": "downlink6"
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback10"
+                        }
                       }
                     }
                   ]
@@ -1484,7 +1527,7 @@ Test-case RT-1.36.1 above.
                   "neighbor": [
                     {
                       "config": {
-                        "neighbor-address": "198.51.100.22",
+                        "neighbor-address": "198.60.50.2",
                         "peer-group": "downlink"
                       },
                       "apply-policy": {
@@ -1493,11 +1536,16 @@ Test-case RT-1.36.1 above.
                             "export-next-hop-self"
                           ]
                         }
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback20"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "2001:db8::22",
+                        "neighbor-address": "2001:db8:50::2",
                         "peer-group": "downlink6"
                       },
                       "apply-policy": {
@@ -1506,18 +1554,33 @@ Test-case RT-1.36.1 above.
                             "export-next-hop-self"
                           ]
                         }
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback20"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "198.51.100.30",
+                        "neighbor-address": "198.60.30.2",
                         "peer-group": "downlink"
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback20"
+                        }
                       }
                     },
                     {
                       "config": {
-                        "neighbor-address": "2001:db8::30",
+                        "neighbor-address": "2001:db8:30::2",
                         "peer-group": "downlink6"
+                      },
+                      "transport": {
+                        "config": {
+                          "local-address": "Loopback20"
+                        }
                       }
                     }
                   ]
@@ -1652,7 +1715,7 @@ Test-case RT-1.36.1 above.
                   "address": [
                     {
                       "config": {
-                        "ip": "198.55.1.1",
+                        "ip": "198.55.10.1",
                         "prefix-length": 32
                       }
                     }
@@ -1664,7 +1727,7 @@ Test-case RT-1.36.1 above.
                   "address": [
                     {
                       "config": {
-                        "ip": "2001:db8:50::1",
+                        "ip": "2001:db8:10::1",
                         "prefix-length": 128
                       }
                     }
@@ -1691,7 +1754,7 @@ Test-case RT-1.36.1 above.
                   "address": [
                     {
                       "config": {
-                        "ip": "198.55.2.1",
+                        "ip": "198.55.20.1",
                         "prefix-length": 32
                       }
                     }
@@ -1703,7 +1766,7 @@ Test-case RT-1.36.1 above.
                   "address": [
                     {
                       "config": {
-                        "ip": "2001:db8:60::1",
+                        "ip": "2001:db8:20::1",
                         "prefix-length": 128
                       }
                     }
@@ -1735,20 +1798,48 @@ Test-case RT-1.36.3 above.
 
 ### DUT 1 - Generate Configuration
 
-#### ISIS Configuration - Default Network instance
+#### Configure ISIS
+
+##### ISIS Configuration - Default Network instance
 
 * Remove Lag 2 vlan 30 from the ISIS configuration instance named DEFAULT
 
-#### ISIS Configuration - test-instance Network instance
+##### ISIS Configuration - test-instance Network instance
 
 * Remove Lag 2 vlan 40 from the ISIS configuration instance named DEFAULT
+
+#### Configure BGP
+
+##### BGP Configuration - Default Network instance
+
+* Delete BGP Peers 198.60.30.2 and 2001:db8:30::2
+* Create the following BGP peers with their peer-group (these BGP peering will
+  be established towards DUT 2 on test-originate NI)
+      * Peer address: 198.51.100.26; peer-group: downlink
+      * Peer address: 2001:db8::26; peer-group: downlink6
+
+##### BGP Configuration - test-instance Network instance
+
+* Delete BGP Peers 198.60.30.2 and 2001:db8:30::2
+* Create the following BGP peers with their peer-group (these BGP peering will
+  be established towards DUT 2 on test-originate NI)
+      * Peer address: 198.51.100.30; peer-group: downlink
+      * Peer address: 2001:db8::30; peer-group: downlink6
 
 ### DUT 2 - Generate Configuration
 
 ##### ISIS Configuration - test-originate Network instance
 
-* Remove Lag 2 vlan 30 and vlan 40 from the ISIS configuration instance named DEFAULT
+* Remove Lag 2 vlan 30, Lag2 vlan 40 and Loopback30 from the ISIS configuration instance named DEFAULT
 * Remove the ISIS configuration instance
+
+#### BGP Configuration - test-instance Network instance
+* Delete BGP peers 198.55.10.1, 2001:db8:10::1, 198.55.20.1 and 2001:db8:20::1
+* Create the following BGP peers with their peer-group
+      * Peer address: 198.51.100.25; peer-group: default-peer-group 
+      * Peer address: 2001:db8::25; peer-group: default-peer-group6
+      * Peer address: 198.51.100.29; peer-group: test-instance-peer-group
+      * Peer address: 2001:db8::29; peer-group: test-instance-peer-group6
 
 ### Testing Steps
 
@@ -1764,13 +1855,23 @@ Test-case RT-1.36.3 above.
 
 ##### BGP testing Steps on DUT 1
 
-* In default NI, Fetch the BGP rib attributes of the routes received from the peers 198.51.100.26 and 2001:db8::26
-* In test-instance NI, Fetch the BGP rib attributes of the routes received from the peers 198.51.100.30 and 2001:db8::30
+* In the default NI:
+    - Fetch the BGP session-state of the peers 198.51.100.26 and 2001:db8::26
+    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.26 and 2001:db8::26
+* In the test-instance NI:
+    - Fetch the BGP session-state of the peers 198.51.100.30 and 2001:db8::30
+    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.30 and 2001:db8::30
 
 ##### BGP testing Steps on DUT 2
 
-* In default NI,Fetch the BGP rib attributes of the routes received from peers 198.51.100.17 and 2001:db8::17
-* In test-instance NI,Fetch the BGP rib attributes of the routes received from the peers 198.51.100.21 and 2001:db8::21
+* In the default NI:
+    - Fetch the BGP session-state of the peers 198.55.10.1 and 2001:db8:10::1
+    - Fetch the BGP rib attributes of the routes received from the peers 198.55.10.1 and 2001:db8:10::1
+* In the test-instance NI:
+    - Fetch the BGP session-state of the peers 198.55.20.1 and 2001:db8:20::1
+    - Fetch the BGP rib attributes of the routes received from the peers 198.55.20.1 and 2001:db8:20::1
+* In the test-originate NI:
+    - Fetch the BGP session-state of the peers 198.51.100.25, 2001:db8::25, 198.51.100.29 and 2001:db8::29
 
 ### Test Pass Criteria
 
@@ -1785,8 +1886,8 @@ Test-case RT-1.36.3 above.
 
 * All ISIS adjacency states must be up in DEFAULT NI  
 * All ISIS adjacency states must be up in test-instance NI
-* In default NI,BGP routes received from 198.51.100.17 and 2001:db8::17 must have a AIGP metric of 201
-* In test-instance NI,BGP routes received from 198.51.100.21 and 2001:db8::21 must have a AIGP metric of 201
+* In default NI,BGP routes received from 198.55.10.1 and 2001:db8:10::1 must have a AIGP metric of 201
+* In test-instance NI,BGP routes received from 198.55.20.1 and 2001:db8:20::1 must have a AIGP metric of 201
 
 ## RT-1.36.5 : Validate AIGP attribute is dropped when AIGP propagation is disabled
 
@@ -1795,52 +1896,52 @@ Test-case RT-1.36.4 above.
 
 ### DUT 1 - Generate Configuration
 
-* In Default NI, Disable AIGP propagation on the BGP peers 198.51.100.18 and 2001:db8::18
-* In test-instance NI, Disable AIGP propagation on the BGP peers 198.51.100.22 and 2001:db8::22
+* In Default NI, Disable AIGP propagation on the BGP peers 198.60.40.2 and 2001:db8:40::2
+* In test-instance NI, Disable AIGP propagation on the BGP peers 198.60.50.2 and 2001:db8:50::2
 
 ### Testing Steps
 
 ##### BGP testing Steps on DUT 1
 
 * In the default NI:
-    - Fetch the BGP session-state of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-    - Fetch the AIGP propagation status of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
+    - Fetch the BGP session-state of the peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26
+    - Fetch the AIGP propagation status of the peers  198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26
     - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.26 and 2001:db8::26
 
 * In the test-instance NI:
-    - Fetch the BGP session-state of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
-    - Fetch the AIGP propagation status of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
+    - Fetch the BGP session-state of the peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30
+    - Fetch the AIGP propagation status of the peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30
     - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.30 and 2001:db8::30
 
 ##### BGP testing Steps on DUT 2
 
 * In the default NI:
-    - Fetch the BGP rib attributes of the routes received from peers 198.51.100.17 and 2001:db8::17
+    - Fetch the BGP rib attributes of the routes received from peers 198.55.10.1 and 2001:db8:10::1
 
 * In the test-instance NI:
 
-    - Fetch the BGP rib attributes of the routes received from the peers 198.51.100.21 and 2001:db8::21
+    - Fetch the BGP rib attributes of the routes received from the peers 198.55.20.1 and 2001:db8:20::1
 
 ### Test Pass Criteria
 
 ##### Pass criteria on DUT 1
 
 * In the default NI:
-  - The BGP session-state on peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26 must be in ESTABLISHED state
-  - AIGP propagation status must be False on the peers 198.51.100.18 and 2001:db8::18
+  - The BGP session-state on peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26 must be in ESTABLISHED state
+  - AIGP propagation status must be False on the peers 198.60.40.2 and 2001:db8:40::2
   - AIGP propagation must be True for the peers 198.51.100.26 and 2001:db8::26
   - Routes received from peers 198.51.100.26 and 2001:db8::26 must have a AIGP metric of 200
 
 * In test-instance NI:
-  - The BGP session-state on peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30 must be in ESTABLISHED state
-  - AIGP propagation status must be False on the peers 198.51.100.22 and 2001:db8::22
+  - The BGP session-state on peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30 must be in ESTABLISHED state
+  - AIGP propagation status must be False on the peers 198.60.50.2 and 2001:db8:50::2
   - AIGP propagation must be True for the peers 198.51.100.30 and 2001:db8::30
   - Route received from peers 198.51.100.30 and 2001:db8::30 must have a AIGP metric of 200
 
 ##### Pass criteria on DUT 2
 
-* In the default NI, Routes received from peers 198.51.100.17 and 2001:db8::17 must not have AIGP attribute
-* In the test-instance NI, Routes received from peers 198.51.100.21 and 2001:db8::21 must not have AIGP attribute
+* In the default NI, Routes received from peers 198.55.10.1 and 2001:db8:10::1 must not have AIGP attribute
+* In the test-instance NI, Routes received from peers 198.55.20.1 and 2001:db8:20::1  must not have AIGP attribute
 
 ## RT-1.36.6 : AIGP propagation in BGP peer-group
 
@@ -1859,44 +1960,43 @@ Test-case RT-1.36.5 above
 #### BGP testing Steps on DUT 1
 
 * In the default NI:
-    * Fetch the BGP session-state of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
-    * Fetch the AIGP propagation status of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26
+    * Fetch the BGP session-state of the peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26
+    * Fetch the AIGP propagation status of the peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26
     * Fetch the BGP rib attributes of the routes received from the peers 198.51.100.26 and 2001:db8::26
 * In the test-instance NI:
-    * Fetch the BGP session-state of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
-    * Fetch the AIGP propagation status of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30
+    * Fetch the BGP session-state of the peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30
+    * Fetch the AIGP propagation status of the peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30
     * Fetch the BGP rib attributes of the routes received from the peers 198.51.100.30 and 2001:db8::30
 
 #### BGP testing Steps on DUT 2
 
 * In the default NI:
-    * Fetch the BGP session-state of the peers 198.51.100.17 and 2001:db8::17
-    * Fetch the AIGP propagation status of the peers 198.51.100.17 and 2001:db8::17
-    * Fetch the BGP rib attributes of the routes received from peers 198.51.100.17 and 2001:db8::17
+    * Fetch the BGP session-state of the peers 198.55.10.1 and 2001:db8:10::1
+    * Fetch the AIGP propagation status of the peers 198.55.10.1 and 2001:db8:10::1
+    * Fetch the BGP rib attributes of the routes received from peers 198.55.10.1 and 2001:db8:10::1
 * In the test-originate NI:
-    * Fetch the BGP session-state of the peers 198.51.100.21 and 2001:db8::21
-    * Fetch the AIGP propagation status of the peers 198.51.100.21 and 2001:db8::21
-    * Fetch the BGP rib attributes of the routes received from peers the peers 198.51.100.21 and 2001:db8::21
-
+    * Fetch the BGP session-state of the peers 198.55.20.1 and 2001:db8:20::1
+    * Fetch the AIGP propagation status of the peers 198.55.20.1 and 2001:db8:20::1
+    * Fetch the BGP rib attributes of the routes received from peers the peers 198.55.20.1 and 2001:db8:20::1
 ### Test Pass Criteria
 
 ##### Pass criteria on DUT 1
 
-* In the default NI,the BGP session-state of peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26 must be ESTABLISHED
-* In the default NI,the AIGP propagation status of the peers 198.51.100.18, 2001:db8::18, 198.51.100.26 and 2001:db8::26 must be true
+* In the default NI,the BGP session-state of peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26 must be ESTABLISHED
+* In the default NI,the AIGP propagation status of the peers 198.60.40.2, 2001:db8:40::2, 198.51.100.26 and 2001:db8::26 must be true
 * In the default NI, the routes received from the peers 198.51.100.26 and 2001:db8::26 must have a AIGP metric of 200
-* In test-instance NI,the BGP session-state of peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30 must be ESTABLISHED
-* In test-instance NI,the AIGP propagation status of the peers 198.51.100.22, 2001:db8::22, 198.51.100.30 and 2001:db8::30 must be true
+* In test-instance NI,the BGP session-state of peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30 must be ESTABLISHED
+* In test-instance NI,the AIGP propagation status of the peers 198.60.50.2, 2001:db8:50::2, 198.51.100.30 and 2001:db8::30 must be true
 * In test-instance NI,the routes received from the peers 198.51.100.30 and 2001:db8::30 must have a AIGP metric of 200
 
 ##### Pass criteria on DUT 2
 
-* In the default NI,the BGP session-state of peers 198.51.100.17 and 2001:db8::17 must be ESTABLISHED
-* In the default NI,the AIGP propagation status of the peers 198.51.100.17 and 2001:db8::17 must be true
-* In the default NI, the routes received from the peers 198.51.100.17 and 2001:db8::17 must have a AIGP metric of 201
-* In test-instance NI,the BGP session-state of peers 198.51.100.21 and 2001:db8::21 must be ESTABLISHED
-* In test-instance NI,the AIGP propagation status of the peers 198.51.100.21 and 2001:db8::21 must be true
-* In test-instance NI, the routes received from the peers 198.51.100.21 and 2001:db8::21 must have a AIGP metric of 201
+* In the default NI,the BGP session-state of peers 198.55.10.1 and 2001:db8:10::1 must be ESTABLISHED
+* In the default NI,the AIGP propagation status of the peers 198.55.10.1 and 2001:db8:10::1 must be true
+* In the default NI, the routes received from the peers 198.55.10.1 and 2001:db8:10::1 must have a AIGP metric of 201
+* In test-instance NI,the BGP session-state of peers 198.55.20.1 and 2001:db8:20::1 must be ESTABLISHED
+* In test-instance NI,the AIGP propagation status of the peers 198.55.20.1 and 2001:db8:20::1 must be true
+* In test-instance NI, the routes received from the peers 198.55.20.1 and 2001:db8:20::1 must have a AIGP metric of 201
 
 ## OpenConfig Path and RPC Coverage
 
@@ -1926,6 +2026,7 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-group:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/import-policy:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/apply-policy/config/export-policy:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/transport/config/local-address:
   /network-instances/network-instance/protocols/protocol/isis/global/config/net:
   /network-instances/network-instance/protocols/protocol/isis/global/config/level-capability:
   /network-instances/network-instance/protocols/protocol/isis/levels/level/config/metric-style:
