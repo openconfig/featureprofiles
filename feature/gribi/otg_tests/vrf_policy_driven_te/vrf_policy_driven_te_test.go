@@ -31,6 +31,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
 	"github.com/openconfig/gribigo/fluent"
@@ -676,6 +677,7 @@ func configNonDefaultNetworkInstance(t *testing.T, dut *ondatra.DUTDevice) {
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
 		gnmi.Replace(t, dut, gnmi.OC().NetworkInstance(vrf).Config(), ni)
 	}
+
 }
 
 // configureDUT configures port1-8 on the DUT.
@@ -2468,7 +2470,17 @@ func TestGribiDecap(t *testing.T) {
 		configureDUT(t, dut)
 	})
 
+	if res, err := dut.RawAPIs().CLI(t).RunCommand(ctx, "show ver"); err == nil {
+		t.Logf("Output of 'show ver':\n%s", res.Output())
+	} else {
+		t.Logf("Failed to run 'show ver': %v", err)
+	}
+
 	t.Run("Apply vrf selectioin policy W to DUT port-1", func(t *testing.T) {
+		if dut.Vendor() == ondatra.ARISTA {
+			cliConfig := "vrf selection policy\n next-hop decapsulation vrf\n!\n"
+			helpers.GnmiCLIConfig(t, dut, cliConfig)
+		}
 		configureVrfSelectionPolicyW(t, dut)
 	})
 
