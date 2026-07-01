@@ -158,8 +158,8 @@ paths:
   /system/alarms/alarm/state/text:
   /system/processes/process/state/name:
   /system/processes/process/state/start-time:
-  /system/messages/message/state/msg:
-  /system/messages/message/state/app-name:
+  /system/messages/state/message/msg:
+  /system/messages/state/message/app-name:
 rpcs:
   gnoi:
     packet_link_qualification.LinkQualification.Capabilities:
