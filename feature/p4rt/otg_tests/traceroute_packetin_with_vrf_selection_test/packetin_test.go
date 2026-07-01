@@ -136,20 +136,15 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
 	leader := args.leader
-	if isIPv4 {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, isIPv4); err != nil {
-			t.Fatalf("There is error when programming entry")
+	for _, wantIPv4 := range []bool{true, false} {
+		if err := programmTableEntry(leader, args.packetIO, false, wantIPv4); err != nil {
+			entryType := "IPv4"
+			if !wantIPv4 {
+				entryType = "IPv6"
+			}
+			t.Fatalf("There is error when programming %s entry", entryType)
 		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, isIPv4)
-	} else {
-		// Insert p4rtutils acl entry on the DUT
-		if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
-			t.Fatalf("There is error when programming entry")
-		}
-		// Delete p4rtutils acl entry on the device
-		defer programmTableEntry(leader, args.packetIO, true, false)
+		defer programmTableEntry(leader, args.packetIO, true, wantIPv4)
 	}
 	streamChan := args.leader.StreamChannelGet(&streamName)
 	qSize := 12000
@@ -219,13 +214,13 @@ func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool
 					}
 					if wantPacket.TTL != nil {
 						// TTL/HopLimit comparison for IPV4 & IPV6
-						if isIPv4 {
+						switch etherType {
+						case layers.EthernetTypeIPv4:
 							captureTTL := decodePacket4(t, packet.Pkt.GetPayload())
 							if captureTTL != TTL1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV4 TTL1")
 							}
-
-						} else {
+						case layers.EthernetTypeIPv6:
 							captureHopLimit := decodePacket6(t, packet.Pkt.GetPayload())
 							if captureHopLimit != HopLimit1 {
 								t.Fatalf("Packet in PacketIn message is not matching wanted packet=IPV6 HopLimit1")

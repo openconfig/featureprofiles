@@ -1263,7 +1263,6 @@ func TestTraceRoute(t *testing.T) {
 	verifyBgpTelemetry(t, dut)
 
 	t.Run("Test-1: Match on DSCP, no Source and no Protocol", func(t *testing.T) {
-		t.Skip()
 		testGribiMatchNoSourceNoProtocolMacthDSCP(ctx, t, dut, args)
 	})
 
@@ -1271,11 +1270,9 @@ func TestTraceRoute(t *testing.T) {
 	vrfpolicy.ConfigureVRFSelectionPolicy(t, dut, vrfpolicy.VRFPolicyW)
 
 	t.Run("Test-2: Match on default term and send to default VRF", func(t *testing.T) {
-		t.Skip()
 		testTunnelTrafficMatchDefaultTerm(ctx, t, dut, args)
 	})
 	t.Run("Test-3: Match on source, protocol and DSCP, VRF_DECAP hit -> VRF_ENCAP_A miss -> DEFAULT", func(t *testing.T) {
-		t.Skip()
 		testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
 	})
 	// Below test case will implement later
@@ -1284,7 +1281,6 @@ func TestTraceRoute(t *testing.T) {
 	t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
 	})*/
 	t.Run("Test-6: Tunneled traffic with no decap", func(t *testing.T) {
-		t.Skip()
 		testTunnelTrafficNoDecap(ctx, t, dut, args)
 	})
 	// Below test case will implement later
