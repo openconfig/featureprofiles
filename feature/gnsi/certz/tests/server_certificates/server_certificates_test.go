@@ -35,7 +35,6 @@ import (
 
 const (
 	dirPath                  = "../../test_data/"
-	timeOutVar time.Duration = 5 * time.Minute
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
