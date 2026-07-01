@@ -5,7 +5,7 @@ Verify Dataplane Hashing using a mix of physical loopback ports and software loo
 
 ## Topology
 The test requires a DUT and an ATE.
-The topology uses a complex loopback configuration to route traffic through multiple hashing stages on the DUT.
+The topology uses a multple looped back ports configuration to route traffic through multiple hashing stages on the DUT.
 
 ```mermaid
 graph TD
