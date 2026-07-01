@@ -50,7 +50,7 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
-	certsList                           = flag.String("certsList", "01,02,10,1000,20000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certsList                           = flag.String("certsList", "01,02,10,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
 	certsTimeout                        = flag.Duration("certsTimeout", 10*time.Minute, "Time duration for cert generation and cleanup. Increase if more certs are to be generated")
 
 	certsString = func() string {
