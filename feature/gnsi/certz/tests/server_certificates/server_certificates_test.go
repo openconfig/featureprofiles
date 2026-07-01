@@ -18,10 +18,13 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"flag"
+	"fmt"
 	"slices"
 	"testing"
 	"time"
 
+	"github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	setupService "github.com/openconfig/featureprofiles/feature/gnsi/certz/tests/internal/setup_service"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/gnmi/proto/gnmi"
@@ -49,6 +52,14 @@ var (
 	prevClientKeyFile   string          = ""
 	prevTrustBundleFile string          = ""
 	expectedResult      bool            = true
+	certsList                           = flag.String("certsList", "01,02,10,1000", "Number of Certificate Sets to generate for this test. Comma separated string")
+	certsTimeout                        = flag.Duration("certsTimeout", 10*time.Minute, "Time duration for cert generation and cleanup. Increase if more certs are to be generated")
+	certsString                         = func() string {
+		return *certsList
+	}
+	certsTimeOutVar = func() time.Duration {
+		return *certsTimeout
+	}
 )
 
 func TestMain(m *testing.M) {
@@ -71,8 +82,9 @@ func TestServerCert(t *testing.T) {
 	gnmiClient, gnsiC := setupService.PreInitCheck(context.Background(), t, dut)
 	//Generate testdata certificates.
 	t.Logf("%s:STATUS:Generation of test data certificates.", time.Now().String())
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./mk_cas.sh"); err != nil {
-		t.Logf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
+	command := fmt.Sprintf("./mk_cas.sh %v", certsString())
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), command); err != nil {
+		t.Fatalf("%s:STATUS:Generation of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	//Create a certz client.
 	ctx := context.Background()
@@ -299,7 +311,7 @@ func TestServerCert(t *testing.T) {
 	}
 	t.Logf("%s:STATUS:Cleanup of test data.", time.Now().String())
 	//Cleanup of test data.
-	if err := setupService.TestdataMakeCleanup(t, dirPath, timeOutVar, "./cleanup.sh"); err != nil {
+	if err := setup_service.TestdataMakeCleanup(t, dirPath, certsTimeOutVar(), "./cleanup.sh"); err != nil {
 		t.Logf("%s:STATUS:Cleanup of testdata certificates failed!: %v", time.Now().String(), err)
 	}
 	t.Logf("%s:STATUS:Test completed!", time.Now().String())
