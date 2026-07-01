@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/rand"
 	"os"
 	"os/exec"
@@ -101,8 +102,11 @@ func GeneratePassword() string {
 }
 
 func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateHostParametersRequest) {
+	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	credzRotateClient, err := credzClient.RotateHostParameters(context.Background())
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	credzRotateClient, err := credzClient.RotateHostParameters(ctx)
 	if err != nil {
 		t.Fatalf("Failed fetching credentialz rotate host parameters client, error: %s", err)
 	}
@@ -117,19 +121,35 @@ func sendHostParametersRequest(t *testing.T, dut *ondatra.DUTDevice, request *cp
 	}
 	err = credzRotateClient.Send(&cpb.RotateHostParametersRequest{
 		Request: &cpb.RotateHostParametersRequest_Finalize{
-			Finalize: request.GetFinalize(),
+			Finalize: &cpb.FinalizeRequest{},
 		},
 	})
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate host parameters finalize request, error: %s", err)
+	}
+	if err := credzRotateClient.CloseSend(); err != nil {
+		t.Fatalf("Failed closing credentialz rotate host parameters stream, error: %s", err)
+	}
+	// Wait for the target to close the RPC before starting another rotation.
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed waiting for credentialz rotate host parameters completion, error: %s", err)
+		}
 	}
 	// Brief sleep for finalize to get processed.
 	time.Sleep(time.Second)
 }
 
 func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request *cpb.RotateAccountCredentialsRequest) {
+	t.Helper()
 	credzClient := dut.RawAPIs().GNSI(t).Credentialz()
-	credzRotateClient, err := credzClient.RotateAccountCredentials(context.Background())
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	credzRotateClient, err := credzClient.RotateAccountCredentials(ctx)
 	if err != nil {
 		t.Fatalf("Failed fetching credentialz rotate account credentials client, error: %s", err)
 	}
@@ -144,11 +164,24 @@ func sendAccountCredentialsRequest(t *testing.T, dut *ondatra.DUTDevice, request
 	}
 	err = credzRotateClient.Send(&cpb.RotateAccountCredentialsRequest{
 		Request: &cpb.RotateAccountCredentialsRequest_Finalize{
-			Finalize: request.GetFinalize(),
+			Finalize: &cpb.FinalizeRequest{},
 		},
 	})
 	if err != nil {
 		t.Fatalf("Failed sending credentialz rotate account credentials finalize request, error: %s", err)
+	}
+	if err := credzRotateClient.CloseSend(); err != nil {
+		t.Fatalf("Failed closing credentialz rotate account credentials stream, error: %s", err)
+	}
+	// Wait for the target to close the RPC before starting another rotation.
+	for {
+		_, err := credzRotateClient.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Failed waiting for credentialz rotate account credentials completion, error: %s", err)
+		}
 	}
 	// Brief sleep for finalize to get processed.
 	time.Sleep(time.Second)
