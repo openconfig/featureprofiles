@@ -19,11 +19,9 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math/rand"
 	"net"
 	"regexp"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -39,7 +37,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	netutil "github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ygot/ygot"
 )
 
@@ -326,23 +323,27 @@ func createTraffic(t *testing.T, ate *ondatra.ATEDevice, config gosnappi.Config)
 	eth.Dst().SetValue(dstMac)
 	ipv4 := flow.Packet().Add().Ipv4()
 	if *randomSrcIP {
-		ipv4.Src().SetValues(generateRandomIPList(t, ateSrcNetFirstIP+"/32", ateSrcNetCount))
+		ipSrcRand := ipv4.Src().Random()
+		ipSrcRand.SetMin(ateSrcNetFirstIP).SetMax("198.51.100.251").SetCount(ateSrcNetCount)
 	} else {
 		ipv4.Src().Increment().SetStart(ateSrcNetFirstIP).SetCount(uint32(ateSrcNetCount))
 	}
 	if *randomDstIP {
-		ipv4.Dst().SetValues(generateRandomIPList(t, ateDstNetFirstIP+"/32", ateDstNetCount))
+		ipDstRand := ipv4.Dst().Random()
+		ipDstRand.SetMin(ateDstNetFirstIP).SetMax("203.0.113.251").SetCount(ateDstNetCount)
 	} else {
 		ipv4.Dst().Increment().SetStart(ateDstNetFirstIP).SetCount(uint32(ateDstNetCount))
 	}
 	tcp := flow.Packet().Add().Tcp()
 	if *randomSrcPort {
-		tcp.SrcPort().SetValues((generateRandomPortList(65534)))
+		tcpSrcPortRand := tcp.SrcPort().Random()
+		tcpSrcPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	} else {
 		tcp.SrcPort().Increment().SetStart(1).SetCount(65534)
 	}
 	if *randomDstPort {
-		tcp.DstPort().SetValues(generateRandomPortList(65534))
+		tcpDstPortRand := tcp.DstPort().Random()
+		tcpDstPortRand.SetMin(1).SetMax(65535).SetCount(65534).SetSeed(1)
 	} else {
 		tcp.DstPort().Increment().SetStart(1).SetCount(65534)
 	}
@@ -405,15 +406,6 @@ func normalize(xs []uint64) (ys []float64, sum uint64) {
 	return ys, sum
 }
 
-// generates a list of random tcp ports values
-func generateRandomPortList(count uint) []uint32 {
-	a := make([]uint32, count)
-	for index := range a {
-		a[index] = uint32(rand.Intn(65536-1) + 1)
-	}
-	return a
-}
-
 // portWants converts the nextHop wanted weights to per-port wanted
 // weights listed in the same order as atePorts.
 func portWants(nexthops []nextHop, atePorts []*ondatra.Port) []float64 {
@@ -457,25 +449,4 @@ func incrementMAC(mac string, i int) (string, error) {
 	}
 	newMac := net.HardwareAddr(buf.Bytes()[2:8])
 	return newMac.String(), nil
-}
-
-func generateRandomIPList(t testing.TB, cidr string, count int) []string {
-	t.Helper()
-	gotNets := make([]string, 0)
-	for net := range netutil.GenCIDRs(t, cidr, count) {
-		gotNets = append(gotNets, strings.ReplaceAll(net, "/32", ""))
-	}
-
-	// Make a copy of the input slice to avoid modifying the original
-	randomized := make([]string, len(gotNets))
-	copy(randomized, gotNets)
-
-	// Shuffle the slice of elements
-	for i := len(randomized) - 1; i > 0; i-- {
-		j := rand.Intn(i + 1)
-		randomized[i], randomized[j] = randomized[j], randomized[i]
-	}
-
-	return randomized
-
 }
