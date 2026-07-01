@@ -220,6 +220,7 @@ func TestListDelete(t *testing.T) {
 	gnoiClient2 := dut2.RawAPIs().GNOI(t)
 
 	clients := []gnoigo.Clients{gnoiClient1, gnoiClient2}
+clientsThatIssuedDeletes := []int{}
 	for i, client := range clients {
 		t.Logf("Check client: %d", i+1)
 		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
@@ -238,13 +239,22 @@ func TestListDelete(t *testing.T) {
 					t.Fatalf("Failed to handle gnoi LinkQualification().Delete(): %v", err)
 				}
 			}
+clientsThatIssuedDeletes = append(clientsThatIssuedDeletes, i)
 		} else {
 			t.Logf("The LinkQualification request was not found on client %d", i+1)
 			continue
 		}
+	}
 
+if len(clientsThatIssuedDeletes) > 0 && deviations.LinkQualWaitAfterDeleteRequired(dut1) {
+		time.Sleep(10 * time.Second)
+	}
+
+for _, i := range clientsThatIssuedDeletes {
+		client := clients[i]
 		t.Logf("Verify that the qualification has been deleted on client %d", i+1)
-		listResp, err = client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
+		t.Logf("Verify that the qualification has been deleted on client %d", i+1)
+		listResp, err := client.LinkQualification().List(context.Background(), &plqpb.ListRequest{})
 		t.Logf("LinkQualification().List(): %v, err: %v", listResp, err)
 		if err != nil {
 			t.Fatalf("Failed to handle gnoi LinkQualification().List(): %v", err)
@@ -252,9 +262,6 @@ func TestListDelete(t *testing.T) {
 		if got, want := len(listResp.GetResults()), 0; got != want {
 			t.Errorf("len(listResp.GetResults()): got %v, want %v", got, want)
 		}
-	}
-	if deviations.LinkQualWaitAfterDeleteRequired(dut1) {
-		time.Sleep(10 * time.Second)
 	}
 }
 
