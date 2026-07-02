@@ -2665,3 +2665,8 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
   exec: " "
 }
+test: {
+  id: "RT-1.106"
+  description: "BGP RT Membership Constraints (RFC 4684)"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_rt_membership/README.md"
+}
