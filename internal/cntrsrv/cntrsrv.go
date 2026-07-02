@@ -30,6 +30,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"flag" // NOLINT
 	"fmt"
@@ -90,14 +91,42 @@ func (r *rpcCredentials) RequireTransportSecurity() bool {
 	return true
 }
 
+func transportCredentials(req *cpb.DialRequest) (credentials.TransportCredentials, error) {
+	tlsConfig := &tls.Config{InsecureSkipVerify: true} // NOLINT
+	tlsCreds := req.GetTlsCredentials()
+	if tlsCreds == nil {
+		return credentials.NewTLS(tlsConfig), nil
+	}
+
+	tlsConfig.InsecureSkipVerify = tlsCreds.GetSkipVerify() // NOLINT
+	tlsConfig.ServerName = tlsCreds.GetServerName()
+	if len(tlsCreds.GetTrustBundle()) != 0 {
+		roots := x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(tlsCreds.GetTrustBundle()) {
+			return nil, fmt.Errorf("error loading target trust bundle")
+		}
+		tlsConfig.RootCAs = roots
+	}
+	if len(tlsCreds.GetCertificate()) != 0 || len(tlsCreds.GetPrivateKey()) != 0 {
+		cert, err := tls.X509KeyPair(tlsCreds.GetCertificate(), tlsCreds.GetPrivateKey())
+		if err != nil {
+			return nil, fmt.Errorf("error loading client certificate: %w", err)
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+	}
+	return credentials.NewTLS(tlsConfig), nil
+}
+
 // Dial connects to the remote gRPC CNTR server hosted at the address in the request proto.
 func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, error) {
 	klog.Infof("Dial request received!")
+	tlsCredentials, err := transportCredentials(req)
+	if err != nil {
+		return nil, err
+	}
 	conn, err := grpc.NewClient(req.GetAddr(),
 		grpc.WithPerRPCCredentials(&rpcCredentials{Username: req.GetUsername(), Password: req.GetPassword()}),
-		grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-			InsecureSkipVerify: true, // NOLINT
-		})))
+		grpc.WithTransportCredentials(tlsCredentials))
 	if err != nil {
 		klog.Infof("error dialling target at %s, %v", req.GetAddr(), err)
 		return nil, err

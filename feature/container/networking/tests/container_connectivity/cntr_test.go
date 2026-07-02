@@ -20,10 +20,12 @@ package cntr_test
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -33,6 +35,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	bindpb "github.com/openconfig/featureprofiles/topologies/proto/binding"
 	"github.com/openconfig/gribigo/fluent"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
@@ -42,8 +45,10 @@ import (
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	cpb "github.com/openconfig/featureprofiles/internal/cntrsrv/proto/cntr"
 )
@@ -53,7 +58,7 @@ func TestMain(m *testing.M) {
 }
 
 var (
-	containerTar = flag.String("container_tar", "/tmp/cntrsrv.tar", "The container tarball to deploy.")
+	containerTar = flag.String("container_tar", "/tmp/cntrsrv_mtls.tar", "The container tarball to deploy.")
 	// containerTarPath returns the path to the container tarball.
 	// This can be overridden for internal testing behavior using init().
 	containerTarPath = func(t *testing.T) string {
@@ -102,7 +107,7 @@ func dialContainer(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, po
 		t.Skipf("BindingDUT %T does not implement DialGRPCWithPort, which is required for this test: %v", bindingDUT, err)
 	}
 
-	conn, err := dialer.DialGRPCWithPort(ctx, port)
+	conn, err := dialer.DialGRPCWithPort(ctx, port, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))) // NOLINT
 	if err != nil {
 		t.Fatalf("DialGRPCWithPort failed: %v", err)
 	}
@@ -162,6 +167,67 @@ type DUTCredentialer interface {
 	RPCPassword() string
 }
 
+func bindingTLSCredentials(t *testing.T, dutID string, srv cpb.Service) *cpb.TLSCredentials {
+	t.Helper()
+	bindingFlag := flag.Lookup("binding")
+	if bindingFlag == nil || bindingFlag.Value.String() == "" {
+		return nil
+	}
+	bindingText, err := os.ReadFile(bindingFlag.Value.String())
+	if err != nil {
+		t.Fatalf("reading binding file %q: %v", bindingFlag.Value.String(), err)
+	}
+	b := &bindpb.Binding{}
+	if err := prototext.Unmarshal(bindingText, b); err != nil {
+		t.Fatalf("parsing binding file %q: %v", bindingFlag.Value.String(), err)
+	}
+
+	var dut *bindpb.Device
+	for _, candidate := range b.GetDuts() {
+		if candidate.GetId() == dutID || candidate.GetName() == dutID {
+			dut = candidate
+			break
+		}
+	}
+	if dut == nil {
+		return nil
+	}
+
+	mergeOptions := func(opts ...*bindpb.Options) *bindpb.Options {
+		result := &bindpb.Options{}
+		for _, opt := range opts {
+			if opt != nil {
+				proto.Merge(result, opt)
+			}
+		}
+		return result
+	}
+	serviceOptions := dut.GetGnmi()
+	if srv == cpb.Service_ST_GRIBI {
+		serviceOptions = dut.GetGribi()
+	}
+	opts := mergeOptions(b.GetOptions(), dut.GetOptions(), serviceOptions)
+	if !opts.GetMutualTls() {
+		return nil
+	}
+	if opts.GetTrustBundleFile() == "" || opts.GetCertFile() == "" || opts.GetKeyFile() == "" {
+		t.Fatalf("binding mTLS options for %s require trust_bundle_file, cert_file, and key_file", dutID)
+	}
+	read := func(path string) []byte {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("reading mTLS file %q: %v", path, err)
+		}
+		return data
+	}
+	return &cpb.TLSCredentials{
+		TrustBundle: read(opts.GetTrustBundleFile()),
+		Certificate: read(opts.GetCertFile()),
+		PrivateKey:  read(opts.GetKeyFile()),
+		SkipVerify:  true,
+	}
+}
+
 // TestDialLocal implements CNTR-3, validating that it is possible for a
 // container running on the device to connect to local gRPC services that are
 // running on the DUT.
@@ -184,6 +250,8 @@ func TestDialLocal(t *testing.T) {
 	}
 	username := creds.RPCUsername()
 	password := creds.RPCPassword()
+	gnmiTLSCredentials := bindingTLSCredentials(t, dut.Name(), cpb.Service_ST_GNMI)
+	gribiTLSCredentials := bindingTLSCredentials(t, dut.Name(), cpb.Service_ST_GRIBI)
 
 	// The container dials back into the DUT's loopback. Some platforms do not
 	// route the unspecified IPv6 address ([::]) to the host network stack
@@ -224,9 +292,10 @@ func TestDialLocal(t *testing.T) {
 	}{{
 		desc: "dial gNMI",
 		inMsg: &cpb.DialRequest{
-			Addr:     fmt.Sprintf("%s:%d", dialAddr, gnmiPort),
-			Username: username,
-			Password: password,
+			Addr:           fmt.Sprintf("%s:%d", dialAddr, gnmiPort),
+			Username:       username,
+			Password:       password,
+			TlsCredentials: gnmiTLSCredentials,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GNMI,
 			},
@@ -235,9 +304,10 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial gRIBI",
 		inMsg: &cpb.DialRequest{
-			Addr:     fmt.Sprintf("%s:%d", dialAddr, gribiPort),
-			Username: username,
-			Password: password,
+			Addr:           fmt.Sprintf("%s:%d", dialAddr, gribiPort),
+			Username:       username,
+			Password:       password,
+			TlsCredentials: gribiTLSCredentials,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GRIBI,
 			},
@@ -247,9 +317,10 @@ func TestDialLocal(t *testing.T) {
 	}, {
 		desc: "dial something not listening",
 		inMsg: &cpb.DialRequest{
-			Addr:     dialAddr + ":4242",
-			Username: username,
-			Password: password,
+			Addr:           dialAddr + ":4242",
+			Username:       username,
+			Password:       password,
+			TlsCredentials: gribiTLSCredentials,
 			Request: &cpb.DialRequest_Srv{
 				Srv: cpb.Service_ST_GRIBI,
 			},
