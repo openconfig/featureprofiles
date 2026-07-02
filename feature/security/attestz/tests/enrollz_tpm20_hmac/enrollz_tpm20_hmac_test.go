@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	fpb "github.com/openconfig/gnoi/file"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
@@ -27,12 +28,15 @@ import (
 	cpb "github.com/openconfig/attestz/proto/common_definitions"
 	epb "github.com/openconfig/attestz/proto/tpm_enrollz"
 	"github.com/openconfig/attestz/service/biz"
+	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/topologies/binding"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -48,9 +52,9 @@ const (
 	probeTimeout          = 30 * time.Second
 	retrySleepTime        = 10 * time.Second
 	rebootProbeSleep      = 15 * time.Second
-	rebootProbeRPCTO      = 60 * time.Second
-	rebootTimeout         = 10 * time.Minute
-	enrollzRestartTimeout = 5 * time.Minute
+	rebootTimeout         = 5 * time.Minute
+	enrollzRestartTimeout = 2 * time.Minute
+	configBackupFile      = "enrollz_config.cfg"
 )
 
 var (
@@ -69,12 +73,6 @@ type hmacEnrollDeps struct {
 	enrollzC epb.TpmEnrollzServiceClient
 	biz.ROTDBClient
 	biz.SwitchOwnerCaClient
-}
-
-type sslProfileParams struct {
-	CertFile    string
-	KeyFile     string
-	ProfileName string
 }
 
 func (d *hmacEnrollDeps) GetIakCert(ctx context.Context, req *epb.GetIakCertRequest) (*epb.GetIakCertResponse, error) {
@@ -200,16 +198,39 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ctx := t.Context()
 	dutTime = systemTime(t, dut)
-	cwd, _ := os.Getwd()
+	cwd, cwdErr := os.Getwd()
+	if cwdErr != nil {
+		t.Fatalf("os.Getwd() failed: %v", cwdErr)
+	}
 	enrollzCert = filepath.Join(cwd, enrollzCertFilename)
 	enrollzKey = filepath.Join(cwd, enrollzKeyFilename)
+	checkFilesExist(t, enrollzCert, enrollzKey)
 
 	ownerCA := newOwnerCAClient(t, dut)
-	enrollzC := enrollzClient(t, dut)
+	clientCert, err := tls.LoadX509KeyPair(enrollzCert, enrollzKey)
+	if err != nil {
+		t.Fatalf("load enrollz cert/key for TLS config: %v", err)
+	}
+	caPool := x509.NewCertPool()
+	caPool.AddCert(ownerCA.ca)
+
+	enrollzTLSCfg := &tls.Config{
+		Certificates: []tls.Certificate{clientCert},
+		RootCAs:      caPool,
+	}
+
+	initialTLSCfg := &tls.Config{
+		Certificates:       []tls.Certificate{clientCert},
+		InsecureSkipVerify: true,
+	}
+
+	enrollzC, err := enrollzClientWithTLS(t, dut, initialTLSCfg)
+	if err != nil {
+		t.Fatalf("enrollzClientWithTLS initial connection: %v", err)
+	}
 	enrollSels, hasStandby := enrollmentSelections(t, ctx, enrollzC)
 
 	var baseline iakCertBaseline
-	var enrollzProfileParams *sslProfileParams
 
 	unspecifiedCard := func() *cpb.ControlCardSelection {
 		return &cpb.ControlCardSelection{
@@ -229,8 +250,8 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.1-SuccessfulEnrollmentWithEK",
 			"Successful enrollment using EK stored in the RoT database",
 			func(t *testing.T) error {
-				edRotDB := newTestROTDBClient(t, dut, epb.Key_KEY_EK)
-				deps := newHMACEnrollDeps(enrollzClient(t, dut), edRotDB, ownerCA)
+				edRotDB := newROTDBClient(t, dut, epb.Key_KEY_EK)
+				deps := newHMACEnrollDeps(enrollzC, edRotDB, ownerCA)
 				if err := enrollControlCards(ctx, deps, defaultSSLProfile, enrollSels...); err != nil {
 					if !isEnrollmentRestart(err) {
 						return fmt.Errorf("EK-based enrollment failed : %w", err)
@@ -238,16 +259,14 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 					t.Logf("EK-based enrollment triggered service restart (expected): %v", err)
 				}
 				waitForDUTEnrollzEnrollment(t, dut)
-				enrollzC = enrollzClientWithCA(t, dut, ownerCA.ca)
+				enrollzC, err := enrollzClientWithTLS(t, dut, enrollzTLSCfg)
+				if err != nil {
+					return err
+				}
 				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
 					return err
 				}
 				baseline = captureIAKBaseline(t, ctx, dut, enrollzC, hasStandby)
-				var err error
-				enrollzProfileParams, err = enrollzSSLProfileInfo(t, dut, defaultSSLProfile)
-				if err != nil {
-					return fmt.Errorf("failed to get SSL profile info: %w", err)
-				}
 				t.Log("EK-based enrollment succeeded – oIAK and oIDevID installed on all control cards")
 				return nil
 			},
@@ -265,16 +284,14 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 					t.Logf("PPK-based enrollment triggered service restart (expected): %v", err)
 				}
 				waitForDUTEnrollzEnrollment(t, dut)
-				enrollzC = enrollzClientWithCA(t, dut, ownerCA.ca)
+				enrollzC, err := enrollzClientWithTLS(t, dut, enrollzTLSCfg)
+				if err != nil {
+					return err
+				}
 				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
 					return err
 				}
 				baseline = captureIAKBaseline(t, ctx, dut, enrollzC, hasStandby)
-				var err error
-				enrollzProfileParams, err = enrollzSSLProfileInfo(t, dut, defaultSSLProfile)
-				if err != nil {
-					return fmt.Errorf("failed to get SSL profile info: %w", err)
-				}
 				t.Log("PPK-based enrollment succeeded – oIAK and oIDevID installed on all control cards")
 				return nil
 			},
@@ -283,7 +300,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.3-InvalidClientCertificate",
 			"Enrollz service presents an invalid client certificate",
 			func(t *testing.T) error {
-				badClient, err := enrollzClientWithTLS(t, gnsiAddr(t, dut), invalidTLSConfig(t))
+				badClient, err := enrollzClientWithTLS(t, dut, invalidTLSConfig(t))
 				if err != nil {
 					t.Logf("connection rejected at dial time (expected): %v", err)
 					return nil
@@ -423,8 +440,14 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.15-InvalidEKWrapping",
 			"ChallengeRequest with correct key type KEY_EK but challenge wrapped with invalid EK",
 			func(t *testing.T) error {
-				wrongKey, _ := rsa.GenerateKey(rand.Reader, rsaKeyBits)
-				wrongPub, _ := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
+				wrongKey, keyErr := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+				if keyErr != nil {
+					return fmt.Errorf("failed to generate RSA key: %w", keyErr)
+				}
+				wrongPub, keyErr := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
+				if keyErr != nil {
+					return fmt.Errorf("failed to marshal public key: %w", keyErr)
+				}
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
 					Challenge:            &epb.HMACChallenge{HmacPubKey: wrongPub, Duplicate: []byte("d-wrong-ek"), InSymSeed: []byte("s-wrong-ek")},
@@ -437,8 +460,14 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.16-InvalidPPKWrapping",
 			"ChallengeRequest with correct key type KEY_PPK but challenge wrapped with invalid PPK",
 			func(t *testing.T) error {
-				wrongKey, _ := rsa.GenerateKey(rand.Reader, rsaKeyBits)
-				wrongPub, _ := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
+				wrongKey, keyErr := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+				if keyErr != nil {
+					return fmt.Errorf("failed to generate RSA key: %w", keyErr)
+				}
+				wrongPub, keyErr := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
+				if keyErr != nil {
+					return fmt.Errorf("failed to marshal public key: %w", keyErr)
+				}
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
 					Challenge:            &epb.HMACChallenge{HmacPubKey: wrongPub, Duplicate: []byte("d-wrong-ppk"), InSymSeed: []byte("s-wrong-ppk")},
@@ -643,7 +672,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 					return fmt.Errorf("no standby control card available")
 				}
 				mixedOwnerCA := &oIAKOnlyForStandbyCAClient{ownerCA}
-				rotDB := newTestROTDBClient(t, dut, epb.Key_KEY_EK)
+				rotDB := newROTDBClient(t, dut, epb.Key_KEY_EK)
 				deps := newHMACEnrollDeps(enrollzC, rotDB, mixedOwnerCA)
 				if err := enrollControlCards(ctx, deps, defaultSSLProfile, activeCard(), standbyCard()); err != nil {
 					if !isEnrollmentRestart(err) {
@@ -652,7 +681,10 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 					t.Logf("Mixed card enrollment triggered service restart (expected): %v", err)
 				}
 				waitForDUTEnrollzEnrollment(t, dut)
-				enrollzC = enrollzClientWithCA(t, dut, ownerCA.ca)
+				enrollzC, err := enrollzClientWithTLS(t, dut, enrollzTLSCfg)
+				if err != nil {
+					return err
+				}
 				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
 					return err
 				}
@@ -664,7 +696,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.30-RebootAfterEnrollment",
 			"Reboot after successful enrollment; certs must persist",
 			func(t *testing.T) error {
-				rotDB := newTestROTDBClient(t, dut, epb.Key_KEY_EK)
+				rotDB := newROTDBClient(t, dut, epb.Key_KEY_EK)
 				deps := newHMACEnrollDeps(enrollzC, rotDB, ownerCA)
 				if err := enrollControlCards(ctx, deps, defaultSSLProfile, enrollSels...); err != nil {
 					if !isEnrollmentRestart(err) {
@@ -674,8 +706,11 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				}
 				waitForDUTEnrollzEnrollment(t, dut)
 				t.Log("Rebooting DUT after successful enrollment...")
-				rebootDUT(t, dut, enrollzProfileParams)
-				enrollzC = enrollzClientWithCA(t, dut, ownerCA.ca)
+				rebootDUT(t, dut)
+				enrollzC, err := enrollzClientWithTLS(t, dut, enrollzTLSCfg)
+				if err != nil {
+					return err
+				}
 				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
 					return err
 				}
@@ -696,8 +731,8 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				}); err != nil {
 					return fmt.Errorf("GetIdevidCsr failed before reboot: %w", err)
 				}
-				rebootDUT(t, dut, enrollzProfileParams)
-				freshRotDB := newTestROTDBClient(t, dut, epb.Key_KEY_EK)
+				rebootDUT(t, dut)
+				freshRotDB := newROTDBClient(t, dut, epb.Key_KEY_EK)
 				deps := newHMACEnrollDeps(enrollzC, freshRotDB, ownerCA)
 				if err := enrollControlCards(ctx, deps, defaultSSLProfile, enrollSels...); err != nil {
 					if !isEnrollmentRestart(err) {
@@ -706,7 +741,10 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 					t.Logf("Re-enrollment triggered service restart (expected): %v", err)
 				}
 				waitForDUTEnrollzEnrollment(t, dut)
-				enrollzC = enrollzClientWithCA(t, dut, ownerCA.ca)
+				enrollzC, err := enrollzClientWithTLS(t, dut, enrollzTLSCfg)
+				if err != nil {
+					return err
+				}
 				if err := verifyCerts(t, ctx, dut, enrollzC, ownerCA, hasStandby, nil); err != nil {
 					return err
 				}
@@ -724,40 +762,22 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 	}
 }
 
-func enrollzClient(t *testing.T, dut *ondatra.DUTDevice) epb.TpmEnrollzServiceClient {
-	t.Helper()
-	gnsiC, err := dut.RawAPIs().BindingDUT().DialGNSI(t.Context())
-	if err != nil {
-		t.Fatalf("DialGNSI: %v", err)
+func checkFilesExist(t *testing.T, files ...string) {
+	for _, file := range files {
+		t.Logf("Checking file: %s", file)
+		if _, err := os.Stat(file); os.IsNotExist(err) {
+			t.Fatalf("file does not exist: %s", file)
+		} else if err != nil {
+			t.Fatalf("error checking file %s: %v", file, err)
+		}
 	}
-	return gnsiC.Enrollz()
 }
 
-func enrollzClientWithCA(t *testing.T, dut *ondatra.DUTDevice, ca *x509.Certificate) epb.TpmEnrollzServiceClient {
+func enrollzClientWithTLS(t *testing.T, dut *ondatra.DUTDevice, tlsCfg *tls.Config) (epb.TpmEnrollzServiceClient, error) {
 	t.Helper()
-	pool := x509.NewCertPool()
-	pool.AddCert(ca)
-	clientCert, err := tls.LoadX509KeyPair(enrollzCert, enrollzKey)
-	if err != nil {
-		t.Fatalf("enrollzClientWithCA: load enrollz cert/key: %v", err)
-	}
-	tlsCfg := &tls.Config{
-		Certificates: []tls.Certificate{clientCert},
-		RootCAs:      pool,
-	}
 	gnsiDialer := introspect.DUTDialer(t, dut, introspect.GNSI)
 	opts := append(gnsiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
 	conn, err := grpc.NewClient(gnsiDialer.DialTarget, opts...)
-	if err != nil {
-		t.Fatalf("enrollzClientWithCA: %v", err)
-	}
-
-	return epb.NewTpmEnrollzServiceClient(conn)
-}
-
-func enrollzClientWithTLS(t *testing.T, addr string, tlsCfg *tls.Config) (epb.TpmEnrollzServiceClient, error) {
-	t.Helper()
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
 	if err != nil {
 		return nil, err
 	}
@@ -778,46 +798,41 @@ func dutMTLSConfig(t *testing.T) *tls.Config {
 }
 
 func fetchPPKPubFromDut(c *ROTDBClient, ctx context.Context) (*biz.FetchEKResp, error) {
-	switch c.dut.Vendor() {
-	case ondatra.ARISTA:
-		gnoiDialer := introspect.DUTDialer(c.t, c.dut, introspect.GNOI)
-		opts := append(gnoiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
-		conn, err := grpc.NewClient(gnoiDialer.DialTarget, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("dial for PPK fetch: %w", err)
-		}
-		defer conn.Close()
-		stream, err := fpb.NewFileClient(conn).Get(ctx, &fpb.GetRequest{RemoteFile: dutPPKFilePath})
-		if err != nil {
-			return nil, fmt.Errorf("File.Get(%s): %w\nEnsure DUT ppk retrieval sequence has run: /usr/bin/tpm2_readPubPpk > %s", dutPPKFilePath, err, dutPPKFilePath)
-		}
-		var content []byte
-		for {
-			resp, err := stream.Recv()
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return nil, fmt.Errorf("File.Get stream: %w", err)
-			}
-			content = append(content, resp.GetContents()...)
-		}
-		block, _ := pem.Decode(content)
-		if block == nil {
-			return nil, fmt.Errorf("%s on DUT: no PEM block in content: %q", dutPPKFilePath, strings.TrimSpace(string(content)))
-		}
-		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("%s: parse PUBLIC KEY: %w", dutPPKFilePath, err)
-		}
-		rsaPub, ok := pub.(*rsa.PublicKey)
-		if !ok {
-			return nil, fmt.Errorf("%s: expected RSA public key, got %T", dutPPKFilePath, pub)
-		}
-		return &biz.FetchEKResp{EkPublicKey: rsaPub, KeyType: epb.Key_KEY_PPK}, nil
-	default:
-		return nil, fmt.Errorf("PPK fetch not implemented for vendor %q", c.dut.Vendor())
+	gnoiDialer := introspect.DUTDialer(c.t, c.dut, introspect.GNOI)
+	opts := append(gnoiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
+	conn, err := grpc.NewClient(gnoiDialer.DialTarget, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("dial for PPK fetch: %w", err)
 	}
+	defer conn.Close()
+	stream, err := fpb.NewFileClient(conn).Get(ctx, &fpb.GetRequest{RemoteFile: dutPPKFilePath})
+	if err != nil {
+		return nil, fmt.Errorf("File.Get(%s): %w\nEnsure DUT ppk retrieval sequence has run: /usr/bin/tpm2_readPubPpk > %s", dutPPKFilePath, err, dutPPKFilePath)
+	}
+	var content []byte
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("File.Get stream: %w", err)
+		}
+		content = append(content, resp.GetContents()...)
+	}
+	block, _ := pem.Decode(content)
+	if block == nil {
+		return nil, fmt.Errorf("%s on DUT: no PEM block in content: %q", dutPPKFilePath, strings.TrimSpace(string(content)))
+	}
+	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("%s: parse PUBLIC KEY: %w", dutPPKFilePath, err)
+	}
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("%s: expected RSA public key, got %T", dutPPKFilePath, pub)
+	}
+	return &biz.FetchEKResp{EkPublicKey: rsaPub, KeyType: epb.Key_KEY_PPK}, nil
 }
 
 func fetchEKFromDUT(c *ROTDBClient, ctx context.Context, req *biz.FetchEKReq) (*biz.FetchEKResp, error) {
@@ -970,7 +985,7 @@ func waitForDUTEnrollzEnrollment(t *testing.T, dut *ondatra.DUTDevice) {
 	time.Sleep(rebootProbeSleep)
 	deadline := time.Now().Add(enrollzRestartTimeout)
 	for time.Now().Before(deadline) {
-		err := dutProbe(t, dut)
+		err := probeEnrollz(t, dut)
 		if err == nil {
 			t.Log("DUT enrollz service recovered after enrollment")
 			return
@@ -981,7 +996,23 @@ func waitForDUTEnrollzEnrollment(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Fatal("DUT enrollz service did not recover within timeout after enrollment")
 }
 
-func probeEnrollz(t *testing.T, dut *ondatra.DUTDevice, fn func(context.Context, epb.TpmEnrollzServiceClient) error) error {
+func probeGNMI(t *testing.T, dut *ondatra.DUTDevice) error {
+	t.Helper()
+	conn, err := insecureGNMIClient(t, dut)
+	if err != nil {
+		return fmt.Errorf("gnmi dial: %w", err)
+	}
+	defer conn.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
+	defer cancel()
+	_, err = gpb.NewGNMIClient(conn).Capabilities(ctx, &gpb.CapabilityRequest{})
+	if err == nil || status.Code(err) == codes.InvalidArgument || status.Code(err) == codes.Unauthenticated {
+		return nil
+	}
+	return err
+}
+
+func probeEnrollz(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	gnsiDialer := introspect.DUTDialer(t, dut, introspect.GNSI)
 	opts := append(gnsiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
@@ -990,33 +1021,18 @@ func probeEnrollz(t *testing.T, dut *ondatra.DUTDevice, fn func(context.Context,
 		return fmt.Errorf("probe dial: %w", err)
 	}
 	defer conn.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), rebootProbeRPCTO)
+	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
-	return fn(ctx, epb.NewTpmEnrollzServiceClient(conn))
-}
-
-func dutProbe(t *testing.T, dut *ondatra.DUTDevice) error {
-	return probeEnrollz(t, dut, func(ctx context.Context, enrollzC epb.TpmEnrollzServiceClient) error {
-		_, err := enrollzC.GetControlCardVendorID(ctx, &epb.GetControlCardVendorIDRequest{
-			ControlCardSelection: activeCard(),
-		})
-		return err
+	_, enrollzErr := epb.NewTpmEnrollzServiceClient(conn).GetControlCardVendorID(ctx, &epb.GetControlCardVendorIDRequest{
+		ControlCardSelection: activeCard(),
 	})
+	return enrollzErr
 }
 
-func dutProbeIdevidCsr(t *testing.T, dut *ondatra.DUTDevice) error {
-	return probeEnrollz(t, dut, func(ctx context.Context, enrollzC epb.TpmEnrollzServiceClient) error {
-		_, err := enrollzC.GetIdevidCsr(ctx, &epb.GetIdevidCsrRequest{
-			ControlCardSelection: activeCard(),
-			KeyTemplate:          epb.KeyTemplate_KEY_TEMPLATE_ECC_NIST_P384,
-			Key:                  epb.Key_KEY_EK,
-		})
-		return err
-	})
-}
-
-func rebootDUT(t *testing.T, dut *ondatra.DUTDevice, sslProfileParams *sslProfileParams) {
+func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
+	cfgplugins.BackUpConfig(t, dut, configBackupFile)
+
 	gnoiDialer := introspect.DUTDialer(t, dut, introspect.GNOI)
 	gnoiOpts := append(gnoiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
 	conn, err := grpc.NewClient(gnoiDialer.DialTarget, gnoiOpts...)
@@ -1040,7 +1056,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice, sslProfileParams *sslProfil
 	time.Sleep(rebootProbeSleep)
 	downDeadline := time.Now().Add(2 * time.Minute)
 	for time.Now().Before(downDeadline) {
-		if err := dutProbe(t, dut); err != nil {
+		if err := probeEnrollz(t, dut); err != nil {
 			t.Logf("DUT is going down: %v", err)
 			break
 		}
@@ -1050,98 +1066,19 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice, sslProfileParams *sslProfil
 
 	t.Log("Waiting for DUT to come back up...")
 	deadline := time.Now().Add(rebootTimeout)
-	var reconfigured bool
 	for time.Now().Before(deadline) {
 		time.Sleep(rebootProbeSleep)
-		probeErr := dutProbe(t, dut)
-		switch {
-		case probeErr == nil:
-			if icsrErr := dutProbeIdevidCsr(t, dut); icsrErr == nil {
-				t.Log("DUT is back up and enrollz service is ready")
-				return
-			} else {
-				t.Logf("Enrollz service not ready yet: %v", icsrErr)
-			}
-		case !reconfigured && needsReconfigure(probeErr):
-			t.Log("Enrollz service not ready after reboot; re-applying config via CLI...")
-			time.Sleep(rebootProbeSleep * 8)
-			reconfigureEnrollzService(t, dut, sslProfileParams)
-			reconfigured = true
-		default:
-			t.Logf("DUT not ready: %v", probeErr)
+		if err := probeGNMI(t, dut); err != nil {
+			t.Logf("DUT not yet reachable via gNMI: %v", err)
+			continue
 		}
+		t.Log("DUT is back up")
+		restoreRunningConfig(t, dut, configBackupFile)
+		waitForDUTEnrollzEnrollment(t, dut)
+
+		return
 	}
 	t.Fatal("DUT did not come back up within timeout after reboot")
-}
-
-func reconfigureEnrollzService(t *testing.T, dut *ondatra.DUTDevice, sslProfileParams *sslProfileParams) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cmds := strings.Join([]string{
-			"configure terminal",
-			"management security",
-			fmt.Sprintf("ssl profile %s", sslProfileParams.ProfileName),
-			fmt.Sprintf("certificate %s key %s", sslProfileParams.CertFile, sslProfileParams.KeyFile),
-			"exit",
-			"management api gnmi",
-			"transport grpc default",
-			fmt.Sprintf("ssl profile %s", sslProfileParams.ProfileName),
-			"exit",
-			"management api gnsi",
-			"transport gnmi default",
-			"service enrollz",
-			"service attestz",
-			"exit",
-		}, "\n")
-		cliClient := dut.RawAPIs().CLI(t)
-		out, err := cliClient.RunCommand(context.Background(), cmds)
-		if err != nil {
-			t.Fatalf("reconfigureEnrollzService CLI failed: %v", err)
-		}
-		t.Logf("Reconfigured enrollz service via CLI: %s", out.Output())
-	default:
-		t.Fatalf("reconfigureEnrollzService: unsupported vendor %v", dut.Vendor())
-	}
-}
-
-func enrollzSSLProfileInfo(t *testing.T, dut *ondatra.DUTDevice, profile string) (*sslProfileParams, error) {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		cliClient := dut.RawAPIs().CLI(t)
-		out, err := cliClient.RunCommand(context.Background(), "show running-config section management security")
-		if err != nil {
-			t.Fatalf("enrollzSSLProfileInfo: show running-config: %v", err)
-		}
-		lines := strings.Split(out.Output(), "\n")
-		inProfile := false
-		for _, line := range lines {
-			trimmed := strings.TrimSpace(line)
-			if trimmed == fmt.Sprintf("ssl profile %s", profile) {
-				inProfile = true
-				continue
-			}
-			if inProfile {
-				if trimmed != "" && line[0] != ' ' && line[0] != '\t' {
-					break
-				}
-				if strings.HasPrefix(trimmed, "certificate ") && strings.Contains(trimmed, " key ") {
-					rest := strings.TrimPrefix(trimmed, "certificate ")
-					parts := strings.SplitN(rest, " key ", 2)
-					if len(parts) == 2 {
-						certName := strings.TrimSpace(parts[0])
-						keyName := strings.TrimSpace(parts[1])
-						t.Logf("Found SSL profile %q cert/key: %s / %s", profile, certName, keyName)
-						return &sslProfileParams{CertFile: certName, KeyFile: keyName, ProfileName: profile}, nil
-					}
-				}
-			}
-		}
-		return nil, fmt.Errorf("certificate/key not found for SSL profile %q", profile)
-	default:
-		return nil, fmt.Errorf("unsupported vendor %v", dut.Vendor())
-	}
 }
 
 func enrollControlCards(ctx context.Context, deps *hmacEnrollDeps, sslProfileID string, sels ...*cpb.ControlCardSelection) error {
@@ -1290,16 +1227,6 @@ func captureIAKBaseline(t *testing.T, ctx context.Context, dut *ondatra.DUTDevic
 	return b
 }
 
-func newTestROTDBClient(t *testing.T, dut *ondatra.DUTDevice, keyType epb.Key) biz.ROTDBClient {
-	switch dut.Vendor() {
-	case ondatra.ARISTA:
-		return newROTDBClient(t, dut, keyType)
-	default:
-		t.Fatalf("no RoT DB client implementation for vendor %s", dut.Vendor())
-		return nil
-	}
-}
-
 func generateTestCA(t *testing.T) (*x509.Certificate, *rsa.PrivateKey) {
 	t.Helper()
 	caKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
@@ -1445,4 +1372,98 @@ func tlsRawServerCert(addr string) ([]byte, error) {
 		return nil, fmt.Errorf("no TLS certificate presented by %s", addr)
 	}
 	return raw, nil
+}
+
+func saveRunningConfigThroughGNMI(t *testing.T, dut *ondatra.DUTDevice) (string, error) {
+	t.Helper()
+	showCmd := cliShowRunningConfigCommand(t, dut)
+	req := &gpb.GetRequest{
+		Path: []*gpb.Path{{
+			Origin: "cli",
+			Elem:   []*gpb.PathElem{{Name: showCmd}},
+		}},
+		Encoding: gpb.Encoding_ASCII,
+	}
+	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
+	if err != nil {
+		return "", fmt.Errorf("baselineCLIConfig: gNMI Get CLI config: %w", err)
+	}
+	for _, notif := range resp.Notification {
+		for _, update := range notif.Update {
+			if s := update.Val.GetAsciiVal(); s != "" {
+				return s, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("baselineCLIConfig: no ASCII config in gNMI Get response")
+}
+
+func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA, ondatra.CISCO:
+		return "show running-config"
+	default:
+		t.Fatalf("unsupported vendor %v for CLI show running-config command", dut.Vendor())
+		return ""
+	}
+}
+
+type insecureRPCCreds struct{ username, password string }
+
+func (c insecureRPCCreds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
+	return map[string]string{"username": c.username, "password": c.password}, nil
+}
+func (c insecureRPCCreds) RequireTransportSecurity() bool { return false }
+
+func insecureGNMIClient(t *testing.T, dut *ondatra.DUTDevice) (*grpc.ClientConn, error) {
+	t.Helper()
+	username, password, err := binding.RPCCredentials(dut.RawAPIs().BindingDUT())
+	if err != nil {
+		return nil, fmt.Errorf("get binding credentials: %w", err)
+	}
+	gnmiTarget := introspect.DUTDialer(t, dut, introspect.GNMI).DialTarget
+	return grpc.NewClient(gnmiTarget,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithPerRPCCredentials(insecureRPCCreds{username: username, password: password}),
+	)
+}
+
+func restoreRunningConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	conn, err := insecureGNMIClient(t, dut)
+	if err != nil {
+		t.Fatalf("restoreRunningConfig: dial insecure gNMI: %v", err)
+	}
+	defer conn.Close()
+	cmd := fmt.Sprintf("configure replace flash:%s", fileName)
+	deadline := time.Now().Add(2 * time.Minute)
+	for {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		_, setErr := gpb.NewGNMIClient(conn).Set(ctx, &gpb.SetRequest{
+			Update: []*gpb.Update{{
+				Path: &gpb.Path{Origin: "cli"},
+				Val:  &gpb.TypedValue{Value: &gpb.TypedValue_AsciiVal{AsciiVal: cmd}},
+			}},
+		})
+		cancel()
+		if setErr == nil {
+			t.Logf("Successfully restored DUT config from flash:%s", fileName)
+			return
+		}
+		errStr := setErr.Error()
+		if strings.Contains(errStr, "system not yet initialized") {
+			t.Logf("DUT not fully initialized yet, retrying config restore...")
+			if time.Now().After(deadline) {
+				t.Fatalf("Timed out waiting for DUT initialization: %v", errStr)
+			}
+			time.Sleep(15 * time.Second)
+			continue
+		}
+		if strings.Contains(errStr, "Octa agent") {
+			t.Logf("Ignoring Octa informational warning during config restore: %v", errStr)
+			return
+		}
+		t.Fatalf("Failed to restore DUT config via insecure gNMI: %v", errStr)
+	}
 }

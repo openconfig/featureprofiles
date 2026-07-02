@@ -1357,3 +1357,13 @@ func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string
 		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
 	}
 }
+
+// BackUpConfig saves the current running configuration from the DUT into the specified file on local flash storage.
+func BackUpConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		t.Logf("Saving running-config to %s", fileName)
+		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("copy running-config flash:%s", fileName))
+	}
+}
