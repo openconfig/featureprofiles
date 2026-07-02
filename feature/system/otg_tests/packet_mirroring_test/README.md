@@ -115,8 +115,8 @@ rpcs:
     gNMI.Subscribe:
     gNMI.Set:
   gnoi:
-    gnoi.file.File.Get:
-    gnoi.file.File.Remove:
+    file.File.Get:
+    file.File.Remove:
 ```
 
 ## Canonical OC
