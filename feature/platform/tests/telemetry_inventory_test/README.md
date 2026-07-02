@@ -12,8 +12,44 @@ card, power supply, disk, flash, NPU, transceiver, fabric card), validate:
 *   Presence of component within gNMI telemetry.
 *   Set of telemetry paths required for network discovery (to be specified for
     each case).
+*   Validate component health status:
+    *   `/components/component/state/equipment-failure` must be `false` (or default to false if not supported).
+    *   `/components/component/state/equipment-mismatch` must be `false` (or default to false if not supported).
+*   Validate component power metrics (for `LINECARD`, `FABRIC`, `CONTROLLER_CARD`, `POWER_SUPPLY`):
+    *   `/components/component/state/allocated-power` must be populated with a valid non-negative number.
+    *   `/components/component/state/used-power` must be populated and greater than `0` for active components.
 *   TODO: Removal of telemetry when the component is removed or rebooted within
     the chassis, if applicable.
+
+## Canonical OC
+
+```json
+{
+  "components": {
+    "component": [
+      {
+        "name": "Linecard1",
+        "config": {
+          "name": "Linecard1"
+        },
+        "linecard": {
+          "config": {
+            "power-admin-state": "oc-platform-types:POWER_ENABLED"
+          }
+        },
+        "state": {
+          "name": "Linecard1",
+          "type": "oc-platform-types:LINECARD",
+          "oper-status": "oc-platform-types:ACTIVE",
+          "equipment-failure": false,
+          "allocated-power": 350,
+          "used-power": 280
+        }
+      }
+    ]
+  }
+}
+```
 
 ## Config Parameter coverage
 
@@ -31,8 +67,14 @@ TODO:
 ```yaml
 paths:
 
+    /components/component/state/allocated-power:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/description:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY"]
+    /components/component/state/equipment-failure:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
+    /components/component/state/equipment-mismatch:
+       platform_type: ["CHASSIS", "CONTROLLER_CARD", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "TRANSCEIVER"]
     /components/component/state/firmware-version:
        platform_type: ["TRANSCEIVER"]
     /components/component/state/hardware-version:
@@ -61,6 +103,8 @@ paths:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "LINECARD", "POWER_SUPPLY", "STORAGE", "TRANSCEIVER"]
     /components/component/state/type:
        platform_type: ["CHASSIS", "CONTROLLER_CARD", "CPU", "FABRIC", "FAN", "FAN_TRAY", "INTEGRATED_CIRCUIT", "LINECARD", "POWER_SUPPLY", "SENSOR", "STORAGE", "TRANSCEIVER"]
+    /components/component/state/used-power:
+       platform_type: ["CONTROLLER_CARD", "FABRIC", "LINECARD", "POWER_SUPPLY"]
     /components/component/state/temperature/alarm-status:
        platform_type: ["SENSOR"]
     /components/component/state/temperature/instant:
