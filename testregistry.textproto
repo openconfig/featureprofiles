@@ -2633,6 +2633,12 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/macsec/otg_tests/macsec/README.md"
   exec: " "
 }
+test: {
+  id: "MSEC-1.2"
+  description: "MACsec Line Rate Performance Verification"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/macsec/otg_tests/linerate/README.md"
+  exec: " "
+}
 
 
 test: {

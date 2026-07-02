@@ -1,0 +1,7 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "1ae3c4fa-1473-468b-9147-2eca1b4ecd97"
+plan_id: "MSEC-1.2"
+description: "MACsec Line Rate Performance Verification"
+testbed: TESTBED_DUT_ATE_2LINKS
