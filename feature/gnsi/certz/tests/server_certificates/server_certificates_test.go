@@ -34,7 +34,7 @@ import (
 )
 
 const (
-	dirPath                  = "../../test_data/"
+	dirPath = "../../test_data/"
 )
 
 // DUTCredentialer is an interface for getting credentials from a DUT binding.
