@@ -760,6 +760,13 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisIntfID = intfName + ".0"
 	}
 	isisIntf := isis.GetOrCreateInterface(isisIntfID)
+	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
+	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
+
+	if deviations.InterfaceRefConfigUnsupported(dut) {
+		isisIntf.InterfaceRef = nil
+	}
+
 	isisIntf.Enabled = ygot.Bool(true)
 	isisIntf.CircuitType = oc.Isis_CircuitType_POINT_TO_POINT
 	isisIntf.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
