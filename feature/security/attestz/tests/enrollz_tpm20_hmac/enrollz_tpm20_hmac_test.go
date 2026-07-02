@@ -20,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	fpb "github.com/openconfig/gnoi/file"
 	"github.com/openconfig/ondatra/binding/introspect"
 	"github.com/openconfig/ondatra/gnmi"
@@ -30,13 +29,11 @@ import (
 	"github.com/openconfig/attestz/service/biz"
 	"github.com/openconfig/featureprofiles/internal/cfgplugins"
 	"github.com/openconfig/featureprofiles/internal/fptest"
-	"github.com/openconfig/featureprofiles/topologies/binding"
 	spb "github.com/openconfig/gnoi/system"
 	"github.com/openconfig/ondatra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 )
 
@@ -968,17 +965,6 @@ func isEnrollmentRestart(err error) bool {
 	return strings.Contains(msg, "eof") || status.Code(err) == codes.Unavailable
 }
 
-func needsReconfigure(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := strings.ToLower(err.Error())
-	return status.Code(err) == codes.Unimplemented ||
-		strings.Contains(msg, "tls handshake") ||
-		strings.Contains(msg, "first record does not look like a tls handshake") ||
-		strings.Contains(msg, "connection refused")
-}
-
 func waitForDUTEnrollzEnrollment(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
 	t.Log("Waiting for DUT enrollz service to recover after enrollment...")
@@ -996,19 +982,15 @@ func waitForDUTEnrollzEnrollment(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Fatal("DUT enrollz service did not recover within timeout after enrollment")
 }
 
-func probeGNMI(t *testing.T, dut *ondatra.DUTDevice) error {
+func probeSSH(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
-	conn, err := insecureGNMIClient(t, dut)
-	if err != nil {
-		return fmt.Errorf("gnmi dial: %w", err)
-	}
-	defer conn.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), probeTimeout)
 	defer cancel()
-	_, err = gpb.NewGNMIClient(conn).Capabilities(ctx, &gpb.CapabilityRequest{})
-	if err == nil || status.Code(err) == codes.InvalidArgument || status.Code(err) == codes.Unauthenticated {
-		return nil
+	cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+	if err != nil {
+		return fmt.Errorf("SSH dial: %w", err)
 	}
+	_, err = cli.RunCommand(ctx, "show version")
 	return err
 }
 
@@ -1068,12 +1050,12 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	deadline := time.Now().Add(rebootTimeout)
 	for time.Now().Before(deadline) {
 		time.Sleep(rebootProbeSleep)
-		if err := probeGNMI(t, dut); err != nil {
-			t.Logf("DUT not yet reachable via gNMI: %v", err)
+		if err := probeSSH(t, dut); err != nil {
+			t.Logf("DUT not yet reachable via SSH: %v", err)
 			continue
 		}
 		t.Log("DUT is back up")
-		restoreRunningConfig(t, dut, configBackupFile)
+		cfgplugins.RestoreRunningConfigCLI(t, dut, configBackupFile)
 		waitForDUTEnrollzEnrollment(t, dut)
 
 		return
@@ -1139,6 +1121,9 @@ func verifyCerts(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enro
 			}
 		}
 		return errors.Join(errs...)
+	}
+	if ownerCA == nil {
+		return fmt.Errorf("verifyCerts: ownerCA is nil")
 	}
 	ownerCAPool := x509.NewCertPool()
 	ownerCAPool.AddCert(ownerCA.ca)
@@ -1372,98 +1357,4 @@ func tlsRawServerCert(addr string) ([]byte, error) {
 		return nil, fmt.Errorf("no TLS certificate presented by %s", addr)
 	}
 	return raw, nil
-}
-
-func saveRunningConfigThroughGNMI(t *testing.T, dut *ondatra.DUTDevice) (string, error) {
-	t.Helper()
-	showCmd := cliShowRunningConfigCommand(t, dut)
-	req := &gpb.GetRequest{
-		Path: []*gpb.Path{{
-			Origin: "cli",
-			Elem:   []*gpb.PathElem{{Name: showCmd}},
-		}},
-		Encoding: gpb.Encoding_ASCII,
-	}
-	resp, err := dut.RawAPIs().GNMI(t).Get(context.Background(), req)
-	if err != nil {
-		return "", fmt.Errorf("baselineCLIConfig: gNMI Get CLI config: %w", err)
-	}
-	for _, notif := range resp.Notification {
-		for _, update := range notif.Update {
-			if s := update.Val.GetAsciiVal(); s != "" {
-				return s, nil
-			}
-		}
-	}
-	return "", fmt.Errorf("baselineCLIConfig: no ASCII config in gNMI Get response")
-}
-
-func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) string {
-	t.Helper()
-	switch dut.Vendor() {
-	case ondatra.ARISTA, ondatra.CISCO:
-		return "show running-config"
-	default:
-		t.Fatalf("unsupported vendor %v for CLI show running-config command", dut.Vendor())
-		return ""
-	}
-}
-
-type insecureRPCCreds struct{ username, password string }
-
-func (c insecureRPCCreds) GetRequestMetadata(_ context.Context, _ ...string) (map[string]string, error) {
-	return map[string]string{"username": c.username, "password": c.password}, nil
-}
-func (c insecureRPCCreds) RequireTransportSecurity() bool { return false }
-
-func insecureGNMIClient(t *testing.T, dut *ondatra.DUTDevice) (*grpc.ClientConn, error) {
-	t.Helper()
-	username, password, err := binding.RPCCredentials(dut.RawAPIs().BindingDUT())
-	if err != nil {
-		return nil, fmt.Errorf("get binding credentials: %w", err)
-	}
-	gnmiTarget := introspect.DUTDialer(t, dut, introspect.GNMI).DialTarget
-	return grpc.NewClient(gnmiTarget,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithPerRPCCredentials(insecureRPCCreds{username: username, password: password}),
-	)
-}
-
-func restoreRunningConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
-	t.Helper()
-	conn, err := insecureGNMIClient(t, dut)
-	if err != nil {
-		t.Fatalf("restoreRunningConfig: dial insecure gNMI: %v", err)
-	}
-	defer conn.Close()
-	cmd := fmt.Sprintf("configure replace flash:%s", fileName)
-	deadline := time.Now().Add(2 * time.Minute)
-	for {
-		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		_, setErr := gpb.NewGNMIClient(conn).Set(ctx, &gpb.SetRequest{
-			Update: []*gpb.Update{{
-				Path: &gpb.Path{Origin: "cli"},
-				Val:  &gpb.TypedValue{Value: &gpb.TypedValue_AsciiVal{AsciiVal: cmd}},
-			}},
-		})
-		cancel()
-		if setErr == nil {
-			t.Logf("Successfully restored DUT config from flash:%s", fileName)
-			return
-		}
-		errStr := setErr.Error()
-		if strings.Contains(errStr, "system not yet initialized") {
-			t.Logf("DUT not fully initialized yet, retrying config restore...")
-			if time.Now().After(deadline) {
-				t.Fatalf("Timed out waiting for DUT initialization: %v", errStr)
-			}
-			time.Sleep(15 * time.Second)
-			continue
-		}
-		if strings.Contains(errStr, "Octa agent") {
-			t.Logf("Ignoring Octa informational warning during config restore: %v", errStr)
-			return
-		}
-		t.Fatalf("Failed to restore DUT config via insecure gNMI: %v", errStr)
-	}
 }

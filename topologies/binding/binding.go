@@ -759,14 +759,3 @@ func combineHostKeyCallbacks(callbacks ...ssh.HostKeyCallback) ssh.HostKeyCallba
 		return nil
 	}
 }
-
-// RPCCredentials returns the username and password for RPC connections to the DUT
-// as configured in the binding file.
-func RPCCredentials(dut binding.DUT) (username, password string, err error) {
-	sd, ok := dut.(*staticDUT)
-	if !ok {
-		return "", "", fmt.Errorf("RPCCredentials: not a static binding DUT (got %T)", dut)
-	}
-	opts := merge(sd.r.Options, sd.dev.Options)
-	return opts.GetUsername(), opts.GetPassword(), nil
-}

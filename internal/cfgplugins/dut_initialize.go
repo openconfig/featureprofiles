@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/helpers"
@@ -1363,7 +1364,64 @@ func BackUpConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		t.Logf("Saving running-config to %s", fileName)
-		helpers.GnmiCLIConfig(t, dut, fmt.Sprintf("copy running-config flash:%s", fileName))
+		t.Logf("Saving running-config to flash:%s", fileName)
+		cmd := fmt.Sprintf("copy running-config flash:%s", fileName)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+		if err != nil {
+			t.Fatalf("BackUpConfig: SSH dial: %v", err)
+		}
+		if _, err := cli.RunCommand(ctx, cmd); err != nil {
+			t.Fatalf("BackUpConfig: %v", err)
+		}
+	}
+}
+
+// RestoreRunningConfigCLI restores the DUT configuration using the specified file on local flash storage.
+func RestoreRunningConfigCLI(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		cmd := fmt.Sprintf("configure replace flash:%s", fileName)
+		deadline := time.Now().Add(2 * time.Minute)
+		for {
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			cli, err := dut.RawAPIs().BindingDUT().DialCLI(ctx)
+			if err != nil {
+				cancel()
+				if time.Now().After(deadline) {
+					t.Fatalf("Timed out waiting for SSH during config restore: %v", err)
+				}
+				t.Logf("SSH not ready for config restore, retrying: %v", err)
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			result, runErr := cli.RunCommand(ctx, cmd)
+			cancel()
+			if runErr == nil {
+				output := result.Output()
+				if strings.Contains(output, "system not yet initialized") {
+					t.Logf("DUT not fully initialized yet, retrying config restore...")
+					if time.Now().After(deadline) {
+						t.Fatalf("Timed out waiting for DUT initialization: %v", output)
+					}
+					time.Sleep(15 * time.Second)
+					continue
+				}
+				t.Logf("Successfully restored DUT config from flash:%s", fileName)
+				return
+			}
+			errStr := runErr.Error()
+			if strings.Contains(errStr, "system not yet initialized") {
+				t.Logf("DUT not fully initialized yet, retrying config restore...")
+				if time.Now().After(deadline) {
+					t.Fatalf("Timed out waiting for DUT initialization: %v", errStr)
+				}
+				time.Sleep(15 * time.Second)
+				continue
+			}
+			t.Fatalf("Failed to restore DUT config via SSH CLI: %v", errStr)
+		}
 	}
 }
