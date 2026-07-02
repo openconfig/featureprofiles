@@ -22,21 +22,38 @@ import (
 
 	"github.com/openconfig/containerz/client"
 	"github.com/openconfig/featureprofiles/internal/deviations"
+	"github.com/openconfig/featureprofiles/internal/helpers"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
+	"github.com/openconfig/ondatra/gnmi"
+	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	cpb "github.com/openconfig/gnoi/containerz"
 )
 
+const (
+	maxRebootTime      = 30 * time.Minute
+	rebootPollInterval = 30 * time.Second
+)
+
 // Client returns a new containerz client.
 func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 	t.Helper()
-	gnoiClient := dut.RawAPIs().GNOI(t)
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
+		config := `
+				management api gnmi
+				  transport grpc iana
+				    port 9339
+				    ssl profile SELFSIGNED
+				    vrf mgmt
+				    authorization requests
+			`
 		if deviations.ContainerzOCUnsupported(dut) {
-			dut.Config().New().WithAristaText(`
+			config += `
 				management api gnoi
 				service containerz
 				  transport gnmi default
@@ -44,15 +61,19 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 				  container runtime
 					 vrf mgmt
 				!
-			`).Append(t)
+			`
 		}
-		dut.Config().New().WithAristaText(`
-			ipv6 access-list restrict-access-ipv6
-			  ! open port for cntrsrv from PROD
-			  permit tcp any any eq 60061
-		`).Append(t)
-		t.Logf("Waiting for device to ingest its config.")
-		time.Sleep(time.Minute)
+		helpers.GnmiCLIConfig(t, dut, config)
+		// Configuring the containerz gNOI service may cause Octa to restart,
+		// making gNMI temporarily unavailable. Retry write memory until it
+		// succeeds or we exceed the deadline.
+		gnmiSaveWithRetry(t, dut, 2*time.Minute)
+		waitForGNOI(t, dut, 2*time.Minute)
+		// EOS management namespace (ns-mgmt) has a default DROP policy.
+		// A per-VRF CP ACL could open port 60061, but the AclAgent restart
+		// race (BUG54186) silently drops rules on some EOS versions. Use a
+		// direct ip6tables rule as the reliable alternative.
+		dut.CLI().Run(t, "enable\nbash sudo ip netns exec ns-mgmt ip6tables -I EOS_INPUT 1 -p tcp --dport 60061 -j ACCEPT")
 	case ondatra.CISCO:
 		dut.Config().New().WithCiscoText(`
 			appmgr docker allow-sensitive-paths
@@ -68,7 +89,102 @@ func Client(t *testing.T, dut *ondatra.DUTDevice) *client.Client {
 		t.Fatalf("Unsupported vendor for containerz: %v", dut.Vendor())
 	}
 
-	return client.NewClientFromStub(gnoiClient.Containerz())
+	// Re-dial gNOI after config push -- configuring the containerz service may
+	// have restarted Octa, making any prior gNOI connection stale. Use the
+	// fresh clients directly rather than GNOI(t), which would return the stale
+	// entry from Ondatra's cache and produce Unavailable errors on the next RPC.
+	dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer dialCancel()
+	freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+	if err != nil {
+		t.Logf("gNOI re-dial in Client() failed (non-fatal): %v", err)
+		freshClients = dut.RawAPIs().GNOI(t)
+	}
+	return client.NewClientFromStub(freshClients.Containerz())
+}
+
+// SaveConfig saves running-config to startup-config so it persists across reboots.
+func SaveConfig(t *testing.T, dut *ondatra.DUTDevice) {
+	t.Helper()
+	helpers.GnmiCLIConfig(t, dut, "write memory")
+}
+
+// ClientWithoutConfig returns a containerz client without pushing any config.
+// Use after a reboot when the config was already saved to startup-config.
+// Pass the fresh gnoigo.Clients returned by WaitForReboot or waitForSwitchover
+// to bypass the stale pre-reboot connection in Ondatra's cache. Pass nil to
+// fall back to GNOI(t) (suitable for cleanup paths where no fresh clients exist).
+func ClientWithoutConfig(t *testing.T, dut *ondatra.DUTDevice, clients gnoigo.Clients) *client.Client {
+	t.Helper()
+	if clients != nil {
+		return client.NewClientFromStub(clients.Containerz())
+	}
+	return client.NewClientFromStub(dut.RawAPIs().GNOI(t).Containerz())
+}
+
+// waitForGNOI polls DialGNOI until the gNOI endpoint is reachable or the
+// timeout elapses. Used after a config push that may restart Octa.
+func waitForGNOI(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		// Use a short per-call timeout so DialGNOI does not block indefinitely
+		// while the containerz service is restarting after a config push.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err := dut.RawAPIs().BindingDUT().DialGNOI(ctx)
+		cancel()
+		if err == nil {
+			t.Log("containerz gNOI service is reachable.")
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("containerz gNOI service did not become reachable within %v after config push", timeout)
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// gnmiSaveWithRetry retries "write memory" via gNMI until it succeeds or the
+// deadline elapses. This handles transient Octa restarts after config changes.
+func gnmiSaveWithRetry(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for attempt := 1; ; attempt++ {
+		gnmiClient := dut.RawAPIs().GNMI(t)
+		req, err := buildGNMICLISetRequest("write memory")
+		if err != nil {
+			t.Fatalf("Cannot build gNMI SetRequest for write memory: %v", err)
+		}
+		setCtx, setCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		_, err = gnmiClient.Set(setCtx, req)
+		setCancel()
+		if err == nil {
+			t.Logf("write memory succeeded (attempt %d)", attempt)
+			return
+		}
+		t.Logf("write memory attempt %d failed: %v", attempt, err)
+		if time.Now().After(deadline) {
+			t.Fatalf("write memory did not succeed within %v (last error: %v)", timeout, err)
+		}
+		time.Sleep(10 * time.Second)
+	}
+}
+
+// buildGNMICLISetRequest builds a gNMI SetRequest with CLI origin.
+func buildGNMICLISetRequest(config string) (*gpb.SetRequest, error) {
+	return &gpb.SetRequest{
+		Update: []*gpb.Update{{
+			Path: &gpb.Path{
+				Origin: "cli",
+				Elem:   []*gpb.PathElem{},
+			},
+			Val: &gpb.TypedValue{
+				Value: &gpb.TypedValue_AsciiVal{
+					AsciiVal: config,
+				},
+			},
+		}},
+	}, nil
 }
 
 // StartContainerOptions holds parameters for starting a container.
@@ -231,11 +347,26 @@ func Setup(ctx context.Context, t *testing.T, dut *ondatra.DUTDevice, opts Start
 	t.Logf("Container %q started successfully.", opts.InstanceName)
 
 	return cli, func() {
-		Stop(ctx, t, cli, opts.InstanceName)
+		// Use a fresh context so cleanup succeeds even if the test context was
+		// canceled (e.g. on timeout).
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer cleanupCancel()
+		Stop(cleanupCtx, t, cli, opts.InstanceName)
+		// Remove the container so it does not persist on the DUT in STOPPED
+		// state. Without removal, Docker may restart a previously-running
+		// container on its next daemon restart, contaminating subsequent tests.
+		if err := cli.RemoveContainer(cleanupCtx, opts.InstanceName, true); err != nil {
+			s, _ := status.FromError(err)
+			if s.Code() != codes.NotFound {
+				t.Logf("RemoveContainer %s encountered an issue: %v", opts.InstanceName, err)
+			}
+		} else {
+			t.Logf("Container %s removed successfully.", opts.InstanceName)
+		}
 	}
 }
 
-// Stop stops and removes a container instance.
+// Stop stops a container instance.
 func Stop(ctx context.Context, t *testing.T, cli *client.Client, instNameToStop string) {
 	t.Helper()
 	t.Logf("Attempting to stop container %s", instNameToStop)
@@ -258,30 +389,105 @@ func WaitForRunning(ctx context.Context, t *testing.T, cli *client.Client, insta
 	defer cancel()
 
 	for {
-		listContCh, err := cli.ListContainer(pollCtx, true, 0, map[string][]string{"name": {instanceName}})
+		// Use a per-call timeout so one slow RPC does not consume the entire budget.
+		callCtx, callCancel := context.WithTimeout(pollCtx, 30*time.Second)
+		listContCh, err := cli.ListContainer(callCtx, true, 0, map[string][]string{"name": {instanceName}})
 		if err != nil {
-			return fmt.Errorf("unable to list container %s during polling: %w", instanceName, err)
+			callCancel()
+			t.Logf("ListContainer call for %s failed (will retry): %v", instanceName, err)
+			if pollCtx.Err() != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
+			}
+			time.Sleep(5 * time.Second)
+			continue
 		}
 
 		var containerIsRunning bool
+		var lastErr error
 		for info := range listContCh {
 			if info.Error != nil {
-				return fmt.Errorf("error message received while listing container %s during polling: %w", instanceName, info.Error)
+				lastErr = info.Error
+				t.Logf("ListContainer stream error for %s (will retry): %v", instanceName, info.Error)
+				break
 			}
+			t.Logf("ListContainer found: name=%s, image=%s, state=%s", info.Name, info.ImageName, info.State)
 			if (info.Name == instanceName || info.Name == "/"+instanceName) && info.State == cpb.ListContainerResponse_RUNNING.String() {
 				t.Logf("Container %s confirmed RUNNING.", instanceName)
 				containerIsRunning = true
 				break
 			}
 		}
+		callCancel()
 
 		if containerIsRunning {
 			return nil
 		}
 
 		if pollCtx.Err() != nil {
+			if lastErr != nil {
+				return fmt.Errorf("timed out waiting for container %s to be RUNNING (last error: %v)", instanceName, lastErr)
+			}
 			return fmt.Errorf("timed out waiting for container %s to be RUNNING", instanceName)
 		}
 		time.Sleep(5 * time.Second)
+	}
+}
+
+// WaitForReboot polls the DUT until it is reachable after a reboot and returns
+// fresh gNOI clients. Set alreadyDown=true when the reboot was triggered by a
+// prior subtest and the down state may have been missed (e.g., the ColdReboot
+// subtest waited for TCP timeout, during which the device already rebooted and
+// came back up). When alreadyDown=true the first successful poll is treated as
+// post-reboot recovery instead of "reboot hasn't started yet."
+func WaitForReboot(t *testing.T, dut *ondatra.DUTDevice, alreadyDown bool) gnoigo.Clients {
+	t.Helper()
+	startReboot := time.Now()
+	t.Log("Polling DUT for reboot completion...")
+	ticker := time.NewTicker(rebootPollInterval)
+	defer ticker.Stop()
+	timeout := time.After(maxRebootTime)
+	deviceWentDown := alreadyDown
+
+	for {
+		select {
+		case <-timeout:
+			t.Fatalf("DUT did not reboot within %v", maxRebootTime)
+		case <-ticker.C:
+			// Always probe with a short-timeout DialGNMI before gnmi.Get to
+			// avoid blocking on a stale half-open TCP connection during reboot.
+			dialCtx, dialCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, dialErr := dut.RawAPIs().BindingDUT().DialGNMI(dialCtx)
+			dialCancel()
+			if dialErr != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for it to come back up.")
+					deviceWentDown = true
+				}
+				t.Logf("Time elapsed %.0f seconds, GNMI dial failed: %v", time.Since(startReboot).Seconds(), dialErr)
+				continue
+			}
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			})
+			if errMsg != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for it to come back up.")
+					deviceWentDown = true
+				}
+				t.Logf("Time elapsed %.0f seconds, DUT not reachable yet.", time.Since(startReboot).Seconds())
+			} else {
+				if deviceWentDown {
+					t.Logf("Device rebooted successfully. Boot time: %.0f seconds.", time.Since(startReboot).Seconds())
+					dialCtx, dialCancel := context.WithTimeout(context.Background(), 15*time.Second)
+					defer dialCancel()
+					freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+					if err != nil {
+						t.Logf("gNOI re-dial after reboot failed (non-fatal): %v", err)
+					}
+					return freshClients
+				}
+				t.Log("Device is still reachable; reboot hasn't started yet.")
+			}
+		}
 	}
 }

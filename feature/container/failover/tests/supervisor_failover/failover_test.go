@@ -13,6 +13,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/containerztest"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/gnoigo"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/testt"
 	"google.golang.org/grpc/codes"
@@ -40,7 +41,7 @@ const (
 	containerName     = "cntrsrv"
 	volName           = "test-failover-vol" // Used in TestContainerAndVolumePersistence
 	maxSwitchoverTime = 900
-	verifyTimeout     = 5 * time.Minute
+	verifyTimeout     = 5 * time.Minute // baseline for non-ARISTA vendors
 	pollInterval      = 1 * time.Second
 )
 
@@ -57,10 +58,7 @@ func TestImagePersistence(t *testing.T) {
 	}
 
 	// Identify the standby control processor to switch to.
-	standbyRPBefore, activeRPBefore, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before switchover: %v", err)
-	}
+	standbyRPBefore, activeRPBefore := findRPsEventually(t, dut, 10*time.Minute)
 	t.Logf("Found standby RP: %s, active RP: %s", standbyRPBefore, activeRPBefore)
 
 	// Initialize clients.
@@ -82,18 +80,18 @@ func TestImagePersistence(t *testing.T) {
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRPBefore, standbyRPBefore)
 	})
 
 	t.Run("VerifyImagePersistence", func(t *testing.T) {
-		waitForSwitchover(t, dut)
+		freshClients := waitForSwitchover(t, dut)
 
-		cli = containerztest.Client(t, dut)
+		// Skip config push after switchover -- fresh gNOI clients from
+		// waitForSwitchover are passed directly, bypassing Ondatra's cache.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
 
-		standbyRPAfter, activeRPAfter, err := findRPs(t, dut)
-		if err != nil {
-			t.Fatalf("Failed to find RPs after switchover: %v", err)
-		}
+		// After switchover, the old active RP reboots as new standby; wait for it.
+		standbyRPAfter, activeRPAfter := findRPsEventually(t, dut, 10*time.Minute)
 		t.Logf("After switchover, found standby RP: %s, active RP: %s", standbyRPAfter, activeRPAfter)
 		if standbyRPAfter != activeRPBefore {
 			t.Errorf("After switchover, standby RP is %s, want %s", standbyRPAfter, activeRPBefore)
@@ -103,7 +101,7 @@ func TestImagePersistence(t *testing.T) {
 		}
 
 		t.Log("Verifying image persistence...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeoutForDUT(dut)); err != nil {
 			t.Errorf("Image persistence failed: %v", err)
 		}
 	})
@@ -121,10 +119,7 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 	}
 
 	// Identify the standby control processor to switch to.
-	standbyRPBefore, activeRPBefore, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before switchover: %v", err)
-	}
+	standbyRPBefore, activeRPBefore := findRPsEventually(t, dut, 10*time.Minute)
 	t.Logf("Found standby RP: %s, active RP: %s", standbyRPBefore, activeRPBefore)
 
 	// Initialize clients.
@@ -132,8 +127,11 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
-		cli := containerztest.Client(t, dut)
-
+		// Use the outer cli (set to ClientWithoutConfig by VerifyRecovery) rather
+		// than calling containerztest.Client(t, dut) again. Calling Client() would
+		// push config, restart Octa/Docker, and cause the containerz daemon to
+		// re-start the RestartPolicy=Always container -- making RemoveContainer
+		// race against the daemon before it can finish cleaning up.
 		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
 		}
@@ -160,45 +158,28 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 			t.Fatalf("Volume not found after creation: %v", err)
 		}
 
-		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
-			t.Fatalf("Failed to load image: %v", err)
+		opts := containerztest.StartContainerOptions{
+			ImageName:    imageName,
+			InstanceName: containerName,
+			Command:      "./cntrsrv",
+			TarPath:      containerTarPath(t),
+			Ports:        []string{"60061:60061"},
+			Volumes:      []string{fmt.Sprintf("%s:%s", volName, "/data")},
 		}
-
-		t.Logf("Deploying and starting container %s...", containerName)
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
-			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
-		}
-
-		// Ensure container is removed before starting.
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
-			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
-		}
-
-		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
-			t.Fatalf("Failed to start container %s with volume %s: %v", containerName, volName, err)
-		}
-
-		// Verify container is running.
-		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
-			t.Fatalf("Container %s did not reach running state: %v", containerName, err)
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("DeployAndStart failed: %v", err)
 		}
 	})
 
 	t.Run("Switchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRPBefore, standbyRPBefore)
 	})
 
 	t.Run("VerifyRecovery", func(t *testing.T) {
-		waitForSwitchover(t, dut)
+		freshClients := waitForSwitchover(t, dut)
 
-		// Refresh clients after reconnection.
-		cli = containerztest.Client(t, dut)
-
-		standbyRPAfter, activeRPAfter, err := findRPs(t, dut)
-		if err != nil {
-			t.Fatalf("Failed to find RPs after switchover: %v", err)
-		}
+		// After switchover, the old active RP reboots as new standby; wait for it.
+		standbyRPAfter, activeRPAfter := findRPsEventually(t, dut, 10*time.Minute)
 		t.Logf("After switchover, found standby RP: %s, active RP: %s", standbyRPAfter, activeRPAfter)
 		if standbyRPAfter != activeRPBefore {
 			t.Errorf("After switchover, standby RP is %s, want %s", standbyRPAfter, activeRPBefore)
@@ -207,8 +188,15 @@ func TestContainerAndVolumePersistence(t *testing.T) {
 			t.Errorf("After switchover, active RP is %s, want %s", activeRPAfter, standbyRPBefore)
 		}
 
+		// Skip config push -- fresh gNOI clients bypass Ondatra's cache.
+		// WaitForRunning retries on connection errors, so no pre-dial needed here.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
+
 		t.Log("Verifying container recovery...")
-		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, verifyTimeout); err != nil {
+		// Use WaitForRunning instead of verifyContainerStateEventually: it logs
+		// each ListContainer result (found name/image/state) so we can see whether
+		// the container is absent, stopped, or in another non-RUNNING state.
+		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, verifyTimeoutForDUT(dut)); err != nil {
 			t.Errorf("Container recovery failed: %v", err)
 		}
 
@@ -230,6 +218,19 @@ func TestImageRemovalPersistence(t *testing.T) {
 
 	cli := containerztest.Client(t, dut)
 
+	// Client() restarts Octa/Docker. Containers with RestartPolicy=Always from
+	// previous tests (e.g. TestContainerAndVolumePersistence) reappear seconds
+	// after Docker comes up. Retry the removal sweep for up to 90s so that any
+	// container that appears after Docker restarts is caught and removed.
+	cleanDeadline := time.Now().Add(90 * time.Second)
+	for {
+		removeContainersUsingImage(ctx, t, cli, imageName, tag)
+		if time.Now().After(cleanDeadline) {
+			break
+		}
+		time.Sleep(10 * time.Second)
+	}
+
 	// 1. Load the image initially.
 	t.Run("LoadImage", func(t *testing.T) {
 		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
@@ -247,24 +248,24 @@ func TestImageRemovalPersistence(t *testing.T) {
 		}
 	})
 
-	// 3. Identify standby and trigger switchover.
-	standbyRPBefore, _, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before switchover: %v", err)
-	}
+	// 3. Identify standby and trigger switchover. The previous test may have triggered
+	// a switchover, so the new standby might still be rebooting; retry until it appears.
+	standbyRPBefore, activeRPBefore := findRPsEventually(t, dut, 10*time.Minute)
 
 	t.Run("Switchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRPBefore, standbyRPBefore)
 	})
 
 	// 4. Verify image does not exist after switchover.
 	t.Run("VerifyImageRemovalPersistence", func(t *testing.T) {
-		waitForSwitchover(t, dut)
+		freshClients := waitForSwitchover(t, dut)
 
-		cli = containerztest.Client(t, dut) // Re-initialize client
+		// Skip config push after switchover -- fresh gNOI clients from
+		// waitForSwitchover are passed directly, bypassing Ondatra's cache.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
 
 		t.Log("Verifying image removal persistence...")
-		if err := verifyImageDoesNotExistEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
+		if err := verifyImageDoesNotExistEventually(ctx, t, cli, imageName, tag, verifyTimeoutForDUT(dut)); err != nil {
 			t.Errorf("Image removal persistence failed, image reappeared: %v", err)
 		}
 	})
@@ -304,24 +305,24 @@ func TestContainerRemovalPersistence(t *testing.T) {
 		}
 	})
 
-	// 3. Identify standby and trigger switchover.
-	standbyRPBefore, _, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before switchover: %v", err)
-	}
+	// 3. Identify standby and trigger switchover. The previous test may have triggered
+	// a switchover, so the new standby might still be rebooting; retry until it appears.
+	standbyRPBefore, activeRPBefore := findRPsEventually(t, dut, 10*time.Minute)
 
 	t.Run("Switchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRPBefore)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRPBefore, standbyRPBefore)
 	})
 
 	// 4. Verify container does not exist after switchover.
 	t.Run("VerifyContainerRemovalPersistence", func(t *testing.T) {
-		waitForSwitchover(t, dut)
+		freshClients := waitForSwitchover(t, dut)
 
-		cli = containerztest.Client(t, dut) // Re-initialize client
+		// Skip config push after switchover -- fresh gNOI clients from
+		// waitForSwitchover are passed directly, bypassing Ondatra's cache.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
 
 		t.Log("Verifying container removal persistence...")
-		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeout); err != nil {
+		if err := verifyContainerDoesNotExistEventually(ctx, t, cli, containerName, verifyTimeoutForDUT(dut)); err != nil {
 			t.Errorf("Container removal persistence failed, container reappeared: %v", err)
 		}
 	})
@@ -353,47 +354,45 @@ func TestDoubleFailoverImagePersistence(t *testing.T) {
 		}
 	})
 
-	// First Switchover.
-	standbyRP1, activeRP1, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before first switchover: %v", err)
-	}
+	// First Switchover. The previous test may have triggered a switchover, so the new
+	// standby might still be rebooting; retry until it appears.
+	standbyRP1, activeRP1 := findRPsEventually(t, dut, 10*time.Minute)
 	t.Logf("Before first switchover, standby is %s, active is %s", standbyRP1, activeRP1)
 
 	t.Run("FirstSwitchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP1)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRP1, standbyRP1)
 	})
 
 	t.Run("VerifyAfterFirstSwitchover", func(t *testing.T) {
-		waitForSwitchover(t, dut)
-		cli = containerztest.Client(t, dut)
+		freshClients := waitForSwitchover(t, dut)
+		// Skip config push -- fresh gNOI clients from waitForSwitchover bypass Ondatra's cache.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
 
 		t.Log("Verifying image persistence after first switchover...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeoutForDUT(dut)); err != nil {
 			t.Fatalf("Image persistence failed after first switchover: %v", err)
 		}
 	})
 
 	// Second Switchover (back to original active).
-	standbyRP2, activeRP2, err := findRPs(t, dut)
-	if err != nil {
-		t.Fatalf("Failed to find RPs before second switchover: %v", err)
-	}
+	// After the first switchover, the old active RP reboots as new standby; wait for it.
+	standbyRP2, activeRP2 := findRPsEventually(t, dut, 10*time.Minute)
 	if activeRP2 != standbyRP1 {
 		t.Fatalf("Expected new active RP to be %s, but got %s", standbyRP1, activeRP2)
 	}
 	t.Logf("Before second switchover, standby is %s, active is %s", standbyRP2, activeRP2)
 
 	t.Run("SecondSwitchover", func(t *testing.T) {
-		awaitSwitchoverReadyAndSwitch(t, dut, standbyRP2)
+		awaitSwitchoverReadyAndSwitch(t, dut, activeRP2, standbyRP2)
 	})
 
 	t.Run("VerifyAfterSecondSwitchover", func(t *testing.T) {
-		waitForSwitchover(t, dut)
-		cli = containerztest.Client(t, dut)
+		freshClients := waitForSwitchover(t, dut)
+		// Skip config push -- fresh gNOI clients from waitForSwitchover bypass Ondatra's cache.
+		cli = containerztest.ClientWithoutConfig(t, dut, freshClients)
 
 		t.Log("Verifying image persistence after second switchover...")
-		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeout); err != nil {
+		if err := verifyImageExistsEventually(ctx, t, cli, imageName, tag, verifyTimeoutForDUT(dut)); err != nil {
 			t.Errorf("Image persistence failed after second switchover: %v", err)
 		}
 	})
@@ -411,10 +410,17 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	cli := containerztest.Client(t, dut)
 	sysClient := dut.RawAPIs().GNOI(t).System()
 
+	// postRebootClients is set by VerifyPersistence so the cleanup can use a
+	// fresh gNOI connection instead of the stale pre-reboot Ondatra cache.
+	var postRebootClients gnoigo.Clients
 	t.Cleanup(func() {
 		t.Log("Starting cleanup...")
-		// Re-initialize client in case of connection loss
-		cli := containerztest.Client(t, dut)
+		var cli *client.Client
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		} else {
+			cli = containerztest.Client(t, dut)
+		}
 		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
 			t.Errorf("Cleanup: failed to remove container %q: %v", containerName, err)
 		}
@@ -437,34 +443,28 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 		if _, err := cli.CreateVolume(ctx, volName, "local", nil, volOpts); err != nil {
 			t.Fatalf("Failed to create volume: %v", err)
 		}
-		if err := loadImage(ctx, t, cli, imageName, tag, containerTarPath(t)); err != nil {
-			t.Fatalf("Failed to load image: %v", err)
+		opts := containerztest.StartContainerOptions{
+			ImageName:    imageName,
+			InstanceName: containerName,
+			Command:      "./cntrsrv",
+			TarPath:      containerTarPath(t),
+			Ports:        []string{"60061:60061"},
+			Volumes:      []string{fmt.Sprintf("%s:%s", volName, "/data")},
 		}
-
-		t.Logf("Starting container %s...", containerName)
-		startOpts := []client.StartOption{
-			client.WithPorts([]string{"60061:60061"}),
-			client.WithVolumes([]string{fmt.Sprintf("%s:%s", volName, "/data")}),
-		}
-		// Ensure container is removed before starting.
-		if err := cli.RemoveContainer(ctx, containerName, true); err != nil && status.Code(err) != codes.NotFound && status.Code(err) != codes.Unknown {
-			t.Logf("Pre-start removal of container %s failed: %v", containerName, err)
-		}
-		if _, err := cli.StartContainer(ctx, imageName, tag, "./cntrsrv", containerName, startOpts...); err != nil {
-			t.Fatalf("Failed to start container: %v", err)
-		}
-		if err := containerztest.WaitForRunning(ctx, t, cli, containerName, 30*time.Second); err != nil {
-			t.Fatalf("Container did not start: %v", err)
+		if err := containerztest.DeployAndStart(ctx, t, cli, opts); err != nil {
+			t.Fatalf("DeployAndStart failed: %v", err)
 		}
 		// Wait for supervisors to sync before cold reboot.
-		standbyRP1, activeRP1, err := findRPs(t, dut)
-		if err != nil {
-			t.Fatalf("Failed to find RPs before cold reboot: %v", err)
-		}
+		standbyRP1, activeRP1 := findRPsEventually(t, dut, 10*time.Minute)
 		t.Logf("Before rebooting, standby is %s, active is %s", standbyRP1, activeRP1)
-		switchoverReady := gnmi.OC().Component(standbyRP1).SwitchoverReady()
-		gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
+		switchoverReady := gnmi.OC().Component(activeRP1).SwitchoverReady()
+		switchoverReadyTimeout := 5*time.Minute + 2*time.Duration(deviations.SwitchoverStabilizeDelayM(dut))*time.Minute
+		gnmi.Await(t, dut, switchoverReady.State(), switchoverReadyTimeout, true)
 		t.Logf("Supervisors synchronized, proceeding with cold reboot")
+
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			containerztest.SaveConfig(t, dut)
+		}
 	})
 
 	t.Run("ColdReboot", func(t *testing.T) {
@@ -482,14 +482,18 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 
 	t.Run("VerifyPersistence", func(t *testing.T) {
-		t.Log("Waiting for DUT to reboot and reconnect...")
-		// Wait for reboot.
-		time.Sleep(10 * time.Minute)
+		// alreadyDown=true: the ColdReboot subtest sent the reboot command and
+		// waited for the TCP timeout (~15 min). The device may have rebooted and
+		// come back up before polling starts; treat first successful poll as recovery.
+		postRebootClients = containerztest.WaitForReboot(t, dut, true)
 
-		// Poll for container state.
-		cli = containerztest.Client(t, dut)
+		// For ARISTA: skip config push after reboot -- config was saved to startup-config
+		if deviations.ContainerzRequireExplicitConfigSave(dut) {
+			cli = containerztest.ClientWithoutConfig(t, dut, postRebootClients)
+		} else {
+			cli = containerztest.Client(t, dut)
+		}
 
-		// Use a generous timeout for the device to come back up and the container to start.
 		timeout := 5 * time.Minute
 		if err := verifyContainerStateEventually(ctx, t, cli, containerName, cpb.ListContainerResponse_RUNNING, timeout); err != nil {
 			t.Errorf("Container persistence failed: %v", err)
@@ -501,49 +505,175 @@ func TestContainerPersistenceAfterColdReboot(t *testing.T) {
 	})
 }
 
-// waitForSwitchover waits for the switchover to complete by polling telemetry.
-func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) {
+// waitForSwitchover polls the DUT until the switchover has completed and the device is
+// reachable, then returns fresh gNOI clients.
+//
+// Two scenarios arise after doSwitchover returns:
+//  1. Switchover succeeded quickly: the device went unreachable and came back before
+//     polling started. DialGNMI succeeds on the first poll.
+//  2. Switchover succeeded slowly: the device is still unreachable when polling starts.
+//     DialGNMI fails until the device comes back.
+//  3. Switchover did not execute (SwitchControlProcessor silently failed): the device
+//     was up the whole time. Indistinguishable from case 1 via connectivity alone.
+//
+// For cases 1 and 3, we use stableUpCount: after 4 consecutive UP polls (2 min) without
+// ever observing the device go down, we return. The caller already checks RP roles and
+// reports a test error if the switchover did not actually happen.
+func waitForSwitchover(t *testing.T, dut *ondatra.DUTDevice) gnoigo.Clients {
 	t.Helper()
 	startSwitchover := time.Now()
 	t.Logf("Wait for new Primary controller to boot up by polling the telemetry output.")
+	timeout := time.After(time.Duration(maxSwitchoverTime) * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	var deviceWentDown bool
+	var stableUpCount int
 	for {
-		var currentTime string
-		t.Logf("Time elapsed %.2f seconds since switchover started.", time.Since(startSwitchover).Seconds())
-		time.Sleep(1 * time.Minute)
-		if errMsg := testt.CaptureFatal(t, func(t testing.TB) {
-			currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
-		}); errMsg != nil {
-			t.Logf("Got testt.CaptureFatal errMsg: %s, keep polling ...", *errMsg)
-		} else {
-			t.Logf("Controller switchover has completed successfully with received time: %v", currentTime)
-			break
-		}
-		if uint64(time.Since(startSwitchover).Seconds()) > maxSwitchoverTime {
-			t.Fatalf("time.Since(startSwitchover): got %v, want < %v", time.Since(startSwitchover), maxSwitchoverTime)
+		select {
+		case <-timeout:
+			t.Fatalf("DUT did not complete switchover within %ds", maxSwitchoverTime)
+		case <-ticker.C:
+			// Always probe with a short-timeout DialGNMI before gnmi.Get to avoid
+			// blocking on a stale half-open TCP connection after a switchover.
+			dialCtx, dialCancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, dialErr := dut.RawAPIs().BindingDUT().DialGNMI(dialCtx)
+			dialCancel()
+			if dialErr != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for the new primary to come up.")
+					deviceWentDown = true
+				}
+				stableUpCount = 0
+				t.Logf("Time elapsed %.0f seconds, GNMI dial failed: %v", time.Since(startSwitchover).Seconds(), dialErr)
+				continue
+			}
+			var currentTime string
+			errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+				currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
+			})
+			if errMsg != nil {
+				if !deviceWentDown {
+					t.Log("Device is now unreachable. Waiting for the new primary to come up.")
+					deviceWentDown = true
+				}
+				stableUpCount = 0
+				t.Logf("Time elapsed %.0f seconds, DUT not reachable yet.", time.Since(startSwitchover).Seconds())
+			} else {
+				if deviceWentDown {
+					t.Logf("Controller switchover has completed with received time: %v", currentTime)
+					t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
+					dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+					dialCancel()
+					if err != nil {
+						t.Logf("gNOI re-dial after switchover failed (non-fatal): %v", err)
+					}
+					return freshClients
+				}
+				stableUpCount++
+				if stableUpCount >= 4 {
+					// Device has been consistently reachable for 4 polls (2 min)
+					// without going down. The switchover either completed before
+					// polling started or did not execute. Return and let the caller
+					// verify RP roles to distinguish the two cases.
+					t.Logf("Device stayed reachable for %d polls; returning (switchover may have completed before polling started).", stableUpCount)
+					dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
+					freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+					dialCancel()
+					if err != nil {
+						t.Logf("gNOI re-dial failed (non-fatal): %v", err)
+					}
+					return freshClients
+				}
+				t.Log("Device is still reachable; switchover may not have started yet.")
+			}
 		}
 	}
-	t.Logf("Controller switchover time: %.2f seconds", time.Since(startSwitchover).Seconds())
 }
 
-// awaitSwitchoverReadyAndSwitch waits for the standby to be switchover-ready, then triggers the switchover.
-func awaitSwitchoverReadyAndSwitch(t *testing.T, dut *ondatra.DUTDevice, standby string) {
+// verifyTimeoutForDUT returns the timeout for post-switchover/reboot container and image
+// verification. Supervisors may restart containerz after a switchover; the new active
+// needs extra time for Docker state to settle before container and image states are final.
+func verifyTimeoutForDUT(dut *ondatra.DUTDevice) time.Duration {
+	return verifyTimeout + time.Duration(deviations.SwitchoverStabilizeDelayM(dut))*time.Minute
+}
+
+// awaitSwitchoverReadyAndSwitch waits for the active supervisor to report switchover-ready,
+// then triggers a switchover to the standby. The active supervisor's switchover-ready leaf
+// is checked because it tracks actual standby readiness; the standby's own leaf is not
+// reliably maintained while in standby mode.
+func awaitSwitchoverReadyAndSwitch(t *testing.T, dut *ondatra.DUTDevice, active, standby string) {
 	t.Helper()
-	switchoverReady := gnmi.OC().Component(standby).SwitchoverReady()
-	gnmi.Await(t, dut, switchoverReady.State(), 5*time.Minute, true)
-	t.Logf("SwitchoverReady: %v", gnmi.Get(t, dut, switchoverReady.State()))
+	// Config push may cause Octa to restart, temporarily interrupting standby RP
+	// synchronization; SwitchoverStabilizeDelayM allows extra time for re-sync.
+	timeout := 5*time.Minute + 2*time.Duration(deviations.SwitchoverStabilizeDelayM(dut))*time.Minute
+	components.AwaitSwitchoverReady(t, dut, active, timeout)
 	doSwitchover(t, dut, standby)
 }
 
-// doSwitchover triggers a control processor switchover to the specified standby.
+// doSwitchover triggers a control processor switchover to the specified standby,
+// retrying on gRPC Unavailable. Per the gRPC spec, Unavailable signals the client
+// to back off and retry the same call -- the device may not yet be ready to accept
+// the switchover RPC even though switchover-ready is true. Retries stop when the
+// RPC succeeds, the device becomes unreachable (switchover executing), or the
+// timeout expires.
 func doSwitchover(t *testing.T, dut *ondatra.DUTDevice, standby string) {
 	t.Helper()
 	t.Logf("Switching control processor to %s...", standby)
-	sysClient := dut.RawAPIs().GNOI(t).System()
+
+	retryTimeout := 5*time.Minute + time.Duration(deviations.SwitchoverStabilizeDelayM(dut))*time.Minute
+	deadline := time.Now().Add(retryTimeout)
+
 	switchReq := &gspb.SwitchControlProcessorRequest{
 		ControlProcessor: components.GetSubcomponentPath(standby, deviations.GNOISubcomponentPath(dut)),
 	}
-	if _, err := sysClient.SwitchControlProcessor(context.Background(), switchReq); err != nil {
-		t.Logf("SwitchControlProcessor returned error (this is often expected): %v", err)
+
+	for {
+		var sysClient gspb.SystemClient
+		if deviations.GnoiRequiresFreshDialAfterSwitchover(dut) {
+			dialCtx, dialCancel := context.WithTimeout(context.Background(), 30*time.Second)
+			freshClients, err := dut.RawAPIs().BindingDUT().DialGNOI(dialCtx)
+			dialCancel()
+			if err == nil {
+				sysClient = freshClients.System()
+			} else {
+				t.Logf("gNOI fresh dial failed, falling back to cached client: %v", err)
+				sysClient = dut.RawAPIs().GNOI(t).System()
+			}
+		} else {
+			sysClient = dut.RawAPIs().GNOI(t).System()
+		}
+
+		switchCtx, switchCancel := context.WithTimeout(context.Background(), 30*time.Second)
+		_, err := sysClient.SwitchControlProcessor(switchCtx, switchReq)
+		switchCancel()
+		if err == nil {
+			t.Logf("SwitchControlProcessor succeeded.")
+			return
+		}
+		t.Logf("SwitchControlProcessor returned: %v", err)
+
+		if status.Code(err) == codes.Unavailable {
+			// Check if the device went unreachable -- if so, the switchover is
+			// already executing and waitForSwitchover will handle the rest.
+			dialCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			_, dialErr := dut.RawAPIs().BindingDUT().DialGNMI(dialCtx)
+			cancel()
+			if dialErr != nil {
+				t.Logf("Device unreachable after Unavailable -- switchover is executing.")
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Logf("SwitchControlProcessor retries exhausted after %v.", retryTimeout)
+				return
+			}
+			t.Logf("Device still reachable, retrying SwitchControlProcessor in 30s...")
+			time.Sleep(30 * time.Second)
+			continue
+		}
+
+		// Non-retryable error -- log and return, let the caller's verification fail.
+		return
 	}
 }
 
@@ -566,6 +696,24 @@ func findRPs(t *testing.T, dut *ondatra.DUTDevice) (string, string, error) {
 		return "", "", fmt.Errorf("no active control processor found")
 	}
 	return standbyRP, activeRP, nil
+}
+
+// findRPsEventually retries findRPs until the standby RP appears or the timeout expires.
+// After a switchover, the old active RP takes time to reboot and register as standby.
+func findRPsEventually(t *testing.T, dut *ondatra.DUTDevice, timeout time.Duration) (string, string) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		standby, active, err := findRPs(t, dut)
+		if err == nil {
+			return standby, active
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("Standby RP did not appear within %v: %v", timeout, err)
+		}
+		t.Logf("Waiting for standby RP to reappear (will retry): %v", err)
+		time.Sleep(30 * time.Second)
+	}
 }
 
 // verifyContainerState checks if a container exists and is in the expected state.
@@ -730,6 +878,34 @@ func poll(t *testing.T, desc string, timeout time.Duration, check func() error) 
 		case <-ticker.C:
 			if err := check(); err == nil {
 				return nil // Success
+			}
+		}
+	}
+}
+
+// removeContainersUsingImage removes all containers that use the given image so
+// that a subsequent RemoveImage call can succeed without a "running container"
+// error. This guards against cross-test DUT contamination when the same DUT is
+// reused across tests (e.g. CNTR-1's TestContainerPersistenceAfterColdReboot
+// leaves a container running with restart-policy Always, which would block
+// CNTR-3's TestImageRemovalPersistence from removing the image).
+func removeContainersUsingImage(ctx context.Context, t *testing.T, cli *client.Client, imageName, tag string) {
+	t.Helper()
+	wantImage := imageName + ":" + tag
+	ch, err := cli.ListContainer(ctx, true, 0, nil)
+	if err != nil {
+		t.Logf("Pre-cleanup: ListContainer failed: %v", err)
+		return
+	}
+	for info := range ch {
+		if info.Error != nil {
+			continue
+		}
+		if info.ImageName == wantImage {
+			name := strings.TrimPrefix(info.Name, "/")
+			t.Logf("Pre-cleanup: removing container %q using image %s", name, wantImage)
+			if err := cli.RemoveContainer(ctx, name, true); err != nil {
+				t.Logf("Pre-cleanup: failed to remove container %q: %v", name, err)
 			}
 		}
 	}
