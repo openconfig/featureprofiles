@@ -38,7 +38,6 @@ platform_exceptions: {
   }
   deviations: {
     interface_enabled: true
-    missing_zr_optical_channel_tunable_parameters_telemetry: true
     explicit_dco_config: true
   }
 }
