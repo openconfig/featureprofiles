@@ -1,0 +1,25 @@
+# proto-file: third_party/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "b6f845b2-597d-5eb8-c48b-96ffc6082d71"
+plan_id: "Hashing"
+description: "Hashing with Physical/Software Loopbacks"
+testbed: TESTBED_DUT_8_LOOP_2_ATE
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    default_network_instance: "DEFAULT"
+  }
+}
