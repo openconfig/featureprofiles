@@ -15,7 +15,6 @@
 package record_payload_truncation_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -78,11 +77,14 @@ func TestAccountzRecordPayloadTruncation(t *testing.T) {
 		helpers.GnmiCLIConfig(t, dut, communitySetCLIConfig)
 	}
 
-	startTime := time.Now()
-
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 	acctzClient := dut.RawAPIs().GNSI(t).AcctzStream()
-	acctzSubClient, err := acctzClient.RecordSubscribe(context.Background(), &acctzpb.RecordRequest{
-		Timestamp: timestamppb.New(startTime),
+	acctzSubClient, err := acctzClient.RecordSubscribe(t.Context(), &acctzpb.RecordRequest{
+		Timestamp: &timestamppb.Timestamp{
+			Seconds: startTime.Unix(),
+			Nanos:   0,
+		},
 	})
 	if err != nil {
 		t.Fatalf("Failed to subscribe to acctz records: %v", err)

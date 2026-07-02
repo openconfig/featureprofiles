@@ -26,6 +26,7 @@ import (
 
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/security/acctz"
 	acctzpb "github.com/openconfig/gnsi/acctz"
 	"github.com/openconfig/ondatra"
@@ -53,8 +54,8 @@ func TestAccountzRecordSubscribeFull(t *testing.T) {
 	} else {
 		acctz.SetupUsers(t, dut, false)
 	}
-	startTime := time.Now()
-
+	// Get the current time from the router via gNMI to avoid clock skew issues.
+	startTime := helpers.GetRouterTime(t, dut)
 	// Get gNSI record subscribe client.
 	requestTimestamp := &timestamppb.Timestamp{
 		Seconds: startTime.Unix(),
