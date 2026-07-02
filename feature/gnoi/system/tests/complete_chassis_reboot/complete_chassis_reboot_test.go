@@ -27,6 +27,7 @@ import (
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
 	"github.com/openconfig/testt"
+	"github.com/openconfig/ygnmi/ygnmi"
 )
 
 const (
@@ -188,6 +189,16 @@ func TestChassisReboot(t *testing.T) {
 					case <-ticker.C:
 						var currentTime string
 						errMsg := testt.CaptureFatal(t, func(t testing.TB) {
+							watch := gnmi.Watch(t, dut, gnmi.OC().System().CurrentDatetime().State(), 30*time.Second, func(val *ygnmi.Value[string]) bool {
+								_, present := val.Val()
+								if present {
+									return true
+								}
+								return false
+							})
+							if _, ok := watch.Await(t); !ok {
+								t.Fatalf("DUT did not return current datetime")
+							}
 							currentTime = gnmi.Get(t, dut, gnmi.OC().System().CurrentDatetime().State())
 						})
 						if errMsg != nil {
