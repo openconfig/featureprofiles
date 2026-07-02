@@ -327,8 +327,8 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 
   # Telemetry / AFT Paths
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state:
 
 rpcs:
   gnmi:
