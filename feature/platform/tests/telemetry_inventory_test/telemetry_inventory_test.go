@@ -19,6 +19,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
+
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/ygnmi/ygnmi"
 
 	"github.com/openconfig/featureprofiles/internal/args"
 	"github.com/openconfig/featureprofiles/internal/components"
@@ -155,6 +159,56 @@ func TestMain(m *testing.M) {
 //
 //   - https://github.com/karimra/gnmic/blob/main/README.md
 
+// Helper function to format and log time.
+func formatUnixTime(unixTimePtr *uint64) string {
+	if unixTimePtr != nil {
+		unixTime := int64(*unixTimePtr)
+		return time.Unix(unixTime, 0).UTC().Format(time.RFC3339)
+	}
+
+	return "time not available"
+}
+func subscribeOnChangeTemperature(t *testing.T,
+	dut *ondatra.DUTDevice,
+	temperaturePath ygnmi.SingletonQuery[float64]) *gnmi.Watcher[float64] {
+	t.Helper()
+	t.Logf("TRY: subscribe ON_CHANGE to %s", temperaturePath)
+	watchTemperature := gnmi.Watch(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		temperaturePath,
+		time.Minute,
+		func(val *ygnmi.Value[float64]) bool {
+			temp, present := val.Val()
+			if present {
+				t.Logf("Temperature change detected: %f", temp)
+			}
+			return present
+		})
+
+	return watchTemperature
+}
+func subscribeOnChangeTime(t *testing.T,
+	dut *ondatra.DUTDevice,
+	temperaturePath ygnmi.SingletonQuery[uint64]) *gnmi.Watcher[uint64] {
+
+	t.Helper()
+	t.Logf("TRY: subscribe ON_CHANGE to %s", temperaturePath)
+	watchTime := gnmi.Watch(t,
+		dut.GNMIOpts().WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE)),
+		temperaturePath,
+		time.Minute,
+
+		func(val *ygnmi.Value[uint64]) bool {
+			temp, present := val.Val()
+			if present {
+				t.Logf("Time change detected: %v", temp)
+			}
+			return present
+		})
+
+	return watchTime
+}
+
 func TestHardwareCards(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 
@@ -177,6 +231,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       true,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      false,
 				pType:                 componentType["Chassis"],
@@ -212,6 +267,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 componentType["Fan"],
@@ -229,6 +285,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_ACTIVE,
 				parentValidation:      true,
 				pType:                 componentType["Fan Tray"],
@@ -321,6 +378,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Cpu"],
@@ -339,6 +397,7 @@ func TestHardwareCards(t *testing.T) {
 				hwVerValidation:       false,
 				fwVerValidation:       false,
 				rrValidation:          false,
+				tempOpSensor:          false,
 				operStatus:            oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET,
 				parentValidation:      false,
 				pType:                 componentType["Storage"],
@@ -683,6 +742,101 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 				t.Logf("Component %s Name: %s", cName, name)
 				if name == "" {
 					t.Errorf("Encountered empty Name for component %s", cName)
+				}
+			}
+
+			// Check if the component has a temperature sensor.
+			if p.tempOpSensor {
+				// Define the base path for the temperature sensor of the component.
+				tempBasePath := gnmi.OC().Component(cName).Temperature().State()
+				// If the base path is nil, it indicates the optic does not support a temperature sensor.
+				if tempBasePath == nil {
+					t.Skipf("Skipping as optic does not support temp sensor")
+				}
+
+				// Retrieve the current state of the temperature sensor.
+				tempOpSensor := gnmi.Get(t, dut, gnmi.OC().Component(cName).Temperature().State())
+				var minTimeString, maxTimeString string
+				minTimeString = formatUnixTime(tempOpSensor.MinTime)
+				maxTimeString = formatUnixTime(tempOpSensor.MaxTime)
+				basePath := gnmi.OC().Component(cName).Temperature()
+
+				// Define queries for various temperature metrics (float64 values).
+				pathFuncs := []func() ygnmi.SingletonQuery[float64]{
+					basePath.Instant().State,
+					basePath.Avg().State,
+					basePath.Min().State,
+					basePath.Max().State,
+				}
+
+				// Define queries for time-related metrics (uint64 values).
+				pathFuncsTimes := []func() ygnmi.SingletonQuery[uint64]{
+					basePath.MaxTime().State,
+					basePath.MinTime().State,
+					basePath.Interval().State,
+				}
+
+				// Map to associate temperature and time metric names with their values for checking presence.
+				fields := map[string]interface{}{
+					"Instant":  tempOpSensor.Instant,
+					"Avg":      tempOpSensor.Avg,
+					"Min":      tempOpSensor.Min,
+					"Max":      tempOpSensor.Max,
+					"MaxTime":  tempOpSensor.MaxTime,
+					"MinTime":  tempOpSensor.MinTime,
+					"Interval": tempOpSensor.Interval,
+				}
+
+				// Check for nil values in the retrieved metrics and collect missing field names.
+				missingFields := []string{}
+				for fieldName, fieldValue := range fields {
+					if fieldValue == nil {
+						missingFields = append(missingFields, fieldName)
+					}
+				}
+
+				// Report missing fields if any, otherwise proceed with subscription and logging.
+				if len(missingFields) > 0 {
+					t.Errorf("Values not found for component %v: %s", cName, strings.Join(missingFields, ", "))
+				} else {
+					// Subscribe to changes in temperature metrics and log them.
+					for _, TemperaturePath := range pathFuncs {
+						temperaturePath := TemperaturePath()
+						watchTemperature, ok := subscribeOnChangeTemperature(t, dut, temperaturePath).Await(t)
+						if !ok {
+							t.Fatalf("Failed to subscribe to temperature changes for component %q", cName)
+						}
+						t.Log(watchTemperature)
+					}
+
+					// Subscribe to changes in time-related metrics and log them.
+					for _, timePaths := range pathFuncsTimes {
+						timePath := timePaths()
+						watchTimePath, ok := subscribeOnChangeTime(t, dut, timePath).Await(t)
+						if !ok {
+							t.Fatalf("Failed to subscribe to temperature changes for component %q", cName)
+						}
+						t.Log(watchTimePath)
+					}
+
+					// Log formatted min and max times.
+					t.Logf(minTimeString)
+
+					// Prepare and log the final values for all metrics.
+					values := map[string]interface{}{
+						"Instant":  *tempOpSensor.Instant,
+						"AVG":      *tempOpSensor.Avg,
+						"MIN":      *tempOpSensor.Min,
+						"MAX":      *tempOpSensor.Max,
+						"INTERVAL": *tempOpSensor.Interval,
+						"MIN TIME": maxTimeString,
+						"MAX TIME": minTimeString,
+					}
+					for output, value := range values {
+						if value != nil {
+							t.Logf("Component %v %s: %v", cName, output, value)
+						}
+					}
 				}
 			}
 
