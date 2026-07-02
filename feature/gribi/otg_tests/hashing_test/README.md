@@ -9,34 +9,34 @@ The topology uses a multiple looped back ports configuration to route traffic th
 
 ```mermaid
 graph TD
-    Ingress[ATE Ingress: Port 2] -->|Traffic| IngressPort[DUT Ingress: lc2_p10]
+    Ingress["ATE Ingress: Port 2"] -->|Traffic| IngressPort["DUT Ingress: lc2_p10"]
     IngressPort --> DefaultVRF{Default VRF}
     
-    subgraph Stage 1: Default VRF (WCMP 7:1:1:1)
-        DefaultVRF -->|70%| Loop1[Loop 1: lc1_p3 -> lc2_p3]
-        DefaultVRF -->|10%| SL0[Soft Loop 0: lag118]
-        DefaultVRF -->|10%| SL1[Soft Loop 1: lag119]
-        DefaultVRF -->|10%| SL2[Soft Loop 2: lag120]
+    subgraph Stage1 ["Stage 1: Default VRF (WCMP 7:1:1:1)"]
+        DefaultVRF -->|70%| Loop1["Loop 1: lc1_p3 -> lc2_p3"]
+        DefaultVRF -->|10%| SL0["Soft Loop 0: lag118"]
+        DefaultVRF -->|10%| SL1["Soft Loop 1: lag119"]
+        DefaultVRF -->|10%| SL2["Soft Loop 2: lag120"]
     end
     
-    SL0 --> Drop1[ACL Drop]
+    SL0 --> Drop1["ACL Drop"]
     SL1 --> Drop1
     SL2 --> Drop1
     
     Loop1 -->|VRF Assignment: lc2_p3 in Transit| TransitVRF{Transit VRF}
     
-    subgraph Stage 2: Transit VRF (ECMP 8-wide)
-        TransitVRF --> Loop2[Loop 2: lc1_p4 -> lc2_p4]
-        TransitVRF --> Loop3[Loop 3: lc1_p5 -> lc2_p5]
-        TransitVRF --> Loop4[Loop 4: lc1_p6 -> lc2_p6]
-        TransitVRF --> Loop5[Loop 5: lc1_p1 -> lc2_p1]
-        TransitVRF --> SL3[Soft Loop 3: lag121]
-        TransitVRF --> SL4[Soft Loop 4: lag122]
-        TransitVRF --> SL5[Soft Loop 5: lag123]
-        TransitVRF --> SL6[Soft Loop 6: lag124]
+    subgraph Stage2 ["Stage 2: Transit VRF (ECMP 8-wide)"]
+        TransitVRF --> Loop2["Loop 2: lc1_p4 -> lc2_p4"]
+        TransitVRF --> Loop3["Loop 3: lc1_p5 -> lc2_p5"]
+        TransitVRF --> Loop4["Loop 4: lc1_p6 -> lc2_p6"]
+        TransitVRF --> Loop5["Loop 5: lc1_p1 -> lc2_p1"]
+        TransitVRF --> SL3["Soft Loop 3: lag121"]
+        TransitVRF --> SL4["Soft Loop 4: lag122"]
+        TransitVRF --> SL5["Soft Loop 5: lag123"]
+        TransitVRF --> SL6["Soft Loop 6: lag124"]
     end
     
-    SL3 --> Drop2[ACL Drop]
+    SL3 --> Drop2["ACL Drop"]
     SL4 --> Drop2
     SL5 --> Drop2
     SL6 --> Drop2
@@ -47,18 +47,18 @@ graph TD
     Loop4 -->|VRF Assignment: lc2_p6 in Self-Site| SelfSiteVRF{Self-Site VRF}
     Loop5 -->|VRF Assignment: lc2_p1 in Self-Site| SelfSiteVRF
     
-    subgraph Stage 3: Self-Site VRF (ECMP 8-wide)
-        SelfSiteVRF --> Loop6[Loop 6: lc2_p8 -> lc1_p8]
-        SelfSiteVRF --> Loop7[Loop 7: lc2_p7 -> lc1_p7]
-        SelfSiteVRF --> Loop8[Loop 8: lc2_p2 -> lc1_p2]
-        SelfSiteVRF --> SL7[Soft Loop 7: lag125]
-        SelfSiteVRF --> SL8[Soft Loop 8: lag126]
-        SelfSiteVRF --> SL9[Soft Loop 9: lag127]
-        SelfSiteVRF --> SL10[Soft Loop 10: lag128]
-        SelfSiteVRF --> SL11[Soft Loop 11: lag129]
+    subgraph Stage3 ["Stage 3: Self-Site VRF (ECMP 8-wide)"]
+        SelfSiteVRF --> Loop6["Loop 6: lc2_p8 -> lc1_p8"]
+        SelfSiteVRF --> Loop7["Loop 7: lc2_p7 -> lc1_p7"]
+        SelfSiteVRF --> Loop8["Loop 8: lc2_p2 -> lc1_p2"]
+        SelfSiteVRF --> SL7["Soft Loop 7: lag125"]
+        SelfSiteVRF --> SL8["Soft Loop 8: lag126"]
+        SelfSiteVRF --> SL9["Soft Loop 9: lag127"]
+        SelfSiteVRF --> SL10["Soft Loop 10: lag128"]
+        SelfSiteVRF --> SL11["Soft Loop 11: lag129"]
     end
     
-    SL7 --> Drop3[ACL Drop]
+    SL7 --> Drop3["ACL Drop"]
     SL8 --> Drop3
     SL9 --> Drop3
     SL10 --> Drop3
