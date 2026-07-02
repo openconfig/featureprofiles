@@ -281,17 +281,20 @@ func juniperSetup(t *testing.T, dut *ondatra.DUTDevice, configureFailCliRole boo
 
 func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Helper()
-	// Configure a role that denies Authorization for rpcs.
+	// Step 1: Clear any lingering AAA command authorization from previous runs,
+	// create the deny-all role, configure users, management, and basic AAA.
+	// "aaa authorization commands all default local" is NOT included here because
+	// it takes effect within the configure session and blocks the implicit commit
+	// for gNMI users with "Unknown role".
 	commands := []string{
 		"configure",
+		"no aaa authorization commands all default local",
 		fmt.Sprintf("role %s", failRoleName),
 		"   10 deny command .*",
+		"exit",
 		fmt.Sprintf("username %s privilege 15 role network-admin secret %s", SuccessUsername, successPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", FailUsername, failPassword),
 		fmt.Sprintf("username %s privilege 15 role acctz-fp-test-fail secret %s", failAuthorizeUsername, failAuthorizePassword),
-		"aaa authentication login default local",
-		"aaa authorization exec default local",
-		"aaa authorization commands all default local",
 		"management ssh",
 		"   authentication protocol password",
 		"management api gnmi",
@@ -299,8 +302,19 @@ func aristaFailAuthzCliRole(t *testing.T, dut *ondatra.DUTDevice) {
 		"      authorization requests",
 		"   transport grpc mgmt",
 		"      authorization requests",
+		"aaa authentication login default local",
+		"aaa authorization exec default local",
 	}
 	helpers.GnmiCLIConfig(t, dut, strings.Join(commands, "\n"))
+
+	// Step 2: Enable command authorization in a separate call. After step 1
+	// committed successfully, the users and roles are in the running config,
+	// so this commit can proceed.
+	authzCommands := []string{
+		"configure",
+		"aaa authorization commands all default local",
+	}
+	helpers.GnmiCLIConfig(t, dut, strings.Join(authzCommands, "\n"))
 }
 
 func nokiaGrpcMetadataAuth(t *testing.T) []*gnmipb.Update {
@@ -469,8 +483,8 @@ func GetNokiaCustomAcctzClient(t *testing.T, dut *ondatra.DUTDevice) AcctzStream
 // 	return resolvedTarget.String()
 // }
 
-// getSSHTarget returns the target for the SSH service.
-func getSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
+// GetSSHTarget returns the target for the SSH service.
+func GetSSHTarget(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) string {
 	if staticBinding {
 		f := flag.Lookup("binding")
 		if f == nil {
@@ -1364,7 +1378,7 @@ func SendSuccessCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding b
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1446,7 +1460,7 @@ func SendFailCliCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 
@@ -1544,7 +1558,7 @@ func SendShellCommand(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) 
 	// Per https://github.com/openconfig/featureprofiles/issues/2637, waiting to see what the
 	// "best"/"preferred" way is to get the v4/v6 of the dut. For now, we use this workaround
 	// because ssh isn't exposed in introspection.
-	target := getSSHTarget(t, dut, staticBinding)
+	target := GetSSHTarget(t, dut, staticBinding)
 
 	var records []*acctzpb.RecordResponse
 	shellUsername := SuccessUsername
