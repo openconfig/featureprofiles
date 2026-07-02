@@ -94,25 +94,39 @@ A standard `TESTBED_DUT_ATE_4LINKS` setup is used:
    - Retrieve the mirrored file via gNOI File.Get.
    - Verify that packets egressing the LAG member Port B that match the ACL are captured.
 
-## OpenConfig Paths and RPCs
+## OpenConfig Path and RPC Coverage
 
-### Standard Schema
-```json
-{
-  "acl": {
-    "acl-sets": {
-      "acl-set": [
-        {
-          "name": "mirror-acl",
-          "type": "ACL_IPV4"
-        }
-      ]
-    }
-  }
-}
+The below yaml defines the OC paths intended to be covered by this test. OC
+paths used for test setup are not listed here.
+
+```yaml
+paths:
+  /mirroring/sessions/session/config/name:
+  /mirroring/sessions/session/config/mirror-action:
+  /mirroring/sessions/session/config/enabled:
+  /mirroring/sessions/session/config/interfaces:
+  /mirroring/sessions/session/config/direction:
+  /mirroring/sessions/session/config/acl:
+  /mirroring/sessions/session/config/max-capture-size:
+  /mirroring/sessions/session/config/max-size:
+  /mirroring/sessions/session/state/name:
+  /mirroring/sessions/session/state/mirror-action:
+  /mirroring/sessions/session/state/enabled:
+  /mirroring/sessions/session/state/interfaces:
+  /mirroring/sessions/session/state/direction:
+  /mirroring/sessions/session/state/acl:
+  /mirroring/sessions/session/state/max-capture-size:
+  /mirroring/sessions/session/state/max-size:
+rpcs:
+  gnmi:
+    gNMI.Subscribe:
+    gNMI.Set:
+  gnoi:
+    gnoi.file.File.Get:
+    gnoi.file.File.Remove:
 ```
 
-### Canonical OC Representing google-packet-mirror Extension
+## Canonical OC
 ```json
 {
   "mirroring": {
@@ -129,7 +143,7 @@ A standard `TESTBED_DUT_ATE_4LINKS` setup is used:
             ],
             "direction": "RX",
             "acl": "mirror-acl",
-            "max-capture-size": 1000000,
+            "max-capture-size": 65535,
             "max-size": 10000000
           }
         }
@@ -138,8 +152,4 @@ A standard `TESTBED_DUT_ATE_4LINKS` setup is used:
   }
 }
 ```
-
-### gRPC / gNOI RPCs
-- `/gnoi.file.File/Get`: Used to download the PCAP file from the DUT.
-- `/gnoi.file.File/Remove`: Used to clean up the PCAP file on the DUT after verification.
 
