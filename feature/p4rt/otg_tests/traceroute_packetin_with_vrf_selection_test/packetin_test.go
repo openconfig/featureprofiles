@@ -136,16 +136,15 @@ func testTraffic(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevice, flow
 // then validates packetin message metadata and payload.
 func testPacketIn(ctx context.Context, t *testing.T, args *testArgs, isIPv4 bool, cs gosnappi.ControlState, flowValues []*flowArgs, EgressPortMap map[string]bool) []float64 {
 	leader := args.leader
-	for _, wantIPv4 := range []bool{true, false} {
-		if err := programmTableEntry(leader, args.packetIO, false, wantIPv4); err != nil {
-			entryType := "IPv4"
-			if !wantIPv4 {
-				entryType = "IPv6"
-			}
-			t.Fatalf("There is error when programming %s entry", entryType)
-		}
-		defer programmTableEntry(leader, args.packetIO, true, wantIPv4)
+	if err := programmTableEntry(leader, args.packetIO, false, true); err != nil {
+		t.Fatalf("There is error when programming IPv4 entry")
 	}
+	defer programmTableEntry(leader, args.packetIO, true, true)
+	if err := programmTableEntry(leader, args.packetIO, false, false); err != nil {
+		t.Fatalf("There is error when programming IPv6 entry")
+	}
+	defer programmTableEntry(leader, args.packetIO, true, false)
+
 	streamChan := args.leader.StreamChannelGet(&streamName)
 	qSize := 12000
 	streamChan.SetArbQSize(qSize)
