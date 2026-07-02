@@ -1,0 +1,26 @@
+# proto-file: github.com/openconfig/featureprofiles/proto/metadata.proto
+# proto-message: Metadata
+
+uuid: "4e8e63f7-c8e8-41aa-bc0b-e5ff963a5d3c"
+plan_id: "TE-14.6"
+description: "gRIBI Scaling - all scenarios but with minimal scaling parameters"
+testbed: TESTBED_DUT_ATE_2LINKS
+platform_exceptions: {
+  platform: {
+    vendor: ARISTA
+  }
+  deviations: {
+    omit_l2_mtu: true
+    interface_enabled: true
+    default_network_instance: "default"
+  }
+}
+
+platform_exceptions: {
+  platform: {
+    vendor: NOKIA
+  }
+  deviations: {
+    no_mix_of_tagged_and_untagged_subinterfaces: true
+  }
+}
