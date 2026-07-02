@@ -101,22 +101,15 @@ paths used for test setup are not listed here.
 
 ```yaml
 paths:
-  /mirroring/sessions/session/config/name:
-  /mirroring/sessions/session/config/mirror-action:
-  /mirroring/sessions/session/config/enabled:
-  /mirroring/sessions/session/config/interfaces:
-  /mirroring/sessions/session/config/direction:
-  /mirroring/sessions/session/config/acl:
-  /mirroring/sessions/session/config/max-capture-size:
-  /mirroring/sessions/session/config/max-size:
-  /mirroring/sessions/session/state/name:
-  /mirroring/sessions/session/state/mirror-action:
-  /mirroring/sessions/session/state/enabled:
-  /mirroring/sessions/session/state/interfaces:
-  /mirroring/sessions/session/state/direction:
-  /mirroring/sessions/session/state/acl:
-  /mirroring/sessions/session/state/max-capture-size:
-  /mirroring/sessions/session/state/max-size:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/ethernet/config/aggregate-id:
+  /acl/acl-sets/acl-set/config/name:
+  /acl/acl-sets/acl-set/config/type:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/config/sequence-id:
+  /acl/acl-sets/acl-set/acl-entries/acl-entry/actions/config/forwarding-action:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/set-name:
+  /acl/interfaces/interface/ingress-acl-sets/ingress-acl-set/config/type:
 rpcs:
   gnmi:
     gNMI.Subscribe:
@@ -129,22 +122,49 @@ rpcs:
 ## Canonical OC
 ```json
 {
-  "mirroring": {
-    "sessions": {
-      "session": [
+  "interfaces": {
+    "interface": [
+      {
+        "name": "portc",
+        "config": {
+          "name": "portc",
+          "enabled": true
+        }
+      },
+      {
+        "name": "lag1",
+        "config": {
+          "name": "lag1",
+          "enabled": true,
+          "type": "ieee8023adLag"
+        }
+      }
+    ]
+  },
+  "acl": {
+    "acl-sets": {
+      "acl-set": [
         {
-          "name": "session-ingress",
+          "name": "mirror-acl",
+          "type": "ACL_IPV4",
           "config": {
-            "name": "session-ingress",
-            "mirror-action": "FILE",
-            "enabled": true,
-            "interfaces": [
-              "portc"
-            ],
-            "direction": "RX",
-            "acl": "mirror-acl",
-            "max-capture-size": 65535,
-            "max-size": 10000000
+            "name": "mirror-acl",
+            "type": "ACL_IPV4"
+          },
+          "acl-entries": {
+            "acl-entry": [
+              {
+                "sequence-id": 10,
+                "config": {
+                  "sequence-id": 10
+                },
+                "actions": {
+                  "config": {
+                    "forwarding-action": "ACCEPT"
+                  }
+                }
+              }
+            ]
           }
         }
       ]
