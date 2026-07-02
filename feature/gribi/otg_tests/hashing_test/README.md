@@ -5,7 +5,7 @@ Verify Dataplane Hashing using a mix of physical loopback ports and software loo
 
 ## Topology
 The test requires a DUT and an ATE.
-The topology uses a multple looped back ports configuration to route traffic through multiple hashing stages on the DUT.
+The topology uses a multiple looped back ports configuration to route traffic through multiple hashing stages on the DUT.
 
 ```mermaid
 graph TD
@@ -121,7 +121,8 @@ Assign RX ports of the loopbacks to their respective VRFs to route traffic to th
 
 ### 4. Traffic Verification
 - Send traffic from ATE Port 2 to `198.51.100.1` with varying source IPv4 addresses, and varying UDP source and destination ports (to trigger hashing).
+- Tolerance is defined as ±2% of the expected value (e.g., if expected value is 12.5%, acceptable range is 12.25% – 12.75%).
 - Verify packet distribution:
-  - **Stage 1**: ~70% to `lc1_p3`, ~10% to each of the 3 soft loops.
-  - **Stage 2 (Transit VRF)**: ~12.5% to each of the 8 members of NHG 2 (within tolerance).
-  - **Stage 3 (Self-Site VRF)**: ~12.5% to each of the 8 members of NHG 3 (within tolerance).
+  - **Stage 1**: ~70% to `lc1_p3`, ~10% to each of the 3 soft loops (within tolerance).
+  - **Stage 2 (Transit VRF)**: ~12.5% to each of the 8 members of NHG 2 (within tolerance of 12.25% – 12.75%).
+  - **Stage 3 (Self-Site VRF)**: ~12.5% to each of the 8 members of NHG 3 (within tolerance of 12.25% – 12.75%).
