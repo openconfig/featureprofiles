@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -167,6 +168,13 @@ type DUTCredentialer interface {
 	RPCPassword() string
 }
 
+func tlsServerName(target string) string {
+	if host, _, err := net.SplitHostPort(target); err == nil {
+		return strings.Trim(host, "[]")
+	}
+	return strings.Trim(target, "[]")
+}
+
 func bindingTLSCredentials(t *testing.T, dutID string, srv cpb.Service) *cpb.TLSCredentials {
 	t.Helper()
 	bindingFlag := flag.Lookup("binding")
@@ -224,7 +232,8 @@ func bindingTLSCredentials(t *testing.T, dutID string, srv cpb.Service) *cpb.TLS
 		TrustBundle: read(opts.GetTrustBundleFile()),
 		Certificate: read(opts.GetCertFile()),
 		PrivateKey:  read(opts.GetKeyFile()),
-		SkipVerify:  true,
+		ServerName:  tlsServerName(opts.GetTarget()),
+		SkipVerify:  opts.GetSkipVerify(),
 	}
 }
 

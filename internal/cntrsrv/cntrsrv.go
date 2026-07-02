@@ -188,7 +188,7 @@ func (c *C) Dial(ctx context.Context, req *cpb.DialRequest) (*cpb.DialResponse, 
 			},
 		}, nil
 	default:
-		klog.Warningf("No action was specified in request, dial-only performed, %v", req)
+		klog.Warningf("No action was specified in request, dial-only performed for addr %q", req.GetAddr())
 	}
 
 	return &cpb.DialResponse{}, nil
