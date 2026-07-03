@@ -616,7 +616,9 @@ func validateSubcomponentsExistAsComponents(c *oc.Component, components []*oc.Co
 		subcName := subc.GetName()
 		subComponent := gnmi.Lookup(t, dut, gnmi.OC().Component(subcName).State())
 		if !subComponent.IsPresent() {
-			if *args.NumControllerCards <= 1 { // ← skip for single RE devices
+			// Skip subcomponent leafref validation for single RE devices by checking
+			// the actual number of controller cards found on the device.
+			if len(componentsByType["Supervisor"]) <= 1 {
 				t.Logf("Skipping subcomponent %s leafref validation: not present on single RE device", subcName)
 				continue
 			}
@@ -828,7 +830,13 @@ func ValidateComponentState(t *testing.T, dut *ondatra.DUTDevice, cards []*oc.Co
 			if p.operStatus != oc.PlatformTypes_COMPONENT_OPER_STATUS_UNSET {
 				operStatus := card.GetOperStatus()
 				t.Logf("Component %s OperStatus: %s", cName, operStatus.String())
-				if operStatus != p.operStatus {
+				// On Juniper, a redundant/standby power supply is physically present
+				// but may report DISABLED; accept both ACTIVE and DISABLED as valid.
+				// Other vendors must report ACTIVE for a non-empty power supply.
+				isPSU := p.pType == componentType["PowerSupply"]
+				isJuniperDisabledPSU := isPSU && dut.Vendor() == ondatra.JUNIPER &&
+					operStatus == oc.PlatformTypes_COMPONENT_OPER_STATUS_DISABLED
+				if operStatus != p.operStatus && !isJuniperDisabledPSU {
 					t.Errorf("Component %s OperStatus: got %s, want %s", cName, operStatus, p.operStatus)
 				}
 			}
