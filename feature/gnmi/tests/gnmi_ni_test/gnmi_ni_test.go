@@ -101,7 +101,7 @@ func ConfigureAdditionalNetworkInstance(batch *gnmi.SetBatch, t *testing.T, dut 
 }
 
 func grpcTransportSecurity(dut *ondatra.DUTDevice) bool {
-	if deviations.RequireTransportSecurity(dut) {
+	if !deviations.RequireTransportSecurity(dut) {
 		return false
 	}
 	return transportSecurity

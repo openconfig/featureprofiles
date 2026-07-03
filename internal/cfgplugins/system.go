@@ -64,8 +64,8 @@ func CreateGNMIServer(t testing.TB, d *ondatra.DUTDevice, batch *gnmi.SetBatch, 
 		Enable:          ygot.Bool(true),
 		NetworkInstance: ygot.String(niName),
 	}
-	if d.Vendor() != ondatra.NOKIA {
-		gnmiServer.TransportSecurity = ygot.Bool(transportSec)
+	if transportSec {
+		gnmiServer.TransportSecurity = ygot.Bool(true)
 	}
 	if !deviations.GrpcServerServicesUnsupported(d) {
 		gnmiServer.Services = []oc.E_SystemGrpc_GRPC_SERVICE{oc.SystemGrpc_GRPC_SERVICE_GNMI}
