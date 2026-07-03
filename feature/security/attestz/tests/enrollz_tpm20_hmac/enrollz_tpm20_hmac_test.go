@@ -773,7 +773,7 @@ func checkFilesExist(t *testing.T, files ...string) {
 func enrollzClientWithTLS(t *testing.T, dut *ondatra.DUTDevice, tlsCfg *tls.Config) (epb.TpmEnrollzServiceClient, error) {
 	t.Helper()
 	gnsiDialer := introspect.DUTDialer(t, dut, introspect.GNSI)
-	opts := append(gnsiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
+	opts := append(gnsiDialer.DialOpts[:len(gnsiDialer.DialOpts):len(gnsiDialer.DialOpts)], grpc.WithTransportCredentials(credentials.NewTLS(tlsCfg)))
 	conn, err := grpc.NewClient(gnsiDialer.DialTarget, opts...)
 	if err != nil {
 		return nil, err
@@ -796,7 +796,7 @@ func dutMTLSConfig(t *testing.T) *tls.Config {
 
 func fetchPPKPubFromDut(c *ROTDBClient, ctx context.Context) (*biz.FetchEKResp, error) {
 	gnoiDialer := introspect.DUTDialer(c.t, c.dut, introspect.GNOI)
-	opts := append(gnoiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
+	opts := append(gnoiDialer.DialOpts[:len(gnoiDialer.DialOpts):len(gnoiDialer.DialOpts)], grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
 	conn, err := grpc.NewClient(gnoiDialer.DialTarget, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial for PPK fetch: %w", err)
@@ -834,7 +834,7 @@ func fetchPPKPubFromDut(c *ROTDBClient, ctx context.Context) (*biz.FetchEKResp, 
 
 func fetchEKFromDUT(c *ROTDBClient, ctx context.Context, req *biz.FetchEKReq) (*biz.FetchEKResp, error) {
 	gnsiDialer := introspect.DUTDialer(c.t, c.dut, introspect.GNSI)
-	opts := append(gnsiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
+	opts := append(gnsiDialer.DialOpts[:len(gnsiDialer.DialOpts):len(gnsiDialer.DialOpts)], grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(c.t))))
 	conn, err := grpc.NewClient(gnsiDialer.DialTarget, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial for EK fetch: %w", err)
@@ -997,7 +997,7 @@ func probeSSH(t *testing.T, dut *ondatra.DUTDevice) error {
 func probeEnrollz(t *testing.T, dut *ondatra.DUTDevice) error {
 	t.Helper()
 	gnsiDialer := introspect.DUTDialer(t, dut, introspect.GNSI)
-	opts := append(gnsiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
+	opts := append(gnsiDialer.DialOpts[:len(gnsiDialer.DialOpts):len(gnsiDialer.DialOpts)], grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
 	conn, err := grpc.NewClient(gnsiDialer.DialTarget, opts...)
 	if err != nil {
 		return fmt.Errorf("probe dial: %w", err)
@@ -1016,7 +1016,7 @@ func rebootDUT(t *testing.T, dut *ondatra.DUTDevice) {
 	cfgplugins.BackUpConfig(t, dut, configBackupFile)
 
 	gnoiDialer := introspect.DUTDialer(t, dut, introspect.GNOI)
-	gnoiOpts := append(gnoiDialer.DialOpts, grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
+	gnoiOpts := append(gnoiDialer.DialOpts[:len(gnoiDialer.DialOpts):len(gnoiDialer.DialOpts)], grpc.WithTransportCredentials(credentials.NewTLS(dutMTLSConfig(t))))
 	conn, err := grpc.NewClient(gnoiDialer.DialTarget, gnoiOpts...)
 	if err != nil {
 		t.Fatalf("DialGNOI for reboot: %v", err)
@@ -1266,8 +1266,14 @@ func signPubKeyPEM(pubKeyPEM string, ca *x509.Certificate, caKey *rsa.PrivateKey
 		return "", fmt.Errorf("unsupported PEM block type %q", block.Type)
 	}
 
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	randSerial, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		return "", fmt.Errorf("signPubKeyPEM: generate serial number error: %w", err)
+	}
+	serialNumber := new(big.Int).Add(randSerial, big.NewInt(1))
 	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		Subject:      pkix.Name{CommonName: "test-owner-cert"},
 		NotBefore:    dutTime,
 		NotAfter:     dutTime.Add(24 * time.Hour),
@@ -1323,8 +1329,15 @@ func certWithBadSignature(t *testing.T, ownerCA *ownerCAClient) string {
 	if err != nil {
 		t.Fatalf("certWithBadSignature: generate subject key: %v", err)
 	}
+
+	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	randSerial, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		t.Fatalf("certWithBadSignature: generate serial number error: %v", err)
+	}
+	serialNumber := new(big.Int).Add(randSerial, big.NewInt(1))
 	tmpl := &x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		Subject:      pkix.Name{CommonName: "test-bad-signature"},
 		NotBefore:    dutTime,
 		NotAfter:     dutTime.Add(time.Hour),
@@ -1341,7 +1354,10 @@ func certWithBadSignature(t *testing.T, ownerCA *ownerCAClient) string {
 
 func tlsRawServerCert(addr string) ([]byte, error) {
 	var raw []byte
-	conn, err := tls.Dial("tcp", addr, &tls.Config{
+	dialer := &net.Dialer{
+		Timeout: 5 * time.Second,
+	}
+	conn, err := tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{
 		InsecureSkipVerify: true,
 		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			if len(rawCerts) > 0 {

@@ -1375,6 +1375,8 @@ func BackUpConfig(t *testing.T, dut *ondatra.DUTDevice, fileName string) {
 		if _, err := cli.RunCommand(ctx, cmd); err != nil {
 			t.Fatalf("BackUpConfig: %v", err)
 		}
+	default:
+		t.Fatalf("BackUpConfig: unsupported vendor %v", dut.Vendor())
 	}
 }
 
@@ -1423,5 +1425,7 @@ func RestoreRunningConfigCLI(t *testing.T, dut *ondatra.DUTDevice, fileName stri
 			}
 			t.Fatalf("Failed to restore DUT config via SSH CLI: %v", errStr)
 		}
+	default:
+		t.Fatalf("RestoreRunningConfigCLI: unsupported vendor %v", dut.Vendor())
 	}
 }
