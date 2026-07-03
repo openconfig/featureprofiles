@@ -5,7 +5,14 @@
 #
 # The list of directories of CA contents, also the count of CAs built
 # in each directory.
-DIRS=(01 02 10 1000 20000)
+DEFAULT_DIRS=(01 02 10 1000 20000)
+if [ -n "$1" ]; then
+  echo "Using provided DIRS: $1"
+  IFS=',' read -r -a DIRS <<< "$1"
+else
+  echo "Using default DIRS: ${DEFAULT_DIRS[*]}"
+  DIRS=("${DEFAULT_DIRS[@]}")
+fi
 
 # The types of signatures to support for the CA Certs.
 TYPES=(rsa ecdsa)
