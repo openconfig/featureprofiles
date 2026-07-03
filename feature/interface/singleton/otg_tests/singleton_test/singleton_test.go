@@ -129,9 +129,17 @@ func (tc *testCase) configInterfaceDUT(i *oc.Interface, dp *ondatra.Port, a *att
 	s6.Mtu = ygot.Uint32(uint32(tc.mtu))
 }
 
-func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_BreakoutMode_Group {
+func (tc *testCase) configureDUTBreakout(t *testing.T, dut *ondatra.DUTDevice) *oc.Component_Port_BreakoutMode_Group {
 	t.Helper()
 	d := gnmi.OC()
+	var breakoutGroupIndex uint8
+	// Decide which group index to use based on the device vendor
+	switch dut.Vendor() {
+	case ondatra.NOKIA:
+		breakoutGroupIndex = 1
+	default:
+		breakoutGroupIndex = 0
+	}
 	tc.breakoutPorts = make(map[string][]string)
 
 	for _, dp := range tc.dut.Ports() {
@@ -148,7 +156,7 @@ func (tc *testCase) configureDUTBreakout(t *testing.T) *oc.Component_Port_Breako
 			Name: ygot.String(physical),
 		}
 		bmode := comp.GetOrCreatePort().GetOrCreateBreakoutMode()
-		group = bmode.GetOrCreateGroup(0)
+		group = bmode.GetOrCreateGroup(breakoutGroupIndex)
 		// TODO(liulk): use one of the logical port.Speed().
 		group.BreakoutSpeed = oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB
 		group.NumBreakouts = ygot.Uint8(4)
@@ -512,7 +520,7 @@ func (tc *testCase) testFlow(t *testing.T, packetSize uint16, configIPHeader otg
 func (tc *testCase) testMTU(t *testing.T) {
 	tc.configureDUT(t)
 	tc.configureATE(t)
-	breakoutGroup := tc.configureDUTBreakout(t)
+	breakoutGroup := tc.configureDUTBreakout(t, tc.dut)
 
 	t.Run("VerifyDUT", func(t *testing.T) { tc.verifyDUT(t, breakoutGroup) })
 	t.Run("VerifyATE", func(t *testing.T) { tc.verifyATE(t) })

@@ -15,6 +15,7 @@ platform_exceptions: {
     default_network_instance: "default"
     missing_value_for_defaults: true
     routing_policy_chaining_unsupported: true
+    bgp_rib_streaming_config_required: true
   }
 }
 
@@ -34,7 +35,6 @@ platform_exceptions: {
   }
   deviations: {
     bgp_rib_oc_path_unsupported:  true
-    bgp_set_med_action_unsupported: true
   }
 }
 platform_exceptions: {

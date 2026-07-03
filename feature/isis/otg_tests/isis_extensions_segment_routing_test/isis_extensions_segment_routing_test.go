@@ -167,9 +167,9 @@ func TestISISSegmentRouting(t *testing.T) {
 	if deviations.IsisSrgbSrlbUnsupported(dut) {
 		configureGlobalMPLS(t, dut)
 	}
-	configureDUTLoopback(t, dut, 0, dutLoopback1, true)
-	configureDUTLoopback(t, dut, 1, dutLoopback2, false)
-	configureDUTLoopback(t, dut, 2, dutLoopback3, false)
+	configureDUTLoopback(t, dut, 1, dutLoopback1, true)
+	configureDUTLoopback(t, dut, 2, dutLoopback2, false)
+	configureDUTLoopback(t, dut, 3, dutLoopback3, false)
 	configurePrefixSID(t, dut)
 
 	// configure ATE
@@ -184,6 +184,21 @@ func TestISISSegmentRouting(t *testing.T) {
 
 	t.Logf("Starting capture")
 	startCapture(t, ate)
+	t.Logf("Waiting for routes to be installed on DUT.")
+	dni := deviations.DefaultNetworkInstance(dut)
+	ipv4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Route + "/32")
+	if _, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v4Route)
+	}
+
+	ipv6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Route + "/128")
+	if _, ok := gnmi.Watch(t, dut, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v6Route)
+	}
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 15)
@@ -300,15 +315,22 @@ func addISISOC(areaAddress, sysID, ifaceName1 string, ifaceName2 string, dut *on
 }
 
 func configurePrefixSID(t *testing.T, dut *ondatra.DUTDevice) {
-	if deviations.IsisSrPrefixSegmentConfigUnsupported(dut) {
+	if !deviations.IsisSrPrefixSegmentConfigUnsupported(dut) {
 		gnmiClient := dut.RawAPIs().GNMI(t)
+
+		// Add no-php flag if required by the device
+		noPhpFlag := ""
+		if deviations.IsisSrNoPhpRequired(dut) {
+			noPhpFlag = " no-php"
+		}
 
 		jsonConfig := fmt.Sprintf(`
 		router isis %s
 		segment-routing mpls
-		prefix-segment %s/%v index %d
-		prefix-segment %s/%v index %d
-		`, ISISName, dutLoopback2.IPv4, dutLoopback2.IPv4Len, prefixSIdIndexv4, dutLoopback2.IPv6, dutLoopback2.IPv6Len, prefixSIdIndexv6)
+		prefix-segment %s/%v index %d%s
+		prefix-segment %s/%v index %d%s
+		`, ISISName, dutLoopback2.IPv4, dutLoopback2.IPv4Len, prefixSIdIndexv4,
+			noPhpFlag, dutLoopback2.IPv6, dutLoopback2.IPv6Len, prefixSIdIndexv6, noPhpFlag)
 		gpbSetRequest := buildCliConfigRequest(jsonConfig)
 
 		if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -328,6 +350,12 @@ func configureGlobalMPLS(t *testing.T, dut *ondatra.DUTDevice) {
 	mpls label range isis-sr %s
 	mpls label range srlb %s
 		`, staticMplsLabel, srgbMplsLabelBlockName, srlbMplsLabelBlockName)
+
+	// ARISTA needs to enable hardware counters for mpls lfib to export in-pkts.
+	if dut.Vendor() == ondatra.ARISTA {
+		jsonConfig += "\thardware counter feature mpls lfib\n"
+	}
+
 	gpbSetRequest := buildCliConfigRequest(jsonConfig)
 
 	if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -469,7 +497,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	e1.Src().SetValue(atePort1.MAC)
 	e1.Dst().Auto()
 	mpls := v4Flow.Packet().Add().Mpls()
-	mpls.Label().SetValue(nodeSIDLabelv4_1)
+	mpls.Label().SetValue(nodeSIDLabelv4)
 
 	v4 := v4Flow.Packet().Add().Ipv4()
 	v4.Src().SetValue(atePort1.IPv4)
@@ -496,8 +524,7 @@ func configureATE(t *testing.T) gosnappi.Config {
 	e2.Src().SetValue(atePort1.MAC)
 	e2.Dst().Auto()
 	mplsv6 := v6Flow.Packet().Add().Mpls()
-	mplsv6.Label().SetValue(nodeSIDLabelv6_1)
-	mplsv6.BottomOfStack().SetValue(0)
+	mplsv6.Label().SetValue(nodeSIDLabelv6)
 	v6 := v6Flow.Packet().Add().Ipv6()
 	v6.Src().SetValue(atePort1.IPv6)
 	v6.Dst().SetValue(v6Route)
@@ -552,7 +579,6 @@ func configureATE(t *testing.T) gosnappi.Config {
 	e4.Dst().Auto()
 	mplsv61 := v6Flow1.Packet().Add().Mpls()
 	mplsv61.Label().SetValue(prefixSIdLabelv6)
-	mplsv61.BottomOfStack().SetValue(0)
 	v61 := v6Flow1.Packet().Add().Ipv6()
 	v61.Src().SetValue(atePort1.IPv6)
 	v61.Dst().SetValue(dutLoopback2.IPv6)
@@ -614,11 +640,18 @@ func configureDUTLoopback(t *testing.T, dut *ondatra.DUTDevice, id int, dutLoopb
 		if enablenodeSID {
 			if deviations.IsisSrNodeSegmentConfigUnsupported(dut) {
 				gnmiClient := dut.RawAPIs().GNMI(t)
+
+				// Add no-php flag if required by the device
+				noPhpFlag := ""
+				if deviations.IsisSrNoPhpRequired(dut) {
+					noPhpFlag = " no-php"
+				}
+
 				jsonConfig := fmt.Sprintf(`
 				interface %s
-				node-segment ipv4 label %v
-				node-segment ipv6 label %v
-				`, lo1.GetName(), nodeSIDLabelv4, nodeSIDLabelv6)
+				node-segment ipv4 label %v%s
+				node-segment ipv6 label %v%s
+				`, lo1.GetName(), nodeSIDLabelv4, noPhpFlag, nodeSIDLabelv6, noPhpFlag)
 
 				gpbSetRequest := buildCliConfigRequest(jsonConfig)
 				if _, err := gnmiClient.Set(context.Background(), gpbSetRequest); err != nil {
@@ -772,9 +805,11 @@ func VerifyISISSRSIDCounters(t *testing.T, dut *ondatra.DUTDevice, mplsLabel oc.
 		t.Errorf("Unable to find input matched packets related to MPLS label")
 	}
 
-	_, ok1 := gnmi.WatchAll(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounterAny().OutPkts().State(), timeout, isPresent).Await(t)
-	if !ok1 {
-		t.Errorf("Unable to find output matched packets related to MPLS label")
+	if !deviations.AggregateSIDCounterOutPktsUnsupported(dut) {
+		_, ok1 := gnmi.WatchAll(t, dut, gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounterAny().OutPkts().State(), timeout, isPresent).Await(t)
+		if !ok1 {
+			t.Errorf("Unable to find output matched packets related to MPLS label")
+		}
 	}
 
 	// MplsLabel:= mplsLabel oc.E_AggregateSidCounter_MplsLabel]
@@ -784,12 +819,18 @@ func VerifyISISSRSIDCounters(t *testing.T, dut *ondatra.DUTDevice, mplsLabel oc.
 	inpcktstats := gnmi.Get(t, dut, inpkts)
 	t.Log(inpcktstats)
 
-	OutPkts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounter(mplsLabel).OutPkts()
+	if inpcktstats == 0 {
+		t.Errorf("Unable to find input matched packets related to MPLS label")
+	}
 
-	outpcktstats := gnmi.Get(t, dut, OutPkts.State())
-	t.Log(outpcktstats)
+	if !deviations.AggregateSIDCounterOutPktsUnsupported(dut) {
+		OutPkts := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Mpls().SignalingProtocols().SegmentRouting().AggregateSidCounter(mplsLabel).OutPkts()
 
-	if inpcktstats == 0 || outpcktstats == 0 {
-		t.Errorf("Unable to find output matched packets related to MPLS label")
+		outpcktstats := gnmi.Get(t, dut, OutPkts.State())
+		t.Log(outpcktstats)
+
+		if outpcktstats == 0 {
+			t.Errorf("Unable to find output matched packets related to MPLS label")
+		}
 	}
 }

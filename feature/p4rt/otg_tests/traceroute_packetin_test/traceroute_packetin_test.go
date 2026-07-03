@@ -29,6 +29,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	"github.com/openconfig/featureprofiles/internal/otgutils"
 	"github.com/openconfig/featureprofiles/internal/p4rtutils"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
@@ -364,6 +365,11 @@ func testPacketInAfterClientReconnection(ctx context.Context, t *testing.T, dut 
 	args.follower = newFollower
 	for _, test := range packetInTests {
 		t.Run(test.desc, func(t *testing.T) {
+			if deviations.P4RTExplicitTableEntryPerController(dut) {
+				if err := programmTableEntry(args.leader, args.packetIO, false /*delete*/, test.isIPv4, newLeaderElectionID); err != nil {
+					t.Fatalf("there is error when programming entry, %v", err)
+				}
+			}
 			defer programmTableEntry(args.leader, args.packetIO, true /*delete*/, test.isIPv4, newLeaderElectionID)
 			startTraficAndTestPacketIn(ctx, t, args, test.isIPv4)
 		})
@@ -385,6 +391,8 @@ func TestPacketIn(t *testing.T) {
 	top := configureATE(t, ate)
 	ate.OTG().PushConfig(t, top)
 	ate.OTG().StartProtocols(t)
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv4")
+	otgutils.WaitForARP(t, ate.OTG(), top, "IPv6")
 
 	t.Run("Create P4RT clients, start traffic, and validate packetins sent to leader", func(t *testing.T) {
 		electionID := uint64(100)

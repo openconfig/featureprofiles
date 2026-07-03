@@ -150,6 +150,9 @@ func TestEthernetMacAddress(t *testing.T) {
 }
 
 func TestLagMacAddress(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("skipping test: LACP base config not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	lacpIntfs := gnmi.GetAll(t, dut, gnmi.OC().Lacp().InterfaceAny().Name().State())
 	if len(lacpIntfs) == 0 {
@@ -532,7 +535,7 @@ func TestComponentParent(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.desc, func(t *testing.T) {
 
-			if len(compList[tc.desc]) == 0 && dut.Model() == "DCS-7280CR3K-32D4" {
+			if len(compList[tc.desc]) == 0 && (dut.Model() == "DCS-7280CR3K-32D4" || dut.Model() == "CISCO-8202-32FH-M") {
 				t.Skipf("Test of %v is skipped due to hardware platform compatibility", tc.componentType)
 			}
 
