@@ -1366,16 +1366,6 @@ func BuildRepairedFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix bo
 	return flows
 }
 
-// RemovegRIBIRoute method is clearing the gRIBI routes.
-func RemovegRIBIRoute(t *testing.T, dut *ondatra.DUTDevice) {
-	t.Helper()
-	gSession := NewGRIBIClient(t, dut)
-	t.Cleanup(func() {
-		gSession.FlushAll(t)
-		gSession.Close(t)
-	})
-}
-
 // GetDUTMACAddress retrieves the MAC address for the given interface and neighbor IP.
 func GetDUTMACAddress(t *testing.T, ate *ondatra.ATEDevice, intfName string, neighborIP string) string {
 	t.Helper()
@@ -1403,11 +1393,7 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 
 	decapPfxSet := ExpandDecapPrefixes(params)
 	expectations := map[string]FlowExpectation{}
-	gSession := NewGRIBIClient(t, dut)
-	t.Cleanup(func() {
-		gSession.FlushAll(t)
-		gSession.Close(t)
-	})
+
 	// addFlows registers each flow's expectation. The VRF index is extracted
 	// from the flow's position in the slice so both DSCP values for that VRF
 	// can be stored in ExpectedDSCPs — either is a valid egress DSCP.
@@ -1817,6 +1803,13 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	}
 	neighborIP := goDutV4[0]
 	dstMac := GetDUTMACAddress(t, ate, intfName, neighborIP)
+
+	t.Cleanup(func() {
+		gSession := NewGRIBIClient(t, dut)
+		t.Log("Flushing all entries from GRIBI session")
+		gSession.FlushAll(t)
+		gSession.Close(t)
+	})
 
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
 		// // DEFAULT VRF
