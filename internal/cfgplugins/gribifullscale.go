@@ -655,6 +655,7 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 	numNHPart := max(params.NumDefaultNH/2, 1)
 	numNHGPart := max(params.NumDefaultNHG/2, 1)
 	numIPv4Part := max(params.NumDefaultIPv4/2, 1)
+	nhgBaseBackup := nhgBase + uint64(numNHGPart)
 
 	// Split the VLANs into primary and backup sets.
 	primaryVLANs := max(params.NumPort2VLANs*ShutdownVLANPct/100, 1)
@@ -680,67 +681,48 @@ func BuildDefaultVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, 
 		nhEntries = append(nhEntries, nhEntry)
 	}
 
-	// Cap the number of NextHops per group to 64 to prevent duplicate NextHops
+	// Cap the number of NextHops per group to prevent duplicate NextHops
 	// within the same group when NumDefaultNH is scaled down.
 	actualNHCount := min(64, numNHPart)
 
-	// Setup Set 1 Next Hop Groups
-	for i := 0; i < numNHGPart; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgBase + uint64(i))
-		// Determine the target sum of weights for this NHG based on the percentage split.
-		// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
-		targetWeightSum := uint64(512)
-		if i >= numNHGPart*params.PctNHG512/100 {
-			targetWeightSum = 1024
-		}
-		// Distribute the target weight sum evenly across the available NextHops.
-		baseWeight := targetWeightSum / uint64(actualNHCount)
-		for j := 0; j < actualNHCount; j++ {
-			weight := baseWeight
-			if actualNHCount == 64 {
-				// For full scale (64 NHs), apply specific weight adjustments to match
-				// the original test specification (e.g., 62 NHs with weight 8, one with 7, one with 9).
-				// This slight skew forces the router to program WCMP instead of standard ECMP,
-				// while perfectly preserving the 512 or 1024 total weight sum for hardware buckets.
-				if j == 62 {
-					weight--
-				} else if j == 63 {
-					weight++
-				}
-			} else if j == actualNHCount-1 {
-				// For scaled-down scenarios, assign any remaining weight to the last NextHop
-				// to ensure the total sum exactly matches targetWeightSum.
-				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
+	buildNHGs := func(baseNHG uint64, baseNH uint64) []fluent.GRIBIEntry {
+		groups := make([]fluent.GRIBIEntry, 0, numNHGPart)
+		for i := 0; i < numNHGPart; i++ {
+			nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(baseNHG + uint64(i))
+			// Determine the target sum of weights for this NHG based on the percentage split.
+			// The first pctNHG512% of groups get a total weight of 512, the rest get 1024.
+			targetWeightSum := uint64(512)
+			if i >= numNHGPart*params.PctNHG512/100 {
+				targetWeightSum = 1024
 			}
-			nhg.AddNextHop(nhBase+uint64((i*actualNHCount+j)%numNHPart), weight)
+			// Distribute the target weight sum evenly across the available NextHops.
+			baseWeight := targetWeightSum / uint64(actualNHCount)
+			for j := 0; j < actualNHCount; j++ {
+				weight := baseWeight
+				if actualNHCount == 64 {
+					// For full scale (64 NHs), apply specific weight adjustments to match
+					// the original test specification (e.g., 62 NHs with weight 8, one with 7, one with 9).
+					// This slight skew forces the router to program WCMP instead of standard ECMP,
+					// while perfectly preserving the 512 or 1024 total weight sum for hardware buckets.
+					if j == 62 {
+						weight--
+					} else if j == 63 {
+						weight++
+					}
+				} else if j == actualNHCount-1 {
+					// For scaled-down scenarios, assign any remaining weight to the last NextHop
+					// to ensure the total sum exactly matches targetWeightSum.
+					weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
+				}
+				nhg.AddNextHop(baseNH+uint64((i*actualNHCount+j)%numNHPart), weight)
+			}
+			groups = append(groups, nhg)
 		}
-		nhgEntries = append(nhgEntries, nhg)
+		return groups
 	}
 
-	// Setup Set 2 Next Hop Groups (Backup)
-	nhgBaseBackup := nhgBase + uint64(numNHGPart)
-	for i := 0; i < numNHGPart; i++ {
-		nhg := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).WithID(nhgBaseBackup + uint64(i))
-		targetWeightSum := uint64(512)
-		if i >= numNHGPart*params.PctNHG512/100 {
-			targetWeightSum = 1024
-		}
-		baseWeight := targetWeightSum / uint64(actualNHCount)
-		for j := 0; j < actualNHCount; j++ {
-			weight := baseWeight
-			if actualNHCount == 64 {
-				if j == 62 {
-					weight--
-				} else if j == 63 {
-					weight++
-				}
-			} else if j == actualNHCount-1 {
-				weight = targetWeightSum - (uint64(actualNHCount-1) * baseWeight)
-			}
-			nhg.AddNextHop(nhBaseBackup+uint64((i*actualNHCount+j)%numNHPart), weight)
-		}
-		nhgEntries = append(nhgEntries, nhg)
-	}
+	nhgEntries = append(nhgEntries, buildNHGs(nhgBase, nhBase)...)
+	nhgEntries = append(nhgEntries, buildNHGs(nhgBaseBackup, nhBaseBackup)...)
 
 	// Split the prefixes into primary and backup sets to match the VLAN split.
 	// The primary prefixes will be used by transit VRF (TE_VRF_111) and backup prefixes will be used by
@@ -1410,7 +1392,7 @@ func GetDUTMACAddress(t *testing.T, ate *ondatra.ATEDevice, intfName string, nei
 }
 
 // RunEndToEndTrafficValidation executes the end-to-end traffic validation for all scenarios. It registers flows, configures capture, runs traffic, and validates via otgvalidationhelpers and packetvalidationhelpers.
-func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, imix bool, testRepair bool, enablePacketCapture bool, compactOTGFlows bool, params ScaleParams) {
+func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ondatra.DUTDevice, top gosnappi.Config, dstMac string, imix bool, testRepair bool, enablePacketCapture bool, compactOTGFlows bool, params ScaleParams) {
 	t.Helper()
 	baseFlows := max(CountBaseFlows(compactOTGFlows, testRepair, params), 1)
 	perFlowPPS := params.TrafficRateMpps / uint64(baseFlows)
@@ -1482,19 +1464,6 @@ func RunEndToEndTrafficValidation(t *testing.T, ate *ondatra.ATEDevice, dut *ond
 			return BuildRepairedFlows(top, pktSize, pps, imix, dstMac, compactOTGFlows, params)
 		}, ScenarioRepaired, IPv4OuterSrc222, true, 1},
 	}
-
-	// Fetch MAC address for port1.
-	intfName := atePort1Attr.Name + "-0.Eth"
-	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
-	// The neighbor IP is the IPv4 address assigned to the first subinterface of DUT Port 1.
-	// We use GenerateIPsWithStep to exactly match the logic used during DUT configuration
-	// (in ConfigureDUTSubinterfaces), which derives the subinterface IPs from the start address.
-	goDutV4, err := iputil.GenerateIPsWithStep(DUTPort1IPv4Start, 1, PortIPv4Step)
-	if err != nil {
-		t.Fatalf("Failed to generate neighbor IP: %v", err)
-	}
-	neighborIP := goDutV4[0]
-	dstMac := GetDUTMACAddress(t, ate, intfName, neighborIP)
 
 	for _, b := range builders {
 		if testRepair && b.scenario != ScenarioTransit {
@@ -1836,8 +1805,21 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	IsIPv4InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
 	IsIPv6InterfaceARPresolved(t, ate, AddressFamilyParams{InterfaceNames: ifs})
 
+	// Fetch MAC address for port1.
+	intfName := atePort1Attr.Name + "-0.Eth"
+	// The ATE needs to resolve the MAC address of the DUT to send traffic to it.
+	// The neighbor IP is the IPv4 address assigned to the first subinterface of DUT Port 1.
+	// We use GenerateIPsWithStep to exactly match the logic used during DUT configuration
+	// (in ConfigureDUTSubinterfaces), which derives the subinterface IPs from the start address.
+	goDutV4, err := iputil.GenerateIPsWithStep(DUTPort1IPv4Start, 1, PortIPv4Step)
+	if err != nil {
+		t.Fatalf("Failed to generate neighbor IP: %v", err)
+	}
+	neighborIP := goDutV4[0]
+	dstMac := GetDUTMACAddress(t, ate, intfName, neighborIP)
+
 	t.Run("Configure and validate FIB_PROGRAMMED, Hierarchical route structure", func(t *testing.T) {
-		// DEFAULT VRF
+		// // DEFAULT VRF
 		t.Log("Default VRF entries (A/B/C)")
 		primaryDefaultPrefixes, backupDefaultPrefixes := BuildDefaultVRF(t, dut, ctx, defaultVRF, params)
 
@@ -1880,7 +1862,7 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 					t.Log("Running fixed-size (64B) traffic — all 5 scenarios, 30 Mpps aggregate")
 				}
 			}
-			RunEndToEndTrafficValidation(t, ate, dut, ateConfig, tc.UseIMIX, tc.TestRepair, enablePacketCapture, compactOTGFlows, params)
+			RunEndToEndTrafficValidation(t, ate, dut, ateConfig, dstMac, tc.UseIMIX, tc.TestRepair, enablePacketCapture, compactOTGFlows, params)
 		})
 	}
 }
