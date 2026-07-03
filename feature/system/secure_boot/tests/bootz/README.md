@@ -383,6 +383,85 @@ by the bootz process. If the artifacts are incomplete an error will be returned.
 6. Validate device state
     * System configuration is as expected.
 
+### bootz-7: DHCP-less Bootz
+
+This test validates the Bootz behavior when initiated without DHCP, using
+manual pre-configuration.
+
+| ID | Case | Result |
+| --- | --- | --- |
+| bootz-7.1 | Successful Bootstrap (Happy Path) | Device successfully bootstraps and applies config. |
+| bootz-7.2 | Failure Before Contacting Server | Device fails to connect, reverts to pre-config, and retries. |
+| bootz-7.3 | Failure After Contacting Server | Device fails during Bootz session, reverts, and retries. |
+| bootz-7.4 | Reset to DHCP Mode | Device wipes pre-config and parameters, and reboots into DHCP mode. |
+| bootz-7.5 | Terminate DHCP-less Mode | Device terminates Bootz agent, wipes parameters, and keeps pre-config. |
+
+#### bootz-7.1: Successful Bootstrap (Happy Path)
+
+1. Pre-configure the DUT with basic network configuration to enable reachability
+   to the Bootz server (local admin user, NTP, interface IP, static route).
+2. Start the Bootz server.
+3. Initiate DHCP-less Bootz on the DUT via CLI:
+   ```
+   cli bootz no-dhcp initiate \
+     --src_interface <DUT_PORT1> \
+     --bootz_uri bootz://<BOOTZ_SERVER_IP>:<BOOTZ_SERVER_PORT>
+   ```
+4. Validate the DUT initiates the connection (and reboots if required).
+5. Validate the DUT sends Bootz request to the server.
+6. Validate the Bootz flow completes successfully and the new configuration is
+   applied.
+7. Validate that the pre-configuration and Bootz parameters are wiped from the
+   DUT.
+8. Validate device telemetry:
+    * `/system/bootz/state/status` transitions to `BOOTZ_OK`.
+    * `/system/bootz/state/error-count` is 0.
+    * `/system/bootz/state/checksum` matches sent proto.
+
+#### bootz-7.2: Failure Before Contacting Server
+
+1. Pre-configure the DUT.
+2. Ensure the Bootz server is NOT reachable from the DUT.
+3. Initiate DHCP-less Bootz on the DUT.
+4. Validate the DUT attempts to connect and fails.
+5. Validate the DUT reverts to the pre-configuration and retries the
+   connection.
+6. Validate device telemetry:
+    * `/system/bootz/state/status` remains in `BOOTZ_UNSPECIFIED`.
+    * `/system/bootz/state/error-count` increments.
+7. Execute `cli bootz no-dhcp terminate` to stop the retry loop.
+
+#### bootz-7.3: Failure After Contacting Server
+
+1. Pre-configure the DUT with valid reachability.
+2. Configure the Bootz server to reject the DUT (e.g., return invalid
+   Ownership Voucher).
+3. Initiate DHCP-less Bootz on the DUT.
+4. Validate the DUT connects but the session fails.
+5. Validate the DUT reverts to the pre-configuration and retries.
+6. Validate device telemetry:
+    * `/system/bootz/state/status` transitions to `BOOTZ_OV_INVALID`.
+    * `/system/bootz/state/error-count` increments.
+7. Execute `cli bootz no-dhcp terminate` to stop the retry loop.
+
+#### bootz-7.4: Reset to DHCP Mode
+
+1. Pre-configure the DUT and initiate DHCP-less Bootz (e.g., in retry loop).
+2. Execute the reset command on the DUT: `cli bootz no-dhcp reset`.
+3. Validate the DUT wipes the pre-configuration and the Bootz parameters file.
+4. Validate the DUT reboots and enters standard DHCP Bootz mode (sends DHCP
+   requests).
+
+#### bootz-7.5: Terminate DHCP-less Mode
+
+1. Pre-configure the DUT and initiate DHCP-less Bootz (e.g., in retry loop).
+2. Execute the terminate command on the DUT: `cli bootz no-dhcp terminate`.
+3. Validate the DUT wipes the Bootz parameters file, halting further Bootz
+   attempts.
+4. Validate the DUT retains the pre-configuration and remains reachable.
+5. Validate device telemetry:
+    * `/system/bootz/state/status` returns to `BOOTZ_UNSPECIFIED`.
+
 ## OpenConfig Path and RPC Coverage
 
 ```yaml
