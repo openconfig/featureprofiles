@@ -746,6 +746,12 @@ func BuildTransitVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context,
 	gSession.Close(t)
 }
 
+// Currently not all vendors support repair reencap into multiple tunnels.
+// This condition should be removed once all vendors support it.
+func repairReencapIntoMultipleBackupTunnels(dut *ondatra.DUTDevice) bool {
+	return dut.Vendor() != ondatra.NOKIA
+}
+
 // BuildRepairVRF generates NH/NHG/IPv4 entries for REPAIR_VRF.
 func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, defaultVRF string, s2NHG uint64, params ScaleParams) {
 	t.Helper()
@@ -754,15 +760,17 @@ func BuildRepairVRF(t *testing.T, dut *ondatra.DUTDevice, ctx context.Context, d
 		t.Fatalf("BuildRepairVRF: generate tunnel dsts: %v", err)
 	}
 
-	nhNhgEntries := []fluent.GRIBIEntry{}
+	var nhNhgEntries []fluent.GRIBIEntry
 	nhIdx := uint64(0)
 	for i := 0; i < params.NumRepairNHG; i++ {
-		if i < params.NumRepairNHG/2 {
+		if i < params.NumRepairNHG/2 || !repairReencapIntoMultipleBackupTunnels(dut) {
+			// Repair NHG points to a single NH.
 			nhEntry, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: TransitVRF222Str})
 			nhgEntry, _ := gribi.NHGEntry(NHGBaseRepair+uint64(i), map[uint64]uint64{NHBaseRepair + nhIdx: 1}, defaultVRF, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: s2NHG})
 			nhNhgEntries = append(nhNhgEntries, nhEntry, nhgEntry)
 			nhIdx++
 		} else {
+			// Repair NHG points to two NHs.
 			nh0, _ := gribi.NHEntry(NHBaseRepair+nhIdx, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx], VrfName: TransitVRF222Str})
 			nh1, _ := gribi.NHEntry(NHBaseRepair+nhIdx+1, "DecapEncap", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{Src: IPv4OuterSrc222, Dest: tunnelDsts[nhIdx+1], VrfName: TransitVRF222Str})
 			nhgEntry, _ := gribi.NHGEntry(NHGBaseRepair+uint64(i), map[uint64]uint64{NHBaseRepair + nhIdx: 1, NHBaseRepair + nhIdx + 1: 1}, defaultVRF, fluent.InstalledInFIB, &gribi.NHGOptions{BackupNHG: s2NHG})
