@@ -1463,7 +1463,7 @@ func ConfigureTrafficPolicyACL(t *testing.T, dut *ondatra.DUTDevice, params ACLT
 }
 
 // ConfigureVRFSelectionPolicyOC configures vrf_selection_policy_c on DUT port1.
-func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice) {
+func ConfigureVRFSelectionPolicyOC(t *testing.T, dut *ondatra.DUTDevice, encapVRFs []string) {
 	t.Helper()
 	p1 := dut.Port(t, "port1")
 	defaultVRF := deviations.DefaultNetworkInstance(dut)
