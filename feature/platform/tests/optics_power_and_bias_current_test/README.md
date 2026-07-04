@@ -77,6 +77,17 @@ to Automatic Test Equipment (ATE).
     *   Verify /interfaces/interface/state/oper-status is UP.
     *   Repeat Step1 and Step2.
 
+## Bug Coverage
+
+### b/433734226: Intermittent Telemetry Dips on Cisco Platforms
+
+This test covers [b/433734226](http://b/433734226) where the telemetry daemon intermittently streams a value of `-40` dBm for input-power/output-power or `<= 0` for laser-bias-current under steady-state operations when the link is physically UP and stable.
+
+- **Detection**: The test continuously streams and monitors the `input-power`, `output-power`, and `laser-bias-current` telemetry for 3 minutes using a 10-second sampling interval (SAMPLE mode subscription).
+- **Assertions**:
+  - If the interface oper-status is `UP`, the test verifies that none of the collected input/output power samples are equal to `-40.0` (which is `minOpticsPower`).
+  - If the interface oper-status is `UP`, the test verifies that none of the collected laser bias current samples are less than or equal to `0`.
+
 ## Canonical OC
 
 ```json
@@ -143,3 +154,4 @@ rpcs:
     gNMI.Set:
     gNMI.Subscribe:
 ```
+
