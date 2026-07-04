@@ -16,7 +16,7 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
 ### gNMI-2.3: Verify parallel subscription requests on multiple interfaces simultaneously:
   * Retrieve at least two ports from the DUT.
   * Construct interface-specific state paths (using the explicit interface names) for those ports.
-  * Start separate goroutines to execute parallel gNMI subscription streams concurrently for each interface.
+  * Start separate concurrent sessions to execute parallel gNMI subscription streams concurrently for each interface.
   * Verify that a `SubscribeResponse` message is received by the client with the `sync_response` field set to `true` for all parallel streams within the timeout window.
 
 #### Canonical OC
@@ -29,7 +29,7 @@ This is to test for gNMI `Subscription` to multiple paths with different `Subscr
         "name": "port1",
         "config": {
           "name": "port1",
-          "type": "ethernetCsmacd",
+          "type": "iana-if-type:ethernetCsmacd",          
           "enabled": true
         },
         "subinterfaces": {
