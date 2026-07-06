@@ -240,44 +240,36 @@ func TestTrustBundleRotation(t *testing.T) {
 			if err != nil {
 				t.Fatalf("STATUS:%s:Failed to load client cert:%v", tc.desc, err)
 			}
-			var currentCertzClient certzpb.CertzClient
-			var currentGnmiClient gnmi.GNMIClient
+			activeCertzClient := certzClient
+			activeGNMIClient := gnmiClient
 			if tc.newTLScreds {
 				t.Logf("STATUS:%s:Creating new TLS credentials for client connection", tc.desc)
 				prevClientCert, err := tls.LoadX509KeyPair(prevClientCertFile, prevClientKeyFile)
 				if err != nil {
 					t.Fatalf("STATUS:%s:Failed to load previous client cert: %v", tc.desc, err)
 				}
-				oldPkcs7certs, oldPkcs7data, err := setup_service.Loadpkcs7TrustBundle(prevTrustBundleFile)
+				oldPkcs7certs, _, err := setup_service.Loadpkcs7TrustBundle(prevTrustBundleFile)
 				if err != nil {
-					t.Fatalf("STATUS:%sFailed to load previous trust bundle,data %v with %v", tc.desc, oldPkcs7data, err)
+					t.Fatalf("STATUS:%s failed to load previous trust bundle: %v", tc.desc, err)
 				}
-				//Create a old set of Cert Pool and append the certs from previous trust bundle.
 				prevCaCert := x509.NewCertPool()
 				for _, c := range oldPkcs7certs {
 					prevCaCert.AddCert(c)
 				}
-				//Before rotation,validation of all services with existing certificates.
 				if result := setup_service.ServicesValidationCheck(t, prevCaCert, expectedResult, serverSAN, serverAddr, username, password, prevClientCert, tc.mismatch); !result {
 					t.Fatalf("STATUS:%s:service validation failed before rotate- got %v, want %v.", tc.desc, result, expectedResult)
 				}
-				//Retrieve the connection with previous TLS credentials for certz rotation.
 				conn := setup_service.CreateNewDialOption(t, prevClientCert, prevCaCert, serverSAN, username, password, serverAddr)
 				defer conn.Close()
-				currentCertzClient = certzpb.NewCertzClient(conn)
-				currentGnmiClient = gnmi.NewGNMIClient(conn)
-				//Initiating trustbundle rotation.
-				t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
-				if success := setup_service.CertzRotate(ctx, t, newCaCert, currentCertzClient, currentGnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
-					t.Fatalf("STATUS:%s:CertzRotation failed.", tc.desc)
-				}
+				activeCertzClient = certzpb.NewCertzClient(conn)
+				activeGNMIClient = gnmi.NewGNMIClient(conn)
 			} else {
 				t.Logf("STATUS:%s:Using existing TLS credentials for client connection in first iteration.", tc.desc)
-				//Initiating first trustbundle rotation.
-				t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
-				if success := setup_service.CertzRotate(ctx, t, newCaCert, certzClient, gnmiClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
-					t.Fatalf("STATUS:%s:CertzRotation failed.", tc.desc)
-				}
+			}
+			//Initiating trustbundle rotation.
+			t.Logf("STATUS:%s Initiating Certz rotation with server cert: %s and trust bundle: %s.", tc.desc, tc.serverCertFile, tc.trustBundleFile)
+			if success := setup_service.CertzRotate(ctx, t, newCaCert, activeCertzClient, activeGNMIClient, newClientCert, dut, username, password, serverSAN, serverAddr, testProfile, tc.newTLScreds, tc.mismatch, tc.scale, &serverCertEntity, &trustBundleEntity); !success {
+				t.Fatalf("STATUS:%s:CertzRotation failed.", tc.desc)
 			}
 			t.Logf("STATUS:%s: TrustBundle rotation completed!", tc.desc)
 			//Post rotate validation of all services.
