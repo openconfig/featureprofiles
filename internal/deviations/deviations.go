@@ -2293,3 +2293,12 @@ func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
 	}
 	return 2500000
 }
+
+// StreamSubscriptionModeOnChangeRequired returns true if the device requires
+// ON_CHANGE subscription mode for frequently updated OC leaf nodes instead of
+// TARGET_DEFINED. With TARGET_DEFINED, some devices defer SAMPLE updates for
+// significant time, causing timing failures when a test checks a such a rapidly
+// changing value with a timeout lesser than the SAMPLE rate.
+func StreamSubscriptionModeOnChangeRequired(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStreamSubscriptionModeOnChangeRequired()
+}
