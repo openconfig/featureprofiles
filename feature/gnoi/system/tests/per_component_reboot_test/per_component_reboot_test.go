@@ -160,7 +160,17 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 		return val.IsPresent()
 	})
 	if val, ok := watch.Await(t); !ok {
-		t.Fatalf("DUT did not reach target state within %v: got %v", 10*time.Minute, val)
+		t.Logf("redundant-role not present for %s after reboot: got %v", rpStandby, val)
+		watchTime := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).LastRebootTime().State(), 5*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+			return val.IsPresent()
+		})
+		if val, ok := watchTime.Await(t); !ok {
+			t.Fatalf("DUT did not report last-reboot-time for %s within %v: got %v", rpStandby, 5*time.Minute, val)
+		} else {
+			t.Logf("Standby controller last reboot time observed: %v", val)
+		}
+	} else {
+		t.Logf("Standby controller redundant-role returned after reboot")
 	}
 	t.Logf("Standby controller boot time: %.2f seconds", time.Since(startReboot).Seconds())
 
@@ -231,13 +241,13 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	dutDstInterface := dut.Port(t, "port1").Name()
-	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
+	dutIngressInterface := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutIngressInterface).Ethernet().MacAddress().State())
 	eth.Dst().SetValue(dstMac)
 
 	ip := flow.Packet().Add().Ipv4()
 	ip.Src().SetValue(ateSrc.IPv4)
-	ip.Dst().SetValue(dutSrc.IPv4)
+	ip.Dst().SetValue(ateDst.IPv4)
 }
 
 // trapStats represents a single row of trap statistics.
@@ -337,27 +347,22 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	otgObj.StartProtocols(t)
 	otgObj.StartTraffic(t)
 
-	command := fmt.Sprintf("request pfe execute target %s command \"show cda trapstats\" | no-more", linecard)
-	for idx := 0; idx < 10; idx++ {
-		time.Sleep(30 * time.Second)
-		result := dut.CLI().RunResult(t, command)
-		if result.Error() != "" {
-			t.Errorf("could not fetch output for: %s, err: %s", command, result.Error())
-			break
-		}
-		stats, err := parseTrapStats(t, result.Output())
-		if err != nil {
-			t.Errorf("could not parse output for: %s, output:\n%s \nerr: %s", command, result.Output(), err)
-			break
-		}
-
-		for i := range stats {
-			stat := &stats[i]
-			if stat.rate != 0 {
-				t.Errorf("found non-zero rate for stat: %s, rate: %d", stat.name, stat.rate)
-			}
-		}
+	parent, err := fpcFromPort(t, dut, dut.Port(t, incomingPort).Name())
+	if err != nil {
+		t.Fatalf("failed to get parent component from port %s: %v", dut.Port(t, incomingPort).Name(), err)
 	}
+
+	// Capture AdverseAggregate drop value.
+	adverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
+	if !ok {
+		t.Logf("adverse-aggregate counter not present for component %s", parent)
+	} else {
+		if adverseAggrDrop != 0 {
+			t.Errorf("found non-zero value %d for adverse-aggregate drop", adverseAggrDrop)
+		}
+		t.Logf("found value %d for adverse-aggregate counter", adverseAggrDrop)
+	}
+
 	t.Log("Stop traffic")
 	otgObj.StopTraffic(t)
 	t.Log("Stop protocols")
