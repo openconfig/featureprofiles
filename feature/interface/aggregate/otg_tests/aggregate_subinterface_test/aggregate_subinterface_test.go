@@ -149,13 +149,11 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 	var config oc.Root
 
 	batch := &gnmi.SetBatch{}
-
 	// Create Network Instance first for Cisco compatibility.
+	var ni *oc.NetworkInstance
 	if niName != deviations.DefaultNetworkInstance(dut) {
-		ni := config.GetOrCreateNetworkInstance(niName)
+		ni = config.GetOrCreateNetworkInstance(niName)
 		ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
-
-		gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(niName).Config(), ni)
 	}
 	// First: Create LAGs with their configuration
 	for _, lagName := range []string{lag1Name, lag2Name} {
@@ -188,7 +186,6 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 			ipv4 := subif.GetOrCreateIpv4()
 			switch dut.Vendor() {
 			case ondatra.ARISTA:
-				deviations.InterfaceEnabled(dut)
 				if deviations.InterfaceEnabled(dut) {
 					ipv4.Enabled = ygot.Bool(true)
 				}
@@ -199,20 +196,16 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, niName string, minLinks 
 			ipv6 := subif.GetOrCreateIpv6()
 			switch dut.Vendor() {
 			case ondatra.ARISTA:
-				deviations.InterfaceEnabled(dut)
 				if deviations.InterfaceEnabled(dut) {
 					ipv6.Enabled = ygot.Bool(true)
 				}
 			}
 			s6 := ipv6.GetOrCreateAddress(sub.dutIPv6)
 			s6.PrefixLength = ygot.Uint8(ipv6PrefixLen)
-			if niName != deviations.DefaultNetworkInstance(dut) {
-				ni := config.GetOrCreateNetworkInstance(niName)
-				ni.Type = oc.NetworkInstanceTypes_NETWORK_INSTANCE_TYPE_L3VRF
+			if ni != nil {
 				niIntf := ni.GetOrCreateInterface(fmt.Sprintf("%s.%d", lagName, sub.vlanID))
 				niIntf.Subinterface = ygot.Uint32(uint32(sub.vlanID))
 				niIntf.Interface = ygot.String(lagName)
-				gnmi.BatchReplace(batch, gnmi.OC().NetworkInstance(niName).Config(), ni)
 			}
 		}
 		gnmi.BatchReplace(batch, gnmi.OC().Interface(lagName).Config(), lag)
