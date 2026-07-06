@@ -1719,66 +1719,24 @@ func ConfigureBMP(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cf
 				helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
 			}
 		case ondatra.JUNIPER:
-			fmt.Fprintf(bmpConfig, `
-				routing-options {
-					autonomous-system %d;
-    				bmp {
-        				statistics-timeout 30;
-						station r-bmp {                
-							connection-mode active;
-            				station-address %s;
-            				station-port %d;
-						}
-        			}
-				}`, cfgParams.DutAS, cfgParams.StationAddr, cfgParams.StationPort)
+			routingOptions := new(strings.Builder)
+			fmt.Fprintf(routingOptions, "routing-options {\n\tautonomous-system %d;\n\tbmp {\n\t\tstatistics-timeout 30;\n\t\tstation r-bmp {\n\t\t\tconnection-mode active;\n\t\t\tstation-address %s;\n\t\t\tstation-port %d;\n", cfgParams.DutAS, cfgParams.StationAddr, cfgParams.StationPort)
 
-			if cfgParams.PrePolicy {
-				t.Log("Configured BMP station with pre-policy export")
-				fmt.Fprintf(bmpConfig, `
-				routing-options {
-    				bmp {
-        				station r-bmp {
-            				route-monitoring {
-                				pre-policy;
-            				}
-						}
-        			}
+			if cfgParams.PrePolicy || cfgParams.PostPolicy {
+				fmt.Fprint(routingOptions, "\t\t\troute-monitoring {\n")
+				if cfgParams.PrePolicy {
+					fmt.Fprint(routingOptions, "\t\t\t\tpre-policy;\n")
 				}
-				`)
+				if cfgParams.PostPolicy {
+					fmt.Fprint(routingOptions, "\t\t\t\tpost-policy;\n")
+				}
+				fmt.Fprint(routingOptions, "\t\t\t}\n")
+			} else {
+				fmt.Fprint(routingOptions, "\t\t\troute-monitoring {\n\t\t\t\tpre-policy;\n\t\t\t\tpost-policy;\n\t\t\t}\n")
 			}
 
-			if cfgParams.PostPolicy {
-				t.Log("Configured BMP station with post-policy export")
-				fmt.Fprintf(bmpConfig, `
-				routing-options {
-    				bmp {
-        				station r-bmp {
-            				route-monitoring {
-                				post-policy;
-            				}
-						}
-        			}
-				}
-				`)
-			}
-
-			if !cfgParams.PostPolicy && !cfgParams.PrePolicy {
-				t.Log("Configured BMP station with both pre-policy and post-policy export")
-				fmt.Fprintf(bmpConfig, `
-				routing-options {
-    				bmp {
-        				station r-bmp {
-            				route-monitoring {
-                				pre-policy;
-								post-policy;
-            				}
-						}
-        			}
-				}
-				`)
-			}
-
-			helpers.GnmiCLIConfig(t, dut, bmpConfig.String())
+			fmt.Fprint(routingOptions, "\t\t}\n\t}\n}\n")
+			helpers.GnmiCLIConfig(t, dut, routingOptions.String())
 		}
 	} else {
 		// TODO: BMP OC support is not yet available, so the code below is commented out and will be enabled once BMP is implemented.
