@@ -2284,6 +2284,16 @@ func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
 
+// MaxOutFIBRouteCount returns routecount if the device has a max route count based on specific platform
+// For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device.
+// This will be used in scale test cases to set the max route count for the device.
+func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
+	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
+		return routeCount
+	}
+	return 2500000
+}
+
 // DecapNHWithoutNextHopNIUnsupported returns true if Decap NH without NextHopNetworkInstance is not supported
 // Nokia: https://partnerissuetracker.corp.google.com/issues/529388485
 func DecapNHWithoutNextHopNIUnsupported(dut *ondatra.DUTDevice) bool {
