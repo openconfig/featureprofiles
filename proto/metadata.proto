@@ -1597,6 +1597,13 @@ message Metadata {
     // Cisco: https://partnerissuetracker.corp.google.com/issues/573074330
     bool ecn_min_greater_max_threshold_unsupported = 481;
 
+    // Device requires ON_CHANGE subscription mode for frequently updated OC leaf
+    // nodes instead of TARGET_DEFINED. With TARGET_DEFINED, some devices defer
+    // SAMPLE updates for significant time, causing timing failures when a test 
+    // checks such a value with a timeout lesser than the SAMPLE rate.
+    // Arista: https://partnerissuetracker.corp.google.com/issues/580924392
+    bool stream_subscription_mode_on_change_required = 482;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
