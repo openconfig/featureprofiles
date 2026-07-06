@@ -631,8 +631,6 @@ func TestBMPBaseSession(t *testing.T) {
 	dut := ondatra.DUT(t, "dut")
 	ate := ondatra.ATE(t, "ate")
 
-	fptest.ConfigureDefaultNetworkInstance(t, dut)
-
 	t.Log("Start DUT Configuration")
 	configureDUT(t, dut)
 	t.Log("Start ATE Configuration")
