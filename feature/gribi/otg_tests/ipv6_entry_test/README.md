@@ -12,3 +12,11 @@ Validate IPv6 support in gRIBI.
     *   Single IPv6Entry -> NHG -> NH.
         *   Install 2001:db8:a::/64 to NextHopGroup containing one NextHop specified to ATE port-2 (IPv6 address).
         *   Forward packets between ATE port-1 and ATE port-2 (destined to 2001:db8:a::/64) and determine that packets are forwarded successfully.
+
+## Canonical OC
+
+This test adds no new OpenConfig path coverage.
+
+```json
+{}
+```
