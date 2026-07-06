@@ -281,10 +281,8 @@ func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnap
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv6")
 	}
-	flowipv6 := ateTop.Flows().Add().SetName(name)
-	flowipv6.Metrics().SetEnable(true)
-	e1 := flowipv6.Packet().Add().Ethernet()
-	e1.Src().SetValue(atePort1.MAC)
+	flowipv6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames(rxEndpoints)
+	v6 := flowipv6.Packet().Add().Ipv6()
 	flowipv6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames(rxEndpoints)
 	v6 := flowipv6.Packet().Add().Ipv6()
 	v6.Src().SetValue(atePort1.IPv6)
@@ -323,7 +321,6 @@ func createTrafficFlows(t *testing.T, ate *ondatra.ATEDevice, good, bad []string
 		}
 	}
 	otg.PushConfig(t, ateTop)
-	otg.StartProtocols(t)
 	return newGoodFlows, newBadFlows
 }
 
