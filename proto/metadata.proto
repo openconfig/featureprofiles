@@ -1274,12 +1274,13 @@ message Metadata {
     // Functional translator to be used for Fragment Punt OC paths
     string fragment_punt_ft = 408;
 
-    // Device Does not support session channel id
-    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
-    bool acctz_record_session_channel_id_unsupported = 410;
     // Arista: https://partnerissuetracker.corp.google.com/issues/502838491
     // Device is missing subinterface state packet counters.
     bool default_subinterface_packet_counters_missing = 409;
+
+    // Device Does not support session channel id
+    // Juniper: https://partnerissuetracker.corp.google.com/issues/494474526
+    bool acctz_record_session_channel_id_unsupported = 410;
 
     // Functional translator to be used for carrier-transitions paths.
     // Cisco: https://partnerissuetracker.corp.google.com/issues/437390593
@@ -1373,11 +1374,35 @@ message Metadata {
     // .subinterface index with Interface-ref container specifically for policy forwarding usecase
     // Cisco: https://partnerissuetracker.corp.google.com/u/0/issues/523054650
     bool interface_id_format_required_for_policy_forwarding = 434;
-
+    
     // Device reports resource utilization at the chassis component level
     // rather than at the integrated-circuit component level.
     // Arista: https://partnerissuetracker.corp.google.com/issues/523026741
     bool use_chassis_aggregate_utilization = 435;
+
+    // No FIB_ACK support for unreferenced NH/NHG entries
+    bool unreferenced_aft_fib_ack_unsupported = 436;
+    
+    //Indirect next-hop not supported with forwarding viable.
+    // Nokia: b/428883444
+    bool forwarding_viable_failover_with_indirect_nh_unsupported = 437;
+
+    // Device does not support static route nexthop interface state
+    // Arista: b/494493377
+    bool static_route_nexthop_interface_state_oc_unsupported = 438;
+
+    // Device does not support OC configuration for lacp interface fallback
+    // Arista: https://partnerissuetracker.corp.google.com/issues/492458024
+    bool lacp_interface_fallback_oc_unsupported = 439;
+
+    // Device does not support configuring VLAN subinterfaces
+    // Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+    bool vlan_subinterface_oc_unsupported = 440;
+    
+    // Device has max route count based on specific platform
+    // Juniper : For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device. This will be used in scale test cases to set the max route count for the device.
+    uint32 max_out_fib_route_count = 441;
+
     // Reserved field numbers and identifiers.
     reserved 84, 9, 28, 20, 38, 43, 90, 97, 55, 89, 19, 36, 35, 40, 113, 131, 141, 173, 234, 254, 231, 300, 241, 49;
   }
