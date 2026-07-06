@@ -1,4 +1,4 @@
-package enrollz_tpm20_hmac
+package enrollz_tpm20_hmac_test
 
 import (
 	"context"
