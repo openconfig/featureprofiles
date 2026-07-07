@@ -104,7 +104,6 @@ const (
 	niEncapTeVrfB            = "ENCAP_TE_VRF_B"
 	niTeVrf111               = "TE_VRF_111"
 	niTeVrf222               = "TE_VRF_222"
-	niDefault                = "DEFAULT"
 	tolerancePct             = 2
 	flowNegTest              = "flowNegTest"
 	ipv4InnerDst             = "138.0.11.8"
@@ -419,13 +418,13 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
 	pfRule9 := &policyFwRule{SeqId: 9, protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule10 := &policyFwRule{SeqId: 10, protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule11 := &policyFwRule{SeqId: 11, protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 	pfRule12 := &policyFwRule{SeqId: 12, protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
 	pfRuleList := []*policyFwRule{pfRule1, pfRule2, pfRule3, pfRule4, pfRule5, pfRule6,
 		pfRule7, pfRule8, pfRule9, pfRule10, pfRule11, pfRule12}
@@ -452,20 +451,20 @@ func configureVrfSelectionPolicyW(t *testing.T, dut *ondatra.DUTDevice) {
 		pfR13 := niPf.GetOrCreateRule(seqIDOffset(dut, 13))
 		pfR13.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR13.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 		pfR14 := niPf.GetOrCreateRule(seqIDOffset(dut, 14))
 		pfR14.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR14.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	} else {
 		pfR := niPf.GetOrCreateRule(13)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	}
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 
@@ -503,13 +502,13 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 		decapNi: niDecapTeVrf, postDecapNi: niEncapTeVrfB, decapFallbackNi: niTeVrf111}
 
 	pfRule9 := &policyFwRule{SeqId: 9, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule10 := &policyFwRule{SeqId: 10, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc222WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf222}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf222}
 	pfRule11 := &policyFwRule{SeqId: 11, family: "ipv4", protocol: 4, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 	pfRule12 := &policyFwRule{SeqId: 12, family: "ipv4", protocol: 41, sourceAddr: ipv4OuterSrc111WithMask,
-		decapNi: niDecapTeVrf, postDecapNi: niDefault, decapFallbackNi: niTeVrf111}
+		decapNi: niDecapTeVrf, postDecapNi: deviations.DefaultNetworkInstance(dut), decapFallbackNi: niTeVrf111}
 
 	pfRule13 := &policyFwRule{SeqId: 13, family: "ipv4", dscpSet: []uint8{dscpEncapA1, dscpEncapA2},
 		ni: niEncapTeVrfA}
@@ -569,20 +568,20 @@ func configureVrfSelectionPolicyC(t *testing.T, dut *ondatra.DUTDevice) {
 		pfR17 := niPf.GetOrCreateRule(seqIDOffset(dut, 17))
 		pfR17.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV4)
 		pfRAction := pfR17.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 		pfR18 := niPf.GetOrCreateRule(seqIDOffset(dut, 18))
 		pfR18.GetOrCreateL2().SetEthertype(oc.PacketMatchTypes_ETHERTYPE_ETHERTYPE_IPV6)
 		pfRAction = pfR18.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	} else {
 		pfR := niPf.GetOrCreateRule(17)
 		pfRAction := pfR.GetOrCreateAction()
-		pfRAction.NetworkInstance = ygot.String(niDefault)
+		pfRAction.NetworkInstance = ygot.String(deviations.DefaultNetworkInstance(dut))
 	}
 
 	p1 := dut.Port(t, "port1")
 	interfaceID := p1.Name()
-	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+	if deviations.InterfaceRefInterfaceIDFormat(dut) || deviations.InterfaceIDFormatRequiredForPolicyForwarding(dut) {
 		interfaceID = interfaceID + ".0"
 	}
 	intf := niP.GetOrCreateInterface(interfaceID)
@@ -831,7 +830,6 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
-
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) || deviations.InterfaceRefInterfaceIDFormat(dut) {
 		dutIntf = dutIntf + ".0"
 	}
@@ -1079,6 +1077,12 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
+	nh1001 := fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() == ondatra.ARISTA {
+		nh1001.WithNextHopNetworkInstance(deviations.DefaultNetworkInstance(dut))
+	}
+
 	// Programming AFT entries for backup NHG
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1088,7 +1092,7 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithID(1000).AddNextHop(1000, 1),
 
-		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithIndex(1001).WithDecapsulateHeader(fluent.IPinIP),
+		nh1001,
 		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).WithID(1001).AddNextHop(1001, 1),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
@@ -1136,22 +1140,34 @@ func configGribiBaselineAFT(ctx context.Context, t *testing.T, dut *ondatra.DUTD
 		)
 	}
 
+	nhg1 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(1).AddNextHop(1, 1).AddNextHop(2, 3)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() != ondatra.ARISTA {
+		nhg1.WithBackupNHG(1000)
+	}
+
+	nhg3 := fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
+		WithID(3).AddNextHop(4, 1)
+	// TODO Arista to introduce deviation https://issuetracker.google.com/529182953
+	if dut.Vendor() != ondatra.ARISTA {
+		nhg3.WithBackupNHG(1002)
+	}
+
 	// Programming AFT entries for prefixes in TE_VRF_111
 	args.client.Modify().AddEntry(t,
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(1).WithIPAddress(gribiIPv4EntryDefVRF1),
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(2).WithIPAddress(gribiIPv4EntryDefVRF2),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(1).AddNextHop(1, 1).AddNextHop(2, 3).WithBackupNHG(1000),
+		nhg1,
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix(gribiIPv4EntryVRF1111+"/"+maskLen32).WithNextHopGroup(1).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
 
 		fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
 			WithIndex(4).WithIPAddress(gribiIPv4EntryDefVRF4),
-		fluent.NextHopGroupEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(dut)).
-			WithID(3).AddNextHop(4, 1).WithBackupNHG(1002),
+		nhg3,
 		fluent.IPv4Entry().WithNetworkInstance(niTeVrf111).
 			WithPrefix(gribiIPv4EntryVRF1112+"/"+maskLen32).WithNextHopGroup(3).
 			WithNextHopGroupNetworkInstance(deviations.DefaultNetworkInstance(dut)),
@@ -1572,6 +1588,7 @@ func sendTraffic(t *testing.T, args *testArgs, capturePortList []string, flowLis
 func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss bool) {
 	t.Helper()
 	for _, flowName := range flowList {
+		waitForFlowMetricsReady(t, args.otg, flowName, 2*time.Minute)
 		t.Logf("Verifying flow metrics for the flow %s\n", flowName)
 		recvMetric := gnmi.Get(t, args.otg, gnmi.OTG().Flow(flowName).State())
 		txPackets := recvMetric.GetCounters().GetOutPkts()
@@ -1600,10 +1617,55 @@ func verifyTraffic(t *testing.T, args *testArgs, flowList []string, wantLoss boo
 	}
 }
 
+// waitForFlowMetricsReady waits until a flow's TX/RX counters stop changing, or fails after timeout.
+func waitForFlowMetricsReady(t *testing.T, otgDev *otg.OTG, flowName string, timeout time.Duration) {
+	const pollInterval = time.Second
+	const stableReads = 2
+
+	type counters struct {
+		tx uint64
+		rx uint64
+	}
+
+	deadline := time.Now().Add(timeout)
+	var (
+		prev      counters
+		havePrev  bool
+		stableCnt int
+		last      counters
+	)
+
+	for time.Now().Before(deadline) {
+		flowMetric := gnmi.Get(t, otgDev, gnmi.OTG().Flow(flowName).State())
+		cur := counters{
+			tx: flowMetric.GetCounters().GetOutPkts(),
+			rx: flowMetric.GetCounters().GetInPkts(),
+		}
+		last = cur
+
+		if havePrev && cur == prev {
+			stableCnt++
+			if stableCnt >= stableReads {
+				t.Logf("Flow %q metrics stabilized: tx=%d rx=%d", flowName, cur.tx, cur.rx)
+				return
+			}
+		} else {
+			stableCnt = 0
+		}
+
+		prev = cur
+		havePrev = true
+		time.Sleep(pollInterval)
+	}
+
+	t.Fatalf("Flow %q metrics did not stabilize within %s (last tx=%d rx=%d)", flowName, timeout, last.tx, last.rx)
+}
+
 type packetValidation struct {
 	portName        string
 	outDstIP        []string
 	inHdrIP         string
+	inHdrIPv6       string
 	inHdrDscp       uint32
 	inHdrEcn        uint32
 	validateDecap   bool
@@ -1632,7 +1694,7 @@ func captureAndValidatePackets(t *testing.T, args *testArgs, packetVal *packetVa
 		validateTrafficTTL(t, f)
 	}
 	if packetVal.validateDecap {
-		validateTrafficDecap(t, f, packetVal.inHdrDscp, packetVal.inHdrEcn)
+		validateTrafficDecap(t, f, packetVal.inHdrIP, packetVal.inHdrIPv6, packetVal.inHdrDscp, packetVal.inHdrEcn)
 	}
 	if packetVal.validateNoDecap {
 		validateTrafficNonDecap(t, f, packetVal.outDstIP[0], packetVal.inHdrIP)
@@ -1694,11 +1756,11 @@ func isDecapped(t *testing.T, packet gopacket.Packet) bool {
 	return (numberOfIPLayers == 1)
 }
 
-func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp uint32, expectedInHdrEcn uint32) {
+func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrIP string, expectedInHdrIPv6 string, expectedInHdrDscp uint32, expectedInHdrEcn uint32) {
 	t.Helper()
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficDecap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	testStats := struct {
@@ -1723,10 +1785,13 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 		if packet.Layer(layers.LayerTypeUDP) == nil {
 			continue
 		}
-		testStats.packetCheckCount++
 		if ipLayer != nil {
-			testStats.IPv4CapturedPackets++
 			ipPacket, _ := ipLayer.(*layers.IPv4)
+			if ipPacket.DstIP.String() != expectedInHdrIP {
+				continue
+			}
+			testStats.packetCheckCount++
+			testStats.IPv4CapturedPackets++
 			if !isDecapped(t, packet) {
 				innerPacket := gopacket.NewPacket(ipPacket.Payload, ipPacket.NextLayerType(), gopacket.Default)
 				ipInnerLayer := innerPacket.Layer(layers.LayerTypeIPv4)
@@ -1751,8 +1816,12 @@ func validateTrafficDecap(t *testing.T, captureFile *os.File, expectedInHdrDscp 
 				t.Errorf("validateTrafficDecap: ecn value mismatch, got %d, want %d", actualEcn, expectedInHdrEcn)
 			}
 		} else {
-			testStats.IPv6CapturedPackets++
 			ipv6Packet, _ := ipv6Layer.(*layers.IPv6)
+			if ipv6Packet.DstIP.String() != expectedInHdrIPv6 {
+				continue
+			}
+			testStats.packetCheckCount++
+			testStats.IPv6CapturedPackets++
 			if actualDscp := uint32(ipv6Packet.TrafficClass >> 2); actualDscp != expectedInHdrDscp {
 				testStats.IPv6DscpMismatchPackets++
 				t.Errorf("validateTrafficDecap: dscp value mismatch, got %d, want %d", actualDscp, expectedInHdrDscp)
@@ -1797,7 +1866,7 @@ func validateTrafficNonDecap(t *testing.T, captureFile *os.File, outDstIP, inHdr
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficNonDecap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
@@ -1836,7 +1905,7 @@ func validateTrafficEncap(t *testing.T, captureFile *os.File, outDstIP []string,
 	t.Log("Validate traffic non decap routes")
 	pcapFileHandle, err := pcap.OpenOffline(captureFile.Name())
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("validateTrafficEncap: failed to open pcap file: %v\n", err)
 	}
 	defer pcapFileHandle.Close()
 	var packetCheckCount uint32 = 0
@@ -1984,6 +2053,7 @@ func testGribiDecapMatchSrcProtoNoMatchDSCP(ctx context.Context, t *testing.T, d
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDst,
+						inHdrIPv6:     ipv6InnerDst,
 						inHdrDscp:     dscpEncapNoMatch,
 						inHdrEcn:      ecnCongestionExperienced, // IF packet has marked ECN 11, it will be copied to outer HDR
 						validateTTL:   true,
@@ -2076,6 +2146,7 @@ func testGribiDecapMatchSrcProtoDSCP(ctx context.Context, t *testing.T, dut *ond
 					captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 						outDstIP:      []string{ipv4OuterDst111},
 						inHdrIP:       ipv4InnerDstNoEncap,
+						inHdrIPv6:     ipv6InnerDstNoEncap,
 						inHdrDscp:     dscpEncapA1,
 						inHdrEcn:      ecnCapable2,
 						validateTTL:   true,
@@ -2138,6 +2209,7 @@ func testGribiDecapMixedLenPref(ctx context.Context, t *testing.T, dut *ondatra.
 		captureAndValidatePackets(t, args, &packetValidation{portName: portList[0],
 			outDstIP:      []string{traffiDstIP1},
 			inHdrIP:       ipv4InnerDst,
+			inHdrIPv6:     ipv6InnerDst,
 			inHdrDscp:     dscpEncapNoMatch,
 			inHdrEcn:      ecnNotCapable,
 			validateTTL:   false,
