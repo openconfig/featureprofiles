@@ -2667,7 +2667,7 @@ test: {
 }
 test: {
   id: "Pathz-4"
-  description: "Emergency Policy Removal via CLI"
+  description: "Policy Removal via CLI"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
   exec: " "
 }
