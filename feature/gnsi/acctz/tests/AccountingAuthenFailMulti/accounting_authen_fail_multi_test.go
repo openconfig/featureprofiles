@@ -338,7 +338,8 @@ func TestAccountzAuthenFailMulti(t *testing.T) {
 	credSets := InvalidCredentialSets()
 	attemptedUsernames := make(map[string]bool)
 	var connMetas []*connMetadata
-	for _, creds := range credSets {
+	for i := range credSets {
+		creds := &credSets[i]
 		meta := attemptFailedSSH(t, target, creds.username, creds.password)
 		connMetas = append(connMetas, meta)
 		attemptedUsernames[creds.username] = true
