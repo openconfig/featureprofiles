@@ -1,4 +1,4 @@
-# Pathz: Path-level Authorization (1-3) tests
+# Pathz: Path-level Authorization (1-4) tests
 
 ## Summary
 
