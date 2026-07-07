@@ -179,7 +179,7 @@ This test verifies that a Pathz policy can be removed from the device using vend
     *   Use `gNSI.Pathz.Rotate` to push a test Pathz policy and finalize it.
 2.  **Verify Policy Active**:
     *   Call `gNSI.Pathz.Get` and verify that the returned policy is active.
-3.  **Emergency Removal via CLI**:
+3.  **Removal via CLI**:
     *   Access the DUT via vendor-native CLI (using console or SSH).
     *   Execute the vendor-specific command to remove the Pathz policy.
 4.  **Verify Policy Cleared**:
