@@ -356,6 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
+	innHdrDscp                   uint32
 	proto                        uint32
 }
 
@@ -390,7 +391,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -464,6 +465,9 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
 		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
+	}
+	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
+		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
 }
 
@@ -724,6 +728,7 @@ func configureGribiRoute(ctx context.Context, t *testing.T, dut *ondatra.DUTDevi
 func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddress, dutSysID string) {
 	t.Helper()
 	d := &oc.Root{}
+	dutConfIsisPath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	netInstance := d.GetOrCreateNetworkInstance(deviations.DefaultNetworkInstance(dut))
 	prot := netInstance.GetOrCreateProtocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance)
 	prot.Enabled = ygot.Bool(true)
@@ -742,8 +747,14 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
+	isisIntfID := intfName
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfID = intfName + ".0"
+	}
+	isisIntf := isis.GetOrCreateInterface(isisIntfID)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -774,7 +785,7 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 		isisIntfLevelAfiv4.Enabled = nil
 		isisIntfLevelAfiv6.Enabled = nil
 	}
-	gnmi.Update(t, dut, gnmi.OC().Config(), d)
+	gnmi.Update(t, dut, dutConfIsisPath.Config(), prot)
 }
 
 // bgpCreateNbr creates BGP neighbor configuration
@@ -809,11 +820,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 // verifyISISTelemetry verifies ISIS telemetry.
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutIntf += ".0"
+	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
-	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
-		dutIntf = dutIntf + ".0"
-	}
 	nbrPath := statePath.Interface(dutIntf)
 	query := nbrPath.LevelAny().AdjacencyAny().AdjacencyState().State()
 	_, ok := gnmi.WatchAll(t, dut, query, time.Minute, func(val *ygnmi.Value[oc.E_Isis_IsisInterfaceAdjState]) bool {
@@ -1089,7 +1100,6 @@ func testTunnelTrafficNoDecap(ctx context.Context, t *testing.T, dut *ondatra.DU
 			if err := gribi.FlushAll(args.client); err != nil {
 				t.Fatal(err)
 			}
-
 			// Configure GRIBi baseline AFTs.
 			baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 			configureAdditionalGribiAft(ctx, t, dut, args)
@@ -1123,7 +1133,6 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	if err := gribi.FlushAll(args.client); err != nil {
 		t.Fatal(err)
 	}
-
 	// Configure GRIBi baseline AFTs.
 	baseScenario.ConfigureBaseGribiRoutes(ctx, t, dut, args.client)
 	configureAdditionalGribiAft(ctx, t, dut, args)
@@ -1134,10 +1143,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: false}}
 	captureState := startCapture(t, args, baseCapturePortList)
 	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -1145,10 +1154,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
 	flow = []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: false}}
 	captureState = startCapture(t, args, baseCapturePortList)
 	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -1272,25 +1281,20 @@ func TestTraceRoute(t *testing.T) {
 		testGribiDecapMatchSrcProtoDSCP(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
-
-		})
-		t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-4: Tests that traceroute respects transit FRR", func(t *testing.T) {
+	})
+	t.Run("Test-5: Tests that traceroute respects transit FRR when the backup is also unviable.", func(t *testing.T) {
+	})*/
 	t.Run("Test-6: Tunneled traffic with no decap", func(t *testing.T) {
 		testTunnelTrafficNoDecap(ctx, t, dut, args)
 	})
 	// Below test case will implement later
-	/*
-		t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
-
-		})
-		t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
-
-		})*/
+	/*t.Run("Test-7: Encap failure cases (TBD on confirmation)", func(t *testing.T) {
+	})
+	t.Run("Test-8: Tests that traceroute for a packet with a route lookup miss has an unset target_egress_port.", func(t *testing.T) {
+	})*/
 	t.Run("Test-9: Decap then encap", func(t *testing.T) {
 		testTunnelTrafficDecapEncap(ctx, t, dut, args)
 	})
+
 }

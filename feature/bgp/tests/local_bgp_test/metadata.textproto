@@ -13,6 +13,7 @@ platform_exceptions: {
     ipv4_missing_enabled: true
     missing_bgp_last_notification_error_code: true
     connect_retry: true
+    bgp_rpl_directly_under_peer_group_unsupported: true
   }
 }
 platform_exceptions: {
