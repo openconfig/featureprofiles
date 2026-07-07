@@ -169,6 +169,23 @@ This test verifies the `gNSI.Pathz.Probe` RPC functionality.
         *   Expect: `action: ACTION_PERMIT` (still using active `v1` policy).
     *   Abort the rotation.
 
+### Pathz-4: Emergency Policy Removal via CLI
+
+This test verifies that a Pathz policy can be emergency-removed from the device using vendor-native CLI commands, and that this removal is correctly reflected in the gNSI Pathz service.
+
+#### Procedure:
+
+1.  **Push Policy**:
+    *   Use `gNSI.Pathz.Rotate` to push a test Pathz policy and finalize it.
+2.  **Verify Policy Active**:
+    *   Call `gNSI.Pathz.Get` and verify that the returned policy is active.
+3.  **Emergency Removal via CLI**:
+    *   Access the DUT via vendor-native CLI (using console or SSH).
+    *   Execute the vendor-specific command to remove the Pathz policy.
+        *   *Example command*: `tools /system configuration pathz-policy remove` (Note: command is vendor-dependent).
+4.  **Verify Policy Cleared**:
+    *   Call `gNSI.Pathz.Get` and verify that no policy is returned (or an empty policy is returned, or the RPC returns an error indicating no policy is configured).
+
 ## Canonical OC
 
 ```json
