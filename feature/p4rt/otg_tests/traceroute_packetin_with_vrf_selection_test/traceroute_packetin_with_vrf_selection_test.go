@@ -356,6 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
+	innHdrDscp                   uint32
 	proto                        uint32
 }
 
@@ -390,7 +391,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -746,8 +747,14 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
+	isisIntfID := intfName
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfID = intfName + ".0"
+	}
+	isisIntf := isis.GetOrCreateInterface(isisIntfID)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -813,6 +820,9 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 // verifyISISTelemetry verifies ISIS telemetry.
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutIntf += ".0"
+	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
 	nbrPath := statePath.Interface(dutIntf)
@@ -1133,10 +1143,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: false}}
 	captureState := startCapture(t, args, baseCapturePortList)
 	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -1144,10 +1154,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
 	flow = []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: false}}
 	captureState = startCapture(t, args, baseCapturePortList)
 	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
