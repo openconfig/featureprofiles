@@ -2265,3 +2265,31 @@ func UseChassisAggregateUtilization(dut *ondatra.DUTDevice) bool {
 func UnreferencedAftFibAckUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetUnreferencedAftFibAckUnsupported()
 }
+
+// StaticRouteNexthopInterfaceStateOcUnsupported returns true if the device does not support state for static route next-hop interface.
+// Arista: b/494493377
+func StaticRouteNexthopInterfaceStateOcUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetStaticRouteNexthopInterfaceStateOcUnsupported()
+}
+
+// LacpInterfaceFallbackOCUnsupported returns true if the device does not support OC config for port channel fallback and timeout.
+// Arista: https://partnerissuetracker.corp.google.com/issues/492458024
+func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetLacpInterfaceFallbackOcUnsupported()
+}
+
+// VlanSubinterfaceOCUnsupported returns true if the device does not support OC config for VLAN subinterfaces.
+// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
+}
+
+// MaxOutFIBRouteCount returns routecount if the device has a max route count based on specific platform
+// For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device.
+// This will be used in scale test cases to set the max route count for the device.
+func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
+	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
+		return routeCount
+	}
+	return 2500000
+}
