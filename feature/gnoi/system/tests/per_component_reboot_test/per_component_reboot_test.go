@@ -15,11 +15,9 @@
 package per_component_reboot_test
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -241,8 +239,8 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 
 	eth := flow.Packet().Add().Ethernet()
 	eth.Src().SetValue(ateSrc.MAC)
-	dutIngressInterface := dut.Port(t, "port1").Name()
-	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutIngressInterface).Ethernet().MacAddress().State())
+	dutDstInterface := dut.Port(t, "port1").Name()
+	dstMac := gnmi.Get(t, dut, gnmi.OC().Interface(dutDstInterface).Ethernet().MacAddress().State())
 	eth.Dst().SetValue(dstMac)
 
 	ip := flow.Packet().Add().Ipv4()
@@ -250,75 +248,21 @@ func createTrafficFlows(t *testing.T, top gosnappi.Config, ate *ondatra.ATEDevic
 	ip.Dst().SetValue(ateDst.IPv4)
 }
 
-// trapStats represents a single row of trap statistics.
-type trapStats struct {
-	dev      int
-	trapcode int
-	name     string
-	count    int
-	rate     int
-}
-
-// parseTrapStats parses the output of the request pfe execute target fpc* command " show cda trapstats" | no-more command.
-func parseTrapStats(t *testing.T, output string) ([]trapStats, error) {
+func checkParentComponent(t *testing.T, dut *ondatra.DUTDevice, entity string) string {
 	t.Helper()
 
-	var stats []trapStats
-	var parsingTable bool
-	scanner := bufio.NewScanner(strings.NewReader(output))
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		if strings.HasPrefix(line, "DEV") {
-			parsingTable = true
-			continue
-		}
-
-		if !parsingTable {
-			continue
-		}
-
-		match := trapstatsRe.FindStringSubmatch(line)
-		if match == nil {
-			if len(strings.TrimSpace(line)) > 0 {
-				return nil, fmt.Errorf("invalid line format: %s", line)
-			}
-			continue
-		}
-
-		dev, err := strconv.Atoi(strings.TrimSpace(match[1]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing DEV: %w", err)
-		}
-		trapCode, err := strconv.Atoi(strings.TrimSpace(match[2]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing TRAPCODE: %w", err)
-		}
-		name := strings.TrimSpace(match[3])
-		count, err := strconv.Atoi(strings.TrimSpace(match[4]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing COUNT: %w", err)
-		}
-		rate, err := strconv.Atoi(strings.TrimSpace(match[5]))
-		if err != nil {
-			return nil, fmt.Errorf("error parsing RATE: %w", err)
-		}
-
-		stats = append(stats, trapStats{
-			dev:      dev,
-			trapcode: trapCode,
-			name:     name,
-			count:    count,
-			rate:     rate,
-		})
+	parent := gnmi.Lookup(t, dut, gnmi.OC().Component(entity).Parent().State())
+	val, present := parent.Val()
+	if !present {
+		t.Fatalf("Parent component NOT found for entity: %s", entity)
 	}
 
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading output: %w", err)
+	gotV := gnmi.Lookup(t, dut, gnmi.OC().Component(val).Name().State())
+	got, present := gotV.Val()
+	if present {
+		t.Logf("Found parent component %s for entity %s", got, entity)
 	}
-
-	return stats, nil
+	return got
 }
 
 func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
@@ -347,10 +291,12 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	otgObj.StartProtocols(t)
 	otgObj.StartTraffic(t)
 
-	parent, err := fpcFromPort(t, dut, dut.Port(t, incomingPort).Name())
-	if err != nil {
-		t.Fatalf("failed to get parent component from port %s: %v", dut.Port(t, incomingPort).Name(), err)
+	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).HardwarePort().State()).Val()
+	if !ok || hwPort == "" {
+		t.Fatalf("failed to get hardware-port for interface: %s", dut.Port(t, incomingPort).Name())
 	}
+
+	parent := checkParentComponent(t, dut, hwPort)
 
 	// Capture AdverseAggregate drop value.
 	adverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
