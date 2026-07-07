@@ -151,6 +151,9 @@ func TestEthernetMacAddress(t *testing.T) {
 }
 
 func TestLagMacAddress(t *testing.T) {
+	if !*args.LACPBaseConfigPresent {
+		t.Skipf("skipping test: LACP base config not present")
+	}
 	dut := ondatra.DUT(t, "dut")
 	setupLACPConfig(t, dut)
 	defer teardownLACPConfig(t, dut)

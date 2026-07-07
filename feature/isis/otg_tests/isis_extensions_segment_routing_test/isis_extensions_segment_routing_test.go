@@ -184,6 +184,21 @@ func TestISISSegmentRouting(t *testing.T) {
 
 	t.Logf("Starting capture")
 	startCapture(t, ate)
+	t.Logf("Waiting for routes to be installed on DUT.")
+	dni := deviations.DefaultNetworkInstance(dut)
+	ipv4Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv4Entry(v4Route + "/32")
+	if _, ok := gnmi.Watch(t, dut, ipv4Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv4Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v4Route)
+	}
+
+	ipv6Path := gnmi.OC().NetworkInstance(dni).Afts().Ipv6Entry(v6Route + "/128")
+	if _, ok := gnmi.Watch(t, dut, ipv6Path.State(), time.Minute, func(val *ygnmi.Value[*oc.NetworkInstance_Afts_Ipv6Entry]) bool {
+		return val.IsPresent()
+	}).Await(t); !ok {
+		t.Fatalf("Route %s not found in AFT", v6Route)
+	}
 	t.Logf("Starting traffic")
 	ate.OTG().StartTraffic(t)
 	time.Sleep(time.Second * 15)
