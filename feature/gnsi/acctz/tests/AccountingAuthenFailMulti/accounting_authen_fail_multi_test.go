@@ -188,10 +188,8 @@ func verifyServiceRequest(t *testing.T, record *acctzpb.RecordResponse) {
 			t.Errorf("CmdService authz should be omitted for auth failure record (status=%v): %s", authz.GetStatus(), prettyPrint(record))
 		}
 	case *acctzpb.RecordResponse_GrpcService:
-		if sr.GrpcService.GetServiceType() == acctzpb.GrpcService_GRPC_SERVICE_TYPE_UNSPECIFIED {
-			t.Errorf("GrpcService service_type is unspecified for record: %s", prettyPrint(record))
-		}
-		t.Errorf("Got GrpcService record for SSH auth failure (unexpected): %s", prettyPrint(record))
+		st := sr.GrpcService.GetServiceType()
+		t.Errorf("Got GrpcService record for SSH auth failure (unexpected, service_type=%v): %s", st, prettyPrint(record))
 		if authz := sr.GrpcService.GetAuthz(); authz != nil && authz.GetStatus() != acctzpb.AuthzDetail_AUTHZ_STATUS_UNSPECIFIED {
 			t.Errorf("GrpcService authz should be omitted for auth failure record (status=%v): %s", authz.GetStatus(), prettyPrint(record))
 		}
