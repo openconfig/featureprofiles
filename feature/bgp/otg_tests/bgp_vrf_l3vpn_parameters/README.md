@@ -48,6 +48,11 @@ graph LR;
 *   **IPv4 Subnet**: `198.51.100.0/30` (DUT: `.1`, ATE: `.2`)
 *   **IPv6 Subnet**: `2001:DB8:2::/64` (DUT: `::1`, ATE: `::2`)
 
+#### BGP Router IDs
+
+*   **DUT DEFAULT Network Instance**: `198.51.100.1`
+*   **DUT VRF_100**: `192.0.2.1`
+
 --------------------------------------------------------------------------------
 
 ## Configuration
@@ -67,10 +72,12 @@ graph LR;
 ### RT-1.102.1 - eBGP Session Establishment in VRF
 
 *   **Step 1**: Configure the eBGP neighbors on DUT (`192.0.2.2`,
-    `2001:DB8:1::2`) with Peer AS `64497`.
+    `2001:DB8:1::2`) with Peer AS `64497`, MD5 authentication, and Graceful
+    Restart enabled with a 120-second restart time.
 *   **Step 2**: Bring up the peers on ATE.
 *   **Step 3**: Verify the session states transition to `ESTABLISHED`.
-*   **Step 4**: Verify the sessions are contained within `VRF_100`.
+*   **Step 4**: Verify the sessions are contained within `VRF_100` and
+    independent Router ID `192.0.2.1` is used for this VRF.
 
 ### RT-1.102.2 - L3VPN Attribute Validation
 
@@ -83,13 +90,54 @@ graph LR;
 *   **Step 4**: Verify these routes are propagated to the iBGP peer (ATE Port 2)
     over the VPNv4/VPNv6 sessions with the correct Extended Communities.
 
-### RT-1.102.3 - Negative Verification & Isolation Boundary
+### RT-1.102.3 - Maximum Prefix Limit Enforcement (IPv4 and IPv6)
+
+*   **Step 1**: Configure a maximum prefix limit (e.g., 5000) on both IPv4 and
+    IPv6 address families for the eBGP neighbor in `VRF_100`.
+*   **Step 2**: Advertise IPv4 and IPv6 prefixes up to the limit and verify
+    sessions remain established.
+*   **Step 3**: Exceed the limit for each address family independently and
+    verify standard behavior (warning or teardown) per configuration.
+
+### RT-1.102.4 - Negative Verification & Isolation Boundary
 
 *   **Step 1 (Default Isolation)**: Verify customer prefixes (`203.0.113.10/32`,
     `2001:DB8:3::10/128`) are **NOT** visible in the Default Network Instance
     (`"DEFAULT"`) Unicast RIB.
 *   **Step 2 (Inter-Tenant Isolation)**: Verify customer prefixes injected into
     `VRF_100` are **NOT** visible in `VRF_200` RIB.
+
+### RT-1.102.5 - BGP Graceful Restart Verification in VRF
+
+*   **Step 1**: Verify the eBGP sessions in `VRF_100` are established and
+    customer prefixes are propagated to the iBGP peer.
+*   **Step 2 (DUT as Helper)**: Simulate a restart of the customer eBGP peer
+    (ATE Port 1) by dropping the BGP session/TCP connection without sending a
+    BGP CEASE notification.
+*   **Step 3**: Verify that the DUT (acting as Helper) retains the customer
+    prefixes in `VRF_100` RIB/FIB and continues to forward traffic toward them.
+*   **Step 4**: Verify that the prefixes remain advertised to the iBGP peer (ATE
+    Port 2) during this state.
+*   **Step 5**: Restore the customer eBGP session on ATE within the Graceful
+    Restart timer window (less than 120 seconds).
+*   **Step 6**: Verify that the session is re-established successfully without
+    causing route flaps, withdrawals, or traffic disruption in the core.
+*   **Step 7 (Timeout Scenario)**: Repeat Step 2, but keep the customer peer
+    down for longer than 120 seconds. Verify that prefixes are eventually
+    withdrawn from both `VRF_100` and the iBGP peer.
+
+### RT-1.102.6 - Immediate Prefix Withdrawal without Graceful Restart
+
+*   **Step 1**: Disable Graceful Restart on the customer eBGP neighbor in
+    `VRF_100` (or configure the ATE peer to not advertise GR capability).
+*   **Step 2**: Verify the eBGP session is established and customer prefixes are
+    propagated to the iBGP peer.
+*   **Step 3**: Drop the BGP session/TCP connection on ATE Port 1 (Customer
+    simulator) without sending a BGP CEASE notification.
+*   **Step 4**: Verify that the DUT immediately withdraws the customer prefixes
+    from `VRF_100` RIB/FIB (Fail-Fast/No Retention).
+*   **Step 5**: Verify that the withdrawals are immediately propagated to the
+    iBGP peer (ATE Port 2).
 
 --------------------------------------------------------------------------------
 
@@ -122,7 +170,8 @@ graph LR;
               "bgp": {
                 "global": {
                   "config": {
-                    "as": 64496
+                    "as": 64496,
+                    "router-id": "198.51.100.1"
                   }
                 },
                 "neighbors": {
@@ -225,14 +274,27 @@ graph LR;
           "protocol": [
             {
               "bgp": {
+                "global": {
+                  "config": {
+                    "as": 64496,
+                    "router-id": "192.0.2.1"
+                  }
+                },
                 "neighbors": {
                   "neighbor": [
                     {
                       "config": {
                         "neighbor-address": "192.0.2.2",
-                        "peer-as": 64497
+                        "peer-as": 64497,
+                        "auth-password": "customer_secret_v4"
                       },
                       "neighbor-address": "192.0.2.2",
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true,
+                          "restart-time": 120
+                        }
+                      },
                       "afi-safis": {
                         "afi-safi": [
                           {
@@ -240,6 +302,13 @@ graph LR;
                             "config": {
                               "afi-safi-name": "openconfig-bgp-types:IPV4_UNICAST",
                               "enabled": true
+                            },
+                            "ipv4-unicast": {
+                              "prefix-limit": {
+                                "config": {
+                                  "max-prefixes": 5000
+                                }
+                              }
                             }
                           }
                         ]
@@ -248,9 +317,16 @@ graph LR;
                     {
                       "config": {
                         "neighbor-address": "2001:DB8:1::2",
-                        "peer-as": 64497
+                        "peer-as": 64497,
+                        "auth-password": "customer_secret_v6"
                       },
                       "neighbor-address": "2001:DB8:1::2",
+                      "graceful-restart": {
+                        "config": {
+                          "enabled": true,
+                          "restart-time": 120
+                        }
+                      },
                       "afi-safis": {
                         "afi-safi": [
                           {
@@ -258,6 +334,13 @@ graph LR;
                             "config": {
                               "afi-safi-name": "openconfig-bgp-types:IPV6_UNICAST",
                               "enabled": true
+                            },
+                            "ipv6-unicast": {
+                              "prefix-limit": {
+                                "config": {
+                                  "max-prefixes": 5000
+                                }
+                              }
                             }
                           }
                         ]
@@ -318,6 +401,8 @@ paths:
   # BGP Neighbor Config
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/neighbor-address:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/peer-as:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/config/enabled:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/graceful-restart/config/restart-time:
 
   # BGP AFI-SAFI Enablement
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/config/enabled:
@@ -327,8 +412,16 @@ paths:
   /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/state/session-state:
 
   # Telemetry / AFT Paths
-  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state:
-  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state:
+  /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/:
+  /network-instances/network-instance/afts/ipv6-unicast/ipv6-entry/state/:
+
+  # MD5 Auth & Router ID (New in this version)
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/config/auth-password:
+  /network-instances/network-instance/protocols/protocol/bgp/global/config/router-id:
+
+  # Prefix Limit (New in this version)
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv4-unicast/prefix-limit/config/max-prefixes:
+  /network-instances/network-instance/protocols/protocol/bgp/neighbors/neighbor/afi-safis/afi-safi/ipv6-unicast/prefix-limit/config/max-prefixes:
 
 rpcs:
   gnmi:
@@ -336,8 +429,13 @@ rpcs:
       union_replace: true
     gNMI.Subscribe:
       on_change: true
-```
+
+## TODO
+
+*   Add coverage for Bidirectional Forwarding Detection (BFD) to accelerate convergence on BGP sessions.
 
 ## Required DUT platform
 
+
 *   FFF (Fixed Form Factor) or MFF supporting L3VPN and per-VRF BGP.
+```
