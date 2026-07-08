@@ -58,8 +58,8 @@ type invalidCredentials struct {
 }
 
 // InvalidCredentialSets returns the set of invalid password credential combinations to test.
-func InvalidCredentialSets() []invalidCredentials {
-	return []invalidCredentials{
+func InvalidCredentialSets() []*invalidCredentials {
+	return []*invalidCredentials{
 		{
 			description: "empty username",
 			username:    "",
@@ -337,7 +337,7 @@ func TestAccountzAuthenFailMulti(t *testing.T) {
 	attemptedUsernames := make(map[string]bool)
 	var connMetas []*connMetadata
 	for i := range credSets {
-		creds := &credSets[i]
+		creds := credSets[i]
 		meta := attemptFailedSSH(t, target, creds.username, creds.password)
 		connMetas = append(connMetas, meta)
 		attemptedUsernames[creds.username] = true
