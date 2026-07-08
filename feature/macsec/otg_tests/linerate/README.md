@@ -48,10 +48,20 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
 
 ### MSEC-1.2.1 - Line Rate Performance with 64B Frames
 
-* Step 1 - Configure MACsec on the DUT with `GCM_AES_256` cipher suite and a valid keychain.
+* Step 1 - Configure MACsec on DUT1 and DUT2 with `GCM_AES_256` cipher suite and a valid keychain.
 * Step 2 - Generate 100% line-rate traffic from the ATE with fixed 64-byte frames.
 * Step 3 - Verify that no packet loss occurs over a 10-minute duration.
 * Step 4 - Validate that throughput matches the expected line rate for 64B frames (accounting for MACsec overhead).
+
+### MSEC-1.2.2 - Line Rate Performance with IMIX Traffic
+* Step 1 - Maintain the MACsec configuration from MSEC-1.2.1.
+* Step 2 - Generate line-rate traffic using an IMIX profile (e.g., a mix of 64B, 570B, and 1518B).
+* Step 3 - Verify zero packet loss and consistent throughput.
+
+### MSEC-1.2.3 - Line Rate Performance with Jumbo Frames
+* Step 1 - Configure the DUT1<->DUT2 interfaces to support a MTU of 9216 bytes.
+* Step 2 - Generate line-rate traffic with 9000-byte frames.
+* Step 3 - Verify that the hardware correctly handles large encrypted payloads without fragmentation or loss.
 
 #### Canonical OC
 
@@ -163,16 +173,6 @@ This test verifies that the DUT can maintain line-rate performance for MACsec-en
   }
 }
 ```
-
-### MSEC-1.2.2 - Line Rate Performance with IMIX Traffic
-* Step 1 - Maintain the MACsec configuration from MSEC-1.2.1.
-* Step 2 - Generate line-rate traffic using an IMIX profile (e.g., a mix of 64B, 570B, and 1518B).
-* Step 3 - Verify zero packet loss and consistent throughput.
-
-### MSEC-1.2.3 - Line Rate Performance with Jumbo Frames
-* Step 1 - Configure the DUT1<->DUT2 interfaces to support a MTU of 9216 bytes.
-* Step 2 - Generate line-rate traffic with 9000-byte frames.
-* Step 3 - Verify that the hardware correctly handles large encrypted payloads without fragmentation or loss.
 
 ## OpenConfig Path and RPC Coverage
 
