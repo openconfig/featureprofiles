@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
-	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/featureprofiles/internal/attrs"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
