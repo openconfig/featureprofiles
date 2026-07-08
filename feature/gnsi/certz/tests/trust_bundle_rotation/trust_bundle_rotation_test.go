@@ -55,6 +55,33 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// verifyServices explicitly validates connections for all required gRPC services: gNMI, gNOI, gNSI, gRIBI, and P4RT.
+func verifyServices(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+	t.Helper()
+	t.Logf("%s: Verifying gNMI, gNOI, gNSI, gRIBI, and P4RT connections.", time.Now().String())
+	if result := setup_service.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNMI service verification failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNOI service verification failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNSI service verification failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gRIBI service verification failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setup_service.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("P4RT service verification failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	return true
+}
+
 func createCombinedBundle(t *testing.T, dirPath, typeStr string) string {
 	t.Helper()
 	pem1 := filepath.Join(dirPath, "ca-01", fmt.Sprintf("trust_bundle_01_%s.pem", typeStr))
@@ -231,7 +258,7 @@ func TestTrustBundleRotation(t *testing.T) {
 					}
 
 					// Verify baseline works
-					if result := setup_service.ServicesValidationCheck(t, caCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
+					if result := verifyServices(t, caCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
 						t.Fatalf("Baseline service validation failed.")
 					}
 
@@ -313,20 +340,8 @@ func TestTrustBundleRotation(t *testing.T) {
 
 						// Step 6: Post-finalization verification
 						t.Log("Step 6: Verifying services after finalization...")
-						if success := setup_service.VerifyGnoi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("gNOI service verification failed after finalization.")
-						}
-						if success := setup_service.VerifyGribi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("gRIBI service verification failed after finalization.")
-						}
-						if success := setup_service.VerifyP4rt(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("P4RT service verification failed after finalization.")
-						}
-						if success := setup_service.VerifyGnmi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("gNMI service verification failed after finalization.")
-						}
-						if success := setup_service.VerifyGnsi(t, targetCaCertPool, serverSAN, serverAddr, username, password, clientCert, false); !success {
-							t.Fatalf("gNSI service verification failed after finalization.")
+						if success := verifyServices(t, targetCaCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !success {
+							t.Fatalf("Post-finalization service verification failed.")
 						}
 						t.Log("Post-finalization verification successful.")
 					} else {
@@ -336,7 +351,7 @@ func TestTrustBundleRotation(t *testing.T) {
 
 						// Verify rollback (should still work with baseline ca-01)
 						t.Logf("Verifying server still works with baseline ca-01 after failed rotation")
-						if result := setup_service.ServicesValidationCheck(t, caCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
+						if result := verifyServices(t, caCertPool, expectedResult, serverSAN, serverAddr, username, password, clientCert, false); !result {
 							t.Fatalf("Service validation failed after negative rotation attempt.")
 						}
 					}

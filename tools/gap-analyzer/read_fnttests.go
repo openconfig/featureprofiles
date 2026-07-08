@@ -245,26 +245,44 @@ Result in JSON format:
 
 	// Make HTTP request
 	url := fmt.Sprintf(geminiAPIURL, *model, *apiKey)
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
-	if err != nil {
-		return false, "", fmt.Errorf("failed to create http request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{Timeout: 180 * time.Second}
 
-	client := &http.Client{Timeout: 60 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return false, "", fmt.Errorf("http request failed: %w", err)
-	}
-	defer resp.Body.Close()
+	var respBody []byte
+	var lastErr error
+	for attempt := 1; attempt <= 3; attempt++ {
+		req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(reqBytes))
+		if err != nil {
+			return false, "", fmt.Errorf("failed to create http request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
 
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to read response body: %w", err)
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = fmt.Errorf("http request failed: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = fmt.Errorf("failed to read response body: %w", err)
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(body))
+			log.Printf("Attempt %d of 3 failed: %v. Retrying in 10s...", attempt, lastErr)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+		respBody = body
+		lastErr = nil
+		break
 	}
-
-	if resp.StatusCode != http.StatusOK {
-		return false, "", fmt.Errorf("gemini api returned non-ok status %d: %s", resp.StatusCode, string(respBody))
+	if lastErr != nil {
+		return false, "", lastErr
 	}
 
 	// Unmarshal response body
