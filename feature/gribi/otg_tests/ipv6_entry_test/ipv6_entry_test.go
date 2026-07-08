@@ -277,12 +277,13 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 
 // createFlow creates a traffic flow from ATE Port 1 to the destination prefix.
 func createFlow(t *testing.T, name string, ate *ondatra.ATEDevice, ateTop gosnappi.Config, dsts ...*attrs.Attributes) string {
+	flowipv6 := ateTop.Flows().Add().SetName(name)
+	flowipv6.Metrics().SetEnable(true)
 	var rxEndpoints []string
 	for _, dst := range dsts {
 		rxEndpoints = append(rxEndpoints, dst.Name+".IPv6")
 	}
 	flowipv6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames(rxEndpoints)
-	v6 := flowipv6.Packet().Add().Ipv6()
 	flowipv6.TxRx().Device().SetTxNames([]string{atePort1.Name + ".IPv6"}).SetRxNames(rxEndpoints)
 	v6 := flowipv6.Packet().Add().Ipv6()
 	v6.Src().SetValue(atePort1.IPv6)
