@@ -2,6 +2,8 @@ name: FNT Gap Analysis
 
 on:
   pull_request:
+    branches-ignore:
+      - feature/gnsi/certz
     # No paths filter for testing triggers.
 
 permissions: {}
