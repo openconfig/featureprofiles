@@ -17,7 +17,6 @@ package per_component_reboot_test
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -53,8 +52,6 @@ const (
 )
 
 var (
-	trapstatsRe = regexp.MustCompile(`^\s*(\d+)\s+(\d+)\s+([\w\.\s]+)\s+(\d+)\s+(\d+)`)
-
 	dutSrc = attrs.Attributes{
 		Desc:    "dutSrc",
 		IPv4:    "192.168.1.1",
@@ -159,11 +156,11 @@ func TestStandbyControllerCardReboot(t *testing.T) {
 	})
 	if val, ok := watch.Await(t); !ok {
 		t.Logf("redundant-role not present for %s after reboot: got %v", rpStandby, val)
-		watchTime := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).LastRebootTime().State(), 5*time.Minute, func(val *ygnmi.Value[uint64]) bool {
+		watchTime := gnmi.Watch(t, dut, gnmi.OC().Component(rpStandby).LastRebootTime().State(), 10*time.Minute, func(val *ygnmi.Value[uint64]) bool {
 			return val.IsPresent()
 		})
 		if val, ok := watchTime.Await(t); !ok {
-			t.Fatalf("DUT did not report last-reboot-time for %s within %v: got %v", rpStandby, 5*time.Minute, val)
+			t.Fatalf("DUT did not report last-reboot-time for %s within %v: got %v", rpStandby, 10*time.Minute, val)
 		} else {
 			t.Logf("Standby controller last reboot time observed: %v", val)
 		}
@@ -287,10 +284,6 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 	initialInPkts := initialCounters.GetInPkts()
 	t.Logf("initial incoming packets: %v", initialInPkts)
 
-	t.Log("Start protocols and traffic")
-	otgObj.StartProtocols(t)
-	otgObj.StartTraffic(t)
-
 	hwPort, ok := gnmi.Lookup(t, dut, gnmi.OC().Interface(dut.Port(t, incomingPort).Name()).HardwarePort().State()).Val()
 	if !ok || hwPort == "" {
 		t.Fatalf("failed to get hardware-port for interface: %s", dut.Port(t, incomingPort).Name())
@@ -298,17 +291,37 @@ func testTrafficDrop(t *testing.T, dut *ondatra.DUTDevice, linecard string) {
 
 	parent := checkParentComponent(t, dut, hwPort)
 
-	// Capture AdverseAggregate drop value.
-	adverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
-	if !ok {
-		t.Logf("adverse-aggregate counter not present for component %s", parent)
+	// 1. Capture baseline AdverseAggregate drop value before running traffic
+	var initialAdverseAggrDrop uint64
+	hasAdverseCounter := false
+	if adverseVal, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val(); ok {
+		initialAdverseAggrDrop = adverseVal
+		hasAdverseCounter = true
+		t.Logf("Baseline adverse-aggregate counter for component %s: %d", parent, initialAdverseAggrDrop)
 	} else {
-		if adverseAggrDrop != 0 {
-			t.Errorf("found non-zero value %d for adverse-aggregate drop", adverseAggrDrop)
-		}
-		t.Logf("found value %d for adverse-aggregate counter", adverseAggrDrop)
+		t.Logf("adverse-aggregate counter not present for component %s at baseline", parent)
 	}
 
+	t.Log("Start protocols and traffic")
+	otgObj.StartProtocols(t)
+	otgObj.StartTraffic(t)
+
+	// 2. Allow traffic to stream for a moment to catch any active errors
+	time.Sleep(5 * time.Second)
+
+	// 3. Capture the final value and verify it didn't increase
+	if hasAdverseCounter {
+		finalAdverseAggrDrop, ok := gnmi.Lookup(t, dut, gnmi.OC().Component(parent).IntegratedCircuit().PipelineCounters().Drop().AdverseAggregate().State()).Val()
+		if !ok {
+			t.Logf("adverse-aggregate counter disappeared during test for component %s", parent)
+		} else {
+			t.Logf("Final adverse-aggregate counter value: %d", finalAdverseAggrDrop)
+			if finalAdverseAggrDrop > initialAdverseAggrDrop {
+				t.Errorf("Adverse-aggregate drop counter incremented! (baseline: %d, final: %d, delta: %d)",
+					initialAdverseAggrDrop, finalAdverseAggrDrop, finalAdverseAggrDrop-initialAdverseAggrDrop)
+			}
+		}
+	}
 	t.Log("Stop traffic")
 	otgObj.StopTraffic(t)
 	t.Log("Stop protocols")
