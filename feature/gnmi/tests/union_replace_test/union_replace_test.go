@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
+	"github.com/openconfig/testt"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
 	"google.golang.org/grpc/codes"
@@ -204,9 +206,31 @@ func setCLIunionReplace(t *testing.T, dut *ondatra.DUTDevice) {
 
 }
 
+// Remove description lines from the base CLI config.
+// Since some vendors give priority to CLI config over OC config during union_replace,
+// having descriptions like "description [AVAILABLE]" in the base CLI config
+// will override the descriptions set by the tests via OC, causing test failures.
+func stripDescription(config string) string {
+	re := regexp.MustCompile(`(?m)^\s*description .*$\n?`)
+	return re.ReplaceAllString(config, "")
+}
+
 func cliConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
-	showCmd := cliShowRunningConfigCommand(t, dut)
+	config := cliConfigGNMI(t, dut)
+	if config == "" {
+		t.Logf("Fallback to SSH to get baseline config")
+		config = cliConfigSSH(t, dut)
+		if config == "" {
+			t.Fatal("Unable to get baseline CLI config from GNMI or SSH")
+		}
+	}
+	return stripDescription(config)
+}
+
+func cliConfigGNMI(t *testing.T, dut *ondatra.DUTDevice) string {
+	t.Helper()
+	showCmd, _ := cliShowRunningConfigCommand(t, dut)
 	req := &gpb.GetRequest{
 		Path: []*gpb.Path{{
 			Origin: cliOrigin,
@@ -226,30 +250,29 @@ func cliConfig(t *testing.T, dut *ondatra.DUTDevice) string {
 	} else {
 		t.Logf("Got GNMI baseline config error: %v", err)
 	}
-	t.Logf("Fallback to SSH to get baseline config")
-	cliConfig := cliConfigSSH(t, dut)
-	if cliConfig == "" {
-		t.Fatal("Unable to get baseline CLI config from GNMI or SSH")
-	}
-	return cliConfig
+	return ""
+
 }
 
 // cliConfigSSH returns the CLI config of the DUT as a string
 func cliConfigSSH(t *testing.T, dut *ondatra.DUTDevice) string {
 	t.Helper()
-	runCommand := cliShowRunningConfigCommand(t, dut)
+	runCommand, commandEchoPrefix := cliShowRunningConfigCommand(t, dut)
 	if runCommand == "" {
 		return ""
 	}
-	return stripSSHCommandEcho(helpers.RunCliCommand(t, dut, runCommand))
+	return stripSSHCommandEcho(helpers.RunCliCommand(t, dut, runCommand), commandEchoPrefix)
 }
 
-// stripSSHCommandEcho removes command-echo lines (lines starting with '>')
+// stripSSHCommandEcho removes command-echo lines (lines starting with the given prefix)
 // that are echoed by the SSH session and are not valid CLI configuration input.
-func stripSSHCommandEcho(raw string) string {
+func stripSSHCommandEcho(raw string, commandEchoPrefix string) string {
+	if commandEchoPrefix == "" {
+		return raw
+	}
 	var lines []string
 	for _, line := range strings.Split(raw, "\n") {
-		if !strings.HasPrefix(line, ">") {
+		if !strings.HasPrefix(line, commandEchoPrefix) {
 			lines = append(lines, line)
 		}
 	}
@@ -284,55 +307,34 @@ func operStatusNoTransceiver(t *testing.T, dut *ondatra.DUTDevice) oc.E_Interfac
 	}
 }
 
-func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) string {
+func cliShowRunningConfigCommand(t *testing.T, dut *ondatra.DUTDevice) (string, string) {
 	t.Helper()
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
-		return "show running-config"
+		return "show running-config", ">"
 	case ondatra.CISCO:
-		return "show running-config"
+		return "show running-config", "#"
 	case ondatra.JUNIPER:
-		return "show | display set"
+		return "show | display set", ""
 	case ondatra.NOKIA:
-		return "info | as-set"
+		return "info | as-set", ""
 	default:
 		t.Fatalf("unsupported vendor %v for CLI show running-config command", dut.Vendor())
-		return ""
+		return "", ""
 	}
 }
 
-func unionReplace(t *testing.T, dut *ondatra.DUTDevice, updates ...*gpb.Update) error {
+func unionReplaceErr(t *testing.T, dut *ondatra.DUTDevice, sb *gnmi.SetBatch) error {
 	t.Helper()
-
-	if len(updates) == 0 {
-		return nil
+	if fatalMsg := testt.CaptureFatal(t, func(t testing.TB) {
+		sb.Set(t, dut)
+	}); fatalMsg != nil {
+		if strings.Contains(*fatalMsg, codes.InvalidArgument.String()) {
+			return status.Error(codes.InvalidArgument, *fatalMsg)
+		}
+		return errors.New(*fatalMsg)
 	}
-	updates = append(updates, cliUpdate(t, sharedBaseline))
-	_, err := dut.RawAPIs().GNMI(t).Set(context.Background(), &gpb.SetRequest{UnionReplace: updates})
-	return err
-}
-
-func cliUpdate(t *testing.T, cli string) *gpb.Update {
-	t.Helper()
-	return &gpb.Update{
-		Path: &gpb.Path{Origin: cliOrigin},
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_AsciiVal{AsciiVal: cli}},
-	}
-}
-
-func ocUpdate(t *testing.T, ocCfg *oc.Root) *gpb.Update {
-	t.Helper()
-	jsonBytes, err := ygot.Marshal7951(ocCfg, &ygot.RFC7951JSONConfig{
-		AppendModuleName: true,
-		PreferShadowPath: true,
-	})
-	if err != nil {
-		t.Fatalf("ygot.Marshal7951: %v", err)
-	}
-	return &gpb.Update{
-		Path: &gpb.Path{Origin: ocOrigin},
-		Val:  &gpb.TypedValue{Value: &gpb.TypedValue_JsonIetfVal{JsonIetfVal: jsonBytes}},
-	}
+	return nil
 }
 
 func configureOCInterface(t *testing.T, root *oc.Root, dut *ondatra.DUTDevice, intfName, desc string, mtu uint16, ipv4 string, ipv4Len uint8) *oc.Interface {
@@ -567,9 +569,9 @@ func TestUnionReplace(t *testing.T) {
 	t.Logf("First interface without transceiver: %s", interfaceWithoutTransceiver)
 	resetConfig := func() {
 		t.Log("Resetting baseline configuration")
-		if err := unionReplace(t, dut, cliUpdate(t, sharedBaseline)); err != nil {
-			t.Fatalf("Failed to reset baseline configuration: %v", err)
-		}
+		sb := &gnmi.SetBatch{}
+		gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+		sb.Set(t, dut)
 	}
 	testCases := []testCase{
 		// TestUnionReplace3_1_idempotentConfig verifies the gNMI UnionReplace operation with CLI config only.
@@ -797,18 +799,20 @@ func TestUnionReplace(t *testing.T) {
 				bothOC := &oc.Root{}
 				bothOC.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
 				bothOC.GetOrCreateInterface(intf2Name).Description = ygot.String(descIntf2Present)
-				if err := unionReplace(t, dut, ocUpdate(t, bothOC)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), bothOC)
+				sb.Set(t, dut)
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descIntf1Present))
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf2Name, descIntf2Present))
 
 				t.Log("Omit interface 2 in OC union_replace")
 				intf1Only := &oc.Root{}
 				intf1Only.GetOrCreateInterface(intf1Name).Description = ygot.String(descIntf1Present)
-				if err := unionReplace(t, dut, ocUpdate(t, intf1Only)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb2 := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb2, gnmi.OC().Config(), intf1Only)
+				sb2.Set(t, dut)
 
 				t.Log("Verify interface 2 configuration is removed")
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descIntf1Present))
@@ -826,17 +830,17 @@ func TestUnionReplace(t *testing.T) {
 				t.Log("Add both interfaces via CLI union_replace")
 				cli1And2 := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descCLIIntf1}) + "\n" +
 					cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf2Name, Description: descCLIIntf2})
-				if err := unionReplace(t, dut, cliUpdate(t, cli1And2)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli1And2)
+				sb.Set(t, dut)
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descCLIIntf1))
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf2Name, descCLIIntf2))
 
 				t.Log("Omit interface 2 in CLI union_replace")
 				cli1Only := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descCLIIntf1})
-				if err := unionReplace(t, dut, cliUpdate(t, cli1Only)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb2 := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline+"\n"+cli1Only)
+				sb2.Set(t, dut)
 
 				t.Log("Verify interface 2 configuration is removed")
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descCLIIntf1))
@@ -855,18 +859,20 @@ func TestUnionReplace(t *testing.T) {
 				ocConfig := &oc.Root{}
 				configureOCInterface(t, ocConfig, dut, intf1Name, descMoveHasIP, 0, port1IPv4, ipv4PrefixLen)
 				ocConfig.GetOrCreateInterface(intf2Name).Description = ygot.String(descMoveNoIP)
-				if err := unionReplace(t, dut, ocUpdate(t, ocConfig)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocConfig)
+				sb.Set(t, dut)
 				errs = append(errs, verifyInterfaceIP(t, dut, intf1Name, port1IPv4, ipv4PrefixLen))
 
 				t.Log("Move IP from port1 to port2")
 				ocConfig = &oc.Root{}
 				ocConfig.GetOrCreateInterface(intf1Name).Description = ygot.String(descMoveIPMoved)
 				configureOCInterface(t, ocConfig, dut, intf2Name, descMoveHasIPNow, 0, port1IPv4, ipv4PrefixLen)
-				if err := unionReplace(t, dut, ocUpdate(t, ocConfig)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb2 := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb2, gnmi.OC().Config(), ocConfig)
+				sb2.Set(t, dut)
 
 				t.Log("Verify IP is now on port2")
 				errs = append(errs, verifyInterfaceNoIP(t, dut, intf1Name, port1IPv4))
@@ -883,15 +889,15 @@ func TestUnionReplace(t *testing.T) {
 
 				t.Log("Configure IP on port1 via CLI")
 				cli1 := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descMoveHasIP, MTU: moveIPMTU, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
-				if err := unionReplace(t, dut, cliUpdate(t, cli1)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli1)
+				sb.Set(t, dut)
 
 				t.Log("Move IP to port2 via CLI, omitting port1")
 				cli2 := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf2Name, Description: descMoveHasIPNow, MTU: moveIPMTU, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
-				if err := unionReplace(t, dut, cliUpdate(t, cli2)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb2 := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb2, cliOrigin, sharedBaseline+"\n"+cli2)
+				sb2.Set(t, dut)
 
 				t.Log("Verify IP is now on port2")
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf2Name, descMoveHasIPNow))
@@ -1102,7 +1108,10 @@ func TestUnionReplace(t *testing.T) {
 					intf.Mtu = ygot.Uint16(badIntfMTU)
 
 					t.Log("Push configuration via union_replace")
-					err := unionReplace(t, dut, ocUpdate(t, ocDelta))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+					err := unionReplaceErr(t, dut, sb)
 
 					t.Log("Confirm DUT rejects the gnmi.Set")
 					if err == nil {
@@ -1132,7 +1141,9 @@ func TestUnionReplace(t *testing.T) {
 					}
 
 					t.Log("Push via union_replace with bad CLI")
-					err := unionReplace(t, dut, cliUpdate(t, badCLI))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+badCLI)
+					err := unionReplaceErr(t, dut, sb)
 
 					t.Log("Confirm DUT rejects the gnmi.Set")
 					if err == nil {
@@ -1172,7 +1183,10 @@ func TestUnionReplace(t *testing.T) {
 					cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descOverlapTest, MTU: overlapMTUCLI, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
 
 					t.Log("Push via union_replace")
-					err := unionReplace(t, dut, ocUpdate(t, ocDelta), cliUpdate(t, cli))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli)
+					err := unionReplaceErr(t, dut, sb)
 
 					if err != nil {
 						if s, ok := status.FromError(err); ok && s.Code() == codes.InvalidArgument {
@@ -1220,7 +1234,10 @@ func TestUnionReplace(t *testing.T) {
 					cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf1Name, Description: descOverlapSame, MTU: overlapMTUOC, IPv4: port1IPv4, IPv4PrefixLen: ipv4PrefixLen})
 
 					t.Log("Push via union_replace")
-					err := unionReplace(t, dut, ocUpdate(t, ocDelta), cliUpdate(t, cli))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli)
+					err := unionReplaceErr(t, dut, sb)
 
 					if err != nil {
 						if s, ok := status.FromError(err); ok && s.Code() == codes.InvalidArgument {
@@ -1274,7 +1291,10 @@ func TestUnionReplace(t *testing.T) {
 					}
 
 					t.Log("Push via union_replace")
-					err := unionReplace(t, dut, ocUpdate(t, ocDelta), cliUpdate(t, bgpCLI))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+bgpCLI)
+					err := unionReplaceErr(t, dut, sb)
 
 					if err != nil {
 						if s, ok := status.FromError(err); ok && s.Code() == codes.InvalidArgument {
@@ -1330,7 +1350,10 @@ func TestUnionReplace(t *testing.T) {
 					}
 
 					t.Log("Push via union_replace")
-					setErr := unionReplace(t, dut, ocUpdate(t, ocDelta), cliUpdate(t, rpCLI))
+					sb := &gnmi.SetBatch{}
+					gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+					gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+rpCLI)
+					setErr := unionReplaceErr(t, dut, sb)
 
 					if setErr != nil {
 						if s, ok := status.FromError(setErr); ok && s.Code() == codes.InvalidArgument {
@@ -1370,9 +1393,10 @@ func TestUnionReplace(t *testing.T) {
 				cli := cliInterfaceConfig(t, dut, cliInterfaceConfigOpts{Name: intf2Name, Description: descCLIDescP2})
 
 				t.Log("Push OC + CLI via union_replace")
-				if err := unionReplace(t, dut, ocUpdate(t, ocDelta), cliUpdate(t, cli)); err != nil {
-					errs = append(errs, fmt.Errorf("union_replace gnmi.Set failed: %w", err))
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli)
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+				sb.Set(t, dut)
 				t.Log("Verify OC description and MTU on port1, CLI description on port2")
 				errs = append(errs, verifyInterfaceDescription(t, dut, intf1Name, descOCDescP1))
 				errs = append(errs, verifyInterfaceMTU(t, dut, intf1Name, nonOverlapMTU))
@@ -1401,10 +1425,10 @@ func TestUnionReplace(t *testing.T) {
 					brEth.AutoNegotiate = ygot.Bool(false)
 				}
 				t.Log("Push via union_replace and verify accepted")
-				if err := unionReplace(t, dut, ocUpdate(t, ocDelta)); err != nil {
-					t.Logf("union_replace rejected: %v", err)
-					return err
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline)
+				gnmi.BatchUnionReplace(sb, gnmi.OC().Config(), ocDelta)
+				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied and interface oper-status")
 				errs = append(errs, verifyBreakoutModeConfig(t, dut, interfaceWithoutTransceiver))
@@ -1427,10 +1451,9 @@ func TestUnionReplace(t *testing.T) {
 				}
 
 				t.Log("Push via union_replace with CLI and verify accepted")
-				if err := unionReplace(t, dut, cliUpdate(t, cli)); err != nil {
-					t.Logf("union_replace rejected: %v", err)
-					return err
-				}
+				sb := &gnmi.SetBatch{}
+				gnmi.BatchUnionReplaceCLI(sb, cliOrigin, sharedBaseline+"\n"+cli)
+				sb.Set(t, dut)
 
 				t.Log("Verify configuration applied")
 				errs = append(errs, verifyBreakoutModeConfig(t, dut, interfaceWithoutTransceiver))
