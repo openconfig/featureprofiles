@@ -338,7 +338,6 @@ func TestdataMakeCleanup(t *testing.T, dirPath string, timeout time.Duration, ar
 		}
 		t.Errorf("STATUS:Script failed: %v\nCommand output:\n%s", err, string(out))
 	}
-	t.Logf("STATUS: Script execution succeeded (output size: %d bytes)", len(out))
 	return nil
 }
 
@@ -554,7 +553,7 @@ func ValidateGnmiCapabilityRequest(ctx context.Context, t *testing.T, gnmiClient
 	t.Logf("Verifying gNMI Capability Request.")
 	response, err := gnmiClient.Capabilities(ctx, &gnmipb.CapabilityRequest{})
 	if err != nil {
-		t.Errorf("gNMI Capability request failed with err: %v", err)
+		t.Fatalf("gNMI Capability request failed with err: %v", err)
 	}
 	t.Logf("VerifyGnmi:gNMI response: %s", response.GNMIVersion)
 	return true
@@ -667,7 +666,7 @@ func ValidateP4RtCapabilitiesRequest(ctx context.Context, t *testing.T, p4rtClie
 
 	t.Logf("Verifying P4Rt Capability Request.")
 	if _, err := p4rtClient.Capabilities(ctx, &p4rtpb.CapabilitiesRequest{}); err != nil {
-		t.Errorf("Failed to connect P4rtClient with error %v.", err)
+		t.Fatalf("Failed to connect P4rtClient with error %v.", err)
 	}
 	return true
 }
