@@ -24,6 +24,7 @@ import (
 	"github.com/openconfig/featureprofiles/internal/attrs"
 	"github.com/openconfig/featureprofiles/internal/deviations"
 	"github.com/openconfig/featureprofiles/internal/fptest"
+	gpb "github.com/openconfig/gnmi/proto/gnmi"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
@@ -451,6 +452,16 @@ func verifyBGPCapabilities(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
+// gnmiOptsForOnChange returns GNMIOpts with ON_CHANGE subscription mode when
+// StreamSubscriptionModeOnChangeRequired is set, otherwise returns default opts.
+func gnmiOptsForOnChange(dut *ondatra.DUTDevice) *gnmi.Opts {
+	opts := dut.GNMIOpts()
+	if deviations.StreamSubscriptionModeOnChangeRequired(dut) {
+		opts = opts.WithYGNMIOpts(ygnmi.WithSubscriptionMode(gpb.SubscriptionMode_ON_CHANGE))
+	}
+	return opts
+}
+
 func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr string, wantRx uint32, isV4 bool) {
 	t.Helper()
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_BGP, "BGP").Bgp()
@@ -464,7 +475,7 @@ func verifyInitialPrefixesTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr st
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRx, ok := gnmi.Watch(t, dut, prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotRx, ok := gnmi.Watch(t, gnmiOptsForOnChange(dut), prefixPath.ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRx, ok := val.Val()
 			return ok && gotRx == wantRx
 		}).Await(t); !ok {
@@ -837,7 +848,8 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 		}
 	}
 
-	if gotInstalled, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Installed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	watchOpts := gnmiOptsForOnChange(dut)
+	if gotInstalled, ok := gnmi.Watch(t, watchOpts, afiSafiPath.Prefixes().Installed().State(), 60*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotInstalled, ok := val.Val()
 		return ok && gotInstalled == nbr.wantInstalled
 	}).Await(t); !ok {
@@ -845,14 +857,14 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if !deviations.MissingPrePolicyReceivedRoutes(dut) {
-		if gotRxPrePol, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		gotRxPrePol, ok := gnmi.Watch(t, watchOpts, afiSafiPath.Prefixes().ReceivedPrePolicy().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotRxPrePol, ok := val.Val()
 			return ok && gotRxPrePol == nbr.wantRxPrePolicy
 		}).Await(t); !ok {
 			t.Errorf("Received pre policy prefixes mismatch: got %v, want %v", gotRxPrePol, nbr.wantRxPrePolicy)
 		}
 	}
-	if gotRx, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Received().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+	if gotRx, ok := gnmi.Watch(t, watchOpts, afiSafiPath.Prefixes().Received().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 		gotRx, ok := val.Val()
 		return ok && gotRx == nbr.wantRx
 	}).Await(t); !ok {
@@ -860,7 +872,7 @@ func verifyPostPolicyPrefixTelemetry(t *testing.T, dut *ondatra.DUTDevice, nbr *
 	}
 
 	if nbr.defImportPol == oc.RoutingPolicy_DefaultPolicyType_ACCEPT_ROUTE && !deviations.SkipNonBgpRouteExportCheck(dut) {
-		if gotSent, ok := gnmi.Watch(t, dut, afiSafiPath.Prefixes().Sent().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
+		if gotSent, ok := gnmi.Watch(t, watchOpts, afiSafiPath.Prefixes().Sent().State(), 30*time.Second, func(val *ygnmi.Value[uint32]) bool {
 			gotSent, ok := val.Val()
 			return ok && gotSent == nbr.wantSent
 		}).Await(t); !ok {
