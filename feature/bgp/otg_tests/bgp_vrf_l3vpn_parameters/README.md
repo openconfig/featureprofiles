@@ -39,12 +39,12 @@ graph LR;
 #### IP Addressing Assignments
 
 *   **Link 1**: ATE Port 1 <-> DUT Port 1 (VRF_100)
-    *   **IPv4 Subnet**: `192.0.2.0/30` (DUT: `.1`, ATE: `.2`)
-    *   **IPv6 Subnet**: `2001:DB8:1::/64` (DUT: `::1`, ATE: `::2`)
+    *   **IPv4 Subnet**: `192.0.2.0/30` (DUT: `192.0.2.1`, ATE: `192.0.2.2`)
+    *   **IPv6 Subnet**: `2001:DB8:1::/64` (DUT: `2001:DB8:1::1`, ATE: `2001:DB8:1::2`)
 
 *   **Link 2**: ATE Port 2 <-> DUT Port 2 (DEFAULT)
-    *   **IPv4 Subnet**: `198.51.100.0/30` (DUT: `.1`, ATE: `.2`)
-    *   **IPv6 Subnet**: `2001:DB8:2::/64` (DUT: `::1`, ATE: `::2`)
+    *   **IPv4 Subnet**: `198.51.100.0/30` (DUT: `198.51.100.1`, ATE: `198.51.100.2`)
+    *   **IPv6 Subnet**: `2001:DB8:2::/64` (DUT: `2001:DB8:2::1`, ATE: `2001:DB8:2::2`)
 
 
 #### BGP Router IDs
