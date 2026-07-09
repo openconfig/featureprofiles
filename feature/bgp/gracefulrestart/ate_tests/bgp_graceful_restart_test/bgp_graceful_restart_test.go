@@ -196,7 +196,8 @@ func bgpWithNbr(as uint32, nbrs []*bgpNeighbor, dut *ondatra.DUTDevice, test str
 	} else {
 		pg.GetOrCreateGracefulRestart().SetEnabled(true)
 		pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST).SetEnabled(true)
-		pg.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
+		pgv6.GetOrCreateGracefulRestart().SetEnabled(true)
+		pgv6.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST).SetEnabled(true)
 	}
 
 	if deviations.RoutePolicyUnderAFIUnsupported(dut) {
