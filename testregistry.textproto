@@ -1992,6 +1992,31 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
 }
 test: {
+  id: "bootz-8"
+  description: "bootz-8: Validate bootz.Bootstrap.BootstrapStreamV1"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.1"
+  description: "Successful Bootstrap (Happy Path) - Device successfully bootstraps and applies config"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.2"
+  description: "Challenge Failure - Device sends wrong challenge response, and server returns error"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.3"
+  description: "IDevID Serial Number Mismatch - Device sends IDevID certificate with wrong serial number, and server returns error"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
+  id: "bootz-8.4"
+  description: "Missing AIK Pub Digest - Device sends TPM 1.2 bootstrap request without populating AIK Pub Digest field, and server returns error"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/secure_boot/tests/bootz/README.md"
+}
+test: {
   id: "gNMI-1.1"
   description: "cli Origin"
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/system/gnmi/cliorigin/ate_tests/cli_origin_test/README.md"
