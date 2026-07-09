@@ -141,10 +141,48 @@ graph LR;
 
 --------------------------------------------------------------------------------
 
-## Canonical OpenConfig
+## Canonical OC
 
 ```json
 {
+  "interfaces": {
+    "interface": [
+      {
+        "name": "port1",
+        "config": {
+          "name": "port1",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              }
+            }
+          ]
+        }
+      },
+      {
+        "name": "port2",
+        "config": {
+          "name": "port2",
+          "type": "iana-if-type:ethernetCsmacd"
+        },
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "index": 0,
+              "config": {
+                "index": 0
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
   "network-instances": {
     "network-instance": [
       {
