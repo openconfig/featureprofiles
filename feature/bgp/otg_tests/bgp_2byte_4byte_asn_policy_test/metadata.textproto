@@ -40,7 +40,6 @@ platform_exceptions: {
     vendor: JUNIPER
   }
   deviations: {
-    explicit_interface_in_default_vrf: true
     match_as_path_set_unsupported: true
   }
 }
