@@ -43,7 +43,7 @@ graph LR;
 *   **IPv4 Subnet**: `192.0.2.0/30` (DUT: `.1`, ATE: `.2`)
 *   **IPv6 Subnet**: `2001:DB8:1::/64` (DUT: `::1`, ATE: `::2`)
 
-##### Link 2: ATE Port 2 <-> DUT Port 2 ("DEFAULT")
+##### Link 2: ATE Port 2 <-> DUT Port 2 (DEFAULT)
 
 *   **IPv4 Subnet**: `198.51.100.0/30` (DUT: `.1`, ATE: `.2`)
 *   **IPv6 Subnet**: `2001:DB8:2::/64` (DUT: `::1`, ATE: `::2`)
