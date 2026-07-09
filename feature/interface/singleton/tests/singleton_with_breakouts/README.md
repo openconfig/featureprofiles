@@ -14,7 +14,7 @@ This test requires a DUT with the following setup
   * 2x400G-LR4
   * 8x100G-LR
 * ATE connections are not required.
-* Note: Due to lack of explicit Ondatra PMD constants for some optics (e.g. 800G breakouts), the test automation may use component descriptions to identify the PMD types and apply the correct breakout configuration.
+* Note: Due to the current lack of explicit Ondatra PMD constants for some optics in `ondatra v0.14.5` (e.g. 800G breakouts and 100G-LR), the test automation uses component descriptions to identify PMD types and apply the correct breakout configuration. This description matching can be replaced with direct PMD enum checking once `openconfig-transport-types v1.5.0+` (from `openconfig/public` PR #1505) is integrated into a future Ondatra release (`> v0.14.5`) and imported into `featureprofiles`.
 
 
 ## Procedure
