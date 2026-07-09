@@ -2665,3 +2665,9 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
   exec: " "
 }
+test: {
+  id: "Pathz-4"
+  description: "Policy Removal via CLI"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
+  exec: " "
+}
