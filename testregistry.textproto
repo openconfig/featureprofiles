@@ -2696,3 +2696,8 @@ test: {
   readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/gnsi/pathz/tests/pathz/README.md"
   exec: " "
 }
+test: {
+  id: "RT-1.102"
+  description: "DUT eBGP FNTs coverage for new L3VPN params"
+  readme: "https://github.com/openconfig/featureprofiles/blob/main/feature/bgp/otg_tests/bgp_vrf_l3vpn_parameters/README.md"
+}
