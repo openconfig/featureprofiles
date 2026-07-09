@@ -132,6 +132,7 @@ var portSpeed = map[ondatra.Speed]oc.E_IfEthernet_ETHERNET_SPEED{
 	ondatra.Speed10Gb:  oc.IfEthernet_ETHERNET_SPEED_SPEED_10GB,
 	ondatra.Speed100Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_100GB,
 	ondatra.Speed400Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_400GB,
+	ondatra.Speed800Gb: oc.IfEthernet_ETHERNET_SPEED_SPEED_800GB,
 }
 
 func (tc *testCase) configMemberDUT(i *oc.Interface, p *ondatra.Port) {
