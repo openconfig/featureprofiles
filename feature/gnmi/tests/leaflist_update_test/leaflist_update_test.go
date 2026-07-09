@@ -35,10 +35,12 @@ func TestMain(m *testing.M) {
 // hasNetworkInstanceReferences reports whether any system service still references niName.
 func hasNetworkInstanceReferences(t *testing.T, dut *ondatra.DUTDevice, niName string) bool {
 	t.Helper()
-	for _, srv := range gnmi.GetAll(t, dut, gnmi.OC().System().GrpcServerAny().State()) {
-		if srv.GetNetworkInstance() == niName {
-			t.Logf("network-instance %q is referenced by grpc-server %q", niName, srv.GetName())
-			return true
+	for _, srvVal := range gnmi.LookupAll(t, dut, gnmi.OC().System().GrpcServerAny().State()) {
+		if srv, ok := srvVal.Val(); ok {
+			if srv.GetNetworkInstance() == niName {
+				t.Logf("network-instance %q is referenced by grpc-server %q", niName, srv.GetName())
+				return true
+			}
 		}
 	}
 	return false
