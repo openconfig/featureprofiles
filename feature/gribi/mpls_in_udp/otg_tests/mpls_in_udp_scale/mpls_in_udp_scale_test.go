@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"math/rand"
 	"os"
 	"slices"
 	"sort"
@@ -1557,8 +1556,10 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 	// Helper to add UDP
 	addUDP := func(flow gosnappi.Flow) {
 		udp := flow.Packet().Add().Udp()
-		udp.SrcPort().SetValues(randRange(5555, 6000, 6000-5555+1))
-		udp.DstPort().SetValues(randRange(6666, 7000, 7000-6666+1))
+		udpSrcPortRand := udp.SrcPort().Random()
+		udpSrcPortRand.SetMin(5555).SetMax(6000).SetCount(6000 - 5555 + 1).SetSeed(1)
+		udpDstPortRand := udp.DstPort().Random()
+		udpDstPortRand.SetMin(6666).SetMax(7000).SetCount(7000 - 6666 + 1).SetSeed(1)
 	}
 
 	if len(vrfDataLists) > 2 {
@@ -1681,15 +1682,6 @@ func (fa *flowAttr) createFlow(t *testing.T, cfg gosnappi.Config, flowType, name
 		flows = append(flows, flow)
 	}
 	return flows
-}
-
-// randRange generates `count` random uint32 values in the range [min, max].
-func randRange(min, max, count int) []uint32 {
-	result := make([]uint32, count)
-	for i := range result {
-		result[i] = uint32(min + rand.Intn(max-min+1))
-	}
-	return result
 }
 
 // enableCapture enables packet capture on specified OTG ports.
