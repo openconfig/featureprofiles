@@ -35,4 +35,14 @@ platform_exceptions: {
     bgp_default_policy_behavior_accept_route: true
   }
 }
+platform_exceptions: {
+  platform: {
+    vendor: JUNIPER
+  }
+  deviations: {
+    explicit_interface_in_default_vrf: true
+    match_as_path_set_unsupported: true
+  }
+}
+
 tags: TAGS_AGGREGATION
