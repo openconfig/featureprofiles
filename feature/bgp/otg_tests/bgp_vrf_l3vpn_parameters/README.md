@@ -466,6 +466,7 @@ rpcs:
       union_replace: true
     gNMI.Subscribe:
       on_change: true
+```
 
 ## TODO
 
@@ -475,4 +476,3 @@ rpcs:
 
 
 *   FFF (Fixed Form Factor) or MFF supporting L3VPN and per-VRF BGP.
-```
