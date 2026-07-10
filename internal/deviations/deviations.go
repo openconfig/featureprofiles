@@ -2283,3 +2283,9 @@ func LacpInterfaceFallbackOCUnsupported(dut *ondatra.DUTDevice) bool {
 func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetVlanSubinterfaceOcUnsupported()
 }
+
+// RouteReflectorClientOCUnsupported returns true if the device does not support OC config for BGP route-reflector-client.
+// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
+func RouteReflectorClientOCUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRouteReflectorClientOcUnsupported()
+}
