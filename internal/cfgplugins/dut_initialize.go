@@ -39,7 +39,6 @@ const (
 	FeatureMplsTracking FeatureType = iota
 	FeatureVrfSelectionExtended
 	FeaturePolicyForwarding
-	FeatureQOSCounters
 	FeatureEnableAFTSummaries
 	FeatureNGPR
 	FeatureTTLPolicyForwarding
@@ -347,8 +346,21 @@ hardware tcam
 	  !
 	system profile vrf-selection-with-ip6-sip
 `
+
+	aristaOptimizeFIBAndCounters = `
+   ip hardware fib next-hop weight-deviation 2.0
+   ip hardware fib programmed error action preserved
+   hardware fec programmed all
+   no hardware counter feature acl out ipv4
+   no hardware counter feature acl in
+   hardware counter feature ip-in-ip tunnel
+   hardware counter feature ip out layer3
+   hardware counter feature ip in layer3
+   hardware counter feature route ipv4
+   `
+
 	aristaTcamProfilePolicyForwarding = `
-    hardware tcam
+hardware tcam
   	profile tcam-policy-forwarding
       feature traffic-policy port ipv4
          port qualifier size 12 bits
@@ -380,24 +392,6 @@ hardware tcam
     !
     `
 
-	aristaTcamProfileQOSCounters = `
-      hardware tcam
-      profile qosCounter copy qos
-      feature qos ip
-      no action set-dscp
-      action count
-      feature qos mac
-      no action set-dscp
-      action count
-      feature qos ipv6
-      no action set-dscp
-      action count
-      !
-      system profile qosCounter
-      !
-      hardware counter feature qos in
-      !
-   `
 	aristaEnableAFTSummaries = `
    management api models
       !
@@ -1124,4 +1118,17 @@ func CreateVRFs(t *testing.T, dut *ondatra.DUTDevice, vrfBatch *gnmi.SetBatch, c
 	}
 
 	return vrfs
+}
+
+func EnableHardwareCounters(t *testing.T, dut *ondatra.DUTDevice, feature string) {
+	t.Helper()
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		counterCli := fmt.Sprintf(`
+         hardware counter feature %s
+         clear counters`, feature)
+		helpers.GnmiCLIConfig(t, dut, counterCli)
+	default:
+		t.Fatalf("Unsupported vendor: %v", dut.Vendor())
+	}
 }
