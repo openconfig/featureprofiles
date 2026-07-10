@@ -46,10 +46,9 @@ const (
 type UsersMap map[string]authz.Spiffe
 
 var (
-	testInfraID = flag.String("test_infra_id", "*/cafyauto", "SPIFFE-ID used by test Infra ID user for authz operation")
-	caCertPem   = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
-	caKeyPem    = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
-	policyMap   map[string]authz.AuthorizationPolicy
+	caCertPem = flag.String("ca_cert_pem", "testdata/ca.cert.pem", "a pem file for ca cert that will be used to generate svid")
+	caKeyPem  = flag.String("ca_key_pem", "testdata/ca.key.pem", "a pem file for ca key that will be used to generate svid")
+	policyMap map[string]authz.AuthorizationPolicy
 
 	usersMap = UsersMap{
 		"cert_user_admin": {
