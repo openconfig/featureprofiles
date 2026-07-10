@@ -366,8 +366,9 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
 		if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
-			ethernetHeaderSize := uint16(14)
-			intf.Mtu = ygot.Uint16(uint16(a.MTU) + ethernetHeaderSize)
+			// Physical MTU (L2) = L3 MTU + Ethernet header size (14) + VLAN ID (4) + FrameCheckSequence (4) = 22 bytes
+			l2MTUDiff := uint16(22)
+			intf.Mtu = ygot.Uint16(uint16(a.MTU) + l2MTUDiff)
 		}
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			s := intf.GetOrCreateSubinterface(a.Subinterface)
