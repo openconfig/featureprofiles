@@ -1168,7 +1168,7 @@ func installGRIBIRoutes(t *testing.T, dut *ondatra.DUTDevice, ate *ondatra.ATEDe
 
 	// Programming AFT entries for encapped prefixes "203.0.113.1/32"
 	var nh fluent.GRIBIEntry
-	if deviations.ForwardingViableFailoverWithIndirectNHUnsupported(dut) {
+	if deviations.BackupNHGRequiresVrfWithDecap(dut) {
 		nh = fluent.NextHopEntry().WithNetworkInstance(deviations.DefaultNetworkInstance(tcArgs.dut)).
 			WithIndex(uint64(101)).WithMacAddress(magicMAC).WithInterfaceRef(intf)
 	} else {
@@ -1308,7 +1308,7 @@ func awaitAdjacency(t *testing.T, dut *ondatra.DUTDevice, intfName string, state
 				return false
 			}
 			t.Logf("Observed adjacency state: %v", v)
-			for _, s := range states {
+			for _, s := range state {
 				if v == s {
 					return true
 				}
