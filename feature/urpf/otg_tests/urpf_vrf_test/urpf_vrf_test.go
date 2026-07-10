@@ -244,8 +244,9 @@ func configureGUEEncap(t *testing.T, dut *ondatra.DUTDevice, trafficType, nextHo
 }
 
 // configureATE configures the ATE topology with two BGP peers.
-func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
+func configureATE(t *testing.T, ate *ondatra.ATEDevice) (gosnappi.Config, []string) {
 	t.Helper()
+	var interfaceNamesList []string
 	config := gosnappi.NewConfig()
 	p1 := ate.Port(t, "port1")
 	p2 := ate.Port(t, "port2")
@@ -284,8 +285,11 @@ func configureATE(t *testing.T, ate *ondatra.ATEDevice) gosnappi.Config {
 	destNetV6 := bgp2PeerV6.V6Routes().Add().SetName("Dest_V6")
 	destNetV6.SetNextHopIpv6Address(atePort2.IPv6)
 	destNetV6.Addresses().Add().SetAddress(ateAdvIPv6Prefix3).SetPrefix(uint32(prefix3LenV6)).SetCount(routeCount)
-
-	return config
+	// Collect interface/device names
+	for _, dev := range config.Devices().Items() {
+		interfaceNamesList = append(interfaceNamesList, dev.Name())
+	}
+	return config, interfaceNamesList
 }
 
 // createFlow creates a traffic flow from ATE port 1 to port 2.
@@ -360,11 +364,11 @@ func TestURPFNonDefaultNI(t *testing.T) {
 	batch := configureDUT(t, dut)
 
 	t.Log("Configure ATE with eBGP and iBGP peers")
-	otgConfig := configureATE(t, ate)
+	otgConfig, interfaceNamesList := configureATE(t, ate)
 	ate.OTG().PushConfig(t, otgConfig)
 	ate.OTG().StartProtocols(t)
-	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv4")
-	otgutils.WaitForARP(t, ate.OTG(), otgConfig, "IPv6")
+	cfgplugins.IsIPv4InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
+	cfgplugins.IsIPv6InterfaceARPresolved(t, ate, cfgplugins.AddressFamilyParams{InterfaceNames: interfaceNamesList})
 
 	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: defaultNIName, NeighborIPs: []string{atePort2.IPv4, atePort2.IPv6}})
 	cfgplugins.VerifyDUTVrfBGPState(t, dut, cfgplugins.VrfBGPState{NetworkInstanceName: nonDefaultVRF, NeighborIPs: []string{atePort1.IPv4, atePort1.IPv6}})
