@@ -133,17 +133,113 @@ Assign RX ports of the loopbacks to their respective VRFs to route traffic to th
   - **Stage 3 (Self-Site VRF)**: ~12.5% to each of the 8 members of NHG 3 (acceptable range: 12.25% – 12.75%).
   - **Egress**: All traffic routed to `EGRESS` VRF is received on ATE Port 1 (ixia1).
 
+## Canonical OC
+
+```json
+{
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "enabled": true,
+          "name": "ae1",
+          "type": "ieee8023adLag"
+        },
+        "name": "ae1"
+      },
+      {
+        "config": {
+          "enabled": true,
+          "name": "ae2",
+          "type": "ieee8023adLag"
+        },
+        "name": "ae2"
+      },
+      {
+        "config": {
+          "enabled": true,
+          "name": "eth1",
+          "type": "ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "ae1"
+          }
+        },
+        "name": "eth1"
+      },
+      {
+        "config": {
+          "enabled": true,
+          "loopback-mode": "TERMINAL",
+          "name": "eth2",
+          "type": "ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "aggregate-id": "ae2"
+          }
+        },
+        "name": "eth2"
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "DEFAULT_INSTANCE"
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "ae1",
+                "interface": "ae1"
+              },
+              "id": "ae1"
+            }
+          ]
+        },
+        "name": "DEFAULT"
+      },
+      {
+        "config": {
+          "name": "TRANSIT",
+          "type": "L3VRF"
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "ae2",
+                "interface": "ae2"
+              },
+              "id": "ae2"
+            }
+          ]
+        },
+        "name": "TRANSIT"
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
-The following OpenConfig paths and RPCs are covered by this test:
 
-### OpenConfig Paths
-* /interfaces/interface/config/name
-* /interfaces/interface/config/enabled
-* /interfaces/interface/state/counters
-* /network-instances/network-instance/config/name
-* /network-instances/network-instance/config/type
-* /network-instances/network-instance/interfaces/interface/config/id
-* /network-instances/network-instance/interfaces/interface/config/interface
-
-### gRIBI RPCs
-* gRIBI.Modify
+```yaml
+paths:
+  /interfaces/interface/config/name:
+  /interfaces/interface/config/enabled:
+  /interfaces/interface/state/counters/in-pkts:
+  /interfaces/interface/state/counters/out-pkts:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+rpcs:
+  gribi:
+    gRIBI.Modify:
+```
