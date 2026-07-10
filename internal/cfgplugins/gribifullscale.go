@@ -1006,7 +1006,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
 	for i := 0; i < params.NumDecapEntries; i++ {
 		prefixLen := decapPrefixLens[i%len(decapPrefixLens)]
-		pfx := fmt.Sprintf("203.%d.%d.1/%d", i/4, (i%4)*64, prefixLen)
+		pfx := fmt.Sprintf("203.%d.%d.0/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
 		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
