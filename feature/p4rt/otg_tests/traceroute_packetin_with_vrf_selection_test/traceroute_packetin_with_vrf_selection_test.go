@@ -32,6 +32,7 @@ import (
 	baseScenario "github.com/openconfig/featureprofiles/internal/encapfrr"
 	"github.com/openconfig/featureprofiles/internal/fptest"
 	"github.com/openconfig/featureprofiles/internal/gribi"
+	"github.com/openconfig/featureprofiles/internal/helpers"
 	"github.com/openconfig/featureprofiles/internal/vrfpolicy"
 	"github.com/openconfig/gribigo/chk"
 	"github.com/openconfig/gribigo/constants"
@@ -39,7 +40,6 @@ import (
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/gnmi"
 	"github.com/openconfig/ondatra/gnmi/oc"
-	"github.com/openconfig/ondatra/netutil"
 	"github.com/openconfig/ondatra/otg"
 	"github.com/openconfig/ygnmi/ygnmi"
 	"github.com/openconfig/ygot/ygot"
@@ -356,6 +356,7 @@ type flowArgs struct {
 	InnHdrSrcIPv6, InnHdrDstIPv6 string
 	udp, isInnHdrV4              bool
 	outHdrDscp                   []uint32
+	innHdrDscp                   uint32
 	proto                        uint32
 }
 
@@ -390,7 +391,7 @@ func dutInterface(p *ondatra.Port, dut *ondatra.DUTDevice, portIDx uint32) *oc.I
 		i.Enabled = ygot.Bool(true)
 	}
 
-	if p.PMD() == ondatra.PMD100GBASEFR {
+	if p.PMD() == ondatra.PMD100GBASEFR && deviations.ExplicitPortSpeed(dut) {
 		e := i.GetOrCreateEthernet()
 		e.AutoNegotiate = ygot.Bool(false)
 		e.DuplexMode = oc.Ethernet_DuplexMode_FULL
@@ -445,26 +446,7 @@ func configureDUT(t *testing.T, dut *ondatra.DUTDevice, dutPortList []*ondatra.P
 		}
 	}
 
-	loopbackIntfName = netutil.LoopbackInterface(t, dut, 0)
-	lo0 := gnmi.OC().Interface(loopbackIntfName).Subinterface(0)
-	ipv4Addrs := gnmi.LookupAll(t, dut, lo0.Ipv4().AddressAny().State())
-	ipv6Addrs := gnmi.LookupAll(t, dut, lo0.Ipv6().AddressAny().State())
-	if len(ipv4Addrs) == 0 && len(ipv6Addrs) == 0 {
-		loop1 := dutlo0Attrs.NewOCInterface(loopbackIntfName, dut)
-		loop1.Type = oc.IETFInterfaces_InterfaceType_softwareLoopback
-		gnmi.Update(t, dut, dc.Interface(loopbackIntfName).Config(), loop1)
-	} else {
-		v4, ok := ipv4Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv4 = v4.GetIp()
-		}
-		v6, ok := ipv6Addrs[0].Val()
-		if ok {
-			dutlo0Attrs.IPv6 = v6.GetIp()
-		}
-		t.Logf("Got DUT IPv4 loopback address: %v", dutlo0Attrs.IPv4)
-		t.Logf("Got DUT IPv6 loopback address: %v", dutlo0Attrs.IPv6)
-	}
+	loopbackIntfName = helpers.GetOrCreateLoopback(t, dut, 0, 0, &dutlo0Attrs)
 	if deviations.ExplicitInterfaceInDefaultVRF(dut) {
 		fptest.AssignToNetworkInstance(t, dut, loopbackIntfName, deviations.DefaultNetworkInstance(dut), 0)
 	}
@@ -741,13 +723,24 @@ func configureISIS(t *testing.T, dut *ondatra.DUTDevice, intfName, dutAreaAddres
 	globalISIS.Net = []string{fmt.Sprintf("%v.%v.00", dutAreaAddress, dutSysID)}
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV4, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
 	globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST).Enabled = ygot.Bool(true)
+	if deviations.ISISSingleTopologyRequired(dut) {
+		afv6 := globalISIS.GetOrCreateAf(oc.IsisTypes_AFI_TYPE_IPV6, oc.IsisTypes_SAFI_TYPE_UNICAST)
+		afv6.GetOrCreateMultiTopology().SetAfiName(oc.IsisTypes_AFI_TYPE_IPV4)
+		afv6.GetOrCreateMultiTopology().SetSafiName(oc.IsisTypes_SAFI_TYPE_UNICAST)
+	}
 
 	lspBit := globalISIS.GetOrCreateLspBit().GetOrCreateOverloadBit()
 	lspBit.SetBit = ygot.Bool(false)
 	isisLevel2 := isis.GetOrCreateLevel(2)
 	isisLevel2.MetricStyle = oc.Isis_MetricStyle_WIDE_METRIC
-
-	isisIntf := isis.GetOrCreateInterface(intfName)
+	if deviations.ISISLevelEnabled(dut) {
+		isisLevel2.Enabled = ygot.Bool(true)
+	}
+	isisIntfID := intfName
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		isisIntfID = intfName + ".0"
+	}
+	isisIntf := isis.GetOrCreateInterface(isisIntfID)
 	isisIntf.GetOrCreateInterfaceRef().Interface = ygot.String(intfName)
 	isisIntf.GetOrCreateInterfaceRef().Subinterface = ygot.Uint32(0)
 
@@ -801,7 +794,11 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 	bgpNbr.PeerAs = ygot.Uint32(localAs)
 	bgpNbr.Enabled = ygot.Bool(true)
 	bgpNbrT := bgpNbr.GetOrCreateTransport()
-	bgpNbrT.LocalAddress = ygot.String(dutlo0Attrs.IPv4)
+	localAddressLeaf := dutlo0Attrs.IPv4
+	if deviations.UseInterfaceNameForIBGPNeighborTransportIpv4LocalAddress(dut) {
+		localAddressLeaf = loopbackIntfName
+	}
+	bgpNbrT.LocalAddress = ygot.String(localAddressLeaf)
 	af4 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV4_UNICAST)
 	af4.Enabled = ygot.Bool(true)
 	af6 := bgpNbr.GetOrCreateAfiSafi(oc.BgpTypes_AFI_SAFI_TYPE_IPV6_UNICAST)
@@ -813,6 +810,9 @@ func bgpCreateNbr(localAs uint32, dut *ondatra.DUTDevice) *oc.NetworkInstance_Pr
 // verifyISISTelemetry verifies ISIS telemetry.
 func verifyISISTelemetry(t *testing.T, dut *ondatra.DUTDevice, dutIntf string) {
 	t.Helper()
+	if deviations.InterfaceRefInterfaceIDFormat(dut) {
+		dutIntf += ".0"
+	}
 	statePath := gnmi.OC().NetworkInstance(deviations.DefaultNetworkInstance(dut)).Protocol(oc.PolicyTypes_INSTALL_PROTOCOL_TYPE_ISIS, isisInstance).Isis()
 
 	nbrPath := statePath.Interface(dutIntf)
@@ -1133,10 +1133,10 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent := []float64{0.0156, 0.0468, 0.1875, 0, 0.75, 0, 0}
 	flow := []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapA1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapA1, isInnHdrV4: false}}
 	captureState := startCapture(t, args, baseCapturePortList)
 	gotWeights := testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
@@ -1144,16 +1144,16 @@ func testTunnelTrafficDecapEncap(ctx context.Context, t *testing.T, dut *ondatra
 	LoadBalancePercent = []float64{0.0468, 0.1406, 0.5625, 0, 0.25, 0, 0}
 	flow = []*flowArgs{{flowName: "flow4in4",
 		outHdrSrcIP: ipv4OuterSrc111Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, isInnHdrV4: true},
+		InnHdrSrcIP: atePort1.IPv4, InnHdrDstIP: ipv4InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: true},
 		{flowName: "flow6in4",
 			outHdrSrcIP: ipv4OuterSrc222Addr, outHdrDstIP: ipv4OuterDst111, outHdrDscp: []uint32{dscpEncapB1},
-			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, isInnHdrV4: false}}
+			InnHdrSrcIPv6: atePort1.IPv6, InnHdrDstIPv6: ipv6InnerDst, innHdrDscp: dscpEncapB1, isInnHdrV4: false}}
 	captureState = startCapture(t, args, baseCapturePortList)
 	gotWeights = testPacket(t, args, captureState, flow, EgressPortMap)
 	validateTrafficDistribution(t, args.ate, LoadBalancePercent, gotWeights)
 }
 
-// testTraceRoute  is to test Test FRR behaviors with encapsulation scenarios
+// testTraceRoute  is to test FRR behaviors with encapsulation scenarios
 func TestTraceRoute(t *testing.T) {
 	ctx := context.Background()
 	dut := ondatra.DUT(t, "dut")
@@ -1191,6 +1191,9 @@ func TestTraceRoute(t *testing.T) {
 	if deviations.GRIBIMACOverrideStaticARPStaticRoute(dut) {
 		// staticARPWithMagicUniversalIP(t, dut)
 		baseScenario.StaticARPWithMagicUniversalIP(t, dut)
+	}
+	if deviations.GRIBIMACOverrideWithStaticARP(dut) {
+		baseScenario.StaticARPWithSpecificIP(t, dut)
 	}
 
 	t.Log("Install BGP route resolved by ISIS.")
