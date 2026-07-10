@@ -1212,6 +1212,7 @@ func createIPv4InIPv4Flow(newFlow func(string) gosnappi.Flow, name, dstMac, oute
 	inner := f.Packet().Add().Ipv4()
 	inner.Src().SetValue(ATEPort1IPv4)
 	setIPv4Dst(inner.Dst(), innerDst)
+	inner.Priority().Dscp().Phb().SetValues(dscpVals)
 
 	return f
 }
@@ -1315,6 +1316,7 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 			i4 := f4.Packet().Add().Ipv4()
 			i4.Src().SetValue(ATEPort1IPv4)
 			i4.Dst().Increment().SetStart(fmt.Sprintf("200.%d.0.1", vi)).SetStep(CommonPrefixStep).SetCount(uint32(params.NumEncapIPv4PerVRF))
+			i4.Priority().Dscp().Phb().SetValues(dscpVals)
 
 			flows = append(flows, f4)
 
@@ -1332,6 +1334,10 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 			i6 := f6.Packet().Add().Ipv6()
 			i6.Src().SetValue(EncapIPv6InnerSrc)
 			i6.Dst().Increment().SetStart(fmt.Sprintf("2001:db8:%x::1", vi)).SetStep(CommonIPv6PrefixStep).SetCount(uint32(params.NumEncapIPv6PerVRF))
+			i6.TrafficClass().SetValues([]uint32{
+				uint32(d1) << 2,
+				uint32(d2) << 2,
+			})
 
 			flows = append(flows, f6)
 		}
