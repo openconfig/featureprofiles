@@ -15,7 +15,6 @@ options {
 duts {
   id: "dut"
   name: "dut-hostname"  # Change this to the device hostname.
-  vendor: ARISTA
 
   # Options inherited by all protocols on this device unless
   # overridden by individual protocols.  Remove if not needed.
@@ -47,7 +46,7 @@ duts {
   }
  
   gnmi {
-    target: "dut-hostname:6030"
+    target: "dut-hostname:service-port"
     mutual_tls: true
     trust_bundle_file: "path-to-test-file/enrollz.crt"
     cert_file: "path-to-test-file/enrollz.crt"
@@ -56,7 +55,7 @@ duts {
   }
 
   gnsi {
-    target: "dut-hostname:6030"
+    target: "dut-hostname:service-port"
     mutual_tls: true
     trust_bundle_file: "path-to-test-file/enrollz.crt"
     cert_file: "path-to-test-file/enrollz.crt"
@@ -65,7 +64,7 @@ duts {
   }
 
   gnoi {
-    target: "dut-hostname:6030"
+    target: "dut-hostname:service-port"
     mutual_tls: true
     trust_bundle_file: "path-to-test-file/enrollz.crt"
     cert_file: "path-to-test-file/enrollz.crt"

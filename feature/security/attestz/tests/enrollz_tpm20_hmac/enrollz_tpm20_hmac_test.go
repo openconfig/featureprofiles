@@ -110,10 +110,14 @@ type iakCertBaseline struct {
 	activeSHA256  [32]byte
 	standbySHA256 [32]byte
 	activeTLSCert [32]byte
+	hasTLSCert    bool
 	useTLSCert    bool
 	hasStandby    bool
 }
 
+// oIAKOnlyForStandbyCAClient wraps a SwitchOwnerCaClient and intentionally
+// returns an empty oIDevID cert for the standby control card. It is used by
+// enrollz-1.29 to simulate a mixed-enrollment scenario
 type oIAKOnlyForStandbyCAClient struct {
 	biz.SwitchOwnerCaClient
 }
@@ -235,7 +239,11 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 		}
 	}
 	minimalChallenge := func() *epb.HMACChallenge {
-		return &epb.HMACChallenge{HmacPubKey: []byte("k"), Duplicate: []byte("d"), InSymSeed: []byte("s")}
+		return &epb.HMACChallenge{
+			HmacPubKey: []byte("k"),
+			Duplicate:  []byte("d"),
+			InSymSeed:  []byte("s"),
+		}
 	}
 
 	for _, tc := range []struct {
@@ -299,9 +307,10 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				badClient, err := enrollzClientWithTLS(t, dut, invalidTLSConfig(t))
 				if err != nil {
-					t.Logf("connection rejected at dial time (expected): %v", err)
+					t.Logf("connection rejected at dial time: %v", err)
 					return nil
 				}
+				t.Log("dial succeeded with bad cert; issuing RPC and expecting TLS failure")
 				_, err = badClient.GetControlCardVendorID(ctx, &epb.GetControlCardVendorIDRequest{
 					ControlCardSelection: activeCard(),
 				})
@@ -367,8 +376,11 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{Duplicate: []byte("d"), InSymSeed: []byte("s")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						Duplicate: []byte("d"),
+						InSymSeed: []byte("s"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -379,8 +391,11 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: []byte("k"), InSymSeed: []byte("s")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: []byte("k"),
+						InSymSeed:  []byte("s"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -391,8 +406,11 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: []byte("k"), Duplicate: []byte("d")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: []byte("k"),
+						Duplicate:  []byte("d"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -403,8 +421,12 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: []byte("not-valid-tpm-blob"), Duplicate: []byte("d"), InSymSeed: []byte("s")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: []byte("not-valid-tpm-blob"),
+						Duplicate:  []byte("d"),
+						InSymSeed:  []byte("s"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -415,8 +437,12 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: []byte("k"), Duplicate: []byte("not-valid-duplicate"), InSymSeed: []byte("s")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: []byte("k"),
+						Duplicate:  []byte("not-valid-duplicate"),
+						InSymSeed:  []byte("s"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -427,8 +453,12 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: []byte("k"), Duplicate: []byte("d"), InSymSeed: []byte("not-valid-seed")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: []byte("k"),
+						Duplicate:  []byte("d"),
+						InSymSeed:  []byte("not-valid-seed"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -437,18 +467,18 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.15-InvalidEKWrapping",
 			"ChallengeRequest with correct key type KEY_EK but challenge wrapped with invalid EK",
 			func(t *testing.T) error {
-				wrongKey, keyErr := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+				wrongPub, keyErr := marshalWrongRSAPub()
 				if keyErr != nil {
-					return fmt.Errorf("failed to generate RSA key: %w", keyErr)
-				}
-				wrongPub, keyErr := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
-				if keyErr != nil {
-					return fmt.Errorf("failed to marshal public key: %w", keyErr)
+					return keyErr
 				}
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: wrongPub, Duplicate: []byte("d-wrong-ek"), InSymSeed: []byte("s-wrong-ek")},
-					Key:                  epb.Key_KEY_EK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: wrongPub,
+						Duplicate:  []byte("d-wrong-ek"),
+						InSymSeed:  []byte("s-wrong-ek"),
+					},
+					Key: epb.Key_KEY_EK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -457,18 +487,18 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"enrollz-1.16-InvalidPPKWrapping",
 			"ChallengeRequest with correct key type KEY_PPK but challenge wrapped with invalid PPK",
 			func(t *testing.T) error {
-				wrongKey, keyErr := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+				wrongPub, keyErr := marshalWrongRSAPub()
 				if keyErr != nil {
-					return fmt.Errorf("failed to generate RSA key: %w", keyErr)
-				}
-				wrongPub, keyErr := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
-				if keyErr != nil {
-					return fmt.Errorf("failed to marshal public key: %w", keyErr)
+					return keyErr
 				}
 				_, err := enrollzC.Challenge(ctx, &epb.ChallengeRequest{
 					ControlCardSelection: activeCard(),
-					Challenge:            &epb.HMACChallenge{HmacPubKey: wrongPub, Duplicate: []byte("d-wrong-ppk"), InSymSeed: []byte("s-wrong-ppk")},
-					Key:                  epb.Key_KEY_PPK,
+					Challenge: &epb.HMACChallenge{
+						HmacPubKey: wrongPub,
+						Duplicate:  []byte("d-wrong-ppk"),
+						InSymSeed:  []byte("s-wrong-ppk"),
+					},
+					Key: epb.Key_KEY_PPK,
 				})
 				return requireRejectedRequest(t, err)
 			},
@@ -478,6 +508,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			"GetIdevidCsrRequest with missing control_card_selection",
 			func(t *testing.T) error {
 				_, err := enrollzC.GetIdevidCsr(ctx, &epb.GetIdevidCsrRequest{
+					Key:         epb.Key_KEY_EK,
 					KeyTemplate: epb.KeyTemplate_KEY_TEMPLATE_ECC_NIST_P384,
 				})
 				return requireRejectedRequest(t, err)
@@ -489,6 +520,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				_, err := enrollzC.GetIdevidCsr(ctx, &epb.GetIdevidCsrRequest{
 					ControlCardSelection: unspecifiedCard(),
+					Key:                  epb.Key_KEY_EK,
 					KeyTemplate:          epb.KeyTemplate_KEY_TEMPLATE_ECC_NIST_P384,
 				})
 				return requireRejectedRequest(t, err)
@@ -512,6 +544,7 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 			func(t *testing.T) error {
 				resp, err := enrollzC.GetIdevidCsr(ctx, &epb.GetIdevidCsrRequest{
 					ControlCardSelection: activeCard(),
+					Key:                  epb.Key_KEY_EK,
 					KeyTemplate:          epb.KeyTemplate_KEY_TEMPLATE_UNSPECIFIED,
 				})
 				if err != nil {
@@ -535,7 +568,8 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				_, err := enrollzC.RotateOIakCert(ctx, &epb.RotateOIakCertRequest{
 					Updates: []*epb.ControlCardCertUpdate{{
 						ControlCardSelection: &cpb.ControlCardSelection{ControlCardId: &cpb.ControlCardSelection_Slot{Slot: "invalid-slot-xyz"}},
-						OiakCert:             "fake", OidevidCert: "fake",
+						OiakCert:             "fake",
+						OidevidCert:          "fake",
 					}},
 					SslProfileId: defaultSSLProfile,
 				})
@@ -552,7 +586,8 @@ func TestEnrollzTPM20HMAC(t *testing.T) {
 				_, err := enrollzC.RotateOIakCert(ctx, &epb.RotateOIakCertRequest{
 					Updates: []*epb.ControlCardCertUpdate{{
 						ControlCardSelection: activeCard(),
-						OiakCert:             "fake", OidevidCert: "fake",
+						OiakCert:             "fake",
+						OidevidCert:          "fake",
 					}},
 				})
 				if err := requireRejectedRequest(t, err); err != nil {
@@ -903,6 +938,18 @@ func activeCard() *cpb.ControlCardSelection {
 	}
 }
 
+func marshalWrongRSAPub() ([]byte, error) {
+	wrongKey, err := rsa.GenerateKey(rand.Reader, rsaKeyBits)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate RSA key: %w", err)
+	}
+	pub, err := x509.MarshalPKIXPublicKey(&wrongKey.PublicKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	return pub, nil
+}
+
 func standbyCard() *cpb.ControlCardSelection {
 	return &cpb.ControlCardSelection{
 		ControlCardId: &cpb.ControlCardSelection_Role{
@@ -1090,34 +1137,50 @@ func generateSelfSignedCertPEM(t *testing.T) string {
 	return string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER}))
 }
 
+// verifyCerts has two modes of operation:
+//   - Positive check (baseline == nil): verifies that enrolled certs on the DUT
+//     are signed by ownerCA. Used after a successful enrollment.
+//   - Baseline comparison (baseline != nil): verifies that the DUT's certs have
+//     not changed relative to a previously captured snapshot. Used as a
+//     rollback check after a rejected RotateOIakCert (tests 1.21–1.28)
 func verifyCerts(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enrollzC epb.TpmEnrollzServiceClient, ownerCA *ownerCAClient, hasStandby bool, baseline *iakCertBaseline) error {
 	t.Helper()
+	var errs []error
 	if baseline != nil {
-		t.Log("Performing rollback check to ensure IAK certs were not changed by rejected RotateOIakCert...")
+		t.Log("Performing baseline certificate comparison (checking certs are unchanged)...")
 		if baseline.useTLSCert {
+			t.Log("Using TLS cert for baseline check")
 			raw, err := tlsRawServerCert(gnsiAddr(t, dut))
 			if err != nil {
-				return fmt.Errorf("rollback check: TLS server cert unavailable: %v", err)
+				return fmt.Errorf("baseline check: TLS server cert unavailable: %v", err)
 			}
 			if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
-				return fmt.Errorf("rollback check: oIDevID cert changed after rejected RotateOIakCert (TLS fingerprint mismatch)")
+				return fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)")
 			}
-			return nil
-		}
-		resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: activeCard()})
-		if err != nil {
-			return fmt.Errorf("rollback check: GetIakCert(active): %v", err)
-		}
-		var errs []error
-		if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.activeSHA256 {
-			errs = append(errs, fmt.Errorf("rollback check: active IAK cert changed after rejected RotateOIakCert (baseline=%x got=%x)", baseline.activeSHA256, got))
-		}
-		if baseline.hasStandby {
-			resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: standbyCard()})
+		} else {
+			resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: activeCard()})
 			if err != nil {
-				errs = append(errs, fmt.Errorf("rollback check: GetIakCert(standby): %v", err))
-			} else if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.standbySHA256 {
-				errs = append(errs, fmt.Errorf("rollback check: standby IAK cert changed after rejected RotateOIakCert (baseline=%x got=%x)", baseline.standbySHA256, got))
+				return fmt.Errorf("baseline check: GetIakCert(active): %v", err)
+			}
+			if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.activeSHA256 {
+				errs = append(errs, fmt.Errorf("baseline check: active oIAK cert changed (baseline=%x got=%x)", baseline.activeSHA256, got))
+			}
+			if baseline.hasStandby {
+				resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: standbyCard()})
+				if err != nil {
+					errs = append(errs, fmt.Errorf("baseline check: GetIakCert(standby): %v", err))
+				} else if got := sha256.Sum256([]byte(resp.GetIakCert())); got != baseline.standbySHA256 {
+					errs = append(errs, fmt.Errorf("baseline check: standby oIAK cert changed (baseline=%x got=%x)", baseline.standbySHA256, got))
+				}
+			}
+		}
+		if baseline.hasTLSCert {
+			t.Log("Verify active card TLS server cert")
+			raw, tlsErr := tlsRawServerCert(gnsiAddr(t, dut))
+			if tlsErr != nil {
+				errs = append(errs, fmt.Errorf("baseline check: TLS server cert unavailable: %v", tlsErr))
+			} else if got := sha256.Sum256(raw); got != baseline.activeTLSCert {
+				errs = append(errs, fmt.Errorf("baseline check: active oIDevID cert changed (TLS fingerprint mismatch)"))
 			}
 		}
 		return errors.Join(errs...)
@@ -1127,8 +1190,6 @@ func verifyCerts(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enro
 	}
 	ownerCAPool := x509.NewCertPool()
 	ownerCAPool.AddCert(ownerCA.ca)
-
-	var errs []error
 
 	raw, err := tlsRawServerCert(gnsiAddr(t, dut))
 	if err != nil {
@@ -1188,15 +1249,19 @@ func systemTime(t *testing.T, dut *ondatra.DUTDevice) time.Time {
 func captureIAKBaseline(t *testing.T, ctx context.Context, dut *ondatra.DUTDevice, enrollzC epb.TpmEnrollzServiceClient, hasStandby bool) iakCertBaseline {
 	t.Helper()
 	b := iakCertBaseline{hasStandby: hasStandby}
+	if raw, tlsErr := tlsRawServerCert(gnsiAddr(t, dut)); tlsErr != nil {
+		t.Logf("captureIAKBaseline: TLS server cert unavailable (will skip TLS check): %v", tlsErr)
+	} else {
+		b.activeTLSCert = sha256.Sum256(raw)
+		b.hasTLSCert = true
+	}
+
 	resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: activeCard()})
 	if err != nil {
-		t.Logf("GetIakCert(active) unavailable; trying TLS cert fingerprint as rollback baseline: %v", err)
-		raw, tlsErr := tlsRawServerCert(gnsiAddr(t, dut))
-		if tlsErr != nil {
-			t.Fatalf("TLS fingerprint(active) unavailable, unable to check certificate rollback: %v", tlsErr)
-			return b
+		if !b.hasTLSCert {
+			t.Fatalf("captureIAKBaseline: GetIakCert(active) unavailable and no TLS cert; cannot establish baseline: %v", err)
 		}
-		b.activeTLSCert = sha256.Sum256(raw)
+		t.Logf("captureIAKBaseline: GetIakCert(active) unavailable; using TLS cert as baseline: %v", err)
 		b.useTLSCert = true
 		return b
 	}
@@ -1204,7 +1269,7 @@ func captureIAKBaseline(t *testing.T, ctx context.Context, dut *ondatra.DUTDevic
 	if hasStandby {
 		resp, err := enrollzC.GetIakCert(ctx, &epb.GetIakCertRequest{ControlCardSelection: standbyCard()})
 		if err != nil {
-			t.Logf("GetIakCert(standby) unavailable: %v", err)
+			t.Logf("captureIAKBaseline: GetIakCert(standby) unavailable: %v", err)
 			return b
 		}
 		b.standbySHA256 = sha256.Sum256([]byte(resp.GetIakCert()))
