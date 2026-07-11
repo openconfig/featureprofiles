@@ -44,7 +44,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 	startTime := helpers.GetRouterTime(t, dut)
 	time.Sleep(5 * time.Second)
 
-	records := acctz.SendPrivEscalation(t, dut, staticBinding)
+	records := acctz.SendPrivEscalation(t, dut, staticBinding, false)
 	time.Sleep(5 * time.Second)
 
 	requestTimestamp := &timestamppb.Timestamp{
@@ -96,7 +96,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 			done = true
 		}
 		if done {
-			t.Log("Done receiving records (timeout or manual break)...")
+			t.Log("Done receiving records")
 			break
 		}
 		t.Logf("Received record: %s", prettyPrint(resp.record))
@@ -160,7 +160,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 				resp.record.GetSessionInfo().GetStatus(), expectedSessionStatus, prettyPrint(resp.record))
 		}
 		if expectedSessionStatus != acctzpb.SessionInfo_SESSION_STATUS_ENABLE {
-			t.Logf("session_info.status=%v; README requires ENABLE", expectedSessionStatus)
+			t.Logf("session_info.status=%v; want ENABLE", expectedSessionStatus)
 		}
 
 		authnInfo := resp.record.GetSessionInfo().GetAuthn()
@@ -170,9 +170,7 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 				authnInfo.GetStatus(), expectedAuthnStatus, prettyPrint(resp.record))
 		}
 		expectedAuthnType := records[recordIdx].GetSessionInfo().GetAuthn().GetType()
-		if authnInfo.GetType() == acctzpb.AuthnDetail_AUTHN_TYPE_UNSPECIFIED {
-			t.Logf("Authentication type is unspecified; want %v", expectedAuthnType)
-		} else if authnInfo.GetType() != expectedAuthnType {
+		if authnInfo.GetType() != expectedAuthnType {
 			t.Errorf("Authentication type mismatch, got %v want %v, Record Details: %s",
 				authnInfo.GetType(), expectedAuthnType, prettyPrint(resp.record))
 		}
@@ -189,10 +187,11 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 			t.Errorf("privilege_level is not populated for privilege escalation record, Record Details: %s", prettyPrint(resp.record))
 		}
 
-		if resp.record.GetSessionInfo().GetChannelId() == "" && !deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
-			t.Errorf("Channel Id is not populated for record: %v", prettyPrint(resp.record))
-		} else if resp.record.GetSessionInfo().GetChannelId() != "" && resp.record.GetSessionInfo().GetChannelId() != "0" {
-			t.Logf("channel_id should be 0 for SSH per README, got %q; vendor deviation", resp.record.GetSessionInfo().GetChannelId())
+		channelID := resp.record.GetSessionInfo().GetChannelId()
+		if deviations.AcctzRecordSessionChannelIdUnsupported(dut) {
+			t.Logf("channel_id check skipped due to AcctzRecordSessionChannelIdUnsupported deviation; got %q", channelID)
+		} else if channelID != "0" {
+			t.Errorf("channel_id: got %q, want %q, Record Details: %s", channelID, "0", prettyPrint(resp.record))
 		}
 
 		if resp.record.GetSessionInfo().GetTty() == "" {
@@ -211,13 +210,13 @@ func TestAccountzRecordSubscribePrivEscalation(t *testing.T) {
 				t.Errorf("cmd_service.cmd_istruncated should be omitted/false for priv escalation record, Record Details: %s", prettyPrint(resp.record))
 			}
 			if cmdServiceRecord.GetCmd() != "" {
-				t.Logf("cmd_service.cmd populated with %q", cmdServiceRecord.GetCmd())
+				t.Errorf("cmd_service.cmd should be omitted for priv escalation record, got %q, Record Details: %s", cmdServiceRecord.GetCmd(), prettyPrint(resp.record))
 			}
 			if cmdServiceRecord.GetCmdArgsIstruncated() {
 				t.Errorf("cmd_service.cmd_args_istruncated should be omitted/false for priv escalation record, Record Details: %s", prettyPrint(resp.record))
 			}
 			if len(cmdServiceRecord.GetCmdArgs()) != 0 {
-				t.Logf("cmd_service.cmd_args populated with %v", cmdServiceRecord.GetCmdArgs())
+				t.Errorf("cmd_service.cmd_args should be omitted for priv escalation record, got %v, Record Details: %s", cmdServiceRecord.GetCmdArgs(), prettyPrint(resp.record))
 			}
 			if cmdServiceRecord.GetAuthz().GetDetail() != "" {
 				t.Errorf("cmd_service.authz.detail should be omitted, got %q, Record Details: %s", cmdServiceRecord.GetAuthz().GetDetail(), prettyPrint(resp.record))
@@ -276,30 +275,14 @@ func mapRoleToPrivilegeLevel(role string) int {
 
 func verifyReportedString(t *testing.T, field, got, want string) {
 	t.Helper()
-	if got == "" {
-		if want != "" {
-			t.Errorf("%s is not populated; want %q", field, want)
-		} else {
-			t.Logf("%s is not populated", field)
-		}
-		return
-	}
-	if want != "" && got != want {
+	if got != want {
 		t.Errorf("%s mismatch: got %q, want %q", field, got, want)
 	}
 }
 
 func verifyReportedUint32(t *testing.T, field string, got, want uint32) {
 	t.Helper()
-	if got == 0 {
-		if want != 0 {
-			t.Errorf("%s is not populated; want %d", field, want)
-		} else {
-			t.Logf("%s is not populated", field)
-		}
-		return
-	}
-	if want != 0 && got != want {
+	if got != want {
 		t.Errorf("%s mismatch: got %d, want %d", field, got, want)
 	}
 }

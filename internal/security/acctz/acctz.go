@@ -66,20 +66,23 @@ const (
 	failAuthorizeUsername    = "failauthuser" // username for failed authorization
 	FailAuthorizeUsername    = failAuthorizeUsername
 	failAuthorizePassword    = "failauthpasswordTest123!"
-	failRoleName             = "acctz-fp-test-fail" // role for failed authorization
-	failDenyRoleName         = "acctz-fp-deny-fail" // role for failed deny authorization
-	successCliCommand        = "show version"
-	failCliCommand           = "show version"
-	failDenyCliCommand       = "/.*"
-	shellCommand             = "uname -a"
-	gnmiCapabilitiesPath     = "/gnmi.gNMI/Capabilities"
-	gnoiPingPath             = "/gnoi.system.System/Ping"
-	gnoiTimePath             = "/gnoi.system.System/Time"
-	gnsiGetPath              = "/gnsi.authz.v1.Authz/Get"
-	gribiGetPath             = "/gribi.gRIBI/Get"
-	p4rtCapabilitiesPath     = "/p4.v1.P4Runtime/Capabilities"
-	defaultSSHPort           = 22
-	ipProto                  = 6
+	// privEscUsername is a low-privilege (operator-level) user used for privilege escalation
+	privEscUsername      = "acctzRegularUser"
+	privEscPassword      = "acctzPass123"
+	failRoleName         = "acctz-fp-test-fail" // role for failed authorization
+	failDenyRoleName     = "acctz-fp-deny-fail" // role for failed deny authorization
+	successCliCommand    = "show version"
+	failCliCommand       = "show version"
+	failDenyCliCommand   = "/.*"
+	shellCommand         = "uname -a"
+	gnmiCapabilitiesPath = "/gnmi.gNMI/Capabilities"
+	gnoiPingPath         = "/gnoi.system.System/Ping"
+	gnoiTimePath         = "/gnoi.system.System/Time"
+	gnsiGetPath          = "/gnsi.authz.v1.Authz/Get"
+	gribiGetPath         = "/gribi.gRIBI/Get"
+	p4rtCapabilitiesPath = "/p4.v1.P4Runtime/Capabilities"
+	defaultSSHPort       = 22
+	ipProto              = 6
 )
 
 var (
@@ -1652,12 +1655,45 @@ func enableAccountingStartStop(t *testing.T, dut *ondatra.DUTDevice) {
 	}
 }
 
-func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool) []*acctzpb.RecordResponse {
+func configureRegularUser(t *testing.T, dut *ondatra.DUTDevice) {
+	auth := &oc.System_Aaa_Authentication{}
+	u := auth.GetOrCreateUser(privEscUsername)
+	u.SetRole(oc.UnionString("network-operator"))
+	ondatragnmi.Update(t, dut, ondatragnmi.OC().System().Aaa().Authentication().Config(), auth)
+	t.Logf("Created user %s with role network-operator", privEscUsername)
+}
+
+func configureEnableAuth(t *testing.T, dut *ondatra.DUTDevice) {
+	switch dut.Vendor() {
+	case ondatra.ARISTA:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable password acctzEnable")
+		setupUserPassword(t, dut, privEscUsername, privEscPassword)
+	case ondatra.CISCO:
+		helpers.GnmiCLIConfig(t, dut, "aaa authentication enable default local\nenable secret acctzEnable")
+	}
+}
+
+func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool, expectPass bool) []*acctzpb.RecordResponse {
 	target := getSSHTarget(t, dut, staticBinding)
 	var records []*acctzpb.RecordResponse
 
 	enableAccountingStartStop(t, dut)
-	sshConn, w := dialSSH(t, dut, SuccessUsername, successPassword, target)
+	configureRegularUser(t, dut)
+	configureEnableAuth(t, dut)
+
+	var user, password string
+	var recordStatus acctzpb.AuthnDetail_AuthnStatus
+	if expectPass {
+		user = SuccessUsername
+		password = successPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS
+	} else {
+		user = privEscUsername
+		password = privEscPassword
+		recordStatus = acctzpb.AuthnDetail_AUTHN_STATUS_FAIL
+	}
+
+	sshConn, w := dialSSH(t, dut, user, password, target)
 	remoteIP, remotePort := getHostPortInfo(t, sshConn.LocalAddr().String())
 	localIP, localPort := getHostPortInfo(t, target)
 	defer func() {
@@ -1681,8 +1717,6 @@ func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 		t.Fatalf("Failed sending privilege escalation password, error: %s", err)
 	}
 
-	expectedIdentity := SuccessUsername
-
 	switch dut.Vendor() {
 	case ondatra.ARISTA:
 		records = append(records, &acctzpb.RecordResponse{
@@ -1700,11 +1734,10 @@ func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 				IpProto:       ipProto,
 				Authn: &acctzpb.AuthnDetail{
 					Type:   acctzpb.AuthnDetail_AUTHN_TYPE_PASSWORD,
-					Status: acctzpb.AuthnDetail_AUTHN_STATUS_SUCCESS,
+					Status: recordStatus,
 				},
 				User: &acctzpb.UserDetail{
-					Identity: expectedIdentity,
-					Role:     "15",
+					Identity: user,
 				},
 			},
 		})
@@ -1723,7 +1756,7 @@ func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 				RemotePort:    remotePort,
 				IpProto:       ipProto,
 				User: &acctzpb.UserDetail{
-					Identity: expectedIdentity,
+					Identity: user,
 					Role:     "root-lr, cisco-support",
 				},
 			},
@@ -1747,7 +1780,7 @@ func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 					Status: acctzpb.AuthnDetail_AUTHN_STATUS_FAIL,
 				},
 				User: &acctzpb.UserDetail{
-					Identity: expectedIdentity,
+					Identity: user,
 				},
 			},
 		})
@@ -1759,7 +1792,7 @@ func SendPrivEscalation(t *testing.T, dut *ondatra.DUTDevice, staticBinding bool
 func getPrivEscalationCommand(dut *ondatra.DUTDevice) string {
 	switch dut.Vendor() {
 	case ondatra.ARISTA, ondatra.CISCO:
-		return "enable"
+		return "configure terminal"
 	default:
 		return ""
 	}
