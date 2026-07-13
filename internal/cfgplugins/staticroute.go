@@ -201,3 +201,27 @@ func NewStaticVRFRoute(t *testing.T, batch *gnmi.SetBatch, cfg *StaticVRFRouteCf
 
 	return s, nil
 }
+
+// ConfigureStaticRouteParams contains the parameters required to configure a static route on the DUT.
+type ConfigureStaticRouteParams struct {
+	NetworkInstance string
+	Prefix          string
+	Index           string
+	NextHop         string
+}
+
+// ConfigureStaticRoute installs a static route into the default NI.
+func ConfigureStaticRoute(t *testing.T, dut *ondatra.DUTDevice, batch *gnmi.SetBatch, cfg ConfigureStaticRouteParams) {
+	t.Helper()
+	staticRoute := &StaticRouteCfg{
+		NetworkInstance: cfg.NetworkInstance,
+		Prefix:          cfg.Prefix,
+		NextHops: map[string]oc.NetworkInstance_Protocol_Static_NextHop_NextHop_Union{
+			cfg.Index: oc.UnionString(cfg.NextHop),
+		},
+	}
+
+	if _, err := NewStaticRouteCfg(batch, staticRoute, dut); err != nil {
+		t.Fatalf("Failed to configure static route %s: %v", cfg.Prefix, err)
+	}
+}
