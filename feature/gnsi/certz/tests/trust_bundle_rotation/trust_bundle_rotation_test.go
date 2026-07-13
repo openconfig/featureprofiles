@@ -15,12 +15,13 @@
 package trust_bundle_rotation_test
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -31,6 +32,9 @@ import (
 	certzpb "github.com/openconfig/gnsi/certz"
 	"github.com/openconfig/ondatra"
 	"github.com/openconfig/ondatra/binding"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 )
 
 const (
@@ -88,7 +92,6 @@ func createCombinedBundle(t *testing.T, dirPath, typeStr string) string {
 	pem2 := filepath.Join(dirPath, "ca-02", fmt.Sprintf("trust_bundle_02_%s.pem", typeStr))
 	tempDir := t.TempDir()
 	combinedPem := filepath.Join(tempDir, fmt.Sprintf("combined_%s.pem", typeStr))
-	combinedP7b := filepath.Join(tempDir, fmt.Sprintf("combined_%s.p7b", typeStr))
 
 	// Read pem1
 	d1, err := os.ReadFile(pem1)
@@ -107,16 +110,29 @@ func createCombinedBundle(t *testing.T, dirPath, typeStr string) string {
 		t.Fatalf("Failed to write %s: %v", combinedPem, err)
 	}
 
-	// Convert to P7B using openssl
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	cmd := exec.CommandContext(ctx, "openssl", "crl2pkcs7", "-nocrl", "-certfile", combinedPem, "-out", combinedP7b)
-	out, err := cmd.CombinedOutput()
+	return combinedPem
+}
+
+func verifyServedCertificate(t *testing.T, peerCert *x509.Certificate, expectedCertFile string) {
+	t.Helper()
+	sc, err := os.ReadFile(expectedCertFile)
 	if err != nil {
-		t.Fatalf("Failed to convert to PKCS7: %v\nOutput:\n%s", err, string(out))
+		t.Fatalf("Failed to read expected certificate file: %v", err)
+	}
+	block, _ := pem.Decode(sc)
+	if block == nil {
+		t.Fatalf("Failed to parse expected PEM block")
+	}
+	expectedCert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse expected certificate: %v", err)
 	}
 
-	return combinedP7b
+	if !bytes.Equal(peerCert.Raw, expectedCert.Raw) {
+		t.Errorf("Served certificate does not match the expected certificate. Subject: %v, Expected Subject: %v", peerCert.Subject, expectedCert.Subject)
+	} else {
+		t.Logf("Verified that the same certificate is properly served by the server: %v", peerCert.Subject)
+	}
 }
 
 func CertzRotateNegative(ctx context.Context, t *testing.T, certzClient certzpb.CertzClient, profileID string, entities ...*certzpb.Entity) {
@@ -187,7 +203,7 @@ func TestTrustBundleRotation(t *testing.T) {
 			// Define baseline files (ca-01)
 			serverCertFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("server-%s-a-cert.pem", typeStr))
 			serverKeyFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("server-%s-a-key.pem", typeStr))
-			trustBundleFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("trust_bundle_01_%s.p7b", typeStr))
+			trustBundleFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("trust_bundle_01_%s.pem", typeStr))
 			clientCertFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("client-%s-a-cert.pem", typeStr))
 			clientKeyFile := filepath.Join(dirPath, "ca-01", fmt.Sprintf("client-%s-a-key.pem", typeStr))
 
@@ -200,13 +216,13 @@ func TestTrustBundleRotation(t *testing.T) {
 			}
 
 			// Load trust bundle
-			pkcs7certs, pkcs7data, err := setup_service.Loadpkcs7TrustBundle(trustBundleFile)
+			pemData, err := os.ReadFile(trustBundleFile)
 			if err != nil {
-				t.Fatalf("Failed to load trust bundle: %v", err)
+				t.Fatalf("Failed to read trust bundle: %v", err)
 			}
 			caCertPool := x509.NewCertPool()
-			for _, c := range pkcs7certs {
-				caCertPool.AddCert(c)
+			if !caCertPool.AppendCertsFromPEM(pemData) {
+				t.Fatalf("Failed to append certs from PEM: %s", trustBundleFile)
 			}
 
 			cases := []struct {
@@ -228,7 +244,7 @@ func TestTrustBundleRotation(t *testing.T) {
 					isNegative: true,
 					version:    "bundle_ca02",
 					getBundlePath: func(t *testing.T) string {
-						return filepath.Join(dirPath, "ca-02", fmt.Sprintf("trust_bundle_02_%s.p7b", typeStr))
+						return filepath.Join(dirPath, "ca-02", fmt.Sprintf("trust_bundle_02_%s.pem", typeStr))
 					},
 				},
 			}
@@ -250,7 +266,11 @@ func TestTrustBundleRotation(t *testing.T) {
 						ServerKeyFile:  serverKeyFile,
 					})
 					serverCertEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeCertificateChain, &serverCert, "v1")
-					trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, string(pkcs7data), "bundle1")
+					trustBundleChain := setup_service.CreateCertzChain(t, setup_service.CertificateChainRequest{
+						RequestType:     setup_service.EntityTypeTrustBundle,
+						TrustBundleFile: trustBundleFile,
+					})
+					trustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundlePEM, &trustBundleChain, "bundle1")
 
 					t.Logf("Installing baseline profile %s with ca-01", profileID)
 					if success := setup_service.CertzRotate(ctx, t, caCertPool, certzClient, gnmiClient, clientCert, dut, username, password, serverSAN, serverAddr, profileID, false, false, false, &serverCertEntity, &trustBundleEntity); !success {
@@ -269,15 +289,19 @@ func TestTrustBundleRotation(t *testing.T) {
 
 					// Prepare target trust bundle
 					targetBundlePath := tc.getBundlePath(t)
-					targetCerts, targetData, err := setup_service.Loadpkcs7TrustBundle(targetBundlePath)
+					targetPemData, err := os.ReadFile(targetBundlePath)
 					if err != nil {
-						t.Fatalf("Failed to load target trust bundle: %v", err)
+						t.Fatalf("Failed to read target trust bundle: %v", err)
 					}
 					targetCaCertPool := x509.NewCertPool()
-					for _, c := range targetCerts {
-						targetCaCertPool.AddCert(c)
+					if !targetCaCertPool.AppendCertsFromPEM(targetPemData) {
+						t.Fatalf("Failed to append target certs from PEM: %s", targetBundlePath)
 					}
-					targetTrustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundle, string(targetData), tc.version)
+					targetTrustBundleChain := setup_service.CreateCertzChain(t, setup_service.CertificateChainRequest{
+						RequestType:     setup_service.EntityTypeTrustBundle,
+						TrustBundleFile: targetBundlePath,
+					})
+					targetTrustBundleEntity := setup_service.CreateCertzEntity(t, setup_service.EntityTypeTrustBundlePEM, &targetTrustBundleChain, tc.version)
 
 					if !tc.isNegative {
 						// Positive Rotation - Explicit Steps
@@ -311,14 +335,25 @@ func TestTrustBundleRotation(t *testing.T) {
 						// Step 4: Probe (Verify connection works with new trust pool before finalize)
 						t.Log("Step 4: Probing new trust bundle using Probe RPC...")
 						activeAuthzClient := authzpb.NewAuthzClient(conn)
+						var p peer.Peer
 						_, err = activeAuthzClient.Probe(ctx, &authzpb.ProbeRequest{
 							User: username,
 							Rpc:  "/gnsi.authz.v1.Authz/Probe",
-						})
+						}, grpc.Peer(&p))
 						if err != nil {
 							t.Fatalf("Probe failed: %v", err)
 						}
 						t.Log("Probe successful.")
+
+						// Verify that the same certificate is properly served by the server
+						tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
+						if !ok {
+							t.Fatalf("Failed to get TLSInfo from peer connection info")
+						}
+						if len(tlsInfo.State.PeerCertificates) == 0 {
+							t.Fatalf("No peer certificates served by the server")
+						}
+						verifyServedCertificate(t, tlsInfo.State.PeerCertificates[0], serverCertFile)
 
 						// Step 5: Finalize
 						t.Log("Step 5: Finalizing rotation...")

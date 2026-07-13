@@ -87,6 +87,8 @@ const (
 	EntityTypeCRL entityType = 3
 	// EntityTypeAuthPolicy is type of entity of the auth policy.
 	EntityTypeAuthPolicy entityType = 4
+	// EntityTypeTrustBundlePEM is type of entity of the PEM trust bundle.
+	EntityTypeTrustBundlePEM entityType = 5
 )
 
 // CertificateChainRequest is an input argument for the  type definition for the CreateCertzChain.
@@ -136,6 +138,14 @@ func CreateCertzEntity(t *testing.T, typeOfEntity entityType, entityContent any,
 			Version:   entityVersion,
 			CreatedOn: varClock,
 			Entity:    &certzpb.Entity_TrustBundlePkcs7{TrustBundlePkcs7: &certzpb.TrustBundle{Pkcs7Block: entityContent.(string)}},
+		}
+
+	case EntityTypeTrustBundlePEM:
+
+		return certzpb.Entity{
+			Version:   entityVersion,
+			CreatedOn: varClock,
+			Entity:    &certzpb.Entity_TrustBundle{TrustBundle: entityContent.(*certzpb.CertificateChain)},
 		}
 
 	case EntityTypeCRL:
