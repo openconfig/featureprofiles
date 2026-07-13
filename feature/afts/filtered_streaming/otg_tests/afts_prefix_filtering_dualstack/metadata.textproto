@@ -11,6 +11,10 @@ platform_exceptions: {
     vendor: ARISTA
   }
   deviations: {
+    static_protocol_name: "STATIC"
+    default_network_instance: "default"
     afts_global_filter_policy_oc_unsupported: true
+    bgp_missing_oc_max_prefixes_configuration: true
+    link_local_instead_of_nh: true
   }
 }
