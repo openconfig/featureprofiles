@@ -81,8 +81,8 @@ func TestGRIBIFullScaleT2(t *testing.T) {
 		NumEncapIPv6PerVRF: 10_000,
 		NumDecapEntries:    48,
 		TrafficDuration:    5 * time.Minute,
-		TrafficLossTol:  		5,
-		TrafficRateMpps: 		30_000_000,
+		TrafficLossTol:     5,
+		TrafficRateMpps:    30_000_000,
 
 		NumPort2VLANs:       640,
 		PctEncap8NH:         75,
