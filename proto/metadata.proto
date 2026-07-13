@@ -1400,7 +1400,7 @@ message Metadata {
     bool vlan_subinterface_oc_unsupported = 440;
 
     // Device does not support configuring route-reflector-client
-    // Juniper: b/
+    // Juniper: b/534122367
     bool route_reflector_client_unsupported = 441;
 
     // Reserved field numbers and identifiers.
