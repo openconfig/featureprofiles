@@ -37,25 +37,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 )
 
-// ============================================================
-// Constants — T0-specific scale parameters (TE-14.3)
-// ============================================================
-
-const (
-	// pctNHG512 is the percentage of Default VRF NHGs with 1/512 granularity.
-	pctNHG512 = 80
-
-	// numRepairNHG is the number of NHGs in REPAIR_VRF for T0.
-	numRepairNHG = 1
-
-	// numEncapDefaultNHG is the T3 scale target: NHGs in the default VRF
-	// that back encap VRF entries.
-	numEncapDefaultNHG = 1
-
-	// numUniqueEncapNH is the T4 scale target: total unique encap NHs.
-	numUniqueEncapNH = 1
-)
-
 var (
 	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
 	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
@@ -79,14 +60,14 @@ func TestMain(m *testing.M) {
 // traffic pass per sub-test.
 func TestGRIBIFullScaleDown(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          pctNHG512,
-		NumRepairNHG:       numRepairNHG,
-		NumEncapDefaultNHG: numEncapDefaultNHG,
-		NumUniqueEncapNH:   numUniqueEncapNH,
+		PctNHG512:          80,
+		NumRepairNHG:       1,
+		NumEncapDefaultNHG: 1,
+		NumUniqueEncapNH:   1,
 
-		NumDefaultNH:       1,
-		NumDefaultNHG:      1,
-		NumDefaultIPv4:     1,
+		NumDefaultNH:       2,
+		NumDefaultNHG:      2,
+		NumDefaultIPv4:     2,
 		NumTransitNHD1:     1,
 		NumTransitNHD2:     1,
 		NumTransitNHGE1:    1,
@@ -101,11 +82,10 @@ func TestGRIBIFullScaleDown(t *testing.T) {
 		TrafficLossTol:     5,
 		TrafficRateMpps:    1_000,
 
-		NumPort1VLANs:       1,
-		NumPort2VLANs:       1,
+		NumPort2VLANs:       2,
 		PctEncap8NH:         75,
 		PctEncap32NH:        20,
-		DecapDestsSubsetPct: 10,
+		DecapDestsSubsetPct: 100,
 		GRIBIBatchSize:      256,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
