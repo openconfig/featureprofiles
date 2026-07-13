@@ -2286,6 +2286,6 @@ func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 
 // RouteReflectorClientOCUnsupported returns true if the device does not support OC config for BGP route-reflector-client.
 // Juniper: https://partnerissuetracker.corp.google.com/issues/534122367
-func RouteReflectorClientOCUnsupported(dut *ondatra.DUTDevice) bool {
-	return lookupDUTDeviations(dut).GetRouteReflectorClientOcUnsupported()
+func RouteReflectorClientUnsupported(dut *ondatra.DUTDevice) bool {
+	return lookupDUTDeviations(dut).GetRouteReflectorClientUnsupported()
 }

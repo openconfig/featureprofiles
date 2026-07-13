@@ -1502,7 +1502,7 @@ type Metadata_Deviations struct {
 	// Arista: https://partnerissuetracker.corp.google.com/issues/494280147
 	VlanSubinterfaceOcUnsupported bool `protobuf:"varint,440,opt,name=vlan_subinterface_oc_unsupported,json=vlanSubinterfaceOcUnsupported,proto3" json:"vlan_subinterface_oc_unsupported,omitempty"`
 	// Device does not support configuring route-reflector-client
-	// Juniper: b/
+	// Juniper: b/534122367
 	RouteReflectorClientUnsupported bool `protobuf:"varint,441,opt,name=route_reflector_client_unsupported,json=routeReflectorClientUnsupported,proto3" json:"route_reflector_client_unsupported,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
