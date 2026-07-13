@@ -31,12 +31,18 @@ paths:
   /interfaces/interface/config/description:
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/id:
+  /interfaces/interface/config/name:
   /interfaces/interface/config/type:
+  /interfaces/interface/ethernet/config/port-speed:
   /interfaces/interface/state/id:
   /interfaces/interface/state/name:
+  /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/ip:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/interfaces/interface/config/id:
+  /network-instances/network-instance/interfaces/interface/config/interface:
+  /network-instances/network-instance/interfaces/interface/config/subinterface:
 rpcs:
   gnoi:
     system.System.KillProcess:
