@@ -198,6 +198,7 @@ Preamble: You are a test engineer analyzing test coverage.
 Task: Analyze the provided readme markdown and automation code. Identify any gaps in the automation code based on the requirements provided in the readme markdown.
 Note that any "TODO" items or sections in the Readme Markdown are not considered requirements and should be ignored when identifying gaps.
 Ignore any gap in the automation if the same is covered using a deviation.
+Note that testbed deployment details, baseline topology setup, interface IP configurations, network instances, and default gRPC server setup (often described in "Baseline Setup" or "Canonical OC" sections) are assumed to be pre-configured by the testbed environment and should not be flagged as gaps in the Go test automation code. Only focus on actions, validations, and operations that are expected to be executed dynamically in the test scenario itself.
 Return the result in JSON format with two fields: 'gap_found' (boolean) and 'gap_description' (string).
 If gaps are found, 'gap_found' should be true and 'gap_description' should contain a description of what requirements are not covered by the test automation.
 If all requirements in the readme are covered, 'gap_found' should be false and 'gap_description' should be 'No gap in the implementation found.'.
