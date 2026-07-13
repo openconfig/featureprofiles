@@ -2288,4 +2288,13 @@ func VlanSubinterfaceOCUnsupported(dut *ondatra.DUTDevice) bool {
 // Juniper: https://partnerissuetracker.corp.google.com/issues/534122367
 func RouteReflectorClientUnsupported(dut *ondatra.DUTDevice) bool {
 	return lookupDUTDeviations(dut).GetRouteReflectorClientUnsupported()
+  
+// MaxOutFIBRouteCount returns routecount if the device has a max route count based on specific platform
+// For devices which has different max route count based on platform, this deviation can be used to set the max route count for the device.
+// This will be used in scale test cases to set the max route count for the device.
+func MaxOutFIBRouteCount(dut *ondatra.DUTDevice) uint32 {
+	if routeCount := lookupDUTDeviations(dut).GetMaxOutFibRouteCount(); routeCount != 0 {
+		return routeCount
+	}
+	return 2500000
 }
