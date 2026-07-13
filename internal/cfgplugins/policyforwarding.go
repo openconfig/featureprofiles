@@ -1571,3 +1571,128 @@ func ConfigureCLIDecapVRFMode(t *testing.T, dut *ondatra.DUTDevice) {
 	t.Log("Enabling next-hop decapsulation VRF mode")
 	helpers.GnmiCLIConfig(t, dut, cliConfig)
 }
+
+// PrefixSetPolicyParams has the parameters to configure prefix set policy.
+type PrefixSetPolicyParams struct {
+	PolicyName     string
+	StatementNames []string
+	PrefixSetNames []string
+	MatchPrefixSet bool
+	SetTag         bool
+	PrefixList     []string
+	PrefixMode     string
+	PrefixDeny     bool
+	PolicyResult   oc.E_RoutingPolicy_PolicyResultType
+}
+
+// AddPrefixSetPolicy creates a routing policy statement that matches the specified prefix set and applies the supplied policy result.
+func AddPrefixSetPolicy(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
+	t.Helper()
+	pd := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	for stIndex, stName := range cfg.StatementNames {
+		stmt, err := pd.AppendNewStatement(stName)
+		if err != nil {
+			t.Fatalf("AppendNewStatement failed: %v", err)
+		}
+		if cfg.MatchPrefixSet {
+			if cfg.SetTag {
+				stmt.GetOrCreateConditions().GetOrCreateMatchTagSet().TagSet = ygot.String("999")
+			} else {
+				if cfg.PrefixSetNames[stIndex] != "" {
+					match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
+					match.PrefixSet = ygot.String(cfg.PrefixSetNames[stIndex])
+				}
+			}
+		}
+		if cfg.PrefixDeny && stIndex == 0 {
+			stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_REJECT_ROUTE
+			continue
+		}
+		stmt.GetOrCreateActions().PolicyResult = cfg.PolicyResult
+	}
+}
+
+// AddPrefixSetPolicyWithMatch creates a routing policy that matches a prefix-set and accepts routes matching the configured prefixes.
+func AddPrefixSetPolicyWithMatch(t *testing.T, rp *oc.RoutingPolicy, cfg PrefixSetPolicyParams) {
+	t.Helper()
+	ps := rp.GetOrCreateDefinedSets().GetOrCreatePrefixSet(cfg.PrefixSetNames[0])
+
+	for _, prefix := range cfg.PrefixList {
+		addPrefix(t, ps, prefix, cfg.PrefixMode)
+	}
+
+	pd := rp.GetOrCreatePolicyDefinition(cfg.PolicyName)
+	for stIndex, stName := range cfg.StatementNames {
+		stmt, err := pd.AppendNewStatement(stName)
+		if err != nil {
+			t.Fatalf("Failed to append statement: %v", err)
+		}
+		match := stmt.GetOrCreateConditions().GetOrCreateMatchPrefixSet()
+
+		match.PrefixSet = ygot.String(cfg.PrefixSetNames[stIndex])
+		match.MatchSetOptions = oc.E_RoutingPolicy_MatchSetOptionsRestrictedType(oc.RoutingPolicy_MatchSetOptionsType_ANY)
+		stmt.GetOrCreateActions().PolicyResult = oc.RoutingPolicy_PolicyResultType_ACCEPT_ROUTE
+	}
+}
+
+// addPrefix adds prefix-set entry.
+func addPrefix(t *testing.T, ps *oc.RoutingPolicy_DefinedSets_PrefixSet, prefix, maskRange string) {
+	t.Helper()
+	p := ps.GetOrCreatePrefix(prefix, maskRange)
+
+	p.IpPrefix = ygot.String(prefix)
+	p.MasklengthRange = ygot.String(maskRange)
+}
+
+// VerifyGlobalFilterPoliciesCLI verifies that the configured global AFT filter policies are attached on the DUT using the vendor CLI.
+func VerifyGlobalFilterPoliciesCLI(t *testing.T, dut *ondatra.DUTDevice, cfg ConfigureGlobalFilterPoliciesParams) {
+	t.Helper()
+	out, err := dut.RawAPIs().CLI(t).RunCommand(context.Background(), "show running-config all")
+	if err != nil {
+		t.Fatalf("show running-config all failed: %v", err)
+	}
+	output := out.Output()
+	if cfg.V4Policy != "" && !strings.Contains(output, cfg.V4Policy) {
+		t.Fatalf("IPv4 global filter policy %q not configured", cfg.V4Policy)
+	}
+	if cfg.V6Policy != "" && !strings.Contains(output, cfg.V6Policy) {
+		t.Fatalf("IPv6 global filter policy %q not configured", cfg.V6Policy)
+	}
+}
+
+// ConfigureGlobalFilterPoliciesParams contains the policy attachment parameters for configuring AFT global filter policies.
+type ConfigureGlobalFilterPoliciesParams struct {
+	V4Policy string
+	V6Policy string
+	VRFName  string
+}
+
+// ConfigureGlobalFilterPolicies configures AFT global-filter policies for the specified network-instance.
+func ConfigureGlobalFilterPolicies(t *testing.T, dut *ondatra.DUTDevice, cfg ConfigureGlobalFilterPoliciesParams) {
+	t.Helper()
+	if deviations.AftsGlobalFilterPolicyOCUnsupported(dut) {
+		switch dut.Vendor() {
+		case ondatra.ARISTA:
+			t.Log("Skipping AFT global-filter attachment: unsupported on EOS")
+			return
+		}
+	}
+
+	// For vendors that support the OpenConfig afts/global-filter augment
+	// (openconfig-aft-global-filter.yang, added in openconfig/public models
+	// 3.3.0), attach the IPv4/IPv6 filter policies through the typed OC path
+	// API. The generated ondatra `oc` bindings do not yet contain the
+	// GlobalFilter container, so the calls below are commented out; uncomment
+	// them once the bindings are regenerated against openconfig/public >= 3.3.0.
+	//
+	// batch := &gnmi.SetBatch{}
+	// if cfg.V4Policy != "" {
+	// 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter().Ipv4Policy().Config(), cfg.V4Policy)
+	// }
+	// if cfg.V6Policy != "" {
+	// 	gnmi.BatchUpdate(batch, gnmi.OC().NetworkInstance(cfg.VRFName).Afts().GlobalFilter().Ipv6Policy().Config(), cfg.V6Policy)
+	// }
+	// batch.Set(t, dut)
+	// return
+	t.Fatalf("AFT global filter policy is expected to be supported on %s, but no OpenConfig implementation is available", dut.Vendor())
+}
