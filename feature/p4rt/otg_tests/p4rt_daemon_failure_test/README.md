@@ -40,6 +40,8 @@ paths:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
+  /network-instances/network-instance/config/name:
+  /network-instances/network-instance/config/type:
   /network-instances/network-instance/interfaces/interface/config/id:
   /network-instances/network-instance/interfaces/interface/config/interface:
   /network-instances/network-instance/interfaces/interface/config/subinterface:
