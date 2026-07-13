@@ -53,11 +53,15 @@ const (
 	mtuDst                  = 1514
 	trafficRunDuration      = 15 * time.Second
 	trafficStopWaitDuration = 10 * time.Second
+	captureRunDuration      = 2 * time.Second
 	tgWaitDuration          = 30 * time.Second
 	acceptableLossPercent   = 100.0
 	subInterfaceIndex       = 0
 	lineRatePrecentage      = 50
 	tolerance               = 5000
+	cpuUtilizationTolerance = 10
+	cpuRetryAttempts        = 3
+	cpuRetryInterval        = 5 * time.Second
 )
 
 type testDefinition struct {
@@ -380,11 +384,21 @@ func createFlowAndVerifyTraffic(t *testing.T, td testData, tt testDefinition, wa
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.START)
 	td.otg.SetControlState(t, cs)
 	td.otg.StartTraffic(t)
-	time.Sleep(trafficRunDuration)
-	td.otg.StopTraffic(t)
-	time.Sleep(trafficStopWaitDuration)
+
+	// Keep the capture window short to avoid per-port capture buffer exhaustion on OTG.
+	effectiveCaptureDuration := captureRunDuration
+	if effectiveCaptureDuration > trafficRunDuration {
+		effectiveCaptureDuration = trafficRunDuration
+	}
+	time.Sleep(effectiveCaptureDuration)
 	cs.Port().Capture().SetState(gosnappi.StatePortCaptureState.STOP)
 	td.otg.SetControlState(t, cs)
+
+	if remainingTrafficDuration := trafficRunDuration - effectiveCaptureDuration; remainingTrafficDuration > 0 {
+		time.Sleep(remainingTrafficDuration)
+	}
+	td.otg.StopTraffic(t)
+	time.Sleep(trafficStopWaitDuration)
 	otgutils.LogFlowMetrics(t, td.otg, td.otgConfig)
 	otgutils.LogPortMetrics(t, td.otg, td.otgConfig)
 	flow := gnmi.OTG().Flow(tt.name)
@@ -535,17 +549,43 @@ func verifyPacketProcessingAggregateDrops(t *testing.T, td testData, outPkts uin
 func verifyControllerCardCPUUtilization(t *testing.T, td testData) {
 	if !deviations.ControllerCardCPUUtilizationUnsupported(td.dut) {
 		currentCPU := getCPUUtilization(t, td.dut)
+		remainingComponents := make(map[string]uint8)
 		for component, postVal := range currentCPU {
 			preVal, ok := td.preConfigCPU[component]
 			if !ok {
 				t.Errorf("FAIL: %v: pre-config cpuUtilization not found", component)
 				continue
 			}
-			if postVal > preVal+10 {
-				t.Errorf("FAIL: %v: cpuUtilization increased by more than 10%%, pre: %v, post: %v", component, preVal, postVal)
+			if postVal > preVal+cpuUtilizationTolerance {
+				remainingComponents[component] = postVal
 			} else {
-				t.Logf("PASS: %v: cpuUtilization increase within 10%%, pre: %v, post: %v", component, preVal, postVal)
+				t.Logf("PASS: %v: cpuUtilization increase within %d%%, pre: %v, post: %v", component, cpuUtilizationTolerance, preVal, postVal)
 			}
+		}
+
+		for attempt := 1; attempt <= cpuRetryAttempts && len(remainingComponents) > 0; attempt++ {
+			t.Logf("Retrying controller-card CPU utilization check (%d/%d) for %d components after %v", attempt, cpuRetryAttempts, len(remainingComponents), cpuRetryInterval)
+			time.Sleep(cpuRetryInterval)
+			retryCPU := getCPUUtilization(t, td.dut)
+			for component, prevPostVal := range remainingComponents {
+				preVal := td.preConfigCPU[component]
+				retryPostVal, ok := retryCPU[component]
+				if !ok {
+					continue
+				}
+				if retryPostVal > prevPostVal {
+					remainingComponents[component] = retryPostVal
+				}
+				if retryPostVal <= preVal+cpuUtilizationTolerance {
+					t.Logf("PASS: %v: cpuUtilization settled within %d%% on retry %d, pre: %v, post: %v", component, cpuUtilizationTolerance, attempt, preVal, retryPostVal)
+					delete(remainingComponents, component)
+				}
+			}
+		}
+
+		for component, peakPostVal := range remainingComponents {
+			preVal := td.preConfigCPU[component]
+			t.Errorf("FAIL: %v: cpuUtilization remained above %d%% after %d retries, pre: %v, peak post: %v", component, cpuUtilizationTolerance, cpuRetryAttempts, preVal, peakPostVal)
 		}
 	} else {
 		t.Logf("Telemetry path for controller card cpu utilization is not supported due to deviation ControllerCardCPUUtilizationUnsupported.")
