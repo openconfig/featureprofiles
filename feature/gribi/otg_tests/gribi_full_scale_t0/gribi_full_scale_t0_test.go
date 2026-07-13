@@ -39,25 +39,6 @@ import (
 	"github.com/openconfig/featureprofiles/internal/fptest"
 )
 
-// ============================================================
-// Constants — T0-specific scale parameters (TE-14.3)
-// ============================================================
-
-const (
-	// pctNHG512T0 is the percentage of Default VRF NHGs with 1/512 granularity.
-	pctNHG512T0 = 80
-
-	// numRepairNHGT0 is the number of NHGs in REPAIR_VRF for T0.
-	numRepairNHGT0 = 500
-
-	// numEncapDefaultNHGT0 is the T3 scale target: NHGs in the default VRF
-	// that back encap VRF entries.
-	numEncapDefaultNHGT0 = 2_500
-
-	// numUniqueEncapNHT0 is the T4 scale target: total unique encap NHs.
-	numUniqueEncapNHT0 = 10_000
-)
-
 var (
 	enablePacketCapture = flag.Bool("enable_packet_capture", false, "Enable packet capture and deep packet inspection validation.")
 	compactOTGFlows     = flag.Bool("compact_otg_flows", true, "Compact OTG flows to reduce the number of flows due to OTG port limits.")
@@ -81,33 +62,32 @@ func TestMain(m *testing.M) {
 // traffic pass per sub-test.
 func TestGRIBIFullScaleT0(t *testing.T) {
 	params := cfgplugins.ScaleParams{
-		PctNHG512:          pctNHG512T0,
-		NumRepairNHG:       numRepairNHGT0,
-		NumEncapDefaultNHG: numEncapDefaultNHGT0,
-		NumUniqueEncapNH:   numUniqueEncapNHT0,
+		PctNHG512:          80,
+		NumRepairNHG:       500,
+		NumEncapDefaultNHG: 2_500,
+		NumUniqueEncapNH:   10_000,
 
 		NumDefaultNH:       1_000,
 		NumDefaultNHG:      1_000,
 		NumDefaultIPv4:     1_000,
-		NumTransitNHD1:     1536,
-		NumTransitNHD2:     1536,
-		NumTransitNHGE1:    768,
-		NumTransitNHGE2:    768,
+		NumTransitNHD1:     2_000,
+		NumTransitNHD2:     2_000,
+		NumTransitNHGE1:    1_000,
+		NumTransitNHGE2:    1_000,
 		NumTransitIPv4:     12_600,
 		NumRepairIPv4:      12_600,
 		NumEncapVRFs:       5,
 		NumEncapIPv4PerVRF: 10_000,
 		NumEncapIPv6PerVRF: 10_000,
-		NumDecapEntries:    48,
+		NumDecapEntries:    8,
 		TrafficDuration:    5 * time.Minute,
 		TrafficLossTol:     5,
 		TrafficRateMpps:    30_000_000,
 
-		NumPort1VLANs:       1,
 		NumPort2VLANs:       640,
 		PctEncap8NH:         75,
 		PctEncap32NH:        20,
-		DecapDestsSubsetPct: 10,
+		DecapDestsSubsetPct: 100,
 		GRIBIBatchSize:      2_000,
 	}
 	cfgplugins.RunFullScaleTest(t, params, *enablePacketCapture, *compactOTGFlows)
