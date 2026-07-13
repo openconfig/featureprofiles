@@ -253,9 +253,25 @@ type ScaleParams struct {
 	NumUniqueEncapNH   int
 	GRIBIBatchSize     int
 
-	NumDefaultNH       int
-	NumDefaultNHG      int
-	NumDefaultIPv4     int
+	// The number of NextHops in Default VRF egressing the switch.
+	// Each NH will point to a unique output VLAN subinterface.
+	// Based on ShutdownVLANPct, these NHs are virtually split in 2 sub-groups:
+	// 1) primary NHs pointing to VLANs that will NOT be shut down.
+	// 2) backup NHs pointing to VLANs that will be shut down during the repair tests.
+	NumDefaultNH int
+	// The number of NextHopGroups in Default VRF egressing the switch.
+	// Each NHG reference and load-balance across the NH created via `NumDefaultNH`.
+	// Also, virtually split into 2 sub-groups:
+	// 1) primary NHGs containing primary NHs.
+	// 2) backup NHGs containing backup NHs.
+	NumDefaultNHG int
+	// The number of fictitious IPv4 prefixes in Default VRF.
+	// Theese IP entries will be pointed by the transit routes.
+	// Each prefix points to a unique NHG. Also virtually split into 2 sub-groups:
+	// 1) primary prefixes pointing to primary NHGs.
+	// 2) backup prefixes pointing to backup NHGs.
+	NumDefaultIPv4 int
+
 	NumTransitNHD1     int
 	NumTransitNHD2     int
 	NumTransitNHGE1    int
@@ -1834,7 +1850,9 @@ func RunFullScaleTest(t *testing.T, params ScaleParams, enablePacketCapture, com
 	t.Log("Configuring ATE topology")
 	ateConfig, interfaceNamesList := ConfigureOTG(t, ate, dut, params)
 	ate.OTG().PushConfig(t, ateConfig)
+	time.Sleep(1 * time.Minute)
 	ate.OTG().StartProtocols(t)
+	time.Sleep(1 * time.Minute)
 
 	// Limiting it to 100 since checking ARP for 1024 interfaces takes long time
 	ifs := interfaceNamesList
