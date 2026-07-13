@@ -23,6 +23,150 @@ Ensure that data plane traffic is not interrupted by P4RT daemon failure.
     test tables only configure the control plane traffic. Instead, this test
     configures the data plane using gRIBI. 
 
+## Canonical OC
+
+```json
+{
+  "components": {
+    "component": [
+      {
+        "config": {
+          "name": "P4RT_NODE1"
+        },
+        "integrated-circuit": {
+          "config": {
+            "node-id": "111"
+          }
+        },
+        "name": "P4RT_NODE1"
+      },
+      {
+        "config": {
+          "name": "P4RT_NODE2"
+        },
+        "integrated-circuit": {
+          "config": {
+            "node-id": "222"
+          }
+        },
+        "name": "P4RT_NODE2"
+      }
+    ]
+  },
+  "interfaces": {
+    "interface": [
+      {
+        "config": {
+          "description": "P4RT to port1",
+          "enabled": true,
+          "name": "port1",
+          "type": "ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "port-speed": "SPEED_100GB"
+          }
+        },
+        "name": "port1",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.1",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.1"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "config": {
+          "description": "P4RT to port2",
+          "enabled": true,
+          "name": "port2",
+          "type": "ethernetCsmacd"
+        },
+        "ethernet": {
+          "config": {
+            "port-speed": "SPEED_100GB"
+          }
+        },
+        "name": "port2",
+        "subinterfaces": {
+          "subinterface": [
+            {
+              "config": {
+                "enabled": true,
+                "index": 0
+              },
+              "index": 0,
+              "ipv4": {
+                "addresses": {
+                  "address": [
+                    {
+                      "config": {
+                        "ip": "192.0.2.5",
+                        "prefix-length": 30
+                      },
+                      "ip": "192.0.2.5"
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "network-instances": {
+    "network-instance": [
+      {
+        "config": {
+          "name": "DEFAULT",
+          "type": "DEFAULT_INSTANCE"
+        },
+        "interfaces": {
+          "interface": [
+            {
+              "config": {
+                "id": "port1.0",
+                "interface": "port1",
+                "subinterface": 0
+              },
+              "id": "port1.0"
+            },
+            {
+              "config": {
+                "id": "port2.0",
+                "interface": "port2",
+                "subinterface": 0
+              },
+              "id": "port2.0"
+            }
+          ]
+        },
+        "name": "DEFAULT"
+      }
+    ]
+  }
+}
+```
+
 ## OpenConfig Path and RPC Coverage
 ```yaml
 paths:
