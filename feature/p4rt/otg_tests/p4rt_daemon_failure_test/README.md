@@ -32,11 +32,14 @@ paths:
   /interfaces/interface/config/enabled:
   /interfaces/interface/config/id:
   /interfaces/interface/config/type:
+  /interfaces/interface/state/id:
   /interfaces/interface/state/name:
   /interfaces/interface/subinterfaces/subinterface/ipv4/addresses/address/config/prefix-length:
   /interfaces/interface/subinterfaces/subinterface/ipv4/config/enabled:
   /network-instances/network-instance/afts/ipv4-unicast/ipv4-entry/state/prefix:
 rpcs:
+  gnoi:
+    system.System.KillProcess:
   gribi:
     gRIBI.Flush:
     gRIBI.Get:
