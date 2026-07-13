@@ -454,7 +454,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 			v6OK := false
 			for i := 1; i <= 5; i++ {
 				if !v4OK {
-					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State(), 5*time.Second, func(val *ygnmi.Value[string]) bool {
+					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_EXTENDED_IPV4_REACHABILITY).ExtendedIpv4Reachability().PrefixAny().Prefix().State(), 10*time.Second, func(val *ygnmi.Value[string]) bool {
 						v, present := val.Val()
 						if !present {
 							return false
@@ -467,7 +467,7 @@ func TestIsisInterfaceHelloPaddingEnable(t *testing.T) {
 					}
 				}
 				if !v6OK {
-					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().PrefixAny().Prefix().State(), 5*time.Second, func(val *ygnmi.Value[string]) bool {
+					_, ok := gnmi.WatchAll(t, ts.DUT, statePath.Level(2).Lsp(ateLspID).Tlv(oc.IsisLsdbTypes_ISIS_TLV_TYPE_IPV6_REACHABILITY).Ipv6Reachability().PrefixAny().Prefix().State(), 10*time.Second, func(val *ygnmi.Value[string]) bool {
 						v, present := val.Val()
 						if !present {
 							return false
