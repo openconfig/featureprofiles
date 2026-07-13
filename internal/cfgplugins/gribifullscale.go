@@ -366,8 +366,9 @@ func ConfigureDUT(t *testing.T, dut *ondatra.DUTDevice, params ScaleParams) {
 		p := portList[idx]
 		intf := a.NewOCInterface(p.Name(), dut)
 		if !deviations.OmitL2MTU(dut) && a.MTU > 0 {
-			ethernetHeaderSize := uint16(14)
-			intf.Mtu = ygot.Uint16(uint16(a.MTU) + ethernetHeaderSize)
+			// Physical MTU (L2) = L3 MTU + Ethernet header size (14) + VLAN ID (4) + FrameCheckSequence (4) = 22 bytes
+			l2MTUDiff := uint16(22)
+			intf.Mtu = ygot.Uint16(uint16(a.MTU) + l2MTUDiff)
 		}
 		if deviations.NoMixOfTaggedAndUntaggedSubinterfaces(dut) {
 			s := intf.GetOrCreateSubinterface(a.Subinterface)
@@ -1006,7 +1007,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 	// DECAP_TE_VRF entries use variable prefix lengths — not host routes.
 	for i := 0; i < params.NumDecapEntries; i++ {
 		prefixLen := decapPrefixLens[i%len(decapPrefixLens)]
-		pfx := fmt.Sprintf("203.%d.%d.1/%d", i/4, (i%4)*64, prefixLen)
+		pfx := fmt.Sprintf("203.%d.%d.0/%d", i/4, (i%4)*64, prefixLen)
 		nhIdx := NHBaseDecap + uint64(i)
 		nhgIdx := NHGBaseDecap + uint64(i)
 		decapNH, _ := gribi.NHEntry(nhIdx, "Decap", defaultVRF, fluent.InstalledInFIB)
@@ -1211,6 +1212,7 @@ func createIPv4InIPv4Flow(newFlow func(string) gosnappi.Flow, name, dstMac, oute
 	inner := f.Packet().Add().Ipv4()
 	inner.Src().SetValue(ATEPort1IPv4)
 	setIPv4Dst(inner.Dst(), innerDst)
+	inner.Priority().Dscp().Phb().SetValues(dscpVals)
 
 	return f
 }
@@ -1314,6 +1316,7 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 			i4 := f4.Packet().Add().Ipv4()
 			i4.Src().SetValue(ATEPort1IPv4)
 			i4.Dst().Increment().SetStart(fmt.Sprintf("200.%d.0.1", vi)).SetStep(CommonPrefixStep).SetCount(uint32(params.NumEncapIPv4PerVRF))
+			i4.Priority().Dscp().Phb().SetValues(dscpVals)
 
 			flows = append(flows, f4)
 
@@ -1331,6 +1334,10 @@ func BuildReencapFlows(top gosnappi.Config, pktSize uint32, pps uint64, imix boo
 			i6 := f6.Packet().Add().Ipv6()
 			i6.Src().SetValue(EncapIPv6InnerSrc)
 			i6.Dst().Increment().SetStart(fmt.Sprintf("2001:db8:%x::1", vi)).SetStep(CommonIPv6PrefixStep).SetCount(uint32(params.NumEncapIPv6PerVRF))
+			i6.TrafficClass().SetValues([]uint32{
+				uint32(d1) << 2,
+				uint32(d2) << 2,
+			})
 
 			flows = append(flows, f6)
 		}
