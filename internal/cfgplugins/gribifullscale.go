@@ -977,10 +977,9 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 		t.Fatalf("BuildEncapDecapVRFs: generate encap NH tunnel dsts: %v", err)
 	}
 
-	// Fallback NH point to the default VRF.
+	// Fallback NH points to the default VRF.
 	fallbackNHID := uint64(NHBaseEncap)
-	fallbackNH := fluent.NextHopEntry().WithNetworkInstance(defaultVRF).
-		WithIndex(fallbackNHID).WithNextHopNetworkInstance(defaultVRF)
+	fallbackNH, _ := gribi.NHEntry(fallbackNHID, "VRFOnly", defaultVRF, fluent.InstalledInFIB, &gribi.NHOptions{VrfName: defaultVRF})
 	allEntries = append(allEntries, fallbackNH)
 
 	// Encap NHs point to the transit VRF.
