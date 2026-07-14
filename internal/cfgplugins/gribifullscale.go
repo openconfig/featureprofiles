@@ -992,8 +992,7 @@ func BuildEncapDecapVRFs(t *testing.T, dut *ondatra.DUTDevice, ctx context.Conte
 
 	// Fallback NHG points to the fallback NH.
 	fallbackNHGID := uint64(NHGBaseEncap)
-	fallbackNHG := fluent.NextHopGroupEntry().WithNetworkInstance(defaultVRF).
-		WithID(fallbackNHGID).AddNextHop(fallbackNHID, 1)
+	fallbackNHG, _ := gribi.NHGEntry(fallbackNHGID, map[uint64]uint64{fallbackNHID: 1}, defaultVRF, fluent.InstalledInFIB)
 	allEntries = append(allEntries, fallbackNHG)
 	nhgIdx := fallbackNHGID + 1
 
