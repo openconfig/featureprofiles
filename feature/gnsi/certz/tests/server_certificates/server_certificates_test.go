@@ -54,6 +54,43 @@ func TestMain(m *testing.M) {
 	fptest.RunTests(m)
 }
 
+// verifyServices explicitly validates connections for all required gRPC services: gNMI, gNOI, gNSI, gRIBI, and P4RT.
+// For Certz-2.1 positive tests, it verifies that connections are established and certificates are trusted by both client and server.
+// For Certz-2.2 negative tests (when mismatch is true), it explicitly verifies Step 4 (that the client certificate is untrusted and cannot be used)
+// and Step 5 (that the connection is properly torn down by the DUT).
+func verifyServices(t *testing.T, caCert *x509.CertPool, expectedResult bool, san, serverAddr, username, password string, cert tls.Certificate, mismatch bool) bool {
+	t.Helper()
+	if mismatch {
+		t.Logf("%s: Verifying Certz-2.2 Step 4 & 5: untrusted client certificate cannot be used and connection is properly torn down by DUT across gNMI, gNOI, gNSI, gRIBI, and P4RT.", time.Now().String())
+	} else {
+		t.Logf("%s: Verifying Certz-2.1: trusted connection established across gNMI, gNOI, gNSI, gRIBI, and P4RT.", time.Now().String())
+	}
+	if result := setupService.VerifyGnmi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNMI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setupService.VerifyGnoi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNOI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setupService.VerifyGnsi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gNSI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setupService.VerifyGribi(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("gRIBI service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if result := setupService.VerifyP4rt(t, caCert, san, serverAddr, username, password, cert, mismatch); !result {
+		t.Errorf("P4RT service validation failed: got %v, want %v", result, expectedResult)
+		return false
+	}
+	if mismatch {
+		t.Logf("Certz-2.2 Step 5 verified: connections properly torn down by DUT.")
+	}
+	return true
+}
+
 // TestServerCert tests the server certificates from a set of one CA are able to be validated and
 // used for authentication to a device when used by a client connecting to each
 // gRPC service.
